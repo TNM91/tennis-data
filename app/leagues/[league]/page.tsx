@@ -480,7 +480,7 @@ export default function LeagueDetailPage() {
 
   const dynamicMiniGrid: CSSProperties = {
     ...miniGrid,
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
   }
 
   const dynamicMatchTop: CSSProperties = {
@@ -694,16 +694,16 @@ export default function LeagueDetailPage() {
         </div>
 
         {matchQualityStats.total > 0 ? (
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginTop: 16 }}>
+          <div style={matchQualityRowStyle}>
             {[
               { label: 'Dominant (6-0 set)', count: matchQualityStats.dominant, color: '#d9f84a', bg: 'rgba(155,225,29,0.10)', border: 'rgba(155,225,29,0.20)' },
               { label: 'Tiebreak (7-6 set)', count: matchQualityStats.tiebreak, color: '#fed7aa', bg: 'rgba(251,146,60,0.10)', border: 'rgba(251,146,60,0.20)' },
               { label: '3-set battles', count: matchQualityStats.threeSets, color: '#93c5fd', bg: 'rgba(116,190,255,0.10)', border: 'rgba(116,190,255,0.20)' },
               { label: 'Missing scores', count: matchQualityStats.missingScore, color: matchQualityStats.missingScore > 0 ? '#fca5a5' : 'var(--shell-copy-muted)', bg: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', border: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.08)' },
             ].map((item) => (
-              <div key={item.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 999, background: item.bg, border: `1px solid ${item.border}` }}>
-                <span style={{ fontSize: 15, fontWeight: 900, color: item.color }}>{item.count}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--shell-copy-muted)' }}>{item.label}</span>
+              <div key={item.label} style={matchQualityPillStyle(item.bg, item.border)}>
+                <span style={matchQualityCountStyle(item.color)}>{item.count}</span>
+                <span style={matchQualityLabelStyle}>{item.label}</span>
               </div>
             ))}
           </div>
@@ -783,14 +783,14 @@ export default function LeagueDetailPage() {
           ) : (
             <>
               {topPerformers.length > 0 ? (
-                <section style={{ marginBottom: 24 }}>
-                  <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 14 }}>Top performers</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))', gap: 10 }}>
+                <section style={topPerformersSectionStyle}>
+                  <div style={topPerformersKickerStyle}>Top performers</div>
+                  <div style={topPerformersGridStyle}>
                     {topPerformers.map((p, i) => {
                       const winPct = p.appearances > 0 ? Math.round((p.wins / p.appearances) * 100) : 0
                       return (
-                        <Link key={p.id} href={`/players/${p.id}`} style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, padding: '12px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', textDecoration: 'none' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Link key={p.id} href={`/players/${p.id}`} style={topPerformerCardStyle}>
+                          <div style={topPerformerHeaderStyle}>
                             <span style={{ color: 'rgba(190,210,240,0.4)', fontSize: 11, fontWeight: 800 }}>#{i + 1}</span>
                             <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : 'rgba(255,255,255,0.04)', color: winPct >= 60 ? '#d9f84a' : 'var(--shell-copy-muted)', border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.18)' : 'rgba(255,255,255,0.08)'}` }}>{winPct}%</span>
                           </div>
@@ -812,13 +812,13 @@ export default function LeagueDetailPage() {
                       Standings-style season snapshot for each team in this league.
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <div style={standingsViewToggleRowStyle}>
                     {(['cards', 'table'] as const).map((v) => (
                       <button
                         key={v}
                         type="button"
                         onClick={() => setStandingsView(v)}
-                        style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer', background: standingsView === v ? 'rgba(116,190,255,0.12)' : 'transparent', border: `1px solid ${standingsView === v ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`, color: standingsView === v ? '#bfdbfe' : 'var(--shell-copy-muted)' }}
+                        style={standingsViewToggleButtonStyle(standingsView === v)}
                       >
                         {v === 'cards' ? 'Cards' : 'Table'}
                       </button>
@@ -853,7 +853,7 @@ export default function LeagueDetailPage() {
                               <td style={standingsTableCellStyle}>
                                 <div style={standingsTeamCellContentStyle}>
                                   <Link href={teamHref} style={standingsTeamLinkStyle}>{team.name}</Link>
-                                  {isLeader && team.wins > 0 ? <span style={{ padding: '2px 7px', borderRadius: 999, background: 'rgba(155,225,29,0.10)', border: '1px solid rgba(155,225,29,0.20)', color: '#d9f84a', fontSize: 10, fontWeight: 800 }}>Leader</span> : null}
+                                  {isLeader && team.wins > 0 ? <span style={leaderPillStyle}>Leader</span> : null}
                                 </div>
                               </td>
                               <td style={standingsTableWinCellStyle}>{team.wins}</td>
@@ -895,10 +895,10 @@ export default function LeagueDetailPage() {
 
                       <div style={dynamicTeamTop}>
                         <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <div style={teamRankRowStyle}>
                             <div style={teamRank}>#{index + 1}</div>
                             {isLeader && team.wins > 0 ? (
-                              <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(155,225,29,0.10)', border: '1px solid rgba(155,225,29,0.20)', color: '#d9f84a', fontSize: 11, fontWeight: 800 }}>League leader</span>
+                              <span style={leaderPillStyle}>League leader</span>
                             ) : null}
                           </div>
                           <div style={teamName}>{team.name}</div>
@@ -920,11 +920,11 @@ export default function LeagueDetailPage() {
 
                       {team.completedMatches > 0 ? (
                         <div style={{ marginBottom: 12 }}>
-                          <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 8, background: 'rgba(255,255,255,0.06)', marginBottom: 5 }}>
+                          <div style={teamWinBarStyle}>
                             <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.7),rgba(74,222,128,0.7))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
                             <div style={{ flex: 1, background: 'rgba(239,68,68,0.25)' }} />
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <div style={teamWinPercentRowStyle}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(155,225,29,0.8)' }}>{winPct}% W</span>
                             <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(239,68,68,0.7)' }}>{100 - winPct}% L</span>
                           </div>
@@ -1085,11 +1085,13 @@ const pageContent: CSSProperties = {
   padding: '18px 24px 0',
   display: 'grid',
   gap: '18px',
+  minWidth: 0,
 }
 
 const heroShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
+  minWidth: 0,
   borderRadius: '34px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
@@ -1101,6 +1103,7 @@ const heroShell: CSSProperties = {
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
+  maxWidth: '100%',
   alignItems: 'center',
   padding: '7px 11px',
   borderRadius: '999px',
@@ -1111,6 +1114,8 @@ const eyebrow: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -1118,6 +1123,7 @@ const heroTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -1125,6 +1131,7 @@ const heroText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const heroHintRow: CSSProperties = {
@@ -1132,6 +1139,7 @@ const heroHintRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '16px',
+  minWidth: 0,
 }
 
 const heroMetaRow: CSSProperties = {
@@ -1139,11 +1147,13 @@ const heroMetaRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '8px',
   marginTop: '14px',
+  minWidth: 0,
 }
 
 const heroMetaBluePill: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
@@ -1153,6 +1163,8 @@ const heroMetaBluePill: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroMetaGreenPill: CSSProperties = {
@@ -1167,6 +1179,7 @@ const heroMetaSlatePill: CSSProperties = {
 }
 
 const heroHintPill: CSSProperties = {
+  maxWidth: '100%',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
@@ -1174,6 +1187,7 @@ const heroHintPill: CSSProperties = {
   padding: '10px 14px',
   fontSize: '13px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const heroActions: CSSProperties = {
@@ -1181,6 +1195,7 @@ const heroActions: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '12px',
+  minWidth: 0,
 }
 
 const seasonToolsCard: CSSProperties = {
@@ -1189,6 +1204,7 @@ const seasonToolsCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const seasonToolsLabel: CSSProperties = {
@@ -1207,6 +1223,7 @@ const seasonToolsValue: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const seasonToolsText: CSSProperties = {
@@ -1215,6 +1232,7 @@ const seasonToolsText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const seasonToolsActions: CSSProperties = {
@@ -1222,13 +1240,15 @@ const seasonToolsActions: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
+  minWidth: 0,
 }
 
 const seasonToolsQuickActionGrid: CSSProperties = {
   marginTop: '18px',
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const seasonQuickActionButton: CSSProperties = {
@@ -1244,6 +1264,11 @@ const seasonQuickActionButton: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 700,
   fontSize: '13px',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const ghostButton: CSSProperties = {
@@ -1259,16 +1284,24 @@ const ghostButton: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const miniPillBase: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
   fontSize: '12px',
   fontWeight: 800,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const miniPillSlate: CSSProperties = {
@@ -1301,6 +1334,7 @@ const signalCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const signalLabelStyle: CSSProperties = {
@@ -1317,6 +1351,7 @@ const signalValueStyle: CSSProperties = {
   fontSize: '1.28rem',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -1324,6 +1359,7 @@ const signalNoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontSize: '.94rem',
+  overflowWrap: 'anywhere',
 }
 
 const metricCard: CSSProperties = {
@@ -1347,6 +1383,7 @@ const metricLabel: CSSProperties = {
   fontWeight: 750,
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
 }
 
 const metricValue: CSSProperties = {
@@ -1356,6 +1393,7 @@ const metricValue: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const panelCard: CSSProperties = {
@@ -1387,6 +1425,7 @@ const leagueDiscoveryCopyStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const leagueDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
@@ -1406,6 +1445,7 @@ const leagueDiscoveryCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--card-border-soft)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
 }
 
 const leagueDiscoveryLabelStyle: CSSProperties = {
@@ -1422,6 +1462,7 @@ const leagueDiscoveryCardTitleStyle: CSSProperties = {
   lineHeight: 1.14,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leagueDiscoveryCardTextStyle: CSSProperties = {
@@ -1429,6 +1470,7 @@ const leagueDiscoveryCardTextStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.6,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const leagueDiscoveryCtaStyle: CSSProperties = {
@@ -1436,6 +1478,7 @@ const leagueDiscoveryCtaStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const stateBox: CSSProperties = {
@@ -1449,6 +1492,7 @@ const stateBox: CSSProperties = {
   fontWeight: 600,
   textAlign: 'center',
   boxShadow: 'var(--shadow-soft)',
+  overflowWrap: 'anywhere',
 }
 
 const errorBox: CSSProperties = {
@@ -1467,6 +1511,7 @@ const stateHelperText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const stateActionRow: CSSProperties = {
@@ -1475,6 +1520,7 @@ const stateActionRow: CSSProperties = {
   justifyContent: 'center',
   gap: '10px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionHead: CSSProperties = {
@@ -1483,6 +1529,7 @@ const sectionHead: CSSProperties = {
   gap: '16px',
   flexWrap: 'wrap',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const sectionKicker: CSSProperties = {
@@ -1500,6 +1547,7 @@ const sectionTitle: CSSProperties = {
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionSub: CSSProperties = {
@@ -1508,11 +1556,52 @@ const sectionSub: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
+}
+
+const matchQualityRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  marginTop: 16,
+  minWidth: 0,
+}
+
+function matchQualityPillStyle(background: string, border: string): CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: '100%',
+    minWidth: 0,
+    padding: '7px 12px',
+    borderRadius: 999,
+    background,
+    border: `1px solid ${border}`,
+    overflowWrap: 'anywhere',
+    whiteSpace: 'normal',
+  }
+}
+
+function matchQualityCountStyle(color: string): CSSProperties {
+  return {
+    fontSize: 15,
+    fontWeight: 900,
+    color,
+  }
+}
+
+const matchQualityLabelStyle: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: 'var(--shell-copy-muted)',
+  overflowWrap: 'anywhere',
 }
 
 const teamGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
+  minWidth: 0,
 }
 
 const teamCard: CSSProperties = {
@@ -1544,6 +1633,7 @@ const teamTop: CSSProperties = {
   gap: '12px',
   alignItems: 'flex-start',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const teamCardActionRow: CSSProperties = {
@@ -1551,6 +1641,16 @@ const teamCardActionRow: CSSProperties = {
   gap: '8px',
   flexWrap: 'wrap',
   justifyContent: 'flex-end',
+  minWidth: 0,
+}
+
+const teamRankRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  marginBottom: 4,
+  minWidth: 0,
 }
 
 const teamRank: CSSProperties = {
@@ -1578,6 +1678,50 @@ const teamRecord: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.5,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const topPerformersSectionStyle: CSSProperties = {
+  marginBottom: 24,
+  minWidth: 0,
+}
+
+const topPerformersKickerStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontWeight: 800,
+  fontSize: 12,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: 14,
+  overflowWrap: 'anywhere',
+}
+
+const topPerformersGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const topPerformerCardStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 16,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  textDecoration: 'none',
+}
+
+const topPerformerHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const topPerformerMetaStyle: CSSProperties = {
@@ -1589,6 +1733,7 @@ const topPerformerMetaStyle: CSSProperties = {
 const standingsTableScrollStyle: CSSProperties = {
   overflowX: 'auto',
   overscrollBehaviorX: 'contain',
+  WebkitOverflowScrolling: 'touch',
   borderRadius: 20,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -1621,6 +1766,7 @@ const standingsTableCellStyle: CSSProperties = {
   fontSize: 14,
   fontWeight: 600,
   borderTop: '1px solid var(--shell-panel-border)',
+  overflowWrap: 'anywhere',
 }
 
 const standingsTableMutedCellStyle: CSSProperties = {
@@ -1650,6 +1796,7 @@ const standingsTeamCellContentStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
+  flexWrap: 'wrap',
   minWidth: 0,
 }
 
@@ -1659,6 +1806,64 @@ const standingsTeamLinkStyle: CSSProperties = {
   fontSize: 14,
   textDecoration: 'none',
   overflowWrap: 'anywhere',
+}
+
+const standingsViewToggleRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  flexShrink: 1,
+  minWidth: 0,
+}
+
+function standingsViewToggleButtonStyle(active: boolean): CSSProperties {
+  return {
+    padding: '7px 14px',
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: 'pointer',
+    background: active ? 'rgba(116,190,255,0.12)' : 'transparent',
+    border: `1px solid ${active ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`,
+    color: active ? '#bfdbfe' : 'var(--shell-copy-muted)',
+    maxWidth: '100%',
+    minWidth: 0,
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+  }
+}
+
+const leaderPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  maxWidth: '100%',
+  padding: '2px 8px',
+  borderRadius: 999,
+  background: 'rgba(155,225,29,0.10)',
+  border: '1px solid rgba(155,225,29,0.20)',
+  color: '#d9f84a',
+  fontSize: 11,
+  fontWeight: 800,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const teamWinBarStyle: CSSProperties = {
+  display: 'flex',
+  borderRadius: 999,
+  overflow: 'hidden',
+  height: 8,
+  background: 'rgba(255,255,255,0.06)',
+  marginBottom: 5,
+  minWidth: 0,
+}
+
+const teamWinPercentRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const primaryButton: CSSProperties = {
@@ -1675,7 +1880,11 @@ const primaryButton: CSSProperties = {
   fontSize: '13px',
   letterSpacing: '0.01em',
   textDecoration: 'none',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
@@ -1692,12 +1901,17 @@ const tableActionLink: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   textDecoration: 'none',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const miniGrid: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const miniStatCard: CSSProperties = {
@@ -1713,6 +1927,7 @@ const miniStatLabel: CSSProperties = {
   fontSize: '12px',
   fontWeight: 700,
   marginBottom: '6px',
+  overflowWrap: 'anywhere',
 }
 
 const miniStatValue: CSSProperties = {
@@ -1726,6 +1941,7 @@ const miniStatValue: CSSProperties = {
 const filterWrap: CSSProperties = {
   width: '260px',
   maxWidth: '100%',
+  minWidth: 0,
 }
 
 const inputLabel: CSSProperties = {
@@ -1736,6 +1952,7 @@ const inputLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const selectStyle: CSSProperties = {
@@ -1750,6 +1967,7 @@ const selectStyle: CSSProperties = {
   fontWeight: 700,
   outline: 'none',
   colorScheme: 'normal',
+  minWidth: 0,
 }
 
 const clearFilterButton: CSSProperties = {
@@ -1765,12 +1983,18 @@ const clearFilterButton: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const matchList: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '14px',
+  minWidth: 0,
 }
 
 const matchCard: CSSProperties = {
@@ -1779,6 +2003,7 @@ const matchCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const matchTop: CSSProperties = {
@@ -1786,6 +2011,7 @@ const matchTop: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'flex-start',
+  minWidth: 0,
 }
 
 const matchTitle: CSSProperties = {
@@ -1804,6 +2030,7 @@ const matchMeta: CSSProperties = {
   fontWeight: 500,
   marginTop: '6px',
   textTransform: 'capitalize',
+  overflowWrap: 'anywhere',
 }
 
 const winnerPill: CSSProperties = {
@@ -1819,7 +2046,10 @@ const winnerPill: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: '0.02em',
+  maxWidth: '100%',
+  minWidth: 0,
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const matchBottom: CSSProperties = {
@@ -1830,6 +2060,7 @@ const matchBottom: CSSProperties = {
   marginTop: '14px',
   paddingTop: '14px',
   borderTop: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const scoreText: CSSProperties = {
@@ -1837,6 +2068,7 @@ const scoreText: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.2,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const subMeta: CSSProperties = {
@@ -1844,6 +2076,7 @@ const subMeta: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 function GhostLink({ href, children }: { href: string; children: ReactNode }) {
