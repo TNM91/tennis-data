@@ -1127,7 +1127,7 @@ export default function TeamPage() {
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
     padding: isMobile ? '26px 18px' : '34px 26px',
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.2fr) minmax(min(100%, 300px), 0.85fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.2fr) minmax(min(100%, 300px), 0.85fr)',
     gap: isMobile ? '18px' : '22px',
   }
 
@@ -1139,7 +1139,7 @@ export default function TeamPage() {
   const dynamicMetricGrid: CSSProperties = {
     ...metricGridStyle,
     gridTemplateColumns: isSmallMobile
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : isTablet
         ? 'repeat(2, minmax(0, 1fr))'
         : 'repeat(4, minmax(0, 1fr))',
@@ -1147,7 +1147,7 @@ export default function TeamPage() {
 
   const dynamicCardGrid: CSSProperties = {
     ...cardGridStyle,
-    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   }
 
   const dynamicHeroActions: CSSProperties = {
@@ -1654,8 +1654,8 @@ export default function TeamPage() {
                 </div>
                 <span style={{ padding: '4px 12px', borderRadius: 999, background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>{opponentAnalysis.length} opponent{opponentAnalysis.length !== 1 ? 's' : ''}</span>
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ ...dataTable, minWidth: 420 }}>
+              <div style={tableWrap}>
+                <table style={{ ...dataTable, minWidth: 'min(100%, 420px)' }}>
                   <thead>
                     <tr>
                       {['Opponent', 'W', 'L', 'Win %', 'Matches', 'Last met'].map((h) => (
@@ -2318,9 +2318,10 @@ const summaryHintSmall: CSSProperties = {
 
 const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: '14px',
   gridColumn: '1 / -1',
+  minWidth: 0,
 })
 
 const signalCardStyle: CSSProperties = {
@@ -2329,6 +2330,7 @@ const signalCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const signalLabelStyle: CSSProperties = {
@@ -2357,6 +2359,7 @@ const signalNoteStyle: CSSProperties = {
 const metricGridStyle: CSSProperties = {
   display: 'grid',
   gap: '14px',
+  minWidth: 0,
 }
 
 const metricCard: CSSProperties = {
@@ -2365,6 +2368,7 @@ const metricCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const metricLabel: CSSProperties = {
@@ -2394,6 +2398,7 @@ const metricSubtle: CSSProperties = {
 const cardGridStyle: CSSProperties = {
   display: 'grid',
   gap: '18px',
+  minWidth: 0,
 }
 
 const surfaceCard: CSSProperties = {
@@ -2416,6 +2421,7 @@ const teamDiscoveryPanelStyle: CSSProperties = {
   gridColumn: '1 / -1',
   display: 'grid',
   gap: '16px',
+  minWidth: 0,
 }
 
 const teamDiscoveryHeaderStyle: CSSProperties = {
@@ -2435,8 +2441,9 @@ const teamDiscoveryCopyStyle: CSSProperties = {
 
 const teamDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: '12px',
+  minWidth: 0,
 })
 
 const teamDiscoveryCardStyle: CSSProperties = {
@@ -2450,6 +2457,7 @@ const teamDiscoveryCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--card-border-soft)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
 }
 
 const teamDiscoveryLabelStyle: CSSProperties = {
@@ -2725,6 +2733,9 @@ const listLinkCard: CSSProperties = {
 const tableWrap: CSSProperties = {
   width: '100%',
   overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  WebkitOverflowScrolling: 'touch',
+  minWidth: 0,
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -2733,6 +2744,7 @@ const tableWrap: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
+  minWidth: 'min(100%, 620px)',
 }
 
 const tableHeaderCell: CSSProperties = {
