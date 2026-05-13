@@ -37,6 +37,13 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain("overflowWrap: 'anywhere'")
   })
 
+  it('keeps operating flow numbers readable in dark and light mode', () => {
+    expect(source).toContain('const operatingFlowNumberStyle: CSSProperties')
+    expect(source).toContain("background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'")
+    expect(source).toContain("color: 'var(--foreground-strong)'")
+    expect(source).not.toContain("background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',\n  color: 'var(--text-dark)'")
+  })
+
   it('keeps scheduling and scoring rules explicit in setup', () => {
     expect(source).toContain('Standard Score')
     expect(source).toContain('Season guardrails')
