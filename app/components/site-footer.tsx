@@ -53,13 +53,14 @@ export default function SiteFooter() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isTablet ? '1fr' : 'minmax(min(100%, 320px), 1fr) auto',
+            gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(min(100%, 320px), 1fr) auto',
             gap: isMobile ? 14 : 18,
             alignItems: 'center',
+            minWidth: 0,
           }}
         >
-          <div style={{ display: 'grid', gap: 10 }}>
-            <Link href="/" aria-label="TenAceIQ home" style={{ width: 'fit-content' }}>
+          <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
+            <Link href="/" aria-label="TenAceIQ home" style={{ width: 'fit-content', maxWidth: '100%' }}>
               <BrandWordmark footer />
             </Link>
 
@@ -67,10 +68,12 @@ export default function SiteFooter() {
               style={{
                 margin: 0,
                 maxWidth: '540px',
+                minWidth: 0,
                 color: 'var(--footer-text)',
                 fontSize: '14px',
                 lineHeight: 1.5,
                 fontWeight: 600,
+                overflowWrap: 'anywhere',
               }}
             >
               Find what matters. Personalize the read. Compare the next match. Go play.
@@ -143,11 +146,12 @@ export default function SiteFooter() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isTablet ? '1fr' : '1fr auto',
+            gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
             gap: isMobile ? 10 : 16,
             alignItems: 'center',
             paddingTop: 10,
             borderTop: '1px solid rgba(116, 190, 255, 0.08)',
+            minWidth: 0,
           }}
         >
 
@@ -157,6 +161,7 @@ export default function SiteFooter() {
               flexWrap: 'wrap',
               gap: '10px 14px',
               alignItems: 'center',
+              minWidth: 0,
             }}
           >
             {META_LINKS.map((item) => (
@@ -178,6 +183,8 @@ export default function SiteFooter() {
             lineHeight: 1.6,
             fontWeight: 600,
             letterSpacing: '0.02em',
+            minWidth: 0,
+            overflowWrap: 'anywhere',
           }}
         >
           {'\u00A9'} {new Date().getFullYear()} TenAceIQ. Data. Insight. Competitive advantage.
@@ -230,10 +237,11 @@ const footerJourneyGridStyle = (isMobile: boolean) => ({
 
 const footerJourneyCardStyle = (isMobile: boolean) => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'auto minmax(0, 1fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
   justifyItems: isMobile ? 'center' : 'start',
   gap: isMobile ? '6px' : '12px',
   alignItems: 'center',
+  minWidth: 0,
   minHeight: isMobile ? '78px' : '72px',
   padding: isMobile ? '10px 8px' : '12px 14px',
   borderRadius: '14px',
@@ -271,6 +279,8 @@ const footerJourneyTextStyle = {
   display: 'grid',
   gap: '2px',
   lineHeight: 1.12,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 } as const
 
 const footerJourneyLabelStyle = (isMobile: boolean) => ({
@@ -301,6 +311,7 @@ const footerNavLinkStyle = {
   lineHeight: 1.5,
   fontWeight: 700,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 } as const
 
 const footerSectionTitleStyle = {
@@ -318,6 +329,7 @@ const footerMetaLinkStyle = {
   lineHeight: 1.5,
   fontWeight: 700,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 } as const
 
 const backToTopStyle = {
@@ -330,4 +342,5 @@ const backToTopStyle = {
   fontSize: '13px',
   fontWeight: 800,
   cursor: 'pointer',
+  whiteSpace: 'normal',
 } as const
