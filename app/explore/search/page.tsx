@@ -397,12 +397,12 @@ export default function ExploreSearchPage() {
             }}
           />
 
-          <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 12 }}>
+          <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 12, minWidth: 0 }}>
             <div style={sectionKicker}>Unified Explore Search</div>
-            <h1 style={{ ...pageTitle, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 0.95 }}>
+            <h1 style={{ ...pageTitle, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 0.95, overflowWrap: 'anywhere' }}>
               Search once. See the right layer faster.
             </h1>
-            <p style={{ ...pageSubtitle, marginTop: 0, maxWidth: 840 }}>
+            <p style={{ ...pageSubtitle, marginTop: 0, maxWidth: 840, overflowWrap: 'anywhere' }}>
               Find players, teams, leagues, flights, areas, and My Lab prep paths from one place.
             </p>
           </div>
@@ -413,12 +413,13 @@ export default function ExploreSearchPage() {
               position: 'relative',
               zIndex: 1,
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) auto',
+              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'minmax(0, 1fr)' : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) auto',
               gap: 10,
+              minWidth: 0,
               alignItems: isMobile ? 'stretch' : 'end',
             }}
           >
-            <label style={{ display: 'grid', gap: 6 }}>
+            <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
               <span style={searchLabelStyle}>Search by</span>
               <select
                 value={scope}
@@ -438,7 +439,7 @@ export default function ExploreSearchPage() {
               </select>
             </label>
 
-            <label style={{ display: 'grid', gap: 6 }}>
+            <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
               <span style={searchLabelStyle}>Search term</span>
               <div style={getSearchInputWrapStyle()}>
                 <SearchIcon />
@@ -457,9 +458,11 @@ export default function ExploreSearchPage() {
               style={{
                 ...buttonPrimary,
                 minHeight: isSmallMobile ? 52 : 56,
-                minWidth: isTablet ? '100%' : 142,
+                minWidth: 0,
+                maxWidth: '100%',
                 width: isMobile ? '100%' : undefined,
                 border: 'none',
+                overflowWrap: 'anywhere',
               }}
             >
               Search now
@@ -467,14 +470,14 @@ export default function ExploreSearchPage() {
           </form>
 
           {scope === 'players' && players.length > 0 ? (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginTop: 12 }}>
-              <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, alignSelf: 'center' }}>Rating band:</span>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, minWidth: 0, marginTop: 12 }}>
+              <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, alignSelf: 'center', overflowWrap: 'anywhere' }}>Rating band:</span>
               {(['all', '2.5', '3.0', '3.5', '4.0', '4.5+'] as const).map((band) => (
                 <button
                   key={band}
                   type="button"
                   onClick={() => setRatingBand(band)}
-                  style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer', background: ratingBand === band ? 'rgba(116,190,255,0.14)' : 'rgba(255,255,255,0.04)', border: `1px solid ${ratingBand === band ? 'rgba(116,190,255,0.30)' : 'rgba(255,255,255,0.10)'}`, color: ratingBand === band ? '#93c5fd' : 'var(--shell-copy-muted)' }}
+                  style={{ maxWidth: '100%', padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 800, overflowWrap: 'anywhere', cursor: 'pointer', background: ratingBand === band ? 'rgba(116,190,255,0.14)' : 'rgba(255,255,255,0.04)', border: `1px solid ${ratingBand === band ? 'rgba(116,190,255,0.30)' : 'rgba(255,255,255,0.10)'}`, color: ratingBand === band ? '#93c5fd' : 'var(--shell-copy-muted)' }}
                 >
                   {band === 'all' ? 'All levels' : band}
                 </button>
@@ -483,7 +486,7 @@ export default function ExploreSearchPage() {
           ) : null}
 
           {leagues.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(min(100%, 150px), 1fr))', gap: 10, minWidth: 0, marginTop: 12 }}>
               <FilterSelect label="Year" value={yearFilter} onChange={setYearFilter} options={leagueYears} theme={theme} />
               <FilterSelect label="Season" value={seasonFilter} onChange={setSeasonFilter} options={leagueSeasons} theme={theme} />
               <FilterSelect label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={leagueGenders} theme={theme} />
@@ -498,6 +501,7 @@ export default function ExploreSearchPage() {
               display: 'flex',
               flexWrap: 'wrap',
               gap: 10,
+              minWidth: 0,
               alignItems: 'center',
             }}
           >
@@ -505,7 +509,7 @@ export default function ExploreSearchPage() {
             {showTeamResults ? <span style={badgeBlue}>{teams.length} teams</span> : null}
             {showLeagueResults ? <span style={badgeGreen}>{filteredLeagues.length} leagues</span> : null}
             {showPlayerResults ? <span style={badgeGreen}>{matchupSuggestions.length} My Lab actions</span> : null}
-            <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700 }}>
+            <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700, overflowWrap: 'anywhere' }}>
               {query.trim() ? `${totalResults} results for "${query.trim()}"` : 'Start with a search to see grouped results.'}
             </span>
           </div>
@@ -515,17 +519,18 @@ export default function ExploreSearchPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.16fr) minmax(min(100%, 280px), 0.84fr)',
+              gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.16fr) minmax(min(100%, 280px), 0.84fr)',
               gap: 16,
+              minWidth: 0,
               alignItems: 'stretch',
             }}
           >
-            <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
               <div style={sectionKicker}>Search results</div>
               <h2 style={sectionTitle}>
                 Grouped results keep discovery clear instead of sending users through four separate guesses.
               </h2>
-              <p style={{ ...pageSubtitle, marginTop: 0 }}>
+              <p style={{ ...pageSubtitle, marginTop: 0, overflowWrap: 'anywhere' }}>
                 Search by the detail you know, then jump into the right view without losing context.
               </p>
             </div>
@@ -535,6 +540,7 @@ export default function ExploreSearchPage() {
                 ...surfaceCard,
                 display: 'grid',
                 gap: 10,
+                minWidth: 0,
                 padding: isSmallMobile ? 14 : 16,
                 alignContent: 'start',
                 background: isLight
@@ -543,25 +549,25 @@ export default function ExploreSearchPage() {
               }}
             >
               <div style={sectionKicker}>Quick context</div>
-              <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, lineHeight: 1.08 }}>
+              <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, lineHeight: 1.08, overflowWrap: 'anywhere' }}>
                 {selectedScopeGuide.eyebrow}
               </div>
-              <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.68 }}>
+              <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.68, overflowWrap: 'anywhere' }}>
                 {selectedScopeGuide.quickContext}
               </div>
             </div>
           </div>
 
           {error ? (
-            <section style={{ ...surfaceCard, padding: 18, color: '#fecaca', borderColor: 'rgba(248,113,113,0.3)' }}>
+            <section style={{ ...surfaceCard, minWidth: 0, padding: 18, color: '#fecaca', borderColor: 'rgba(248,113,113,0.3)', overflowWrap: 'anywhere' }}>
               {error}
             </section>
           ) : null}
 
           {loading ? (
-            <section style={{ ...surfaceCard, padding: 18 }}>
+            <section style={{ ...surfaceCard, minWidth: 0, padding: 18 }}>
               <div style={sectionKicker}>Searching</div>
-              <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900 }}>
+              <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, overflowWrap: 'anywhere' }}>
                 Pulling players, teams, leagues, and My Lab prep paths together...
               </div>
             </section>
@@ -596,8 +602,9 @@ export default function ExploreSearchPage() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(min(100%, 280px), 0.74fr)',
+                  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(min(100%, 280px), 0.74fr)',
                   gap: 16,
+                  minWidth: 0,
                 }}
               >
                 <ResultGroup
@@ -661,8 +668,9 @@ export default function ExploreSearchPage() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(0, 1fr)',
+                  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 1fr)',
                   gap: 16,
+                  minWidth: 0,
                 }}
               >
                 <ResultGroup
@@ -722,16 +730,16 @@ export default function ExploreSearchPage() {
               ) : null}
 
               {(matchedFlights.length > 0 || matchedAreas.length > 0) ? (
-                <section style={{ ...surfaceCard, padding: isSmallMobile ? 16 : 18, display: 'grid', gap: 14 }}>
+                <section style={{ ...surfaceCard, minWidth: 0, padding: isSmallMobile ? 16 : 18, display: 'grid', gap: 14 }}>
                   <div style={sectionKicker}>Matched filters</div>
-                  <div style={{ color: 'var(--foreground-strong)', fontSize: 22, fontWeight: 900, lineHeight: 1.04 }}>
+                  <div style={{ color: 'var(--foreground-strong)', fontSize: 22, fontWeight: 900, lineHeight: 1.04, overflowWrap: 'anywhere' }}>
                     Jump straight into the exact flight or area that matched.
                   </div>
-                  <div style={{ display: 'grid', gap: 12 }}>
+                  <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
                     {matchedFlights.length > 0 ? (
-                      <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
                         <div style={matchedLabelStyle}>Flights</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, minWidth: 0 }}>
                           {matchedFlights.map((flight) => (
                             <Link key={flight} href={`/explore/leagues?q=${encodeURIComponent(flight)}`} style={filterJumpStyle}>
                               {flight}
@@ -741,9 +749,9 @@ export default function ExploreSearchPage() {
                       </div>
                     ) : null}
                     {matchedAreas.length > 0 ? (
-                      <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
                         <div style={matchedLabelStyle}>Areas</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, minWidth: 0 }}>
                           {matchedAreas.map((area) => (
                             <Link key={area} href={`/explore/leagues?q=${encodeURIComponent(area)}`} style={filterJumpStyle}>
                               {area}
@@ -896,7 +904,7 @@ function FilterSelect({
   theme: ThemeMode
 }) {
   return (
-    <label style={{ display: 'grid', gap: 6 }}>
+    <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
       <span style={searchLabelStyle}>{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)} style={getSearchSelectStyle(theme)}>
         <option value="all" style={getSearchOptionStyle(theme)}>All</option>
@@ -927,20 +935,20 @@ function ResultGroup({
 }) {
   return (
     <section style={{ ...surfaceCard, minWidth: 0, padding: 18, display: 'grid', gap: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap', minWidth: 0 }}>
         <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
           <div style={sectionKicker}>{title}</div>
-          <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, lineHeight: 1.04 }}>
+          <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, lineHeight: 1.04, overflowWrap: 'anywhere' }}>
             {count} {title.toLowerCase()} found
           </div>
         </div>
-        <Link href={ctaHref} style={{ ...buttonGhost, maxWidth: '100%', textAlign: 'center' }}>
+        <Link href={ctaHref} style={{ ...buttonGhost, maxWidth: '100%', textAlign: 'center', overflowWrap: 'anywhere' }}>
           {ctaLabel}
         </Link>
       </div>
 
       {count === 0 ? (
-        <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.65 }}>{emptyMessage}</div>
+        <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.65, overflowWrap: 'anywhere' }}>{emptyMessage}</div>
       ) : (
         <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>{children}</div>
       )}
@@ -968,12 +976,14 @@ const searchLabelStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 function getSearchSelectStyle(theme: ThemeMode): CSSProperties {
   const isLight = theme === 'light'
   return {
     ...surfaceCard,
+    minWidth: 0,
     minHeight: 56,
     padding: '0 14px',
     border: '1px solid var(--home-input-border)',
@@ -1007,6 +1017,7 @@ function getSearchOptionStyle(theme: ThemeMode): CSSProperties {
 function getSearchInputWrapStyle(): CSSProperties {
   return {
     ...surfaceCard,
+    minWidth: 0,
     minHeight: 56,
     padding: '0 16px',
     display: 'flex',
@@ -1033,6 +1044,7 @@ function getSearchInputStyle(): CSSProperties {
 
 const emptyStateStyle: CSSProperties = {
   ...surfaceCard,
+  minWidth: 0,
   padding: 22,
   display: 'grid',
   gap: 12,
@@ -1044,6 +1056,7 @@ const emptyTitleStyle: CSSProperties = {
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.05,
+  overflowWrap: 'anywhere',
 }
 
 const emptyBodyStyle: CSSProperties = {
@@ -1051,19 +1064,23 @@ const emptyBodyStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.7,
   maxWidth: 760,
+  overflowWrap: 'anywhere',
 }
 
 const exampleSearchGridStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
   marginTop: 2,
 }
 
 const exampleSearchButtonStyle: CSSProperties = {
   ...buttonGhost,
+  maxWidth: '100%',
   minHeight: 38,
   paddingInline: 14,
+  overflowWrap: 'anywhere',
   cursor: 'pointer',
 }
 
@@ -1117,6 +1134,7 @@ const resultBadgeWrapStyle: CSSProperties = {
   gap: 8,
   flexWrap: 'wrap',
   justifyContent: 'flex-end',
+  minWidth: 0,
   maxWidth: '100%',
 }
 
@@ -1144,10 +1162,13 @@ const matchedLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const filterJumpStyle: CSSProperties = {
   ...buttonGhost,
+  maxWidth: '100%',
   minHeight: 38,
   paddingInline: 14,
+  overflowWrap: 'anywhere',
 }
