@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const exploreSource = readFileSync(join(process.cwd(), 'app/explore/page.tsx'), 'utf8')
 const rankingsSource = readFileSync(join(process.cwd(), 'app/rankings/page.tsx'), 'utf8')
 const playersSource = readFileSync(join(process.cwd(), 'app/players/page.tsx'), 'utf8')
+const playerDetailSource = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
 const teamsSource = readFileSync(join(process.cwd(), 'app/teams/page.tsx'), 'utf8')
 const teamDetailSource = readFileSync(join(process.cwd(), 'app/teams/[team]/page.tsx'), 'utf8')
 const leaguesSource = readFileSync(join(process.cwd(), 'app/leagues/page.tsx'), 'utf8')
@@ -101,6 +102,18 @@ describe('Explore responsive surfaces', () => {
     expect(teamDetailSource).toContain("color: 'var(--foreground-strong)'")
     expect(teamDetailSource).toContain("color: 'var(--shell-copy-muted)'")
     expect(teamDetailSource).toContain("boxShadow: 'var(--shadow-soft)'")
+  })
+
+  it('keeps player detail analytics and match lists mobile-safe', () => {
+    expect(playerDetailSource).toContain('const comparisonMetricGridStyle: CSSProperties')
+    expect(playerDetailSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
+    expect(playerDetailSource).toContain('const matchHistoryToolbarStyle: CSSProperties')
+    expect(playerDetailSource).toContain("width: 'min(100%, 180px)'")
+    expect(playerDetailSource).toContain('const rivalryRowStyle: CSSProperties')
+    expect(playerDetailSource).toContain('const seasonTableWrapStyle: CSSProperties')
+    expect(playerDetailSource).toContain("WebkitOverflowScrolling: 'touch'")
+    expect(playerDetailSource).toContain('const nearbyPlayerRowStyle: CSSProperties')
+    expect(playerDetailSource).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps Explore Leagues empty lanes separated by source and workflow', () => {
