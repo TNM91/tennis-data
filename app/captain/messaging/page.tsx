@@ -3863,6 +3863,7 @@ function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSPropertie
     gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(min(100%, 320px), 0.95fr)',
     gap: isMobile ? 18 : 24,
     padding: isMobile ? '26px 18px' : '34px 26px',
+    minWidth: 0,
   }
 }
 
@@ -3877,6 +3878,7 @@ function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
   return {
     ...heroMetricGridBaseStyle,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    minWidth: 0,
   }
 }
 
@@ -3885,6 +3887,7 @@ function twoColumnGridResponsive(isTablet: boolean): CSSProperties {
     display: 'grid',
     gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
     gap: 18,
+    minWidth: 0,
   }
 }
 
@@ -3909,6 +3912,7 @@ const pageContentStyle: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   padding: '18px 24px 0',
+  minWidth: 0,
 }
 
 const heroShell: CSSProperties = {
@@ -3920,6 +3924,7 @@ const heroShell: CSSProperties = {
   boxShadow: '0 28px 80px rgba(3, 10, 24, 0.16)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
+  minWidth: 0,
 }
 
 const eyebrow: CSSProperties = {
@@ -3936,6 +3941,9 @@ const eyebrow: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   marginBottom: '4px',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitleStyle: CSSProperties = {
@@ -3945,6 +3953,7 @@ const heroTitleStyle: CSSProperties = {
   lineHeight: 0.98,
   letterSpacing: 0,
   maxWidth: '760px',
+  overflowWrap: 'anywhere',
 }
 
 const heroTextStyle: CSSProperties = {
@@ -3954,6 +3963,7 @@ const heroTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '1.02rem',
   lineHeight: 1.72,
+  overflowWrap: 'anywhere',
 }
 
 const heroButtonRowStyle: CSSProperties = {
@@ -3961,6 +3971,7 @@ const heroButtonRowStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
   marginTop: 22,
+  minWidth: 0,
 }
 
 const heroStatusShell: CSSProperties = {
@@ -3971,6 +3982,7 @@ const heroStatusShell: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   marginTop: 18,
+  minWidth: 0,
 }
 
 const heroStatusValue: CSSProperties = {
@@ -3980,6 +3992,7 @@ const heroStatusValue: CSSProperties = {
   lineHeight: 1.08,
   letterSpacing: 0,
   marginTop: 6,
+  overflowWrap: 'anywhere',
 }
 
 const heroStatusText: CSSProperties = {
@@ -3987,18 +4000,21 @@ const heroStatusText: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.7,
   marginTop: 6,
+  overflowWrap: 'anywhere',
 }
 
 const heroStatusButtonRow: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const heroMetricGridBaseStyle: CSSProperties = {
   marginTop: 22,
   display: 'grid',
   gap: 14,
+  minWidth: 0,
 }
 
 const heroMetricCardStyle: CSSProperties = {
@@ -4006,6 +4022,7 @@ const heroMetricCardStyle: CSSProperties = {
   padding: '16px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const metricLabelStyle: CSSProperties = {
@@ -4013,6 +4030,7 @@ const metricLabelStyle: CSSProperties = {
   fontSize: '0.82rem',
   marginBottom: '0.42rem',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const metricValueStyleHero: CSSProperties = {
@@ -4020,6 +4038,7 @@ const metricValueStyleHero: CSSProperties = {
   fontSize: '1.05rem',
   fontWeight: 800,
   lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const quickStartCard: CSSProperties = {
@@ -4028,6 +4047,7 @@ const quickStartCard: CSSProperties = {
   background: 'linear-gradient(180deg, rgba(29,56,105,0.62), rgba(14,30,59,0.78))',
   padding: '20px',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const quickStartTitle: CSSProperties = {
@@ -4036,10 +4056,11 @@ const quickStartTitle: CSSProperties = {
   fontSize: '1.35rem',
   lineHeight: 1.14,
   color: '#ffffff',
+  overflowWrap: 'anywhere',
 }
 
-const workflowListStyle: CSSProperties = { display: 'grid', gap: 12 }
-const workflowRowStyle: CSSProperties = { display: 'flex', gap: 12, alignItems: 'flex-start' }
+const workflowListStyle: CSSProperties = { display: 'grid', gap: 12, minWidth: 0 }
+const workflowRowStyle: CSSProperties = { display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0 }
 const workflowNumberStyle: CSSProperties = {
   width: 32,
   height: 32,
@@ -4054,10 +4075,10 @@ const workflowNumberStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   flexShrink: 0,
 }
-const workflowTitleStyle: CSSProperties = { fontWeight: 700, color: 'var(--foreground)', marginBottom: 4 }
-const workflowTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', lineHeight: 1.55, fontSize: '.95rem' }
+const workflowTitleStyle: CSSProperties = { fontWeight: 700, color: 'var(--foreground)', marginBottom: 4, overflowWrap: 'anywhere' }
+const workflowTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', lineHeight: 1.55, fontSize: '.95rem', overflowWrap: 'anywhere' }
 
-const contentWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 18, marginTop: 18 }
+const contentWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 18, marginTop: 18, minWidth: 0 }
 
 const surfaceCardStrong: CSSProperties = {
   borderRadius: '28px',
@@ -4067,6 +4088,7 @@ const surfaceCardStrong: CSSProperties = {
   boxShadow: '0 24px 60px rgba(2, 8, 23, 0.14)',
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
+  minWidth: 0,
 }
 
 const surfaceCard: CSSProperties = {
@@ -4077,12 +4099,14 @@ const surfaceCard: CSSProperties = {
   boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
+  minWidth: 0,
 }
 
 const teamRoomSurfaceStyle: CSSProperties = {
   ...surfaceCardStrong,
   maxWidth: 1280,
   margin: '0 auto 18px',
+  minWidth: 0,
 }
 
 const messagePlaybookSurfaceStyle: CSSProperties = {
@@ -4092,6 +4116,7 @@ const messagePlaybookSurfaceStyle: CSSProperties = {
   border: '1px solid rgba(155, 225, 29, 0.18)',
   background:
     'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg-strong) 92%, var(--brand-green) 8%), var(--shell-panel-bg))',
+  minWidth: 0,
 }
 
 const messagePlaybookGridStyle: CSSProperties = {
@@ -4099,6 +4124,7 @@ const messagePlaybookGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 12,
   marginTop: 16,
+  minWidth: 0,
 }
 
 const messagePlaybookCardStyle: CSSProperties = {
@@ -4113,6 +4139,7 @@ const messagePlaybookCardStyle: CSSProperties = {
   textAlign: 'left',
   cursor: 'pointer',
   boxShadow: '0 12px 28px rgba(2, 8, 23, 0.12)',
+  minWidth: 0,
 }
 
 const messagePlaybookLabelStyle: CSSProperties = {
@@ -4121,6 +4148,7 @@ const messagePlaybookLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const messagePlaybookTitleStyle: CSSProperties = {
@@ -4128,6 +4156,7 @@ const messagePlaybookTitleStyle: CSSProperties = {
   fontSize: 20,
   lineHeight: 1.08,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const messagePlaybookTextStyle: CSSProperties = {
@@ -4135,6 +4164,7 @@ const messagePlaybookTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const teamRoomGridStyle: CSSProperties = {
@@ -4142,6 +4172,7 @@ const teamRoomGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 12,
   marginTop: 16,
+  minWidth: 0,
 }
 
 const teamRoomStepStyle: CSSProperties = {
@@ -4152,6 +4183,8 @@ const teamRoomStepStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   padding: 14,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const teamRoomNoteStyle: CSSProperties = {
@@ -4159,6 +4192,7 @@ const teamRoomNoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const builderHandoffSurfaceStyle: CSSProperties = {
@@ -4166,6 +4200,7 @@ const builderHandoffSurfaceStyle: CSSProperties = {
   maxWidth: 1280,
   margin: '0 auto 18px',
   border: '1px solid rgba(111, 236, 168, 0.22)',
+  minWidth: 0,
 }
 
 const builderHandoffGridStyle: CSSProperties = {
@@ -4173,6 +4208,7 @@ const builderHandoffGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 12,
   marginTop: 16,
+  minWidth: 0,
 }
 
 const builderHandoffCardBaseStyle: CSSProperties = {
@@ -4181,6 +4217,7 @@ const builderHandoffCardBaseStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   minHeight: 148,
+  minWidth: 0,
 }
 
 const builderHandoffCardGoodStyle: CSSProperties = {
@@ -4204,6 +4241,7 @@ const builderHandoffLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const builderHandoffValueStyle: CSSProperties = {
@@ -4213,6 +4251,7 @@ const builderHandoffValueStyle: CSSProperties = {
   lineHeight: 1.1,
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const builderHandoffTextStyle: CSSProperties = {
@@ -4220,6 +4259,7 @@ const builderHandoffTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const sectionKicker: CSSProperties = {
@@ -4229,6 +4269,7 @@ const sectionKicker: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   margin: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitle: CSSProperties = {
@@ -4238,6 +4279,7 @@ const sectionTitle: CSSProperties = {
   fontSize: '28px',
   letterSpacing: 0,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitleSmall: CSSProperties = {
@@ -4247,20 +4289,21 @@ const sectionTitleSmall: CSSProperties = {
   fontSize: '22px',
   letterSpacing: 0,
   lineHeight: 1.15,
+  overflowWrap: 'anywhere',
 }
 
-const sectionBodyTextStyle: CSSProperties = { margin: 0, color: 'var(--shell-copy-muted)', lineHeight: 1.65, maxWidth: 780 }
+const sectionBodyTextStyle: CSSProperties = { margin: 0, color: 'var(--shell-copy-muted)', lineHeight: 1.65, maxWidth: 780, overflowWrap: 'anywhere' }
 
-const filtersGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 14 }
-const statsGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: 12 }
-const miniMetricCardStyle: CSSProperties = { borderRadius: 18, padding: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
-const miniMetricValueStyle: CSSProperties = { color: 'var(--foreground)', fontSize: '1.15rem', fontWeight: 900, marginBottom: 10 }
+const filtersGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 14, minWidth: 0 }
+const statsGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: 12, minWidth: 0 }
+const miniMetricCardStyle: CSSProperties = { borderRadius: 18, padding: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
+const miniMetricValueStyle: CSSProperties = { color: 'var(--foreground)', fontSize: '1.15rem', fontWeight: 900, marginBottom: 10, overflowWrap: 'anywhere' }
 
-const labelStyle: CSSProperties = { display: 'block', marginBottom: 8, color: 'var(--shell-copy-muted)', fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }
-const fieldHintStyle: CSSProperties = { margin: '0 0 8px', color: 'var(--shell-copy-muted)', fontSize: '12px', lineHeight: 1.55 }
-const inputStyle: CSSProperties = { width: '100%', height: '48px', borderRadius: '14px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground)', padding: '0 14px', fontSize: '14px', outline: 'none' }
+const labelStyle: CSSProperties = { display: 'block', marginBottom: 8, color: 'var(--shell-copy-muted)', fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
+const fieldHintStyle: CSSProperties = { margin: '0 0 8px', color: 'var(--shell-copy-muted)', fontSize: '12px', lineHeight: 1.55, overflowWrap: 'anywhere' }
+const inputStyle: CSSProperties = { width: '100%', height: '48px', borderRadius: '14px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground)', padding: '0 14px', fontSize: '14px', outline: 'none', minWidth: 0 }
 const inputStyleMuted: CSSProperties = { ...inputStyle, opacity: 0.78 }
-const textareaStyle: CSSProperties = { width: '100%', minHeight: '100px', borderRadius: '14px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground)', padding: '12px 14px', fontSize: '14px', outline: 'none', resize: 'vertical' }
+const textareaStyle: CSSProperties = { width: '100%', minHeight: '100px', borderRadius: '14px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground)', padding: '12px 14px', fontSize: '14px', outline: 'none', resize: 'vertical', minWidth: 0, overflowWrap: 'anywhere' }
 const textareaStyleLarge: CSSProperties = { ...textareaStyle, minHeight: 180 }
 
 const composerPreviewStyle: CSSProperties = {
@@ -4271,6 +4314,7 @@ const composerPreviewStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid rgba(155, 225, 29, 0.18)',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(59,130,246,0.08))',
+  minWidth: 0,
 }
 
 const composerPreviewTopStyle: CSSProperties = {
@@ -4279,6 +4323,7 @@ const composerPreviewTopStyle: CSSProperties = {
   alignItems: 'flex-start',
   gap: 12,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const composerPreviewLabelStyle: CSSProperties = {
@@ -4287,6 +4332,7 @@ const composerPreviewLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const composerPreviewTitleStyle: CSSProperties = {
@@ -4294,12 +4340,14 @@ const composerPreviewTitleStyle: CSSProperties = {
   fontSize: 24,
   lineHeight: 1.05,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const composerPreviewGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const composerPreviewMetricStyle: CSSProperties = {
@@ -4310,6 +4358,7 @@ const composerPreviewMetricStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   color: 'var(--foreground-strong)',
+  minWidth: 0,
 }
 
 const composerPreviewMetricLabelStyle: CSSProperties = {
@@ -4318,6 +4367,7 @@ const composerPreviewMetricLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const composerBodyPreviewStyle: CSSProperties = {
@@ -4331,58 +4381,60 @@ const composerBodyPreviewStyle: CSSProperties = {
   borderRadius: 16,
   background: 'rgba(2, 8, 23, 0.18)',
   border: '1px solid var(--shell-panel-border)',
+  overflowWrap: 'anywhere',
 }
 
-const primaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)', boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)' }
+const primaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)', boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
 const primaryButtonBlock: CSSProperties = { ...primaryButton, width: '100%', appearance: 'none', cursor: 'pointer' }
-const ghostButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'var(--shell-chip-bg)', color: 'var(--foreground)', border: '1px solid var(--shell-panel-border)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }
+const ghostButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'var(--shell-chip-bg)', color: 'var(--foreground)', border: '1px solid var(--shell-panel-border)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
 const ghostButtonSmallButton: CSSProperties = { ...ghostButton, minHeight: 42, cursor: 'pointer', appearance: 'none' }
 const disabledButtonStyle: CSSProperties = { opacity: 0.55, cursor: 'not-allowed' }
 
-const badgeBase: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 30, padding: '0 12px', borderRadius: 999, fontSize: 12, fontWeight: 800 }
+const badgeBase: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 30, padding: '0 12px', borderRadius: 999, fontSize: 12, fontWeight: 800, minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
 const miniPillSlate: CSSProperties = { ...badgeBase, background: 'var(--shell-chip-bg)', color: 'var(--foreground)' }
 const miniPillBlue: CSSProperties = { ...badgeBase, background: 'rgba(37, 91, 227, 0.16)', color: 'var(--foreground)' }
 const miniPillGreen: CSSProperties = { ...badgeBase, background: 'var(--shell-chip-bg)', color: 'var(--foreground)' }
 const warnPill: CSSProperties = { ...badgeBase, background: 'rgba(255, 93, 93, 0.10)', color: '#fecaca' }
-const pillRowStyle: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }
+const pillRowStyle: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, minWidth: 0 }
 
-const tableHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 14 }
-const detailsSummaryStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', cursor: 'pointer', listStyle: 'none', marginBottom: 14 }
-const tableWrapStyle: CSSProperties = { width: '100%', overflowX: 'auto', borderRadius: '18px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
-const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse' }
-const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', background: 'var(--shell-chip-bg-strong)', color: '#c7dbff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.06em' }
-const tdStyle: CSSProperties = { padding: '14px', borderTop: '1px solid var(--shell-panel-border)', color: 'var(--foreground)', verticalAlign: 'top' }
+const tableHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 14, minWidth: 0 }
+const detailsSummaryStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', cursor: 'pointer', listStyle: 'none', marginBottom: 14, minWidth: 0 }
+const tableWrapStyle: CSSProperties = { width: '100%', overflowX: 'auto', borderRadius: '18px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
+const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse', minWidth: 0 }
+const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', background: 'var(--shell-chip-bg-strong)', color: '#c7dbff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.06em', overflowWrap: 'anywhere' }
+const tdStyle: CSSProperties = { padding: '14px', borderTop: '1px solid var(--shell-panel-border)', color: 'var(--foreground)', verticalAlign: 'top', overflowWrap: 'anywhere' }
 const tdLabelStyle: CSSProperties = { ...tdStyle, fontWeight: 800 }
-const mutedTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', margin: 0, lineHeight: 1.65 }
-const errorTextStyle: CSSProperties = { color: '#fca5a5', margin: 0, lineHeight: 1.65 }
-const rowSubtleText: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }
+const mutedTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
+const errorTextStyle: CSSProperties = { color: '#fca5a5', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
+const rowSubtleText: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4, overflowWrap: 'anywhere' }
 
-const rowControlWrapStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6 }
-const statusButtonStyle: CSSProperties = { borderRadius: 999, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground)', padding: '6px 10px', fontSize: 12, fontWeight: 800, cursor: 'pointer', textTransform: 'capitalize' }
+const rowControlWrapStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }
+const statusButtonStyle: CSSProperties = { borderRadius: 999, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground)', padding: '6px 10px', fontSize: 12, fontWeight: 800, cursor: 'pointer', textTransform: 'capitalize', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
 
-const lineupStackStyle: CSSProperties = { display: 'grid', gap: 12, marginTop: 14 }
-const lineupCardStyle: CSSProperties = { borderRadius: 18, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', padding: 14 }
-const lineupHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12 }
-const lineupPlayersGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }
-const singlePlayerGrid: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr', gap: 10 }
-const linkButtonStyle: CSSProperties = { border: 'none', background: 'transparent', color: '#9cc6ff', fontWeight: 800, cursor: 'pointer', padding: 0 }
+const lineupStackStyle: CSSProperties = { display: 'grid', gap: 12, marginTop: 14, minWidth: 0 }
+const lineupCardStyle: CSSProperties = { borderRadius: 18, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', padding: 14, minWidth: 0 }
+const lineupHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap', minWidth: 0 }
+const lineupPlayersGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, minWidth: 0 }
+const singlePlayerGrid: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr', gap: 10, minWidth: 0 }
+const linkButtonStyle: CSSProperties = { border: 'none', background: 'transparent', color: '#9cc6ff', fontWeight: 800, cursor: 'pointer', padding: 0, minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'left' }
 const linkButtonStyleDanger: CSSProperties = { ...linkButtonStyle, color: '#fca5a5' }
-const recipientChooserStyle: CSSProperties = { maxHeight: 180, overflow: 'auto', borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', padding: 12, display: 'grid', gap: 8, marginBottom: 14 }
-const checkboxGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginBottom: 14 }
-const checkboxRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, color: 'var(--foreground)' }
-const actionRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 12, marginTop: 16 }
-const actionRowStyleCompact: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))', gap: 12 }
+const recipientChooserStyle: CSSProperties = { maxHeight: 180, overflow: 'auto', borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', padding: 12, display: 'grid', gap: 8, marginBottom: 14, minWidth: 0 }
+const checkboxGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginBottom: 14, minWidth: 0 }
+const checkboxRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, color: 'var(--foreground)', flexWrap: 'wrap', minWidth: 0, overflowWrap: 'anywhere' }
+const actionRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 12, marginTop: 16, minWidth: 0 }
+const actionRowStyleCompact: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))', gap: 12, minWidth: 0 }
 
-const templateGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }
-const templateCardStyle: CSSProperties = { borderRadius: 18, padding: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
-const templateTitleStyle: CSSProperties = { color: 'var(--foreground-strong)', fontWeight: 800 }
-const templateBodyStyle: CSSProperties = { color: 'var(--shell-copy-muted)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }
+const templateGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14, minWidth: 0 }
+const templateCardStyle: CSSProperties = { borderRadius: 18, padding: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
+const templateTitleStyle: CSSProperties = { color: 'var(--foreground-strong)', fontWeight: 800, overflowWrap: 'anywhere' }
+const templateBodyStyle: CSSProperties = { color: 'var(--shell-copy-muted)', lineHeight: 1.65, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }
 
 const intelligenceGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const intelligenceCardStyle: CSSProperties = {
@@ -4392,6 +4444,7 @@ const intelligenceCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const intelligenceLabelStyle: CSSProperties = {
@@ -4400,6 +4453,7 @@ const intelligenceLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '.06em',
+  overflowWrap: 'anywhere',
 }
 
 const intelligenceValueStyle: CSSProperties = {
@@ -4408,18 +4462,21 @@ const intelligenceValueStyle: CSSProperties = {
   fontSize: '20px',
   lineHeight: 1.1,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const intelligenceTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const blockingListStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   marginTop: 14,
+  minWidth: 0,
 }
 
 const blockingCardStyle: CSSProperties = {
@@ -4432,12 +4489,14 @@ const blockingCardStyle: CSSProperties = {
   gap: 12,
   alignItems: 'center',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const blockingNameStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: 15,
+  overflowWrap: 'anywhere',
 }
 
 const blockingMetaStyle: CSSProperties = {
@@ -4445,6 +4504,7 @@ const blockingMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const recipientIntelligenceGridStyle: CSSProperties = {
@@ -4452,6 +4512,7 @@ const recipientIntelligenceGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const recipientIntelligenceCardStyle: CSSProperties = {
@@ -4461,6 +4522,7 @@ const recipientIntelligenceCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const recipientIntelligenceLabelStyle: CSSProperties = {
@@ -4490,6 +4552,7 @@ const sendStrategyGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const sendStrategyCardStyle: CSSProperties = {
@@ -4499,6 +4562,7 @@ const sendStrategyCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const sendStrategyLabelStyle: CSSProperties = {
@@ -4528,6 +4592,7 @@ const weeklyCommandGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const weeklyCommandCardStyle: CSSProperties = {
@@ -4537,6 +4602,7 @@ const weeklyCommandCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const weeklyCommandLabelStyle: CSSProperties = {
@@ -4566,6 +4632,7 @@ const actionQueueGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const actionQueueCardBaseStyle: CSSProperties = {
@@ -4574,6 +4641,7 @@ const actionQueueCardBaseStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const actionQueueCardGoodStyle: CSSProperties = {
@@ -4618,6 +4686,7 @@ const executionChecklistGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const executionChecklistCardStyle: CSSProperties = {
@@ -4627,6 +4696,7 @@ const executionChecklistCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const executionChecklistTopStyle: CSSProperties = {
@@ -4635,6 +4705,7 @@ const executionChecklistTopStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 12,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const executionChecklistLabelStyle: CSSProperties = {
@@ -4654,6 +4725,7 @@ const outcomePlannerGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const outcomePlannerCardStyle: CSSProperties = {
@@ -4663,6 +4735,7 @@ const outcomePlannerCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const outcomePlannerLabelStyle: CSSProperties = {
@@ -4692,6 +4765,7 @@ const sequencePlannerGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const sequencePlannerCardBaseStyle: CSSProperties = {
@@ -4700,6 +4774,7 @@ const sequencePlannerCardBaseStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const sequencePlannerCardGoodStyle: CSSProperties = {
@@ -4744,6 +4819,7 @@ const launchSnapshotGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const launchSnapshotCardStyle: CSSProperties = {
@@ -4753,6 +4829,7 @@ const launchSnapshotCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const launchSnapshotLabelStyle: CSSProperties = {
@@ -4782,6 +4859,7 @@ const sendConfidenceGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const sendConfidenceCardStyle: CSSProperties = {
@@ -4791,6 +4869,7 @@ const sendConfidenceCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const sendConfidenceLabelStyle: CSSProperties = {
@@ -4820,6 +4899,7 @@ const sendGateGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const sendGateCardStyle: CSSProperties = {
@@ -4829,6 +4909,7 @@ const sendGateCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const sendGateLabelStyle: CSSProperties = {
@@ -4858,6 +4939,7 @@ const riskRadarGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const riskRadarCardStyle: CSSProperties = {
@@ -4867,6 +4949,7 @@ const riskRadarCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const riskRadarLabelStyle: CSSProperties = {
@@ -4896,6 +4979,7 @@ const deliveryReadinessGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const deliveryReadinessCardStyle: CSSProperties = {
@@ -4905,6 +4989,7 @@ const deliveryReadinessCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const deliveryReadinessLabelStyle: CSSProperties = {
