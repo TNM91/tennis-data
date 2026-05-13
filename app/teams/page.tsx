@@ -1016,8 +1016,9 @@ function GhostBtn({ onClick, children }: { onClick: () => void; children: ReactN
 
 const filtersGrid = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
   gap: '14px',
+  minWidth: 0,
   marginTop: '18px',
 })
 
@@ -1083,7 +1084,7 @@ const emptyActionRow: CSSProperties = {
 
 const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
   gap: '16px',
   marginTop: '18px',
   minWidth: 0,
