@@ -194,14 +194,14 @@ const footerPrimaryCtaStyle = {
   minHeight: '40px',
   padding: '0 15px',
   borderRadius: '999px',
-  border: '1px solid rgba(155, 225, 29, 0.28)',
-  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontSize: '14px',
   fontWeight: 900,
   letterSpacing: 0,
-  boxShadow: '0 12px 24px rgba(155, 225, 29, 0.10)',
+  boxShadow: '0 12px 24px color-mix(in srgb, var(--brand-green) 12%, transparent), inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 } as const
 
 const footerSecondaryCtaStyle = {
@@ -251,20 +251,20 @@ const footerJourneyStepStyle = (isMobile: boolean) => ({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
-  border: '1px solid rgba(199, 243, 107, 0.58)',
-  color: '#06121f',
+  background: 'color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg) 80%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  color: 'var(--foreground-strong)',
   fontSize: isMobile ? '12px' : '13px',
   fontWeight: 950,
   lineHeight: 1,
-  boxShadow: '0 10px 22px rgba(155, 225, 29, 0.18), inset 0 1px 0 rgba(255,255,255,0.38)',
+  boxShadow: '0 10px 22px color-mix(in srgb, var(--brand-green) 12%, transparent), inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }) as const
 
 const footerJourneyLockStyle = (isMobile: boolean) => ({
   ...footerJourneyStepStyle(isMobile),
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
-  color: 'var(--text-dark)',
+  color: 'var(--foreground-strong)',
 }) as const
 
 const footerJourneyTextStyle = {
