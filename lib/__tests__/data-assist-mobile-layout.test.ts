@@ -48,6 +48,11 @@ describe('Data Assist mobile layout guards', () => {
     }
 
     expect(styleBlock('historyFilterStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('historyFilterStyle')).toContain("overscrollBehaviorX: 'contain'")
+    expect(styleBlock('historyFilterStyle')).toContain("scrollbarWidth: 'thin'")
+    expect(styleBlock('historyFilterButtonStyle')).toContain("flex: '0 0 auto'")
+    expect(styleBlock('historyFilterButtonStyle')).toContain("minWidth: 'min(100%, 92px)'")
+    expect(styleBlock('historyFilterButtonStyle')).toContain("maxWidth: 'min(100%, 180px)'")
     expect(styleBlock('historyFilterButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('badgeCardStyle')).toContain("flex: '1 1 min(100%, 190px)'")
   })

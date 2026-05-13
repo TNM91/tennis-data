@@ -2880,14 +2880,18 @@ const historyFilterStyle: CSSProperties = {
   display: 'flex',
   gap: 8,
   overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
   paddingBottom: 2,
   WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'thin',
   minWidth: 0,
   maxWidth: '100%',
 }
 
 const historyFilterButtonStyle = (selected: boolean): CSSProperties => ({
-  minWidth: 0,
+  flex: '0 0 auto',
+  minWidth: 'min(100%, 92px)',
+  maxWidth: 'min(100%, 180px)',
   minHeight: 40,
   borderRadius: 999,
   border: selected
@@ -2902,6 +2906,7 @@ const historyFilterButtonStyle = (selected: boolean): CSSProperties => ({
   alignItems: 'center',
   gap: 7,
   whiteSpace: 'normal',
+  textAlign: 'center',
   overflowWrap: 'anywhere',
   fontSize: 12,
   fontWeight: 950,
