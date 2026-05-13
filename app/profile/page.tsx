@@ -753,21 +753,24 @@ const pageStyle: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   padding: '14px 24px 26px',
+  minWidth: 0,
 }
 
 const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.25fr) minmax(min(100%, 320px), 0.75fr)',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.25fr) minmax(min(100%, 320px), 0.75fr)',
   gap: isMobile ? 18 : 24,
   padding: isMobile ? '20px 18px' : '30px 28px',
   borderRadius: isMobile ? 24 : 30,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
+  minWidth: 0,
 })
 
 const eyebrowStyle: CSSProperties = {
   display: 'inline-flex',
+  maxWidth: '100%',
   padding: '8px 14px',
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
@@ -778,6 +781,8 @@ const eyebrowStyle: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   marginBottom: 10,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitleStyle: CSSProperties = {
@@ -786,6 +791,7 @@ const heroTitleStyle: CSSProperties = {
   fontWeight: 900,
   lineHeight: 1,
   fontSize: 'clamp(2rem, 4vw, 3.4rem)',
+  overflowWrap: 'anywhere',
 }
 
 const heroTextStyle: CSSProperties = {
@@ -794,6 +800,7 @@ const heroTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '1.02rem',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const toolFlowStyle = (isMobile: boolean): CSSProperties => ({
@@ -801,11 +808,12 @@ const toolFlowStyle = (isMobile: boolean): CSSProperties => ({
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: 10,
   marginTop: isMobile ? 16 : 20,
+  minWidth: 0,
 })
 
 const toolFlowCardStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'auto minmax(0, 1fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
   gap: isMobile ? 7 : 10,
   alignItems: isMobile ? 'start' : 'center',
   borderRadius: isMobile ? 16 : 18,
@@ -813,6 +821,7 @@ const toolFlowCardStyle = (isMobile: boolean): CSSProperties => ({
   background: 'var(--shell-chip-bg)',
   padding: isMobile ? '10px 9px' : 12,
   minHeight: isMobile ? 92 : 92,
+  minWidth: 0,
 })
 
 const toolFlowLabelStyle: CSSProperties = {
@@ -843,6 +852,7 @@ const heroButtonRowStyle: CSSProperties = {
   gap: 12,
   flexWrap: 'wrap',
   marginTop: 22,
+  minWidth: 0,
 }
 
 const billingMessageStyle: CSSProperties = {
@@ -867,6 +877,10 @@ const primaryButtonStyle: CSSProperties = {
   textDecoration: 'none',
   cursor: 'pointer',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -882,6 +896,10 @@ const secondaryButtonStyle: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const statusPanelStyle: CSSProperties = {
@@ -892,6 +910,7 @@ const statusPanelStyle: CSSProperties = {
   padding: 18,
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const profileBadgeRowStyle: CSSProperties = {
@@ -899,6 +918,7 @@ const profileBadgeRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   justifyContent: 'space-between',
+  minWidth: 0,
 }
 
 const playerCardTopStyle: CSSProperties = {
@@ -906,6 +926,7 @@ const playerCardTopStyle: CSSProperties = {
   gridTemplateColumns: 'auto minmax(0, 1fr)',
   gap: 12,
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const avatarStyle: CSSProperties = {
@@ -933,6 +954,7 @@ const avatarImageStyle: CSSProperties = {
 const photoControlStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
+  minWidth: 0,
 }
 
 const photoInputStyle: CSSProperties = {
@@ -950,17 +972,20 @@ const statusTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '1.35rem',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const statusTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const miniGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const metricStyle: CSSProperties = {
@@ -968,6 +993,7 @@ const metricStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   padding: 12,
+  minWidth: 0,
 }
 
 const metricLabelStyle: CSSProperties = {
@@ -985,9 +1011,10 @@ const metricValueStyle: CSSProperties = {
 
 const contentGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.25fr) minmax(min(100%, 320px), 0.75fr)',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.25fr) minmax(min(100%, 320px), 0.75fr)',
   gap: 18,
   marginTop: 18,
+  minWidth: 0,
 })
 
 const setupPathStyle = (isMobile: boolean): CSSProperties => ({
@@ -999,6 +1026,7 @@ const setupPathStyle = (isMobile: boolean): CSSProperties => ({
   padding: isMobile ? '16px 14px' : '18px 20px',
   display: 'grid',
   gap: 16,
+  minWidth: 0,
 })
 
 const setupPathHeaderStyle = (isMobile: boolean): CSSProperties => ({
@@ -1007,6 +1035,7 @@ const setupPathHeaderStyle = (isMobile: boolean): CSSProperties => ({
   alignItems: isMobile ? 'stretch' : 'flex-start',
   justifyContent: 'space-between',
   gap: 14,
+  minWidth: 0,
 })
 
 const setupPathTitleStyle: CSSProperties = {
@@ -1015,6 +1044,7 @@ const setupPathTitleStyle: CSSProperties = {
   fontSize: '1.35rem',
   fontWeight: 950,
   lineHeight: 1.15,
+  overflowWrap: 'anywhere',
 }
 
 const setupPathTextStyle: CSSProperties = {
@@ -1024,6 +1054,7 @@ const setupPathTextStyle: CSSProperties = {
   fontSize: 14,
   fontWeight: 700,
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const setupProgressStyle: CSSProperties = {
@@ -1035,12 +1066,14 @@ const setupProgressStyle: CSSProperties = {
   display: 'grid',
   justifyItems: 'center',
   color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
 }
 
 const setupStepGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: 10,
+  minWidth: 0,
 })
 
 const setupStepCardStyle = (complete: boolean): CSSProperties => ({
@@ -1056,6 +1089,7 @@ const setupStepCardStyle = (complete: boolean): CSSProperties => ({
   display: 'grid',
   alignContent: 'start',
   gap: 10,
+  minWidth: 0,
 })
 
 const setupStepTopStyle: CSSProperties = {
@@ -1063,6 +1097,8 @@ const setupStepTopStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const setupStepNumberStyle = (complete: boolean): CSSProperties => ({
@@ -1087,6 +1123,7 @@ const setupStepLabelStyle: CSSProperties = {
   fontSize: '1rem',
   fontWeight: 950,
   lineHeight: 1.2,
+  overflowWrap: 'anywhere',
 }
 
 const setupStepTextStyle: CSSProperties = {
@@ -1095,6 +1132,7 @@ const setupStepTextStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 700,
   lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const surfaceStyle: CSSProperties = {
@@ -1104,6 +1142,7 @@ const surfaceStyle: CSSProperties = {
   padding: '18px 20px',
   display: 'grid',
   gap: 16,
+  minWidth: 0,
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -1111,6 +1150,8 @@ const sectionHeaderStyle: CSSProperties = {
   alignItems: 'flex-start',
   justifyContent: 'space-between',
   gap: 16,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionKickerStyle: CSSProperties = {
@@ -1128,12 +1169,14 @@ const sectionTitleStyle: CSSProperties = {
   fontSize: '1.45rem',
   fontWeight: 900,
   lineHeight: 1.15,
+  overflowWrap: 'anywhere',
 }
 
 const sectionTextStyle: CSSProperties = {
   margin: '8px 0 0',
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const pillGreenStyle: CSSProperties = {
@@ -1155,26 +1198,29 @@ const pillSlateStyle: CSSProperties = {
 
 const formGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const identityGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.2fr) minmax(min(100%, 280px), 0.8fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1.2fr) minmax(min(100%, 280px), 0.8fr)',
   gap: 12,
   alignItems: 'end',
+  minWidth: 0,
 })
 
 const autoContextStripStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: isMobile ? 8 : 10,
+  minWidth: 0,
 })
 
 const autoContextCalloutStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'auto minmax(0, 1fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
   gap: 12,
   alignItems: 'center',
   borderRadius: 18,
@@ -1182,6 +1228,7 @@ const autoContextCalloutStyle = (isMobile: boolean): CSSProperties => ({
   background:
     'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 9%, transparent), transparent 62%), var(--shell-chip-bg)',
   padding: isMobile ? 14 : 16,
+  minWidth: 0,
 })
 
 const autoContextTitleStyle: CSSProperties = {
@@ -1190,6 +1237,7 @@ const autoContextTitleStyle: CSSProperties = {
   fontSize: '1rem',
   fontWeight: 950,
   lineHeight: 1.2,
+  overflowWrap: 'anywhere',
 }
 
 const autoContextTextStyle: CSSProperties = {
@@ -1198,11 +1246,13 @@ const autoContextTextStyle: CSSProperties = {
   fontSize: 14,
   fontWeight: 700,
   lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const fieldStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
+  minWidth: 0,
 }
 
 const labelStyle: CSSProperties = {
@@ -1211,6 +1261,7 @@ const labelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const inputStyle: CSSProperties = {
