@@ -225,7 +225,7 @@ export default function JoinPage() {
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
     padding: isMobile ? '22px 18px' : '34px 26px',
     gap: isMobile ? '14px' : '24px',
   }
@@ -480,6 +480,7 @@ const heroShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
   maxWidth: '1280px',
+  minWidth: 0,
   margin: '14px auto 24px',
   display: 'grid',
   borderRadius: '34px',
@@ -527,6 +528,7 @@ const selectedPlanCardStyle: CSSProperties = {
   display: 'grid',
   gap: '7px',
   width: 'min(100%, 560px)',
+  minWidth: 0,
   margin: '18px 0 0',
   padding: '16px',
   borderRadius: '22px',
@@ -555,6 +557,7 @@ const selectedPlanTextStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.55,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const entitlementNoticeStyle: CSSProperties = {
@@ -578,6 +581,7 @@ const selectedPlanStepStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '24px minmax(0, 1fr)',
   gap: '8px',
+  minWidth: 0,
   alignItems: 'center',
   minHeight: '34px',
   padding: '5px 9px',
@@ -587,6 +591,7 @@ const selectedPlanStepStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const selectedPlanActionRowStyle: CSSProperties = {
@@ -599,6 +604,7 @@ const selectedPlanActionRowStyle: CSSProperties = {
 const selectedPlanLinkStyle: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
+  maxWidth: '100%',
   alignItems: 'center',
   minHeight: '34px',
   padding: '0 12px',
@@ -609,10 +615,12 @@ const selectedPlanLinkStyle: CSSProperties = {
   textDecoration: 'none',
   fontSize: '13px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const joinPromisePanel: CSSProperties = {
   marginTop: '24px',
+  minWidth: 0,
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -658,6 +666,7 @@ const promiseStep: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '42px minmax(0, 1fr)',
   gap: '12px',
+  minWidth: 0,
   alignItems: 'center',
   borderRadius: '18px',
   padding: '14px',
@@ -670,6 +679,7 @@ const promiseTitle: CSSProperties = {
   fontSize: '16px',
   lineHeight: 1.35,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const promiseText: CSSProperties = {
@@ -677,10 +687,12 @@ const promiseText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const loginPanel: CSSProperties = {
   position: 'relative',
+  minWidth: 0,
   borderRadius: '30px',
   overflow: 'hidden',
   border: '1px solid var(--shell-panel-border)',
@@ -703,6 +715,7 @@ const loginPanelGlow: CSSProperties = {
 const loginPanelInner: CSSProperties = {
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
   height: '100%',
   padding: '22px',
   display: 'flex',
@@ -720,6 +733,7 @@ const loginBrandWrap: CSSProperties = {
 const formCard: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--foreground) 10%)',
@@ -758,6 +772,7 @@ const identityCueStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '36px minmax(0, 1fr)',
   gap: '10px',
+  minWidth: 0,
   alignItems: 'center',
   padding: '10px 12px',
   borderRadius: '16px',
@@ -767,6 +782,7 @@ const identityCueStyle: CSSProperties = {
   fontSize: '13px',
   fontWeight: 800,
   lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const inputLabel: CSSProperties = {
@@ -778,6 +794,7 @@ const inputLabel: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   minHeight: '50px',
   borderRadius: '16px',
   border: '1px solid var(--shell-panel-border)',
@@ -792,6 +809,7 @@ const termsRow: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
   gap: '10px',
+  minWidth: 0,
   marginTop: '4px',
   color: 'var(--foreground)',
   fontSize: '13px',
@@ -815,6 +833,7 @@ const inlineLegalLink: CSSProperties = {
 
 const togglePasswordButton: CSSProperties = {
   minHeight: '46px',
+  maxWidth: '100%',
   padding: '0 16px',
   borderRadius: '16px',
   border: '1px solid var(--shell-panel-border)',
@@ -822,17 +841,20 @@ const togglePasswordButton: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '13px',
+  overflowWrap: 'anywhere',
   cursor: 'pointer',
 }
 
 const submitButton: CSSProperties = {
   minHeight: '50px',
+  maxWidth: '100%',
   borderRadius: '16px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '15px',
+  overflowWrap: 'anywhere',
   cursor: 'pointer',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
@@ -845,6 +867,7 @@ const successBanner: CSSProperties = {
   color: '#e7ffd0',
   fontWeight: 700,
   fontSize: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const errorBanner: CSSProperties = {
@@ -855,6 +878,7 @@ const errorBanner: CSSProperties = {
   color: '#ffd7d7',
   fontWeight: 700,
   fontSize: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const helperRow: CSSProperties = {
@@ -862,6 +886,7 @@ const helperRow: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   flexWrap: 'wrap',
+  minWidth: 0,
   marginTop: '4px',
   alignItems: 'center',
 }
