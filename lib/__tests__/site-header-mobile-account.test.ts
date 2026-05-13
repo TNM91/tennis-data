@@ -18,8 +18,20 @@ describe('site header mobile account drawer', () => {
     expect(source).toContain('Manage profile')
     expect(source).toContain('mobilePlainItemTextStyle')
     expect(source).toContain('mobileMessageLinkWrapStyle')
+    expect(source).toContain('<span style={mobilePlainItemTextStyle}>{item.label}</span>')
+    expect(source).toContain('<span style={mobilePlainItemTextStyle}>Admin dashboard</span>')
+    expect(source).toContain('<span style={mobilePlainItemTextStyle}>Start Free</span>')
     expect(source).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain("flexWrap: 'wrap' as const")
+  })
+
+  it('keeps nowrap desktop header labels bounded', () => {
+    expect(source).toContain('const navTextWrapStyle')
+    expect(source).toContain('const navLabelStyle')
+    expect(source).toContain('const utilityButtonStyle')
+    expect(source).toContain("maxWidth: '100%'")
+    expect(source).toContain("overflow: 'hidden'")
+    expect(source).toContain("textOverflow: 'ellipsis'")
   })
 
   it('does not label a signed-in unresolved account as Free before role loads', () => {
