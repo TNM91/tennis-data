@@ -1935,7 +1935,7 @@ export default function PlayerProfilePage() {
                 </div>
               </div>
             ) : historyMode === 'table' ? (
-              <div style={{ overflowX: 'auto', marginTop: 8 }}>
+              <div style={ratingHistoryTableWrapStyle}>
                 <table style={dataTable}>
                   <thead>
                     <tr>
@@ -2680,8 +2680,10 @@ function SimpleLineChart({ points, baseRating }: { points: ChartPoint[]; baseRat
             border: '1px solid rgba(116,190,255,0.24)',
             borderRadius: 14,
             padding: '10px 14px',
-            minWidth: 162,
+            minWidth: 'min(100%, 162px)',
             boxShadow: '0 14px 34px rgba(0,0,0,0.38)',
+            maxWidth: 'calc(100vw - 32px)',
+            overflowWrap: 'anywhere',
           }}
         >
           <div style={{ color: '#8fb7ff', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 6 }}>
@@ -3965,6 +3967,11 @@ const tableWrap: CSSProperties = {
   maxWidth: '100%',
 }
 
+const ratingHistoryTableWrapStyle: CSSProperties = {
+  ...tableWrap,
+  marginTop: 8,
+}
+
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
@@ -4000,7 +4007,7 @@ const scoreCellStackStyle: CSSProperties = {
   flexDirection: 'column',
   alignItems: 'flex-start',
   gap: 8,
-  minWidth: 112,
+  minWidth: 0,
   maxWidth: '100%',
   overflowWrap: 'anywhere',
 }
@@ -4248,7 +4255,7 @@ const seasonTableWrapStyle: CSSProperties = {
 
 const seasonTableStyle: CSSProperties = {
   ...dataTable,
-  minWidth: 560,
+  minWidth: 'min(100%, 560px)',
 }
 
 const nearbyListStyle: CSSProperties = {
