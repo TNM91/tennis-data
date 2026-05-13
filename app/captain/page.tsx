@@ -8,9 +8,9 @@ import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
+import { buildProductAccessState } from '@/lib/access-model'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
 import {
   buildCaptainScopedHref,
@@ -42,7 +42,7 @@ import {
 } from '@/lib/captain-week-status'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { supabase } from '@/lib/supabase'
-import { isMember, type UserRole } from '@/lib/roles'
+import { isMember } from '@/lib/roles'
 import {
   formatDate,
   formatRating,
@@ -257,13 +257,19 @@ function normalizePlayerRelation(player: PlayerRelation) {
 }
 
 export default function CaptainHubPage() {
+  return (
+    <SiteShell active="/captain">
+      <CaptainHubContent />
+    </SiteShell>
+  )
+}
+
+function CaptainHubContent() {
   const router = useRouter()
   const { theme } = useTheme()
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
+  const { userId, role, entitlements, authResolved } = useAuth()
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
 
@@ -309,17 +315,6 @@ export default function CaptainHubPage() {
   const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('Weekly notes not saved yet')
   const [loadedNotesScopeKey, setLoadedNotesScopeKey] = useState('')
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
-
-  const loadRole = useCallback(async (nextRole: UserRole) => {
-    setRole(nextRole)
-    setAuthLoading(false)
-
-    if (!isMember(nextRole)) {
-      router.replace('/login')
-    }
-
-    return nextRole
-  }, [router])
 
   const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
     if (!nextUserId) {
@@ -592,47 +587,31 @@ export default function CaptainHubPage() {
   }, [])
 
   useEffect(() => {
-    let active = true
-
-    async function loadAuth() {
-      const authState = await getClientAuthState()
-      if (!active) return
-      setEntitlements(authState.entitlements)
-      await loadCaptainTeamScopes(authState.user?.id)
-      if (!active) return
-      await loadRole(authState.role)
+    if (!authResolved || isMember(role)) {
+      return
     }
 
-    void loadAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async () => {
-      if (!active) return
-      const authState = await getClientAuthState()
-      setEntitlements(authState.entitlements)
-      await loadCaptainTeamScopes(authState.user?.id)
-      if (!active) return
-      void loadRole(authState.role)
-    })
-
-    return () => {
-      active = false
-      subscription.unsubscribe()
-    }
-  }, [loadCaptainTeamScopes, loadRole])
+    router.replace('/login?next=/captain')
+  }, [authResolved, role, router])
 
   useEffect(() => {
-    if (authLoading) return
+    if (!authResolved) return
+    void loadCaptainTeamScopes(userId)
+  }, [authResolved, loadCaptainTeamScopes, userId])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public') return
     void loadTeamOptions()
-  }, [authLoading, loadTeamOptions, refreshTick])
+  }, [authResolved, loadTeamOptions, refreshTick, role])
 
   useEffect(() => {
+    if (!authResolved || role === 'public') return
     if (!selectedTeam) return
     void loadSelectedTeam()
-  }, [loadSelectedTeam, refreshTick, selectedTeam])
+  }, [authResolved, loadSelectedTeam, refreshTick, role, selectedTeam])
 
   useEffect(() => {
+    if (!authResolved || role === 'public') return
     if (!selectedTeam) { setNextMatch(null); return }
     let active = true
     const today = new Date().toISOString().split('T')[0]
@@ -666,7 +645,7 @@ export default function CaptainHubPage() {
       setNextMatch({ date: m.match_date, time: m.match_time, facility: m.facility, opponent, home: isHome })
     })()
     return () => { active = false }
-  }, [selectedTeam, selectedLeague, selectedFlight])
+  }, [authResolved, role, selectedTeam, selectedLeague, selectedFlight])
 
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
@@ -1643,19 +1622,17 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
   }
 
-  if (authLoading) {
+  if (!authResolved) {
     return (
-      <SiteShell active="/captain">
-        <section style={loadingWrap}>
-          <div style={loadingStateCardStyle}>
-            <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
-            <div>
-              <div style={loadingStateTitleStyle}>Loading Captain tools</div>
-              <div style={loadingStateTextStyle}>Checking your role, team profile, and match-week context.</div>
-            </div>
+      <section style={loadingWrap}>
+        <div style={loadingStateCardStyle}>
+          <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
+          <div>
+            <div style={loadingStateTitleStyle}>Loading Captain tools</div>
+            <div style={loadingStateTextStyle}>Checking your role, team profile, and match-week context.</div>
           </div>
-        </section>
-      </SiteShell>
+        </div>
+      </section>
     )
   }
 
@@ -1663,25 +1640,22 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
   if (!premiumEnabled) {
     return (
-      <SiteShell active="/captain">
-        <div style={pageWrap}>
-          <UpgradePrompt
-            planId="captain"
-            headline={CAPTAIN_STORY.upgradeHeadline}
-            body={CAPTAIN_STORY.upgradeBody}
-            result={CAPTAIN_STORY.upgradeResult}
-            ctaLabel={CAPTAIN_STORY.upgradeCta}
-            secondaryLabel="Back to My Lab"
-            secondaryHref="/mylab"
-          />
-        </div>
-      </SiteShell>
+      <div style={pageWrap}>
+        <UpgradePrompt
+          planId="captain"
+          headline={CAPTAIN_STORY.upgradeHeadline}
+          body={CAPTAIN_STORY.upgradeBody}
+          result={CAPTAIN_STORY.upgradeResult}
+          ctaLabel={CAPTAIN_STORY.upgradeCta}
+          secondaryLabel="Back to My Lab"
+          secondaryHref="/mylab"
+        />
+      </div>
     )
   }
 
   return (
-    <SiteShell active="/captain">
-      <div style={pageWrap}>
+    <div style={pageWrap}>
         <section style={dynamicHeroCard}>
           <div style={heroLeft}>
             <TiqFeatureIcon name="captainDashboard" size="lg" variant="surface" />
@@ -2675,7 +2649,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           </div>
         </section>
       </div>
-    </SiteShell>
   )
 }
 
