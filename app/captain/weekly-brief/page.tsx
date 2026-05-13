@@ -767,6 +767,7 @@ const pageStyle: CSSProperties = {
 const contentStyle: CSSProperties = {
   display: 'grid',
   gap: 20,
+  minWidth: 0,
 }
 
 const heroCard: CSSProperties = {
@@ -777,6 +778,7 @@ const heroCard: CSSProperties = {
   border: '1px solid rgba(74,222,128,0.16)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.86) 0%, rgba(16,38,70,0.78) 100%)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+  minWidth: 0,
 }
 
 const heroTopRow: CSSProperties = {
@@ -785,6 +787,7 @@ const heroTopRow: CSSProperties = {
   alignItems: 'flex-start',
   gap: 16,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const heroTitle: CSSProperties = {
@@ -793,6 +796,7 @@ const heroTitle: CSSProperties = {
   fontSize: 34,
   lineHeight: 1.02,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -801,12 +805,14 @@ const heroText: CSSProperties = {
   fontSize: 15,
   lineHeight: 1.7,
   maxWidth: 760,
+  overflowWrap: 'anywhere',
 }
 
 const heroButtonRow: CSSProperties = {
   display: 'flex',
   gap: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const statusValue: CSSProperties = {
@@ -822,6 +828,7 @@ const statusButtonRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
 }
 
 const briefBoardStyle: CSSProperties = {
@@ -833,6 +840,7 @@ const briefBoardStyle: CSSProperties = {
   borderRadius: 24,
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'linear-gradient(135deg, rgba(18,36,66,0.84) 0%, rgba(10,22,44,0.74) 58%, rgba(38,70,42,0.32) 100%)',
+  minWidth: 0,
 }
 
 const briefStatusStyle: CSSProperties = {
@@ -858,6 +866,7 @@ const briefStatusTextStyle: CSSProperties = {
   color: 'rgba(229,238,251,0.78)',
   fontSize: 14,
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const briefMetaRowStyle: CSSProperties = {
@@ -868,12 +877,15 @@ const briefMetaRowStyle: CSSProperties = {
   color: '#c7dbff',
   fontSize: 13,
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const briefSignalGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 14,
+  minWidth: 0,
 }
 
 const briefSignalCardStyle: CSSProperties = {
@@ -883,6 +895,7 @@ const briefSignalCardStyle: CSSProperties = {
   borderRadius: 20,
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(15,23,42,0.52)',
+  minWidth: 0,
 }
 
 const briefSignalCardAccentStyle: CSSProperties = {
@@ -896,6 +909,8 @@ const briefSignalTopStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const briefSignalPercentStyle: CSSProperties = {
@@ -926,6 +941,7 @@ const metricLabel: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const metricValue: CSSProperties = {
@@ -933,6 +949,7 @@ const metricValue: CSSProperties = {
   color: '#f8fbff',
   fontSize: 24,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const metricDetail: CSSProperties = {
@@ -940,6 +957,7 @@ const metricDetail: CSSProperties = {
   color: 'rgba(229,238,251,0.72)',
   fontSize: 13,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const surfaceCard: CSSProperties = {
@@ -950,6 +968,7 @@ const surfaceCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+  minWidth: 0,
 }
 
 const flatPanelStyle: CSSProperties = {
@@ -964,6 +983,7 @@ const sectionHeaderStyle: CSSProperties = {
   alignItems: 'flex-start',
   gap: 12,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const detailsSummaryStyle: CSSProperties = {
@@ -977,6 +997,7 @@ const sectionKicker: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitle: CSSProperties = {
@@ -985,6 +1006,7 @@ const sectionTitle: CSSProperties = {
   fontSize: 24,
   lineHeight: 1.08,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const pillStyle: CSSProperties = {
@@ -994,6 +1016,9 @@ const pillStyle: CSSProperties = {
   color: '#c7dbff',
   fontSize: 12,
   fontWeight: 800,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const twoColumnGrid = (isTablet: boolean): CSSProperties => ({
@@ -1005,6 +1030,7 @@ const twoColumnGrid = (isTablet: boolean): CSSProperties => ({
 const notesStack: CSSProperties = {
   display: 'grid',
   gap: 14,
+  minWidth: 0,
 }
 
 const noteCard: CSSProperties = {
@@ -1014,6 +1040,7 @@ const noteCard: CSSProperties = {
   borderRadius: 20,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const noteLabel: CSSProperties = {
@@ -1022,6 +1049,7 @@ const noteLabel: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const noteText: CSSProperties = {
@@ -1029,12 +1057,14 @@ const noteText: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.7,
   whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
 }
 
 const eventGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
+  minWidth: 0,
 }
 
 const infoBlock: CSSProperties = {
@@ -1044,6 +1074,7 @@ const infoBlock: CSSProperties = {
   borderRadius: 18,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const infoLabel: CSSProperties = {
@@ -1052,6 +1083,7 @@ const infoLabel: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const infoValue: CSSProperties = {
@@ -1059,6 +1091,7 @@ const infoValue: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.65,
   whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
 }
 
 const lineupGrid = (isSmallMobile: boolean): CSSProperties => ({
@@ -1074,6 +1107,7 @@ const lineupCard: CSSProperties = {
   borderRadius: 20,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const lineupTop: CSSProperties = {
@@ -1081,6 +1115,7 @@ const lineupTop: CSSProperties = {
   justifyContent: 'space-between',
   gap: 8,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const courtPill: CSSProperties = {
@@ -1090,6 +1125,9 @@ const courtPill: CSSProperties = {
   color: '#e7ffd1',
   fontSize: 12,
   fontWeight: 800,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const lineupPlayers: CSSProperties = {
@@ -1097,6 +1135,7 @@ const lineupPlayers: CSSProperties = {
   fontSize: 15,
   fontWeight: 700,
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const readinessGrid: CSSProperties = {
@@ -1110,6 +1149,7 @@ const readinessBaseCard: CSSProperties = {
   gap: 8,
   padding: 16,
   borderRadius: 20,
+  minWidth: 0,
 }
 
 const readinessGoodCard: CSSProperties = {
@@ -1130,24 +1170,28 @@ const readinessLabel: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const readinessValue: CSSProperties = {
   color: '#f8fbff',
   fontSize: 18,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const readinessText: CSSProperties = {
   color: 'rgba(229,238,251,0.78)',
   fontSize: 13,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const actionRow: CSSProperties = {
   display: 'flex',
   gap: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const primaryButton: CSSProperties = {
@@ -1162,6 +1206,11 @@ const primaryButton: CSSProperties = {
   textDecoration: 'none',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   cursor: 'pointer',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const secondaryButton: CSSProperties = {
@@ -1176,12 +1225,18 @@ const secondaryButton: CSSProperties = {
   textDecoration: 'none',
   border: '1px solid rgba(255,255,255,0.1)',
   cursor: 'pointer',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const mutedTextStyle: CSSProperties = {
   color: 'rgba(224,234,247,0.72)',
   margin: 0,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const mutedCallout: CSSProperties = {
@@ -1191,6 +1246,8 @@ const mutedCallout: CSSProperties = {
   background: 'rgba(255,255,255,0.04)',
   color: 'rgba(229,238,251,0.78)',
   lineHeight: 1.7,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const errorCard: CSSProperties = {
@@ -1200,6 +1257,8 @@ const errorCard: CSSProperties = {
   background: 'rgba(60,16,24,0.76)',
   color: '#fecaca',
   fontWeight: 700,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 function PrimaryBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
