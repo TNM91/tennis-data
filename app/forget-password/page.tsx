@@ -84,14 +84,14 @@ export default function ForgotPasswordPage() {
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
     padding: isMobile ? '26px 18px' : '34px 26px',
     gap: isMobile ? '18px' : '24px',
   }
 
   const infoGridResponsive: CSSProperties = {
     ...infoGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   }
 
   const formPanelInnerResponsive: CSSProperties = {
@@ -250,6 +250,7 @@ const heroShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
   maxWidth: '1240px',
+  minWidth: 0,
   margin: '0 auto 18px',
   display: 'grid',
   borderRadius: '34px',
@@ -323,11 +324,13 @@ const pillRow: CSSProperties = {
 const pillBase: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   padding: '8px 12px',
   borderRadius: '999px',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.03em',
+  overflowWrap: 'anywhere',
 }
 
 const pillBlue: CSSProperties = {
@@ -346,6 +349,7 @@ const pillGreen: CSSProperties = {
 
 const panelCard: CSSProperties = {
   marginTop: '22px',
+  minWidth: 0,
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -373,6 +377,7 @@ const panelLabel: CSSProperties = {
 const statusPill: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   padding: '7px 10px',
   borderRadius: '999px',
   border: '1px solid var(--shell-panel-border)',
@@ -380,9 +385,11 @@ const statusPill: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const infoCard: CSSProperties = {
+  minWidth: 0,
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'color-mix(in srgb, var(--shell-chip-bg) 90%, var(--foreground) 10%)',
@@ -394,16 +401,19 @@ const infoTitle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 800,
   marginBottom: '6px',
+  overflowWrap: 'anywhere',
 }
 
 const infoText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const formPanel: CSSProperties = {
   position: 'relative',
+  minWidth: 0,
   minHeight: '100%',
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
@@ -423,6 +433,7 @@ const formPanelGlow: CSSProperties = {
 const formPanelInner: CSSProperties = {
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
   padding: '26px',
 }
 
@@ -435,6 +446,7 @@ const loginBrandWrap: CSSProperties = {
 }
 
 const formCard: CSSProperties = {
+  minWidth: 0,
   borderRadius: '22px',
   border: '1px solid var(--shell-panel-border)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--foreground) 10%)',
@@ -469,6 +481,7 @@ const inputLabel: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -486,10 +499,12 @@ const submitButton: CSSProperties = {
   gap: '10px',
   minHeight: '48px',
   width: '100%',
+  maxWidth: '100%',
   padding: '0 18px',
   borderRadius: '16px',
   fontWeight: 800,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
   cursor: 'pointer',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
@@ -507,6 +522,7 @@ const successBanner: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const errorBanner: CSSProperties = {
@@ -519,6 +535,7 @@ const errorBanner: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const helperRow: CSSProperties = {
@@ -528,6 +545,7 @@ const helperRow: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const inlineLink: CSSProperties = {

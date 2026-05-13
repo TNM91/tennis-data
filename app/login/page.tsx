@@ -325,7 +325,7 @@ function canUseBrowserStorage() {
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
     padding: isMobile ? '22px 18px' : '34px 26px',
     gap: isMobile ? '14px' : '24px',
   }
@@ -549,7 +549,7 @@ function TeamStep({ number, title, text }: { number: string; title: string; text
 function passwordWrapResponsive(isSmallMobile: boolean): CSSProperties {
   return {
     ...passwordWrap,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'minmax(0, 1fr) auto',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
   }
 }
 
@@ -557,6 +557,7 @@ const heroShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
   maxWidth: '1280px',
+  minWidth: 0,
   margin: '14px auto 24px',
   display: 'grid',
   borderRadius: '34px',
@@ -604,6 +605,7 @@ const selectedPlanCardStyle: CSSProperties = {
   display: 'grid',
   gap: '7px',
   width: 'min(100%, 560px)',
+  minWidth: 0,
   margin: '18px 0 0',
   padding: '16px',
   borderRadius: '22px',
@@ -632,6 +634,7 @@ const selectedPlanTextStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.55,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const entitlementNoticeStyle: CSSProperties = {
@@ -647,6 +650,7 @@ const entitlementNoticeStyle: CSSProperties = {
 
 const accessPanel: CSSProperties = {
   marginTop: '24px',
+  minWidth: 0,
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -676,6 +680,7 @@ const mobilePromiseChip: CSSProperties = {
 
 const teamFlowPanel: CSSProperties = {
   marginTop: '14px',
+  minWidth: 0,
   borderRadius: '22px',
   border: '1px solid var(--shell-panel-border)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 78%, var(--brand-blue-2) 8%)',
@@ -706,6 +711,7 @@ const teamFlowGrid: CSSProperties = {
 const accessPathCard: CSSProperties = {
   display: 'grid',
   gap: '6px',
+  minWidth: 0,
   borderRadius: '18px',
   padding: '14px',
   background: 'var(--shell-chip-bg)',
@@ -725,18 +731,21 @@ const featureTitle: CSSProperties = {
   fontSize: '16px',
   fontWeight: 800,
   lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const featureText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const teamStepCard: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '10px',
+  minWidth: 0,
   minHeight: '72px',
   borderRadius: '16px',
   padding: '10px',
@@ -763,6 +772,7 @@ const teamStepTitle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 900,
   lineHeight: 1.2,
+  overflowWrap: 'anywhere',
 }
 
 const teamStepText: CSSProperties = {
@@ -770,10 +780,12 @@ const teamStepText: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.35,
   marginTop: '2px',
+  overflowWrap: 'anywhere',
 }
 
 const loginPanel: CSSProperties = {
   position: 'relative',
+  minWidth: 0,
   borderRadius: '30px',
   overflow: 'hidden',
   border: '1px solid var(--shell-panel-border)',
@@ -796,6 +808,7 @@ const loginPanelGlow: CSSProperties = {
 const loginPanelInner: CSSProperties = {
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
   height: '100%',
   padding: '22px',
   display: 'flex',
@@ -813,6 +826,7 @@ const loginBrandWrap: CSSProperties = {
 const formCard: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--foreground) 10%)',
@@ -856,6 +870,7 @@ const inputLabel: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   minHeight: '50px',
   borderRadius: '16px',
   border: '1px solid var(--shell-panel-border)',
@@ -879,6 +894,7 @@ const passwordInputStyle: CSSProperties = {
 
 const togglePasswordButton: CSSProperties = {
   minHeight: '50px',
+  maxWidth: '100%',
   padding: '0 16px',
   borderRadius: '16px',
   border: '1px solid var(--shell-panel-border)',
@@ -886,17 +902,20 @@ const togglePasswordButton: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '13px',
+  overflowWrap: 'anywhere',
   cursor: 'pointer',
 }
 
 const submitButton: CSSProperties = {
   minHeight: '50px',
+  maxWidth: '100%',
   borderRadius: '16px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '15px',
+  overflowWrap: 'anywhere',
   cursor: 'pointer',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
@@ -915,6 +934,7 @@ const errorBanner: CSSProperties = {
   color: '#ffd7d7',
   fontWeight: 700,
   fontSize: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const successBanner: CSSProperties = {
@@ -922,6 +942,7 @@ const successBanner: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
   border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
   color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
 }
 
 const helperRow: CSSProperties = {
@@ -929,6 +950,7 @@ const helperRow: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   flexWrap: 'wrap',
+  minWidth: 0,
   marginTop: '4px',
 }
 
