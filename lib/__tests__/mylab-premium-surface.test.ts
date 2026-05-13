@@ -4,6 +4,14 @@ import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 
+function styleBlock(name: string) {
+  const start = source.indexOf(`const ${name}`)
+  expect(start).toBeGreaterThanOrEqual(0)
+
+  const next = source.indexOf('\nconst ', start + 1)
+  return source.slice(start, next === -1 ? undefined : next)
+}
+
 describe('My Lab premium surface', () => {
   it('keeps the top routine tennis-specific and Data Assist aware', () => {
     expect(source).toContain('MY_LAB_PREMIUM_SIGNALS')
@@ -48,5 +56,26 @@ describe('My Lab premium surface', () => {
     expect(source).not.toContain("const labRoutineNumberStyle: CSSProperties = {\n  width: 34,\n  height: 34,\n  borderRadius: 14,\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-blue-2), var(--brand-green))',\n  color: 'var(--text-dark)'")
     expect(source).not.toContain("background: complete ? 'var(--brand-green)' : 'var(--shell-panel-bg)',\n  color: complete ? 'var(--text-dark)' : 'var(--foreground-strong)'")
     expect(source).not.toContain("const matchupQueueRankStyle: CSSProperties = {\n  width: 34,\n  height: 34,\n  borderRadius: '50%',\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',\n  color: 'var(--text-dark)'")
+  })
+
+  it('keeps dense My Lab workspace rows mobile-safe', () => {
+    for (const blockName of [
+      'secondaryButtonStyle',
+      'workshopMatchRowStyle',
+      'matchActionStackStyle',
+      'goalFooterActionsStyle',
+      'notebookFooterStyle',
+      'compactSignalCardStyle',
+      'followCardStyle',
+    ]) {
+      expect(styleBlock(blockName)).toContain('minWidth: 0')
+    }
+
+    expect(styleBlock('workshopMatchRowStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('matchActionStackStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('compactSignalCardStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('feedTopRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('primaryMiniButtonStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('ghostMiniButtonStyle')).toContain("overflowWrap: 'anywhere'")
   })
 })
