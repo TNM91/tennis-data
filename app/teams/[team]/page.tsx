@@ -1320,7 +1320,7 @@ export default function TeamPage() {
             </div>
 
             {(matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 || matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0) ? (
-              <div style={{ marginTop: 14, display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
+              <div style={matchTypeSplitRowStyle}>
                 {matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 ? (
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--shell-copy-muted)' }}>
                     <span style={{ color: 'var(--foreground)', fontWeight: 900 }}>S</span>{' '}
@@ -1347,8 +1347,8 @@ export default function TeamPage() {
             ) : null}
 
             {recentForm.length > 0 ? (
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
-                <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Recent</span>
+              <div style={recentFormRowStyle}>
+                <span style={recentFormLabelStyle}>Recent</span>
                 {recentForm.map((result, i) => (
                   <span
                     key={i}
@@ -1535,7 +1535,7 @@ export default function TeamPage() {
                           {player.singlesAppearances} singles starts · {player.wins}-{player.losses} record
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 5 }}>
+                      <div style={playerRatingStackStyle}>
                         <span style={badgeBlue}>{formatRating(player.singles_dynamic_rating)}</span>
                         {status ? <span style={{ ...teamStatusPill, ...getTeamStatusStyle(status) }}>{status}</span> : null}
                       </div>
@@ -1620,7 +1620,7 @@ export default function TeamPage() {
                           {player.doublesAppearances} doubles starts · {player.wins}-{player.losses} record
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 5 }}>
+                      <div style={playerRatingStackStyle}>
                         <span style={badgeSlate}>{formatRating(player.doubles_dynamic_rating)}</span>
                         {status ? <span style={{ ...teamStatusPill, ...getTeamStatusStyle(status) }}>{status}</span> : null}
                       </div>
@@ -1647,15 +1647,15 @@ export default function TeamPage() {
 
           {opponentAnalysis.length > 0 ? (
             <section style={{ ...surfaceCard, marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+              <div style={opponentBreakdownHeaderStyle}>
                 <div>
                   <div style={sectionKicker}>Opponent breakdown</div>
                   <h2 style={sectionTitle}>Record vs. opponents</h2>
                 </div>
                 <span style={{ padding: '4px 12px', borderRadius: 999, background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>{opponentAnalysis.length} opponent{opponentAnalysis.length !== 1 ? 's' : ''}</span>
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ ...dataTable, minWidth: 420 }}>
+              <div style={compactTableWrapStyle}>
+                <table style={opponentBreakdownTableStyle}>
                   <thead>
                     <tr>
                       {['Opponent', 'W', 'L', 'Win %', 'Matches', 'Last met'].map((h) => (
@@ -1695,10 +1695,10 @@ export default function TeamPage() {
             return (
             <>
             {seasonOptions.length > 1 ? (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 12, alignItems: 'center' }}>
-                <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>Season:</span>
+              <div style={seasonFilterRowStyle}>
+                <span style={seasonFilterLabelStyle}>Season:</span>
                 {(['all', ...seasonOptions] as const).map((y) => (
-                  <button key={y} type="button" onClick={() => setSeasonFilter(y)} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer', background: seasonFilter === y ? 'rgba(116,190,255,0.14)' : 'transparent', border: `1px solid ${seasonFilter === y ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`, color: seasonFilter === y ? '#93c5fd' : 'var(--shell-copy-muted)' }}>
+                  <button key={y} type="button" onClick={() => setSeasonFilter(y)} style={seasonFilterButtonStyle(seasonFilter === y)}>
                     {y === 'all' ? 'All seasons' : y}
                   </button>
                 ))}
@@ -2087,11 +2087,13 @@ const pageContent: CSSProperties = {
   padding: '18px 24px 0',
   display: 'grid',
   gap: '18px',
+  minWidth: 0,
 }
 
 const heroShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
+  minWidth: 0,
   borderRadius: '34px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
@@ -2103,6 +2105,7 @@ const heroShell: CSSProperties = {
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
@@ -2114,6 +2117,8 @@ const eyebrow: CSSProperties = {
   marginBottom: '18px',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -2123,6 +2128,7 @@ const heroTitle: CSSProperties = {
   lineHeight: 0.98,
   letterSpacing: 0,
   maxWidth: '760px',
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -2131,6 +2137,7 @@ const heroText: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.6,
   maxWidth: '720px',
+  overflowWrap: 'anywhere',
 }
 
 const heroBadgeRow: CSSProperties = {
@@ -2138,6 +2145,7 @@ const heroBadgeRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginBottom: '18px',
+  minWidth: 0,
 }
 
 const heroActions: CSSProperties = {
@@ -2145,6 +2153,7 @@ const heroActions: CSSProperties = {
   flexWrap: 'wrap',
   gap: '12px',
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const buttonPrimary: CSSProperties = {
@@ -2159,6 +2168,11 @@ const buttonPrimary: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   color: 'var(--foreground-strong)',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
@@ -2174,6 +2188,11 @@ const buttonSecondary: CSSProperties = {
   background: 'var(--shell-chip-bg-strong)',
   color: 'var(--foreground-strong)',
   border: '1px solid var(--shell-panel-border)',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const buttonGhost: CSSProperties = {
@@ -2184,16 +2203,21 @@ const buttonGhost: CSSProperties = {
 const followButtonWrap: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
+  minWidth: 0,
 }
 
 const badgeBase: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
   fontSize: '12px',
   fontWeight: 800,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const badgeBlue: CSSProperties = {
@@ -2229,7 +2253,9 @@ const teamStatusPill: CSSProperties = {
   fontSize: 11,
   fontWeight: 800,
   letterSpacing: '0.03em',
+  maxWidth: '100%',
   whiteSpace: 'normal' as const,
+  overflowWrap: 'anywhere',
 }
 
 function getTeamPlayerStatus(player: Player): TeamRatingStatus | null {
@@ -2264,6 +2290,7 @@ const summaryCard: CSSProperties = {
   justifyContent: 'space-between',
   minHeight: '100%',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const summaryTitle: CSSProperties = {
@@ -2272,12 +2299,14 @@ const summaryTitle: CSSProperties = {
   fontSize: '24px',
   letterSpacing: 0,
   marginBottom: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const summaryMetricGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const summaryMetricCard: CSSProperties = {
@@ -2285,6 +2314,7 @@ const summaryMetricCard: CSSProperties = {
   padding: '14px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const summaryMetricLabel: CSSProperties = {
@@ -2292,6 +2322,7 @@ const summaryMetricLabel: CSSProperties = {
   fontWeight: 700,
   fontSize: '13px',
   marginBottom: '8px',
+  overflowWrap: 'anywhere',
 }
 
 const summaryMetricValue: CSSProperties = {
@@ -2300,6 +2331,7 @@ const summaryMetricValue: CSSProperties = {
   fontSize: '28px',
   letterSpacing: 0,
   lineHeight: 1,
+  overflowWrap: 'anywhere',
 }
 
 const summaryHint: CSSProperties = {
@@ -2307,6 +2339,7 @@ const summaryHint: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontSize: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const summaryHintSmall: CSSProperties = {
@@ -2314,6 +2347,34 @@ const summaryHintSmall: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.5,
   fontSize: '13px',
+  overflowWrap: 'anywhere',
+}
+
+const matchTypeSplitRowStyle: CSSProperties = {
+  marginTop: 14,
+  display: 'flex',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const recentFormRowStyle: CSSProperties = {
+  marginTop: 10,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const recentFormLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  overflowWrap: 'anywhere',
 }
 
 const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
@@ -2329,6 +2390,7 @@ const signalCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const signalLabelStyle: CSSProperties = {
@@ -2345,6 +2407,7 @@ const signalValueStyle: CSSProperties = {
   fontSize: '1.28rem',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -2352,11 +2415,13 @@ const signalNoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontSize: '.94rem',
+  overflowWrap: 'anywhere',
 }
 
 const metricGridStyle: CSSProperties = {
   display: 'grid',
   gap: '14px',
+  minWidth: 0,
 }
 
 const metricCard: CSSProperties = {
@@ -2365,6 +2430,7 @@ const metricCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const metricLabel: CSSProperties = {
@@ -2373,6 +2439,7 @@ const metricLabel: CSSProperties = {
   marginBottom: '0.42rem',
   fontWeight: 700,
   display: 'block',
+  overflowWrap: 'anywhere',
 }
 
 const metricValue: CSSProperties = {
@@ -2381,6 +2448,7 @@ const metricValue: CSSProperties = {
   fontWeight: 900,
   lineHeight: 1.1,
   display: 'block',
+  overflowWrap: 'anywhere',
 }
 
 const metricSubtle: CSSProperties = {
@@ -2389,11 +2457,13 @@ const metricSubtle: CSSProperties = {
   lineHeight: 1.55,
   fontSize: '0.9rem',
   display: 'block',
+  overflowWrap: 'anywhere',
 }
 
 const cardGridStyle: CSSProperties = {
   display: 'grid',
   gap: '18px',
+  minWidth: 0,
 }
 
 const surfaceCard: CSSProperties = {
@@ -2404,6 +2474,7 @@ const surfaceCard: CSSProperties = {
   boxShadow: 'var(--shadow-soft)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
+  minWidth: 0,
 }
 
 const surfaceCardStrong: CSSProperties = {
@@ -2416,6 +2487,7 @@ const teamDiscoveryPanelStyle: CSSProperties = {
   gridColumn: '1 / -1',
   display: 'grid',
   gap: '16px',
+  minWidth: 0,
 }
 
 const teamDiscoveryHeaderStyle: CSSProperties = {
@@ -2431,6 +2503,7 @@ const teamDiscoveryCopyStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const teamDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
@@ -2450,6 +2523,7 @@ const teamDiscoveryCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--card-border-soft)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
 }
 
 const teamDiscoveryLabelStyle: CSSProperties = {
@@ -2466,6 +2540,7 @@ const teamDiscoveryCardTitleStyle: CSSProperties = {
   lineHeight: 1.14,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const teamDiscoveryCardTextStyle: CSSProperties = {
@@ -2473,6 +2548,7 @@ const teamDiscoveryCardTextStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.6,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const teamDiscoveryCtaStyle: CSSProperties = {
@@ -2480,6 +2556,7 @@ const teamDiscoveryCtaStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const sectionHeadingRow: CSSProperties = {
@@ -2488,6 +2565,7 @@ const sectionHeadingRow: CSSProperties = {
   gap: '16px',
   marginBottom: '16px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionKicker: CSSProperties = {
@@ -2505,6 +2583,7 @@ const sectionTitle: CSSProperties = {
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const panelCountPill: CSSProperties = {
@@ -2518,17 +2597,22 @@ const panelCountPill: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 900,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const bodyText: CSSProperties = {
   margin: '10px 0 0',
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const stackList: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const listRow: CSSProperties = {
@@ -2540,6 +2624,9 @@ const listRow: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const mutedText: CSSProperties = {
@@ -2547,6 +2634,16 @@ const mutedText: CSSProperties = {
   lineHeight: 1.55,
   fontSize: '0.92rem',
   marginTop: '4px',
+  overflowWrap: 'anywhere',
+}
+
+const playerRatingStackStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-end',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const rosterFilterRow: CSSProperties = {
@@ -2554,6 +2651,7 @@ const rosterFilterRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '8px',
   marginBottom: '10px',
+  minWidth: 0,
 }
 
 const rosterFilterButton: CSSProperties = {
@@ -2569,6 +2667,10 @@ const rosterFilterButton: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const rosterFilterButtonActive: CSSProperties = {
@@ -2595,6 +2697,7 @@ const rosterFilterHint: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const rosterCompareTray: CSSProperties = {
@@ -2608,6 +2711,7 @@ const rosterCompareTray: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
   background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%)',
+  minWidth: 0,
 }
 
 const rosterCompareKicker: CSSProperties = {
@@ -2623,6 +2727,7 @@ const rosterCompareTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const rosterCompareActions: CSSProperties = {
@@ -2630,6 +2735,7 @@ const rosterCompareActions: CSSProperties = {
   alignItems: 'center',
   gap: '8px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const rosterCompareClearButton: CSSProperties = {
@@ -2642,6 +2748,10 @@ const rosterCompareClearButton: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const rosterCompareLinkReady: CSSProperties = {
@@ -2657,6 +2767,11 @@ const rosterCompareLinkReady: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   textDecoration: 'none',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const rosterCompareLinkDisabled: CSSProperties = {
@@ -2677,6 +2792,10 @@ const rosterSelectButton: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const rosterSelectButtonActive: CSSProperties = {
@@ -2690,11 +2809,13 @@ const emptyState: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   margin: 0,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const emptyStateBlock: CSSProperties = {
   display: 'grid',
   gap: '8px',
+  minWidth: 0,
 }
 
 const helperCallout: CSSProperties = {
@@ -2709,6 +2830,9 @@ const helperCallout: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 700,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const listLinkCard: CSSProperties = {
@@ -2720,14 +2844,19 @@ const listLinkCard: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const tableWrap: CSSProperties = {
   width: '100%',
   overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  WebkitOverflowScrolling: 'touch',
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  maxWidth: '100%',
 }
 
 const dataTable: CSSProperties = {
@@ -2743,6 +2872,8 @@ const tableHeaderCell: CSSProperties = {
   fontSize: '12px',
   textTransform: 'uppercase',
   letterSpacing: '.06em',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tableCell: CSSProperties = {
@@ -2750,6 +2881,7 @@ const tableCell: CSSProperties = {
   borderTop: '1px solid var(--shell-panel-border)',
   color: 'var(--foreground)',
   verticalAlign: 'top',
+  overflowWrap: 'anywhere',
 }
 
 const scoreCellStackStyle: CSSProperties = {
@@ -2758,6 +2890,8 @@ const scoreCellStackStyle: CSSProperties = {
   alignItems: 'flex-start',
   gap: 8,
   minWidth: 112,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSProperties => {
@@ -2783,12 +2917,14 @@ const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSPrope
     fontSize: 12,
     fontWeight: 900,
     whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
   }
 }
 
 const playerLink: CSSProperties = {
   color: 'var(--foreground)',
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const rosterActionRow: CSSProperties = {
@@ -2796,6 +2932,7 @@ const rosterActionRow: CSSProperties = {
   alignItems: 'center',
   gap: '8px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const rosterActionLink: CSSProperties = {
@@ -2810,7 +2947,62 @@ const rosterActionLink: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   textDecoration: 'none',
+  maxWidth: '100%',
+  minWidth: 0,
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const opponentBreakdownHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 16,
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const compactTableWrapStyle: CSSProperties = {
+  ...tableWrap,
+}
+
+const opponentBreakdownTableStyle: CSSProperties = {
+  ...dataTable,
+  minWidth: 420,
+}
+
+const seasonFilterRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  marginBottom: 12,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const seasonFilterLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+function seasonFilterButtonStyle(active: boolean): CSSProperties {
+  return {
+    padding: '5px 11px',
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: 'pointer',
+    background: active ? 'rgba(116,190,255,0.14)' : 'transparent',
+    border: `1px solid ${active ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`,
+    color: active ? '#93c5fd' : 'var(--shell-copy-muted)',
+    maxWidth: '100%',
+    minWidth: 0,
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+  }
 }
 
 const rosterActionLinkAccent: CSSProperties = {
