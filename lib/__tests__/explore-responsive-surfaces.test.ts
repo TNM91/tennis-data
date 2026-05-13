@@ -87,6 +87,22 @@ describe('Explore responsive surfaces', () => {
     expect(teamsSource).toContain('DATA_ASSIST_STORY.cta')
   })
 
+  it('keeps Players and Teams directory grids minmax-safe on mobile', () => {
+    expect(playersSource).not.toContain("gridTemplateColumns: isTablet\n      ? '1fr'")
+    expect(playersSource).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+    expect(playersSource).toContain("gridTemplateColumns: isTablet\n      ? 'minmax(0, 1fr)'")
+    expect(playersSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(styleBlock(playersSource, 'heroContent')).toContain('minWidth: 0')
+    expect(styleBlock(playersSource, 'cardGrid')).toContain('minWidth: 0')
+
+    expect(teamsSource).not.toContain("gridTemplateColumns: isMobile ? '1fr'")
+    expect(teamsSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+    expect(teamsSource).toContain('const filtersGrid = (isMobile: boolean): CSSProperties')
+    expect(teamsSource).toContain('const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties')
+    expect(teamsSource).toContain('minWidth: 0')
+    expect(styleBlock(teamsSource, 'surfaceCard')).toContain("background: 'var(--shell-panel-bg)'")
+  })
+
   it('keeps Teams directory readable in light mode with shell tokens', () => {
     expect(teamsSource).toContain('var(--background)')
     expect(teamsSource).toContain("color: 'var(--foreground)'")

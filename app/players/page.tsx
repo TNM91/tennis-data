@@ -336,7 +336,7 @@ export default function PlayersPage() {
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
     gridTemplateColumns: isTablet
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
     gap: isMobile ? '18px' : '22px',
   }
@@ -413,7 +413,7 @@ export default function PlayersPage() {
 
   const dynamicHeroStatsGrid: CSSProperties = {
     ...heroStatsGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   }
 
   const dynamicSectionHeader: CSSProperties = {
@@ -424,7 +424,7 @@ export default function PlayersPage() {
   const dynamicCardGrid: CSSProperties = {
     ...cardGrid,
     gridTemplateColumns: isSmallMobile
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : isTablet
         ? 'repeat(2, minmax(0, 1fr))'
         : 'repeat(3, minmax(0, 1fr))',
@@ -432,7 +432,7 @@ export default function PlayersPage() {
 
   const dynamicQuickFilterGrid: CSSProperties = {
     ...quickFilterGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   }
 
   return (
@@ -1016,6 +1016,7 @@ const heroContent: CSSProperties = {
   alignItems: 'stretch',
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
 }
 
 const heroLeft: CSSProperties = {
@@ -1392,6 +1393,7 @@ const emptyStateButton: CSSProperties = {
 const cardGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
+  minWidth: 0,
 }
 
 const playerCard: CSSProperties = {
