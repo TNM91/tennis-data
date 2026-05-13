@@ -1391,6 +1391,11 @@ export default function MatchupPage() {
     width: isMobile ? '100%' : 'auto',
   }
 
+  const dynamicIdentitySetupStripStyle: CSSProperties = {
+    ...identitySetupStripStyle,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : identitySetupStripStyle.gridTemplateColumns,
+  }
+
   return (
     <SiteShell active="/matchup">
       <section style={dynamicHeroWrap}>
@@ -1454,7 +1459,7 @@ export default function MatchupPage() {
           </div>
 
           {needsProfileSetup ? (
-            <article style={identitySetupStripStyle}>
+            <article style={dynamicIdentitySetupStripStyle}>
               <TiqFeatureIcon name="accountSecurity" size="md" variant="surface" />
               <div style={identitySetupCopyStyle}>
                 <div style={identitySetupKickerStyle}>Finish personalization</div>
@@ -1666,7 +1671,7 @@ export default function MatchupPage() {
                 ))}
               </div>
               {(teamA1Id || teamA2Id || teamB1Id || teamB2Id) ? (
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+                <div style={swapSidesRowStyle}>
                   <SwapSidesButton
                     onClick={() => {
                       setSelectionNotice('')
@@ -1928,8 +1933,8 @@ export default function MatchupPage() {
               ) : null}
 
               {trajectories.left.length >= 3 && trajectories.right.length >= 3 ? (
-                <div style={{ marginTop: 12, padding: '16px 18px', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 12 }}>Rating trajectory comparison</div>
+                <div style={trajectoryPanelStyle}>
+                  <div style={trajectoryKickerStyle}>Rating trajectory comparison</div>
                   <DualTrajectoryChart
                     leftPoints={trajectories.left}
                     rightPoints={trajectories.right}
@@ -2066,15 +2071,15 @@ export default function MatchupPage() {
                           ? comparison.rightLabel
                           : null
                       return (
-                        <div style={{ marginTop: 18 }}>
-                          <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>
+                        <div style={headToHeadDominanceStyle}>
+                          <div style={headToHeadDominanceKickerStyle}>
                             Head-to-head dominance{leaderLabel ? ` | ${leaderLabel} leads` : ' | Even'}
                           </div>
-                          <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 12, background: 'rgba(255,255,255,0.06)' }}>
+                          <div style={headToHeadBarStyle}>
                             <div style={{ width: `${pctA}%`, background: 'linear-gradient(90deg, #9be11d, #4ade80)', transition: 'width 500ms ease', minWidth: pctA > 0 ? 4 : 0 }} />
                             <div style={{ flex: 1, background: 'rgba(116,190,255,0.35)' }} />
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                          <div style={headToHeadPercentRowStyle}>
                             <span style={{ color: '#d9f84a', fontWeight: 800, fontSize: 13 }}>{comparison.leftLabel} {pctA}%</span>
                             <span style={{ color: '#93c5fd', fontWeight: 800, fontSize: 13 }}>{pctB}% {comparison.rightLabel}</span>
                           </div>
@@ -2094,20 +2099,20 @@ export default function MatchupPage() {
                       return (
                       <div style={{ marginTop: 18 }}>
                         {scoredMatches > 0 ? (
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 12 }}>
+                          <div style={headToHeadTagRowStyle}>
                             {threeSets > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(116,190,255,0.10)', border: '1px solid rgba(116,190,255,0.18)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>{threeSets} went 3 sets</span> : null}
                             {tiebreaks > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(251,146,60,0.10)', border: '1px solid rgba(251,146,60,0.18)', color: '#fed7aa', fontSize: 11, fontWeight: 800 }}>{tiebreaks} tiebreak{tiebreaks !== 1 ? 's' : ''}</span> : null}
                             {scoredMatches - threeSets - tiebreaks > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(155,225,29,0.08)', border: '1px solid rgba(155,225,29,0.16)', color: '#d9f84a', fontSize: 11, fontWeight: 800 }}>{scoredMatches - threeSets - tiebreaks} straight sets</span> : null}
                           </div>
                         ) : null}
-                        <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>Match history</div>
+                        <div style={headToHeadDominanceKickerStyle}>Match history</div>
                         {headToHead.recentMatches.map((m, i) => {
                           const quality = getH2HScoreQuality(m.score)
                           const winnerLabel = m.winner === 'A' ? comparison.leftLabel : comparison.rightLabel
                           return (
                             <div
                               key={i}
-                              style={{ display: 'flex', flexWrap: 'wrap' as const, alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: 6 }}
+                              style={headToHeadMatchRowStyle}
                             >
                               <span style={{ color: 'rgba(190,210,240,0.6)', fontSize: 12, fontWeight: 700 }}>{formatDate(m.matchDate)}</span>
                               <span style={{ color: 'rgba(190,210,240,0.5)', fontSize: 12 }}>{capitalize(m.matchType)}</span>
@@ -2115,7 +2120,7 @@ export default function MatchupPage() {
                               {quality ? (
                                 <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(116,190,255,0.10)', border: '1px solid rgba(116,190,255,0.18)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>{quality}</span>
                               ) : null}
-                              <span style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 999, background: m.winner === 'A' ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)', border: `1px solid ${m.winner === 'A' ? 'rgba(155,225,29,0.22)' : 'rgba(116,190,255,0.20)'}`, color: m.winner === 'A' ? '#d9f84a' : '#93c5fd', fontSize: 12, fontWeight: 800 }}>{winnerLabel}</span>
+                              <span style={headToHeadWinnerPillStyle(m.winner)}>{winnerLabel}</span>
                             </div>
                           )
                         })}
@@ -2214,7 +2219,7 @@ function CompareCard({
       }}
     >
       <div style={compareHead}>
-        <div>
+        <div style={compareHeadCopyStyle}>
           <div style={compareTitle}>{title}</div>
           <div style={compareSubtitle}>{subtitle}</div>
         </div>
@@ -2616,6 +2621,7 @@ const heroShell: CSSProperties = {
   width: '100%',
   maxWidth: '1280px',
   margin: '0 auto',
+  minWidth: 0,
   borderRadius: '30px',
   background: 'var(--shell-panel-bg-strong)',
   border: '1px solid var(--shell-panel-border)',
@@ -2637,6 +2643,7 @@ const heroContent: CSSProperties = {
   alignItems: 'stretch',
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
 }
 
 const heroLeft: CSSProperties = {
@@ -2652,6 +2659,7 @@ const heroTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -2659,11 +2667,13 @@ const heroText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
+  maxWidth: '100%',
   alignItems: 'center',
   padding: '7px 11px',
   borderRadius: '999px',
@@ -2674,6 +2684,8 @@ const eyebrow: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroHintRow: CSSProperties = {
@@ -2681,9 +2693,11 @@ const heroHintRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '4px',
+  minWidth: 0,
 }
 
 const heroHintPill: CSSProperties = {
+  maxWidth: '100%',
   border: '1px solid rgba(137,182,255,0.14)',
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
@@ -2691,6 +2705,7 @@ const heroHintPill: CSSProperties = {
   padding: '10px 14px',
   fontSize: '13px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const engineCard: CSSProperties = {
@@ -2741,6 +2756,7 @@ const exploreNavRow: CSSProperties = {
   alignItems: 'center',
   margin: '4px 0 16px',
   paddingTop: '4px',
+  minWidth: 0,
 }
 
 const exploreNavLabelStyle: CSSProperties = {
@@ -2749,6 +2765,7 @@ const exploreNavLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const exploreNavLink: CSSProperties = {
@@ -2764,11 +2781,16 @@ const exploreNavLink: CSSProperties = {
   textDecoration: 'none',
   fontSize: '13px',
   fontWeight: 800,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const profileContextCalloutStyle: CSSProperties = {
   marginTop: '8px',
   maxWidth: 620,
+  minWidth: 0,
   display: 'flex',
   flexWrap: 'wrap',
   alignItems: 'center',
@@ -2780,12 +2802,14 @@ const profileContextCalloutStyle: CSSProperties = {
   padding: '11px 13px',
   fontSize: '13px',
   lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const profileContextLinkStyle: CSSProperties = {
   color: '#d9f84a',
   fontWeight: 900,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const controlsCard: CSSProperties = {
@@ -2808,6 +2832,7 @@ const toolHeaderStyle: CSSProperties = {
   paddingBottom: '16px',
   marginBottom: '16px',
   borderBottom: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const toolHeaderTitleClusterStyle: CSSProperties = {
@@ -2839,6 +2864,7 @@ const toolHeaderTextStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const identitySetupStripStyle: CSSProperties = {
@@ -2846,6 +2872,7 @@ const identitySetupStripStyle: CSSProperties = {
   gridTemplateColumns: '56px minmax(0, 1fr) auto',
   gap: 14,
   alignItems: 'center',
+  minWidth: 0,
   marginBottom: 18,
   padding: 16,
   borderRadius: 20,
@@ -2874,6 +2901,7 @@ const identitySetupTitleStyle: CSSProperties = {
   fontSize: '1.12rem',
   lineHeight: 1.15,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const identitySetupTextStyle: CSSProperties = {
@@ -2882,6 +2910,7 @@ const identitySetupTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const identitySetupButtonStyle: CSSProperties = {
@@ -2897,7 +2926,11 @@ const identitySetupButtonStyle: CSSProperties = {
   textDecoration: 'none',
   fontSize: 13,
   fontWeight: 950,
+  maxWidth: '100%',
+  minWidth: 0,
   whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
@@ -2908,11 +2941,13 @@ const toolbarTop: CSSProperties = {
   alignItems: 'flex-start',
   flexWrap: 'wrap',
   marginBottom: '18px',
+  minWidth: 0,
 }
 
 const toggleStack: CSSProperties = {
   display: 'grid',
   gap: '8px',
+  minWidth: 0,
 }
 
 const toggleLabel: CSSProperties = {
@@ -2921,6 +2956,7 @@ const toggleLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const toggleGroup: CSSProperties = {
@@ -2932,6 +2968,8 @@ const toggleGroup: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--home-control-shadow)',
+  maxWidth: '100%',
+  minWidth: 0,
 }
 
 const toggleButton: CSSProperties = {
@@ -2945,6 +2983,10 @@ const toggleButton: CSSProperties = {
   cursor: 'pointer',
   letterSpacing: 0,
   transition: 'all 180ms ease',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const toggleButtonGreen: CSSProperties = {
@@ -3017,6 +3059,7 @@ const errorActionRowStyle: CSSProperties = {
   gap: '10px',
   alignItems: 'center',
   marginTop: 2,
+  minWidth: 0,
 }
 
 const noticeBannerStyle: CSSProperties = {
@@ -3034,6 +3077,8 @@ const noticeBannerStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 750,
   lineHeight: 1.55,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const noticeDismissButtonStyle: CSSProperties = {
@@ -3046,6 +3091,9 @@ const noticeDismissButtonStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const editorialPanel: CSSProperties = {
@@ -3064,6 +3112,7 @@ const editorialText: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.8,
   maxWidth: '860px',
+  overflowWrap: 'anywhere',
 }
 
 const editorialGrid: CSSProperties = {
@@ -3079,6 +3128,7 @@ const editorialCard: CSSProperties = {
   borderRadius: '20px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const editorialCardLabel: CSSProperties = {
@@ -3095,6 +3145,7 @@ const editorialCardValue: CSSProperties = {
   lineHeight: 1.04,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const editorialCardText: CSSProperties = {
@@ -3116,8 +3167,10 @@ const retryButtonStyle: CSSProperties = {
   fontWeight: 800,
   cursor: 'pointer',
   maxWidth: '100%',
+  minWidth: 0,
   whiteSpace: 'normal',
   textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const retryLinkStyle: CSSProperties = {
@@ -3173,7 +3226,10 @@ const resetButton: CSSProperties = {
   fontSize: '13px',
   cursor: 'pointer',
   maxWidth: '100%',
+  minWidth: 0,
   whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const selectionProgressCard: CSSProperties = {
@@ -3199,12 +3255,14 @@ const selectionProgressValue: CSSProperties = {
   fontWeight: 900,
   letterSpacing: 0,
   marginBottom: '6px',
+  overflowWrap: 'anywhere',
 }
 
 const selectionProgressTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const handoffCardStyle: CSSProperties = {
@@ -3217,6 +3275,7 @@ const handoffCardStyle: CSSProperties = {
   background:
     'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(48,99,180,0.10) 46%, var(--shell-panel-bg) 100%)',
   boxShadow: '0 18px 42px rgba(0,0,0,0.16)',
+  minWidth: 0,
 }
 
 const handoffHeaderStyle: CSSProperties = {
@@ -3225,12 +3284,14 @@ const handoffHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: '14px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const handoffTitleClusterStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '12px',
+  minWidth: 0,
 }
 
 const handoffKickerStyle: CSSProperties = {
@@ -3247,6 +3308,7 @@ const handoffTitleStyle: CSSProperties = {
   fontSize: '20px',
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const handoffTextStyle: CSSProperties = {
@@ -3256,6 +3318,7 @@ const handoffTextStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const handoffSidesGridStyle: CSSProperties = {
@@ -3272,6 +3335,7 @@ const handoffSideCardStyle: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const handoffSideCardActiveStyle: CSSProperties = {
@@ -3292,12 +3356,14 @@ const handoffSideNameStyle: CSSProperties = {
   fontSize: '17px',
   fontWeight: 950,
   lineHeight: 1.18,
+  overflowWrap: 'anywhere',
 }
 
 const handoffSideMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const doublesQuickStartStyle: CSSProperties = {
@@ -3311,6 +3377,7 @@ const doublesQuickStartStyle: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid rgba(155,225,29,0.20)',
   background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.08) 0%, rgba(13,27,52,0.82) 100%)',
+  minWidth: 0,
 }
 
 const doublesQuickStartTextStyle: CSSProperties = {
@@ -3319,6 +3386,8 @@ const doublesQuickStartTextStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '14px',
   lineHeight: 1.4,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const quickStartButtonStyle: CSSProperties = {
@@ -3331,6 +3400,11 @@ const quickStartButtonStyle: CSSProperties = {
   fontSize: '13px',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
@@ -3350,6 +3424,7 @@ const doublesPreviewCardStyle: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const doublesPreviewLabelStyle: CSSProperties = {
@@ -3365,6 +3440,7 @@ const doublesPreviewNamesStyle: CSSProperties = {
   fontSize: '1rem',
   fontWeight: 900,
   lineHeight: 1.25,
+  overflowWrap: 'anywhere',
 }
 
 const doublesPreviewMetaStyle: CSSProperties = {
@@ -3372,6 +3448,7 @@ const doublesPreviewMetaStyle: CSSProperties = {
   fontSize: '13px',
   fontStyle: 'normal',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const prefillPromptCard: CSSProperties = {
@@ -3382,6 +3459,7 @@ const prefillPromptCard: CSSProperties = {
   borderRadius: '22px',
   border: '1px solid rgba(155,225,29,0.22)',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.10) 0%, rgba(13,27,52,0.86) 100%)',
+  minWidth: 0,
 }
 
 const prefillPromptKicker: CSSProperties = {
@@ -3399,6 +3477,7 @@ const prefillPromptTitle: CSSProperties = {
   fontSize: '22px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const prefillPromptText: CSSProperties = {
@@ -3406,6 +3485,7 @@ const prefillPromptText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const suggestionGrid: CSSProperties = {
@@ -3426,18 +3506,22 @@ const suggestionButton: CSSProperties = {
   color: 'var(--foreground)',
   cursor: 'pointer',
   textAlign: 'left',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const suggestionName: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '14px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const suggestionMeta: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const decisionBanner: CSSProperties = {
@@ -3452,6 +3536,7 @@ const decisionBanner: CSSProperties = {
   background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(13,27,52,0.88) 100%)',
   border: '1px solid rgba(155,225,29,0.25)',
   boxShadow: '0 20px 50px rgba(155,225,29,0.15)',
+  minWidth: 0,
 }
 
 const decisionLabel: CSSProperties = {
@@ -3469,6 +3554,7 @@ const decisionWinner: CSSProperties = {
   color: '#fff',
   lineHeight: 1.05,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const decisionSub: CSSProperties = {
@@ -3477,6 +3563,7 @@ const decisionSub: CSSProperties = {
   color: 'rgba(220,235,255,0.8)',
   lineHeight: 1.6,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const decisionRight: CSSProperties = {
@@ -3484,6 +3571,7 @@ const decisionRight: CSSProperties = {
   flexDirection: 'column',
   gap: '10px',
   alignItems: 'flex-end',
+  minWidth: 0,
 }
 
 const decisionPill: CSSProperties = {
@@ -3496,12 +3584,16 @@ const decisionPill: CSSProperties = {
   color: '#eff8ff',
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }
 
 const decisionCtaRow: CSSProperties = {
   display: 'flex',
   gap: '10px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const prepReadGrid: CSSProperties = {
@@ -3520,6 +3612,7 @@ const prepReadCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const prepReadCardAccent: CSSProperties = {
@@ -3550,6 +3643,7 @@ const prepReadValue: CSSProperties = {
   lineHeight: 1.08,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const prepReadText: CSSProperties = {
@@ -3557,6 +3651,7 @@ const prepReadText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const ctaPrimary: CSSProperties = {
@@ -3571,6 +3666,11 @@ const ctaPrimary: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
@@ -3586,6 +3686,11 @@ const ctaSecondary: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   background: 'rgba(255,255,255,0.04)',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const compareGrid: CSSProperties = {
@@ -3614,6 +3719,13 @@ const compareHead: CSSProperties = {
   alignItems: 'flex-start',
   gap: '12px',
   marginBottom: '16px',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const compareHeadCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const compareTitle: CSSProperties = {
@@ -3622,6 +3734,7 @@ const compareTitle: CSSProperties = {
   lineHeight: 1.15,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const compareSubtitle: CSSProperties = {
@@ -3630,6 +3743,7 @@ const compareSubtitle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const miniGhostButton: CSSProperties = {
@@ -3646,6 +3760,10 @@ const miniGhostButton: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const ratingGrid: CSSProperties = {
@@ -3660,6 +3778,7 @@ const ratingPill: CSSProperties = {
   background: 'rgba(18,34,64,0.85)',
   border: '1px solid rgba(116,190,255,0.18)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
 }
 
 const ratingPillActive: CSSProperties = {
@@ -3673,6 +3792,7 @@ const ratingPillLabel: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const ratingPillValue: CSSProperties = {
@@ -3682,6 +3802,7 @@ const ratingPillValue: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const highlightBox: CSSProperties = {
@@ -3690,6 +3811,7 @@ const highlightBox: CSSProperties = {
   background: 'rgba(18,34,64,0.9)',
   border: '1px solid rgba(116,190,255,0.18)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
 }
 
 const highlightLabel: CSSProperties = {
@@ -3706,6 +3828,7 @@ const highlightValue: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const centerColumn: CSSProperties = {
@@ -3714,6 +3837,7 @@ const centerColumn: CSSProperties = {
   justifyContent: 'center',
   alignItems: 'center',
   gap: '16px',
+  minWidth: 0,
 }
 
 const vsBadge: CSSProperties = {
@@ -3733,6 +3857,7 @@ const vsBadge: CSSProperties = {
 
 const gapCard: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   textAlign: 'center',
   borderRadius: '24px',
   padding: '18px',
@@ -3757,6 +3882,7 @@ const gapValue: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const gapMeta: CSSProperties = {
@@ -3765,23 +3891,28 @@ const gapMeta: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const formCompareRow: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '12px',
+  flexWrap: 'wrap',
   marginTop: '12px',
   padding: '16px 20px',
   borderRadius: '20px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
+  minWidth: 0,
 }
 
 const formCompareCell: CSSProperties = {
-  flex: 1,
+  flex: '1 1 150px',
   display: 'grid',
   gap: '4px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const formCompareDivider: CSSProperties = {
@@ -3789,8 +3920,8 @@ const formCompareDivider: CSSProperties = {
   flexDirection: 'column',
   alignItems: 'center',
   gap: '4px',
-  minWidth: '90px',
-  flexShrink: 0,
+  minWidth: 0,
+  flex: '0 1 90px',
 }
 
 const formCompareLabel: CSSProperties = {
@@ -3818,6 +3949,7 @@ function formCellValue(delta: number | null): CSSProperties {
     fontWeight: 900,
     letterSpacing: 0,
     color: positive ? '#86efac' : negative ? '#fca5a5' : 'var(--foreground)',
+    overflowWrap: 'anywhere',
   }
 }
 
@@ -3825,6 +3957,7 @@ const formCellMeta: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const summaryCard: CSSProperties = {
@@ -3834,6 +3967,7 @@ const summaryCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const sectionTitle: CSSProperties = {
@@ -3843,6 +3977,7 @@ const sectionTitle: CSSProperties = {
   lineHeight: 1.2,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionKicker: CSSProperties = {
@@ -3866,6 +4001,7 @@ const paragraph: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const metricGrid: CSSProperties = {
@@ -3879,6 +4015,7 @@ const metricCard: CSSProperties = {
   padding: '16px',
   background: 'rgba(255,255,255,0.06)',
   border: '1px solid rgba(255,255,255,0.10)',
+  minWidth: 0,
 }
 
 const metricLabel: CSSProperties = {
@@ -3886,6 +4023,7 @@ const metricLabel: CSSProperties = {
   fontSize: '13px',
   marginBottom: '8px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const metricValue: CSSProperties = {
@@ -3894,6 +4032,7 @@ const metricValue: CSSProperties = {
   lineHeight: 1.1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const metricSub: CSSProperties = {
@@ -3902,6 +4041,7 @@ const metricSub: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const calloutCard: CSSProperties = {
@@ -3915,6 +4055,7 @@ const calloutCard: CSSProperties = {
   padding: '16px',
   background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.09) 0%, rgba(13,27,52,0.86) 100%)',
   border: '1px solid rgba(155,225,29,0.25)',
+  minWidth: 0,
 }
 
 const calloutTitle: CSSProperties = {
@@ -3922,6 +4063,7 @@ const calloutTitle: CSSProperties = {
   fontSize: '16px',
   lineHeight: 1.45,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const calloutSub: CSSProperties = {
@@ -3930,6 +4072,7 @@ const calloutSub: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const upsetPill: CSSProperties = {
@@ -3946,7 +4089,9 @@ const upsetPill: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
+  maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const recommendationCard: CSSProperties = {
@@ -3956,6 +4101,7 @@ const recommendationCard: CSSProperties = {
   background: 'rgba(9,20,39,0.44)',
   border: '1px solid rgba(116,190,255,0.14)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
 }
 
 const recommendationTitle: CSSProperties = {
@@ -3965,6 +4111,7 @@ const recommendationTitle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const recommendationTextStyle: CSSProperties = {
@@ -3973,6 +4120,34 @@ const recommendationTextStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.72,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
+}
+
+const swapSidesRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  marginTop: '12px',
+  minWidth: 0,
+}
+
+const trajectoryPanelStyle: CSSProperties = {
+  marginTop: 12,
+  padding: '16px 18px',
+  borderRadius: 20,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  minWidth: 0,
+  overflow: 'hidden',
+}
+
+const trajectoryKickerStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: 12,
+  overflowWrap: 'anywhere',
 }
 
 const emptyHeadToHeadCard: CSSProperties = {
@@ -3981,6 +4156,7 @@ const emptyHeadToHeadCard: CSSProperties = {
   padding: '18px',
   background: 'rgba(255,255,255,0.05)',
   border: '1px solid rgba(255,255,255,0.10)',
+  minWidth: 0,
 }
 
 const emptyHeadToHeadTitle: CSSProperties = {
@@ -3989,6 +4165,7 @@ const emptyHeadToHeadTitle: CSSProperties = {
   lineHeight: 1.15,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const emptyHeadToHeadText: CSSProperties = {
@@ -3997,6 +4174,80 @@ const emptyHeadToHeadText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
+}
+
+const headToHeadDominanceStyle: CSSProperties = {
+  marginTop: 18,
+  minWidth: 0,
+}
+
+const headToHeadDominanceKickerStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontWeight: 800,
+  fontSize: 12,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: 10,
+  overflowWrap: 'anywhere',
+}
+
+const headToHeadBarStyle: CSSProperties = {
+  display: 'flex',
+  borderRadius: 999,
+  overflow: 'hidden',
+  height: 12,
+  background: 'rgba(255,255,255,0.06)',
+  minWidth: 0,
+}
+
+const headToHeadPercentRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  marginTop: 8,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const headToHeadTagRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  marginBottom: 12,
+  minWidth: 0,
+}
+
+const headToHeadMatchRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: 8,
+  padding: '10px 12px',
+  borderRadius: 14,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  marginBottom: 6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+function headToHeadWinnerPillStyle(winner: 'A' | 'B'): CSSProperties {
+  return {
+    marginLeft: 'auto',
+    padding: '3px 10px',
+    borderRadius: 999,
+    background: winner === 'A' ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)',
+    border: `1px solid ${winner === 'A' ? 'rgba(155,225,29,0.22)' : 'rgba(116,190,255,0.20)'}`,
+    color: winner === 'A' ? '#d9f84a' : '#93c5fd',
+    fontSize: 12,
+    fontWeight: 800,
+    maxWidth: '100%',
+    minWidth: 0,
+    overflowWrap: 'anywhere',
+    whiteSpace: 'normal',
+  }
 }
 
 const headToHeadScoreText: CSSProperties = {
@@ -4011,6 +4262,7 @@ const emptyHeadToHeadActions: CSSProperties = {
   gap: '10px',
   flexWrap: 'wrap',
   marginTop: '14px',
+  minWidth: 0,
 }
 
 
@@ -4019,6 +4271,7 @@ const intelligenceTierRow: CSSProperties = {
   gap: '8px',
   flexWrap: 'wrap',
   marginTop: '10px',
+  minWidth: 0,
 }
 
 const intelligenceTierPill: CSSProperties = {
@@ -4035,6 +4288,9 @@ const intelligenceTierPill: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }
 
 const intelligenceWarningPill: CSSProperties = {
@@ -4051,6 +4307,9 @@ const intelligenceWarningPill: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }
 
 const intelligenceHintBox: CSSProperties = {
@@ -4059,6 +4318,7 @@ const intelligenceHintBox: CSSProperties = {
   padding: '12px 14px',
   background: 'rgba(255,255,255,0.04)',
   border: '1px solid rgba(255,255,255,0.08)',
+  minWidth: 0,
 }
 
 const intelligenceHintLabel: CSSProperties = {
@@ -4076,6 +4336,7 @@ const intelligenceHintText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const summaryHead: CSSProperties = {
@@ -4084,6 +4345,7 @@ const summaryHead: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const metaNote: CSSProperties = {
@@ -4091,4 +4353,5 @@ const metaNote: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
