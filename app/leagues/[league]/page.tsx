@@ -430,7 +430,7 @@ export default function LeagueDetailPage() {
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
     padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(min(100%, 300px), 1.05fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(min(100%, 300px), 1.05fr)',
     gap: isMobile ? '18px' : '22px',
   }
 
@@ -456,7 +456,7 @@ export default function LeagueDetailPage() {
   const dynamicMetricGrid: CSSProperties = {
     ...metricGrid,
     gridTemplateColumns: isSmallMobile
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : isMobile
         ? 'repeat(2, minmax(0, 1fr))'
         : 'repeat(5, minmax(0, 1fr))',
@@ -469,7 +469,7 @@ export default function LeagueDetailPage() {
 
   const dynamicTeamGrid: CSSProperties = {
     ...teamGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
   }
 
   const dynamicTeamTop: CSSProperties = {
@@ -785,16 +785,16 @@ export default function LeagueDetailPage() {
               {topPerformers.length > 0 ? (
                 <section style={{ marginBottom: 24 }}>
                   <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 14 }}>Top performers</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))', gap: 10 }}>
+                  <div style={topPerformerGridStyle}>
                     {topPerformers.map((p, i) => {
                       const winPct = p.appearances > 0 ? Math.round((p.wins / p.appearances) * 100) : 0
                       return (
-                        <Link key={p.id} href={`/players/${p.id}`} style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, padding: '12px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', textDecoration: 'none' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: 'rgba(190,210,240,0.4)', fontSize: 11, fontWeight: 800 }}>#{i + 1}</span>
-                            <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : 'rgba(255,255,255,0.04)', color: winPct >= 60 ? '#d9f84a' : 'var(--shell-copy-muted)', border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.18)' : 'rgba(255,255,255,0.08)'}` }}>{winPct}%</span>
+                        <Link key={p.id} href={`/players/${p.id}`} style={topPerformerCardStyle}>
+                          <div style={topPerformerHeaderStyle}>
+                            <span style={topPerformerRankStyle}>#{i + 1}</span>
+                            <span style={topPerformerWinPctStyle(winPct)}>{winPct}%</span>
                           </div>
-                          <div style={{ color: 'var(--foreground-strong)', fontWeight: 800, fontSize: 14, overflowWrap: 'anywhere' }}>{p.name}</div>
+                          <div style={topPerformerNameStyle}>{p.name}</div>
                           <div style={topPerformerMetaStyle}>{p.wins}W-{p.losses}L | {p.appearances} matches</div>
                         </Link>
                       )
@@ -812,13 +812,13 @@ export default function LeagueDetailPage() {
                       Standings-style season snapshot for each team in this league.
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <div style={standingsViewToggleRowStyle}>
                     {(['cards', 'table'] as const).map((v) => (
                       <button
                         key={v}
                         type="button"
                         onClick={() => setStandingsView(v)}
-                        style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer', background: standingsView === v ? 'rgba(116,190,255,0.12)' : 'transparent', border: `1px solid ${standingsView === v ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`, color: standingsView === v ? '#bfdbfe' : 'var(--shell-copy-muted)' }}
+                        style={standingsViewToggleButtonStyle(standingsView === v)}
                       >
                         {v === 'cards' ? 'Cards' : 'Table'}
                       </button>
@@ -853,13 +853,13 @@ export default function LeagueDetailPage() {
                               <td style={standingsTableCellStyle}>
                                 <div style={standingsTeamCellContentStyle}>
                                   <Link href={teamHref} style={standingsTeamLinkStyle}>{team.name}</Link>
-                                  {isLeader && team.wins > 0 ? <span style={{ padding: '2px 7px', borderRadius: 999, background: 'rgba(155,225,29,0.10)', border: '1px solid rgba(155,225,29,0.20)', color: '#d9f84a', fontSize: 10, fontWeight: 800 }}>Leader</span> : null}
+                                  {isLeader && team.wins > 0 ? <span style={standingsLeaderPillStyle}>Leader</span> : null}
                                 </div>
                               </td>
                               <td style={standingsTableWinCellStyle}>{team.wins}</td>
                               <td style={standingsTableLossCellStyle}>{team.losses}</td>
                               <td style={standingsTableCellStyle}>
-                                <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 12, fontWeight: 800, background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : winPct < 40 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.05)', color: winPct >= 60 ? '#d9f84a' : winPct < 40 ? '#fca5a5' : 'var(--shell-copy-muted)', border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.20)' : winPct < 40 ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.08)'}` }}>{winPct}%</span>
+                                <span style={standingsWinPctPillStyle(winPct)}>{winPct}%</span>
                               </td>
                               <td style={standingsTableMutedCellStyle}>{team.completedMatches}</td>
                               <td style={standingsTableMutedCellStyle}>{team.scheduledMatches}</td>
@@ -1085,6 +1085,7 @@ const pageContent: CSSProperties = {
   padding: '18px 24px 0',
   display: 'grid',
   gap: '18px',
+  minWidth: 0,
 }
 
 const heroShell: CSSProperties = {
@@ -1096,11 +1097,13 @@ const heroShell: CSSProperties = {
   boxShadow: 'var(--shadow-card)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
+  minWidth: 0,
 }
 
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
+  maxWidth: '100%',
   alignItems: 'center',
   padding: '7px 11px',
   borderRadius: '999px',
@@ -1111,6 +1114,8 @@ const eyebrow: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -1118,6 +1123,7 @@ const heroTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -1125,6 +1131,7 @@ const heroText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const heroHintRow: CSSProperties = {
@@ -1132,6 +1139,7 @@ const heroHintRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '16px',
+  minWidth: 0,
 }
 
 const heroMetaRow: CSSProperties = {
@@ -1139,11 +1147,13 @@ const heroMetaRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '8px',
   marginTop: '14px',
+  minWidth: 0,
 }
 
 const heroMetaBluePill: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  justifyContent: 'center',
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
@@ -1153,6 +1163,11 @@ const heroMetaBluePill: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const heroMetaGreenPill: CSSProperties = {
@@ -1167,6 +1182,7 @@ const heroMetaSlatePill: CSSProperties = {
 }
 
 const heroHintPill: CSSProperties = {
+  maxWidth: '100%',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
@@ -1174,6 +1190,7 @@ const heroHintPill: CSSProperties = {
   padding: '10px 14px',
   fontSize: '13px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const heroActions: CSSProperties = {
@@ -1181,6 +1198,7 @@ const heroActions: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '12px',
+  minWidth: 0,
 }
 
 const seasonToolsCard: CSSProperties = {
@@ -1290,9 +1308,10 @@ const metricGrid: CSSProperties = {
 
 const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: '14px',
   marginTop: '18px',
+  minWidth: 0,
 })
 
 const signalCardStyle: CSSProperties = {
@@ -1391,8 +1410,9 @@ const leagueDiscoveryCopyStyle: CSSProperties = {
 
 const leagueDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: '12px',
+  minWidth: 0,
 })
 
 const leagueDiscoveryCardStyle: CSSProperties = {
@@ -1586,6 +1606,114 @@ const topPerformerMetaStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const topPerformerGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const topPerformerCardStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  padding: '12px 14px',
+  borderRadius: 16,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  textDecoration: 'none',
+  minWidth: 0,
+}
+
+const topPerformerHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const topPerformerRankStyle: CSSProperties = {
+  color: 'rgba(190,210,240,0.4)',
+  fontSize: 11,
+  fontWeight: 800,
+}
+
+function topPerformerWinPctStyle(winPct: number): CSSProperties {
+  return {
+    fontSize: 12,
+    fontWeight: 800,
+    padding: '2px 8px',
+    borderRadius: 999,
+    background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : 'rgba(255,255,255,0.04)',
+    color: winPct >= 60 ? '#d9f84a' : 'var(--shell-copy-muted)',
+    border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.18)' : 'rgba(255,255,255,0.08)'}`,
+    maxWidth: '100%',
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+  }
+}
+
+const topPerformerNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 800,
+  fontSize: 14,
+  overflowWrap: 'anywhere',
+}
+
+const standingsViewToggleRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  flexShrink: 1,
+  minWidth: 0,
+}
+
+function standingsViewToggleButtonStyle(active: boolean): CSSProperties {
+  return {
+    padding: '7px 14px',
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: 'pointer',
+    background: active ? 'rgba(116,190,255,0.12)' : 'transparent',
+    border: `1px solid ${active ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`,
+    color: active ? '#bfdbfe' : 'var(--shell-copy-muted)',
+    maxWidth: '100%',
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+  }
+}
+
+const standingsLeaderPillStyle: CSSProperties = {
+  padding: '2px 7px',
+  borderRadius: 999,
+  background: 'rgba(155,225,29,0.10)',
+  border: '1px solid rgba(155,225,29,0.20)',
+  color: '#d9f84a',
+  fontSize: 10,
+  fontWeight: 800,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+function standingsWinPctPillStyle(winPct: number): CSSProperties {
+  return {
+    padding: '3px 8px',
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 800,
+    background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : winPct < 40 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.05)',
+    color: winPct >= 60 ? '#d9f84a' : winPct < 40 ? '#fca5a5' : 'var(--shell-copy-muted)',
+    border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.20)' : winPct < 40 ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.08)'}`,
+    maxWidth: '100%',
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+  }
+}
+
 const standingsTableScrollStyle: CSSProperties = {
   overflowX: 'auto',
   overscrollBehaviorX: 'contain',
@@ -1594,12 +1722,15 @@ const standingsTableScrollStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   marginTop: 16,
   maxWidth: '100%',
+  WebkitOverflowScrolling: 'touch',
+  minWidth: 0,
 }
 
 const standingsTableStyle: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 700,
+  minWidth: 'min(100%, 620px)',
+  tableLayout: 'auto',
 }
 
 const standingsTableHeaderCellStyle: CSSProperties = {
@@ -1612,7 +1743,8 @@ const standingsTableHeaderCellStyle: CSSProperties = {
   letterSpacing: '0.06em',
   borderBottom: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const standingsTableCellStyle: CSSProperties = {
@@ -1621,6 +1753,7 @@ const standingsTableCellStyle: CSSProperties = {
   fontSize: 14,
   fontWeight: 600,
   borderTop: '1px solid var(--shell-panel-border)',
+  overflowWrap: 'anywhere',
 }
 
 const standingsTableMutedCellStyle: CSSProperties = {
