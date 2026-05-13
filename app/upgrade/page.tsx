@@ -532,7 +532,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
         <section
           style={{
             ...heroStyle,
-            gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.04fr) minmax(min(100%, 320px), 0.96fr)',
+            gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.04fr) minmax(min(100%, 320px), 0.96fr)',
             padding: isSmallMobile ? 18 : 26,
           }}
         >
@@ -844,6 +844,7 @@ function readLastRemoteRequest(): { id?: string; email?: string } | null {
 
 const pageStyle: CSSProperties = {
   width: 'min(1180px, calc(100% - 32px))',
+  minWidth: 0,
   margin: '0 auto',
   padding: '20px 0 36px',
   display: 'grid',
@@ -853,6 +854,7 @@ const pageStyle: CSSProperties = {
 const heroStyle: CSSProperties = {
   display: 'grid',
   gap: 18,
+  minWidth: 0,
   alignItems: 'stretch',
   borderRadius: 30,
   border: '1px solid var(--shell-panel-border)',
@@ -864,12 +866,14 @@ const heroStyle: CSSProperties = {
 const heroCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 13,
+  minWidth: 0,
   alignContent: 'center',
 }
 
 const eyebrowStyle: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
+  maxWidth: '100%',
   alignItems: 'center',
   minHeight: 34,
   padding: '0 12px',
@@ -881,6 +885,7 @@ const eyebrowStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const titleStyle: CSSProperties = {
@@ -890,6 +895,7 @@ const titleStyle: CSSProperties = {
   lineHeight: 0.98,
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const textStyle: CSSProperties = {
@@ -899,11 +905,13 @@ const textStyle: CSSProperties = {
   lineHeight: 1.72,
   maxWidth: 760,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const actionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
+  minWidth: 0,
   gap: 10,
 }
 
@@ -911,6 +919,7 @@ const primaryButtonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  maxWidth: '100%',
   minHeight: 46,
   padding: '0 16px',
   borderRadius: 999,
@@ -919,6 +928,7 @@ const primaryButtonStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontWeight: 950,
+  overflowWrap: 'anywhere',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
@@ -934,6 +944,7 @@ const planCardStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'start',
   gap: 13,
+  minWidth: 0,
   padding: 20,
   borderRadius: 24,
   border: '1px solid var(--shell-panel-border)',
@@ -947,6 +958,7 @@ const planNameStyle: CSSProperties = {
   fontWeight: 950,
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
+  overflowWrap: 'anywhere',
 }
 
 const priceStyle: CSSProperties = {
@@ -954,6 +966,7 @@ const priceStyle: CSSProperties = {
   fontSize: 32,
   lineHeight: 1,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const mutedStyle: CSSProperties = {
@@ -961,17 +974,20 @@ const mutedStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const resultCardStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
+  minWidth: 0,
   padding: 13,
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const labelStyle: CSSProperties = {
@@ -986,6 +1002,7 @@ const metaGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 9,
+  minWidth: 0,
 }
 
 const metaCardStyle: CSSProperties = {
@@ -996,12 +1013,14 @@ const metaCardStyle: CSSProperties = {
 const valueListStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
+  minWidth: 0,
   gap: 8,
 }
 
 const valuePillStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: 32,
   padding: '0 11px',
   borderRadius: 999,
@@ -1010,11 +1029,13 @@ const valuePillStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const activationPathStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
   padding: 12,
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
@@ -1030,6 +1051,7 @@ const activationStepStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '24px minmax(0, 1fr)',
   gap: 8,
+  minWidth: 0,
   alignItems: 'center',
   minHeight: 34,
   padding: '5px 9px',
@@ -1039,12 +1061,14 @@ const activationStepStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const activationStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
   gap: 14,
+  minWidth: 0,
   alignItems: 'start',
   padding: 16,
   borderRadius: 20,
@@ -1055,6 +1079,7 @@ const activationStyle: CSSProperties = {
 const activationCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
+  minWidth: 0,
 }
 
 const activationTitleStyle: CSSProperties = {
@@ -1063,6 +1088,7 @@ const activationTitleStyle: CSSProperties = {
   fontSize: 'clamp(1.25rem, 2vw, 1.8rem)',
   lineHeight: 1.08,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const noteTextStyle: CSSProperties = {
@@ -1071,19 +1097,23 @@ const noteTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.6,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const secondaryInlineLinkStyle: CSSProperties = {
+  maxWidth: '100%',
   color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 950,
   textDecoration: 'underline',
   textUnderlineOffset: 4,
+  overflowWrap: 'anywhere',
 }
 
 const requestFormStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
   padding: 14,
   borderRadius: 18,
   border: '1px solid var(--shell-panel-border)',
@@ -1094,7 +1124,9 @@ const selectedPlanStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   gap: 10,
+  minWidth: 0,
   alignItems: 'center',
+  flexWrap: 'wrap',
   padding: '10px 12px',
   borderRadius: 14,
   background: 'var(--shell-chip-bg)',
@@ -1105,11 +1137,13 @@ const fieldGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const fieldStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
+  minWidth: 0,
   color: 'var(--foreground-strong)',
   fontSize: 12,
   fontWeight: 950,
@@ -1117,6 +1151,7 @@ const fieldStyle: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   minHeight: 42,
   padding: '0 12px',
   borderRadius: 12,
@@ -1140,6 +1175,7 @@ const formActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 9,
+  minWidth: 0,
   alignItems: 'center',
 }
 
@@ -1156,11 +1192,13 @@ const errorTextStyle: CSSProperties = {
   color: '#fecaca',
   fontSize: 13,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const successCardStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
   padding: 16,
   borderRadius: 18,
   border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
@@ -1173,6 +1211,7 @@ const successTitleStyle: CSSProperties = {
   fontSize: 20,
   lineHeight: 1.12,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const successMetaStyle: CSSProperties = {
@@ -1181,6 +1220,7 @@ const successMetaStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.45,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const handoffStepGridStyle: CSSProperties = {
@@ -1192,6 +1232,7 @@ const handoffStepStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '24px minmax(0, 1fr)',
   gap: 8,
+  minWidth: 0,
   alignItems: 'center',
   minHeight: 34,
   padding: '5px 9px',
@@ -1201,4 +1242,5 @@ const handoffStepStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
