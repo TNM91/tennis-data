@@ -2735,7 +2735,9 @@ const tableWrap: CSSProperties = {
   overflowX: 'auto',
   overscrollBehaviorX: 'contain',
   WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'thin',
   minWidth: 0,
+  maxWidth: '100%',
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -2762,6 +2764,7 @@ const tableCell: CSSProperties = {
   borderTop: '1px solid var(--shell-panel-border)',
   color: 'var(--foreground)',
   verticalAlign: 'top',
+  overflowWrap: 'anywhere',
 }
 
 const scoreCellStackStyle: CSSProperties = {
@@ -2769,7 +2772,9 @@ const scoreCellStackStyle: CSSProperties = {
   flexDirection: 'column',
   alignItems: 'flex-start',
   gap: 8,
-  minWidth: 112,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSProperties => {
