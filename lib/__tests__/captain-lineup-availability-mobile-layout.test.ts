@@ -44,6 +44,9 @@ describe('Captain lineup availability mobile layout guards', () => {
     }
 
     expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('filtersGridResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('navStyleResponsive')).toContain('minWidth: 0')
     expect(styleBlock('navLink')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
@@ -65,7 +68,9 @@ describe('Captain lineup availability mobile layout guards', () => {
     }
 
     expect(functionBlock('metricsGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('metricsGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('readinessGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('readinessGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('getAvailStatusStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('miniPillSlate')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('noticeStyle')).toContain("overflowWrap: 'anywhere'")
@@ -93,7 +98,11 @@ describe('Captain lineup availability mobile layout guards', () => {
     }
 
     expect(functionBlock('rosterGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('rosterGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('statusGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('statusGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(styleBlock('playerTopStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('statusButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('footerBottom')).toContain("overflowWrap: 'anywhere'")
