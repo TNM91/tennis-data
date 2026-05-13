@@ -1732,7 +1732,7 @@ function MetricStat({ label, value }: { label: string; value: string }) {
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(min(100%, 300px), 0.95fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.45fr) minmax(min(100%, 300px), 0.95fr)',
     gap: isMobile ? '18px' : '24px',
     padding: isMobile ? '26px 18px' : '34px 26px',
     minWidth: 0,
@@ -1749,7 +1749,7 @@ function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProp
 function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
   return {
     ...heroMetricGridBaseStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -1757,7 +1757,7 @@ function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
 function compareGridResponsive(isTablet: boolean): CSSProperties {
   return {
     ...compareGridStyle,
-    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -1766,7 +1766,7 @@ function projectionGridResponsive(isSmallMobile: boolean, isTablet: boolean): CS
   return {
     ...projectionGridStyle,
     gridTemplateColumns: isSmallMobile
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : isTablet
         ? 'repeat(2, minmax(0, 1fr))'
         : 'repeat(3, minmax(0, 1fr))',
@@ -1777,7 +1777,7 @@ function projectionGridResponsive(isSmallMobile: boolean, isTablet: boolean): CS
 function notesGridResponsive(isTablet: boolean): CSSProperties {
   return {
     ...notesGridStyle,
-    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
     minWidth: 0,
   }
 }

@@ -39,10 +39,18 @@ describe('Captain scenario builder mobile layout guards', () => {
     }
 
     expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('heroMetricGridStyle')).toContain('minWidth: 0')
+    expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('compareGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('compareGridResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('projectionGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('projectionGridResponsive')).toContain("? 'minmax(0, 1fr)'")
     expect(functionBlock('notesGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('notesGridResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+    expect(source).not.toContain("? '1fr'")
     expect(styleBlock('heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
