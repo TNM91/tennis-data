@@ -178,14 +178,14 @@ const primaryButtonStyle: CSSProperties = {
   minHeight: 48,
   borderRadius: 999,
   padding: '0 18px',
-  border: '1px solid rgba(155,225,29,0.34)',
-  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
-  color: '#08111d',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '0.95rem',
   textDecoration: 'none',
   cursor: 'pointer',
-  boxShadow: '0 12px 28px rgba(155,225,29,0.18)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const secondaryButtonStyle: CSSProperties = {

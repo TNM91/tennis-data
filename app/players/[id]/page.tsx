@@ -2930,8 +2930,8 @@ function getMeterTheme(status: RatingStatus) {
   switch (status) {
     case 'Bump Up Pace':
       return {
-        fill: 'linear-gradient(135deg, #9be11d 0%, #4ade80 60%, #22c55e 100%)',
-        shadow: '0 10px 24px rgba(155,225,29,0.25)',
+        fill: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+        shadow: '0 10px 24px color-mix(in srgb, var(--brand-green) 18%, transparent)',
         pillBackground: 'rgba(155,225,29,0.16)',
         pillColor: '#d9f84a',
         pillBorder: 'rgba(155,225,29,0.28)',
@@ -3357,8 +3357,8 @@ const chipStat: CSSProperties = {
 }
 
 const chipStatAccent: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
-  border: '1px solid rgba(155,225,29,0.35)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
 }
 
 const chipStatLabel: CSSProperties = {

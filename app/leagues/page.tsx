@@ -1248,14 +1248,15 @@ const primaryButton: CSSProperties = {
   minHeight: '44px',
   padding: '0 16px',
   borderRadius: '999px',
-  background: 'linear-gradient(135deg, rgba(103, 241, 154, 1), rgba(40, 205, 110, 0.94))',
-  color: '#071622',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   fontWeight: 900,
   fontSize: '13px',
   letterSpacing: '0.01em',
   textDecoration: 'none',
   whiteSpace: 'normal',
-  boxShadow: '0 12px 30px rgba(43, 195, 104, 0.20), inset 0 1px 0 rgba(255,255,255,0.26)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const leagueDetailGrid: CSSProperties = {

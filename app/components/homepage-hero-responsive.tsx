@@ -209,12 +209,12 @@ export default function HomePageHeroResponsive() {
                 onMouseLeave={() => setExplorHovered(false)}
                 style={{
                   ...actionLinkBase,
-                  color: '#08111d',
-                  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
-                  border: '1px solid rgba(155,225,29,0.34)',
+                  color: 'var(--foreground-strong)',
+                  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+                  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
                   boxShadow: explorHovered
-                    ? '0 20px 42px rgba(155,225,29,0.28)'
-                    : '0 16px 34px rgba(155,225,29,0.18)',
+                    ? '0 16px 34px color-mix(in srgb, var(--brand-green) 18%, transparent)'
+                    : 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
                   transform: explorHovered ? 'translateY(-2px)' : 'none',
                   transition: 'transform 150ms ease, box-shadow 150ms ease',
                 }}

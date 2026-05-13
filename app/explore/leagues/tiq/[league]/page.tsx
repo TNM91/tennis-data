@@ -4369,9 +4369,9 @@ const primaryButton: CSSProperties = {
   minHeight: '44px',
   padding: '0 16px',
   borderRadius: '999px',
-  border: 'none',
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
-  color: '#04121a',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   cursor: 'pointer',
 }

@@ -2948,9 +2948,10 @@ const toggleButton: CSSProperties = {
 }
 
 const toggleButtonGreen: CSSProperties = {
-  background: 'linear-gradient(135deg, #67f19a 0%, #b8e61a 100%)',
-  color: '#06172f',
-  boxShadow: '0 14px 28px rgba(184,230,26,0.24), inset 0 1px 0 rgba(255,255,255,0.34)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const toggleButtonBlue: CSSProperties = {
@@ -3565,12 +3566,12 @@ const ctaPrimary: CSSProperties = {
   minHeight: '42px',
   padding: '0 16px',
   borderRadius: '999px',
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
-  color: '#08111d',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   textDecoration: 'none',
-  border: '1px solid rgba(155,225,29,0.30)',
-  boxShadow: '0 10px 22px rgba(155,225,29,0.14)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const ctaSecondary: CSSProperties = {
