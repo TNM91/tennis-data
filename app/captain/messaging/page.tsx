@@ -11,8 +11,8 @@ import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
-import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
 import {
@@ -37,8 +37,7 @@ import {
   safeKey,
   readLocalArray as readLocal,
 } from '@/lib/captain-formatters'
-import { type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -483,12 +482,17 @@ function readInitialMessagingContext() {
 }
 
 export default function CaptainMessagingPage() {
+  return (
+    <SiteShell active="/captain">
+      <CaptainMessagingContent />
+    </SiteShell>
+  )
+}
+
+function CaptainMessagingContent() {
   const router = useRouter()
   const { theme } = useTheme()
   const initialContext = readInitialMessagingContext()
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -546,6 +550,7 @@ export default function CaptainMessagingPage() {
   const [copiedState, setCopiedState] = useState<'none' | 'body' | 'numbers'>('none')
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { role, entitlements, authResolved } = useAuth()
   const heroArtworkSrc = theme === 'dark'
     ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
     : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
@@ -560,51 +565,13 @@ export default function CaptainMessagingPage() {
   }
 
   useEffect(() => {
-    let mounted = true
-
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-
-        if (!authState.user) {
-          if (mounted) {
-            setRole('public')
-            setAuthLoading(false)
-          }
-          return
-        }
-
-        if (!mounted) return
-
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } finally {
-        if (mounted) setAuthLoading(false)
-      }
-    }
-
-    void loadAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadAuth()
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
+    if (!authResolved || role !== 'public') return
+    router.replace('/login?next=/captain/messaging')
+  }, [authResolved, role, router])
 
   useEffect(() => {
-    if (authLoading) return
-    if (role === 'public') {
-      router.replace('/login')
-    }
-  }, [authLoading, role, router])
+    if (!authResolved || role === 'public') return
 
-  useEffect(() => {
     let mounted = true
     async function load() {
       setLoading(true)
@@ -748,7 +715,7 @@ export default function CaptainMessagingPage() {
       mounted = false
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshTick])
+  }, [authResolved, refreshTick, role])
 
   useEffect(() => {
     if (loading) return
@@ -2085,15 +2052,13 @@ function importScenarioToLineup() {
 
   const scopedTemplates = useMemo(() => templates.filter((template) => !teamFilter || template.team_name === teamFilter), [templates, teamFilter])
 
-  if (authLoading) {
+  if (!authResolved) {
     return (
-      <SiteShell active="/captain">
-        <section style={pageContentStyle}>
-          <section style={surfaceCard}>
-            <p style={mutedTextStyle}>Loading captain messaging...</p>
-          </section>
+      <section style={pageContentStyle}>
+        <section style={surfaceCard}>
+          <p style={mutedTextStyle}>Loading captain messaging...</p>
         </section>
-      </SiteShell>
+      </section>
     )
   }
 
@@ -2114,8 +2079,7 @@ function importScenarioToLineup() {
   }
 
   return (
-    <SiteShell active="/captain">
-      <section style={pageContentStyle}>
+    <section style={pageContentStyle}>
          <section style={heroShellResponsive(isTablet, isMobile)}>
             <div>
               <TiqFeatureIcon name="messagingCenter" size="lg" variant="surface" />
@@ -3857,7 +3821,6 @@ function importScenarioToLineup() {
           )}
         </section>
       </section>
-    </SiteShell>
   )
 }
 

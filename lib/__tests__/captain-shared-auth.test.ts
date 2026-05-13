@@ -9,6 +9,7 @@ const scenarioBuilderSource = readFileSync(join(process.cwd(), 'app/captain/scen
 const analyticsSource = readFileSync(join(process.cwd(), 'app/captain/analytics/page.tsx'), 'utf8')
 const availabilitySource = readFileSync(join(process.cwd(), 'app/captain/availability/page.tsx'), 'utf8')
 const lineupAvailabilitySource = readFileSync(join(process.cwd(), 'app/captain/lineup-availability/page.tsx'), 'utf8')
+const messagingSource = readFileSync(join(process.cwd(), 'app/captain/messaging/page.tsx'), 'utf8')
 
 describe('Captain shared auth access', () => {
   it('keeps weekly and team brief access on the shared auth provider', () => {
@@ -66,5 +67,16 @@ describe('Captain shared auth access', () => {
     expect(lineupAvailabilitySource).not.toContain('const [authLoading, setAuthLoading]')
     expect(lineupAvailabilitySource).not.toContain("const [role, setRole] = useState<UserRole>('public')")
     expect(lineupAvailabilitySource).not.toContain('supabase.auth.onAuthStateChange')
+  })
+
+  it('keeps captain messaging on shared auth before loading team communication data', () => {
+    expect(messagingSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(messagingSource).toContain('<SiteShell active="/captain">')
+    expect(messagingSource).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(messagingSource).toContain("if (!authResolved || role === 'public') return")
+    expect(messagingSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
+    expect(messagingSource).not.toContain('const [authLoading, setAuthLoading]')
+    expect(messagingSource).not.toContain("const [role, setRole] = useState<UserRole>('public')")
+    expect(messagingSource).not.toContain('supabase.auth.onAuthStateChange')
   })
 })
