@@ -2459,6 +2459,7 @@ const pageStyle = (isMobile: boolean): CSSProperties => ({
   padding: isMobile ? '14px 12px 28px' : '20px 24px 38px',
   display: 'grid',
   gap: 18,
+  minWidth: 0,
 })
 
 const heroStyle = (isMobile: boolean): CSSProperties => ({
@@ -2477,6 +2478,7 @@ const heroCopyStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'center',
   gap: 16,
+  minWidth: 0,
 }
 
 const titleStyle = (isSmallMobile: boolean): CSSProperties => ({
@@ -2487,6 +2489,7 @@ const titleStyle = (isSmallMobile: boolean): CSSProperties => ({
   fontWeight: 950,
   letterSpacing: 0,
   maxWidth: 760,
+  overflowWrap: 'anywhere',
 })
 
 const heroTextStyle: CSSProperties = {
@@ -2496,12 +2499,14 @@ const heroTextStyle: CSSProperties = {
   fontSize: 15,
   lineHeight: 1.55,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const heroActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
 }
 
 const workspaceStyle = (): CSSProperties => ({
@@ -2509,6 +2514,7 @@ const workspaceStyle = (): CSSProperties => ({
   gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 18,
   alignItems: 'start',
+  minWidth: 0,
 })
 
 const panelStyle: CSSProperties = {
@@ -2519,6 +2525,7 @@ const panelStyle: CSSProperties = {
   padding: 'clamp(13px, 4vw, 18px)',
   display: 'grid',
   gap: 14,
+  minWidth: 0,
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -2527,6 +2534,7 @@ const sectionHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 12,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionTitleStyle: CSSProperties = {
@@ -2535,6 +2543,7 @@ const sectionTitleStyle: CSSProperties = {
   fontSize: 'clamp(20px, 5vw, 24px)',
   lineHeight: 1.18,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const typeOptionGridStyle: CSSProperties = {
@@ -2546,6 +2555,7 @@ const typeOptionGridStyle: CSSProperties = {
 const uploadChoiceStackStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const primaryTypeOptionStyle = (selected: boolean): CSSProperties => ({
@@ -2567,6 +2577,7 @@ const seasonSetupGroupStyle: CSSProperties = {
   padding: 10,
   display: 'grid',
   gap: 10,
+  minWidth: 0,
 }
 
 const seasonSetupHeaderStyle: CSSProperties = {
@@ -2578,6 +2589,8 @@ const seasonSetupHeaderStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.35,
   fontWeight: 850,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const typeOptionStyle = (selected: boolean): CSSProperties => ({
@@ -2598,6 +2611,8 @@ const typeOptionStyle = (selected: boolean): CSSProperties => ({
   cursor: 'pointer',
   boxShadow: selected ? '0 14px 28px rgba(20, 184, 116, 0.16)' : 'none',
   font: 'inherit',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const typeCadenceStyle: CSSProperties = {
@@ -2606,6 +2621,7 @@ const typeCadenceStyle: CSSProperties = {
   lineHeight: 1.35,
   fontStyle: 'normal',
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const seasonGuideStyle: CSSProperties = {
@@ -2619,6 +2635,8 @@ const seasonGuideStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.45,
   fontWeight: 850,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stepDividerStyle: CSSProperties = {
@@ -2627,6 +2645,7 @@ const stepDividerStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   color: 'var(--foreground-strong)',
+  minWidth: 0,
 }
 
 const stepBadgeStyle: CSSProperties = {
@@ -2645,6 +2664,7 @@ const stepBadgeStyle: CSSProperties = {
   textTransform: 'uppercase',
   maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const stepBadgeNumberStyle: CSSProperties = {
@@ -2671,6 +2691,7 @@ const typeBadgeRowStyle: CSSProperties = {
   alignItems: 'center',
   gap: 6,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const typeRecommendedBadgeStyle: CSSProperties = {
@@ -2681,6 +2702,9 @@ const typeRecommendedBadgeStyle: CSSProperties = {
   padding: '3px 7px',
   fontSize: 10,
   fontWeight: 950,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const typePausedBadgeStyle: CSSProperties = {
@@ -2707,6 +2731,8 @@ const dropzoneStyle = (status: string): CSSProperties => ({
   gap: 8,
   cursor: status === 'paused' ? 'not-allowed' : 'pointer',
   opacity: status === 'paused' ? 0.82 : 1,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const compactDropzoneStyle: CSSProperties = {
@@ -2718,6 +2744,7 @@ const compactDropzoneStyle: CSSProperties = {
 const fileInputStyle: CSSProperties = {
   width: '100%',
   maxWidth: 360,
+  minWidth: 0,
   minHeight: 44,
   color: 'var(--foreground-strong)',
   fontSize: 14,
@@ -2730,6 +2757,7 @@ const dropzoneKickerStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const pillStyle: CSSProperties = {
@@ -2742,6 +2770,9 @@ const pillStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 950,
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const screenshotGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -2769,12 +2800,15 @@ const submissionStatStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   textTransform: 'uppercase',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const submissionListStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const submissionCardStyle: CSSProperties = {
@@ -2784,6 +2818,8 @@ const submissionCardStyle: CSSProperties = {
   padding: 14,
   display: 'grid',
   gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const submissionCardTopStyle: CSSProperties = {
@@ -2804,6 +2840,8 @@ const submissionMetaStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 900,
   textTransform: 'uppercase',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const historyCollapsedStyle: CSSProperties = {
@@ -2814,6 +2852,8 @@ const historyCollapsedStyle: CSSProperties = {
   padding: 12,
   fontSize: 13,
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const historyManagementStyle: CSSProperties = {
@@ -2830,6 +2870,8 @@ const historyManagementStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.4,
   fontWeight: 850,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const historyFilterStyle: CSSProperties = {
@@ -2838,9 +2880,12 @@ const historyFilterStyle: CSSProperties = {
   overflowX: 'auto',
   paddingBottom: 2,
   WebkitOverflowScrolling: 'touch',
+  minWidth: 0,
+  maxWidth: '100%',
 }
 
 const historyFilterButtonStyle = (selected: boolean): CSSProperties => ({
+  minWidth: 0,
   minHeight: 40,
   borderRadius: 999,
   border: selected
@@ -2855,6 +2900,7 @@ const historyFilterButtonStyle = (selected: boolean): CSSProperties => ({
   alignItems: 'center',
   gap: 7,
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
   fontSize: 12,
   fontWeight: 950,
   cursor: 'pointer',
@@ -2867,6 +2913,8 @@ const scorecardReviewStyle: CSSProperties = {
   padding: 12,
   display: 'grid',
   gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const latestReadStyle: CSSProperties = {
@@ -2885,6 +2933,7 @@ const scorecardHeaderGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
   gap: 8,
+  minWidth: 0,
 }
 
 const reviewFactStyle: CSSProperties = {
@@ -2911,6 +2960,8 @@ const teamMatchupStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 12,
   lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const parsedTeamStyle = (won: boolean): CSSProperties => ({
@@ -2927,11 +2978,14 @@ const parsedTeamStyle = (won: boolean): CSSProperties => ({
   minHeight: 54,
   alignContent: 'center',
   fontWeight: 950,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const parsedLineListStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
+  minWidth: 0,
 }
 
 const parsedLineStyle: CSSProperties = {
@@ -2979,6 +3033,7 @@ const scheduleMatchRowStyle: CSSProperties = {
 }
 
 const showMoreButtonStyle: CSSProperties = {
+  minWidth: 0,
   minHeight: 42,
   borderRadius: 12,
   border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
@@ -2988,6 +3043,10 @@ const showMoreButtonStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 950,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const compactListHintStyle: CSSProperties = {
@@ -2995,17 +3054,20 @@ const compactListHintStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const scheduleMatchGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 8,
+  minWidth: 0,
 }
 
 const bulkResultListStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const bulkResultRowStyle = (status: BulkScorecardResult['status']): CSSProperties => ({
@@ -3047,12 +3109,14 @@ const parsedLineMainStyle: CSSProperties = {
 const lineScoreStyle: CSSProperties = {
   fontSize: 15,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const playerSidesGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 8,
+  minWidth: 0,
 }
 
 const parsedSideStyle = (won: boolean): CSSProperties => ({
@@ -3066,6 +3130,8 @@ const parsedSideStyle = (won: boolean): CSSProperties => ({
   padding: 8,
   display: 'grid',
   gap: 4,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const parsedSideHeaderStyle: CSSProperties = {
@@ -3076,6 +3142,9 @@ const parsedSideHeaderStyle: CSSProperties = {
   fontSize: 10,
   fontWeight: 950,
   textTransform: 'uppercase',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const lineHeaderStyle: CSSProperties = {
@@ -3096,6 +3165,9 @@ const lineCheckStyle: CSSProperties = {
   fontSize: 9,
   fontWeight: 950,
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const reviewChecklistStyle: CSSProperties = {
@@ -3108,6 +3180,8 @@ const reviewChecklistStyle: CSSProperties = {
   gap: 5,
   fontSize: 12,
   fontWeight: 850,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const simpleHelpStyle: CSSProperties = {
@@ -3121,6 +3195,8 @@ const simpleHelpStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.45,
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const exportHelpStyle: CSSProperties = {
@@ -3128,6 +3204,7 @@ const exportHelpStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   overflow: 'hidden',
+  minWidth: 0,
 }
 
 const exportHelpToggleStyle: CSSProperties = {
@@ -3146,6 +3223,8 @@ const exportHelpToggleStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 950,
   textAlign: 'left',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const exportHelpBodyStyle: CSSProperties = {
@@ -3153,6 +3232,7 @@ const exportHelpBodyStyle: CSSProperties = {
   padding: 12,
   display: 'grid',
   gap: 9,
+  minWidth: 0,
 }
 
 const exportHelpStepStyle: CSSProperties = {
@@ -3164,6 +3244,8 @@ const exportHelpStepStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.45,
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const exportHelpExampleStyle: CSSProperties = {
@@ -3174,6 +3256,8 @@ const exportHelpExampleStyle: CSSProperties = {
   padding: 10,
   fontSize: 12,
   fontWeight: 850,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const readyImportNoteStyle: CSSProperties = {
@@ -3186,6 +3270,8 @@ const readyImportNoteStyle: CSSProperties = {
   gap: 4,
   fontSize: 12,
   fontWeight: 850,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const duplicateBannerStyle: CSSProperties = {
@@ -3197,6 +3283,8 @@ const duplicateBannerStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   boxShadow: '0 14px 36px rgba(0,0,0,0.22)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const badgePanelStyle: CSSProperties = {
@@ -3206,18 +3294,20 @@ const badgePanelStyle: CSSProperties = {
   padding: 14,
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const badgeListStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
 }
 
 const badgeCardStyle: CSSProperties = {
   minHeight: 74,
-  minWidth: 190,
-  flex: '1 1 190px',
+  minWidth: 0,
+  flex: '1 1 min(100%, 190px)',
   borderRadius: 16,
   border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
   background: 'var(--shell-panel-bg)',
@@ -3225,6 +3315,7 @@ const badgeCardStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
   color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
 }
 
 const badgeEmptyStyle: CSSProperties = {
@@ -3239,6 +3330,8 @@ const badgeEmptyStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.45,
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const screenshotCardStyle: CSSProperties = {
@@ -3248,6 +3341,8 @@ const screenshotCardStyle: CSSProperties = {
   overflow: 'hidden',
   display: 'grid',
   gridTemplateColumns: 'minmax(min(38%, 108px), 0.34fr) minmax(0, 0.66fr)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const thumbnailWrapStyle: CSSProperties = {
@@ -3294,6 +3389,7 @@ const screenshotBodyStyle: CSSProperties = {
   padding: 13,
   display: 'grid',
   gap: 9,
+  minWidth: 0,
 }
 
 const screenshotHeaderStyle: CSSProperties = {
@@ -3309,6 +3405,7 @@ const signalListStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 6,
+  minWidth: 0,
 }
 
 const cardActionRowStyle: CSSProperties = {
@@ -3324,6 +3421,7 @@ const postImportActionStyle: CSSProperties = {
 }
 
 const smallButtonStyle: CSSProperties = {
+  minWidth: 0,
   minHeight: 40,
   borderRadius: 12,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
@@ -3335,6 +3433,7 @@ const smallButtonStyle: CSSProperties = {
   cursor: 'pointer',
   maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
   textAlign: 'center',
 }
 
@@ -3357,6 +3456,7 @@ const primaryButtonStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   width: 'fit-content',
+  minWidth: 0,
   minHeight: 44,
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
@@ -3368,6 +3468,7 @@ const primaryButtonStyle: CSSProperties = {
   cursor: 'pointer',
   maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
   textAlign: 'center',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
@@ -3383,6 +3484,7 @@ const inlineLinkStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 950,
   marginLeft: 8,
+  overflowWrap: 'anywhere',
 }
 
 const disabledStyle: CSSProperties = {
@@ -3414,6 +3516,7 @@ const copyStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const hintStyle: CSSProperties = {
@@ -3421,17 +3524,20 @@ const hintStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.45,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const scanLoadingStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 16,
+  flexWrap: 'wrap',
   marginTop: 18,
   padding: 16,
   border: '1px solid var(--shell-panel-border)',
   borderRadius: 8,
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const scanLoadingCopyStyle: CSSProperties = {
@@ -3440,6 +3546,7 @@ const scanLoadingCopyStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const warningStyle: CSSProperties = {
@@ -3468,6 +3575,8 @@ const uploadIssueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 900,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const scorecardPausedPanelStyle: CSSProperties = {
@@ -3493,16 +3602,20 @@ const emptyStateStyle: CSSProperties = {
   padding: 18,
   textAlign: 'center',
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const successStyle: CSSProperties = {
   color: '#bbf7d0',
   fontSize: 13,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const errorStyle: CSSProperties = {
   color: '#fecaca',
   fontSize: 13,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
