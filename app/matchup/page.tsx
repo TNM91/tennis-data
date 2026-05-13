@@ -2891,12 +2891,14 @@ const identitySetupButtonStyle: CSSProperties = {
   minHeight: 42,
   padding: '0 15px',
   borderRadius: 999,
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
-  color: 'var(--text-dark)',
+  background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   textDecoration: 'none',
   fontSize: 13,
   fontWeight: 950,
   whiteSpace: 'normal',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const toolbarTop: CSSProperties = {
@@ -3322,12 +3324,13 @@ const quickStartButtonStyle: CSSProperties = {
   minHeight: '40px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(155,225,29,0.30)',
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg) 80%)',
+  color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 900,
   cursor: 'pointer',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const doublesPreviewGridStyle: CSSProperties = {
