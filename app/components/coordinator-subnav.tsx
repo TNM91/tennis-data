@@ -75,12 +75,14 @@ const shellStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const headerStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   maxWidth: 760,
+  minWidth: 0,
 }
 
 const eyebrowStyle: CSSProperties = {
@@ -97,18 +99,21 @@ const titleStyle: CSSProperties = {
   lineHeight: 1.05,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const descriptionStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const gridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const linkStyle: CSSProperties = {
@@ -124,6 +129,7 @@ const linkStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--home-control-shadow)',
+  minWidth: 0,
 }
 
 const stepStyle: CSSProperties = {
@@ -148,6 +154,7 @@ const linkLabelStyle: CSSProperties = {
   fontSize: 14,
   fontWeight: 800,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const linkArrowStyle: CSSProperties = {
@@ -156,6 +163,7 @@ const linkArrowStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  minWidth: 0,
 }
 
 const tierRowStyle: CSSProperties = {

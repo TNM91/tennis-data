@@ -2352,7 +2352,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
                     return (
                       <div key={`${entry.leagueId}-${entryName}`} style={requestCardStyle}>
-                        <div>
+                        <div style={requestCardContentStyle}>
                           <div style={registryTitle}>{entryName}</div>
                           <div style={registryText}>{league.leagueName}</div>
                           {detail ? <div style={registryNotes}>{detail}</div> : null}
@@ -2768,6 +2768,7 @@ const commandText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const leagueOpsPanelStyle: CSSProperties = {
@@ -2941,6 +2942,7 @@ const publicReadinessTitleStyle: CSSProperties = {
   fontSize: '16px',
   lineHeight: 1.2,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const publicReadinessCheckGridStyle: CSSProperties = {
@@ -3004,6 +3006,8 @@ const resultBookMetricStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leagueOpsHeaderStyle: CSSProperties = {
@@ -3417,6 +3421,7 @@ const fieldHelpText: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.6,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const fieldWarningText: CSSProperties = {
@@ -3542,6 +3547,7 @@ const nextActionTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '15px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const nextActionTextStyle: CSSProperties = {
@@ -3549,6 +3555,7 @@ const nextActionTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const nextActionButtonRowStyle: CSSProperties = {
@@ -3562,6 +3569,7 @@ const buttonRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
+  minWidth: 0,
 }
 
 const primaryButton: CSSProperties = {
@@ -3577,8 +3585,10 @@ const primaryButton: CSSProperties = {
   fontWeight: 900,
   cursor: 'pointer',
   maxWidth: '100%',
+  minWidth: 0,
   whiteSpace: 'normal',
   textAlign: 'center',
+  overflowWrap: 'anywhere',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
@@ -3601,8 +3611,10 @@ const ghostButton: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   maxWidth: '100%',
+  minWidth: 0,
   whiteSpace: 'normal',
   textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const ghostButtonButton: CSSProperties = {
@@ -3630,6 +3642,7 @@ const emptyCard: CSSProperties = {
 const stackList: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const registryCard: CSSProperties = {
@@ -3662,6 +3675,7 @@ const registryMetaRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '8px',
+  minWidth: 0,
 }
 
 const registryTitle: CSSProperties = {
@@ -3703,6 +3717,7 @@ const registryFooter: CSSProperties = {
   gap: '10px',
   flexWrap: 'wrap',
   paddingTop: '8px',
+  minWidth: 0,
 }
 
 const entryRequestPanelStyle: CSSProperties = {
@@ -3727,10 +3742,19 @@ const requestCardStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const requestCardContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const registryTimestamp: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const noteCard: CSSProperties = {

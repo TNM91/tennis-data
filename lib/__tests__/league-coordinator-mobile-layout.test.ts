@@ -7,6 +7,18 @@ const source = readFileSync(
   'utf8',
 )
 
+const subnavSource = readFileSync(
+  join(process.cwd(), 'app/components/coordinator-subnav.tsx'),
+  'utf8',
+)
+
+function styleBlock(sourceText: string, styleName: string) {
+  const start = sourceText.indexOf(`const ${styleName}: CSSProperties = {`)
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextStyle = sourceText.indexOf('\nconst ', start + 1)
+  return sourceText.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
+
 describe('League Coordinator mobile layout guards', () => {
   it('stacks setup and action controls on mobile', () => {
     expect(source).toContain('responsiveHeroActionRowStyle')
@@ -71,5 +83,30 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('Use Data Assist scorecards only after review')
     expect(source).toContain('resultHandoffGridStyle')
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
+  })
+
+  it('wraps coordinator registry and approval rows around long league names', () => {
+    expect(source).toContain('requestCardContentStyle')
+    for (const styleName of [
+      'buttonRow',
+      'primaryButton',
+      'ghostButton',
+      'requestCardContentStyle',
+      'registryFooter',
+      'registryTimestamp',
+      'publicReadinessTitleStyle',
+      'resultBookMetricStyle',
+    ]) {
+      const block = styleBlock(source, styleName)
+      expect(block).toMatch(/minWidth: 0|overflowWrap: 'anywhere'/)
+    }
+  })
+
+  it('keeps the shared coordinator subnav from forcing horizontal scroll', () => {
+    expect(subnavSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
+    expect(styleBlock(subnavSource, 'linkStyle')).toContain('minWidth: 0')
+    expect(styleBlock(subnavSource, 'linkLabelStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(subnavSource).toContain("gridTemplateColumns: '30px minmax(0, 1fr) auto'")
+    expect(styleBlock(subnavSource, 'gridStyle')).toContain('minWidth: 0')
   })
 })
