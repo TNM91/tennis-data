@@ -1316,7 +1316,7 @@ export default function MatchupPage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(min(100%, 280px), 0.8fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.05fr) minmax(min(100%, 280px), 0.8fr)',
     gap: isMobile ? '14px' : '20px',
   }
 
@@ -1357,7 +1357,7 @@ export default function MatchupPage() {
 
   const dynamicCompareGrid: CSSProperties = {
     ...compareGrid,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) 220px minmax(0, 1fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 220px minmax(0, 1fr)',
   }
 
   const dynamicCenterColumn: CSSProperties = {
@@ -2747,6 +2747,7 @@ const contentWrap: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   padding: '0 18px 0',
+  minWidth: 0,
 }
 
 const exploreNavRow: CSSProperties = {

@@ -10,8 +10,19 @@ function styleBlock(styleName: string) {
   return match![0]
 }
 
+function functionBlock(functionName: string) {
+  const typedStart = matchupSource.indexOf(`const ${functionName}:`)
+  const untypedStart = matchupSource.indexOf(`const ${functionName} =`)
+  const start = typedStart >= 0 ? typedStart : untypedStart
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextStyle = matchupSource.indexOf('\nconst ', start + 1)
+  return matchupSource.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
+
 describe('matchup mobile layout guards', () => {
   it('collapses dense setup and comparison rows on narrow screens', () => {
+    expect(matchupSource).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(matchupSource).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(matchupSource).toContain('const dynamicIdentitySetupStripStyle: CSSProperties')
     expect(matchupSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
     expect(matchupSource).toContain("gridTemplateColumns: isSmallMobile")
@@ -22,6 +33,9 @@ describe('matchup mobile layout guards', () => {
     expect(matchupSource).toContain("flex: '1 1 150px'")
     expect(matchupSource).toContain("flex: '0 1 90px'")
     expect(matchupSource).not.toContain("minWidth: '90px'")
+    expect(styleBlock('contentWrap')).toContain('minWidth: 0')
+    expect(functionBlock('dynamicHeroContent')).toContain("isTablet ? 'minmax(0, 1fr)'")
+    expect(functionBlock('dynamicCompareGrid')).toContain("isTablet ? 'minmax(0, 1fr)'")
   })
 
   it('keeps long matchup names and head-to-head rows from forcing overflow', () => {
