@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const exploreSource = readFileSync(join(process.cwd(), 'app/explore/page.tsx'), 'utf8')
+const exploreSearchSource = readFileSync(join(process.cwd(), 'app/explore/search/page.tsx'), 'utf8')
 const rankingsSource = readFileSync(join(process.cwd(), 'app/rankings/page.tsx'), 'utf8')
 const playersSource = readFileSync(join(process.cwd(), 'app/players/page.tsx'), 'utf8')
 const playerDetailSource = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
@@ -13,6 +14,13 @@ const leagueDetailSource = readFileSync(join(process.cwd(), 'app/leagues/[league
 const exploreLeaguesSource = readFileSync(join(process.cwd(), 'app/explore/leagues/page.tsx'), 'utf8')
 const ustaExploreLeagueDetailSource = readFileSync(join(process.cwd(), 'app/explore/leagues/usta/[league]/page.tsx'), 'utf8')
 const tiqLeagueDetailSource = readFileSync(join(process.cwd(), 'app/explore/leagues/tiq/[league]/page.tsx'), 'utf8')
+
+function styleBlock(source: string, styleName: string) {
+  const start = source.indexOf(`const ${styleName}`)
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextStyle = source.indexOf('\nconst ', start + 1)
+  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
 
 describe('Explore responsive surfaces', () => {
   it('keeps Explore action cards protected from narrow mobile overflow', () => {
@@ -28,6 +36,16 @@ describe('Explore responsive surfaces', () => {
     expect(exploreSource).toContain("background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'")
     expect(exploreSource).toContain("color: 'var(--foreground-strong)'")
     expect(exploreSource).not.toContain("color: 'var(--text-dark)',\n  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)'")
+  })
+
+  it('keeps unified Explore Search controls and result groups mobile-safe', () => {
+    expect(exploreSearchSource).toContain("gridTemplateColumns: isMobile ? '1fr'")
+    expect(exploreSearchSource).toContain("minWidth: 0")
+    expect(exploreSearchSource).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(exploreSearchSource, 'emptyStateStyle')).toContain('minWidth: 0')
+    expect(styleBlock(exploreSearchSource, 'exampleSearchButtonStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(exploreSearchSource, 'resultBadgeWrapStyle')).toContain('minWidth: 0')
+    expect(styleBlock(exploreSearchSource, 'filterJumpStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps rankings compact cards single-column friendly on mobile', () => {
