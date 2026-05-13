@@ -22,6 +22,13 @@ function styleBlock(source: string, styleName: string) {
   return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
 }
 
+function functionBlock(source: string, functionName: string) {
+  const start = source.indexOf(`const ${functionName} =`)
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextStyle = source.indexOf('\nconst ', start + 1)
+  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
+
 describe('Explore responsive surfaces', () => {
   it('keeps Explore action cards protected from narrow mobile overflow', () => {
     expect(exploreSource).toContain('const actionBody: CSSProperties')
@@ -90,8 +97,8 @@ describe('Explore responsive surfaces', () => {
   it('keeps Players and Teams directory grids minmax-safe on mobile', () => {
     expect(playersSource).not.toContain("gridTemplateColumns: isTablet\n      ? '1fr'")
     expect(playersSource).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
-    expect(playersSource).toContain("gridTemplateColumns: isTablet\n      ? 'minmax(0, 1fr)'")
-    expect(playersSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(playersSource).toMatch(/gridTemplateColumns: isTablet\s*\?\s*'minmax\(0, 1fr\)'/)
+    expect(playersSource).toContain("isSmallMobile ? 'minmax(0, 1fr)'")
     expect(styleBlock(playersSource, 'heroContent')).toContain('minWidth: 0')
     expect(styleBlock(playersSource, 'cardGrid')).toContain('minWidth: 0')
 
@@ -166,6 +173,12 @@ describe('Explore responsive surfaces', () => {
   })
 
   it('keeps player detail analytics and match lists mobile-safe', () => {
+    expect(playerDetailSource).not.toContain("gridTemplateColumns: isTablet\n      ? '1fr'")
+    expect(playerDetailSource).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+    expect(playerDetailSource).not.toContain("gridTemplateColumns: isMobile ? '1fr'")
+    expect(playerDetailSource).toContain("gridTemplateColumns: isTablet\n      ? 'minmax(0, 1fr)'")
+    expect(playerDetailSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(playerDetailSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
     expect(playerDetailSource).toContain('const comparisonMetricGridStyle: CSSProperties')
     expect(playerDetailSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
     expect(playerDetailSource).toContain('const matchHistoryToolbarStyle: CSSProperties')
@@ -173,6 +186,10 @@ describe('Explore responsive surfaces', () => {
     expect(playerDetailSource).toContain('const rivalryRowStyle: CSSProperties')
     expect(playerDetailSource).toContain('const seasonTableWrapStyle: CSSProperties')
     expect(playerDetailSource).toContain("WebkitOverflowScrolling: 'touch'")
+    expect(styleBlock(playerDetailSource, 'tableWrap')).toContain('minWidth: 0')
+    expect(styleBlock(playerDetailSource, 'dataTable')).toContain("minWidth: 'min(100%, 760px)'")
+    expect(functionBlock(playerDetailSource, 'profileDiscoveryGridStyle')).toContain('minWidth: 0')
+    expect(functionBlock(playerDetailSource, 'signalGridStyle')).toContain('minWidth: 0')
     expect(playerDetailSource).toContain('const nearbyPlayerRowStyle: CSSProperties')
     expect(playerDetailSource).toContain("overflowWrap: 'anywhere'")
   })
