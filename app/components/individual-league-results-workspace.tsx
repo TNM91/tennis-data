@@ -57,15 +57,16 @@ type PlayerResultStanding = {
 type ResultReviewFilter = 'all' | 'edited' | 'clean'
 type ResultDateFilter = 'all' | 'week' | 'month'
 
-const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px' }
-const heading: CSSProperties = { fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0 }
-const subheading: CSSProperties = { color: '#b8c7dc', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 700 }
+const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px', minWidth: 0 }
+const heading: CSSProperties = { fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
+const subheading: CSSProperties = { color: '#b8c7dc', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 700, overflowWrap: 'anywhere' }
 const introCard: CSSProperties = {
   background: 'linear-gradient(135deg, rgba(13, 31, 55, 0.92), rgba(6, 17, 33, 0.96))',
   border: '1px solid rgba(124, 167, 255, 0.18)',
   borderRadius: 16,
   padding: 24,
   marginBottom: 22,
+  minWidth: 0,
 }
 const card: CSSProperties = {
   background: 'rgba(255,255,255,0.04)',
@@ -73,8 +74,9 @@ const card: CSSProperties = {
   borderRadius: 12,
   padding: '18px 20px',
   marginBottom: 14,
+  minWidth: 0,
 }
-const detailsCard: CSSProperties = { ...card, display: 'grid', gap: 12 }
+const detailsCard: CSSProperties = { ...card, display: 'grid', gap: 12, minWidth: 0 }
 const detailsSummary: CSSProperties = {
   cursor: 'pointer',
   listStyle: 'none',
@@ -83,11 +85,12 @@ const detailsSummary: CSSProperties = {
   gap: 10,
   alignItems: 'flex-start',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
-const sectionTitle: CSSProperties = { fontSize: 16, fontWeight: 800, marginBottom: 14, marginTop: 28 }
-const row: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }
-const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 190px' }
-const labelStyle: CSSProperties = { fontSize: 11, color: '#94a3b8', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }
+const sectionTitle: CSSProperties = { fontSize: 16, fontWeight: 800, marginBottom: 14, marginTop: 28, overflowWrap: 'anywhere' }
+const row: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10, minWidth: 0 }
+const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 190px', minWidth: 0 }
+const labelStyle: CSSProperties = { fontSize: 11, color: '#94a3b8', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
 const inputStyle: CSSProperties = {
   width: '100%',
   padding: '9px 11px',
@@ -96,8 +99,9 @@ const inputStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.06)',
   color: '#f1f5f9',
   fontSize: 14,
+  minWidth: 0,
 }
-const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600 }
+const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600, overflowWrap: 'anywhere' }
 const textareaStyle: CSSProperties = { ...inputStyle, minHeight: 82, resize: 'vertical' }
 const btnPrimary: CSSProperties = {
   padding: '9px 18px',
@@ -109,6 +113,10 @@ const btnPrimary: CSSProperties = {
   border: 'none',
   cursor: 'pointer',
   whiteSpace: 'normal',
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 const btnSecondary: CSSProperties = {
   padding: '8px 12px',
@@ -120,6 +128,11 @@ const btnSecondary: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.10)',
   cursor: 'pointer',
   textDecoration: 'none',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 const btnDanger: CSSProperties = {
   ...btnSecondary,
@@ -130,29 +143,31 @@ const btnDanger: CSSProperties = {
 const disabledButton: CSSProperties = { opacity: 0.6, cursor: 'not-allowed' }
 const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6 }
 const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6 }
-const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: '#94a3b8' }
+const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: '#94a3b8', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
 const pillGreen: CSSProperties = { ...pill, background: 'rgba(155,225,29,0.12)', color: '#9be11d' }
 const pillAmber: CSSProperties = { ...pill, background: 'rgba(251,191,36,0.13)', color: '#fbbf24' }
-const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, marginTop: 18 }
+const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, marginTop: 18, minWidth: 0 }
 const scorekeeperTile: CSSProperties = {
   padding: '14px 16px',
   borderRadius: 14,
   border: '1px solid rgba(124,167,255,0.14)',
   background: 'rgba(255,255,255,0.055)',
+  minWidth: 0,
 }
-const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }
-const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05 }
-const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.5, marginTop: 6 }
-const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10, marginTop: 16 }
+const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
+const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05, overflowWrap: 'anywhere' }
+const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.5, marginTop: 6, overflowWrap: 'anywhere' }
+const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10, marginTop: 16, minWidth: 0 }
 const flowStep: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '32px 1fr',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
   gap: 10,
   alignItems: 'center',
   padding: 12,
   borderRadius: 14,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 const flowNumber: CSSProperties = {
   display: 'grid',
@@ -165,8 +180,8 @@ const flowNumber: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   fontWeight: 950,
 }
-const flowTitle: CSSProperties = { color: '#f8fbff', fontWeight: 900, fontSize: 14 }
-const flowText: CSSProperties = { color: '#b8c7dc', fontSize: 12, marginTop: 2 }
+const flowTitle: CSSProperties = { color: '#f8fbff', fontWeight: 900, fontSize: 14, overflowWrap: 'anywhere' }
+const flowText: CSSProperties = { color: '#b8c7dc', fontSize: 12, marginTop: 2, overflowWrap: 'anywhere' }
 const readinessPanel: CSSProperties = {
   display: 'grid',
   gap: 14,
@@ -175,6 +190,7 @@ const readinessPanel: CSSProperties = {
   borderRadius: 16,
   padding: 18,
   marginBottom: 18,
+  minWidth: 0,
 }
 const readinessKicker: CSSProperties = {
   color: '#93b7ea',
@@ -182,6 +198,7 @@ const readinessKicker: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 const readinessTitle: CSSProperties = {
   color: '#f8fbff',
@@ -189,17 +206,20 @@ const readinessTitle: CSSProperties = {
   lineHeight: 1.16,
   fontWeight: 950,
   marginTop: 5,
+  overflowWrap: 'anywhere',
 }
 const readinessText: CSSProperties = {
   color: '#b8c7dc',
   fontSize: 13,
   lineHeight: 1.55,
   marginTop: 6,
+  overflowWrap: 'anywhere',
 }
 const readinessGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 const readinessItem: CSSProperties = {
   display: 'grid',
@@ -209,6 +229,7 @@ const readinessItem: CSSProperties = {
   borderRadius: 14,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 const readinessItemComplete: CSSProperties = {
   ...readinessItem,
@@ -219,8 +240,9 @@ const readinessItemText: CSSProperties = {
   color: '#e2e8f0',
   fontSize: 13,
   lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
-const listWrap: CSSProperties = { display: 'grid', gap: 10 }
+const listWrap: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }
 const resultCard: CSSProperties = {
   ...card,
   display: 'flex',
@@ -228,17 +250,19 @@ const resultCard: CSSProperties = {
   gap: 14,
   alignItems: 'flex-start',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
-const resultTitle: CSSProperties = { color: '#f8fbff', fontSize: 15, fontWeight: 850, marginBottom: 5 }
-const resultMeta: CSSProperties = { color: '#94a3b8', fontSize: 13, lineHeight: 1.5 }
-const actionRow: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }
+const resultTitle: CSSProperties = { color: '#f8fbff', fontSize: 15, fontWeight: 850, marginBottom: 5, overflowWrap: 'anywhere' }
+const resultMeta: CSSProperties = { color: '#94a3b8', fontSize: 13, lineHeight: 1.5, overflowWrap: 'anywhere' }
+const actionRow: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12, minWidth: 0 }
 const insightGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: 14,
   marginTop: 18,
+  minWidth: 0,
 }
-const standingsList: CSSProperties = { display: 'grid', gap: 8 }
+const standingsList: CSSProperties = { display: 'grid', gap: 8, minWidth: 0 }
 const standingRow: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '32px minmax(0, 1fr) auto',
@@ -248,6 +272,7 @@ const standingRow: CSSProperties = {
   borderRadius: 10,
   background: 'rgba(255,255,255,0.035)',
   border: '1px solid rgba(255,255,255,0.07)',
+  minWidth: 0,
 }
 const standingRank: CSSProperties = {
   width: 28,
@@ -261,13 +286,14 @@ const standingRank: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
 }
-const standingName: CSSProperties = { color: '#f8fbff', fontWeight: 850, fontSize: 14, minWidth: 0 }
-const standingSubtext: CSSProperties = { color: '#94a3b8', fontSize: 12, marginTop: 3 }
-const metricStack: CSSProperties = { display: 'grid', gap: 5, justifyItems: 'end', color: '#dbeafe', fontSize: 12, fontWeight: 800 }
+const standingName: CSSProperties = { color: '#f8fbff', fontWeight: 850, fontSize: 14, minWidth: 0, overflowWrap: 'anywhere' }
+const standingSubtext: CSSProperties = { color: '#94a3b8', fontSize: 12, marginTop: 3, overflowWrap: 'anywhere' }
+const metricStack: CSSProperties = { display: 'grid', gap: 5, justifyItems: 'end', color: '#dbeafe', fontSize: 12, fontWeight: 800, minWidth: 0 }
 const emptyCard: CSSProperties = {
   ...card,
   color: '#94a3b8',
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 const reviewToolbar: CSSProperties = {
   ...card,
@@ -275,6 +301,7 @@ const reviewToolbar: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 10,
   alignItems: 'end',
+  minWidth: 0,
 }
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
