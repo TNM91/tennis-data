@@ -31,7 +31,22 @@ describe('My Lab premium surface', () => {
   it('uses theme-safe setup step number contrast', () => {
     expect(source).toContain('setupStepNumberStyle')
     expect(source).toContain("color: 'var(--foreground-strong)'")
-    expect(source).toContain("background: 'color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-chip-bg) 84%)'")
+    expect(source).toContain("background: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-chip-bg) 78%)'")
     expect(source).not.toContain("const setupStepNumberStyle: CSSProperties = {\n  width: 32,\n  height: 32,\n  borderRadius: '50%',\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',\n  color: 'var(--text-dark)'")
+  })
+
+  it('keeps My Lab numbered markers shell-aware instead of dark text on gradients', () => {
+    for (const marker of [
+      'labRoutineNumberStyle',
+      'labPlaybookStepStyle',
+      'setupStepNumberStyle',
+      'matchupQueueRankStyle',
+    ]) {
+      expect(source).toContain(marker)
+    }
+
+    expect(source).not.toContain("const labRoutineNumberStyle: CSSProperties = {\n  width: 34,\n  height: 34,\n  borderRadius: 14,\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-blue-2), var(--brand-green))',\n  color: 'var(--text-dark)'")
+    expect(source).not.toContain("background: complete ? 'var(--brand-green)' : 'var(--shell-panel-bg)',\n  color: complete ? 'var(--text-dark)' : 'var(--foreground-strong)'")
+    expect(source).not.toContain("const matchupQueueRankStyle: CSSProperties = {\n  width: 34,\n  height: 34,\n  borderRadius: '50%',\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',\n  color: 'var(--text-dark)'")
   })
 })

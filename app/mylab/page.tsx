@@ -3535,10 +3535,12 @@ const labRoutineNumberStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--brand-blue-2), var(--brand-green))',
-  color: 'var(--text-dark)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-chip-bg) 80%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 36%, var(--shell-panel-border) 64%)',
+  color: 'var(--foreground-strong)',
   fontSize: 14,
   fontWeight: 950,
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const labRoutineStepTitleStyle: CSSProperties = {
@@ -3786,9 +3788,15 @@ const labPlaybookStepStyle = (complete: boolean): CSSProperties => ({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: complete ? 'var(--brand-green)' : 'var(--shell-panel-bg)',
-  color: complete ? 'var(--text-dark)' : 'var(--foreground-strong)',
+  background: complete
+    ? 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'
+    : 'var(--shell-panel-bg)',
+  border: complete
+    ? '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)'
+    : '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground-strong)',
   fontWeight: 950,
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 })
 
 const labPlaybookValueStyle: CSSProperties = {
@@ -3988,8 +3996,8 @@ const setupStepNumberStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-chip-bg) 84%)',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
   color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 950,
@@ -4156,10 +4164,12 @@ const matchupQueueRankStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',
-  color: 'var(--text-dark)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  color: 'var(--foreground-strong)',
   fontSize: 14,
   fontWeight: 950,
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const matchupQueueNameStyle: CSSProperties = {
