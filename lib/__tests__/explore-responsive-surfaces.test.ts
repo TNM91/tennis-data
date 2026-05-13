@@ -14,6 +14,13 @@ const exploreLeaguesSource = readFileSync(join(process.cwd(), 'app/explore/leagu
 const ustaExploreLeagueDetailSource = readFileSync(join(process.cwd(), 'app/explore/leagues/usta/[league]/page.tsx'), 'utf8')
 const tiqLeagueDetailSource = readFileSync(join(process.cwd(), 'app/explore/leagues/tiq/[league]/page.tsx'), 'utf8')
 
+function styleBlock(source: string, styleName: string) {
+  const start = source.indexOf(`const ${styleName}:`)
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextStyle = source.indexOf('\nconst ', start + 1)
+  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
+
 describe('Explore responsive surfaces', () => {
   it('keeps Explore action cards protected from narrow mobile overflow', () => {
     expect(exploreSource).toContain('const actionBody: CSSProperties')
@@ -37,6 +44,16 @@ describe('Explore responsive surfaces', () => {
     expect(rankingsSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 112px), 1fr))'")
     expect(rankingsSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))'")
     expect(rankingsSource).toContain("overflowWrap: 'anywhere'")
+  })
+
+  it('keeps rankings insight panels and table actions mobile-safe', () => {
+    expect(styleBlock(rankingsSource, 'tableWrap')).toContain("WebkitOverflowScrolling: 'touch'")
+    expect(styleBlock(rankingsSource, 'tableWrap')).toContain("overscrollBehaviorX: 'contain'")
+    expect(styleBlock(rankingsSource, 'rowActionStackStyle')).toContain('minWidth: 0')
+    expect(styleBlock(rankingsSource, 'rowActionPrimaryStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(rankingsSource, 'insightSummary')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(rankingsSource, 'signalListItem')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(rankingsSource, 'distributionRow')).toContain("gridTemplateColumns: 'minmax(0, 72px) minmax(0, 1fr) minmax(0, 32px)'")
   })
 
   it('keeps public discovery empty states actionable and Data Assist aware', () => {
