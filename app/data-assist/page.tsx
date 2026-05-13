@@ -2777,14 +2777,16 @@ const pillStyle: CSSProperties = {
 
 const screenshotGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const submissionStatsStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const submissionStatStyle: CSSProperties = {
