@@ -17,19 +17,18 @@ import CaptainFormField from '@/app/components/captain-form-field'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import { useAuth } from '@/app/components/auth-provider'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
   writeCaptainResumeState,
 } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
-import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import { useTheme } from '@/app/components/theme-provider'
 import { formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
-import { type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
@@ -917,13 +916,17 @@ function readInitialLineupBuilderContext() {
 }
 
 export default function LineupBuilderPage() {
+  return (
+    <SiteShell active="/captain">
+      <LineupBuilderContent />
+    </SiteShell>
+  )
+}
+
+function LineupBuilderContent() {
   const router = useRouter()
   const { theme } = useTheme()
   const initialContext = readInitialLineupBuilderContext()
-
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchTeamRow[]>([])
@@ -966,6 +969,7 @@ export default function LineupBuilderPage() {
   const [prefillApplied, setPrefillApplied] = useState(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { role, entitlements, authResolved } = useAuth()
   const heroArtworkSrc = theme === 'dark'
     ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
     : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
@@ -974,42 +978,9 @@ export default function LineupBuilderPage() {
   const isPreviewMode = role === 'member'
 
   useEffect(() => {
-    let mounted = true
-
-    async function loadRole() {
-      try {
-        const authState = await getClientAuthState()
-
-        if (!mounted) return
-
-        if (!authState.user) {
-          setRole('public')
-          setAuthLoading(false)
-          return
-        }
-
-        if (!mounted) return
-
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } finally {
-        if (mounted) setAuthLoading(false)
-      }
-    }
-
-    void loadRole()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadRole()
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
+    if (!authResolved || role !== 'public') return
+    router.replace('/login?next=/captain/lineup-builder')
+  }, [authResolved, role, router])
 
   useEffect(() => {
     if (!teamName && !leagueName && !flight) return
@@ -1171,9 +1142,9 @@ export default function LineupBuilderPage() {
   }, [])
 
   useEffect(() => {
-    if (authLoading || role === 'public') return
+    if (!authResolved || role === 'public') return
     void refreshBuilderData()
-  }, [authLoading, role, refreshTick, refreshBuilderData])
+  }, [authResolved, role, refreshTick, refreshBuilderData])
 
   const leagueOptions = useMemo(
     () =>
@@ -2131,18 +2102,15 @@ function sendCurrentScenarioToMessaging() {
     gap: 14,
   }
 
-  if (authLoading) {
+  if (!authResolved) {
     return (
-      <SiteShell active="/captain">
-        <div style={pageWrap}>
-          <div style={surfaceCard}>Loading lineup builder...</div>
-        </div>
-      </SiteShell>
+      <div style={pageWrap}>
+        <div style={surfaceCard}>Loading lineup builder...</div>
+      </div>
     )
   }
 
   if (role === 'public') {
-    router.replace('/login')
     return null
   }
 
@@ -2161,8 +2129,7 @@ function sendCurrentScenarioToMessaging() {
   }
 
   return (
-    <SiteShell active="/captain">
-        <div style={pageWrap}>
+    <div style={pageWrap}>
          <section style={heroShellResponsive(isTablet, isMobile)}>
             <div>
               <TiqFeatureIcon name="lineupBuilder" size="lg" variant="surface" />
@@ -3136,7 +3103,6 @@ function sendCurrentScenarioToMessaging() {
           </div>
         </div>
       </div>
-    </SiteShell>
   )
 }
 
