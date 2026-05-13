@@ -713,8 +713,9 @@ const filterButtonStyle: CSSProperties = {
 
 const activeFilterButtonStyle: CSSProperties = {
   ...filterButtonStyle,
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#04121a',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
 }
 
 const dangerButtonStyle: CSSProperties = {

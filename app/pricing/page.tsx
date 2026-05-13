@@ -1300,8 +1300,9 @@ const badgeStyle: CSSProperties = {
   minHeight: '26px',
   padding: '0 10px',
   borderRadius: 999,
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#07121f',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   fontSize: 11,
   fontWeight: 900,
   letterSpacing: '0.1em',
@@ -1445,7 +1446,7 @@ const featureDotStyle: CSSProperties = {
   height: 8,
   marginTop: 7,
   borderRadius: 999,
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  background: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
 }
 
 const cardActionRowStyle: CSSProperties = {
@@ -1475,11 +1476,12 @@ const featuredCtaStyle: CSSProperties = {
   minHeight: '46px',
   padding: '0 16px',
   borderRadius: 999,
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#04121a',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   textDecoration: 'none',
   fontWeight: 900,
-  boxShadow: '0 16px 28px rgba(155, 225, 29, 0.16)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const recommendedHintStyle: CSSProperties = {
@@ -1602,8 +1604,9 @@ const stepNumberStyle: CSSProperties = {
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#07121f',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   fontWeight: 900,
 }
 

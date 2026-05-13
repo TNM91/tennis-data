@@ -751,8 +751,9 @@ const teamStepNumber: CSSProperties = {
   display: 'grid',
   placeItems: 'center',
   flexShrink: 0,
-  background: 'linear-gradient(135deg, #9be11d 0%, #54e184 100%)',
-  color: '#06111d',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '13px',
 }
@@ -891,13 +892,13 @@ const togglePasswordButton: CSSProperties = {
 const submitButton: CSSProperties = {
   minHeight: '50px',
   borderRadius: '16px',
-  border: '1px solid rgba(155,225,29,0.34)',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#08111d',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '15px',
   cursor: 'pointer',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const submitButtonDisabled: CSSProperties = {

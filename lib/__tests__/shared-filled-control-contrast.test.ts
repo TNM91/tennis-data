@@ -17,6 +17,16 @@ const filledControlFiles = [
   'app/rankings/page.tsx',
   'app/reset-password/page.tsx',
 ]
+const publicAccessControlFiles = [
+  'app/admin/upgrade-requests/page.tsx',
+  'app/components/upgrade-prompt.tsx',
+  'app/forget-password/page.tsx',
+  'app/global-error.tsx',
+  'app/join/page.tsx',
+  'app/login/page.tsx',
+  'app/pricing/page.tsx',
+  'app/upgrade/page.tsx',
+]
 
 function collectTsxSources(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
@@ -51,6 +61,20 @@ describe('shared filled control contrast', () => {
       const source = readFileSync(join(process.cwd(), file), 'utf8')
       expect(source, file).toContain(shellAwareControlBackground)
       expect(source, file).toContain(shellAwareControlColor)
+    }
+  })
+
+  it('keeps public access and upgrade controls shell-aware', () => {
+    for (const file of publicAccessControlFiles) {
+      const source = readFileSync(join(process.cwd(), file), 'utf8')
+      expect(source, file).toContain("color: 'var(--foreground-strong)'")
+      expect(source, file).toContain('color-mix(in srgb, var(--brand-green)')
+      expect(source, file).not.toContain('linear-gradient(135deg, #9be11d')
+      expect(source, file).not.toContain('linear-gradient(135deg, #9BE11D')
+      expect(source, file).not.toContain('#08111d')
+      expect(source, file).not.toContain('#06111d')
+      expect(source, file).not.toContain('#04121a')
+      expect(source, file).not.toContain('#07121f')
     }
   })
 
