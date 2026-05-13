@@ -860,12 +860,13 @@ const primaryButtonStyle: CSSProperties = {
   minHeight: 44,
   padding: '0 16px',
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
-  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   textDecoration: 'none',
   cursor: 'pointer',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -1071,8 +1072,13 @@ const setupStepNumberStyle = (complete: boolean): CSSProperties => ({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: complete ? 'var(--brand-green)' : 'var(--shell-panel-bg)',
-  color: complete ? 'var(--text-dark)' : 'var(--foreground-strong)',
+  border: complete
+    ? '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)'
+    : '1px solid var(--shell-panel-border)',
+  background: complete
+    ? 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'
+    : 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
   fontWeight: 950,
 })
 

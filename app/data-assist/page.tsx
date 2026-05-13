@@ -3284,8 +3284,9 @@ const orderBadgeStyle: CSSProperties = {
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',
-  background: 'var(--brand-green)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 950,
 }
 
@@ -3358,9 +3359,9 @@ const primaryButtonStyle: CSSProperties = {
   width: 'fit-content',
   minHeight: 44,
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
-  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   padding: '0 16px',
   fontWeight: 950,
   textDecoration: 'none',
@@ -3368,6 +3369,7 @@ const primaryButtonStyle: CSSProperties = {
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const secondaryButtonStyle: CSSProperties = {

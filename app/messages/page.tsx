@@ -1326,8 +1326,9 @@ const threadButtonStyle = (active: boolean, unread = false): CSSProperties => ({
 
 const unreadPillStyle: CSSProperties = {
   borderRadius: 999,
-  background: 'var(--brand-green)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   padding: '3px 7px',
   fontWeight: 950,
 }
@@ -1591,9 +1592,13 @@ const filterButtonStyle = (active: boolean): CSSProperties => ({
 const segmentStyle = (active: boolean): CSSProperties => ({
   minHeight: 40,
   borderRadius: 12,
-  border: active ? '1px solid rgba(155, 225, 29, 0.36)' : '1px solid transparent',
-  background: active ? 'var(--brand-green)' : 'transparent',
-  color: active ? 'var(--text-dark)' : 'var(--foreground-strong)',
+  border: active
+    ? '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)'
+    : '1px solid transparent',
+  background: active
+    ? 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'
+    : 'transparent',
+  color: 'var(--foreground-strong)',
   fontWeight: 950,
   cursor: 'pointer',
 })
@@ -1666,12 +1671,13 @@ const primaryButtonStyle: CSSProperties = {
   minHeight: 44,
   padding: '0 16px',
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
-  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 950,
   textDecoration: 'none',
   cursor: 'pointer',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const ghostButtonStyle: CSSProperties = {

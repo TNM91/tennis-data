@@ -3586,8 +3586,9 @@ const captainOnboardingNumberStyle: CSSProperties = {
   width: 30,
   height: 30,
   borderRadius: 12,
-  background: 'linear-gradient(135deg, var(--brand-blue-2), var(--brand-green))',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 950,
 }
