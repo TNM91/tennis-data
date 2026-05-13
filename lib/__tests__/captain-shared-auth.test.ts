@@ -10,6 +10,7 @@ const analyticsSource = readFileSync(join(process.cwd(), 'app/captain/analytics/
 const availabilitySource = readFileSync(join(process.cwd(), 'app/captain/availability/page.tsx'), 'utf8')
 const lineupAvailabilitySource = readFileSync(join(process.cwd(), 'app/captain/lineup-availability/page.tsx'), 'utf8')
 const messagingSource = readFileSync(join(process.cwd(), 'app/captain/messaging/page.tsx'), 'utf8')
+const lineupBuilderSource = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
 
 describe('Captain shared auth access', () => {
   it('keeps weekly and team brief access on the shared auth provider', () => {
@@ -78,5 +79,16 @@ describe('Captain shared auth access', () => {
     expect(messagingSource).not.toContain('const [authLoading, setAuthLoading]')
     expect(messagingSource).not.toContain("const [role, setRole] = useState<UserRole>('public')")
     expect(messagingSource).not.toContain('supabase.auth.onAuthStateChange')
+  })
+
+  it('keeps captain lineup builder on shared auth before loading builder data', () => {
+    expect(lineupBuilderSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(lineupBuilderSource).toContain('<SiteShell active="/captain">')
+    expect(lineupBuilderSource).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(lineupBuilderSource).toContain("if (!authResolved || role === 'public') return")
+    expect(lineupBuilderSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
+    expect(lineupBuilderSource).not.toContain('const [authLoading, setAuthLoading]')
+    expect(lineupBuilderSource).not.toContain("const [role, setRole] = useState<UserRole>('public')")
+    expect(lineupBuilderSource).not.toContain('supabase.auth.onAuthStateChange')
   })
 })
