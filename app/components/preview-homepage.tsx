@@ -1818,8 +1818,9 @@ const mostPopularBadgeStyle: CSSProperties = {
   minHeight: 26,
   padding: '0 9px',
   borderRadius: 999,
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#07121f',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   fontSize: 10,
   fontWeight: 900,
   letterSpacing: '0.12em',
@@ -1857,7 +1858,7 @@ const bulletDotStyle: CSSProperties = {
   height: 8,
   marginTop: 7,
   borderRadius: 999,
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  background: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
 }
 
 const tierMetaCardStyle: CSSProperties = {
