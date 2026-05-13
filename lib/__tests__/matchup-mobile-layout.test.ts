@@ -4,10 +4,18 @@ import { describe, expect, it } from 'vitest'
 
 const matchupSource = readFileSync(join(process.cwd(), 'app/matchup/page.tsx'), 'utf8')
 
+function styleBlock(styleName: string) {
+  const match = matchupSource.match(new RegExp(`const ${styleName}: CSSProperties = \\{[\\s\\S]*?\\n\\}`))
+  expect(match, `${styleName} style block`).not.toBeNull()
+  return match![0]
+}
+
 describe('matchup mobile layout guards', () => {
   it('collapses dense setup and comparison rows on narrow screens', () => {
     expect(matchupSource).toContain('const dynamicIdentitySetupStripStyle: CSSProperties')
-    expect(matchupSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(matchupSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+    expect(matchupSource).toContain("gridTemplateColumns: isSmallMobile\n      ? 'minmax(0, 1fr)'")
+    expect(matchupSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))'")
     expect(matchupSource).toContain('const compareHeadCopyStyle: CSSProperties')
     expect(matchupSource).toContain("flexWrap: 'wrap',")
     expect(matchupSource).toContain("flex: '1 1 150px'")
@@ -23,5 +31,39 @@ describe('matchup mobile layout guards', () => {
     expect(matchupSource).toContain("overflowWrap: 'anywhere'")
     expect(matchupSource).toContain("maxWidth: '100%'")
     expect(matchupSource).not.toContain("whiteSpace: 'nowrap'")
+  })
+
+  it('keeps Matchup support grids and labels from expanding past the shell', () => {
+    ;[
+      'selectorGrid',
+      'editorialPanel',
+      'editorialGrid',
+      'handoffSidesGridStyle',
+      'doublesPreviewGridStyle',
+      'suggestionGrid',
+      'prepReadGrid',
+      'ratingGrid',
+      'metricGrid',
+    ].forEach((styleName) => {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    })
+
+    ;[
+      'toolHeaderKickerStyle',
+      'toolHeaderTitleStyle',
+      'identitySetupKickerStyle',
+      'inputLabel',
+      'editorialCardLabel',
+      'handoffKickerStyle',
+      'handoffSideLabelStyle',
+      'doublesPreviewLabelStyle',
+      'formCompareLabel',
+      'formCellLabel',
+    ].forEach((styleName) => {
+      expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
+    })
+
+    expect(styleBlock('toolHeaderTitleClusterStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('handoffTitleClusterStyle')).toContain("flexWrap: 'wrap'")
   })
 })

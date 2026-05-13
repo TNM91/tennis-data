@@ -1349,7 +1349,7 @@ export default function MatchupPage() {
   const dynamicSelectorGrid: CSSProperties = {
     ...selectorGrid,
     gridTemplateColumns: isSmallMobile
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : matchType === 'singles'
         ? 'repeat(2, minmax(0, 1fr))'
         : 'repeat(2, minmax(0, 1fr))',
@@ -1367,13 +1367,13 @@ export default function MatchupPage() {
 
   const dynamicRatingGrid: CSSProperties = {
     ...ratingGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   }
 
   const dynamicMetricGrid: CSSProperties = {
     ...metricGrid,
     gridTemplateColumns: isSmallMobile
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : isMobile
         ? 'repeat(2, minmax(0, 1fr))'
         : 'repeat(3, minmax(0, 1fr))',
@@ -1393,7 +1393,7 @@ export default function MatchupPage() {
 
   const dynamicIdentitySetupStripStyle: CSSProperties = {
     ...identitySetupStripStyle,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : identitySetupStripStyle.gridTemplateColumns,
+    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : identitySetupStripStyle.gridTemplateColumns,
   }
 
   return (
@@ -2838,6 +2838,7 @@ const toolHeaderStyle: CSSProperties = {
 const toolHeaderTitleClusterStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
+  flexWrap: 'wrap',
   gap: '12px',
   minWidth: 0,
 }
@@ -2848,6 +2849,7 @@ const toolHeaderKickerStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const toolHeaderTitleStyle: CSSProperties = {
@@ -2857,6 +2859,7 @@ const toolHeaderTitleStyle: CSSProperties = {
   lineHeight: 1.05,
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const toolHeaderTextStyle: CSSProperties = {
@@ -2893,6 +2896,7 @@ const identitySetupKickerStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const identitySetupTitleStyle: CSSProperties = {
@@ -3006,6 +3010,7 @@ const selectorGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const inputLabel: CSSProperties = {
@@ -3016,6 +3021,7 @@ const inputLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: 0,
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const selectStyle: CSSProperties = {
@@ -3044,6 +3050,8 @@ const errorBanner: CSSProperties = {
   fontWeight: 700,
   fontSize: '14px',
   lineHeight: 1.55,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const errorTitleStyle: CSSProperties = {
@@ -3104,6 +3112,7 @@ const editorialPanel: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const editorialText: CSSProperties = {
@@ -3119,6 +3128,7 @@ const editorialGrid: CSSProperties = {
   display: 'grid',
   gap: '14px',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  minWidth: 0,
 }
 
 const editorialCard: CSSProperties = {
@@ -3137,6 +3147,7 @@ const editorialCardLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.11em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const editorialCardValue: CSSProperties = {
@@ -3290,6 +3301,7 @@ const handoffHeaderStyle: CSSProperties = {
 const handoffTitleClusterStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
+  flexWrap: 'wrap',
   gap: '12px',
   minWidth: 0,
 }
@@ -3300,6 +3312,7 @@ const handoffKickerStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const handoffTitleStyle: CSSProperties = {
@@ -3325,6 +3338,7 @@ const handoffSidesGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const handoffSideCardStyle: CSSProperties = {
@@ -3349,6 +3363,7 @@ const handoffSideLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const handoffSideNameStyle: CSSProperties = {
@@ -3414,6 +3429,7 @@ const doublesPreviewGridStyle: CSSProperties = {
   gap: '12px',
   marginTop: '-2px',
   marginBottom: '14px',
+  minWidth: 0,
 }
 
 const doublesPreviewCardStyle: CSSProperties = {
@@ -3433,6 +3449,7 @@ const doublesPreviewLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const doublesPreviewNamesStyle: CSSProperties = {
@@ -3492,6 +3509,7 @@ const suggestionGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const suggestionButton: CSSProperties = {
@@ -3601,6 +3619,7 @@ const prepReadGrid: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const prepReadCard: CSSProperties = {
@@ -3770,6 +3789,7 @@ const ratingGrid: CSSProperties = {
   display: 'grid',
   gap: '12px',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const ratingPill: CSSProperties = {
@@ -3931,6 +3951,7 @@ const formCompareLabel: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.07em',
   textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const formCellLabel: CSSProperties = {
@@ -3939,6 +3960,7 @@ const formCellLabel: CSSProperties = {
   fontWeight: 700,
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
+  overflowWrap: 'anywhere',
 }
 
 function formCellValue(delta: number | null): CSSProperties {
@@ -4008,6 +4030,7 @@ const metricGrid: CSSProperties = {
   display: 'grid',
   gap: '12px',
   marginTop: '16px',
+  minWidth: 0,
 }
 
 const metricCard: CSSProperties = {
