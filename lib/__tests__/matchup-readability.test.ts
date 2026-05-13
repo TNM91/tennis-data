@@ -14,4 +14,12 @@ describe('matchup readability surfaces', () => {
     expect(matchupSource).not.toContain("m.score || '—'")
     expect(matchupSource).not.toContain("return '—'")
   })
+  it('keeps primary matchup setup actions shell-aware instead of dark text on gradients', () => {
+    expect(matchupSource).toContain('const identitySetupButtonStyle: CSSProperties')
+    expect(matchupSource).toContain('const quickStartButtonStyle: CSSProperties')
+    expect(matchupSource).toContain("background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)'")
+    expect(matchupSource).toContain("background: 'color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg) 80%)'")
+    expect(matchupSource).not.toContain("background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',\n  color: 'var(--text-dark)'")
+    expect(matchupSource).not.toContain("background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',\n  color: 'var(--text-dark)'")
+  })
 })
