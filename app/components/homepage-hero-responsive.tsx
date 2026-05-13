@@ -46,9 +46,9 @@ export default function HomePageHeroResponsive() {
   const heroPadding = isMobile ? '18px' : isTablet ? '22px' : '30px'
   const headlineSize = isMobile ? '42px' : isTablet ? '58px' : '76px'
   const bodySize = isMobile ? '16px' : '18px'
-  const heroGrid = isTablet ? '1fr' : 'minmax(0, 1.06fr) minmax(min(100%, 380px), 540px)'
-  const statGrid = isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))'
-  const featureGrid = isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))'
+  const heroGrid = isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.06fr) minmax(min(100%, 380px), 540px)'
+  const statGrid = isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))'
+  const featureGrid = isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))'
 
   const rightStageStyle = useMemo(
     () => ({
@@ -132,6 +132,7 @@ export default function HomePageHeroResponsive() {
             gridTemplateColumns: heroGrid,
             gap: isTablet ? '16px' : '28px',
             alignItems: 'center',
+            minWidth: 0,
           }}
         >
           <div
@@ -139,6 +140,7 @@ export default function HomePageHeroResponsive() {
               position: 'relative',
               zIndex: 2,
               order: isTablet ? 2 : 1,
+              minWidth: 0,
             }}
           >
             <div
@@ -201,6 +203,7 @@ export default function HomePageHeroResponsive() {
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: '12px',
+                minWidth: 0,
               }}
             >
               <Link
@@ -269,6 +272,7 @@ export default function HomePageHeroResponsive() {
                 gridTemplateColumns: statGrid,
                 gap: '12px',
                 maxWidth: isTablet ? '100%' : '780px',
+                minWidth: 0,
               }}
             >
               <div style={statCardStyle}>
@@ -446,8 +450,9 @@ export default function HomePageHeroResponsive() {
                 left: isMobile ? '10px' : isTablet ? '14px' : '18px',
                 right: isMobile ? '10px' : isTablet ? '14px' : '18px',
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
                 gap: '10px',
+                minWidth: 0,
               }}
             >
               {[
@@ -502,6 +507,7 @@ export default function HomePageHeroResponsive() {
             gap: '12px',
             position: 'relative',
             zIndex: 2,
+            minWidth: 0,
           }}
         >
           {[

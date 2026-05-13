@@ -265,10 +265,11 @@ function PreviewHomepageContent() {
               position: 'relative',
               zIndex: 1,
               display: 'grid',
-              gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.04fr) minmax(360px, 0.96fr)',
+              gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.04fr) minmax(min(100%, 360px), 0.96fr)',
               gap: isTablet ? 16 : 18,
               padding: isSmallMobile ? 16 : isMobile ? 20 : 24,
               alignItems: 'start',
+              minWidth: 0,
             }}
           >
             <div
@@ -372,9 +373,10 @@ function PreviewHomepageContent() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.1fr) minmax(280px, 0.9fr)',
+              gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.1fr) minmax(min(100%, 280px), 0.9fr)',
               gap: 12,
               alignItems: 'stretch',
+              minWidth: 0,
             }}
           >
             <div style={{ display: 'grid', gap: 8, maxWidth: 860 }}>
@@ -463,11 +465,12 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
         style={{
           ...glassCard,
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'auto minmax(132px, 160px) minmax(0, 1fr) auto',
+          gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(min(100%, 132px), 160px) minmax(0, 1fr) auto',
           gap: 8,
           alignItems: 'center',
           padding: isSmallMobile ? 10 : 11,
           maxWidth: isMobile ? '100%' : 760,
+          minWidth: 0,
           border: '1px solid var(--home-search-frame-border)',
           background: isMobile
             ? 'color-mix(in srgb, var(--home-search-frame-bg) 78%, transparent 22%)'
@@ -486,7 +489,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
             minWidth: 0,
           }}
         >
-          <span style={{ ...badgeGreen, minHeight: 32, paddingInline: 12, whiteSpace: 'nowrap' }}>
+          <span style={{ ...badgeGreen, minHeight: 32, paddingInline: 12, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
             Free search
           </span>
           {isMobile ? (
@@ -652,9 +655,12 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
         style={{
           display: 'grid',
           gridTemplateColumns:
-            compact || isMobile ? '1fr' : 'minmax(172px, 196px) minmax(0, 1fr) minmax(148px, 156px)',
+            compact || isMobile
+              ? 'minmax(0, 1fr)'
+              : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) minmax(min(100%, 148px), 156px)',
           gap: compact || isMobile ? 8 : 10,
           alignItems: compact || isMobile ? 'stretch' : 'end',
+          minWidth: 0,
         }}
       >
         <label style={{ display: 'grid', gap: 6 }}>
@@ -815,9 +821,10 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
           gap: 10,
           alignItems: 'stretch',
+          minWidth: 0,
         }}
       >
         {conversionTierIds.map((planId) => {
@@ -866,7 +873,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
                     {tier.shortPromise}
                   </h3>
                 </div>
-                <div style={{ color: theme.priceColor, fontSize: 13, fontWeight: 950, whiteSpace: 'nowrap' }}>
+                <div style={{ color: theme.priceColor, fontSize: 13, fontWeight: 950, whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'right' }}>
                   {accessPresentation.priceLabel}
                 </div>
               </div>
@@ -938,10 +945,11 @@ function FinalConversionRow() {
       style={{
         ...surfaceCardStrong,
         display: 'grid',
-        gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) auto',
+        gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
         gap: 14,
         alignItems: 'center',
         padding: isSmallMobile ? 16 : 18,
+        minWidth: 0,
         border: '1px solid rgba(155,225,29,0.18)',
         background:
           'linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 92%, var(--brand-green) 8%) 0%, color-mix(in srgb, var(--surface) 96%, var(--brand-blue) 4%) 100%)',
@@ -1101,7 +1109,7 @@ function RoleChooserPreview() {
                 href={item.href}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: isSmallMobile ? '1fr' : '126px minmax(0, 1fr) auto',
+                  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(min(100%, 126px), 126px) minmax(0, 1fr) auto',
                   gap: 12,
                   alignItems: 'center',
                   minHeight: isSmallMobile ? 92 : 72,
@@ -1112,6 +1120,7 @@ function RoleChooserPreview() {
                   background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
                   color: 'inherit',
                   textDecoration: 'none',
+                  minWidth: 0,
                 }}
               >
                 <span style={{ ...theme.tierBadge, width: 'fit-content' }}>{item.label}</span>
@@ -1185,8 +1194,9 @@ function TierSection({
           position: 'relative',
           zIndex: 1,
           display: 'grid',
-          gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.92fr) minmax(320px, 1.08fr)',
+          gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.92fr) minmax(min(100%, 320px), 1.08fr)',
           gap: 0,
+          minWidth: 0,
         }}
       >
         <div
@@ -1342,7 +1352,7 @@ function FreeSnapshot() {
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: 10, minWidth: 0 }}>
           <SnapshotCard title="Profile" value="Ready to join" text="Create your player profile and join your team." />
           <SnapshotCard title="Availability" value="2 taps" text="Set in, out, or tentative before lineup decisions start." accent="green" />
         </div>
@@ -1362,7 +1372,7 @@ function PlayerPlusSnapshot() {
   return (
     <SnapshotShell planId="player_plus" title="Player insight" subtitle="Role fit, projections, recent form, and matchup context">
       <div style={{ display: 'grid', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 10, minWidth: 0 }}>
           <SnapshotCard title="TIQ" value="4.48" text="Current form rating" accent="green" />
           <SnapshotCard title="Best fit" value="D2" text="Where you should play" accent="blue" />
           <SnapshotCard title="Projection" value="63%" text="Match win estimate" accent="blue" />
@@ -1403,7 +1413,7 @@ function CaptainSnapshot() {
       featured
     >
       <div style={{ display: 'grid', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 10, minWidth: 0 }}>
           <SnapshotCard title="Availability" value="8 / 10" text="Players confirmed" accent="green" />
           <SnapshotCard title="Best lineup" value="71%" text="Projected win rate" accent="green" />
           <SnapshotCard title="Scenario delta" value="+8%" text="Compared with another option" accent="blue" />
@@ -1442,7 +1452,7 @@ function LeagueSnapshot() {
   return (
     <SnapshotShell planId="league" title="League workspace" subtitle="Standings, schedule, teams, and season operations">
       <div style={{ display: 'grid', gap: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: 10, minWidth: 0 }}>
           <SnapshotCard title="Teams" value="10" text="Entered this season" accent="blue" />
           <SnapshotCard title="Matches" value="36" text="Scheduled and tracked" accent="green" />
         </div>
