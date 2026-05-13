@@ -23,10 +23,10 @@ export function AdminReviewHero({
 }) {
   return (
     <div className="hero-panel" style={adminHeroStyle}>
-      <div style={{ position: 'relative', zIndex: 1 }}>
+      <div style={adminHeroContentStyle}>
         <div className="section-kicker">{kicker}</div>
-        <h1 className="page-title" style={{ marginTop: 8 }}>{title}</h1>
-        <p className="page-subtitle" style={{ maxWidth: 860 }}>
+        <h1 className="page-title" style={adminHeroTitleStyle}>{title}</h1>
+        <p className="page-subtitle" style={adminHeroSubtitleStyle}>
           {children}
         </p>
         {actions ? <div style={adminActionRowStyle}>{actions}</div> : null}
@@ -121,6 +121,7 @@ export const adminActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   marginTop: 18,
+  minWidth: 0,
 }
 
 export const adminSubPanelStyle: CSSProperties = {
@@ -130,6 +131,7 @@ export const adminSubPanelStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 export const adminReviewHeaderRowStyle: CSSProperties = {
@@ -138,12 +140,14 @@ export const adminReviewHeaderRowStyle: CSSProperties = {
   gap: 12,
   alignItems: 'center',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 export const adminFactGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const adminReviewFrameStyle: CSSProperties = {
@@ -151,6 +155,7 @@ const adminReviewFrameStyle: CSSProperties = {
   maxWidth: 1280,
   margin: '0 auto',
   padding: '18px 24px 36px',
+  minWidth: 0,
 }
 
 const adminHeroStyle: CSSProperties = {
@@ -158,6 +163,23 @@ const adminHeroStyle: CSSProperties = {
   overflow: 'hidden',
   padding: 24,
   borderRadius: 22,
+  minWidth: 0,
+}
+
+const adminHeroContentStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  minWidth: 0,
+}
+
+const adminHeroTitleStyle: CSSProperties = {
+  marginTop: 8,
+  overflowWrap: 'anywhere',
+}
+
+const adminHeroSubtitleStyle: CSSProperties = {
+  maxWidth: 860,
+  overflowWrap: 'anywhere',
 }
 
 const adminReviewGridStyle: CSSProperties = {
@@ -166,11 +188,13 @@ const adminReviewGridStyle: CSSProperties = {
   gap: 18,
   marginTop: 18,
   alignItems: 'start',
+  minWidth: 0,
 }
 
 const adminReviewPanelStyle: CSSProperties = {
   padding: 18,
   minHeight: 520,
+  minWidth: 0,
 }
 
 const adminStatusPanelStyle: CSSProperties = {
@@ -178,6 +202,7 @@ const adminStatusPanelStyle: CSSProperties = {
   borderRadius: 16,
   padding: '12px 14px',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const adminEmptyStateStyle: CSSProperties = {
@@ -187,6 +212,7 @@ const adminEmptyStateStyle: CSSProperties = {
   padding: 16,
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const adminFactStyle: CSSProperties = {
@@ -194,6 +220,7 @@ const adminFactStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   borderRadius: 14,
   padding: 12,
+  minWidth: 0,
 }
 
 const adminFactLabelStyle: CSSProperties = {
