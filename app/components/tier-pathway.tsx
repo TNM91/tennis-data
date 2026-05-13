@@ -313,12 +313,13 @@ const ctaStyle: CSSProperties = {
   minHeight: 38,
   padding: '0 13px',
   borderRadius: 12,
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
-  background: 'linear-gradient(135deg, var(--brand-lime) 0%, #c7f36b 100%)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 900,
   textDecoration: 'none',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const secondaryCtaStyle: CSSProperties = {

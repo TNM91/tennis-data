@@ -155,15 +155,15 @@ export default function FollowButton({
         letterSpacing: 0,
         border: isFollowing
           ? `1px solid ${hovered ? 'rgba(248,113,113,0.36)' : 'rgba(116,190,255,0.18)'}`
-          : '1px solid rgba(155,225,29,0.35)',
+          : '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
         background: isFollowing
           ? hovered
             ? 'linear-gradient(180deg, rgba(120, 28, 28, 0.4) 0%, rgba(55, 16, 16, 0.9) 100%)'
             : 'linear-gradient(180deg, rgba(24, 48, 88, 0.86) 0%, rgba(10, 22, 42, 0.98) 100%)'
           : hovered
-            ? 'linear-gradient(135deg, #b7f757 0%, #67efab 100%)'
-            : 'linear-gradient(135deg,#9be11d,#4ade80)',
-        color: isFollowing ? (hovered ? '#fecaca' : '#f8fbff') : '#04121f',
+            ? 'color-mix(in srgb, var(--brand-green) 26%, var(--shell-chip-bg) 74%)'
+            : 'color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg) 80%)',
+        color: isFollowing ? (hovered ? '#fecaca' : '#f8fbff') : 'var(--foreground-strong)',
         cursor: saving ? 'wait' : 'pointer',
         opacity: saving ? 0.8 : 1,
         boxShadow: isFollowing
@@ -171,8 +171,8 @@ export default function FollowButton({
             ? '0 12px 28px rgba(69, 10, 10, 0.28), inset 0 1px 0 rgba(255,255,255,0.04)'
             : '0 16px 36px rgba(5, 12, 25, 0.22), inset 0 1px 0 rgba(255,255,255,0.06)'
           : hovered
-            ? '0 16px 38px rgba(74, 222, 128, 0.32), 0 0 0 1px rgba(155,225,29,0.22)'
-            : '0 12px 28px rgba(74, 222, 128, 0.22), 0 0 0 1px rgba(155,225,29,0.14)',
+            ? '0 16px 38px color-mix(in srgb, var(--brand-green) 20%, transparent), inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)'
+            : '0 12px 28px color-mix(in srgb, var(--brand-green) 14%, transparent), inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
         transition: 'all 160ms ease',
         transform: hovered && !saving ? 'translateY(-1px)' : 'none',
       }}
@@ -187,7 +187,7 @@ export default function FollowButton({
             ? hovered
               ? '#fca5a5'
               : '#93c5fd'
-            : 'var(--text-dark)',
+            : 'var(--foreground-strong)',
           boxShadow: isFollowing
             ? hovered
               ? '0 0 0 4px rgba(248,113,113,0.16)'
@@ -202,7 +202,7 @@ export default function FollowButton({
           style={{
             marginTop: '4px',
             fontSize: '0.72rem',
-            color: isFollowing ? 'rgba(229,238,251,0.74)' : 'rgba(8,17,29,0.72)',
+            color: isFollowing ? 'rgba(229,238,251,0.74)' : 'var(--shell-copy-muted)',
             fontWeight: 700,
             letterSpacing: '0.02em',
           }}

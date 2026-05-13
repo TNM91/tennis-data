@@ -547,10 +547,12 @@ const startStepNumber: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: 'var(--text-dark)',
-  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
+  color: 'var(--foreground-strong)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   fontSize: 13,
   fontWeight: 900,
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const startStepLabel: CSSProperties = {
