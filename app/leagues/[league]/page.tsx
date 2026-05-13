@@ -1723,6 +1723,7 @@ const standingsTableScrollStyle: CSSProperties = {
   marginTop: 16,
   maxWidth: '100%',
   WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'thin',
   minWidth: 0,
 }
 
