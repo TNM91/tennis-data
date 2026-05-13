@@ -95,8 +95,28 @@ describe('My Lab premium surface', () => {
       'tiqActionRailStyle',
       'teamPrepRailStyle',
       'workshopPanelStyle',
+      'performanceGridStyle',
+      'performanceCardStyle',
+      'trophyRoomPanelStyle',
+      'trophyRoomGridStyle',
+      'trophyCardStyle',
+      'matchupQueueFitStyle',
+      'miniActionPillStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+
+    for (const styleName of [
+      'matchupQueueNameStyle',
+      'matchupQueueMetaStyle',
+      'matchupQueueFitStyle',
+      'performanceCardTitleStyle',
+      'trophyValueStyle',
+      'workshopRowTitleStyle',
+      'workshopRowMetaStyle',
+      'miniActionPillStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     }
   })
 })
