@@ -52,10 +52,10 @@ export default function GlobalError({
               fontWeight: 700,
               fontSize: '0.97rem',
               cursor: 'pointer',
-              border: '1px solid rgba(155,225,29,0.35)',
-              background: 'linear-gradient(135deg, #9be11d, #c7f36b)',
-              color: '#08111d',
-              boxShadow: '0 10px 30px rgba(74,222,128,0.25)',
+              border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+              background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+              color: 'var(--foreground-strong)',
+              boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
             }}
           >
             Try again

@@ -348,8 +348,9 @@ const badgeStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-  color: '#07121f',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  color: 'var(--foreground-strong)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
 }
 
 const titleStyle: CSSProperties = {
@@ -534,8 +535,9 @@ const unlockStepNumberStyle: CSSProperties = {
   width: 24,
   height: 24,
   borderRadius: 999,
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#04121a',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   fontSize: 11,
   fontWeight: 900,
 }
@@ -587,11 +589,12 @@ const primaryActionStyle: CSSProperties = {
   minHeight: '44px',
   padding: '0 16px',
   borderRadius: 999,
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#04121a',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   textDecoration: 'none',
   fontWeight: 900,
-  boxShadow: '0 14px 28px rgba(155, 225, 29, 0.16)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const buttonActionStyle: CSSProperties = {

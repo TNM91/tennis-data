@@ -914,11 +914,12 @@ const primaryButtonStyle: CSSProperties = {
   minHeight: 46,
   padding: '0 16px',
   borderRadius: 999,
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#04121a',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontWeight: 950,
-  boxShadow: '0 16px 28px rgba(155, 225, 29, 0.16)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const secondaryButtonStyle: CSSProperties = {
