@@ -706,14 +706,14 @@ const pillStyle: CSSProperties = { borderRadius: 999, padding: '8px 12px', backg
 const statusShell: CSSProperties = { display: 'grid', gap: 14, padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)', marginTop: 18, minWidth: 0 }
 const statusValue: CSSProperties = { color: '#f8fbff', fontSize: 26, fontWeight: 900, lineHeight: 1.08, letterSpacing: 0, marginTop: 6, overflowWrap: 'anywhere' }
 const statusButtonRow: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10, minWidth: 0 }
-const twoColumnGrid = (isTablet: boolean): CSSProperties => ({ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 20 })
+const twoColumnGrid = (isTablet: boolean): CSSProperties => ({ display: 'grid', gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: 20, minWidth: 0 })
 const eventGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, minWidth: 0 }
 const infoBlock: CSSProperties = { display: 'grid', gap: 8, padding: 14, borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', minWidth: 0 }
 const infoLabel: CSSProperties = { color: '#93c5fd', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', overflowWrap: 'anywhere' }
 const infoValue: CSSProperties = { color: '#f8fbff', fontSize: 14, lineHeight: 1.65, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }
 const noteCard: CSSProperties = { display: 'grid', gap: 8, padding: 16, borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', minWidth: 0 }
 const noteText: CSSProperties = { color: 'rgba(229,238,251,0.82)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }
-const lineupGrid = (isSmallMobile: boolean): CSSProperties => ({ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14 })
+const lineupGrid = (isSmallMobile: boolean): CSSProperties => ({ display: 'grid', gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, minWidth: 0 })
 const lineupCard: CSSProperties = { display: 'grid', gap: 10, padding: 16, borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', minWidth: 0 }
 const lineupTop: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', minWidth: 0 }
 const courtPill: CSSProperties = { borderRadius: 999, padding: '8px 12px', background: 'rgba(155,225,29,0.14)', color: '#e7ffd1', fontSize: 12, fontWeight: 800, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
