@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import {
   AdminEmptyState,
   AdminFact,
@@ -11,6 +11,7 @@ import {
   AdminReviewPanel,
   AdminStatusPanel,
   adminActionRowStyle,
+  adminFactGridStyle,
   adminReviewHeaderRowStyle,
 } from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
@@ -252,21 +253,21 @@ function DataAssistReviewQueue() {
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+          <div style={queueFilterRowStyle}>
             {(Object.keys(filterLabels) as QueueFilter[]).map((item) => (
               <button
                 key={item}
                 type="button"
                 onClick={() => setFilter(item)}
                 className={filter === item ? 'button-primary' : 'button-secondary'}
-                style={{ minHeight: 34, padding: '7px 11px', fontSize: 12 }}
+                style={queueFilterButtonStyle}
               >
                 {filterLabels[item]}
               </button>
             ))}
           </div>
 
-          <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+          <div style={queueListStyle}>
             {loading ? (
               <AdminEmptyState text="Loading Data Assist batches..." />
             ) : filteredBatches.length ? (
@@ -275,25 +276,16 @@ function DataAssistReviewQueue() {
                   key={batch.id}
                   type="button"
                   onClick={() => setSelectedId(batch.id)}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: 14,
-                    borderRadius: 16,
-                    border: selectedId === batch.id ? '1px solid rgba(155,225,29,0.42)' : '1px solid var(--shell-panel-border)',
-                    background: selectedId === batch.id ? 'rgba(155,225,29,0.09)' : 'var(--shell-panel-bg)',
-                    color: 'var(--foreground)',
-                    cursor: 'pointer',
-                  }}
+                  style={queueBatchButtonStyle(selectedId === batch.id)}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontWeight: 900 }}>{getDataAssistImportTypeLabel(batch.requestedImportType)}</span>
+                  <div style={queueBatchHeaderStyle}>
+                    <span style={queueBatchTitleStyle}>{getDataAssistImportTypeLabel(batch.requestedImportType)}</span>
                     <StatusBadge status={batch.status} />
                   </div>
-                  <div className="subtle-text" style={{ marginTop: 7, fontSize: 13 }}>
+                  <div className="subtle-text" style={queueBatchMetaStyle}>
                     {batch.screenshotCount} upload file{batch.screenshotCount === 1 ? '' : 's'} - {Math.round(batch.confidenceScore * 100)}% confidence
                   </div>
-                  <div className="subtle-text" style={{ marginTop: 6, fontSize: 12 }}>
+                  <div className="subtle-text" style={queueBatchDateStyle}>
                     {formatDate(batch.createdAt)}
                   </div>
                 </button>
@@ -405,8 +397,8 @@ function DataAssistReviewQueue() {
 
 function BatchHeader({ batch }: { batch: DataAssistAdminBatch }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-      <div>
+    <div style={batchHeaderStyle}>
+      <div style={batchHeaderCopyStyle}>
         <div className="section-kicker">Selected batch</div>
         <h2 className="section-title" style={{ marginTop: 6, fontSize: '1.5rem' }}>
           {getDataAssistImportTypeLabel(batch.requestedImportType)}
@@ -443,7 +435,7 @@ function ScorecardBoundary({ draft }: { draft: DataAssistAdminDraft | null }) {
   return (
     <div style={{ marginTop: 18 }}>
       <div className="section-kicker">Scorecard boundary</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 10 }}>
+      <div style={adminFactGridWithTopMarginStyle}>
         {fields.map(([label, value]) => (
           <AdminFact key={label} label={label} value={value} />
         ))}
@@ -510,9 +502,9 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
     <div style={{ marginTop: 18 }}>
       <div className="section-kicker">OCR verification</div>
       <div style={{ marginTop: 10, display: 'grid', gap: 12 }}>
-        <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <div>
+        <div style={reviewSubPanelStyle}>
+          <div style={reviewSplitRowStyle}>
+            <div style={reviewSplitCopyStyle}>
               <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
                 {getOcrProviderLabel(draft.ocrProvider)}
               </div>
@@ -526,7 +518,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
           </div>
 
           {latestJob ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 12 }}>
+            <div style={adminFactGridWithTopMarginStyle}>
               <AdminFact label="Job" value={latestJob.id.slice(0, 8).toUpperCase()} />
               <AdminFact label="Provider" value={latestJob.provider} />
               <AdminFact label="Upload files" value={String(latestJob.screenshotCount)} />
@@ -536,9 +528,9 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
         </div>
 
         {ocrQuality ? (
-          <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-              <div>
+          <div style={reviewSubPanelStyle}>
+            <div style={reviewSplitRowStyle}>
+              <div style={reviewSplitCopyStyle}>
                 <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>OCR quality</div>
                 <div className="subtle-text" style={{ marginTop: 6 }}>
                   {getOcrReviewPriorityCopy(ocrQuality.reviewPriority)}
@@ -547,9 +539,9 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
               <StatusBadge status={ocrQuality.reviewPriority || 'needs_manual_review'} compact />
             </div>
             {autoAssessment ? (
-              <div style={{ marginTop: 12, padding: 12, borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg-strong)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <div>
+              <div style={autoAssessmentPanelStyle}>
+                <div style={reviewSplitRowStyle}>
+                  <div style={reviewSplitCopyStyle}>
                     <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
                       {autoAssessment.label || 'Auto assessment'}
                     </div>
@@ -568,7 +560,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
                 ) : null}
               </div>
             ) : null}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: 10, marginTop: 12 }}>
+            <div style={ocrFactGridStyle}>
               <AdminFact label="OCR confidence" value={formatPercent(ocrQuality.ocrConfidenceScore)} />
               <AdminFact label="Parser confidence" value={formatPercent(ocrQuality.parserConfidenceScore ?? parsedPayload.confidenceScore)} />
               <AdminFact label="Parsed lines" value={String(ocrQuality.parsedLineCount ?? parsedPayload.lines?.length ?? 0)} />
@@ -583,10 +575,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
                   <div
                     key={`${summary.uploadOrder}-${summary.fileName}`}
                     style={{
-                      padding: 10,
-                      borderRadius: 12,
-                      border: '1px solid var(--shell-panel-border)',
-                      background: 'var(--shell-panel-bg-strong)',
+                      ...compactReviewSubPanelStyle,
                     }}
                   >
                     <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
@@ -603,7 +592,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
         ) : null}
 
         {draft.parserWarnings.length ? (
-          <div style={{ padding: 14, borderRadius: 16, border: '1px solid rgba(251,191,36,0.24)', background: 'rgba(251,191,36,0.08)' }}>
+          <div style={parserWarningPanelStyle}>
             <div style={{ color: '#fde68a', fontWeight: 900 }}>Parser warnings</div>
             <div style={{ display: 'grid', gap: 7, marginTop: 8 }}>
               {draft.parserWarnings.map((warning) => (
@@ -614,9 +603,9 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
         ) : null}
 
         {parsedPayload.rawTextPreview ? (
-          <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+          <div style={reviewSubPanelStyle}>
             <div className="metric-label">OCR source preview</div>
-            <pre style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap', color: 'var(--foreground)', fontSize: 12, lineHeight: 1.5 }}>
+            <pre style={ocrPreviewTextStyle}>
               {parsedPayload.rawTextPreview}
             </pre>
           </div>
@@ -625,7 +614,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
         {parsedPayload.lines?.length ? (
           <div style={{ display: 'grid', gap: 8 }}>
             {parsedPayload.lines.map((line, index) => (
-              <div key={`${line.lineLabel}-${index}`} style={{ padding: 12, borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+              <div key={`${line.lineLabel}-${index}`} style={parsedLineCardStyle}>
                 <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>{line.lineLabel || `Line ${index + 1}`}</div>
                 <div className="subtle-text" style={{ marginTop: 6 }}>
                   {(line.homePlayers || []).join(' / ') || 'Home players not parsed'} vs {(line.awayPlayers || []).join(' / ') || 'Away players not parsed'}
@@ -646,10 +635,10 @@ function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreensho
   return (
     <div style={{ marginTop: 18 }}>
       <div className="section-kicker">Upload Files</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12, marginTop: 10 }}>
+      <div style={screenshotGridStyle}>
         {screenshots.length ? (
           screenshots.map((screenshot) => (
-            <div key={screenshot.id} style={{ overflow: 'hidden', borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+            <div key={screenshot.id} style={screenshotCardStyle}>
               <div style={{ position: 'relative', aspectRatio: '4 / 5', background: 'var(--shell-panel-bg-strong)', borderBottom: '1px solid var(--shell-panel-border)' }}>
                 {screenshot.signedImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -667,8 +656,8 @@ function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreensho
                   <StatusBadge status={screenshot.detectionStatus} compact />
                 </div>
               </div>
-              <div style={{ padding: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <div style={screenshotBodyStyle}>
+              <div style={screenshotMetaRowStyle}>
                 <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>#{screenshot.uploadOrder}</div>
                 <span className="badge badge-blue" style={{ fontSize: 10 }}>
                   {screenshot.storagePath ? 'Stored' : 'Metadata only'}
@@ -680,7 +669,7 @@ function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreensho
               <div className="subtle-text" style={{ marginTop: 6, fontSize: 12 }}>
                 {screenshot.imageWidth}x{screenshot.imageHeight} - {formatBytes(screenshot.fileSizeBytes)}
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+              <div style={screenshotSignalRowStyle}>
                 {screenshot.visualSignals.slice(0, 3).map((signal) => (
                   <span key={signal} className="badge badge-slate" style={{ fontSize: 10 }}>
                     {signal}
@@ -702,23 +691,228 @@ function DraftSummary({ draft }: { draft: DataAssistAdminDraft | null }) {
   if (!draft) return <AdminEmptyState text="No draft row found for this batch." />
 
   return (
-    <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12 }}>
-      <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+    <div style={draftSummaryGridStyle}>
+      <div style={reviewSubPanelStyle}>
         <div className="metric-label">Draft status</div>
         <div style={{ marginTop: 8 }}>
           <StatusBadge status={draft.status} />
         </div>
       </div>
-      <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+      <div style={reviewSubPanelStyle}>
         <div className="metric-label">OCR status</div>
         <div style={{ color: 'var(--foreground)', fontWeight: 900, marginTop: 8 }}>{draft.ocrStatus.replace(/_/g, ' ')}</div>
       </div>
-      <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+      <div style={reviewSubPanelStyle}>
         <div className="metric-label">Confidence</div>
         <div style={{ color: 'var(--foreground)', fontWeight: 900, marginTop: 8 }}>{Math.round(draft.confidenceScore * 100)}%</div>
       </div>
     </div>
   )
+}
+
+const queueFilterRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  marginTop: 14,
+  minWidth: 0,
+}
+
+const queueFilterButtonStyle: CSSProperties = {
+  minHeight: 34,
+  padding: '7px 11px',
+  fontSize: 12,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const queueListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  marginTop: 16,
+  minWidth: 0,
+}
+
+const queueBatchButtonStyle = (selected: boolean): CSSProperties => ({
+  width: '100%',
+  textAlign: 'left',
+  padding: 14,
+  borderRadius: 16,
+  border: selected ? '1px solid rgba(155,225,29,0.42)' : '1px solid var(--shell-panel-border)',
+  background: selected ? 'rgba(155,225,29,0.09)' : 'var(--shell-panel-bg)',
+  color: 'var(--foreground)',
+  cursor: 'pointer',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+})
+
+const queueBatchHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const queueBatchTitleStyle: CSSProperties = {
+  fontWeight: 900,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const queueBatchMetaStyle: CSSProperties = {
+  marginTop: 7,
+  fontSize: 13,
+  overflowWrap: 'anywhere',
+}
+
+const queueBatchDateStyle: CSSProperties = {
+  marginTop: 6,
+  fontSize: 12,
+  overflowWrap: 'anywhere',
+}
+
+const batchHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 16,
+  flexWrap: 'wrap',
+  alignItems: 'flex-start',
+  minWidth: 0,
+}
+
+const batchHeaderCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const adminFactGridWithTopMarginStyle: CSSProperties = {
+  ...adminFactGridStyle,
+  marginTop: 10,
+}
+
+const reviewSubPanelStyle: CSSProperties = {
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const compactReviewSubPanelStyle: CSSProperties = {
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const reviewSplitRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const reviewSplitCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const autoAssessmentPanelStyle: CSSProperties = {
+  marginTop: 12,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  minWidth: 0,
+}
+
+const ocrFactGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 10,
+  marginTop: 12,
+  minWidth: 0,
+}
+
+const parserWarningPanelStyle: CSSProperties = {
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.08)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const ocrPreviewTextStyle: CSSProperties = {
+  margin: '8px 0 0',
+  whiteSpace: 'pre-wrap',
+  color: 'var(--foreground)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  overflowWrap: 'anywhere',
+}
+
+const parsedLineCardStyle: CSSProperties = {
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const screenshotGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 12,
+  marginTop: 10,
+  minWidth: 0,
+}
+
+const screenshotCardStyle: CSSProperties = {
+  overflow: 'hidden',
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  minWidth: 0,
+}
+
+const screenshotBodyStyle: CSSProperties = {
+  padding: 14,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const screenshotMetaRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const screenshotSignalRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  marginTop: 10,
+  minWidth: 0,
+}
+
+const draftSummaryGridStyle: CSSProperties = {
+  marginTop: 18,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 12,
+  minWidth: 0,
 }
 
 function QueueMetric({ label, value }: { label: string; value: number }) {
