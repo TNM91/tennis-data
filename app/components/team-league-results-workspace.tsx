@@ -45,65 +45,70 @@ type TeamResultCompletionFilter = 'all' | 'complete' | 'incomplete'
 type TeamResultDateFilter = 'all' | 'week' | 'month'
 
 
-const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px' }
-const heading: CSSProperties = { fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0 }
-const subheading: CSSProperties = { color: '#b8c7dc', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 640 }
+const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px', minWidth: 0 }
+const heading: CSSProperties = { fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
+const subheading: CSSProperties = { color: '#b8c7dc', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 640, overflowWrap: 'anywhere' }
 const introCard: CSSProperties = {
   background: 'linear-gradient(135deg, rgba(13, 31, 55, 0.92), rgba(6, 17, 33, 0.96))',
   border: '1px solid rgba(124, 167, 255, 0.18)',
   borderRadius: 16,
   padding: '24px',
   marginBottom: 22,
+  minWidth: 0,
 }
-const sectionTitle: CSSProperties = { fontSize: 16, fontWeight: 700, marginBottom: 14, marginTop: 28 }
+const sectionTitle: CSSProperties = { fontSize: 16, fontWeight: 700, marginBottom: 14, marginTop: 28, overflowWrap: 'anywhere' }
 const card: CSSProperties = {
   background: 'rgba(255,255,255,0.04)',
   border: '1px solid rgba(255,255,255,0.08)',
   borderRadius: 12,
   padding: '18px 20px',
   marginBottom: 14,
+  minWidth: 0,
 }
-const row: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }
-const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 160px' }
-const labelStyle: CSSProperties = { fontSize: 11, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em' }
-const inputStyle: CSSProperties = { width: '100%', padding: '8px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontSize: 14 }
+const row: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10, minWidth: 0 }
+const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 160px', minWidth: 0 }
+const labelStyle: CSSProperties = { fontSize: 11, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em', overflowWrap: 'anywhere' }
+const inputStyle: CSSProperties = { width: '100%', padding: '8px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontSize: 14, minWidth: 0 }
 const selectStyle: CSSProperties = { ...inputStyle }
-const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600 }
-const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 8, background: '#9be11d', color: '#0a0a0a', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', whiteSpace: 'normal' }
-const btnDanger: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 600, fontSize: 13, border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer' }
-const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: '#e2e8f0', fontWeight: 600, fontSize: 13, border: '1px solid rgba(255,255,255,0.10)', cursor: 'pointer' }
-const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6 }
-const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6 }
-const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: '#94a3b8' }
+const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600, overflowWrap: 'anywhere' }
+const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 8, background: '#9be11d', color: '#0a0a0a', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const btnDanger: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 600, fontSize: 13, border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: '#e2e8f0', fontWeight: 600, fontSize: 13, border: '1px solid rgba(255,255,255,0.10)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6, overflowWrap: 'anywhere' }
+const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6, overflowWrap: 'anywhere' }
+const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: '#94a3b8', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
 const pillGreen: CSSProperties = { ...pill, background: 'rgba(155,225,29,0.12)', color: '#9be11d' }
 const divider: CSSProperties = { borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 14, paddingTop: 14 }
-const lineGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 10, marginTop: 12 }
+const lineGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 10, marginTop: 12, minWidth: 0 }
 const lineCard: CSSProperties = {
   background: 'rgba(255,255,255,0.03)',
   border: '1px solid rgba(255,255,255,0.07)',
   borderRadius: 10,
   padding: '12px 14px',
+  minWidth: 0,
 }
-const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, marginTop: 18 }
+const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, marginTop: 18, minWidth: 0 }
 const scorekeeperTile: CSSProperties = {
   padding: '14px 16px',
   borderRadius: 14,
   border: '1px solid rgba(124,167,255,0.14)',
   background: 'rgba(255,255,255,0.055)',
+  minWidth: 0,
 }
-const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }
-const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05 }
-const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.5, marginTop: 6 }
-const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10, marginTop: 16 }
+const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
+const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05, overflowWrap: 'anywhere' }
+const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.5, marginTop: 6, overflowWrap: 'anywhere' }
+const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10, marginTop: 16, minWidth: 0 }
 const flowStep: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '32px 1fr',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
   gap: 10,
   alignItems: 'center',
   padding: '12px',
   borderRadius: 14,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 const flowNumber: CSSProperties = {
   display: 'grid',
@@ -116,10 +121,10 @@ const flowNumber: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   fontWeight: 950,
 }
-const flowTitle: CSSProperties = { color: '#f8fbff', fontWeight: 900, fontSize: 14 }
-const flowText: CSSProperties = { color: '#b8c7dc', fontSize: 12, marginTop: 2 }
-const actionRow: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }
-const detailsCard: CSSProperties = { ...card, display: 'grid', gap: 12 }
+const flowTitle: CSSProperties = { color: '#f8fbff', fontWeight: 900, fontSize: 14, overflowWrap: 'anywhere' }
+const flowText: CSSProperties = { color: '#b8c7dc', fontSize: 12, marginTop: 2, overflowWrap: 'anywhere' }
+const actionRow: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12, minWidth: 0 }
+const detailsCard: CSSProperties = { ...card, display: 'grid', gap: 12, minWidth: 0 }
 const detailsSummary: CSSProperties = {
   cursor: 'pointer',
   listStyle: 'none',
@@ -128,6 +133,7 @@ const detailsSummary: CSSProperties = {
   gap: 10,
   alignItems: 'flex-start',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 const readinessPanel: CSSProperties = {
   display: 'grid',
@@ -137,6 +143,7 @@ const readinessPanel: CSSProperties = {
   borderRadius: 16,
   padding: 18,
   marginBottom: 18,
+  minWidth: 0,
 }
 const readinessKicker: CSSProperties = {
   color: '#93b7ea',
@@ -144,6 +151,7 @@ const readinessKicker: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 const readinessTitle: CSSProperties = {
   color: '#f8fbff',
@@ -151,17 +159,20 @@ const readinessTitle: CSSProperties = {
   lineHeight: 1.16,
   fontWeight: 950,
   marginTop: 5,
+  overflowWrap: 'anywhere',
 }
 const readinessText: CSSProperties = {
   color: '#b8c7dc',
   fontSize: 13,
   lineHeight: 1.55,
   marginTop: 6,
+  overflowWrap: 'anywhere',
 }
 const readinessGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 const readinessItem: CSSProperties = {
   display: 'grid',
@@ -171,6 +182,7 @@ const readinessItem: CSSProperties = {
   borderRadius: 14,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 const readinessItemComplete: CSSProperties = {
   ...readinessItem,
@@ -181,6 +193,7 @@ const readinessItemText: CSSProperties = {
   color: '#e2e8f0',
   fontSize: 13,
   lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 function Field({ label: lbl, children }: { label: string; children: React.ReactNode }) {
@@ -449,7 +462,7 @@ function LineForm({
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', minWidth: 0 }}>
         <button style={btnPrimary} onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save line'}
         </button>
@@ -569,12 +582,12 @@ function EventCard({
 
   return (
     <div style={card}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', minWidth: 0 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, overflowWrap: 'anywhere' }}>
             {event.teamAName} <span style={{ color: '#64748b' }}>vs</span> {event.teamBName}
           </div>
-          <div style={{ fontSize: 13, color: '#94a3b8' }}>
+          <div style={{ fontSize: 13, color: '#94a3b8', overflowWrap: 'anywhere' }}>
             {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
           </div>
           {displayTotalLines > 0 && (
@@ -606,7 +619,7 @@ function EventCard({
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
           <button style={btnSecondary} onClick={handleExpand}>
             {expanded ? 'Collapse' : `Lines${displayTotalLines ? ` (${displayTotalLines})` : ''}`}
           </button>
@@ -623,7 +636,7 @@ function EventCard({
       {expanded && (
         <div style={divider}>
           {showDynamicPoints && (
-            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.45, marginBottom: 12 }}>
+            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.45, marginBottom: 12, overflowWrap: 'anywhere' }}>
               {getDynamicPointsRulesSummary()}
             </div>
           )}
@@ -646,9 +659,9 @@ function EventCard({
                   />
                 ) : (
                   <div key={line.id} style={lineCard}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <span style={{ fontWeight: 700, fontSize: 14 }}>Line {line.lineNumber}</span>
-                      <div style={{ display: 'flex', gap: 5 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, overflowWrap: 'anywhere' }}>Line {line.lineNumber}</span>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', minWidth: 0 }}>
                         <span style={line.matchType === 'doubles' ? pillGreen : pill}>{line.matchType}</span>
                         {line.winnerSide ? (
                           <span style={pillGreen}>{line.winnerSide === 'A' ? event.teamAName : event.teamBName} won</span>
@@ -657,16 +670,16 @@ function EventCard({
                         )}
                       </div>
                     </div>
-                    <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 4 }}>
+                    <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 4, overflowWrap: 'anywhere' }}>
                       <div>A: {line.sideAPlayer1Name}{line.sideAPlayer2Name ? ` / ${line.sideAPlayer2Name}` : ''}</div>
                       <div>B: {line.sideBPlayer1Name}{line.sideBPlayer2Name ? ` / ${line.sideBPlayer2Name}` : ''}</div>
                     </div>
-                    {line.score && <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>{line.score}</div>}
+                    {line.score && <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8, overflowWrap: 'anywhere' }}>{line.score}</div>}
                     {showDynamicPoints && line.winnerSide && line.score && (
                       <DynamicPointsLine line={line} />
                     )}
                     {canEditResults ? (
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
                         <button style={btnSecondary} onClick={() => setEditingLine(line)}>Edit</button>
                         <button style={btnDanger} onClick={() => handleDeleteLine(line.id)}>Delete</button>
                       </div>
