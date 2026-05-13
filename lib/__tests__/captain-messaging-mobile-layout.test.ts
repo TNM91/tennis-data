@@ -43,8 +43,13 @@ describe('Captain messaging mobile layout guards', () => {
     }
 
     expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('heroMetricGridStyle')).toContain('minWidth: 0')
+    expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('twoColumnGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('twoColumnGridResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(styleBlock('heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
   })
 

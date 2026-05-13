@@ -3860,7 +3860,7 @@ function MetricMini({ label, value, pill }: { label: string; value: string; pill
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(min(100%, 320px), 0.95fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.45fr) minmax(min(100%, 320px), 0.95fr)',
     gap: isMobile ? 18 : 24,
     padding: isMobile ? '26px 18px' : '34px 26px',
     minWidth: 0,
@@ -3877,7 +3877,7 @@ function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProp
 function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
   return {
     ...heroMetricGridBaseStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -3885,7 +3885,7 @@ function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
 function twoColumnGridResponsive(isTablet: boolean): CSSProperties {
   return {
     display: 'grid',
-    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
     gap: 18,
     minWidth: 0,
   }
