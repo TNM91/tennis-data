@@ -4212,6 +4212,7 @@ const matchupQueueNameStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const matchupQueueMetaStyle: CSSProperties = {
@@ -4222,6 +4223,7 @@ const matchupQueueMetaStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const matchupQueueFitStyle: CSSProperties = {
@@ -4230,6 +4232,8 @@ const matchupQueueFitStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   lineHeight: 1,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchupQueueTrackStyle: CSSProperties = {
@@ -4307,6 +4311,7 @@ const performanceGridStyle = (isTablet: boolean): CSSProperties => ({
     ? 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'
     : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const performanceCardStyle: CSSProperties = {
@@ -4319,12 +4324,14 @@ const performanceCardStyle: CSSProperties = {
   alignItems: 'center',
   gap: 12,
   minHeight: 104,
+  minWidth: 0,
 }
 
 const performanceCardTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 950,
   lineHeight: 1.15,
+  overflowWrap: 'anywhere',
 }
 
 const statRingStyle = (value: number): CSSProperties => ({
@@ -4349,6 +4356,7 @@ const trophyRoomPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const trophyRoomGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -4357,6 +4365,7 @@ const trophyRoomGridStyle = (isTablet: boolean): CSSProperties => ({
     ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
     : 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const trophyCardStyle: CSSProperties = {
@@ -4368,6 +4377,7 @@ const trophyCardStyle: CSSProperties = {
   gap: 8,
   minHeight: 118,
   alignContent: 'start',
+  minWidth: 0,
 }
 
 const trophyValueStyle: CSSProperties = {
@@ -4375,6 +4385,7 @@ const trophyValueStyle: CSSProperties = {
   fontSize: '1.55rem',
   fontWeight: 950,
   lineHeight: 1.05,
+  overflowWrap: 'anywhere',
 }
 
 const personalCommandGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -4917,6 +4928,7 @@ const workshopRowTitleStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const workshopRowMetaStyle: CSSProperties = {
@@ -4927,6 +4939,7 @@ const workshopRowMetaStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const nextActionCardStyle: CSSProperties = {
@@ -4958,6 +4971,8 @@ const miniActionPillStyle: CSSProperties = {
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const labPlaybookCtaStyle: CSSProperties = {
