@@ -1058,7 +1058,8 @@ const setupPathTextStyle: CSSProperties = {
 }
 
 const setupProgressStyle: CSSProperties = {
-  minWidth: 96,
+  minWidth: 'min(100%, 96px)',
+  maxWidth: '100%',
   borderRadius: 18,
   border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
   background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
