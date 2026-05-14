@@ -2083,6 +2083,7 @@ const pageContent: CSSProperties = {
   zIndex: 2,
   width: '100%',
   maxWidth: '1280px',
+  minWidth: 0,
   margin: '0 auto',
   padding: '18px 24px 0',
   display: 'grid',
@@ -2092,6 +2093,7 @@ const pageContent: CSSProperties = {
 const heroShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
+  minWidth: 0,
   borderRadius: '34px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
@@ -2103,6 +2105,7 @@ const heroShell: CSSProperties = {
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
@@ -2114,6 +2117,8 @@ const eyebrow: CSSProperties = {
   marginBottom: '18px',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -2123,6 +2128,7 @@ const heroTitle: CSSProperties = {
   lineHeight: 0.98,
   letterSpacing: 0,
   maxWidth: '760px',
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -2131,6 +2137,7 @@ const heroText: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.6,
   maxWidth: '720px',
+  overflowWrap: 'anywhere',
 }
 
 const heroBadgeRow: CSSProperties = {
@@ -2138,6 +2145,7 @@ const heroBadgeRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginBottom: '18px',
+  minWidth: 0,
 }
 
 const heroActions: CSSProperties = {
@@ -2145,12 +2153,14 @@ const heroActions: CSSProperties = {
   flexWrap: 'wrap',
   gap: '12px',
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const buttonPrimary: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  maxWidth: '100%',
   minHeight: '46px',
   padding: '0 16px',
   borderRadius: '999px',
@@ -2160,12 +2170,16 @@ const buttonPrimary: CSSProperties = {
   color: 'var(--foreground-strong)',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const buttonSecondary: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  maxWidth: '100%',
   minHeight: '46px',
   padding: '0 16px',
   borderRadius: '999px',
@@ -2174,6 +2188,9 @@ const buttonSecondary: CSSProperties = {
   background: 'var(--shell-chip-bg-strong)',
   color: 'var(--foreground-strong)',
   border: '1px solid var(--shell-panel-border)',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const buttonGhost: CSSProperties = {
@@ -2184,16 +2201,20 @@ const buttonGhost: CSSProperties = {
 const followButtonWrap: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
 }
 
 const badgeBase: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
   fontSize: '12px',
   fontWeight: 800,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const badgeBlue: CSSProperties = {
@@ -2224,12 +2245,14 @@ const badgeRed: CSSProperties = {
 const teamStatusPill: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   padding: '3px 9px',
   borderRadius: 999,
   fontSize: 11,
   fontWeight: 800,
   letterSpacing: '0.03em',
   whiteSpace: 'normal' as const,
+  overflowWrap: 'anywhere',
 }
 
 function getTeamPlayerStatus(player: Player): TeamRatingStatus | null {
@@ -2263,6 +2286,7 @@ const summaryCard: CSSProperties = {
   flexDirection: 'column',
   justifyContent: 'space-between',
   minHeight: '100%',
+  minWidth: 0,
   boxShadow: 'var(--shadow-soft)',
 }
 
@@ -2272,12 +2296,14 @@ const summaryTitle: CSSProperties = {
   fontSize: '24px',
   letterSpacing: 0,
   marginBottom: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const summaryMetricGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const summaryMetricCard: CSSProperties = {
@@ -2285,6 +2311,7 @@ const summaryMetricCard: CSSProperties = {
   padding: '14px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const summaryMetricLabel: CSSProperties = {
@@ -2292,6 +2319,7 @@ const summaryMetricLabel: CSSProperties = {
   fontWeight: 700,
   fontSize: '13px',
   marginBottom: '8px',
+  overflowWrap: 'anywhere',
 }
 
 const summaryMetricValue: CSSProperties = {
@@ -2300,6 +2328,7 @@ const summaryMetricValue: CSSProperties = {
   fontSize: '28px',
   letterSpacing: 0,
   lineHeight: 1,
+  overflowWrap: 'anywhere',
 }
 
 const summaryHint: CSSProperties = {
@@ -2307,6 +2336,7 @@ const summaryHint: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontSize: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const summaryHintSmall: CSSProperties = {
@@ -2314,6 +2344,7 @@ const summaryHintSmall: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.5,
   fontSize: '13px',
+  overflowWrap: 'anywhere',
 }
 
 const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
@@ -2339,6 +2370,7 @@ const signalLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const signalValueStyle: CSSProperties = {
@@ -2347,6 +2379,7 @@ const signalValueStyle: CSSProperties = {
   fontSize: '1.28rem',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -2354,6 +2387,7 @@ const signalNoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontSize: '.94rem',
+  overflowWrap: 'anywhere',
 }
 
 const metricGridStyle: CSSProperties = {
@@ -2377,6 +2411,7 @@ const metricLabel: CSSProperties = {
   marginBottom: '0.42rem',
   fontWeight: 700,
   display: 'block',
+  overflowWrap: 'anywhere',
 }
 
 const metricValue: CSSProperties = {
@@ -2385,6 +2420,7 @@ const metricValue: CSSProperties = {
   fontWeight: 900,
   lineHeight: 1.1,
   display: 'block',
+  overflowWrap: 'anywhere',
 }
 
 const metricSubtle: CSSProperties = {
@@ -2393,6 +2429,7 @@ const metricSubtle: CSSProperties = {
   lineHeight: 1.55,
   fontSize: '0.9rem',
   display: 'block',
+  overflowWrap: 'anywhere',
 }
 
 const cardGridStyle: CSSProperties = {
@@ -2409,6 +2446,7 @@ const surfaceCard: CSSProperties = {
   boxShadow: 'var(--shadow-soft)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
+  minWidth: 0,
 }
 
 const surfaceCardStrong: CSSProperties = {
@@ -2429,6 +2467,7 @@ const teamDiscoveryHeaderStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: '14px',
   alignItems: 'end',
+  minWidth: 0,
 }
 
 const teamDiscoveryCopyStyle: CSSProperties = {
@@ -2437,6 +2476,7 @@ const teamDiscoveryCopyStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const teamDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
@@ -2466,6 +2506,7 @@ const teamDiscoveryLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const teamDiscoveryCardTitleStyle: CSSProperties = {
@@ -2474,6 +2515,7 @@ const teamDiscoveryCardTitleStyle: CSSProperties = {
   lineHeight: 1.14,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const teamDiscoveryCardTextStyle: CSSProperties = {
@@ -2481,6 +2523,7 @@ const teamDiscoveryCardTextStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.6,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const teamDiscoveryCtaStyle: CSSProperties = {
@@ -2488,6 +2531,7 @@ const teamDiscoveryCtaStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const sectionHeadingRow: CSSProperties = {
@@ -2496,6 +2540,7 @@ const sectionHeadingRow: CSSProperties = {
   gap: '16px',
   marginBottom: '16px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionKicker: CSSProperties = {
@@ -2505,6 +2550,7 @@ const sectionKicker: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   margin: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitle: CSSProperties = {
@@ -2513,11 +2559,13 @@ const sectionTitle: CSSProperties = {
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const panelCountPill: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '32px',
   padding: '0 12px',
   borderRadius: '999px',
@@ -2526,28 +2574,34 @@ const panelCountPill: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 900,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const bodyText: CSSProperties = {
   margin: '10px 0 0',
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const stackList: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const listRow: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
+  flexWrap: 'wrap',
   gap: '14px',
   padding: '14px',
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const mutedText: CSSProperties = {
@@ -2555,6 +2609,7 @@ const mutedText: CSSProperties = {
   lineHeight: 1.55,
   fontSize: '0.92rem',
   marginTop: '4px',
+  overflowWrap: 'anywhere',
 }
 
 const rosterFilterRow: CSSProperties = {
@@ -2562,12 +2617,14 @@ const rosterFilterRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '8px',
   marginBottom: '10px',
+  minWidth: 0,
 }
 
 const rosterFilterButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '7px',
+  maxWidth: '100%',
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
@@ -2577,6 +2634,8 @@ const rosterFilterButton: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   cursor: 'pointer',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const rosterFilterButtonActive: CSSProperties = {
@@ -2603,6 +2662,7 @@ const rosterFilterHint: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const rosterCompareTray: CSSProperties = {
@@ -2616,6 +2676,7 @@ const rosterCompareTray: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
   background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%)',
+  minWidth: 0,
 }
 
 const rosterCompareKicker: CSSProperties = {
@@ -2625,12 +2686,14 @@ const rosterCompareKicker: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '5px',
+  overflowWrap: 'anywhere',
 }
 
 const rosterCompareTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const rosterCompareActions: CSSProperties = {
@@ -2638,9 +2701,11 @@ const rosterCompareActions: CSSProperties = {
   alignItems: 'center',
   gap: '8px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const rosterCompareClearButton: CSSProperties = {
+  maxWidth: '100%',
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
@@ -2650,12 +2715,15 @@ const rosterCompareClearButton: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   cursor: 'pointer',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const rosterCompareLinkReady: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  maxWidth: '100%',
   minHeight: '34px',
   padding: '0 14px',
   borderRadius: '999px',
@@ -2665,6 +2733,9 @@ const rosterCompareLinkReady: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   textDecoration: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const rosterCompareLinkDisabled: CSSProperties = {
@@ -2676,6 +2747,7 @@ const rosterCompareLinkDisabled: CSSProperties = {
 }
 
 const rosterSelectButton: CSSProperties = {
+  maxWidth: '100%',
   minHeight: '30px',
   padding: '0 10px',
   borderRadius: '999px',
@@ -2685,6 +2757,8 @@ const rosterSelectButton: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   cursor: 'pointer',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const rosterSelectButtonActive: CSSProperties = {
@@ -2698,17 +2772,20 @@ const emptyState: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   margin: 0,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const emptyStateBlock: CSSProperties = {
   display: 'grid',
   gap: '8px',
+  minWidth: 0,
 }
 
 const helperCallout: CSSProperties = {
   marginTop: '14px',
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
@@ -2717,6 +2794,8 @@ const helperCallout: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 700,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const listLinkCard: CSSProperties = {
@@ -2728,6 +2807,8 @@ const listLinkCard: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const tableWrap: CSSProperties = {
@@ -2757,6 +2838,8 @@ const tableHeaderCell: CSSProperties = {
   fontSize: '12px',
   textTransform: 'uppercase',
   letterSpacing: '.06em',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tableCell: CSSProperties = {
@@ -2806,6 +2889,7 @@ const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSPrope
 const playerLink: CSSProperties = {
   color: 'var(--foreground)',
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const rosterActionRow: CSSProperties = {
@@ -2813,11 +2897,13 @@ const rosterActionRow: CSSProperties = {
   alignItems: 'center',
   gap: '8px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const rosterActionLink: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '30px',
   padding: '0 10px',
   borderRadius: '999px',
@@ -2828,6 +2914,7 @@ const rosterActionLink: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const rosterActionLinkAccent: CSSProperties = {
