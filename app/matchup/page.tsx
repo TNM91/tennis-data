@@ -2078,12 +2078,12 @@ export default function MatchupPage() {
                             Head-to-head dominance{leaderLabel ? ` | ${leaderLabel} leads` : ' | Even'}
                           </div>
                           <div style={headToHeadBarStyle}>
-                            <div style={{ width: `${pctA}%`, background: 'linear-gradient(90deg, #9be11d, #4ade80)', transition: 'width 500ms ease', minWidth: pctA > 0 ? 4 : 0 }} />
-                            <div style={{ flex: 1, background: 'rgba(116,190,255,0.35)' }} />
+                            <div style={headToHeadBarFillStyle(pctA)} />
+                            <div style={headToHeadBarRemainderStyle} />
                           </div>
                           <div style={headToHeadPercentRowStyle}>
-                            <span style={{ color: '#d9f84a', fontWeight: 800, fontSize: 13 }}>{comparison.leftLabel} {pctA}%</span>
-                            <span style={{ color: '#93c5fd', fontWeight: 800, fontSize: 13 }}>{pctB}% {comparison.rightLabel}</span>
+                            <span style={headToHeadPercentLabelGreenStyle}>{comparison.leftLabel} {pctA}%</span>
+                            <span style={headToHeadPercentLabelBlueStyle}>{pctB}% {comparison.rightLabel}</span>
                           </div>
                         </div>
                       )
@@ -2102,9 +2102,9 @@ export default function MatchupPage() {
                       <div style={{ marginTop: 18 }}>
                         {scoredMatches > 0 ? (
                           <div style={headToHeadTagRowStyle}>
-                            {threeSets > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(116,190,255,0.10)', border: '1px solid rgba(116,190,255,0.18)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>{threeSets} went 3 sets</span> : null}
-                            {tiebreaks > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(251,146,60,0.10)', border: '1px solid rgba(251,146,60,0.18)', color: '#fed7aa', fontSize: 11, fontWeight: 800 }}>{tiebreaks} tiebreak{tiebreaks !== 1 ? 's' : ''}</span> : null}
-                            {scoredMatches - threeSets - tiebreaks > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(155,225,29,0.08)', border: '1px solid rgba(155,225,29,0.16)', color: '#d9f84a', fontSize: 11, fontWeight: 800 }}>{scoredMatches - threeSets - tiebreaks} straight sets</span> : null}
+                            {threeSets > 0 ? <span style={headToHeadTagPillBlueStyle}>{threeSets} went 3 sets</span> : null}
+                            {tiebreaks > 0 ? <span style={headToHeadTagPillAmberStyle}>{tiebreaks} tiebreak{tiebreaks !== 1 ? 's' : ''}</span> : null}
+                            {scoredMatches - threeSets - tiebreaks > 0 ? <span style={headToHeadTagPillGreenStyle}>{scoredMatches - threeSets - tiebreaks} straight sets</span> : null}
                           </div>
                         ) : null}
                         <div style={headToHeadDominanceKickerStyle}>Match history</div>
@@ -2116,11 +2116,11 @@ export default function MatchupPage() {
                               key={i}
                               style={headToHeadMatchRowStyle}
                             >
-                              <span style={{ color: 'rgba(190,210,240,0.6)', fontSize: 12, fontWeight: 700 }}>{formatDate(m.matchDate)}</span>
-                              <span style={{ color: 'rgba(190,210,240,0.5)', fontSize: 12 }}>{capitalize(m.matchType)}</span>
+                              <span style={headToHeadMatchDateStyle}>{formatDate(m.matchDate)}</span>
+                              <span style={headToHeadMatchTypeStyle}>{capitalize(m.matchType)}</span>
                               <span style={headToHeadScoreText}>{m.score || '-'}</span>
                               {quality ? (
-                                <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(116,190,255,0.10)', border: '1px solid rgba(116,190,255,0.18)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>{quality}</span>
+                                <span style={headToHeadQualityPillStyle}>{quality}</span>
                               ) : null}
                               <span style={headToHeadWinnerPillStyle(m.winner)}>{winnerLabel}</span>
                             </div>
@@ -4264,6 +4264,21 @@ const headToHeadBarStyle: CSSProperties = {
   minWidth: 0,
 }
 
+function headToHeadBarFillStyle(value: number): CSSProperties {
+  return {
+    width: `${value}%`,
+    background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
+    transition: 'width 500ms ease',
+    minWidth: value > 0 ? 4 : 0,
+  }
+}
+
+const headToHeadBarRemainderStyle: CSSProperties = {
+  flex: 1,
+  background: 'rgba(116,190,255,0.35)',
+  minWidth: 0,
+}
+
 const headToHeadPercentRowStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -4274,12 +4289,55 @@ const headToHeadPercentRowStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const headToHeadPercentLabelGreenStyle: CSSProperties = {
+  color: '#d9f84a',
+  fontWeight: 800,
+  fontSize: 13,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const headToHeadPercentLabelBlueStyle: CSSProperties = {
+  ...headToHeadPercentLabelGreenStyle,
+  color: '#93c5fd',
+}
+
 const headToHeadTagRowStyle: CSSProperties = {
   display: 'flex',
   gap: 8,
   flexWrap: 'wrap',
   marginBottom: 12,
   minWidth: 0,
+}
+
+const headToHeadTagPillBlueStyle: CSSProperties = {
+  padding: '3px 10px',
+  borderRadius: 999,
+  background: 'rgba(116,190,255,0.10)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  color: '#93c5fd',
+  fontSize: 11,
+  fontWeight: 800,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const headToHeadTagPillAmberStyle: CSSProperties = {
+  ...headToHeadTagPillBlueStyle,
+  background: 'rgba(251,146,60,0.10)',
+  border: '1px solid rgba(251,146,60,0.18)',
+  color: '#fed7aa',
+}
+
+const headToHeadTagPillGreenStyle: CSSProperties = {
+  ...headToHeadTagPillBlueStyle,
+  background: 'rgba(155,225,29,0.08)',
+  border: '1px solid rgba(155,225,29,0.16)',
+  color: '#d9f84a',
 }
 
 const headToHeadMatchRowStyle: CSSProperties = {
@@ -4293,6 +4351,37 @@ const headToHeadMatchRowStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.07)',
   marginBottom: 6,
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const headToHeadMatchDateStyle: CSSProperties = {
+  color: 'rgba(190,210,240,0.6)',
+  fontSize: 12,
+  fontWeight: 700,
+  maxWidth: '100%',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const headToHeadMatchTypeStyle: CSSProperties = {
+  color: 'rgba(190,210,240,0.5)',
+  fontSize: 12,
+  maxWidth: '100%',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const headToHeadQualityPillStyle: CSSProperties = {
+  padding: '2px 8px',
+  borderRadius: 999,
+  background: 'rgba(116,190,255,0.10)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  color: '#93c5fd',
+  fontSize: 11,
+  fontWeight: 800,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
