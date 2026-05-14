@@ -760,8 +760,9 @@ const ratingBadge: CSSProperties = {
 
 const statusGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const statusButton: CSSProperties = {
@@ -774,6 +775,10 @@ const statusButton: CSSProperties = {
   cursor: 'pointer',
   textTransform: 'none',
   textAlign: 'center',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const activeStatusButton: CSSProperties = {
