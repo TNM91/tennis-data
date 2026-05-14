@@ -1597,7 +1597,7 @@ const cardGlow: CSSProperties = {
   position: 'absolute',
   top: '-70px',
   right: '-50px',
-  width: '180px',
+  width: 'min(100%, 180px)',
   height: '180px',
   borderRadius: '999px',
   background: 'radial-gradient(circle, rgba(78,178,255,0.24), rgba(78,178,255,0) 70%)',
@@ -1974,7 +1974,7 @@ const miniStatValue: CSSProperties = {
 }
 
 const filterWrap: CSSProperties = {
-  width: '260px',
+  width: 'min(100%, 260px)',
   maxWidth: '100%',
   minWidth: 0,
 }
