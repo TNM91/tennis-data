@@ -384,7 +384,8 @@ const tableWrap: CSSProperties = {
 const table: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 860,
+  minWidth: 'min(100%, 860px)',
+  tableLayout: 'auto',
 }
 
 const th: CSSProperties = {

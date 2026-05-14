@@ -690,7 +690,7 @@ export default function AdminAccessPage() {
               <AdminEmptyState text="No profiles match the current filters. Clear the search or broaden the role filter to bring more entitlement rows back into scope." />
             ) : (
               <div className="table-wrap" style={{ marginTop: 20 }}>
-                <table className="data-table" style={{ minWidth: 1920 }}>
+                <table className="data-table" style={{ minWidth: 'min(100%, 1920px)', tableLayout: 'auto' }}>
                   <thead>
                     <tr>
                       <th>User</th>
@@ -791,7 +791,7 @@ export default function AdminAccessPage() {
                                 )
                               }
                               className="select"
-                              style={{ minWidth: 140 }}
+                              style={{ minWidth: 'min(100%, 140px)' }}
                               disabled={savingId === profile.id || !playerEntitlementsAvailable}
                             >
                               {STATUS_OPTIONS.map((status) => (
@@ -829,7 +829,7 @@ export default function AdminAccessPage() {
                                 )
                               }
                               className="select"
-                              style={{ minWidth: 140 }}
+                              style={{ minWidth: 'min(100%, 140px)' }}
                               disabled={savingId === profile.id}
                             >
                               {STATUS_OPTIONS.map((status) => (
@@ -1288,7 +1288,7 @@ const handoffActionStyle = {
 const supportActionStackStyle = {
   display: 'grid',
   gap: 8,
-  minWidth: 150,
+  minWidth: 'min(100%, 150px)',
 } as const
 
 const supportActionButtonStyle = {
@@ -1380,13 +1380,13 @@ const supportEventMessageStyle = {
 const accessResultWrapStyle = {
   display: 'grid',
   gap: 8,
-  minWidth: 180,
+  minWidth: 'min(100%, 180px)',
 } as const
 
 const auditReasonWrapStyle = {
   display: 'grid',
   gap: 6,
-  minWidth: 260,
+  minWidth: 'min(100%, 260px)',
 } as const
 
 const auditReasonStyle = {
@@ -1404,7 +1404,7 @@ const auditWarningStyle = {
 const stripeBillingCellStyle = {
   display: 'grid',
   gap: 6,
-  minWidth: 220,
+  minWidth: 'min(100%, 220px)',
 } as const
 
 const stripeBillingIdStyle = {
