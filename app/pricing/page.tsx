@@ -712,6 +712,9 @@ const fitMatrixShellStyle: CSSProperties = {
     'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-blue-2) 6%) 0%, var(--shell-panel-bg) 100%)',
   boxShadow: '0 16px 38px rgba(2, 10, 24, 0.10)',
   overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'thin',
   maxWidth: '100%',
   minWidth: 0,
 }
@@ -722,6 +725,7 @@ const fitMatrixHeaderStyle: CSSProperties = {
   gap: 14,
   alignItems: 'end',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const fitMatrixTitleStyle: CSSProperties = {
@@ -731,6 +735,7 @@ const fitMatrixTitleStyle: CSSProperties = {
   lineHeight: 1.08,
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const fitMatrixGridStyle: CSSProperties = {
@@ -743,22 +748,26 @@ const fitMatrixGridStyle: CSSProperties = {
 const fitMatrixMobileStackStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
 }
 
 const fitMatrixMobileCardStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const fitMatrixMobilePlanGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 136px), 1fr))',
   gap: 8,
+  minWidth: 0,
 }
 
 const fitMatrixMobilePlanStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
+  minWidth: 0,
   minHeight: 62,
   padding: 11,
   borderRadius: 14,
@@ -772,9 +781,11 @@ const fitMatrixMobilePlanNameStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const fitMatrixHeadCellStyle: CSSProperties = {
+  minWidth: 0,
   minHeight: 42,
   padding: '10px 11px',
   borderRadius: 14,
@@ -785,6 +796,7 @@ const fitMatrixHeadCellStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const fitMatrixCaptainHeadStyle: CSSProperties = {
@@ -793,6 +805,7 @@ const fitMatrixCaptainHeadStyle: CSSProperties = {
 }
 
 const fitMatrixJobCellStyle: CSSProperties = {
+  minWidth: 0,
   minHeight: 46,
   padding: '11px',
   borderRadius: 14,
@@ -802,9 +815,11 @@ const fitMatrixJobCellStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.35,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const fitMatrixCellStyle: CSSProperties = {
+  minWidth: 0,
   minHeight: 46,
   padding: '11px',
   borderRadius: 14,
@@ -812,6 +827,7 @@ const fitMatrixCellStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--shell-chip-bg) 94%, var(--surface) 6%)',
   display: 'flex',
   alignItems: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const fitMatrixCaptainCellStyle: CSSProperties = {
@@ -828,12 +844,14 @@ const fitMatrixPositiveStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const fitMatrixIncludedStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const fitMatrixEmptyStyle: CSSProperties = {
