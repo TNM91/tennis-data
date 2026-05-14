@@ -904,13 +904,15 @@ const unlockPathCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
 }
 
 const unlockPathCardHeaderStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 2.75rem) minmax(0, 1fr)',
   gap: 11,
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const unlockPathPlanStyle: CSSProperties = {
@@ -1087,7 +1089,7 @@ const entitlementClarityGridStyle: CSSProperties = {
 
 const entitlementClarityCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 2.25rem) minmax(0, 1fr)',
   gap: 10,
   alignItems: 'start',
   padding: 13,
