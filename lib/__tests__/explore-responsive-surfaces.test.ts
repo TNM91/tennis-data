@@ -38,6 +38,17 @@ describe('Explore responsive surfaces', () => {
     expect(exploreSource).toContain("overflowWrap: 'anywhere'")
     expect(exploreSource).toContain("flexWrap: 'wrap'")
     expect(exploreSource).toContain('minWidth: 0')
+    expect(styleBlock(exploreSource, 'pillBase')).toContain('minWidth: 0')
+    expect(styleBlock(exploreSource, 'pillBase')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(exploreSource, 'featurePanel')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(exploreSource, 'startStepStack')).toContain('minWidth: 0')
+    expect(styleBlock(exploreSource, 'startStepLabel')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(exploreSource, 'discoveryPathLabel')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(exploreSource, 'actionCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(exploreSource, 'actionCardTop')).toContain('minWidth: 0')
+    expect(styleBlock(exploreSource, 'actionEyebrow')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(exploreSource, 'actionFooterCtaBlue')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(exploreSource, 'actionFooterArrow')).toContain("flex: '0 0 auto'")
   })
 
   it('keeps Explore Search grids and filter controls mobile-safe', () => {

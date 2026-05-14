@@ -474,12 +474,15 @@ const pillBase: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   maxWidth: '100%',
+  minWidth: 0,
   minHeight: '32px',
   padding: '0 12px',
   borderRadius: '999px',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.04em',
+  whiteSpace: 'normal',
+  textAlign: 'center',
   overflowWrap: 'anywhere',
 }
 
@@ -504,6 +507,7 @@ const featurePanel: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
   padding: '20px',
+  overflowWrap: 'anywhere',
 }
 
 const featurePanelHeader: CSSProperties = {
@@ -534,6 +538,7 @@ const featurePanelHint: CSSProperties = {
 const startStepStack: CSSProperties = {
   display: 'grid',
   gap: '8px',
+  minWidth: 0,
 }
 
 const startStepCard: CSSProperties = {
@@ -572,6 +577,7 @@ const startStepLabel: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const startStepTitle: CSSProperties = {
@@ -686,6 +692,7 @@ const discoveryPathLabel: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const discoveryPathCardTitle: CSSProperties = {
@@ -726,6 +733,7 @@ const actionCard: CSSProperties = {
   boxShadow: '0 18px 44px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
   transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const actionCardHover: CSSProperties = {
@@ -738,6 +746,7 @@ const actionCardTop: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'flex-start',
+  minWidth: 0,
 }
 
 const actionCardIcon: CSSProperties = {
@@ -779,6 +788,7 @@ const actionEyebrow: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.11em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const actionTitle: CSSProperties = {
@@ -811,16 +821,19 @@ const actionFooterCtaBlue: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const actionFooterCtaGreen: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const actionFooterArrow: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '18px',
   fontWeight: 800,
+  flex: '0 0 auto',
 }
