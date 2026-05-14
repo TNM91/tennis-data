@@ -141,6 +141,10 @@ const triggerStyle: CSSProperties = {
   fontWeight: 900,
   cursor: 'pointer',
   whiteSpace: 'normal',
+  maxWidth: '100%',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const overlayStyle: CSSProperties = {
@@ -152,6 +156,7 @@ const overlayStyle: CSSProperties = {
   justifyContent: 'center',
   padding: 18,
   background: 'rgba(3, 10, 24, 0.62)',
+  minWidth: 0,
 }
 
 const dialogStyle: CSSProperties = {
@@ -161,6 +166,8 @@ const dialogStyle: CSSProperties = {
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
   padding: 20,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const headerStyle: CSSProperties = {
@@ -168,6 +175,8 @@ const headerStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 12,
   alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const kickerStyle: CSSProperties = {
@@ -176,6 +185,7 @@ const kickerStyle: CSSProperties = {
   fontWeight: 900,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const titleStyle: CSSProperties = {
@@ -183,6 +193,7 @@ const titleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 24,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const closeButtonStyle: CSSProperties = {
@@ -200,6 +211,7 @@ const copyStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
   margin: '14px 0',
+  overflowWrap: 'anywhere',
 }
 
 const labelStyle: CSSProperties = {
@@ -210,10 +222,12 @@ const labelStyle: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
   margin: '14px 0 8px',
+  overflowWrap: 'anywhere',
 }
 
 const selectStyle: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   minHeight: 44,
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
@@ -225,6 +239,7 @@ const selectStyle: CSSProperties = {
 
 const textareaStyle: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -241,9 +256,13 @@ const actionRowStyle: CSSProperties = {
   gap: 10,
   flexWrap: 'wrap',
   marginTop: 16,
+  minWidth: 0,
 }
 
 const primaryButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   minHeight: 40,
   padding: '0 14px',
   borderRadius: '999px',
@@ -252,6 +271,11 @@ const primaryButtonStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -273,6 +297,8 @@ const successStyle: CSSProperties = {
   borderRadius: 12,
   padding: '10px 12px',
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const errorStyle: CSSProperties = {

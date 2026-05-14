@@ -3614,6 +3614,8 @@ const decisionRight: CSSProperties = {
   gap: '10px',
   alignItems: 'flex-end',
   minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const decisionPill: CSSProperties = {
@@ -4184,6 +4186,7 @@ const recommendationTextStyle: CSSProperties = {
 const swapSidesRowStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
+  flexWrap: 'wrap',
   marginTop: '12px',
   minWidth: 0,
 }
@@ -4196,6 +4199,7 @@ const trajectoryPanelStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   minWidth: 0,
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
 }
 
 const trajectoryKickerStyle: CSSProperties = {
@@ -4215,6 +4219,7 @@ const emptyHeadToHeadCard: CSSProperties = {
   background: 'rgba(255,255,255,0.05)',
   border: '1px solid rgba(255,255,255,0.10)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const emptyHeadToHeadTitle: CSSProperties = {
