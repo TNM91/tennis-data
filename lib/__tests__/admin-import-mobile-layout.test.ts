@@ -1,0 +1,35 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const source = readFileSync(join(process.cwd(), 'app/admin/import/page.tsx'), 'utf8')
+
+function styleBlock(styleName: string) {
+  const start = source.indexOf(`const ${styleName}`)
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextStyle = source.indexOf('\nconst ', start + 1)
+  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
+
+describe('Admin import mobile layout guards', () => {
+  it('keeps import cards and action rows mobile-safe', () => {
+    expect(styleBlock('glassCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('glassCardStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('adminImportActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('adminImportActionRowStyle')).toContain('minWidth: 0')
+    expect(source).not.toContain("display: 'flex', gap: 12, marginTop: 18 }")
+  })
+
+  it('keeps import action buttons wrapped and shell-aware', () => {
+    for (const styleName of ['primaryButtonStyle', 'secondaryButtonStyle']) {
+      const block = styleBlock(styleName)
+      expect(block).toContain('minWidth: 0')
+      expect(block).toContain("maxWidth: '100%'")
+      expect(block).toContain("whiteSpace: 'normal'")
+      expect(block).toContain("overflowWrap: 'anywhere'")
+    }
+
+    expect(styleBlock('primaryButtonStyle')).toContain("color: 'var(--foreground-strong)'")
+    expect(styleBlock('primaryButtonStyle')).not.toContain("color: '#0a0a0a'")
+  })
+})

@@ -51,19 +51,24 @@ const card: CSSProperties = {
   borderRadius: 12,
   padding: '20px 22px',
   marginBottom: 16,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
-const row: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }
-const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 180px' }
-const label: CSSProperties = { fontSize: 12, color: 'var(--shell-copy-muted)', fontWeight: 800, letterSpacing: 0 }
-const inputStyle: CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', fontSize: 14 }
+const row: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10, minWidth: 0 }
+const actionRow: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', minWidth: 0 }
+const cardHeaderRow: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', minWidth: 0 }
+const lineCardHeaderRow: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8, minWidth: 0 }
+const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 min(100%, 180px)', minWidth: 0 }
+const label: CSSProperties = { fontSize: 12, color: 'var(--shell-copy-muted)', fontWeight: 800, letterSpacing: 0, overflowWrap: 'anywhere' }
+const inputStyle: CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', fontSize: 14, minWidth: 0 }
 const selectStyle: CSSProperties = { ...inputStyle }
 const scoreHelpStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.4, fontWeight: 600 }
-const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 8, background: '#9be11d', color: '#0a0a0a', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', whiteSpace: 'normal' }
-const btnDanger: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 600, fontSize: 13, border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer' }
-const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', fontWeight: 600, fontSize: 13, border: '1px solid var(--shell-panel-border)', cursor: 'pointer' }
+const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 8, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', fontWeight: 700, fontSize: 14, border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)', cursor: 'pointer', whiteSpace: 'normal', minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }
+const btnDanger: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 600, fontSize: 13, border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer', whiteSpace: 'normal', minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }
+const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', fontWeight: 600, fontSize: 13, border: '1px solid var(--shell-panel-border)', cursor: 'pointer', whiteSpace: 'normal', minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }
 const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6 }
 const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6 }
-const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'var(--shell-chip-bg)', fontSize: 12, color: 'var(--shell-copy-muted)' }
+const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'var(--shell-chip-bg)', fontSize: 12, color: 'var(--shell-copy-muted)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
 const pillGreen: CSSProperties = { ...pill, background: 'rgba(155,225,29,0.12)', color: '#9be11d' }
 const divider: CSSProperties = { borderTop: '1px solid var(--shell-panel-border)', marginTop: 16, paddingTop: 16 }
 const lineGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 12, marginTop: 14 }
@@ -72,6 +77,8 @@ const lineCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   borderRadius: 10,
   padding: '14px 16px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 function Field({ label: lbl, children }: { label: string; children: React.ReactNode }) {
@@ -316,7 +323,7 @@ function LineForm({
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+      <div style={{ ...actionRow, marginTop: 10 }}>
         <button style={btnPrimary} onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save line'}
         </button>
@@ -415,8 +422,8 @@ function EventCard({
 
   return (
     <div style={card}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div>
+      <div style={cardHeaderRow}>
+        <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
             {event.teamAName} <span style={{ color: 'var(--shell-copy-muted)' }}>vs</span> {event.teamBName}
           </div>
@@ -446,7 +453,7 @@ function EventCard({
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={actionRow}>
           <button style={btnSecondary} onClick={handleExpand}>
             {expanded ? 'Collapse' : `Lines${displayTotalLines ? ` (${displayTotalLines})` : ''}`}
           </button>
@@ -484,9 +491,9 @@ function EventCard({
                   />
                 ) : (
                   <div key={line.id} style={lineCard}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={lineCardHeaderRow}>
                       <span style={{ fontWeight: 700, fontSize: 14 }}>Line {line.lineNumber}</span>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ ...actionRow, gap: 6 }}>
                         <span style={line.matchType === 'doubles' ? pillGreen : pill}>{line.matchType}</span>
                         {line.winnerSide && (
                           <span style={pillGreen}>
@@ -507,7 +514,7 @@ function EventCard({
                       <DynamicPointsLine line={line} />
                     )}
 
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ ...actionRow, gap: 6 }}>
                       <button style={btnSecondary} onClick={() => setEditingLine(line)}>Edit</button>
                       <button style={btnDanger} onClick={() => handleDeleteLine(line.id)}>Delete</button>
                     </div>

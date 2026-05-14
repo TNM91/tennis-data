@@ -133,6 +133,16 @@ const glassCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: '0 24px 70px rgba(5,12,26,0.14), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const adminImportActionRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 12,
+  marginTop: 18,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const panelStyle: CSSProperties = {
@@ -186,6 +196,10 @@ const primaryButtonStyle: CSSProperties = {
   textDecoration: 'none',
   cursor: 'pointer',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -202,6 +216,10 @@ const secondaryButtonStyle: CSSProperties = {
   fontSize: '0.95rem',
   cursor: 'pointer',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const mutedButtonStyle: CSSProperties = {
@@ -1548,7 +1566,7 @@ export default function AdminImportPage() {
                 {scorecardBatchStatus.flagged > 0 ? ` · ${scorecardBatchStatus.flagged} flagged` : ''}
                 {scorecardBatchStatus.blocked > 0 ? ` · ${scorecardBatchStatus.blocked} blocked` : ''}
               </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ ...adminImportActionRowStyle, alignItems: 'center' }}>
                 {scorecardBatchStatus.clean > 0 ? (
                   <button
                     type="button"
@@ -1586,7 +1604,7 @@ export default function AdminImportPage() {
               <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1.4rem', lineHeight: 1.2 }}>
                 {schedulePreview.rows.length} {schedulePreview.rows.length === 1 ? 'match' : 'matches'} ready to commit
               </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
+              <div style={adminImportActionRowStyle}>
                 <button
                   type="button"
                   style={{
@@ -1625,7 +1643,7 @@ export default function AdminImportPage() {
               <div style={{ ...subtleTextStyle, marginTop: 6 }}>
                 Preview to classify readiness, then commit clean matches in one shot.
               </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
+              <div style={adminImportActionRowStyle}>
                 <button
                   type="button"
                   style={{
@@ -1652,7 +1670,7 @@ export default function AdminImportPage() {
               <div style={{ ...subtleTextStyle, marginTop: 6 }}>
                 Committing this roster sets the TRUE baseline NTRP rating for each player. All dynamic ratings start from these numbers and only change when a new season roster is imported.
               </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
+              <div style={adminImportActionRowStyle}>
                 <button
                   type="button"
                   style={{
