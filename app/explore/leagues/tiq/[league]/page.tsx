@@ -3834,8 +3834,8 @@ const leaderRankMiniStyle: CSSProperties = {
 
 const leaderRankAccentStyle: CSSProperties = {
   ...leaderRankMiniStyle,
-  background: '#9be11d',
-  color: '#06121a',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, rgba(255,255,255,0.08) 78%)',
+  color: '#f8fbff',
 }
 
 const leaderNameCellStyle: CSSProperties = {
@@ -4006,6 +4006,7 @@ const upcomingMatchRowStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.04)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const schedulePanelStyle: CSSProperties = {
@@ -4372,6 +4373,7 @@ const panelCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionEyebrow: CSSProperties = {
@@ -4508,6 +4510,7 @@ const listCard: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'center',
+  flexWrap: 'wrap',
   padding: '16px',
   borderRadius: '20px',
   border: '1px solid rgba(116,190,255,0.10)',
@@ -4649,6 +4652,7 @@ const opportunityCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.04)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const opportunityTitleRow: CSSProperties = {
@@ -4853,7 +4857,7 @@ const teamLineScoreTextStyle: CSSProperties = {
 
 const quickGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -4884,6 +4888,8 @@ const stateCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
   color: '#dbeafe',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stateTitle: CSSProperties = {
@@ -4891,6 +4897,7 @@ const stateTitle: CSSProperties = {
   fontSize: '24px',
   fontWeight: 900,
   lineHeight: 1.08,
+  overflowWrap: 'anywhere',
 }
 
 const stateText: CSSProperties = {
