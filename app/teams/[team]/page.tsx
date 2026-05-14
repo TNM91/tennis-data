@@ -1320,9 +1320,9 @@ export default function TeamPage() {
             </div>
 
             {(matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 || matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0) ? (
-              <div style={{ marginTop: 14, display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
+              <div style={summarySplitRowStyle}>
                 {matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 ? (
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--shell-copy-muted)' }}>
+                  <div style={summarySplitItemStyle}>
                     <span style={{ color: 'var(--foreground)', fontWeight: 900 }}>S</span>{' '}
                     {matchTypeSplit.singlesW}-{matchTypeSplit.singlesL}
                     {matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 ? (
@@ -1333,7 +1333,7 @@ export default function TeamPage() {
                   </div>
                 ) : null}
                 {matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0 ? (
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--shell-copy-muted)' }}>
+                  <div style={summarySplitItemStyle}>
                     <span style={{ color: 'var(--foreground)', fontWeight: 900 }}>D</span>{' '}
                     {matchTypeSplit.doublesW}-{matchTypeSplit.doublesL}
                     {matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0 ? (
@@ -1347,7 +1347,7 @@ export default function TeamPage() {
             ) : null}
 
             {recentForm.length > 0 ? (
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+              <div style={recentFormRowStyle}>
                 <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Recent</span>
                 {recentForm.map((result, i) => (
                   <span
@@ -1467,7 +1467,7 @@ export default function TeamPage() {
             <div style={stackList}>
               {tiqParticipations.map((entry) => (
                 <div key={`${entry.leagueId}-${entry.teamName}`} style={dynamicListRow}>
-                  <div>
+                  <div style={listRowCopyStyle}>
                     <strong>{entry.leagueName || 'TIQ League'}</strong>
                     <div style={mutedText}>
                       {[entry.seasonLabel, entry.leagueFlight || entry.sourceFlight, entry.locationLabel]
@@ -1527,7 +1527,7 @@ export default function TeamPage() {
                   const status = getTeamPlayerStatus(player)
                   return (
                     <div key={player.id} style={listRow}>
-                      <div>
+                      <div style={listRowCopyStyle}>
                         <strong>
                           {index + 1}. {player.name}
                         </strong>
@@ -1535,7 +1535,7 @@ export default function TeamPage() {
                           {player.singlesAppearances} singles starts · {player.wins}-{player.losses} record
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 5 }}>
+                      <div style={ratingStackStyle}>
                         <span style={badgeBlue}>{formatRating(player.singles_dynamic_rating)}</span>
                         {status ? <span style={{ ...teamStatusPill, ...getTeamStatusStyle(status) }}>{status}</span> : null}
                       </div>
@@ -1563,7 +1563,7 @@ export default function TeamPage() {
               <div style={stackList}>
                 {pairings.slice(0, 6).map((pair) => (
                   <div key={pair.key} style={listRow}>
-                    <div>
+                    <div style={listRowCopyStyle}>
                       <strong>{pair.names.join(' / ')}</strong>
                       <div style={mutedText}>
                         {pair.appearances} matches together - {pair.wins}-{pair.losses} record
@@ -1612,7 +1612,7 @@ export default function TeamPage() {
                   const status = getTeamPlayerStatus(player)
                   return (
                     <div key={player.id} style={listRow}>
-                      <div>
+                      <div style={listRowCopyStyle}>
                         <strong>
                           {index + 1}. {player.name}
                         </strong>
@@ -1620,7 +1620,7 @@ export default function TeamPage() {
                           {player.doublesAppearances} doubles starts · {player.wins}-{player.losses} record
                         </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 5 }}>
+                      <div style={ratingStackStyle}>
                         <span style={badgeSlate}>{formatRating(player.doubles_dynamic_rating)}</span>
                         {status ? <span style={{ ...teamStatusPill, ...getTeamStatusStyle(status) }}>{status}</span> : null}
                       </div>
@@ -1647,8 +1647,8 @@ export default function TeamPage() {
 
           {opponentAnalysis.length > 0 ? (
             <section style={{ ...surfaceCard, marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-                <div>
+              <div style={opponentBreakdownHeaderStyle}>
+                <div style={listRowCopyStyle}>
                   <div style={sectionKicker}>Opponent breakdown</div>
                   <h2 style={sectionTitle}>Record vs. opponents</h2>
                 </div>
@@ -1695,10 +1695,10 @@ export default function TeamPage() {
             return (
             <>
             {seasonOptions.length > 1 ? (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 12, alignItems: 'center' }}>
+              <div style={seasonFilterControlsStyle}>
                 <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>Season:</span>
                 {(['all', ...seasonOptions] as const).map((y) => (
-                  <button key={y} type="button" onClick={() => setSeasonFilter(y)} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer', background: seasonFilter === y ? 'rgba(116,190,255,0.14)' : 'transparent', border: `1px solid ${seasonFilter === y ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`, color: seasonFilter === y ? '#93c5fd' : 'var(--shell-copy-muted)' }}>
+                  <button key={y} type="button" onClick={() => setSeasonFilter(y)} style={{ ...seasonFilterButtonStyle, background: seasonFilter === y ? 'rgba(116,190,255,0.14)' : 'transparent', border: `1px solid ${seasonFilter === y ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`, color: seasonFilter === y ? '#93c5fd' : 'var(--shell-copy-muted)' }}>
                     {y === 'all' ? 'All seasons' : y}
                   </button>
                 ))}
@@ -2347,6 +2347,31 @@ const summaryHintSmall: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const summarySplitRowStyle: CSSProperties = {
+  marginTop: 14,
+  display: 'flex',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const summarySplitItemStyle: CSSProperties = {
+  fontSize: 13,
+  fontWeight: 700,
+  color: 'var(--shell-copy-muted)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const recentFormRowStyle: CSSProperties = {
+  marginTop: 10,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
 const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
@@ -2604,6 +2629,21 @@ const listRow: CSSProperties = {
   minWidth: 0,
 }
 
+const listRowCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const ratingStackStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-end',
+  gap: 5,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
 const mutedText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
@@ -2798,6 +2838,37 @@ const helperCallout: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const opponentBreakdownHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 16,
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const seasonFilterControlsStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  marginBottom: 12,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const seasonFilterButtonStyle: CSSProperties = {
+  padding: '5px 11px',
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
+}
+
 const listLinkCard: CSSProperties = {
   display: 'grid',
   gap: '8px',
@@ -2869,6 +2940,7 @@ const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSPrope
     alignItems: 'center',
     justifyContent: 'center',
     width: 'fit-content',
+    maxWidth: '100%',
     borderRadius: 999,
     border: `1px solid ${resolved ? 'rgba(155,225,29,0.20)' : rejected ? 'rgba(239,68,68,0.18)' : reviewing ? 'rgba(116,190,255,0.18)' : 'var(--shell-panel-border)'}`,
     background: resolved
@@ -2883,6 +2955,7 @@ const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSPrope
     fontSize: 12,
     fontWeight: 900,
     whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
   }
 }
 
