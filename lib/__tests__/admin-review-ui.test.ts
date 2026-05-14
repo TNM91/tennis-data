@@ -36,6 +36,9 @@ describe('admin review UI system', () => {
     expect(adminDashboardSource).toContain('<AdminReviewFrame>')
     expect(adminDashboardSource).toContain('<AdminReviewHero')
     expect(adminDashboardSource).toContain('<AdminReviewPanel')
+    expect(adminDashboardSource).toContain("minWidth: 'min(100%, 880px)'")
+    expect(adminDashboardSource).toContain("tableLayout: 'auto'")
+    expect(adminDashboardSource).not.toContain('style={{ minWidth: 880 }}')
     expect(adminDashboardSource).not.toContain('<HeroSection')
     expect(adminDashboardSource).not.toContain('className="hero-panel"')
     expect(adminDashboardSource).not.toContain('radial-gradient')
@@ -56,6 +59,9 @@ describe('admin review UI system', () => {
     expect(productEventsSource).toContain('<AdminReviewHero')
     expect(productEventsSource).toContain('<AdminReviewPanel>')
     expect(productEventsSource).toContain('<AdminEmptyState')
+    expect(productEventsSource).toContain("minWidth: 'min(100%, 1120px)'")
+    expect(productEventsSource).toContain("tableLayout: 'auto'")
+    expect(productEventsSource).not.toContain('style={{ minWidth: 1120 }}')
   })
 
   it('keeps Missing Scorecards on the shared admin review shell', () => {
