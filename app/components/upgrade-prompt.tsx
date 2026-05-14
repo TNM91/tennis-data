@@ -271,6 +271,8 @@ const wrapStyle: CSSProperties = {
   background:
     'linear-gradient(180deg, rgba(18, 36, 66, 0.74) 0%, rgba(13, 26, 48, 0.92) 100%)',
   boxShadow: '0 18px 48px rgba(2, 10, 24, 0.16)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const compactWrapStyle: CSSProperties = {
@@ -308,6 +310,7 @@ const lightLeagueWrapStyle: CSSProperties = {
 const contentStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const labelRowStyle: CSSProperties = {
@@ -315,6 +318,7 @@ const labelRowStyle: CSSProperties = {
   alignItems: 'center',
   gap: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const eyebrowStyle: CSSProperties = {
@@ -330,6 +334,9 @@ const eyebrowStyle: CSSProperties = {
   color: '#dbeafe',
   background: 'rgba(37, 91, 227, 0.14)',
   border: '1px solid rgba(116, 190, 255, 0.18)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const lightEyebrowStyle: CSSProperties = {
@@ -351,6 +358,9 @@ const badgeStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const titleStyle: CSSProperties = {
@@ -359,6 +369,7 @@ const titleStyle: CSSProperties = {
   fontSize: 'clamp(1.32rem, 2vw, 1.8rem)',
   lineHeight: 1.1,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const bodyStyle: CSSProperties = {
@@ -367,6 +378,7 @@ const bodyStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.65,
   maxWidth: 760,
+  overflowWrap: 'anywhere',
 }
 
 const entitlementNoteStyle: CSSProperties = {
@@ -379,6 +391,8 @@ const entitlementNoteStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const lightEntitlementNoteStyle: CSSProperties = {
@@ -393,6 +407,8 @@ const resultWrapStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid rgba(116, 190, 255, 0.12)',
   background: 'rgba(255, 255, 255, 0.04)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const lightResultWrapStyle: CSSProperties = {
@@ -406,6 +422,7 @@ const resultLabelStyle: CSSProperties = {
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
   color: '#9be11d',
+  overflowWrap: 'anywhere',
 }
 
 const lightResultLabelStyle: CSSProperties = {
@@ -417,6 +434,7 @@ const resultTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const lightResultTextStyle: CSSProperties = {
@@ -428,6 +446,7 @@ const planMetaStyle: CSSProperties = {
   alignItems: 'baseline',
   gap: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const priceStyle: CSSProperties = {
@@ -436,6 +455,7 @@ const priceStyle: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const subtitleStyle: CSSProperties = {
@@ -444,6 +464,7 @@ const subtitleStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const lightSubtitleStyle: CSSProperties = {
@@ -454,12 +475,14 @@ const noteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const valueListStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 8,
+  minWidth: 0,
 }
 
 const valuePillStyle: CSSProperties = {
@@ -473,6 +496,9 @@ const valuePillStyle: CSSProperties = {
   color: 'var(--foreground)',
   background: 'rgba(255, 255, 255, 0.05)',
   border: '1px solid rgba(116, 190, 255, 0.12)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const lightValuePillStyle: CSSProperties = {
@@ -488,6 +514,8 @@ const unlockPathStyle: CSSProperties = {
   borderRadius: 18,
   border: '1px solid rgba(155, 225, 29, 0.12)',
   background: 'rgba(155, 225, 29, 0.05)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const lightUnlockPathStyle: CSSProperties = {
@@ -501,6 +529,7 @@ const unlockPathLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const lightUnlockPathLabelStyle: CSSProperties = {
@@ -510,6 +539,7 @@ const lightUnlockPathLabelStyle: CSSProperties = {
 const unlockStepGridStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const unlockStepStyle: CSSProperties = {
@@ -521,6 +551,7 @@ const unlockStepStyle: CSSProperties = {
   borderRadius: 14,
   background: 'rgba(255, 255, 255, 0.04)',
   border: '1px solid rgba(255, 255, 255, 0.07)',
+  minWidth: 0,
 }
 
 const lightUnlockStepStyle: CSSProperties = {
@@ -545,6 +576,7 @@ const unlockStepNumberStyle: CSSProperties = {
 const unlockStepTextStyle: CSSProperties = {
   display: 'grid',
   gap: 3,
+  minWidth: 0,
 }
 
 const unlockStepTitleStyle: CSSProperties = {
@@ -552,6 +584,7 @@ const unlockStepTitleStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.25,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const unlockStepBodyStyle: CSSProperties = {
@@ -559,6 +592,7 @@ const unlockStepBodyStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.45,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const lightUnlockStepBodyStyle: CSSProperties = {
@@ -569,6 +603,7 @@ const footnoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const lightFootnoteStyle: CSSProperties = {
@@ -580,6 +615,7 @@ const actionRowStyle: CSSProperties = {
   alignItems: 'center',
   gap: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const primaryActionStyle: CSSProperties = {
@@ -595,6 +631,11 @@ const primaryActionStyle: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 900,
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const buttonActionStyle: CSSProperties = {
@@ -621,6 +662,11 @@ const secondaryActionStyle: CSSProperties = {
   color: '#e7eefb',
   textDecoration: 'none',
   fontWeight: 800,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const lightSecondaryActionStyle: CSSProperties = {
@@ -633,6 +679,7 @@ const secondaryStaticStyle: CSSProperties = {
   color: 'rgba(229, 238, 251, 0.7)',
   fontSize: 13,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const lightSecondaryStaticStyle: CSSProperties = {
@@ -645,4 +692,5 @@ const errorTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.5,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }

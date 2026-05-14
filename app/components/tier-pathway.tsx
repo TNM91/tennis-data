@@ -153,6 +153,8 @@ const shellStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   borderRadius: 24,
   padding: 18,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const compactShellStyle: CSSProperties = {
@@ -164,11 +166,14 @@ const compactShellStyle: CSSProperties = {
 const unframedShellStyle: CSSProperties = {
   display: 'grid',
   gap: 16,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const headerStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const eyebrowStyle: CSSProperties = {
@@ -177,6 +182,7 @@ const eyebrowStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const titleStyle: CSSProperties = {
@@ -185,6 +191,7 @@ const titleStyle: CSSProperties = {
   fontSize: 24,
   lineHeight: 1.1,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const introStyle: CSSProperties = {
@@ -193,18 +200,21 @@ const introStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.65,
   maxWidth: 860,
+  overflowWrap: 'anywhere',
 }
 
 const gridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const compactGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const cardStyle: CSSProperties = {
@@ -216,6 +226,8 @@ const cardStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--shell-chip-bg) 90%, var(--foreground) 10%)',
   borderRadius: 18,
   padding: 16,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const compactCardStyle: CSSProperties = {
@@ -229,12 +241,15 @@ const cardTopStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const numberStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const badgeStyle: CSSProperties = {
@@ -249,6 +264,9 @@ const badgeStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 12,
   fontWeight: 900,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const stageStyle: CSSProperties = {
@@ -257,6 +275,7 @@ const stageStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const cardTitleStyle: CSSProperties = {
@@ -265,6 +284,7 @@ const cardTitleStyle: CSSProperties = {
   fontSize: 18,
   lineHeight: 1.2,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const cardTextStyle: CSSProperties = {
@@ -272,12 +292,14 @@ const cardTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const valueListStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
   marginTop: 2,
+  minWidth: 0,
 }
 
 const valueRowStyle: CSSProperties = {
@@ -288,6 +310,8 @@ const valueRowStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: 12,
   lineHeight: 1.45,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const dotStyle: CSSProperties = {
@@ -304,6 +328,7 @@ const ctaRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   marginTop: 2,
+  minWidth: 0,
 }
 
 const ctaStyle: CSSProperties = {
@@ -320,6 +345,11 @@ const ctaStyle: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const secondaryCtaStyle: CSSProperties = {
@@ -333,6 +363,7 @@ const stripStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const stripCompactStyle: CSSProperties = {
@@ -347,6 +378,8 @@ const stripItemStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   borderRadius: 16,
   padding: 12,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stripTextStyle: CSSProperties = {
@@ -354,6 +387,7 @@ const stripTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.45,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const upgradeStyle: CSSProperties = {
@@ -363,6 +397,8 @@ const upgradeStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   borderRadius: 20,
   padding: 16,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const upgradeCompactStyle: CSSProperties = {
@@ -375,6 +411,7 @@ const upgradeTopStyle: CSSProperties = {
   flexWrap: 'wrap',
   alignItems: 'center',
   gap: 8,
+  minWidth: 0,
 }
 
 const upgradeTitleStyle: CSSProperties = {
@@ -383,6 +420,7 @@ const upgradeTitleStyle: CSSProperties = {
   fontSize: 20,
   lineHeight: 1.15,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const upgradeTextStyle: CSSProperties = {
@@ -390,4 +428,5 @@ const upgradeTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
