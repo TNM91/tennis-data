@@ -87,6 +87,8 @@ describe('Data Assist mobile layout guards', () => {
     expect(source).not.toContain("? '1fr'")
     expect(styleBlock('screenshotGridStyle')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(styleBlock('parsedSideHeaderStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('parsedLineStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
+    expect(styleBlock('bulkResultRowStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
     expect(styleBlock('showMoreButtonStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('scanLoadingStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('screenshotBodyStyle')).toContain("overflowWrap: 'anywhere'")
