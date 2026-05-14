@@ -945,7 +945,7 @@ function MetricCard({
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.08fr) minmax(min(100%, 330px), 0.84fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.08fr) minmax(min(100%, 330px), 0.84fr)',
     padding: isMobile ? '26px 18px' : '34px 26px',
     gap: isMobile ? '18px' : '22px',
     minWidth: 0,
@@ -971,7 +971,7 @@ function selectorPanelResponsive(isSmallMobile: boolean): CSSProperties {
 function metricGridResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
   return {
     ...metricGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -979,7 +979,7 @@ function metricGridResponsive(isSmallMobile: boolean, isMobile: boolean): CSSPro
 function availabilityActionGridResponsive(isSmallMobile: boolean): CSSProperties {
   return {
     ...availabilityActionGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : availabilityActionGrid.gridTemplateColumns,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : availabilityActionGrid.gridTemplateColumns,
     minWidth: 0,
   }
 }

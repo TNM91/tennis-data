@@ -38,6 +38,7 @@ describe('Captain availability mobile layout guards', () => {
     }
 
     expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('selectorPanelResponsive')).toContain('minWidth: 0')
     expect(styleBlock('selectorPanel')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('selectStyle')).toContain("flex: '1 1 min(100%, 220px)'")
@@ -64,8 +65,12 @@ describe('Captain availability mobile layout guards', () => {
     }
 
     expect(functionBlock('metricGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('metricGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('availabilityActionGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('availabilityActionGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('sectionHeadResponsive')).toContain('minWidth: 0')
+    expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(styleBlock('sectionCtaSecondary')).toContain("whiteSpace: 'normal'")
   })
 
