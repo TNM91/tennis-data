@@ -28,8 +28,12 @@ describe('auth entry mobile layout guards', () => {
     }
 
     expect(sources.get('app/login/page.tsx')).toContain(
-      "gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto'",
+      "gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 7rem)'",
     )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'passwordWrap')).toContain(
+      "gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 7rem)'",
+    )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'passwordWrap')).toContain('minWidth: 0')
     expect(sources.get('app/reset-password/page.tsx')).toContain(
       "gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))'",
     )

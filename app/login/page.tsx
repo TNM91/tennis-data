@@ -549,7 +549,7 @@ function TeamStep({ number, title, text }: { number: string; title: string; text
 function passwordWrapResponsive(isSmallMobile: boolean): CSSProperties {
   return {
     ...passwordWrap,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 7rem)',
   }
 }
 
@@ -890,9 +890,10 @@ const inputStyle: CSSProperties = {
 
 const passwordWrap: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 7rem)',
   gap: '10px',
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const passwordInputStyle: CSSProperties = {
