@@ -786,6 +786,7 @@ function DataAssistWorkspace() {
                 screenshot={screenshot}
                 index={index}
                 total={summary.screenshots.length}
+                isMobile={isMobile}
                 onMove={moveScreenshot}
                 onRemove={removeScreenshot}
               />
@@ -1266,12 +1267,14 @@ function ScreenshotCard({
   screenshot,
   index,
   total,
+  isMobile,
   onMove,
   onRemove,
 }: {
   screenshot: DataAssistPreparedScreenshot
   index: number
   total: number
+  isMobile: boolean
   onMove: (fromIndex: number, direction: -1 | 1) => void
   onRemove: (id: string) => void
 }) {
@@ -1279,7 +1282,7 @@ function ScreenshotCard({
   const rejected = screenshot.detectionStatus === 'rejected'
 
   return (
-    <article style={screenshotCardStyle}>
+    <article style={screenshotCardStyle(isMobile)}>
       <div style={thumbnailWrapStyle}>
         {screenshot.previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -3005,7 +3008,7 @@ const parsedLineStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   padding: 9,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 8rem)',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 8rem), 1fr))',
   gap: 6,
   color: 'var(--foreground-strong)',
   fontSize: 12,
@@ -3099,7 +3102,7 @@ const bulkResultRowStyle = (status: BulkScorecardResult['status']): CSSPropertie
         : 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
   padding: 11,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 8rem)',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 8rem), 1fr))',
   gap: 10,
   alignItems: 'center',
   color: 'var(--foreground-strong)',
@@ -3346,16 +3349,16 @@ const badgeEmptyStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const screenshotCardStyle: CSSProperties = {
+const screenshotCardStyle = (isMobile: boolean): CSSProperties => ({
   borderRadius: 20,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   overflow: 'hidden',
   display: 'grid',
-  gridTemplateColumns: 'minmax(min(38%, 108px), 0.34fr) minmax(0, 0.66fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(min(38%, 108px), 0.34fr) minmax(0, 0.66fr)',
   minWidth: 0,
   overflowWrap: 'anywhere',
-}
+})
 
 const thumbnailWrapStyle: CSSProperties = {
   position: 'relative',
