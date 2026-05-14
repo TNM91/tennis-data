@@ -48,6 +48,7 @@ describe('auth entry mobile layout guards', () => {
     for (const file of ['app/login/page.tsx', 'app/join/page.tsx']) {
       const source = sources.get(file)!
       expect(styleBlock(source, 'loginPanel')).toContain('minWidth: 0')
+      expect(styleBlock(source, 'loginPanelGlow')).toContain("width: 'min(100%, 250px)'")
       expect(styleBlock(source, 'loginPanelInner')).toContain('minWidth: 0')
       expect(styleBlock(source, 'selectedPlanCardStyle')).toContain('minWidth: 0')
     }
@@ -58,6 +59,16 @@ describe('auth entry mobile layout guards', () => {
       expect(styleBlock(source, 'formPanelInner')).toContain('minWidth: 0')
       expect(styleBlock(source, 'panelCard')).toContain('minWidth: 0')
     }
+
+    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'formPanelGlow')).toContain(
+      "width: 'min(100%, 250px)'",
+    )
+    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'pageGlowOne')).toContain(
+      "width: 'min(100%, 320px)'",
+    )
+    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'pageGlowTwo')).toContain(
+      "width: 'min(100%, 360px)'",
+    )
   })
 
   it('wraps long auth labels, notices, and action text instead of forcing overflow', () => {
@@ -110,5 +121,9 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'inlineLinkMuted')).toContain(
       "overflowWrap: 'anywhere'",
     )
+
+    for (const [file, source] of sources) {
+      expect(source, file).not.toMatch(/width: '[0-9]{3}px'/)
+    }
   })
 })

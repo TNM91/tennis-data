@@ -801,7 +801,7 @@ const loginPanel: CSSProperties = {
 const loginPanelGlow: CSSProperties = {
   position: 'absolute',
   inset: 'auto auto 8px 50%',
-  width: '250px',
+  width: 'min(100%, 250px)',
   height: '250px',
   transform: 'translateX(-50%)',
   borderRadius: '999px',
