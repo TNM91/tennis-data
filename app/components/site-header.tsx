@@ -683,9 +683,10 @@ const utilityLinkStyle = {
   letterSpacing: 0,
   textDecoration: 'none',
   background: 'transparent',
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
   maxWidth: '100%',
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
   textOverflow: 'ellipsis',
 } as const
 
@@ -701,11 +702,12 @@ const navLinkStyle = {
   fontWeight: 750,
   letterSpacing: '0',
   textDecoration: 'none',
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
   transition: 'border-color 160ms ease, color 160ms ease, background 160ms ease',
   minWidth: 0,
   maxWidth: '100%',
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
 } as const
 
 const navPendingStyle = {
@@ -789,8 +791,9 @@ const accountPillStyle = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase' as const,
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
   textOverflow: 'ellipsis',
 } as const
 
@@ -869,9 +872,10 @@ const utilityButtonStyle = {
   fontWeight: 700,
   letterSpacing: 0,
   cursor: 'pointer',
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
   maxWidth: '100%',
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
   textOverflow: 'ellipsis',
 } as const
 
