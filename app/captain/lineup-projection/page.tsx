@@ -1450,7 +1450,7 @@ function navStyleResponsive(isTablet: boolean): CSSProperties {
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.15fr) minmax(min(100%, 280px), 360px)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.15fr) minmax(min(100%, 280px), 360px)',
     gap: isMobile ? '18px' : '24px',
     padding: isMobile ? '26px 18px' : '34px 26px',
     minWidth: 0,
@@ -1467,7 +1467,7 @@ function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProp
 function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
   return {
     ...heroMetricGridBaseStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -1475,7 +1475,7 @@ function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
 function filterGridResponsive(isTablet: boolean): CSSProperties {
   return {
     ...filterGridStyle,
-    gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -1483,7 +1483,7 @@ function filterGridResponsive(isTablet: boolean): CSSProperties {
 function projectionGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
   return {
     ...projectionGridStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -1491,7 +1491,7 @@ function projectionGridResponsive(isSmallMobile: boolean, isTablet: boolean): CS
 function actionReadGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
   return {
     ...actionReadGridStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -1499,7 +1499,7 @@ function actionReadGridResponsive(isSmallMobile: boolean, isTablet: boolean): CS
 function compareGridResponsive(isTablet: boolean): CSSProperties {
   return {
     ...compareGridStyle,
-    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -1507,7 +1507,7 @@ function compareGridResponsive(isTablet: boolean): CSSProperties {
 function rosterGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
   return {
     ...rosterGridStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
     minWidth: 0,
   }
 }
@@ -1515,7 +1515,7 @@ function rosterGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSPro
 function miniGridResponsive(isSmallMobile: boolean): CSSProperties {
   return {
     ...miniGridStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
     minWidth: 0,
   }
 }

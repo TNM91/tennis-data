@@ -2355,6 +2355,9 @@ function CopyLinkButton() {
         cursor: 'pointer',
         transition: 'all 160ms ease',
         transform: hovered ? 'translateY(-1px)' : 'none',
+        maxWidth: '100%',
+        minWidth: 0,
+        overflowWrap: 'anywhere',
         whiteSpace: 'normal' as const,
       }}
     >
@@ -2386,6 +2389,10 @@ function SwapSidesButton({ onClick }: { onClick: () => void }) {
         transition: 'all 160ms ease',
         transform: hovered ? 'translateY(-1px)' : 'none',
         letterSpacing: 0,
+        maxWidth: '100%',
+        minWidth: 0,
+        overflowWrap: 'anywhere',
+        whiteSpace: 'normal' as const,
       }}
     >
       Swap sides

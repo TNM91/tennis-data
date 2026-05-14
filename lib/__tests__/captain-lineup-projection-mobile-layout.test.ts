@@ -45,6 +45,9 @@ describe('Captain lineup projection mobile layout guards', () => {
     }
 
     expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('filterGridResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('navStyleResponsive')).toContain('minWidth: 0')
     expect(styleBlock('navLink')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
@@ -74,7 +77,14 @@ describe('Captain lineup projection mobile layout guards', () => {
     }
 
     expect(functionBlock('projectionGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('projectionGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('actionReadGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('compareGridResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('rosterGridResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('rosterGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('miniGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(functionBlock('listRowResponsive')).toContain('minWidth: 0')
     expect(styleBlock('listRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('badgeBase')).toContain("whiteSpace: 'normal'")
