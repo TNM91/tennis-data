@@ -28,6 +28,25 @@ export type AdminImportPreviewRow = {
   dedupeKey: string
 }
 
+const importTableWrapStyle: React.CSSProperties = {
+  marginTop: 14,
+  maxWidth: '100%',
+  minWidth: 0,
+  overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  WebkitOverflowScrolling: 'touch',
+}
+
+const invalidRowsTableStyle: React.CSSProperties = {
+  minWidth: 'min(100%, 840px)',
+  tableLayout: 'auto',
+}
+
+const previewRowsTableStyle: React.CSSProperties = {
+  minWidth: 'min(100%, 1080px)',
+  tableLayout: 'auto',
+}
+
 export function AdminImportMetricGrid({
   metrics,
 }: {
@@ -113,8 +132,8 @@ export function AdminInvalidRowsTable({
         {title}
       </h3>
 
-      <div className="table-wrap" style={{ marginTop: 14 }}>
-        <table className="data-table" style={{ minWidth: 840 }}>
+      <div className="table-wrap" style={importTableWrapStyle}>
+        <table className="data-table" style={invalidRowsTableStyle}>
           <thead>
             <tr>
               <th>Row</th>
@@ -162,8 +181,8 @@ export function AdminImportPreviewTable({
         {title}
       </h3>
 
-      <div className="table-wrap" style={{ marginTop: 14 }}>
-        <table className="data-table" style={{ minWidth: 1080 }}>
+      <div className="table-wrap" style={importTableWrapStyle}>
+        <table className="data-table" style={previewRowsTableStyle}>
           <thead>
             <tr>
               <th>Row</th>

@@ -4,12 +4,13 @@ import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/admin/import/page.tsx'), 'utf8')
 const reviewPanelSource = readFileSync(join(process.cwd(), 'app/admin/import/_components/scorecard-review-panel.tsx'), 'utf8')
+const sharedImportSource = readFileSync(join(process.cwd(), 'app/components/admin-import-ui.tsx'), 'utf8')
 
-function styleBlock(styleName: string) {
-  const start = source.indexOf(`const ${styleName}`)
+function styleBlock(styleName: string, content = source) {
+  const start = content.indexOf(`const ${styleName}`)
   expect(start).toBeGreaterThanOrEqual(0)
-  const nextStyle = source.indexOf('\nconst ', start + 1)
-  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+  const nextStyle = content.indexOf('\nconst ', start + 1)
+  return content.slice(start, nextStyle === -1 ? undefined : nextStyle)
 }
 
 describe('Admin import mobile layout guards', () => {
@@ -36,5 +37,16 @@ describe('Admin import mobile layout guards', () => {
 
     expect(styleBlock('primaryButtonStyle')).toContain("color: 'var(--foreground-strong)'")
     expect(styleBlock('primaryButtonStyle')).not.toContain("color: '#0a0a0a'")
+  })
+
+  it('keeps shared import preview tables within the mobile scroll shell', () => {
+    expect(styleBlock('importTableWrapStyle', sharedImportSource)).toContain('minWidth: 0')
+    expect(styleBlock('importTableWrapStyle', sharedImportSource)).toContain("overflowX: 'auto'")
+    expect(styleBlock('importTableWrapStyle', sharedImportSource)).toContain("overscrollBehaviorX: 'contain'")
+    expect(styleBlock('importTableWrapStyle', sharedImportSource)).toContain("WebkitOverflowScrolling: 'touch'")
+    expect(styleBlock('invalidRowsTableStyle', sharedImportSource)).toContain("minWidth: 'min(100%, 840px)'")
+    expect(styleBlock('previewRowsTableStyle', sharedImportSource)).toContain("minWidth: 'min(100%, 1080px)'")
+    expect(sharedImportSource).not.toContain('style={{ minWidth: 840 }}')
+    expect(sharedImportSource).not.toContain('style={{ minWidth: 1080 }}')
   })
 })
