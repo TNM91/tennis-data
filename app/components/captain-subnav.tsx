@@ -91,12 +91,15 @@ const shellStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const headerStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   maxWidth: 720,
+  minWidth: 0,
 }
 
 const eyebrowStyle: CSSProperties = {
@@ -113,18 +116,21 @@ const titleStyle: CSSProperties = {
   lineHeight: 1.05,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const descriptionStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const gridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const linkStyle: CSSProperties = {
@@ -140,6 +146,8 @@ const linkStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--home-control-shadow)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stepStyle: CSSProperties = {
@@ -164,6 +172,7 @@ const linkLabelStyle: CSSProperties = {
   fontSize: 14,
   fontWeight: 800,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const linkArrowStyle: CSSProperties = {
@@ -172,6 +181,8 @@ const linkArrowStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tierRowStyle: CSSProperties = {
@@ -179,6 +190,7 @@ const tierRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const tierPillBase: CSSProperties = {
@@ -191,6 +203,9 @@ const tierPillBase: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tierPillGreen: CSSProperties = {
@@ -208,6 +223,7 @@ const tierPillSlate: CSSProperties = {
 const moreToolsStyle: CSSProperties = {
   borderTop: '1px solid var(--shell-panel-border)',
   paddingTop: 12,
+  minWidth: 0,
 }
 
 const moreToolsSummaryStyle: CSSProperties = {
@@ -222,6 +238,7 @@ const secondaryGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: 12,
+  minWidth: 0,
 }
 
 const secondaryLinkStyle: CSSProperties = {
