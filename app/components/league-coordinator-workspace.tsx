@@ -2602,6 +2602,7 @@ const pageWrap: CSSProperties = {
   padding: '18px 0 30px',
   display: 'grid',
   gap: '18px',
+  minWidth: 0,
 }
 
 const mobilePageWrap: CSSProperties = {
@@ -2633,6 +2634,7 @@ const heroEyebrow: CSSProperties = {
   letterSpacing: 0,
   textTransform: 'uppercase',
   color: 'var(--brand-blue-2)',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -2663,6 +2665,7 @@ const heroPillRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
+  minWidth: 0,
 }
 
 const pillBase: CSSProperties = {
@@ -2679,6 +2682,7 @@ const pillBase: CSSProperties = {
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const pillBlue: CSSProperties = {
@@ -2703,6 +2707,7 @@ const heroActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
+  minWidth: 0,
 }
 
 const mobileStackedActionRowStyle: CSSProperties = {
@@ -2734,6 +2739,7 @@ const commandGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const commandTile: CSSProperties = {
@@ -2752,6 +2758,7 @@ const commandLabel: CSSProperties = {
   fontWeight: 900,
   textTransform: 'uppercase',
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const commandValue: CSSProperties = {
@@ -2762,6 +2769,7 @@ const commandValue: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const commandText: CSSProperties = {
@@ -2842,6 +2850,7 @@ const dataAssistOpsGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const dataAssistOpsCardStyle: CSSProperties = {
@@ -2885,18 +2894,21 @@ const reviewQueueGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const publicReadinessGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const publicReadinessFilterRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '8px',
+  minWidth: 0,
 }
 
 const publicReadinessFilterButtonStyle: CSSProperties = {
@@ -2911,6 +2923,8 @@ const publicReadinessFilterButtonStyle: CSSProperties = {
   cursor: 'pointer',
   maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const publicReadinessFilterActiveStyle: CSSProperties = {
@@ -2949,6 +2963,7 @@ const publicReadinessCheckGridStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '6px',
+  minWidth: 0,
 }
 
 const reviewCueCardStyle: CSSProperties = {
@@ -2966,6 +2981,7 @@ const reviewCueValueStyle: CSSProperties = {
   fontSize: '34px',
   fontWeight: 950,
   lineHeight: 1,
+  overflowWrap: 'anywhere',
 }
 
 const reviewCueTitleStyle: CSSProperties = {
@@ -2973,12 +2989,14 @@ const reviewCueTitleStyle: CSSProperties = {
   fontSize: '15px',
   fontWeight: 900,
   lineHeight: 1.25,
+  overflowWrap: 'anywhere',
 }
 
 const resultBookGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const resultBookCardStyle: CSSProperties = {
@@ -2995,6 +3013,7 @@ const resultBookMetricRowStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const resultBookMetricStyle: CSSProperties = {
@@ -3016,6 +3035,7 @@ const leagueOpsHeaderStyle: CSSProperties = {
   alignItems: 'flex-start',
   gap: '16px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const leagueOpsTitleStyle: CSSProperties = {
@@ -3032,6 +3052,7 @@ const leagueOpsTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const leagueOpsScoreStyle: CSSProperties = {
@@ -3041,6 +3062,8 @@ const leagueOpsScoreStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 900,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const startScoreStyle: CSSProperties = {
@@ -3061,6 +3084,8 @@ const leagueOpsTrackStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   overflow: 'hidden',
   padding: '2px',
+  minWidth: 0,
+  maxWidth: '100%',
 }
 
 const leagueOpsFillStyle = (value: number): CSSProperties => ({
@@ -3097,6 +3122,7 @@ const startActionLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: 0,
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const startActionTitleStyle: CSSProperties = {
@@ -3158,6 +3184,7 @@ const startCardGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const startCardStyle: CSSProperties = {
@@ -3203,12 +3230,14 @@ const startCardCtaStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: 0,
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const leagueOpsCheckGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const leagueOpsCheckStyle: CSSProperties = {
@@ -3224,6 +3253,7 @@ const leagueOpsCheckStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 750,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leagueOpsCheckCompleteStyle: CSSProperties = {
@@ -3258,6 +3288,7 @@ const detailsSummary: CSSProperties = {
   justifyContent: 'space-between',
   gap: '14px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const mobileDetailsSummary: CSSProperties = {
@@ -3271,6 +3302,7 @@ const sectionEyebrow: CSSProperties = {
   letterSpacing: 0,
   textTransform: 'uppercase',
   color: 'var(--brand-blue-2)',
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitle: CSSProperties = {
@@ -3293,12 +3325,14 @@ const fieldGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: '14px',
+  minWidth: 0,
 }
 
 const outcomeInfoGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const infoCard: CSSProperties = {
@@ -3344,6 +3378,7 @@ const setupAssistTitleStyle: CSSProperties = {
   fontSize: '17px',
   lineHeight: 1.2,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const setupAssistTextStyle: CSSProperties = {
@@ -3351,12 +3386,14 @@ const setupAssistTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const calendarGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const calendarRowStyle: CSSProperties = {
@@ -3376,6 +3413,7 @@ const calendarWeekStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: 0,
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const calendarDateStyle: CSSProperties = {
@@ -3383,6 +3421,7 @@ const calendarDateStyle: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.2,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const calendarMetaStyle: CSSProperties = {
@@ -3390,6 +3429,7 @@ const calendarMetaStyle: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.45,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const calendarActionStyle: CSSProperties = {
@@ -3405,6 +3445,10 @@ const calendarActionStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 11,
   fontWeight: 950,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const fieldLabel: CSSProperties = {
@@ -3493,6 +3537,8 @@ const fileInputStyle: CSSProperties = {
   width: '100%',
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const textareaStyle: CSSProperties = {
@@ -3506,6 +3552,7 @@ const textareaStyle: CSSProperties = {
   outline: 'none',
   resize: 'vertical',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const statusBanner: CSSProperties = {
@@ -3563,6 +3610,7 @@ const nextActionButtonRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   justifyContent: 'flex-end',
+  minWidth: 0,
 }
 
 const buttonRow: CSSProperties = {
@@ -3762,4 +3810,6 @@ const noteCard: CSSProperties = {
   borderRadius: '20px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
