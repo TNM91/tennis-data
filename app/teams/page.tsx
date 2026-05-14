@@ -701,7 +701,7 @@ function TeamCard({ href, row }: { href: object; row: TeamDirectoryEntry }) {
         }}
       >
         <div style={teamCardTop}>
-          <div>
+          <div style={teamCardCopy}>
             <div style={teamName}>{row.team}</div>
 
             {(row.league || row.flight) ? (
@@ -727,24 +727,24 @@ function TeamCard({ href, row }: { href: object; row: TeamDirectoryEntry }) {
           const total = row.wins + row.losses
           const winPct = Math.round((row.wins / total) * 100)
           return (
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 7, background: 'rgba(255,255,255,0.06)', marginBottom: 5 }}>
+            <div style={teamRecordBarWrap}>
+              <div style={teamRecordBar}>
                 <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.65),rgba(74,222,128,0.65))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
                 <div style={{ flex: 1, background: 'rgba(239,68,68,0.22)' }} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(155,225,29,0.8)' }}>{row.wins}W · {winPct}%</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(239,68,68,0.65)' }}>{row.losses}L</span>
+              <div style={teamRecordLegend}>
+                <span style={teamRecordWinText}>{row.wins}W · {winPct}%</span>
+                <span style={teamRecordLossText}>{row.losses}L</span>
               </div>
             </div>
           )
         })() : null}
 
         {row.recentForm.length > 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-            <span style={{ color: 'rgba(190,210,240,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', flexShrink: 0 }}>Form</span>
+          <div style={recentFormRow}>
+            <span style={recentFormLabel}>Form</span>
             {row.recentForm.map((r, i) => (
-              <span key={i} style={{ width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, fontSize: 10, fontWeight: 900, background: r === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: r === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${r === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}>
+              <span key={i} style={{ ...recentFormBadgeBase, background: r === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: r === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${r === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}>
                 {r}
               </span>
             ))}
@@ -809,6 +809,7 @@ const heroCard: CSSProperties = {
   boxShadow: 'var(--shadow-soft)',
   padding: '28px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroEyebrow: CSSProperties = {
@@ -817,6 +818,7 @@ const heroEyebrow: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -834,6 +836,7 @@ const heroText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.75,
+  overflowWrap: 'anywhere',
 }
 
 const exploreNavRow: CSSProperties = {
@@ -841,6 +844,7 @@ const exploreNavRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '16px',
+  minWidth: 0,
 }
 
 const exploreNavLink: CSSProperties = {
@@ -856,6 +860,11 @@ const exploreNavLink: CSSProperties = {
   textDecoration: 'none',
   fontSize: '13px',
   fontWeight: 800,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const heroStatsGrid = (isSmallMobile: boolean): CSSProperties => ({
@@ -863,6 +872,7 @@ const heroStatsGrid = (isSmallMobile: boolean): CSSProperties => ({
   gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
   gap: '12px',
   marginTop: '22px',
+  minWidth: 0,
 })
 
 const statPill: CSSProperties = {
@@ -870,6 +880,8 @@ const statPill: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   padding: '16px 18px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const statValue: CSSProperties = {
@@ -877,6 +889,7 @@ const statValue: CSSProperties = {
   fontSize: '28px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const statLabel: CSSProperties = {
@@ -886,6 +899,7 @@ const statLabel: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const filtersCard: CSSProperties = {
@@ -903,6 +917,7 @@ const sectionHeader: CSSProperties = {
   justifyContent: 'space-between',
   gap: '16px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionKicker: CSSProperties = {
@@ -912,6 +927,7 @@ const sectionKicker: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitle: CSSProperties = {
@@ -921,6 +937,7 @@ const sectionTitle: CSSProperties = {
   lineHeight: 1.08,
   letterSpacing: 0,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const sectionText: CSSProperties = {
@@ -929,6 +946,7 @@ const sectionText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.7,
+  overflowWrap: 'anywhere',
 }
 
 const resetButton: CSSProperties = {
@@ -941,6 +959,11 @@ const resetButton: CSSProperties = {
   cursor: 'pointer',
   fontSize: '13px',
   fontWeight: 700,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const editorialPanel: CSSProperties = {
@@ -953,12 +976,15 @@ const editorialPanel: CSSProperties = {
     'linear-gradient(180deg, color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%) 0%, var(--shell-panel-bg) 100%)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const editorialGrid: CSSProperties = {
   display: 'grid',
   gap: '12px',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  minWidth: 0,
 }
 
 const filtersActionRow: CSSProperties = {
@@ -966,6 +992,7 @@ const filtersActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '14px',
+  minWidth: 0,
 }
 
 const clearFilterButton: CSSProperties = {
@@ -980,6 +1007,11 @@ const clearFilterButton: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const ghostButton: CSSProperties = {
@@ -997,6 +1029,11 @@ const ghostButton: CSSProperties = {
   fontWeight: 800,
   fontSize: '13px',
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 function GhostBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
@@ -1030,6 +1067,7 @@ const labelStyle: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const inputStyle: CSSProperties = {
@@ -1051,6 +1089,8 @@ const surfaceCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   padding: '28px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const emptyTitle: CSSProperties = {
@@ -1058,6 +1098,7 @@ const emptyTitle: CSSProperties = {
   fontSize: '22px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const errorTitle: CSSProperties = {
@@ -1065,6 +1106,7 @@ const errorTitle: CSSProperties = {
   fontSize: '22px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const emptyText: CSSProperties = {
@@ -1072,6 +1114,7 @@ const emptyText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.7,
+  overflowWrap: 'anywhere',
 }
 
 const emptyActionRow: CSSProperties = {
@@ -1080,6 +1123,7 @@ const emptyActionRow: CSSProperties = {
   gap: '10px',
   marginTop: '12px',
   maxWidth: '100%',
+  minWidth: 0,
 }
 
 const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
@@ -1092,6 +1136,7 @@ const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
 
 const teamCardLink: CSSProperties = {
   textDecoration: 'none',
+  minWidth: 0,
 }
 
 const teamCard: CSSProperties = {
@@ -1103,6 +1148,7 @@ const teamCard: CSSProperties = {
   padding: '20px',
   transition: 'transform 140ms ease, border-color 140ms ease',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const teamCardTop: CSSProperties = {
@@ -1112,6 +1158,11 @@ const teamCardTop: CSSProperties = {
   gap: '12px',
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const teamCardCopy: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const teamName: CSSProperties = {
@@ -1128,6 +1179,7 @@ const metaRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '8px',
   marginTop: '12px',
+  minWidth: 0,
 }
 
 const metaPillBlue: CSSProperties = {
@@ -1141,19 +1193,16 @@ const metaPillBlue: CSSProperties = {
   fontSize: '12px',
   fontWeight: 700,
   maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
 const metaPillGreen: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  padding: '7px 10px',
-  borderRadius: '999px',
+  ...metaPillBlue,
   background: 'rgba(74, 222, 128, 0.12)',
   border: '1px solid rgba(155,225,29,0.16)',
   color: '#d8f6c5',
-  fontSize: '12px',
-  fontWeight: 700,
 }
 
 const viewPill: CSSProperties = {
@@ -1172,6 +1221,76 @@ const viewPill: CSSProperties = {
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
   maxWidth: '100%',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamRecordBarWrap: CSSProperties = {
+  marginBottom: 10,
+  minWidth: 0,
+}
+
+const teamRecordBar: CSSProperties = {
+  display: 'flex',
+  borderRadius: 999,
+  overflow: 'hidden',
+  height: 7,
+  background: 'rgba(255,255,255,0.06)',
+  marginBottom: 5,
+  minWidth: 0,
+}
+
+const teamRecordLegend: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const teamRecordWinText: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 800,
+  color: 'rgba(155,225,29,0.8)',
+  overflowWrap: 'anywhere',
+}
+
+const teamRecordLossText: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: 'rgba(239,68,68,0.65)',
+  overflowWrap: 'anywhere',
+}
+
+const recentFormRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  marginBottom: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const recentFormLabel: CSSProperties = {
+  color: 'rgba(190,210,240,0.45)',
+  fontSize: 11,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  flexShrink: 0,
+  overflowWrap: 'anywhere',
+}
+
+const recentFormBadgeBase: CSSProperties = {
+  width: 20,
+  height: 20,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 999,
+  fontSize: 10,
+  fontWeight: 900,
+  flex: '0 0 auto',
 }
 
 const metricsGrid: CSSProperties = {
@@ -1179,6 +1298,7 @@ const metricsGrid: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 84px), 1fr))',
   gap: '10px',
   marginTop: '18px',
+  minWidth: 0,
 }
 
 const metricCard: CSSProperties = {
@@ -1194,6 +1314,7 @@ const metricValue: CSSProperties = {
   fontSize: '18px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const metricLabel: CSSProperties = {
@@ -1203,4 +1324,5 @@ const metricLabel: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
