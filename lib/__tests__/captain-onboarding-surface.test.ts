@@ -24,12 +24,15 @@ describe('Captain onboarding surface', () => {
 
   it('keeps Captain onboarding compact on small mobile screens', () => {
     expect(source).toContain('captainOnboardingStripStyle(isSmallMobile)')
-    expect(source).toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+    expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(source).toContain('captainOnboardingStepStyle')
     expect(source).toContain('minmax(0, 1fr)')
     expect(source).toContain('captainScopeHandoffGridStyle(isSmallMobile)')
     expect(source).toContain('captainScopeHandoffCardStyle')
-    expect(source).toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isMobile ? '1fr'")
+    expect(source).toContain("minWidth: 'min(100%, 62px)'")
   })
 
   it('keeps Captain empty states actionable for missing teams and rosters', () => {
