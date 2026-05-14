@@ -83,6 +83,17 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
       "overflowWrap: 'anywhere'",
     )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'selectedPlanActionRowStyle')).toContain(
+      'minWidth: 0',
+    )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'mobilePromiseBar')).toContain('minWidth: 0')
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'mobilePromiseChip')).toContain(
+      "whiteSpace: 'normal'",
+    )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'termsRow')).toContain("maxWidth: '100%'")
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'helperText')).toContain(
+      "overflowWrap: 'anywhere'",
+    )
     expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'pillBase')).toContain(
       "overflowWrap: 'anywhere'",
     )

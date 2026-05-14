@@ -604,6 +604,7 @@ const selectedPlanActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '8px',
   marginTop: '2px',
+  minWidth: 0,
 }
 
 const selectedPlanLinkStyle: CSSProperties = {
@@ -638,11 +639,13 @@ const mobilePromiseBar: CSSProperties = {
   gap: '8px',
   flexWrap: 'wrap',
   marginTop: '10px',
+  minWidth: 0,
 }
 
 const mobilePromiseChip: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   minHeight: '32px',
   padding: '0 11px',
   borderRadius: '999px',
@@ -651,6 +654,8 @@ const mobilePromiseChip: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }
 
 const promiseLabel: CSSProperties = {
@@ -817,6 +822,7 @@ const termsRow: CSSProperties = {
   alignItems: 'flex-start',
   gap: '10px',
   minWidth: 0,
+  maxWidth: '100%',
   marginTop: '4px',
   color: 'var(--foreground)',
   fontSize: '13px',
@@ -902,6 +908,7 @@ const helperText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const inlineLink: CSSProperties = {
