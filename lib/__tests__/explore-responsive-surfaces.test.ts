@@ -100,6 +100,8 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(rankingsSource, 'summaryStatsGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
     expect(styleBlock(rankingsSource, 'chipStatLabel')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(rankingsSource, 'chipStatValue')).toContain("overflowWrap: 'anywhere'")
+    expect(rankingsSource).toContain("gap: 10, flexWrap: 'wrap' as const, minWidth: 0, padding: '12px 14px'")
+    expect(rankingsSource).toContain("style={{ minWidth: 0, overflowWrap: 'anywhere' }}")
   })
 
   it('keeps rankings insight panels and table actions mobile-safe', () => {

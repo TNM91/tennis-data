@@ -66,6 +66,8 @@ describe('Captain lineup builder mobile layout guards', () => {
 
     expect(styleBlock('listCardStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('listCardStyleCompact')).toContain("flexWrap: 'wrap'")
+    expect(source).toContain("gap: 8, flexWrap: 'wrap', minWidth: 0")
+    expect(source).toContain("style={{ minWidth: 0, overflowWrap: 'anywhere' }}")
     expect(styleBlock('slotLabelInputStyle')).toContain("width: 'min(100%, 180px)'")
     expect(styleBlock('slotLabelInputStyle')).toContain('minWidth: 0')
   })
