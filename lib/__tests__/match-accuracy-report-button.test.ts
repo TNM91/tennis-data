@@ -7,6 +7,13 @@ const mylabSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf
 const playerProfileSource = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
 const teamProfileSource = readFileSync(join(process.cwd(), 'app/teams/[team]/page.tsx'), 'utf8')
 
+function styleBlock(styleName: string) {
+  const start = componentSource.indexOf(`const ${styleName}`)
+  expect(start, styleName).toBeGreaterThanOrEqual(0)
+  const nextStyle = componentSource.indexOf('\nconst ', start + 1)
+  return componentSource.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
+
 describe('match accuracy report button', () => {
   it('submits signed-in reports through the shared match accuracy helper', () => {
     expect(componentSource).toContain('submitMatchAccuracyReport')
@@ -50,5 +57,38 @@ describe('match accuracy report button', () => {
     expect(teamProfileSource).toContain('myMatchReportByMatchId.get(match.id)')
     expect(teamProfileSource).toContain('onSubmitted={() => void refreshMyMatchReports()}')
     expect(teamProfileSource).toContain('reportStatusBadgeStyle(existingReport.status)')
+  })
+
+  it('keeps the match accuracy report dialog mobile-safe for long match labels', () => {
+    for (const styleName of [
+      'triggerStyle',
+      'overlayStyle',
+      'dialogStyle',
+      'headerStyle',
+      'selectStyle',
+      'textareaStyle',
+      'actionRowStyle',
+      'primaryButtonStyle',
+      'successStyle',
+    ]) {
+      expect(styleBlock(styleName), styleName).toContain('minWidth')
+    }
+
+    for (const styleName of [
+      'triggerStyle',
+      'dialogStyle',
+      'kickerStyle',
+      'titleStyle',
+      'copyStyle',
+      'labelStyle',
+      'primaryButtonStyle',
+      'successStyle',
+    ]) {
+      expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
+    }
+
+    expect(styleBlock('headerStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('primaryButtonStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('triggerStyle')).toContain("maxWidth: '100%'")
   })
 })
