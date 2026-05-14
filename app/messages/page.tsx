@@ -1612,7 +1612,7 @@ const replyBoxStyle: CSSProperties = {
 
 const segmentedStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
   gap: 8,
   padding: 4,
   borderRadius: 16,

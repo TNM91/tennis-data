@@ -3,12 +3,13 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/messages/page.tsx'), 'utf8')
+const composerSource = readFileSync(join(process.cwd(), 'app/components/schedule-message-composer.tsx'), 'utf8')
 
-function styleBlock(styleName: string) {
-  const start = source.indexOf(`const ${styleName}:`)
+function styleBlock(styleName: string, content = source) {
+  const start = content.indexOf(`const ${styleName}:`)
   expect(start).toBeGreaterThanOrEqual(0)
-  const nextStyle = source.indexOf('\nconst ', start + 1)
-  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+  const nextStyle = content.indexOf('\nconst ', start + 1)
+  return content.slice(start, nextStyle === -1 ? undefined : nextStyle)
 }
 
 function functionBlock(functionName: string) {
@@ -77,6 +78,7 @@ describe('Messages mobile layout guards', () => {
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('threadTopStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('notificationTopStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('segmentedStyle')).toContain("repeat(auto-fit, minmax(min(100%, 120px), 1fr))")
     expect(styleBlock('pillStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('pillStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('unreadPillStyle')).toContain("whiteSpace: 'normal'")
@@ -103,5 +105,12 @@ describe('Messages mobile layout guards', () => {
     expect(source).toContain('style={lookupRowStyle(isMobile)}')
     expect(source).toContain('style={rsvpSummaryStyle(isMobile)}')
     expect(source).toContain('style={scheduleEditGridStyle(isMobile)}')
+    expect(styleBlock('fieldGridStyle', composerSource)).toContain("repeat(auto-fit, minmax(min(100%, 160px), 1fr))")
+    expect(styleBlock('fieldGridStyle', composerSource)).toContain('minWidth: 0')
+    expect(styleBlock('fieldStyle', composerSource)).toContain('minWidth: 0')
+    expect(styleBlock('inputStyle', composerSource)).toContain('minWidth: 0')
+    expect(styleBlock('targetStyle', composerSource)).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('recipientPreviewStyle', composerSource)).toContain("overflowWrap: 'anywhere'")
+    expect(composerSource).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
   })
 })
