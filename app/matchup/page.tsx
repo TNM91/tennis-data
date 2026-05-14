@@ -1357,7 +1357,9 @@ export default function MatchupPage() {
 
   const dynamicCompareGrid: CSSProperties = {
     ...compareGrid,
-    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 220px minmax(0, 1fr)',
+    gridTemplateColumns: isTablet
+      ? 'minmax(0, 1fr)'
+      : 'minmax(0, 1fr) minmax(min(100%, 180px), 220px) minmax(0, 1fr)',
   }
 
   const dynamicCenterColumn: CSSProperties = {
@@ -3738,6 +3740,7 @@ const compareGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
   alignItems: 'stretch',
+  minWidth: 0,
 }
 
 const compareCard: CSSProperties = {
@@ -3747,6 +3750,7 @@ const compareCard: CSSProperties = {
   background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const favoredCompareCard: CSSProperties = {
@@ -3881,10 +3885,12 @@ const centerColumn: CSSProperties = {
   alignItems: 'center',
   gap: '16px',
   minWidth: 0,
+  maxWidth: '100%',
 }
 
 const vsBadge: CSSProperties = {
   width: '76px',
+  maxWidth: '100%',
   height: '76px',
   flex: '0 0 auto',
   borderRadius: '999px',
@@ -3897,6 +3903,7 @@ const vsBadge: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   boxShadow: '0 14px 30px rgba(37,91,227,0.22)',
+  overflowWrap: 'anywhere',
 }
 
 const gapCard: CSSProperties = {
