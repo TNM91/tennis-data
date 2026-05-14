@@ -109,4 +109,91 @@ describe('League Coordinator mobile layout guards', () => {
     expect(subnavSource).toContain("gridTemplateColumns: '30px minmax(0, 1fr) auto'")
     expect(styleBlock(subnavSource, 'gridStyle')).toContain('minWidth: 0')
   })
+
+  it('keeps coordinator shells, grids, and action rows min-width safe', () => {
+    for (const styleName of [
+      'pageWrap',
+      'heroPillRow',
+      'heroActionRow',
+      'commandGrid',
+      'dataAssistOpsGridStyle',
+      'reviewQueueGridStyle',
+      'publicReadinessGridStyle',
+      'publicReadinessFilterRowStyle',
+      'publicReadinessCheckGridStyle',
+      'resultBookGridStyle',
+      'resultBookMetricRowStyle',
+      'leagueOpsHeaderStyle',
+      'leagueOpsScoreStyle',
+      'leagueOpsTrackStyle',
+      'startCardGridStyle',
+      'leagueOpsCheckGridStyle',
+      'detailsSummary',
+      'fieldGrid',
+      'outcomeInfoGrid',
+      'calendarGridStyle',
+      'fileInputStyle',
+      'textareaStyle',
+      'nextActionButtonRowStyle',
+      'noteCard',
+    ]) {
+      expect(styleBlock(source, styleName)).toContain('minWidth: 0')
+    }
+  })
+
+  it('keeps coordinator labels, pills, controls, and dense copy wrap-safe', () => {
+    for (const styleName of [
+      'heroEyebrow',
+      'pillBase',
+      'commandLabel',
+      'commandValue',
+      'publicReadinessFilterButtonStyle',
+      'reviewCueValueStyle',
+      'reviewCueTitleStyle',
+      'leagueOpsTextStyle',
+      'leagueOpsScoreStyle',
+      'startActionLabelStyle',
+      'startCardCtaStyle',
+      'leagueOpsCheckStyle',
+      'sectionEyebrow',
+      'setupAssistTitleStyle',
+      'setupAssistTextStyle',
+      'calendarWeekStyle',
+      'calendarDateStyle',
+      'calendarMetaStyle',
+      'calendarActionStyle',
+      'fileInputStyle',
+      'textareaStyle',
+      'noteCard',
+    ]) {
+      expect(styleBlock(source, styleName)).toContain("overflowWrap: 'anywhere'")
+    }
+
+    expect(styleBlock(source, 'pillBase')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(source, 'publicReadinessFilterButtonStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(source, 'publicReadinessFilterButtonStyle')).toContain("textAlign: 'center'")
+    expect(styleBlock(source, 'calendarActionStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(source, 'calendarActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(source, 'leagueOpsTrackStyle')).toContain("maxWidth: '100%'")
+  })
+
+  it('uses responsive grid tracks for coordinator-heavy surfaces', () => {
+    for (const styleName of [
+      'commandGrid',
+      'dataAssistOpsGridStyle',
+      'reviewQueueGridStyle',
+      'publicReadinessGridStyle',
+      'resultBookGridStyle',
+      'resultBookMetricRowStyle',
+      'startCardGridStyle',
+      'leagueOpsCheckGridStyle',
+      'fieldGrid',
+      'outcomeInfoGrid',
+      'calendarGridStyle',
+    ]) {
+      expect(styleBlock(source, styleName)).toContain('minmax(min(100%,')
+    }
+
+    expect(source).not.toContain("whiteSpace: 'nowrap'")
+  })
 })
