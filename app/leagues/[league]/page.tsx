@@ -694,16 +694,16 @@ export default function LeagueDetailPage() {
         </div>
 
         {matchQualityStats.total > 0 ? (
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginTop: 16 }}>
+          <div style={matchQualityRowStyle}>
             {[
               { label: 'Dominant (6-0 set)', count: matchQualityStats.dominant, color: '#d9f84a', bg: 'rgba(155,225,29,0.10)', border: 'rgba(155,225,29,0.20)' },
               { label: 'Tiebreak (7-6 set)', count: matchQualityStats.tiebreak, color: '#fed7aa', bg: 'rgba(251,146,60,0.10)', border: 'rgba(251,146,60,0.20)' },
               { label: '3-set battles', count: matchQualityStats.threeSets, color: '#93c5fd', bg: 'rgba(116,190,255,0.10)', border: 'rgba(116,190,255,0.20)' },
               { label: 'Missing scores', count: matchQualityStats.missingScore, color: matchQualityStats.missingScore > 0 ? '#fca5a5' : 'var(--shell-copy-muted)', bg: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', border: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.08)' },
             ].map((item) => (
-              <div key={item.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 999, background: item.bg, border: `1px solid ${item.border}` }}>
-                <span style={{ fontSize: 15, fontWeight: 900, color: item.color }}>{item.count}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--shell-copy-muted)' }}>{item.label}</span>
+              <div key={item.label} style={{ ...matchQualityPillStyle, background: item.bg, border: `1px solid ${item.border}` }}>
+                <span style={{ fontSize: 15, fontWeight: 900, color: item.color, overflowWrap: 'anywhere' }}>{item.count}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--shell-copy-muted)', overflowWrap: 'anywhere' }}>{item.label}</span>
               </div>
             ))}
           </div>
@@ -784,7 +784,7 @@ export default function LeagueDetailPage() {
             <>
               {topPerformers.length > 0 ? (
                 <section style={{ marginBottom: 24 }}>
-                  <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 14 }}>Top performers</div>
+                  <div style={topPerformerSectionLabelStyle}>Top performers</div>
                   <div style={topPerformerGridStyle}>
                     {topPerformers.map((p, i) => {
                       const winPct = p.appearances > 0 ? Math.round((p.wins / p.appearances) * 100) : 0
@@ -894,11 +894,11 @@ export default function LeagueDetailPage() {
                       <div style={cardGlow} />
 
                       <div style={dynamicTeamTop}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <div style={teamCardCopyStyle}>
+                          <div style={teamRankRowStyle}>
                             <div style={teamRank}>#{index + 1}</div>
                             {isLeader && team.wins > 0 ? (
-                              <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(155,225,29,0.10)', border: '1px solid rgba(155,225,29,0.20)', color: '#d9f84a', fontSize: 11, fontWeight: 800 }}>League leader</span>
+                              <span style={teamLeaderPillStyle}>League leader</span>
                             ) : null}
                           </div>
                           <div style={teamName}>{team.name}</div>
@@ -920,13 +920,13 @@ export default function LeagueDetailPage() {
 
                       {team.completedMatches > 0 ? (
                         <div style={{ marginBottom: 12 }}>
-                          <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 8, background: 'rgba(255,255,255,0.06)', marginBottom: 5 }}>
+                          <div style={teamWinBarStyle}>
                             <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.7),rgba(74,222,128,0.7))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
                             <div style={{ flex: 1, background: 'rgba(239,68,68,0.25)' }} />
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(155,225,29,0.8)' }}>{winPct}% W</span>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(239,68,68,0.7)' }}>{100 - winPct}% L</span>
+                          <div style={teamWinBarLegendStyle}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(155,225,29,0.8)', overflowWrap: 'anywhere' }}>{winPct}% W</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(239,68,68,0.7)', overflowWrap: 'anywhere' }}>{100 - winPct}% L</span>
                           </div>
                         </div>
                       ) : null}
@@ -1207,6 +1207,8 @@ const seasonToolsCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const seasonToolsLabel: CSSProperties = {
@@ -1216,6 +1218,7 @@ const seasonToolsLabel: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const seasonToolsValue: CSSProperties = {
@@ -1225,6 +1228,7 @@ const seasonToolsValue: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const seasonToolsText: CSSProperties = {
@@ -1233,6 +1237,7 @@ const seasonToolsText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const seasonToolsActions: CSSProperties = {
@@ -1240,6 +1245,7 @@ const seasonToolsActions: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
+  minWidth: 0,
 }
 
 const seasonToolsQuickActionGrid: CSSProperties = {
@@ -1247,6 +1253,7 @@ const seasonToolsQuickActionGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const seasonQuickActionButton: CSSProperties = {
@@ -1262,6 +1269,11 @@ const seasonQuickActionButton: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 700,
   fontSize: '13px',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const ghostButton: CSSProperties = {
@@ -1277,16 +1289,25 @@ const ghostButton: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const miniPillBase: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
+  minWidth: 0,
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
   fontSize: '12px',
   fontWeight: 800,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const miniPillSlate: CSSProperties = {
@@ -1304,6 +1325,7 @@ const miniPillGreen: CSSProperties = {
 const metricGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
+  minWidth: 0,
 }
 
 const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
@@ -1320,6 +1342,7 @@ const signalCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const signalLabelStyle: CSSProperties = {
@@ -1328,6 +1351,7 @@ const signalLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const signalValueStyle: CSSProperties = {
@@ -1336,6 +1360,7 @@ const signalValueStyle: CSSProperties = {
   fontSize: '1.28rem',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -1343,6 +1368,7 @@ const signalNoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontSize: '.94rem',
+  overflowWrap: 'anywhere',
 }
 
 const metricCard: CSSProperties = {
@@ -1366,6 +1392,7 @@ const metricLabel: CSSProperties = {
   fontWeight: 750,
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
 }
 
 const metricValue: CSSProperties = {
@@ -1375,6 +1402,7 @@ const metricValue: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const panelCard: CSSProperties = {
@@ -1391,6 +1419,7 @@ const leagueDiscoveryPanelStyle: CSSProperties = {
   display: 'grid',
   gap: '16px',
   marginTop: '18px',
+  minWidth: 0,
 }
 
 const leagueDiscoveryHeaderStyle: CSSProperties = {
@@ -1398,6 +1427,7 @@ const leagueDiscoveryHeaderStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: '14px',
   alignItems: 'end',
+  minWidth: 0,
 }
 
 const leagueDiscoveryCopyStyle: CSSProperties = {
@@ -1406,6 +1436,7 @@ const leagueDiscoveryCopyStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const leagueDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
@@ -1426,6 +1457,7 @@ const leagueDiscoveryCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--card-border-soft)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
 }
 
 const leagueDiscoveryLabelStyle: CSSProperties = {
@@ -1434,6 +1466,7 @@ const leagueDiscoveryLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const leagueDiscoveryCardTitleStyle: CSSProperties = {
@@ -1442,6 +1475,7 @@ const leagueDiscoveryCardTitleStyle: CSSProperties = {
   lineHeight: 1.14,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leagueDiscoveryCardTextStyle: CSSProperties = {
@@ -1449,6 +1483,7 @@ const leagueDiscoveryCardTextStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.6,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const leagueDiscoveryCtaStyle: CSSProperties = {
@@ -1456,6 +1491,7 @@ const leagueDiscoveryCtaStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const stateBox: CSSProperties = {
@@ -1469,6 +1505,8 @@ const stateBox: CSSProperties = {
   fontWeight: 600,
   textAlign: 'center',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const errorBox: CSSProperties = {
@@ -1479,6 +1517,8 @@ const errorBox: CSSProperties = {
   color: '#fecaca',
   fontWeight: 700,
   fontSize: '14px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stateHelperText: CSSProperties = {
@@ -1487,6 +1527,7 @@ const stateHelperText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const stateActionRow: CSSProperties = {
@@ -1495,6 +1536,7 @@ const stateActionRow: CSSProperties = {
   justifyContent: 'center',
   gap: '10px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionHead: CSSProperties = {
@@ -1503,6 +1545,7 @@ const sectionHead: CSSProperties = {
   gap: '16px',
   flexWrap: 'wrap',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const sectionKicker: CSSProperties = {
@@ -1512,6 +1555,7 @@ const sectionKicker: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '8px',
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitle: CSSProperties = {
@@ -1520,6 +1564,7 @@ const sectionTitle: CSSProperties = {
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionSub: CSSProperties = {
@@ -1528,11 +1573,13 @@ const sectionSub: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const teamGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
+  minWidth: 0,
 }
 
 const teamCard: CSSProperties = {
@@ -1564,6 +1611,7 @@ const teamTop: CSSProperties = {
   gap: '12px',
   alignItems: 'flex-start',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const teamCardActionRow: CSSProperties = {
@@ -1571,6 +1619,21 @@ const teamCardActionRow: CSSProperties = {
   gap: '8px',
   flexWrap: 'wrap',
   justifyContent: 'flex-end',
+  minWidth: 0,
+}
+
+const teamCardCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamRankRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  marginBottom: 4,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const teamRank: CSSProperties = {
@@ -1581,6 +1644,20 @@ const teamRank: CSSProperties = {
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
   marginBottom: '8px',
+  overflowWrap: 'anywhere',
+}
+
+const teamLeaderPillStyle: CSSProperties = {
+  padding: '2px 8px',
+  borderRadius: 999,
+  background: 'rgba(155,225,29,0.10)',
+  border: '1px solid rgba(155,225,29,0.20)',
+  color: '#d9f84a',
+  fontSize: 11,
+  fontWeight: 800,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const teamName: CSSProperties = {
@@ -1598,6 +1675,35 @@ const teamRecord: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.5,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const teamWinBarStyle: CSSProperties = {
+  display: 'flex',
+  borderRadius: 999,
+  overflow: 'hidden',
+  height: 8,
+  background: 'rgba(255,255,255,0.06)',
+  marginBottom: 5,
+  minWidth: 0,
+}
+
+const teamWinBarLegendStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const topPerformerSectionLabelStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontWeight: 800,
+  fontSize: 12,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: 14,
+  overflowWrap: 'anywhere',
 }
 
 const topPerformerMetaStyle: CSSProperties = {
@@ -1784,6 +1890,7 @@ const standingsTeamCellContentStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
+  flexWrap: 'wrap',
   minWidth: 0,
 }
 
@@ -1811,6 +1918,10 @@ const primaryButton: CSSProperties = {
   textDecoration: 'none',
   whiteSpace: 'normal',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  maxWidth: '100%',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const tableActionLink: CSSProperties = {
@@ -1827,11 +1938,15 @@ const tableActionLink: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   whiteSpace: 'normal',
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const miniGrid: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const miniStatCard: CSSProperties = {
@@ -1847,6 +1962,7 @@ const miniStatLabel: CSSProperties = {
   fontSize: '12px',
   fontWeight: 700,
   marginBottom: '6px',
+  overflowWrap: 'anywhere',
 }
 
 const miniStatValue: CSSProperties = {
@@ -1860,6 +1976,7 @@ const miniStatValue: CSSProperties = {
 const filterWrap: CSSProperties = {
   width: '260px',
   maxWidth: '100%',
+  minWidth: 0,
 }
 
 const inputLabel: CSSProperties = {
@@ -1870,6 +1987,7 @@ const inputLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const selectStyle: CSSProperties = {
@@ -1899,12 +2017,17 @@ const clearFilterButton: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const matchList: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '14px',
+  minWidth: 0,
 }
 
 const matchCard: CSSProperties = {
@@ -1913,6 +2036,7 @@ const matchCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const matchTop: CSSProperties = {
@@ -1920,6 +2044,7 @@ const matchTop: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'flex-start',
+  minWidth: 0,
 }
 
 const matchTitle: CSSProperties = {
@@ -1938,6 +2063,7 @@ const matchMeta: CSSProperties = {
   fontWeight: 500,
   marginTop: '6px',
   textTransform: 'capitalize',
+  overflowWrap: 'anywhere',
 }
 
 const winnerPill: CSSProperties = {
@@ -1954,6 +2080,10 @@ const winnerPill: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.02em',
   whiteSpace: 'normal',
+  maxWidth: '100%',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const matchBottom: CSSProperties = {
@@ -1964,6 +2094,7 @@ const matchBottom: CSSProperties = {
   marginTop: '14px',
   paddingTop: '14px',
   borderTop: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const scoreText: CSSProperties = {
@@ -1971,6 +2102,7 @@ const scoreText: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.2,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const subMeta: CSSProperties = {
@@ -1978,6 +2110,27 @@ const subMeta: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
+}
+
+const matchQualityRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  marginTop: 16,
+  minWidth: 0,
+}
+
+const matchQualityPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '7px 12px',
+  borderRadius: 999,
+  maxWidth: '100%',
+  minWidth: 0,
+  flexWrap: 'wrap',
+  overflowWrap: 'anywhere',
 }
 
 function GhostLink({ href, children }: { href: string; children: ReactNode }) {
