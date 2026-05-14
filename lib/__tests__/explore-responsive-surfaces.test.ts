@@ -303,6 +303,7 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(teamDetailSource, 'teamStatusPill')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamDetailSource, 'summaryCard')).toContain('minWidth: 0')
     expect(styleBlock(teamDetailSource, 'summaryMetricGrid')).toContain('minWidth: 0')
+    expect(styleBlock(teamDetailSource, 'summaryMetricGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
     expect(styleBlock(teamDetailSource, 'summaryMetricCard')).toContain('minWidth: 0')
     expect(styleBlock(teamDetailSource, 'surfaceCard')).toContain('minWidth: 0')
     expect(styleBlock(teamDetailSource, 'teamDiscoveryHeaderStyle')).toContain('minWidth: 0')
