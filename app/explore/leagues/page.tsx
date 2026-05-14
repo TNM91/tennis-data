@@ -552,6 +552,7 @@ const heroGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))',
   gap: '24px',
+  minWidth: 0,
 }
 
 const eyebrowStyle: CSSProperties = {
@@ -560,6 +561,7 @@ const eyebrowStyle: CSSProperties = {
   letterSpacing: '0.18em',
   textTransform: 'uppercase',
   color: 'rgba(155,225,29,0.88)',
+  overflowWrap: 'anywhere',
 }
 
 const titleStyle: CSSProperties = {
@@ -578,6 +580,7 @@ const descriptionStyle: CSSProperties = {
   fontSize: '17px',
   lineHeight: 1.8,
   color: 'rgba(214,228,246,0.78)',
+  overflowWrap: 'anywhere',
 }
 
 const heroPillRowStyle: CSSProperties = {
@@ -585,6 +588,7 @@ const heroPillRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '18px',
+  minWidth: 0,
 }
 
 const exploreNavRowStyle: CSSProperties = {
@@ -592,6 +596,7 @@ const exploreNavRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '12px',
+  minWidth: 0,
 }
 
 const exploreNavLinkStyle: CSSProperties = {
@@ -607,11 +612,18 @@ const exploreNavLinkStyle: CSSProperties = {
   textDecoration: 'none',
   fontSize: '13px',
   fontWeight: 800,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const heroPillBlueStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
+  minWidth: 0,
   minHeight: '34px',
   padding: '0 14px',
   borderRadius: '999px',
@@ -619,6 +631,8 @@ const heroPillBlueStyle: CSSProperties = {
   color: '#dfeeff',
   fontSize: '13px',
   fontWeight: 700,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroPillGreenStyle: CSSProperties = {
@@ -634,6 +648,8 @@ const heroPanelStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroPanelLabelStyle: CSSProperties = {
@@ -642,6 +658,7 @@ const heroPanelLabelStyle: CSSProperties = {
   letterSpacing: '0.16em',
   textTransform: 'uppercase',
   color: 'rgba(116,190,255,0.82)',
+  overflowWrap: 'anywhere',
 }
 
 const heroPanelValueStyle: CSSProperties = {
@@ -650,6 +667,7 @@ const heroPanelValueStyle: CSSProperties = {
   lineHeight: 1.15,
   fontWeight: 800,
   color: '#f4f9ff',
+  overflowWrap: 'anywhere',
 }
 
 const heroPanelTextStyle: CSSProperties = {
@@ -657,6 +675,7 @@ const heroPanelTextStyle: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.8,
   color: 'rgba(214,228,246,0.74)',
+  overflowWrap: 'anywhere',
 }
 
 const filterBarStyle: CSSProperties = {
@@ -672,12 +691,14 @@ const filterBarStyle: CSSProperties = {
 const searchGroupStyle: CSSProperties = {
   display: 'grid',
   gap: '8px',
+  minWidth: 0,
 }
 
 const labelStyle: CSSProperties = {
   color: '#f4f9ff',
   fontSize: '13px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const inputStyle: CSSProperties = {
@@ -697,6 +718,7 @@ const layerToggleGroupStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   alignItems: 'end',
+  minWidth: 0,
 }
 
 const toggleStyle: CSSProperties = {
@@ -708,6 +730,11 @@ const toggleStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 700,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const toggleActiveStyle: CSSProperties = {
@@ -728,6 +755,8 @@ const noticeStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.7,
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionStyle: CSSProperties = {
@@ -738,6 +767,7 @@ const sectionStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -745,6 +775,7 @@ const sectionHeaderStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
   gap: '22px',
   alignItems: 'end',
+  minWidth: 0,
 }
 
 const sectionEyebrowStyle: CSSProperties = {
@@ -753,6 +784,7 @@ const sectionEyebrowStyle: CSSProperties = {
   letterSpacing: '0.16em',
   textTransform: 'uppercase',
   color: 'rgba(116,190,255,0.82)',
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitleStyle: CSSProperties = {
@@ -761,6 +793,7 @@ const sectionTitleStyle: CSSProperties = {
   lineHeight: 1.05,
   letterSpacing: 0,
   color: '#f4f9ff',
+  overflowWrap: 'anywhere',
 }
 
 const sectionDescriptionStyle: CSSProperties = {
@@ -768,6 +801,7 @@ const sectionDescriptionStyle: CSSProperties = {
   color: 'rgba(214,228,246,0.72)',
   fontSize: '15px',
   lineHeight: 1.8,
+  overflowWrap: 'anywhere',
 }
 
 const gridStyle: CSSProperties = {
@@ -795,11 +829,14 @@ const cardMetaRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '8px',
+  minWidth: 0,
 }
 
 const metaBlueStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
+  minWidth: 0,
   minHeight: '28px',
   padding: '0 10px',
   borderRadius: '999px',
@@ -809,6 +846,8 @@ const metaBlueStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const metaGreenStyle: CSSProperties = {
@@ -833,6 +872,7 @@ const cardSubtitleStyle: CSSProperties = {
   color: 'rgba(214,228,246,0.72)',
   fontSize: '14px',
   lineHeight: 1.75,
+  overflowWrap: 'anywhere',
 }
 
 const miniStatsStyle: CSSProperties = {
@@ -842,12 +882,15 @@ const miniStatsStyle: CSSProperties = {
   color: 'rgba(190,205,226,0.68)',
   fontSize: '13px',
   fontWeight: 700,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const formatPreviewStyle: CSSProperties = {
   color: 'rgba(214,228,246,0.76)',
   fontSize: '13px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const cardCtaStyle: CSSProperties = {
@@ -857,6 +900,7 @@ const cardCtaStyle: CSSProperties = {
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
   color: 'rgba(155,225,29,0.88)',
+  overflowWrap: 'anywhere',
 }
 
 const individualSummaryStyle: CSSProperties = {
@@ -867,6 +911,8 @@ const individualSummaryStyle: CSSProperties = {
   color: 'rgba(228,238,252,0.84)',
   fontSize: '12px',
   lineHeight: 1.6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const emptyCardStyle: CSSProperties = {
@@ -875,12 +921,14 @@ const emptyCardStyle: CSSProperties = {
   borderRadius: '24px',
   border: '1px solid rgba(116,190,255,0.08)',
   background: 'rgba(9,18,35,0.84)',
+  minWidth: 0,
 }
 
 const emptyTitleStyle: CSSProperties = {
   fontSize: '20px',
   fontWeight: 800,
   color: '#f4f9ff',
+  overflowWrap: 'anywhere',
 }
 
 const emptyBodyStyle: CSSProperties = {
@@ -889,6 +937,7 @@ const emptyBodyStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.8,
   maxWidth: '760px',
+  overflowWrap: 'anywhere',
 }
 
 const emptyActionRowStyle: CSSProperties = {
@@ -896,6 +945,7 @@ const emptyActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '16px',
+  minWidth: 0,
 }
 
 const ghostButtonStyle: CSSProperties = {
@@ -910,6 +960,11 @@ const ghostButtonStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontWeight: 700,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const stateStyle: CSSProperties = {
@@ -920,6 +975,8 @@ const stateStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   color: 'var(--foreground-strong)',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const errorStyle: CSSProperties = {
@@ -933,6 +990,7 @@ const upgradeGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: '16px',
   marginBottom: '24px',
+  minWidth: 0,
 }
 
 function GhostLink({ href, children }: { href: string; children: ReactNode }) {
