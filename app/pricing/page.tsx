@@ -878,6 +878,7 @@ const unlockPathHeaderStyle: CSSProperties = {
   gap: 14,
   alignItems: 'end',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const unlockPathTitleStyle: CSSProperties = {
@@ -887,6 +888,7 @@ const unlockPathTitleStyle: CSSProperties = {
   lineHeight: 1.08,
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const unlockPathGridStyle: CSSProperties = {

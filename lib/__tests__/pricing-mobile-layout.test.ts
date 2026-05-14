@@ -30,6 +30,8 @@ describe('pricing mobile layout guards', () => {
     expect(styleBlock('fitMatrixShellStyle')).toContain("WebkitOverflowScrolling: 'touch'")
     expect(styleBlock('fitMatrixShellStyle')).toContain("scrollbarWidth: 'thin'")
     expect(styleBlock('fitMatrixShellStyle')).toContain('minWidth: 0')
+    expect(styleBlock('unlockPathHeaderStyle')).toContain('minWidth: 0')
+    expect(styleBlock('unlockPathHeaderStyle')).toContain("flexWrap: 'wrap'")
 
     for (const styleName of [
       'fitMatrixHeaderStyle',
@@ -53,6 +55,7 @@ describe('pricing mobile layout guards', () => {
       'fitMatrixCellStyle',
       'fitMatrixPositiveStyle',
       'fitMatrixIncludedStyle',
+      'unlockPathTitleStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
     }
