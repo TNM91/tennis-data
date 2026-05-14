@@ -2887,7 +2887,7 @@ const toolHeaderTextStyle: CSSProperties = {
 
 const identitySetupStripStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '56px minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 3.5rem) minmax(0, 1fr) minmax(0, 10rem)',
   gap: 14,
   alignItems: 'center',
   minWidth: 0,
@@ -2897,6 +2897,7 @@ const identitySetupStripStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
   background:
     'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, transparent), transparent 60%), var(--shell-chip-bg)',
+  overflowWrap: 'anywhere',
 }
 
 const identitySetupCopyStyle: CSSProperties = {
