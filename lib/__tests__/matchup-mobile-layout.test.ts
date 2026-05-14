@@ -38,7 +38,10 @@ describe('matchup mobile layout guards', () => {
     expect(styleBlock('heroWrap')).toContain('minWidth: 0')
     expect(styleBlock('engineCard')).toContain('minWidth: 0')
     expect(functionBlock('dynamicHeroContent')).toContain("isTablet ? 'minmax(0, 1fr)'")
-    expect(functionBlock('dynamicCompareGrid')).toContain("isTablet ? 'minmax(0, 1fr)'")
+    expect(functionBlock('dynamicCompareGrid')).toContain('gridTemplateColumns: isTablet')
+    expect(functionBlock('dynamicCompareGrid')).toContain("? 'minmax(0, 1fr)'")
+    expect(functionBlock('dynamicCompareGrid')).toContain("minmax(min(100%, 180px), 220px)")
+    expect(functionBlock('dynamicCompareGrid')).not.toContain("'minmax(0, 1fr) 220px minmax(0, 1fr)'")
   })
 
   it('keeps long matchup names and head-to-head rows from forcing overflow', () => {
@@ -60,6 +63,7 @@ describe('matchup mobile layout guards', () => {
       'doublesPreviewGridStyle',
       'suggestionGrid',
       'prepReadGrid',
+      'compareGrid',
       'ratingGrid',
       'metricGrid',
     ].forEach((styleName) => {
@@ -96,8 +100,11 @@ describe('matchup mobile layout guards', () => {
     })
 
     expect(styleBlock('emptyState')).toContain('minWidth: 0')
+    expect(styleBlock('compareCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('centerColumn')).toContain("maxWidth: '100%'")
     expect(styleBlock('gapCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('vsBadge')).toContain("flex: '0 0 auto'")
+    expect(styleBlock('vsBadge')).toContain("maxWidth: '100%'")
     expect(styleBlock('toolHeaderTitleClusterStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('handoffTitleClusterStyle')).toContain("flexWrap: 'wrap'")
     expect(functionBlock('CopyLinkButton')).toContain("maxWidth: '100%'")
