@@ -39,8 +39,13 @@ describe('League result workspace mobile layout guards', () => {
 
     expect(styleBlock(teamSource, 'flowStep')).toContain("gridTemplateColumns: '32px minmax(0, 1fr)'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(teamSource, 'btnPrimary')).toContain("color: 'var(--foreground-strong)'")
+    expect(styleBlock(teamSource, 'btnPrimary')).toContain('color-mix(in srgb, var(--brand-green)')
+    expect(styleBlock(teamSource, 'lineCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(teamSource, 'scorekeeperTile')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'pill')).toContain("whiteSpace: 'normal'")
     expect(teamSource).toContain("gap: 8, marginTop: 8, flexWrap: 'wrap', minWidth: 0")
+    expect(teamSource).not.toContain("color: '#0a0a0a'")
   })
 
   it('keeps individual result forms, standings, and review cards mobile-safe', () => {
@@ -74,7 +79,12 @@ describe('League result workspace mobile layout guards', () => {
 
     expect(styleBlock(individualSource, 'flowStep')).toContain("gridTemplateColumns: '32px minmax(0, 1fr)'")
     expect(styleBlock(individualSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(individualSource, 'btnPrimary')).toContain("color: 'var(--foreground-strong)'")
+    expect(styleBlock(individualSource, 'scorekeeperTile')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'btnSecondary')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(individualSource, 'resultCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'resultTitle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(individualSource, 'metricStack')).toContain("overflowWrap: 'anywhere'")
+    expect(individualSource).not.toContain("color: '#0a0a0a'")
   })
 })

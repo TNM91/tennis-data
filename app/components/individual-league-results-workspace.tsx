@@ -106,17 +106,18 @@ const textareaStyle: CSSProperties = { ...inputStyle, minHeight: 82, resize: 've
 const btnPrimary: CSSProperties = {
   padding: '9px 18px',
   borderRadius: 8,
-  background: '#9be11d',
-  color: '#0a0a0a',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: 14,
-  border: 'none',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   cursor: 'pointer',
   whiteSpace: 'normal',
   minWidth: 0,
   maxWidth: '100%',
   overflowWrap: 'anywhere',
   textAlign: 'center',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 const btnSecondary: CSSProperties = {
   padding: '8px 12px',
@@ -153,6 +154,7 @@ const scorekeeperTile: CSSProperties = {
   border: '1px solid rgba(124,167,255,0.14)',
   background: 'rgba(255,255,255,0.055)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
 const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05, overflowWrap: 'anywhere' }
@@ -251,6 +253,7 @@ const resultCard: CSSProperties = {
   alignItems: 'flex-start',
   flexWrap: 'wrap',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 const resultTitle: CSSProperties = { color: '#f8fbff', fontSize: 15, fontWeight: 850, marginBottom: 5, overflowWrap: 'anywhere' }
 const resultMeta: CSSProperties = { color: '#94a3b8', fontSize: 13, lineHeight: 1.5, overflowWrap: 'anywhere' }
@@ -288,7 +291,7 @@ const standingRank: CSSProperties = {
 }
 const standingName: CSSProperties = { color: '#f8fbff', fontWeight: 850, fontSize: 14, minWidth: 0, overflowWrap: 'anywhere' }
 const standingSubtext: CSSProperties = { color: '#94a3b8', fontSize: 12, marginTop: 3, overflowWrap: 'anywhere' }
-const metricStack: CSSProperties = { display: 'grid', gap: 5, justifyItems: 'end', color: '#dbeafe', fontSize: 12, fontWeight: 800, minWidth: 0 }
+const metricStack: CSSProperties = { display: 'grid', gap: 5, justifyItems: 'end', color: '#dbeafe', fontSize: 12, fontWeight: 800, minWidth: 0, overflowWrap: 'anywhere' }
 const emptyCard: CSSProperties = {
   ...card,
   color: '#94a3b8',
