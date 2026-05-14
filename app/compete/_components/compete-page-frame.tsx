@@ -388,6 +388,7 @@ function SubnavLink({ href, label }: { href: string; label: string }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
         gap: '12px',
         minWidth: 0,
         padding: '0 18px',
@@ -400,7 +401,7 @@ function SubnavLink({ href, label }: { href: string; label: string }) {
       }}
     >
       <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{label}</span>
-      <span style={{ opacity: 0.58, flexShrink: 0 }}>{'\u2192'}</span>
+      <span style={{ opacity: 0.58, flexShrink: 0, overflowWrap: 'anywhere' }}>{'\u2192'}</span>
     </Link>
   )
 }
@@ -519,5 +520,7 @@ const cardCtaStyle: CSSProperties = {
   fontSize: '13px',
   fontWeight: 800,
   letterSpacing: '0.02em',
+  maxWidth: '100%',
   overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }

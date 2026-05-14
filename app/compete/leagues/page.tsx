@@ -439,6 +439,7 @@ const rowActionStackStyle = {
   justifyContent: 'flex-end',
   flexWrap: 'wrap',
   gap: '8px',
+  minWidth: 0,
 } as const
 
 const rowMetaStrongStyle = {
@@ -453,5 +454,7 @@ const rowLinkStyle = {
   fontSize: '13px',
   fontWeight: 800,
   textDecoration: 'none',
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
   whiteSpace: 'normal',
 } as const

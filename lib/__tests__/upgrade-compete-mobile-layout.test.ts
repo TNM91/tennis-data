@@ -7,9 +7,12 @@ const competeFrameSource = readFileSync(
   join(process.cwd(), 'app/compete/_components/compete-page-frame.tsx'),
   'utf8',
 )
+const competeLeaguesSource = readFileSync(join(process.cwd(), 'app/compete/leagues/page.tsx'), 'utf8')
+const competeResultsSource = readFileSync(join(process.cwd(), 'app/compete/results/page.tsx'), 'utf8')
+const competeScheduleSource = readFileSync(join(process.cwd(), 'app/compete/schedule/page.tsx'), 'utf8')
 
 function styleBlock(source: string, styleName: string) {
-  const pattern = new RegExp(`const ${styleName}: CSSProperties = ([\\s\\S]*?)(?=\\nconst |\\nfunction |\\nexport |$)`)
+  const pattern = new RegExp(`const ${styleName}(?:: CSSProperties)? = ([\\s\\S]*?)(?=\\nconst |\\nfunction |\\nexport |$)`)
   const match = source.match(pattern)
   if (!match) throw new Error(`Missing style block: ${styleName}`)
   return match[0]
@@ -80,5 +83,22 @@ describe('upgrade and compete mobile layout guards', () => {
     }
 
     expect(competeFrameSource).toContain("<span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{label}</span>")
+    expect(competeFrameSource).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(competeFrameSource, 'cardCtaStyle')).toContain("whiteSpace: 'normal'")
+  })
+
+  it('keeps compete action rows and links shrink-safe', () => {
+    for (const source of [competeLeaguesSource, competeResultsSource]) {
+      expect(styleBlock(source, 'rowActionStackStyle')).toContain('minWidth: 0')
+      expect(styleBlock(source, 'rowLinkStyle')).toContain("maxWidth: '100%'")
+      expect(styleBlock(source, 'rowLinkStyle')).toContain("overflowWrap: 'anywhere'")
+      expect(styleBlock(source, 'rowLinkStyle')).toContain("whiteSpace: 'normal'")
+    }
+
+    expect(styleBlock(competeScheduleSource, 'supportActionRowStyle')).toContain('minWidth: 0')
+    expect(styleBlock(competeScheduleSource, 'prepActionRowStyle')).toContain('minWidth: 0')
+    expect(styleBlock(competeScheduleSource, 'prepLinkStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(competeScheduleSource, 'prepLinkStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(competeScheduleSource, 'prepLinkStyle')).toContain("whiteSpace: 'normal'")
   })
 })

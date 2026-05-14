@@ -354,6 +354,7 @@ const supportActionRowStyle = {
   gap: '8px',
   flexWrap: 'wrap',
   marginTop: '10px',
+  minWidth: 0,
 } as const
 
 const teamPrepStackStyle = {
@@ -380,12 +381,14 @@ const prepActionRowStyle = {
   flexWrap: 'wrap',
   justifyContent: 'flex-end',
   gap: '8px',
+  minWidth: 0,
 } as const
 
 const prepLinkStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  maxWidth: '100%',
   minHeight: '30px',
   padding: '0 10px',
   borderRadius: '999px',
@@ -396,6 +399,7 @@ const prepLinkStyle = {
   fontSize: '12px',
   fontWeight: 850,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
   whiteSpace: 'normal',
   transition: 'transform 160ms ease, border-color 160ms ease, color 160ms ease',
 } as const
