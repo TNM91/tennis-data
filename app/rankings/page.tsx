@@ -2487,6 +2487,7 @@ const tableWrap: CSSProperties = {
   minWidth: 0,
   WebkitOverflowScrolling: 'touch',
   overscrollBehaviorX: 'contain',
+  scrollbarWidth: 'thin',
 }
 
 const compactLeaderboardStyle: CSSProperties = {
@@ -2815,6 +2816,7 @@ const distributionTrack: CSSProperties = {
   borderRadius: 999,
   overflow: 'hidden',
   background: 'color-mix(in srgb, var(--foreground-strong) 6%, transparent)',
+  minWidth: 0,
 }
 
 const distributionFill: CSSProperties = {
