@@ -4303,6 +4303,7 @@ const matchPlanTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const performanceGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -4456,13 +4457,18 @@ const tiqActionLabelStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: 0,
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tiqActionMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   fontWeight: 850,
+  maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tiqActionTitleStyle: CSSProperties = {
@@ -4470,6 +4476,7 @@ const tiqActionTitleStyle: CSSProperties = {
   fontSize: '1rem',
   lineHeight: 1.25,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const tiqActionTextStyle: CSSProperties = {
@@ -4477,6 +4484,7 @@ const tiqActionTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const tiqActionButtonRowStyle: CSSProperties = {
@@ -4485,6 +4493,7 @@ const tiqActionButtonRowStyle: CSSProperties = {
   gap: 8,
   alignItems: 'center',
   marginTop: 4,
+  minWidth: 0,
 }
 
 const smallInlineLinkStyle: CSSProperties = {
@@ -4492,7 +4501,9 @@ const smallInlineLinkStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   textDecoration: 'none',
+  maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const teamPrepRailStyle: CSSProperties = {
@@ -4540,6 +4551,7 @@ const teamPrepMetaStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 800,
   lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const teamPrepActionRowStyle: CSSProperties = {
@@ -5319,6 +5331,7 @@ const filterRowStyle: CSSProperties = {
   display: 'flex',
   gap: 8,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const tabButtonStyle: CSSProperties = {
@@ -5330,6 +5343,9 @@ const tabButtonStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 700,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tabActiveStyle: CSSProperties = {
@@ -5342,6 +5358,7 @@ const tabActiveStyle: CSSProperties = {
 const searchResultsStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
 }
 
 const searchResultItemStyle: CSSProperties = {
@@ -5354,17 +5371,21 @@ const searchResultItemStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const searchResultTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const searchResultMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   marginTop: 4,
+  overflowWrap: 'anywhere',
 }
 
 const primaryMiniButtonStyle: CSSProperties = {
@@ -5432,6 +5453,7 @@ const feedListStyle: CSSProperties = {
   maxHeight: 640,
   overflowY: 'auto',
   paddingRight: 6,
+  minWidth: 0,
 }
 
 const feedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
@@ -5444,6 +5466,8 @@ const feedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
       : accent === 'violet'
         ? 'color-mix(in srgb, #7762ff 10%, var(--shell-panel-bg) 90%)'
         : 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-panel-bg) 90%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const feedTopRowStyle: CSSProperties = {
@@ -5452,11 +5476,14 @@ const feedTopRowStyle: CSSProperties = {
   alignItems: 'center',
   gap: 12,
   marginBottom: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const feedTimeStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
+  overflowWrap: 'anywhere',
 }
 
 const feedTitleStyle: CSSProperties = {
@@ -5465,12 +5492,14 @@ const feedTitleStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: 20,
   lineHeight: 1.2,
+  overflowWrap: 'anywhere',
 }
 
 const feedBodyStyle: CSSProperties = {
   margin: '10px 0 0 0',
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const feedMetaRowStyle: CSSProperties = {
@@ -5486,6 +5515,9 @@ const feedLinkStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 800,
   textDecoration: 'none',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const pillSlateStyle: CSSProperties = {
@@ -5499,6 +5531,9 @@ const pillSlateStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   border: '1px solid var(--shell-panel-border)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const pillGreenStyle: CSSProperties = {
@@ -5539,29 +5574,34 @@ const summaryGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const collectionsStackStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
+  minWidth: 0,
 }
 
 const manageFollowsHeaderStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
   paddingTop: 4,
+  minWidth: 0,
 }
 
 const supportTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 18,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const supportTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const summaryCardStyle: CSSProperties = {
@@ -5569,6 +5609,7 @@ const summaryCardStyle: CSSProperties = {
   padding: 14,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const summaryValueStyle: CSSProperties = {
@@ -5576,12 +5617,14 @@ const summaryValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: 26,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const insightStackStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   marginTop: 14,
+  minWidth: 0,
 }
 
 const insightCardStyle: CSSProperties = {
@@ -5589,22 +5632,27 @@ const insightCardStyle: CSSProperties = {
   padding: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const insightTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   marginBottom: 6,
+  overflowWrap: 'anywhere',
 }
 
 const insightTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const followListStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const followCardStyle: CSSProperties = {
@@ -5616,16 +5664,21 @@ const followCardStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const followNameStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const followMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   marginTop: 4,
+  overflowWrap: 'anywhere',
 }
 
