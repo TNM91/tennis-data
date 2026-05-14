@@ -96,6 +96,10 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(rankingsSource, 'heroContent')).toContain('minWidth: 0')
     expect(styleBlock(rankingsSource, 'controlsGrid')).toContain('minWidth: 0')
     expect(styleBlock(rankingsSource, 'podiumGrid')).toContain('minWidth: 0')
+    expect(styleBlock(rankingsSource, 'summaryStatsGrid')).toContain('minWidth: 0')
+    expect(styleBlock(rankingsSource, 'summaryStatsGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(styleBlock(rankingsSource, 'chipStatLabel')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(rankingsSource, 'chipStatValue')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps rankings insight panels and table actions mobile-safe', () => {

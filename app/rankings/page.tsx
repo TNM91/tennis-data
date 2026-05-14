@@ -2234,8 +2234,9 @@ const errorBanner: CSSProperties = {
 
 const summaryStatsGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const chipStat: CSSProperties = {
@@ -2258,6 +2259,7 @@ const chipStatLabel: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '6px',
+  overflowWrap: 'anywhere',
 }
 
 const chipStatValue: CSSProperties = {
@@ -2265,6 +2267,7 @@ const chipStatValue: CSSProperties = {
   fontSize: '20px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const contentWrap: CSSProperties = {
