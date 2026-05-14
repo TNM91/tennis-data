@@ -3521,7 +3521,7 @@ const labRoutineGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const labRoutineStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 2.125rem) minmax(0, 1fr)',
   gap: 12,
   minHeight: 144,
   padding: 14,
@@ -3530,6 +3530,7 @@ const labRoutineStepStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--shell-chip-bg) 92%, var(--shell-panel-bg-strong) 8%)',
   color: 'var(--foreground)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const labRoutineNumberStyle: CSSProperties = {
@@ -3778,7 +3779,7 @@ const labPlaybookGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 1.875rem) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
   minHeight: 132,
@@ -3793,6 +3794,7 @@ const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
   color: 'inherit',
   textDecoration: 'none',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const labPlaybookStepStyle = (complete: boolean): CSSProperties => ({
@@ -4087,7 +4089,7 @@ const matchupSpotlightStyle: CSSProperties = {
 
 const matchupSpotlightHeroStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 10rem)',
   alignItems: 'center',
   gap: 14,
   minWidth: 0,
@@ -4175,7 +4177,7 @@ const matchupQueueGridStyle = (isTablet: boolean): CSSProperties => ({
 const matchupQueueCardStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 2.125rem) minmax(0, 1fr) minmax(0, 4.5rem)',
   alignItems: 'center',
   gap: 10,
   minHeight: 104,
@@ -4188,6 +4190,7 @@ const matchupQueueCardStyle: CSSProperties = {
   textDecoration: 'none',
   overflow: 'hidden',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchupQueueRankStyle: CSSProperties = {
@@ -4887,7 +4890,7 @@ const goalEditorStyle: CSSProperties = {
 
 const workshopMatchRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 2.125rem) minmax(0, 1fr) minmax(0, 8rem)',
   gap: 10,
   alignItems: 'center',
   borderRadius: 14,
@@ -4895,6 +4898,7 @@ const workshopMatchRowStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   padding: '10px 12px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchActionStackStyle: CSSProperties = {
@@ -4985,7 +4989,7 @@ const workshopRowMetaStyle: CSSProperties = {
 
 const nextActionCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 2.125rem) minmax(0, 1fr) minmax(0, 8rem)',
   alignItems: 'center',
   gap: 12,
   borderRadius: 16,
@@ -4994,6 +4998,7 @@ const nextActionCardStyle: CSSProperties = {
   padding: 14,
   minHeight: 112,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const miniActionPillStyle: CSSProperties = {
