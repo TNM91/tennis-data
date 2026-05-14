@@ -118,7 +118,7 @@ const gridStyle: CSSProperties = {
 
 const linkStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '30px minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 1.875rem) minmax(0, 1fr) minmax(0, 3.5rem)',
   alignItems: 'center',
   gap: 12,
   minHeight: 56,
@@ -130,6 +130,7 @@ const linkStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--home-control-shadow)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stepStyle: CSSProperties = {
@@ -164,6 +165,8 @@ const linkArrowStyle: CSSProperties = {
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+  textAlign: 'right',
 }
 
 const tierRowStyle: CSSProperties = {
@@ -171,6 +174,7 @@ const tierRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const tierPillBase: CSSProperties = {
@@ -183,6 +187,10 @@ const tierPillBase: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tierPillGreen: CSSProperties = {
