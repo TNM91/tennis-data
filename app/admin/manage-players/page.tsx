@@ -485,7 +485,7 @@ export default function ManagePlayersPage() {
               </AdminEmptyState>
             ) : (
               <div className="table-wrap" style={{ marginTop: '20px' }}>
-                <table className="data-table" style={{ minWidth: 1250 }}>
+                <table className="data-table" style={{ minWidth: 'min(100%, 1250px)', tableLayout: 'auto' }}>
                   <thead>
                     <tr>
                       <th>Name</th>
@@ -511,7 +511,7 @@ export default function ManagePlayersPage() {
                             value={String(getPlayerValue(player, 'name') || '')}
                             onChange={(e) => updatePlayerField(player.id, 'name', e.target.value)}
                             className="input"
-                            style={{ minWidth: 180, padding: '10px 12px' }}
+                            style={{ minWidth: 'min(100%, 180px)', padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>
@@ -521,7 +521,7 @@ export default function ManagePlayersPage() {
                             value={String(getPlayerValue(player, 'location') || '')}
                             onChange={(e) => updatePlayerField(player.id, 'location', e.target.value)}
                             className="input"
-                            style={{ minWidth: 150, padding: '10px 12px' }}
+                            style={{ minWidth: 'min(100%, 150px)', padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>
