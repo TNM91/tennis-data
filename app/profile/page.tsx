@@ -805,7 +805,7 @@ const heroTextStyle: CSSProperties = {
 
 const toolFlowStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: isMobile ? 16 : 20,
   minWidth: 0,
@@ -991,7 +991,7 @@ const statusTextStyle: CSSProperties = {
 
 const miniGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 116px), 1fr))',
   gap: 10,
   minWidth: 0,
 }
@@ -1227,7 +1227,7 @@ const identityGridStyle = (isMobile: boolean): CSSProperties => ({
 
 const autoContextStripStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: isMobile ? 8 : 10,
   minWidth: 0,
 })
@@ -1343,7 +1343,7 @@ const errorStyle: CSSProperties = {
 
 const ratingTileGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
   minWidth: 0,
 }
