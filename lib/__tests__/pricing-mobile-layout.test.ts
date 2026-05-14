@@ -12,6 +12,18 @@ function styleBlock(styleName: string) {
 }
 
 describe('pricing mobile layout guards', () => {
+  it('keeps pricing icon-card grids bounded and shrinkable', () => {
+    expect(styleBlock('entitlementClarityCardStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 2.25rem) minmax(0, 1fr)'",
+    )
+    expect(styleBlock('entitlementClarityCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('unlockPathCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('unlockPathCardHeaderStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 2.75rem) minmax(0, 1fr)'",
+    )
+    expect(styleBlock('unlockPathCardHeaderStyle')).toContain('minWidth: 0')
+  })
+
   it('keeps the plan fit matrix scroll contained and text-safe', () => {
     expect(styleBlock('fitMatrixShellStyle')).toContain("overflowX: 'auto'")
     expect(styleBlock('fitMatrixShellStyle')).toContain("overscrollBehaviorX: 'contain'")
