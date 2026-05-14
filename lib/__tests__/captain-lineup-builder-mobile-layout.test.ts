@@ -33,6 +33,13 @@ describe('Captain lineup builder mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
+    expect(styleBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(styleBlock('heroShellResponsive')).toContain("'minmax(0, 1.3fr) minmax(0, 0.9fr)'")
+    expect(styleBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))'")
+    expect(styleBlock('builderLayoutResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(styleBlock('builderLayoutResponsive')).toContain("'repeat(3, minmax(0, 1fr))'")
+    expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr 1fr'")
     expect(styleBlock('workflowRowStyle')).toContain("gridTemplateColumns: '42px minmax(0, 1fr)'")
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")

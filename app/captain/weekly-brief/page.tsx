@@ -1023,8 +1023,9 @@ const pillStyle: CSSProperties = {
 
 const twoColumnGrid = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   gap: 20,
+  minWidth: 0,
 })
 
 const notesStack: CSSProperties = {
@@ -1096,8 +1097,9 @@ const infoValue: CSSProperties = {
 
 const lineupGrid = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
+  minWidth: 0,
 })
 
 const lineupCard: CSSProperties = {
