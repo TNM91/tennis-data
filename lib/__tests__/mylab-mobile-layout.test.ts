@@ -23,6 +23,7 @@ describe('My Lab mobile layout guards', () => {
       'teamPrepGridStyle',
       'teamPrepCardStyle',
       'teamPrepActionRowStyle',
+      'levelMeterScaleStyle',
       'matchPlanPanelStyle',
       'matchPlanGridStyle',
       'matchPlanCardStyle',
@@ -44,6 +45,7 @@ describe('My Lab mobile layout guards', () => {
     }
 
     expect(styleBlock('tiqActionLabelStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('levelMeterScaleStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('smallInlineLinkStyle')).toContain("maxWidth: '100%'")
   })
 

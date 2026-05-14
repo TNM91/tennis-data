@@ -3229,6 +3229,7 @@ const exportHelpToggleStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: 10,
+  flexWrap: 'wrap',
   cursor: 'pointer',
   font: 'inherit',
   fontSize: 13,

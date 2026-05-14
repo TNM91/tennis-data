@@ -3898,6 +3898,9 @@ const levelMeterScaleStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 900,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const levelProgressFillStyle = (value: number, hasProgress: boolean): CSSProperties => ({
