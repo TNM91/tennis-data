@@ -480,7 +480,7 @@ export default function LeagueDetailPage() {
 
   const dynamicMiniGrid: CSSProperties = {
     ...miniGrid,
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   }
 
   const dynamicMatchTop: CSSProperties = {
@@ -1251,7 +1251,7 @@ const seasonToolsActions: CSSProperties = {
 const seasonToolsQuickActionGrid: CSSProperties = {
   marginTop: '18px',
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 148px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
