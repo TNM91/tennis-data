@@ -2136,7 +2136,8 @@ const slotHeaderLeftStyle: CSSProperties = {
 
 const slotLabelInputStyle: CSSProperties = {
   ...inputStyle,
-  minWidth: '180px',
+  width: 'min(100%, 180px)',
+  minWidth: 0,
   maxWidth: '220px',
   height: '42px',
   fontWeight: 700,

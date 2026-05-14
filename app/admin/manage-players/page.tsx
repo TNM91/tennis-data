@@ -326,7 +326,7 @@ export default function ManagePlayersPage() {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
                   gap: '16px',
                   flex: 1,
-                  minWidth: '320px',
+                  minWidth: 'min(100%, 320px)',
                 }}
               >
                 <Field
