@@ -304,16 +304,10 @@ function DataAssistReviewQueue() {
               <BatchHeader batch={selectedBatch} />
 
               <div
-                style={{
-                  marginTop: 16,
-                  padding: 14,
-                  borderRadius: 16,
-                  border: '1px solid rgba(251,191,36,0.24)',
-                  background: 'rgba(251,191,36,0.08)',
-                }}
+                style={importLockPanelStyle}
               >
-                <div style={{ color: '#fde68a', fontWeight: 900 }}>Import lock active</div>
-                <div className="subtle-text" style={{ marginTop: 6 }}>
+                <div style={importLockTitleStyle}>Import lock active</div>
+                <div className="subtle-text" style={importLockTextStyle}>
                   {ocrReadiness.reason} Queue approval only moves a batch into verification readiness.
                 </div>
               </div>
@@ -330,7 +324,7 @@ function DataAssistReviewQueue() {
               )}
 
               <div style={{ marginTop: 18 }}>
-                <label htmlFor="review-note" style={{ display: 'block', color: 'var(--foreground)', fontWeight: 900, marginBottom: 8 }}>
+                <label htmlFor="review-note" style={reviewNoteLabelStyle}>
                   Review note
                 </label>
                 <textarea
@@ -339,16 +333,7 @@ function DataAssistReviewQueue() {
                   onChange={(event) => setReviewNote(event.target.value)}
                   placeholder="Add what needs verification before this can become trusted data."
                   rows={4}
-                  style={{
-                    width: '100%',
-                    resize: 'vertical',
-                    borderRadius: 14,
-                    border: '1px solid var(--shell-panel-border)',
-                    background: 'var(--shell-panel-bg)',
-                    color: 'var(--foreground)',
-                    padding: 12,
-                    font: 'inherit',
-                  }}
+                  style={reviewNoteTextareaStyle}
                 />
               </div>
 
@@ -785,6 +770,48 @@ const batchHeaderStyle: CSSProperties = {
 
 const batchHeaderCopyStyle: CSSProperties = {
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const importLockPanelStyle: CSSProperties = {
+  marginTop: 16,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.08)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const importLockTitleStyle: CSSProperties = {
+  color: '#fde68a',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const importLockTextStyle: CSSProperties = {
+  marginTop: 6,
+  overflowWrap: 'anywhere',
+}
+
+const reviewNoteLabelStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground)',
+  fontWeight: 900,
+  marginBottom: 8,
+  overflowWrap: 'anywhere',
+}
+
+const reviewNoteTextareaStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  resize: 'vertical',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground)',
+  padding: 12,
+  font: 'inherit',
   overflowWrap: 'anywhere',
 }
 

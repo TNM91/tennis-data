@@ -30,6 +30,10 @@ describe('Admin Data Assist mobile layout guards', () => {
     expect(styleBlock(sharedSource, 'adminHeroTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(sharedSource, 'adminHeroSubtitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(sharedSource, 'adminStatusPanelStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(sharedSource, 'adminEmptyStateStyle')).toContain('minWidth: 0')
+    expect(styleBlock(sharedSource, 'adminEmptyStateStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(sharedSource, 'adminFactLabelStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(sharedSource, 'adminFactValueStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('wraps Data Assist queue filters and batch cards around long upload metadata', () => {
@@ -46,6 +50,10 @@ describe('Admin Data Assist mobile layout guards', () => {
     }
 
     expect(styleBlock(source, 'queueFilterButtonStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(source, 'importLockPanelStyle')).toContain('minWidth: 0')
+    expect(styleBlock(source, 'importLockPanelStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(source, 'importLockTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(source, 'importLockTextStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps OCR review panels, screenshot cards, and draft facts mobile-safe', () => {
@@ -61,9 +69,13 @@ describe('Admin Data Assist mobile layout guards', () => {
       'screenshotCardStyle',
       'screenshotBodyStyle',
       'draftSummaryGridStyle',
+      'reviewNoteLabelStyle',
+      'reviewNoteTextareaStyle',
     ]) {
       const block = styleBlock(source, styleName)
       expect(block).toMatch(/minWidth: 0|overflowWrap: 'anywhere'|gridTemplateColumns: 'repeat\(auto-fit, minmax\(min\(100%,/)
     }
+
+    expect(styleBlock(source, 'reviewNoteTextareaStyle')).toContain("width: '100%'")
   })
 })

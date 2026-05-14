@@ -212,6 +212,7 @@ const adminEmptyStateStyle: CSSProperties = {
   padding: 16,
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -228,6 +229,7 @@ const adminFactLabelStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 800,
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const adminFactValueStyle: CSSProperties = {
