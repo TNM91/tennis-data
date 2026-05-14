@@ -2518,8 +2518,8 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
         {nextMatch ? (
           <section style={{ ...sectionCard, borderColor: 'rgba(116,190,255,0.22)', background: 'rgba(116,190,255,0.04)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' as const }}>
-              <div>
+            <div style={captainDashboardActionBandStyle}>
+              <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                 <div style={{ ...sectionKicker, color: '#93c5fd' }}>Next scheduled match</div>
                 <h2 style={{ ...sectionTitle, margin: '4px 0 0' }}>
                   vs {nextMatch.opponent}
@@ -2531,8 +2531,8 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                   <span style={{ padding: '2px 9px', borderRadius: 999, background: nextMatch.home ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)', border: `1px solid ${nextMatch.home ? 'rgba(155,225,29,0.22)' : 'rgba(116,190,255,0.20)'}`, color: nextMatch.home ? '#d9f84a' : '#93c5fd', fontSize: 12, fontWeight: 800 }}>{nextMatch.home ? 'Home' : 'Away'}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-                <Link href={buildCaptainScopedHref('/captain/lineup-builder', { competitionLayer: selectedCompetitionLayer, team: selectedTeam, league: selectedLeague, flight: selectedFlight, date: nextMatch.date, opponent: nextMatch.opponent })} style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, background: 'rgba(116,190,255,0.12)', border: '1px solid rgba(116,190,255,0.28)', color: '#bfdbfe', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>Build lineup</Link>
+              <div style={captainDashboardInlineActionRowStyle}>
+                <Link href={buildCaptainScopedHref('/captain/lineup-builder', { competitionLayer: selectedCompetitionLayer, team: selectedTeam, league: selectedLeague, flight: selectedFlight, date: nextMatch.date, opponent: nextMatch.opponent })} style={nextMatchActionLinkStyle}>Build lineup</Link>
               </div>
             </div>
           </section>
@@ -2548,7 +2548,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               </div>
             </div>
             {roster.length > 0 ? (
-              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <div style={captainDashboardInlineActionRowStyle}>
                 <button
                   type="button"
                   onClick={() => setRosterSortMode('appearances')}
@@ -3349,9 +3349,10 @@ const captainValueTitleStyle: CSSProperties = {
 const captainValueGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const captainValueCardStyle: CSSProperties = {
@@ -3367,6 +3368,8 @@ const captainValueCardStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 750,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const captainValueBodyStyle: CSSProperties = {
@@ -3379,6 +3382,7 @@ const commandCenterTopRow: CSSProperties = {
   alignItems: 'center',
   gap: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const commandCenterLabelCluster: CSSProperties = {
@@ -3394,6 +3398,7 @@ const commandCenterLabel: CSSProperties = {
   fontWeight: 900,
   letterSpacing: 0,
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const commandCenterTitle: CSSProperties = {
@@ -3402,6 +3407,7 @@ const commandCenterTitle: CSSProperties = {
   fontWeight: 900,
   lineHeight: 1.12,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const commandCenterText: CSSProperties = {
@@ -3415,6 +3421,7 @@ const commandCenterActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
 }
 
 const nextActionShell: CSSProperties = {
@@ -3775,6 +3782,8 @@ const sectionCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionHead: CSSProperties = {
@@ -3783,6 +3792,41 @@ const sectionHead: CSSProperties = {
   alignItems: 'start',
   gap: 16,
   flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainDashboardActionBandStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 16,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainDashboardInlineActionRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const nextMatchActionLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '9px 18px',
+  borderRadius: 999,
+  background: 'rgba(116,190,255,0.12)',
+  border: '1px solid rgba(116,190,255,0.28)',
+  color: '#bfdbfe',
+  fontWeight: 800,
+  fontSize: 14,
+  textDecoration: 'none',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const optionalSummaryStyle: CSSProperties = {
@@ -3971,16 +4015,20 @@ const listCard: CSSProperties = {
   justifyContent: 'space-between',
   gap: 12,
   alignItems: 'center',
+  flexWrap: 'wrap',
   padding: 14,
   borderRadius: 18,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const listTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: 15,
+  overflowWrap: 'anywhere',
 }
 
 const listMeta: CSSProperties = {
@@ -3988,6 +4036,7 @@ const listMeta: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const pillStrong: CSSProperties = {
@@ -4003,6 +4052,8 @@ const pillStrong: CSSProperties = {
   color: 'var(--foreground-strong)',
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const pillHelper: CSSProperties = {
@@ -4016,6 +4067,7 @@ const pillHelper: CSSProperties = {
 const pairMetricWrap: CSSProperties = {
   display: 'grid',
   justifyItems: 'end',
+  minWidth: 0,
 }
 
 const emptyLine: CSSProperties = {
