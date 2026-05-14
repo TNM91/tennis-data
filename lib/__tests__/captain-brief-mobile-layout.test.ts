@@ -6,7 +6,9 @@ const teamBriefSource = readFileSync(join(process.cwd(), 'app/captain/team-brief
 const weeklyBriefSource = readFileSync(join(process.cwd(), 'app/captain/weekly-brief/page.tsx'), 'utf8')
 
 function styleBlock(source: string, styleName: string) {
-  const start = source.indexOf(`const ${styleName}:`)
+  const typedStart = source.indexOf(`const ${styleName}:`)
+  const functionStart = source.indexOf(`const ${styleName} =`)
+  const start = typedStart >= 0 ? typedStart : functionStart
   expect(start).toBeGreaterThanOrEqual(0)
   const nextStyle = source.indexOf('\nconst ', start + 1)
   return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
@@ -29,6 +31,12 @@ describe('Captain brief mobile layout guards', () => {
     }
 
     expect(styleBlock(teamBriefSource, 'heroTitle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(teamBriefSource, 'twoColumnGrid')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(styleBlock(teamBriefSource, 'twoColumnGrid')).toContain('minWidth: 0')
+    expect(styleBlock(teamBriefSource, 'lineupGrid')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(styleBlock(teamBriefSource, 'lineupGrid')).toContain('minWidth: 0')
+    expect(teamBriefSource).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(teamBriefSource).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(styleBlock(teamBriefSource, 'pillStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(teamBriefSource, 'primaryButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamBriefSource, 'secondaryButton')).toContain("overflowWrap: 'anywhere'")
@@ -50,6 +58,12 @@ describe('Captain brief mobile layout guards', () => {
     }
 
     expect(styleBlock(weeklyBriefSource, 'briefSignalTopStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(weeklyBriefSource, 'twoColumnGrid')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(styleBlock(weeklyBriefSource, 'twoColumnGrid')).toContain('minWidth: 0')
+    expect(styleBlock(weeklyBriefSource, 'lineupGrid')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(styleBlock(weeklyBriefSource, 'lineupGrid')).toContain('minWidth: 0')
+    expect(weeklyBriefSource).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(weeklyBriefSource).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(styleBlock(weeklyBriefSource, 'courtPill')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(weeklyBriefSource, 'primaryButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(weeklyBriefSource, 'secondaryButton')).toContain("overflowWrap: 'anywhere'")

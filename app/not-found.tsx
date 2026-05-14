@@ -10,9 +10,9 @@ export default function NotFound() {
   return (
     <div
       className="page-shell"
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh' }}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', minWidth: 0 }}
     >
-      <div style={{ textAlign: 'center', maxWidth: 480 }}>
+      <div style={{ textAlign: 'center', maxWidth: 480, width: '100%', minWidth: 0 }}>
         <p
           style={{
             margin: '0 0 16px',
@@ -47,11 +47,11 @@ export default function NotFound() {
         >
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <div style={{ display: 'flex', gap: 12, marginTop: 32, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/" className="button-primary" style={{ minWidth: 140, fontSize: '0.95rem' }}>
+        <div style={{ display: 'flex', gap: 12, marginTop: 32, justifyContent: 'center', flexWrap: 'wrap', minWidth: 0 }}>
+          <Link href="/" className="button-primary" style={{ minWidth: 'min(100%, 140px)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
             Go home
           </Link>
-          <Link href="/explore/players" className="button-ghost" style={{ minWidth: 140, fontSize: '0.95rem' }}>
+          <Link href="/explore/players" className="button-ghost" style={{ minWidth: 'min(100%, 140px)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
             Explore players
           </Link>
         </div>

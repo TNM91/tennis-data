@@ -13,7 +13,8 @@ function styleBlock(styleName: string) {
 function functionBlock(functionName: string) {
   const typedStart = matchupSource.indexOf(`const ${functionName}:`)
   const untypedStart = matchupSource.indexOf(`const ${functionName} =`)
-  const start = typedStart >= 0 ? typedStart : untypedStart
+  const declarationStart = matchupSource.indexOf(`function ${functionName}`)
+  const start = typedStart >= 0 ? typedStart : untypedStart >= 0 ? untypedStart : declarationStart
   expect(start).toBeGreaterThanOrEqual(0)
   const nextStyle = matchupSource.indexOf('\nconst ', start + 1)
   return matchupSource.slice(start, nextStyle === -1 ? undefined : nextStyle)
@@ -80,5 +81,9 @@ describe('matchup mobile layout guards', () => {
 
     expect(styleBlock('toolHeaderTitleClusterStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('handoffTitleClusterStyle')).toContain("flexWrap: 'wrap'")
+    expect(functionBlock('CopyLinkButton')).toContain("maxWidth: '100%'")
+    expect(functionBlock('CopyLinkButton')).toContain("overflowWrap: 'anywhere'")
+    expect(functionBlock('SwapSidesButton')).toContain("maxWidth: '100%'")
+    expect(functionBlock('SwapSidesButton')).toContain("whiteSpace: 'normal' as const")
   })
 })
