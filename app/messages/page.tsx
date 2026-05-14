@@ -1706,7 +1706,7 @@ const textareaStyle: CSSProperties = {
 
 const lookupRowStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 8.5rem)',
   gap: 8,
   minWidth: 0,
 })
