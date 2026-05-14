@@ -2414,7 +2414,7 @@ const leaderboardActionGrid: CSSProperties = {
 
 const leaderboardActionCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 2.75rem) minmax(0, 1fr)',
   alignItems: 'center',
   gap: '12px',
   minWidth: 0,
@@ -2522,9 +2522,10 @@ const compactRankingCardStyle: CSSProperties = {
 
 const compactRankingTopStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 3.25rem) minmax(0, 1fr)',
   alignItems: 'center',
   gap: '12px',
+  minWidth: 0,
 }
 
 const compactPlayerCopyStyle: CSSProperties = {
