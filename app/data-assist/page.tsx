@@ -2467,6 +2467,7 @@ const heroStyle = (isMobile: boolean): CSSProperties => ({
   gridTemplateColumns: '1fr',
   gap: isMobile ? 14 : 18,
   alignItems: 'stretch',
+  minWidth: 0,
 })
 
 const heroCopyStyle: CSSProperties = {
@@ -2550,6 +2551,7 @@ const typeOptionGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const uploadChoiceStackStyle: CSSProperties = {
@@ -2646,6 +2648,7 @@ const stepDividerStyle: CSSProperties = {
   gap: 8,
   color: 'var(--foreground-strong)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stepBadgeStyle: CSSProperties = {
@@ -2749,6 +2752,7 @@ const fileInputStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 14,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const dropzoneKickerStyle: CSSProperties = {
@@ -3240,6 +3244,7 @@ const exportHelpBodyStyle: CSSProperties = {
   display: 'grid',
   gap: 9,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const exportHelpStepStyle: CSSProperties = {
@@ -3356,6 +3361,7 @@ const thumbnailWrapStyle: CSSProperties = {
   position: 'relative',
   minHeight: 190,
   background: 'var(--shell-panel-bg-strong)',
+  minWidth: 0,
 }
 
 const thumbnailStyle: CSSProperties = {
@@ -3375,6 +3381,8 @@ const exportFilePreviewStyle: CSSProperties = {
   fontSize: 28,
   fontWeight: 950,
   letterSpacing: 0,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const orderBadgeStyle: CSSProperties = {
@@ -3397,6 +3405,7 @@ const screenshotBodyStyle: CSSProperties = {
   display: 'grid',
   gap: 9,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const screenshotHeaderStyle: CSSProperties = {
