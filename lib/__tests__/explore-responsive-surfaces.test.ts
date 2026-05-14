@@ -83,6 +83,7 @@ describe('Explore responsive surfaces', () => {
   it('keeps rankings insight panels and table actions mobile-safe', () => {
     expect(styleBlock(rankingsSource, 'tableWrap')).toContain("WebkitOverflowScrolling: 'touch'")
     expect(styleBlock(rankingsSource, 'tableWrap')).toContain("overscrollBehaviorX: 'contain'")
+    expect(styleBlock(rankingsSource, 'tableWrap')).toContain("scrollbarWidth: 'thin'")
     expect(styleBlock(rankingsSource, 'tableWrap')).toContain('minWidth: 0')
     expect(styleBlock(rankingsSource, 'dataTable')).toContain("minWidth: 'min(100%, 760px)'")
     expect(styleBlock(rankingsSource, 'rowActionStackStyle')).toContain('minWidth: 0')
@@ -90,6 +91,7 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(rankingsSource, 'insightSummary')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(rankingsSource, 'signalListItem')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(rankingsSource, 'distributionRow')).toContain("gridTemplateColumns: 'minmax(0, 72px) minmax(0, 1fr) minmax(0, 32px)'")
+    expect(styleBlock(rankingsSource, 'distributionTrack')).toContain('minWidth: 0')
   })
 
   it('keeps public discovery empty states actionable and Data Assist aware', () => {
@@ -196,7 +198,13 @@ describe('Explore responsive surfaces', () => {
     expect(functionBlock(teamDetailSource, 'teamDiscoveryGridStyle')).toContain('minWidth: 0')
     expect(styleBlock(teamDetailSource, 'tableWrap')).toContain("overscrollBehaviorX: 'contain'")
     expect(styleBlock(teamDetailSource, 'tableWrap')).toContain("WebkitOverflowScrolling: 'touch'")
+    expect(styleBlock(teamDetailSource, 'tableWrap')).toContain("scrollbarWidth: 'thin'")
+    expect(styleBlock(teamDetailSource, 'tableWrap')).toContain("maxWidth: '100%'")
     expect(styleBlock(teamDetailSource, 'dataTable')).toContain("minWidth: 'min(100%, 620px)'")
+    expect(styleBlock(teamDetailSource, 'tableCell')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(teamDetailSource, 'scoreCellStackStyle')).toContain('minWidth: 0')
+    expect(styleBlock(teamDetailSource, 'scoreCellStackStyle')).toContain("maxWidth: '100%'")
+    expect(teamDetailSource).not.toContain('minWidth: 112')
     expect(teamDetailSource).toContain("minWidth: 'min(100%, 420px)'")
     expect(teamDetailSource).toContain("background: 'var(--shell-panel-bg)'")
     expect(teamDetailSource).toContain("background: 'var(--shell-chip-bg)'")

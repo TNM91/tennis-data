@@ -3225,7 +3225,7 @@ const pageWrap: CSSProperties = {
 
 const heroShellResponsive = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : '1.3fr 0.9fr',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.3fr) minmax(0, 0.9fr)',
   gap: isMobile ? 16 : 22,
   padding: isMobile ? 18 : 26,
   borderRadius: 28,
@@ -3273,7 +3273,7 @@ const heroButtonRowStyle: CSSProperties = {
 
 const heroMetricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
   gap: 12,
   marginTop: 22,
   minWidth: 0,
@@ -3365,7 +3365,7 @@ const workflowTextStyle: CSSProperties = {
 
 const builderLayoutResponsive = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : '1fr 1fr 1fr',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: 22,
   minWidth: 0,
 })

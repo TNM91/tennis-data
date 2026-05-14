@@ -1,0 +1,83 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const source = readFileSync(join(process.cwd(), 'app/captain/analytics/page.tsx'), 'utf8')
+
+function styleBlock(styleName: string) {
+  const start = source.indexOf(`const ${styleName}:`)
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextStyle = source.indexOf('\nconst ', start + 1)
+  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
+
+function functionBlock(functionName: string) {
+  const start = source.indexOf(`function ${functionName}`)
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextFunction = source.indexOf('\nfunction ', start + 1)
+  const nextConst = source.indexOf('\nconst ', start + 1)
+  const end = [nextFunction, nextConst].filter((index) => index > start).sort((a, b) => a - b)[0]
+  return source.slice(start, end === undefined ? undefined : end)
+}
+
+describe('Captain analytics mobile layout guards', () => {
+  it('keeps hero, metrics, and builder grids mobile-safe', () => {
+    for (const styleName of [
+      'pageWrap',
+      'heroShell',
+      'heroButtonRowStyle',
+      'heroMetricGridBaseStyle',
+      'heroMetricCardStyle',
+      'quickStartCard',
+      'workflowRowStyle',
+      'contentWrap',
+      'decisionBoardStyle',
+      'decisionMetricGridStyle',
+      'decisionMetricStyle',
+      'builderLayoutStyle',
+      'columnStyle',
+      'surfaceCardStrong',
+      'surfaceCard',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+
+    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('builderLayoutResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(styleBlock('heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('heroTextStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
+  it('keeps controls, toggles, cards, and player labels from forcing overflow', () => {
+    for (const styleName of [
+      'sectionHeaderStyle',
+      'formGridStyle',
+      'toggleGridStyle',
+      'toggleCardStyle',
+      'actionRowStyle',
+      'readinessGridStyle',
+      'readinessCardStyle',
+      'miniActionRowStyle',
+      'primaryButton',
+      'ghostButton',
+      'inputStyle',
+      'textareaStyle',
+      'slotPlayersGridStyle',
+      'heroBadgeRowStyleCompact',
+      'poolCardStyle',
+      'poolCardTopStyle',
+      'pillRowStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+
+    expect(functionBlock('toggleGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(styleBlock('badgeBase')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('miniPillStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('playerNameStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('playerMetaStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+  })
+})
