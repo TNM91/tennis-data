@@ -813,7 +813,7 @@ const toolFlowStyle = (isMobile: boolean): CSSProperties => ({
 
 const toolFlowCardStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 2.75rem) minmax(0, 1fr)',
   gap: isMobile ? 7 : 10,
   alignItems: isMobile ? 'start' : 'center',
   borderRadius: isMobile ? 16 : 18,
@@ -928,7 +928,7 @@ const profileBadgeRowStyle: CSSProperties = {
 
 const playerCardTopStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 3.625rem) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'center',
   minWidth: 0,
@@ -1234,7 +1234,7 @@ const autoContextStripStyle = (isMobile: boolean): CSSProperties => ({
 
 const autoContextCalloutStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 2.75rem) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'center',
   borderRadius: 18,
@@ -1367,7 +1367,7 @@ const toolLaunchGridStyle: CSSProperties = {
 
 const toolLaunchCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 2.25rem) minmax(0, 1fr)',
   gap: '8px 10px',
   alignItems: 'center',
   borderRadius: 16,
