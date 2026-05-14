@@ -2622,6 +2622,7 @@ function formatNullablePercent(value: number | null) {
 const heroWrap: CSSProperties = {
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
 }
 
 const heroShell: CSSProperties = {
@@ -2721,6 +2722,7 @@ const engineCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-blue-2) 12%)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const engineLabel: CSSProperties = {
@@ -2729,6 +2731,7 @@ const engineLabel: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const engineValue: CSSProperties = {
@@ -2738,6 +2741,7 @@ const engineValue: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const engineText: CSSProperties = {
@@ -2746,6 +2750,7 @@ const engineText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const contentWrap: CSSProperties = {
@@ -3171,6 +3176,7 @@ const editorialCardText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const retryButtonStyle: CSSProperties = {
@@ -3211,6 +3217,7 @@ const emptyState: CSSProperties = {
   fontWeight: 600,
   textAlign: 'center',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3220,18 +3227,21 @@ const emptyStateTitle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: 0,
   marginBottom: '10px',
+  overflowWrap: 'anywhere',
 }
 
 const emptyStateText: CSSProperties = {
   color: 'var(--foreground)',
   lineHeight: 1.65,
   marginBottom: '10px',
+  overflowWrap: 'anywhere',
 }
 
 const emptyStateHint: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   marginBottom: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const resetButton: CSSProperties = {
@@ -3266,6 +3276,7 @@ const selectionProgressLabel: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '8px',
+  overflowWrap: 'anywhere',
 }
 
 const selectionProgressValue: CSSProperties = {
@@ -3494,6 +3505,7 @@ const prefillPromptKicker: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '8px',
+  overflowWrap: 'anywhere',
 }
 
 const prefillPromptTitle: CSSProperties = {
@@ -3571,6 +3583,7 @@ const decisionLabel: CSSProperties = {
   color: 'rgba(200,220,255,0.7)',
   fontWeight: 800,
   letterSpacing: '0.1em',
+  overflowWrap: 'anywhere',
 }
 
 const decisionWinner: CSSProperties = {
@@ -3662,6 +3675,7 @@ const prepReadLabel: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const prepReadValue: CSSProperties = {
@@ -3847,6 +3861,7 @@ const highlightLabel: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const highlightValue: CSSProperties = {
@@ -3871,6 +3886,7 @@ const centerColumn: CSSProperties = {
 const vsBadge: CSSProperties = {
   width: '76px',
   height: '76px',
+  flex: '0 0 auto',
   borderRadius: '999px',
   background: 'linear-gradient(135deg, #255be3 0%, #3fa7ff 100%)',
   color: '#ffffff',
@@ -3892,6 +3908,7 @@ const gapCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
 }
 
 const gapLabel: CSSProperties = {
@@ -3901,6 +3918,7 @@ const gapLabel: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const gapValue: CSSProperties = {
@@ -4016,6 +4034,7 @@ const sectionKicker: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.11em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const projectionSectionTitle: CSSProperties = {
