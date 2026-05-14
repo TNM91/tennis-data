@@ -64,19 +64,23 @@ describe('My Lab premium surface', () => {
       'labReadabilityCueGridStyle',
       'labPremiumSignalGridStyle',
       'labRoutineGridStyle',
+      'labRoutineStepStyle',
       'paidWorkspaceProofGridStyle',
       'labPlaybookGridStyle',
+      'labPlaybookCardStyle',
       'levelUpPanelStyle',
       'quickProfileGridStyle',
       'setupStepGridStyle',
       'matchupSpotlightHeroStyle',
       'matchupPreviewGridStyle',
       'matchupQueueGridStyle',
+      'matchupQueueCardStyle',
       'matchPlanGridStyle',
       'personalCommandGridStyle',
       'tiqActionGridStyle',
       'teamPrepGridStyle',
       'workshopGridStyle',
+      'workshopMatchRowStyle',
       'goalFieldGridStyle',
       'contentGridStyle',
     ]) {
@@ -100,6 +104,7 @@ describe('My Lab premium surface', () => {
       'trophyRoomPanelStyle',
       'trophyRoomGridStyle',
       'trophyCardStyle',
+      'matchupQueueCardStyle',
       'matchupQueueFitStyle',
       'miniActionPillStyle',
       'goalProgressPanelStyle',
@@ -118,6 +123,7 @@ describe('My Lab premium surface', () => {
       'goalEditorDetailsStyle',
       'goalFooterActionsStyle',
       'notebookFooterStyle',
+      'nextActionCardStyle',
       'optionalContextDetailsStyle',
       'optionalContextSummaryStyle',
       'compactSignalsPanelStyle',
@@ -143,6 +149,7 @@ describe('My Lab premium surface', () => {
       'trophyValueStyle',
       'workshopRowTitleStyle',
       'workshopRowMetaStyle',
+      'workshopMatchRowStyle',
       'miniActionPillStyle',
       'compactSectionTitleStyle',
       'goalSummaryValueStyle',
@@ -160,6 +167,7 @@ describe('My Lab premium surface', () => {
       'reportStatusTextStyle',
       'matchReflectButtonStyle',
       'notebookFooterStyle',
+      'nextActionCardStyle',
       'saveNotebookButtonStyle',
       'metricLabelStyle',
       'metricNoteStyle',
@@ -174,6 +182,15 @@ describe('My Lab premium surface', () => {
     ]) {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     }
+
+    expect(styleBlock('labRoutineStepStyle')).toContain("'minmax(0, 2.125rem) minmax(0, 1fr)'")
+    expect(styleBlock('labPlaybookCardStyle')).toContain("'minmax(0, 1.875rem) minmax(0, 1fr)'")
+    expect(styleBlock('matchupSpotlightHeroStyle')).toContain("'minmax(0, 1fr) minmax(0, 10rem)'")
+    expect(styleBlock('matchupQueueCardStyle')).toContain("'minmax(0, 2.125rem) minmax(0, 1fr) minmax(0, 4.5rem)'")
+    expect(styleBlock('workshopMatchRowStyle')).toContain("'minmax(0, 2.125rem) minmax(0, 1fr) minmax(0, 8rem)'")
+    expect(styleBlock('nextActionCardStyle')).toContain("'minmax(0, 2.125rem) minmax(0, 1fr) minmax(0, 8rem)'")
+    expect(source).not.toContain("gridTemplateColumns: 'auto minmax(0, 1fr)")
+    expect(source).not.toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto'")
 
     for (const styleName of [
       'quickStartButtonStyle',
