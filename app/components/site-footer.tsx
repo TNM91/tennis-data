@@ -53,7 +53,7 @@ export default function SiteFooter() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(min(100%, 320px), 1fr) auto',
+            gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(min(100%, 320px), 1fr) minmax(0, 17rem)',
             gap: isMobile ? 14 : 18,
             alignItems: 'center',
             minWidth: 0,
@@ -80,7 +80,7 @@ export default function SiteFooter() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: isTablet ? 'flex-start' : 'flex-end' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: isTablet ? 'flex-start' : 'flex-end', minWidth: 0 }}>
             <Link href="/join" style={footerPrimaryCtaStyle}>
               Start Free
             </Link>
@@ -146,7 +146,7 @@ export default function SiteFooter() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+            gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 8.5rem)',
             gap: isMobile ? 10 : 16,
             alignItems: 'center',
             paddingTop: 10,
@@ -200,6 +200,7 @@ const footerPrimaryCtaStyle = {
   justifyContent: 'center',
   minHeight: '40px',
   padding: '0 15px',
+  maxWidth: '100%',
   borderRadius: '999px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
@@ -208,6 +209,7 @@ const footerPrimaryCtaStyle = {
   fontSize: '14px',
   fontWeight: 900,
   letterSpacing: 0,
+  textAlign: 'center',
   boxShadow: '0 12px 24px color-mix(in srgb, var(--brand-green) 12%, transparent), inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 } as const
 
@@ -217,6 +219,7 @@ const footerSecondaryCtaStyle = {
   justifyContent: 'center',
   minHeight: '40px',
   padding: '0 15px',
+  maxWidth: '100%',
   borderRadius: '999px',
   border: '1px solid rgba(116, 190, 255, 0.14)',
   background: 'transparent',
@@ -225,6 +228,7 @@ const footerSecondaryCtaStyle = {
   fontSize: '14px',
   fontWeight: 800,
   letterSpacing: 0,
+  textAlign: 'center',
 } as const
 
 const footerJourneyGridStyle = (isMobile: boolean) => ({
@@ -237,7 +241,7 @@ const footerJourneyGridStyle = (isMobile: boolean) => ({
 
 const footerJourneyCardStyle = (isMobile: boolean) => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 2.125rem) minmax(0, 1fr)',
   justifyItems: isMobile ? 'center' : 'start',
   gap: isMobile ? '6px' : '12px',
   alignItems: 'center',
@@ -255,6 +259,7 @@ const footerJourneyCardStyle = (isMobile: boolean) => ({
 const footerJourneyStepStyle = (isMobile: boolean) => ({
   width: isMobile ? '30px' : '34px',
   height: isMobile ? '30px' : '34px',
+  minWidth: 0,
   borderRadius: '999px',
   display: 'inline-flex',
   alignItems: 'center',
@@ -338,6 +343,7 @@ const backToTopStyle = {
   color: 'var(--foreground-strong)',
   minHeight: '38px',
   padding: '0 14px',
+  maxWidth: '100%',
   borderRadius: '999px',
   fontSize: '13px',
   fontWeight: 800,
