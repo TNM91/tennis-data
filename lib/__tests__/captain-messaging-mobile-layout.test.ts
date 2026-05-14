@@ -80,6 +80,10 @@ describe('Captain messaging mobile layout guards', () => {
 
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('ghostButton')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('tableWrapStyle')).toContain("overscrollBehaviorX: 'contain'")
+    expect(styleBlock('tableWrapStyle')).toContain("WebkitOverflowScrolling: 'touch'")
+    expect(styleBlock('tableWrapStyle')).toContain("scrollbarWidth: 'thin'")
+    expect(styleBlock('tableWrapStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('composerBodyPreviewStyle')).toContain("overflowWrap: 'anywhere'")
   })
 

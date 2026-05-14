@@ -4399,7 +4399,7 @@ const pillRowStyle: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap',
 
 const tableHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 14, minWidth: 0 }
 const detailsSummaryStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', cursor: 'pointer', listStyle: 'none', marginBottom: 14, minWidth: 0 }
-const tableWrapStyle: CSSProperties = { width: '100%', overflowX: 'auto', borderRadius: '18px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
+const tableWrapStyle: CSSProperties = { width: '100%', maxWidth: '100%', overflowX: 'auto', overscrollBehaviorX: 'contain', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin', borderRadius: '18px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
 const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse', minWidth: 0 }
 const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', background: 'var(--shell-chip-bg-strong)', color: '#c7dbff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.06em', overflowWrap: 'anywhere' }
 const tdStyle: CSSProperties = { padding: '14px', borderTop: '1px solid var(--shell-panel-border)', color: 'var(--foreground)', verticalAlign: 'top', overflowWrap: 'anywhere' }

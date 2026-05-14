@@ -85,6 +85,10 @@ describe('Captain scenario builder mobile layout guards', () => {
 
     expect(styleBlock('primaryButton')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('ghostButton')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('tableWrapStyle')).toContain("overscrollBehaviorX: 'contain'")
+    expect(styleBlock('tableWrapStyle')).toContain("WebkitOverflowScrolling: 'touch'")
+    expect(styleBlock('tableWrapStyle')).toContain("scrollbarWidth: 'thin'")
+    expect(styleBlock('tableWrapStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('notesTextStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('tdStyle')).toContain("overflowWrap: 'anywhere'")
   })

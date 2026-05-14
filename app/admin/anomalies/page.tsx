@@ -376,9 +376,14 @@ function chipCount(n: number): CSSProperties {
 
 const tableWrap: CSSProperties = {
   overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'thin',
+  maxWidth: '100%',
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
+  minWidth: 0,
 }
 
 const table: CSSProperties = {
