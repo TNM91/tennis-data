@@ -15,11 +15,14 @@ describe('Data Assist mobile layout guards', () => {
   it('keeps upload setup panels and import choices from forcing horizontal scroll', () => {
     for (const styleName of [
       'pageStyle',
+      'heroStyle',
       'heroCopyStyle',
       'panelStyle',
       'sectionHeaderStyle',
+      'typeOptionGridStyle',
       'uploadChoiceStackStyle',
       'seasonSetupGroupStyle',
+      'stepDividerStyle',
       'typeOptionStyle',
       'dropzoneStyle',
     ]) {
@@ -28,6 +31,8 @@ describe('Data Assist mobile layout guards', () => {
 
     expect(styleBlock('titleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('typeOptionStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('stepDividerStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('fileInputStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('primaryButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('smallButtonStyle')).toContain("overflowWrap: 'anywhere'")
   })
@@ -71,7 +76,10 @@ describe('Data Assist mobile layout guards', () => {
       'playerSidesGridStyle',
       'screenshotGridStyle',
       'screenshotCardStyle',
+      'thumbnailWrapStyle',
+      'exportFilePreviewStyle',
       'screenshotBodyStyle',
+      'exportHelpBodyStyle',
     ]) {
       expect(styleBlock(styleName)).toMatch(/minWidth: 0|overflowWrap: 'anywhere'/)
     }
@@ -81,5 +89,7 @@ describe('Data Assist mobile layout guards', () => {
     expect(styleBlock('parsedSideHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('showMoreButtonStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('scanLoadingStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('screenshotBodyStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('exportFilePreviewStyle')).toContain("overflowWrap: 'anywhere'")
   })
 })
