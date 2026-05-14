@@ -735,11 +735,11 @@ export default function ExploreSearchPage() {
                   <div style={{ color: 'var(--foreground-strong)', fontSize: 22, fontWeight: 900, lineHeight: 1.04, overflowWrap: 'anywhere' }}>
                     Jump straight into the exact flight or area that matched.
                   </div>
-                  <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+                  <div style={matchedFilterStackStyle}>
                     {matchedFlights.length > 0 ? (
-                      <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+                      <div style={matchedFilterGroupStyle}>
                         <div style={matchedLabelStyle}>Flights</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, minWidth: 0 }}>
+                        <div style={matchedFilterLinkRowStyle}>
                           {matchedFlights.map((flight) => (
                             <Link key={flight} href={`/explore/leagues?q=${encodeURIComponent(flight)}`} style={filterJumpStyle}>
                               {flight}
@@ -749,9 +749,9 @@ export default function ExploreSearchPage() {
                       </div>
                     ) : null}
                     {matchedAreas.length > 0 ? (
-                      <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+                      <div style={matchedFilterGroupStyle}>
                         <div style={matchedLabelStyle}>Areas</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, minWidth: 0 }}>
+                        <div style={matchedFilterLinkRowStyle}>
                           {matchedAreas.map((area) => (
                             <Link key={area} href={`/explore/leagues?q=${encodeURIComponent(area)}`} style={filterJumpStyle}>
                               {area}
@@ -934,23 +934,23 @@ function ResultGroup({
   children: ReactNode
 }) {
   return (
-    <section style={{ ...surfaceCard, minWidth: 0, padding: 18, display: 'grid', gap: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap', minWidth: 0 }}>
-        <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+    <section style={resultGroupStyle}>
+      <div style={resultGroupHeaderStyle}>
+        <div style={resultGroupCopyStyle}>
           <div style={sectionKicker}>{title}</div>
-          <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, lineHeight: 1.04, overflowWrap: 'anywhere' }}>
+          <div style={resultGroupTitleStyle}>
             {count} {title.toLowerCase()} found
           </div>
         </div>
-        <Link href={ctaHref} style={{ ...buttonGhost, maxWidth: '100%', textAlign: 'center', overflowWrap: 'anywhere' }}>
+        <Link href={ctaHref} style={resultGroupActionStyle}>
           {ctaLabel}
         </Link>
       </div>
 
       {count === 0 ? (
-        <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.65, overflowWrap: 'anywhere' }}>{emptyMessage}</div>
+        <div style={resultGroupEmptyStyle}>{emptyMessage}</div>
       ) : (
-        <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>{children}</div>
+        <div style={resultGroupListStyle}>{children}</div>
       )}
     </section>
   )
@@ -1084,6 +1084,60 @@ const exampleSearchButtonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
+const resultGroupStyle: CSSProperties = {
+  ...surfaceCard,
+  minWidth: 0,
+  padding: 18,
+  display: 'grid',
+  gap: 14,
+}
+
+const resultGroupHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const resultGroupCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const resultGroupTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  fontWeight: 900,
+  lineHeight: 1.04,
+  overflowWrap: 'anywhere',
+}
+
+const resultGroupActionStyle: CSSProperties = {
+  ...buttonGhost,
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const resultGroupEmptyStyle: CSSProperties = {
+  color: 'var(--muted-strong)',
+  fontSize: 13,
+  lineHeight: 1.65,
+  overflowWrap: 'anywhere',
+}
+
+const resultGroupListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
 function getResultCardStyle(theme: ThemeMode): CSSProperties {
   return {
     ...surfaceCard,
@@ -1163,6 +1217,25 @@ const matchedLabelStyle: CSSProperties = {
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
   overflowWrap: 'anywhere',
+}
+
+const matchedFilterStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const matchedFilterGroupStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const matchedFilterLinkRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const filterJumpStyle: CSSProperties = {
