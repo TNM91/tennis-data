@@ -348,9 +348,10 @@ const sectionWrap = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: '16px',
   marginTop: '24px',
+  minWidth: 0,
 } as const
 
 const panelStyle = {
@@ -360,6 +361,8 @@ const panelStyle = {
   borderRadius: '24px',
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'linear-gradient(180deg, rgba(13,28,54,0.90) 0%, rgba(8,18,36,0.96) 100%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 } as const
 
 const sectionEyebrowStyle = {

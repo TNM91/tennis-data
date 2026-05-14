@@ -95,6 +95,10 @@ describe('upgrade and compete mobile layout guards', () => {
       expect(styleBlock(source, 'rowLinkStyle')).toContain("whiteSpace: 'normal'")
     }
 
+    expect(styleBlock(competeLeaguesSource, 'sectionWrap')).toContain('repeat(auto-fit, minmax(min(100%, 280px), 1fr))')
+    expect(styleBlock(competeLeaguesSource, 'sectionWrap')).toContain('minWidth: 0')
+    expect(styleBlock(competeLeaguesSource, 'panelStyle')).toContain("overflowWrap: 'anywhere'")
+
     expect(styleBlock(competeScheduleSource, 'supportActionRowStyle')).toContain('minWidth: 0')
     expect(styleBlock(competeScheduleSource, 'prepActionRowStyle')).toContain('minWidth: 0')
     expect(styleBlock(competeScheduleSource, 'prepLinkStyle')).toContain("maxWidth: '100%'")
