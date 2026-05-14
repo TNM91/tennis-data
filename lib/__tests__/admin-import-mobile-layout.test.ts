@@ -17,6 +17,8 @@ describe('Admin import mobile layout guards', () => {
     expect(styleBlock('glassCardStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('adminImportActionRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('adminImportActionRowStyle')).toContain('minWidth: 0')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(source).not.toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(source).not.toContain("display: 'flex', gap: 12, marginTop: 18 }")
   })
 
