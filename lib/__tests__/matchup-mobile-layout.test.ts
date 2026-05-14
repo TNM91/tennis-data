@@ -35,6 +35,8 @@ describe('matchup mobile layout guards', () => {
     expect(matchupSource).toContain("flex: '0 1 90px'")
     expect(matchupSource).not.toContain("minWidth: '90px'")
     expect(styleBlock('contentWrap')).toContain('minWidth: 0')
+    expect(styleBlock('heroWrap')).toContain('minWidth: 0')
+    expect(styleBlock('engineCard')).toContain('minWidth: 0')
     expect(functionBlock('dynamicHeroContent')).toContain("isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('dynamicCompareGrid')).toContain("isTablet ? 'minmax(0, 1fr)'")
   })
@@ -75,10 +77,27 @@ describe('matchup mobile layout guards', () => {
       'doublesPreviewLabelStyle',
       'formCompareLabel',
       'formCellLabel',
+      'engineLabel',
+      'engineValue',
+      'engineText',
+      'editorialCardText',
+      'emptyStateTitle',
+      'emptyStateText',
+      'emptyStateHint',
+      'selectionProgressLabel',
+      'prefillPromptKicker',
+      'decisionLabel',
+      'prepReadLabel',
+      'highlightLabel',
+      'gapLabel',
+      'sectionKicker',
     ].forEach((styleName) => {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     })
 
+    expect(styleBlock('emptyState')).toContain('minWidth: 0')
+    expect(styleBlock('gapCard')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('vsBadge')).toContain("flex: '0 0 auto'")
     expect(styleBlock('toolHeaderTitleClusterStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('handoffTitleClusterStyle')).toContain("flexWrap: 'wrap'")
     expect(functionBlock('CopyLinkButton')).toContain("maxWidth: '100%'")
