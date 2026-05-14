@@ -2848,13 +2848,13 @@ export default function TiqLeagueDetailPage() {
                           <div style={standingBody}>
                             <div style={standingHeader}>
                               <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+                                <div style={standingNameRowStyle}>
                                   <div style={listTitle}>{entry.playerName}</div>
                                   {(() => {
                                     const status = getLeagueRatingStatus(entry.ratingGap)
                                     if (!status) return null
                                     return (
-                                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 800, letterSpacing: '0.03em', ...getLeagueStatusStyle(status) }}>
+                                      <span style={{ ...leagueStatusPillStyle, ...getLeagueStatusStyle(status) }}>
                                         {status}
                                       </span>
                                     )
@@ -3727,6 +3727,8 @@ const pillAmber: CSSProperties = {
 const hintPill: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
+  minWidth: 0,
   padding: '10px 14px',
   borderRadius: '999px',
   border: '1px solid rgba(137,182,255,0.14)',
@@ -3734,6 +3736,8 @@ const hintPill: CSSProperties = {
   color: '#e2efff',
   fontSize: '13px',
   fontWeight: 700,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroHintRow: CSSProperties = {
@@ -3751,6 +3755,8 @@ const sideCard: CSSProperties = {
   borderRadius: '24px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leaguePhotoWrap: CSSProperties = {
@@ -3775,6 +3781,7 @@ const sideLabel: CSSProperties = {
   letterSpacing: '0.16em',
   textTransform: 'uppercase',
   color: '#93c5fd',
+  overflowWrap: 'anywhere',
 }
 
 const sideValue: CSSProperties = {
@@ -3783,17 +3790,20 @@ const sideValue: CSSProperties = {
   lineHeight: 1.08,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sideText: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: '14px',
   lineHeight: 1.7,
+  overflowWrap: 'anywhere',
 }
 
 const leaderTableStyle: CSSProperties = {
   display: 'grid',
   gap: '8px',
+  minWidth: 0,
 }
 
 const leaderRowStyle: CSSProperties = {
@@ -3806,6 +3816,7 @@ const leaderRowStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(7,17,33,0.48)',
   color: '#f8fbff',
+  minWidth: 0,
 }
 
 const leaderRankMiniStyle: CSSProperties = {
@@ -3831,12 +3842,14 @@ const leaderNameCellStyle: CSSProperties = {
   display: 'grid',
   gap: '2px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leaderRecordStyle: CSSProperties = {
   color: '#dffad5',
   fontWeight: 950,
   fontSize: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const actionRow: CSSProperties = {
@@ -3844,6 +3857,7 @@ const actionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '18px',
+  minWidth: 0,
 }
 
 const ghostButton: CSSProperties = {
@@ -3858,6 +3872,11 @@ const ghostButton: CSSProperties = {
   color: '#e7eefb',
   textDecoration: 'none',
   fontWeight: 800,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const ghostActionButton: CSSProperties = {
@@ -3872,6 +3891,8 @@ const statusBanner: CSSProperties = {
   background: 'rgba(255,255,255,0.05)',
   color: '#dbeafe',
   fontWeight: 700,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leagueHubPanelStyle: CSSProperties = {
@@ -3882,6 +3903,7 @@ const leagueHubPanelStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.18)',
   background: 'linear-gradient(135deg, rgba(15,34,62,0.94), rgba(17,42,39,0.86))',
   boxShadow: '0 22px 48px rgba(2,10,24,0.24)',
+  minWidth: 0,
 }
 
 const leagueHubHeaderStyle: CSSProperties = {
@@ -3890,10 +3912,12 @@ const leagueHubHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: '16px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const leagueHubScoreStyle: CSSProperties = {
-  minWidth: '156px',
+  minWidth: 0,
+  width: 'min(100%, 156px)',
   display: 'grid',
   gap: '2px',
   padding: '16px',
@@ -3902,12 +3926,14 @@ const leagueHubScoreStyle: CSSProperties = {
   background: 'rgba(155,225,29,0.08)',
   color: '#e7ffd1',
   textAlign: 'right',
+  overflowWrap: 'anywhere',
 }
 
 const hubNavStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const hubNavItemStyle: CSSProperties = {
@@ -3921,12 +3947,15 @@ const hubNavItemStyle: CSSProperties = {
   color: '#e7eefb',
   textDecoration: 'none',
   fontWeight: 900,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const seasonPulseGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const seasonPulseCardStyle: CSSProperties = {
@@ -3937,6 +3966,8 @@ const seasonPulseCardStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(7,17,34,0.52)',
   color: '#dbeafe',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const seasonPulseWideCardStyle: CSSProperties = {
@@ -3950,6 +3981,7 @@ const seasonPulseCardHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: '10px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const seasonPulseUpgradeStyle: CSSProperties = {
@@ -3961,6 +3993,7 @@ const seasonPulseUpgradeStyle: CSSProperties = {
 const upcomingMatchListStyle: CSSProperties = {
   display: 'grid',
   gap: '8px',
+  minWidth: 0,
 }
 
 const upcomingMatchRowStyle: CSSProperties = {
@@ -3972,6 +4005,7 @@ const upcomingMatchRowStyle: CSSProperties = {
   borderRadius: '14px',
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const schedulePanelStyle: CSSProperties = {
@@ -3981,12 +4015,14 @@ const schedulePanelStyle: CSSProperties = {
   borderRadius: '26px',
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'linear-gradient(180deg, rgba(14,31,57,0.90), rgba(8,18,35,0.94))',
+  minWidth: 0,
 }
 
 const scheduleMetaGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const scheduleMetaCardStyle: CSSProperties = {
@@ -3997,6 +4033,8 @@ const scheduleMetaCardStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.04)',
   color: '#dbeafe',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const scheduleActionPanelStyle: CSSProperties = {
@@ -4006,16 +4044,19 @@ const scheduleActionPanelStyle: CSSProperties = {
   borderRadius: '20px',
   border: '1px solid rgba(155,225,29,0.16)',
   background: 'rgba(155,225,29,0.06)',
+  minWidth: 0,
 }
 
 const scheduleListStyle: CSSProperties = {
   display: 'grid',
   gap: '10px',
+  minWidth: 0,
 }
 
 const schedulePublishedPanelStyle: CSSProperties = {
   display: 'grid',
   gap: '14px',
+  minWidth: 0,
 }
 
 const scheduleViewHeaderStyle: CSSProperties = {
@@ -4024,6 +4065,7 @@ const scheduleViewHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: '14px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const scheduleViewToggleStyle: CSSProperties = {
@@ -4033,6 +4075,9 @@ const scheduleViewToggleStyle: CSSProperties = {
   borderRadius: '999px',
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(7,17,33,0.56)',
+  maxWidth: '100%',
+  minWidth: 0,
+  flexWrap: 'wrap',
 }
 
 const scheduleViewToggleButtonStyle: CSSProperties = {
@@ -4045,6 +4090,10 @@ const scheduleViewToggleButtonStyle: CSSProperties = {
   cursor: 'pointer',
   fontSize: '12px',
   fontWeight: 900,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const scheduleViewToggleActiveStyle: CSSProperties = {
@@ -4057,6 +4106,7 @@ const scheduleCalendarGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const scheduleCalendarDayStyle: CSSProperties = {
@@ -4068,6 +4118,7 @@ const scheduleCalendarDayStyle: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const scheduleCalendarDateStyle: CSSProperties = {
@@ -4080,11 +4131,15 @@ const scheduleCalendarDateStyle: CSSProperties = {
   fontWeight: 900,
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const scheduleCalendarItemGridStyle: CSSProperties = {
   display: 'grid',
   gap: '8px',
+  minWidth: 0,
 }
 
 const scheduleCalendarItemStyle: CSSProperties = {
@@ -4094,6 +4149,7 @@ const scheduleCalendarItemStyle: CSSProperties = {
   borderRadius: '14px',
   border: '1px solid rgba(155,225,29,0.12)',
   background: 'rgba(7,17,33,0.48)',
+  minWidth: 0,
 }
 
 const scheduleCalendarItemTitleStyle: CSSProperties = {
@@ -4109,6 +4165,7 @@ const scheduleCalendarActionsStyle: CSSProperties = {
   alignItems: 'center',
   gap: '7px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const scheduleRowStyle: CSSProperties = {
@@ -4120,6 +4177,8 @@ const scheduleRowStyle: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
+  flexWrap: 'wrap',
 }
 
 const scheduleRowActionsStyle: CSSProperties = {
@@ -4128,6 +4187,7 @@ const scheduleRowActionsStyle: CSSProperties = {
   justifyContent: 'flex-end',
   gap: '8px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const participantStatusGridStyle: CSSProperties = {
@@ -4135,6 +4195,7 @@ const participantStatusGridStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '8px',
   marginBottom: '12px',
+  minWidth: 0,
 }
 
 const requestPreviewStyle: CSSProperties = {
@@ -4145,12 +4206,14 @@ const requestPreviewStyle: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid rgba(251,191,36,0.14)',
   background: 'rgba(251,191,36,0.06)',
+  minWidth: 0,
 }
 
 const requestPreviewGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const requestPreviewCardStyle: CSSProperties = {
@@ -4161,12 +4224,15 @@ const requestPreviewCardStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(8,18,35,0.6)',
   color: '#e7eefb',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const resultBookGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const resultCuePanelStyle: CSSProperties = {
@@ -4178,6 +4244,7 @@ const resultCuePanelStyle: CSSProperties = {
   borderRadius: '16px',
   border: '1px solid rgba(155,225,29,0.20)',
   background: 'rgba(8,18,35,0.50)',
+  minWidth: 0,
 }
 
 const resultCueKickerStyle: CSSProperties = {
@@ -4186,6 +4253,7 @@ const resultCueKickerStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const resultCueTitleStyle: CSSProperties = {
@@ -4194,6 +4262,7 @@ const resultCueTitleStyle: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.25,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const resultCueTextStyle: CSSProperties = {
@@ -4201,6 +4270,7 @@ const resultCueTextStyle: CSSProperties = {
   color: 'rgba(214,228,246,0.74)',
   fontSize: '13px',
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const resultCueActionRowStyle: CSSProperties = {
@@ -4208,12 +4278,14 @@ const resultCueActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '8px',
   marginTop: '12px',
+  minWidth: 0,
 }
 
 const resultCueGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: '8px',
+  minWidth: 0,
 }
 
 const resultCueItemStyle: CSSProperties = {
@@ -4225,6 +4297,7 @@ const resultCueItemStyle: CSSProperties = {
   borderRadius: '12px',
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.035)',
+  minWidth: 0,
 }
 
 const resultCueItemCompleteStyle: CSSProperties = {
@@ -4238,6 +4311,7 @@ const resultCueItemLabelStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.25,
   fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const resultCueItemTextStyle: CSSProperties = {
@@ -4245,6 +4319,7 @@ const resultCueItemTextStyle: CSSProperties = {
   color: 'rgba(214,228,246,0.68)',
   fontSize: '12px',
   lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const resultBookTile: CSSProperties = {
@@ -4254,6 +4329,8 @@ const resultBookTile: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.045)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const resultBookLabel: CSSProperties = {
@@ -4262,6 +4339,7 @@ const resultBookLabel: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const resultBookValue: CSSProperties = {
@@ -4269,18 +4347,21 @@ const resultBookValue: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.05,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const resultBookText: CSSProperties = {
   color: 'rgba(214,228,246,0.72)',
   fontSize: '13px',
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const contentGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
   gap: '18px',
+  minWidth: 0,
 }
 
 const panelCard: CSSProperties = {
@@ -4290,6 +4371,7 @@ const panelCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
+  minWidth: 0,
 }
 
 const sectionEyebrow: CSSProperties = {
@@ -4298,6 +4380,7 @@ const sectionEyebrow: CSSProperties = {
   letterSpacing: '0.14em',
   textTransform: 'uppercase',
   color: '#93c5fd',
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitle: CSSProperties = {
@@ -4306,12 +4389,14 @@ const sectionTitle: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.08,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionText: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: '14px',
   lineHeight: 1.72,
+  overflowWrap: 'anywhere',
 }
 
 const formatCallout: CSSProperties = {
@@ -4321,6 +4406,7 @@ const formatCallout: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'linear-gradient(180deg, rgba(19,40,75,0.76) 0%, rgba(10,21,41,0.96) 100%)',
+  minWidth: 0,
 }
 
 const formatCalloutTitle: CSSProperties = {
@@ -4329,12 +4415,14 @@ const formatCalloutTitle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const formatCalloutText: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: '13px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const fieldLabel: CSSProperties = {
@@ -4343,6 +4431,8 @@ const fieldLabel: CSSProperties = {
   color: '#e7eefb',
   fontSize: '13px',
   fontWeight: 700,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const inputStyle: CSSProperties = {
@@ -4403,11 +4493,14 @@ const emptyCard: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   background: 'rgba(255,255,255,0.04)',
   lineHeight: 1.7,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const listWrap: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const listCard: CSSProperties = {
@@ -4419,6 +4512,8 @@ const listCard: CSSProperties = {
   borderRadius: '20px',
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const standingCard: CSSProperties = {
@@ -4430,6 +4525,7 @@ const standingCard: CSSProperties = {
   borderRadius: '22px',
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const standingRank: CSSProperties = {
@@ -4442,11 +4538,14 @@ const standingRank: CSSProperties = {
   fontSize: '20px',
   fontWeight: 900,
   letterSpacing: 0,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const standingBody: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const standingHeader: CSSProperties = {
@@ -4455,6 +4554,28 @@ const standingHeader: CSSProperties = {
   gap: '14px',
   alignItems: 'flex-start',
   flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const standingNameRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const leagueStatusPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  maxWidth: '100%',
+  padding: '3px 9px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const standingMetrics: CSSProperties = {
@@ -4462,16 +4583,19 @@ const standingMetrics: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   justifyContent: 'flex-end',
+  minWidth: 0,
 }
 
 const standingMetric: CSSProperties = {
   display: 'grid',
   gap: '4px',
-  minWidth: '74px',
+  width: 'min(100%, 74px)',
   padding: '10px 12px',
   borderRadius: '16px',
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(7, 17, 33, 0.55)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const standingMetricLabel: CSSProperties = {
@@ -4480,6 +4604,7 @@ const standingMetricLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const standingMetricValue: CSSProperties = {
@@ -4487,6 +4612,7 @@ const standingMetricValue: CSSProperties = {
   fontSize: '18px',
   fontWeight: 800,
   lineHeight: 1,
+  overflowWrap: 'anywhere',
 }
 
 const standingMetricValueAccent: CSSProperties = {
@@ -4498,18 +4624,21 @@ const standingActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
+  minWidth: 0,
 }
 
 const resultMetaStack: CSSProperties = {
   display: 'grid',
   justifyItems: 'end',
   gap: '8px',
+  minWidth: 0,
 }
 
 const opportunityGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const opportunityCard: CSSProperties = {
@@ -4519,6 +4648,7 @@ const opportunityCard: CSSProperties = {
   borderRadius: '20px',
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
 }
 
 const opportunityTitleRow: CSSProperties = {
@@ -4527,6 +4657,7 @@ const opportunityTitleRow: CSSProperties = {
   gap: '10px',
   alignItems: 'flex-start',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const opportunityTitle: CSSProperties = {
@@ -4534,12 +4665,14 @@ const opportunityTitle: CSSProperties = {
   fontSize: '17px',
   fontWeight: 800,
   lineHeight: 1.25,
+  overflowWrap: 'anywhere',
 }
 
 const opportunityText: CSSProperties = {
   color: 'rgba(214,228,246,0.76)',
   fontSize: '13px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const listTitle: CSSProperties = {
@@ -4678,6 +4811,7 @@ const teamLineCardStyle: CSSProperties = {
   padding: '10px 12px',
   border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const teamLineHeaderStyle: CSSProperties = {
@@ -4721,6 +4855,7 @@ const quickGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const quickButton: CSSProperties = {
@@ -4736,6 +4871,11 @@ const quickButton: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 700,
   fontSize: '13px',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const stateCard: CSSProperties = {
