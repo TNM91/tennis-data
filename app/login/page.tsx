@@ -570,6 +570,7 @@ const eyebrow: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   alignSelf: 'flex-start',
+  maxWidth: '100%',
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
@@ -581,6 +582,8 @@ const eyebrow: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   marginBottom: '4px',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -591,6 +594,7 @@ const heroTitle: CSSProperties = {
   letterSpacing: 0,
   maxWidth: '760px',
   fontSize: '58px',
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -599,6 +603,7 @@ const heroText: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.45,
   maxWidth: '760px',
+  overflowWrap: 'anywhere',
 }
 
 const selectedPlanCardStyle: CSSProperties = {
@@ -854,6 +859,7 @@ const formTitle: CSSProperties = {
   lineHeight: 1.04,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const formTitleMobile: CSSProperties = {
@@ -866,6 +872,7 @@ const inputLabel: CSSProperties = {
   fontSize: '13px',
   fontWeight: 700,
   marginTop: '2px',
+  overflowWrap: 'anywhere',
 }
 
 const inputStyle: CSSProperties = {
@@ -966,12 +973,14 @@ const inlineLink: CSSProperties = {
   color: 'var(--brand-blue-2)',
   textDecoration: 'none',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const inlineLinkMuted: CSSProperties = {
   color: 'rgba(224,236,249,0.74)',
   textDecoration: 'none',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const loadingShell: CSSProperties = {

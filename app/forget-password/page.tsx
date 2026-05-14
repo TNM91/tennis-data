@@ -286,6 +286,7 @@ const loadingCard: CSSProperties = {
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  maxWidth: '100%',
   padding: '8px 12px',
   borderRadius: '999px',
   border: '1px solid var(--home-eyebrow-border)',
@@ -295,6 +296,8 @@ const eyebrow: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -304,6 +307,7 @@ const heroTitle: CSSProperties = {
   lineHeight: 0.96,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -312,6 +316,7 @@ const heroText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '16px',
   lineHeight: 1.75,
+  overflowWrap: 'anywhere',
 }
 
 const pillRow: CSSProperties = {
@@ -468,6 +473,7 @@ const formTitle: CSSProperties = {
   lineHeight: 1.05,
   fontWeight: 850,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const inputLabel: CSSProperties = {
@@ -477,6 +483,7 @@ const inputLabel: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '14px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const inputStyle: CSSProperties = {
@@ -552,10 +559,12 @@ const inlineLink: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontWeight: 700,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const inlineLinkMuted: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontWeight: 700,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
