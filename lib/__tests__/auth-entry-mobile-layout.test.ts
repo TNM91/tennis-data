@@ -62,12 +62,22 @@ describe('auth entry mobile layout guards', () => {
 
   it('wraps long auth labels, notices, and action text instead of forcing overflow', () => {
     for (const [file, source] of sources) {
-      for (const styleName of ['submitButton', 'successBanner', 'errorBanner']) {
+      for (const styleName of ['heroTitle', 'heroText', 'formTitle', 'inputLabel', 'submitButton', 'successBanner', 'errorBanner', 'inlineLink']) {
         expect(styleBlock(source, styleName), `${file} ${styleName}`).toContain("overflowWrap: 'anywhere'")
       }
     }
 
+    for (const file of ['app/login/page.tsx', 'app/join/page.tsx', 'app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
+      const eyebrowBlock = styleBlock(sources.get(file)!, 'eyebrow')
+      expect(eyebrowBlock).toContain("maxWidth: '100%'")
+      expect(eyebrowBlock).toContain("whiteSpace: 'normal'")
+      expect(eyebrowBlock).toContain("overflowWrap: 'anywhere'")
+    }
+
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'togglePasswordButton')).toContain(
+      "overflowWrap: 'anywhere'",
+    )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'inlineLinkMuted')).toContain(
       "overflowWrap: 'anywhere'",
     )
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
@@ -76,7 +86,13 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'pillBase')).toContain(
       "overflowWrap: 'anywhere'",
     )
+    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'inlineLinkMuted')).toContain(
+      "overflowWrap: 'anywhere'",
+    )
     expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'statusPill')).toContain(
+      "overflowWrap: 'anywhere'",
+    )
+    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'inlineLinkMuted')).toContain(
       "overflowWrap: 'anywhere'",
     )
   })
