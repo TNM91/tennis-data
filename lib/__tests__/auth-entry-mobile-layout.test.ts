@@ -86,11 +86,26 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'pillBase')).toContain(
       "overflowWrap: 'anywhere'",
     )
+    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'pillRow')).toContain('minWidth: 0')
+    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'pillBase')).toContain(
+      "whiteSpace: 'normal'",
+    )
+    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'helperRow')).toContain(
+      "maxWidth: '100%'",
+    )
     expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'inlineLinkMuted')).toContain(
       "overflowWrap: 'anywhere'",
     )
     expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'statusPill')).toContain(
       "overflowWrap: 'anywhere'",
+    )
+    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'pillRow')).toContain('minWidth: 0')
+    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'pillBase')).toContain(
+      "whiteSpace: 'normal'",
+    )
+    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'panelHeader')).toContain('minWidth: 0')
+    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'helperRow')).toContain(
+      "maxWidth: '100%'",
     )
     expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'inlineLinkMuted')).toContain(
       "overflowWrap: 'anywhere'",

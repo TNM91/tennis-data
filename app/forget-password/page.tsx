@@ -324,6 +324,7 @@ const pillRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '18px',
+  minWidth: 0,
 }
 
 const pillBase: CSSProperties = {
@@ -336,6 +337,7 @@ const pillBase: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.03em',
   overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }
 
 const pillBlue: CSSProperties = {
@@ -369,6 +371,7 @@ const panelHeader: CSSProperties = {
   gap: '10px',
   marginBottom: '12px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const panelLabel: CSSProperties = {
@@ -553,6 +556,7 @@ const helperRow: CSSProperties = {
   gap: '12px',
   flexWrap: 'wrap',
   minWidth: 0,
+  maxWidth: '100%',
 }
 
 const inlineLink: CSSProperties = {
