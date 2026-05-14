@@ -117,6 +117,7 @@ describe('League Coordinator mobile layout guards', () => {
       'heroActionRow',
       'commandGrid',
       'dataAssistOpsGridStyle',
+      'resultHandoffGridStyle',
       'reviewQueueGridStyle',
       'publicReadinessGridStyle',
       'publicReadinessFilterRowStyle',
@@ -134,7 +135,10 @@ describe('League Coordinator mobile layout guards', () => {
       'calendarGridStyle',
       'fileInputStyle',
       'textareaStyle',
+      'statusBanner',
       'nextActionButtonRowStyle',
+      'emptyCard',
+      'registryCard',
       'noteCard',
     ]) {
       expect(styleBlock(source, styleName)).toContain('minWidth: 0')
@@ -147,6 +151,7 @@ describe('League Coordinator mobile layout guards', () => {
       'pillBase',
       'commandLabel',
       'commandValue',
+      'dataAssistOpsCardStyle',
       'publicReadinessFilterButtonStyle',
       'reviewCueValueStyle',
       'reviewCueTitleStyle',
@@ -162,8 +167,12 @@ describe('League Coordinator mobile layout guards', () => {
       'calendarDateStyle',
       'calendarMetaStyle',
       'calendarActionStyle',
+      'photoPlaceholder',
       'fileInputStyle',
       'textareaStyle',
+      'statusBanner',
+      'emptyCard',
+      'registryCard',
       'noteCard',
     ]) {
       expect(styleBlock(source, styleName)).toContain("overflowWrap: 'anywhere'")
@@ -181,6 +190,7 @@ describe('League Coordinator mobile layout guards', () => {
     for (const styleName of [
       'commandGrid',
       'dataAssistOpsGridStyle',
+      'resultHandoffGridStyle',
       'reviewQueueGridStyle',
       'publicReadinessGridStyle',
       'resultBookGridStyle',
@@ -195,5 +205,7 @@ describe('League Coordinator mobile layout guards', () => {
     }
 
     expect(source).not.toContain("whiteSpace: 'nowrap'")
+    expect(source).not.toContain("linear-gradient(90deg, #4ade80, #9be11d)")
+    expect(source).toContain("linear-gradient(90deg, var(--brand-green), var(--brand-lime))")
   })
 })

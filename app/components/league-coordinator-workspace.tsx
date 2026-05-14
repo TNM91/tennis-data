@@ -2867,12 +2867,14 @@ const dataAssistOpsCardStyle: CSSProperties = {
   lineHeight: 1.55,
   fontWeight: 750,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const resultHandoffGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const resultHandoffStepStyle: CSSProperties = {
@@ -3093,7 +3095,7 @@ const leagueOpsFillStyle = (value: number): CSSProperties => ({
   height: '100%',
   width: `${Math.max(0, Math.min(value, 100))}%`,
   borderRadius: '999px',
-  background: 'linear-gradient(90deg, #4ade80, #9be11d)',
+  background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
 })
 
 const startActionRowStyle: CSSProperties = {
@@ -3531,6 +3533,8 @@ const photoPlaceholder: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const fileInputStyle: CSSProperties = {
@@ -3562,6 +3566,7 @@ const statusBanner: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   fontWeight: 700,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3684,6 +3689,7 @@ const emptyCard: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   background: 'var(--shell-chip-bg)',
   lineHeight: 1.7,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3701,6 +3707,7 @@ const registryCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const registryPhotoWrap: CSSProperties = {
