@@ -95,6 +95,18 @@ describe('Profile mobile layout guards', () => {
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('setupStepTopStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('teamContextRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('toolFlowCardStyle')).toContain(
+      "gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 2.75rem) minmax(0, 1fr)'",
+    )
+    expect(styleBlock('playerCardTopStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 3.625rem) minmax(0, 1fr)'",
+    )
+    expect(styleBlock('autoContextCalloutStyle')).toContain(
+      "gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 2.75rem) minmax(0, 1fr)'",
+    )
+    expect(styleBlock('toolLaunchCardStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 2.25rem) minmax(0, 1fr)'",
+    )
     expect(styleBlock('pillGreenStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('pillGreenStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('setupProgressStyle')).toContain("minWidth: 'min(100%, 96px)'")
