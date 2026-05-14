@@ -830,6 +830,7 @@ const toolFlowLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const toolFlowValueStyle: CSSProperties = {
@@ -837,6 +838,7 @@ const toolFlowValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 950,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const toolFlowNoteStyle: CSSProperties = {
@@ -845,6 +847,7 @@ const toolFlowNoteStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.35,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const heroButtonRowStyle: CSSProperties = {
@@ -861,6 +864,7 @@ const billingMessageStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.45,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const primaryButtonStyle: CSSProperties = {
@@ -919,6 +923,7 @@ const profileBadgeRowStyle: CSSProperties = {
   gap: 8,
   justifyContent: 'space-between',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const playerCardTopStyle: CSSProperties = {
@@ -955,17 +960,20 @@ const photoControlStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const photoInputStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
+  overflowWrap: 'anywhere',
 }
 
 const photoMessageStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const statusTitleStyle: CSSProperties = {
@@ -1000,6 +1008,7 @@ const metricLabelStyle: CSSProperties = {
   color: 'var(--muted)',
   fontSize: 12,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const metricValueStyle: CSSProperties = {
@@ -1007,6 +1016,7 @@ const metricValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   lineHeight: 1.2,
+  overflowWrap: 'anywhere',
 }
 
 const contentGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -1162,6 +1172,7 @@ const sectionKickerStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitleStyle: CSSProperties = {
@@ -1188,7 +1199,9 @@ const pillGreenStyle: CSSProperties = {
   padding: '7px 11px',
   fontSize: 12,
   fontWeight: 900,
+  maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const pillSlateStyle: CSSProperties = {
@@ -1267,6 +1280,7 @@ const labelStyle: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   minHeight: 46,
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
@@ -1280,6 +1294,7 @@ const actionRowStyle: CSSProperties = {
   display: 'flex',
   gap: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const hintStyle: CSSProperties = {
@@ -1287,17 +1302,20 @@ const hintStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const teamContextListStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const teamContextRowStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
+  flexWrap: 'wrap',
   gap: 12,
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
@@ -1305,24 +1323,29 @@ const teamContextRowStyle: CSSProperties = {
   padding: '11px 12px',
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const successStyle: CSSProperties = {
   color: '#bbf7d0',
   fontSize: 13,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const errorStyle: CSSProperties = {
   color: '#fecaca',
   fontSize: 13,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const ratingTileGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const ratingTileStyle: CSSProperties = {
@@ -1333,11 +1356,13 @@ const ratingTileStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   minHeight: 86,
+  minWidth: 0,
 }
 
 const toolLaunchGridStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
 }
 
 const toolLaunchCardStyle: CSSProperties = {
@@ -1351,11 +1376,13 @@ const toolLaunchCardStyle: CSSProperties = {
   padding: 13,
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
+  minWidth: 0,
 }
 
 const toolLaunchCardMainStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
+  minWidth: 0,
 }
 
 const toolLaunchKickerStyle: CSSProperties = {
@@ -1364,6 +1391,7 @@ const toolLaunchKickerStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const toolLaunchValueStyle: CSSProperties = {
@@ -1371,6 +1399,7 @@ const toolLaunchValueStyle: CSSProperties = {
   fontSize: '1.05rem',
   fontWeight: 950,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const toolLaunchNoteStyle: CSSProperties = {
@@ -1380,6 +1409,7 @@ const toolLaunchNoteStyle: CSSProperties = {
   fontStyle: 'normal',
   fontWeight: 700,
   lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const summaryActionRowStyle: CSSProperties = {
@@ -1387,4 +1417,5 @@ const summaryActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   marginTop: 16,
+  minWidth: 0,
 }

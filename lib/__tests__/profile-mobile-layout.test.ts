@@ -44,6 +44,17 @@ describe('Profile mobile layout guards', () => {
       'sectionHeaderStyle',
       'autoContextStripStyle',
       'fieldStyle',
+      'photoControlStyle',
+      'inputStyle',
+      'actionRowStyle',
+      'teamContextListStyle',
+      'teamContextRowStyle',
+      'ratingTileGridStyle',
+      'ratingTileStyle',
+      'toolLaunchGridStyle',
+      'toolLaunchCardStyle',
+      'toolLaunchCardMainStyle',
+      'summaryActionRowStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -52,18 +63,40 @@ describe('Profile mobile layout guards', () => {
       'eyebrowStyle',
       'heroTitleStyle',
       'heroTextStyle',
+      'toolFlowLabelStyle',
+      'toolFlowValueStyle',
+      'toolFlowNoteStyle',
+      'billingMessageStyle',
       'primaryButtonStyle',
       'secondaryButtonStyle',
+      'profileBadgeRowStyle',
+      'photoControlStyle',
+      'photoInputStyle',
+      'photoMessageStyle',
+      'metricLabelStyle',
+      'metricValueStyle',
+      'sectionKickerStyle',
+      'pillGreenStyle',
       'setupPathTitleStyle',
       'setupStepLabelStyle',
       'sectionTitleStyle',
       'labelStyle',
+      'hintStyle',
+      'teamContextRowStyle',
+      'successStyle',
+      'errorStyle',
+      'toolLaunchKickerStyle',
+      'toolLaunchValueStyle',
+      'toolLaunchNoteStyle',
     ]) {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     }
 
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('setupStepTopStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('teamContextRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('pillGreenStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('pillGreenStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('setupProgressStyle')).toContain("minWidth: 'min(100%, 96px)'")
     expect(styleBlock('setupProgressStyle')).toContain("maxWidth: '100%'")
     expect(source).not.toContain('minWidth: 96')
