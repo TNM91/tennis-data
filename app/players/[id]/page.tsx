@@ -3406,7 +3406,7 @@ const summaryTitle: CSSProperties = {
 
 const summaryStatsGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -3863,7 +3863,7 @@ const rosterReadyText: CSSProperties = {
 
 const rosterReadyStats: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
