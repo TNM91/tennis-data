@@ -4464,8 +4464,9 @@ const textareaStyle: CSSProperties = {
 
 const resultFormGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '14px',
+  minWidth: 0,
 }
 
 const primaryButton: CSSProperties = {
@@ -4639,7 +4640,7 @@ const resultMetaStack: CSSProperties = {
 
 const opportunityGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
   minWidth: 0,
 }
