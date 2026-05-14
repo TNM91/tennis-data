@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/admin/import/page.tsx'), 'utf8')
+const reviewPanelSource = readFileSync(join(process.cwd(), 'app/admin/import/_components/scorecard-review-panel.tsx'), 'utf8')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}`)
@@ -19,6 +20,8 @@ describe('Admin import mobile layout guards', () => {
     expect(styleBlock('adminImportActionRowStyle')).toContain('minWidth: 0')
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(reviewPanelSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
+    expect(reviewPanelSource).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
     expect(source).not.toContain("display: 'flex', gap: 12, marginTop: 18 }")
   })
 

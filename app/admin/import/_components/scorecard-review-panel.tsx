@@ -924,9 +924,10 @@ function LineReviewCard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
           gap: 12,
           marginTop: 12,
+          minWidth: 0,
         }}
       >
         <ValueRow label="Raw score text" value={line.rawScoreText || line.score || '—'} />
@@ -936,9 +937,10 @@ function LineReviewCard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
           gap: 12,
           marginTop: 12,
+          minWidth: 0,
         }}
       >
         <label style={{ display: 'grid', gap: 8 }}>
@@ -1011,9 +1013,10 @@ function LineReviewCard({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
             gap: 12,
             marginTop: 12,
+            minWidth: 0,
           }}
         >
           <label style={{ display: 'grid', gap: 8 }}>
