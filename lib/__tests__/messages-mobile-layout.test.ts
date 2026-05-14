@@ -33,12 +33,22 @@ describe('Messages mobile layout guards', () => {
   it('keeps thread, alert, and message rows wrap-safe', () => {
     for (const styleName of [
       'sectionHeaderStyle',
+      'identityRowStyle',
+      'threadListStyle',
       'threadTopStyle',
+      'notificationListStyle',
       'notificationTopStyle',
       'messageListStyle',
+      'contextPanelStyle',
+      'opsPanelStyle',
+      'schedulePanelStyle',
+      'schedulePanelHeaderStyle',
       'segmentedStyle',
+      'filterBarStyle',
       'fieldStyle',
       'inputStyle',
+      'textareaStyle',
+      'replyBoxStyle',
       'recipientResultsStyle',
       'primaryButtonStyle',
       'ghostButtonStyle',
@@ -46,9 +56,30 @@ describe('Messages mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
+    for (const styleName of [
+      'titleStyle',
+      'sectionTitleStyle',
+      'copyStyle',
+      'identityRowStyle',
+      'pillStyle',
+      'unreadPillStyle',
+      'threadPreviewStyle',
+      'threadMetaStyle',
+      'labelStyle',
+      'textareaStyle',
+      'hintStyle',
+      'successStyle',
+      'errorStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
+    }
+
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('threadTopStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('notificationTopStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('pillStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('pillStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('unreadPillStyle')).toContain("whiteSpace: 'normal'")
     expect(functionBlock('messageBubbleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('primaryButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('ghostButtonStyle')).toContain("whiteSpace: 'normal'")
@@ -59,7 +90,15 @@ describe('Messages mobile layout guards', () => {
     expect(functionBlock('scheduleEditGridStyle')).toContain("isMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('lookupRowStyle')).toContain("isMobile ? 'minmax(0, 1fr)'")
     expect(styleBlock('rsvpActionRowStyle')).toContain('minWidth: 0')
+    expect(styleBlock('rsvpStatStyle')).toContain('minWidth: 0')
+    expect(styleBlock('scheduleManagePanelStyle')).toContain('minWidth: 0')
+    expect(styleBlock('cancelBoxStyle')).toContain('minWidth: 0')
     expect(styleBlock('schedulePillStackStyle')).toContain('minWidth: 0')
+    expect(functionBlock('rsvpButtonStyle')).toContain("whiteSpace: 'normal'")
+    expect(functionBlock('rsvpButtonStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('scheduleTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(functionBlock('filterButtonStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(functionBlock('segmentStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('recipientResultButtonStyle')).toContain("flexWrap: 'wrap'")
     expect(source).toContain('style={lookupRowStyle(isMobile)}')
     expect(source).toContain('style={rsvpSummaryStyle(isMobile)}')

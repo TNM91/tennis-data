@@ -1214,6 +1214,7 @@ const titleStyle: CSSProperties = {
   fontSize: 'clamp(2rem, 4vw, 3.4rem)',
   lineHeight: 1,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitleStyle: CSSProperties = {
@@ -1222,6 +1223,7 @@ const sectionTitleStyle: CSSProperties = {
   fontSize: '1.25rem',
   lineHeight: 1.15,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const copyStyle: CSSProperties = {
@@ -1230,6 +1232,7 @@ const copyStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.55,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const workspaceGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -1258,6 +1261,8 @@ const identityRowStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 850,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const preferencePanelStyle: CSSProperties = {
@@ -1298,6 +1303,7 @@ const sectionHeaderStyle: CSSProperties = {
 
 const pillStyle: CSSProperties = {
   width: 'fit-content',
+  maxWidth: '100%',
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
   background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
@@ -1307,11 +1313,14 @@ const pillStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const threadListStyle: CSSProperties = {
   display: 'grid',
   gap: 9,
+  minWidth: 0,
 }
 
 const threadButtonStyle = (active: boolean, unread = false): CSSProperties => ({
@@ -1341,11 +1350,15 @@ const unreadPillStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   padding: '3px 7px',
   fontWeight: 950,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const notificationListStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const notificationButtonStyle = (unread: boolean): CSSProperties => ({
@@ -1399,6 +1412,7 @@ const threadPreviewStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const threadMetaStyle: CSSProperties = {
@@ -1406,6 +1420,7 @@ const threadMetaStyle: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.35,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const messageListStyle: CSSProperties = {
@@ -1432,6 +1447,7 @@ const contextPanelStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+  minWidth: 0,
 }
 
 const opsPanelStyle: CSSProperties = {
@@ -1441,6 +1457,7 @@ const opsPanelStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
   background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-chip-bg) 94%)',
+  minWidth: 0,
 }
 
 const schedulePanelStyle: CSSProperties = {
@@ -1450,6 +1467,7 @@ const schedulePanelStyle: CSSProperties = {
   borderRadius: 18,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
   background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  minWidth: 0,
 }
 
 const schedulePanelHeaderStyle: CSSProperties = {
@@ -1458,6 +1476,7 @@ const schedulePanelHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 12,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const schedulePillStackStyle: CSSProperties = {
@@ -1481,6 +1500,7 @@ const scheduleTitleStyle: CSSProperties = {
   fontSize: 18,
   lineHeight: 1.15,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const rsvpSummaryStyle = (isMobile: boolean): CSSProperties => ({
@@ -1501,6 +1521,8 @@ const rsvpStatStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 850,
   textTransform: 'uppercase',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const rsvpActionRowStyle: CSSProperties = {
@@ -1514,6 +1536,7 @@ const scheduleManagePanelStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
   paddingTop: 2,
+  minWidth: 0,
 }
 
 const scheduleEditGridStyle = (isMobile: boolean): CSSProperties => ({
@@ -1531,6 +1554,7 @@ const cancelBoxStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid rgba(248,113,113,0.22)',
   background: 'rgba(248,113,113,0.08)',
+  minWidth: 0,
 }
 
 const rsvpButtonStyle = (active: boolean, status: InternalScheduleResponseStatus): CSSProperties => ({
@@ -1550,6 +1574,11 @@ const rsvpButtonStyle = (active: boolean, status: InternalScheduleResponseStatus
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 })
 
 const messageBubbleWrapStyle = (mine: boolean): CSSProperties => ({
@@ -1578,6 +1607,7 @@ const messageBubbleStyle = (mine: boolean): CSSProperties => ({
 const replyBoxStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
 }
 
 const segmentedStyle: CSSProperties = {
@@ -1595,6 +1625,7 @@ const filterBarStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 7,
+  minWidth: 0,
 }
 
 const filterButtonStyle = (active: boolean): CSSProperties => ({
@@ -1611,6 +1642,11 @@ const filterButtonStyle = (active: boolean): CSSProperties => ({
   fontSize: 12,
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 })
 
 const segmentStyle = (active: boolean): CSSProperties => ({
@@ -1625,6 +1661,10 @@ const segmentStyle = (active: boolean): CSSProperties => ({
   color: 'var(--foreground-strong)',
   fontWeight: 950,
   cursor: 'pointer',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 })
 
 const fieldStyle: CSSProperties = {
@@ -1639,6 +1679,7 @@ const labelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const inputStyle: CSSProperties = {
@@ -1655,10 +1696,12 @@ const inputStyle: CSSProperties = {
 
 const textareaStyle: CSSProperties = {
   ...inputStyle,
+  minWidth: 0,
   minHeight: 120,
   padding: 12,
   resize: 'vertical',
   lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const lookupRowStyle = (isMobile: boolean): CSSProperties => ({
@@ -1747,6 +1790,7 @@ const hintStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.45,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const warningStyle: CSSProperties = {
@@ -1758,10 +1802,12 @@ const successStyle: CSSProperties = {
   color: '#bbf7d0',
   fontSize: 13,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const errorStyle: CSSProperties = {
   color: '#fecaca',
   fontSize: 13,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
