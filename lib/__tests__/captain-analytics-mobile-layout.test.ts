@@ -68,16 +68,22 @@ describe('Captain analytics mobile layout guards', () => {
       'poolCardStyle',
       'poolCardTopStyle',
       'pillRowStyle',
+      'compareGridStyle',
+      'compareCardStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
     expect(functionBlock('toggleGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(styleBlock('compareGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(styleBlock('compareLabelStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('compareValueStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('badgeBase')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('miniPillStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('playerNameStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('playerMetaStyle')).toContain("overflowWrap: 'anywhere'")
     expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+    expect(source).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
   })
 })
