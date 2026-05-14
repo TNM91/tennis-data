@@ -102,6 +102,35 @@ describe('My Lab premium surface', () => {
       'trophyCardStyle',
       'matchupQueueFitStyle',
       'miniActionPillStyle',
+      'goalProgressPanelStyle',
+      'goalSummaryGridStyle',
+      'goalSummaryCardStyle',
+      'goalReadinessPanelStyle',
+      'goalReadinessHeaderStyle',
+      'goalReadinessChecklistStyle',
+      'recommendationCardStyle',
+      'quickStartPanelStyle',
+      'quickStartButtonRowStyle',
+      'goalWorkspaceStyle',
+      'goalListStyle',
+      'goalTabStyle',
+      'goalTabMetaRowStyle',
+      'goalEditorDetailsStyle',
+      'goalFooterActionsStyle',
+      'notebookFooterStyle',
+      'optionalContextDetailsStyle',
+      'optionalContextSummaryStyle',
+      'compactSignalsPanelStyle',
+      'compactSignalsHeaderStyle',
+      'compactSignalsGridStyle',
+      'compactSignalCardStyle',
+      'leftColumnStyle',
+      'rightColumnStyle',
+      'surfaceStrongStyle',
+      'surfaceStyle',
+      'sectionHeaderStyle',
+      'searchPanelStyle',
+      'inputWrapStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -115,8 +144,47 @@ describe('My Lab premium surface', () => {
       'workshopRowTitleStyle',
       'workshopRowMetaStyle',
       'miniActionPillStyle',
+      'compactSectionTitleStyle',
+      'goalSummaryValueStyle',
+      'goalReadinessTextStyle',
+      'goalReadinessScoreStyle',
+      'readinessPillStyle',
+      'recommendationTextStyle',
+      'quickStartTextStyle',
+      'quickStartButtonStyle',
+      'smallGhostButtonStyle',
+      'collapsibleSummaryStyle',
+      'goalTabStyle',
+      'goalTabMetaRowStyle',
+      'miniActionLinkStyle',
+      'reportStatusTextStyle',
+      'matchReflectButtonStyle',
+      'notebookFooterStyle',
+      'saveNotebookButtonStyle',
+      'metricLabelStyle',
+      'metricNoteStyle',
+      'optionalContextSummaryStyle',
+      'optionalContextCountStyle',
+      'compactSignalsHeaderStyle',
+      'compactSignalNameStyle',
+      'compactSignalMetaStyle',
+      'sectionKickerStyle',
+      'sectionTextStyle',
+      'labelStyle',
     ]) {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
+    }
+
+    for (const styleName of [
+      'quickStartButtonStyle',
+      'smallGhostButtonStyle',
+      'matchReflectButtonStyle',
+      'saveNotebookButtonStyle',
+      'readinessPillStyle',
+      'optionalContextCountStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain("maxWidth: '100%'")
+      expect(styleBlock(styleName)).toContain("whiteSpace: 'normal'")
     }
   })
 })
