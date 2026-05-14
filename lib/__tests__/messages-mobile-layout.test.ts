@@ -89,6 +89,7 @@ describe('Messages mobile layout guards', () => {
     expect(functionBlock('rsvpSummaryStyle')).toContain("isMobile ? 'repeat(2, minmax(0, 1fr))'")
     expect(functionBlock('scheduleEditGridStyle')).toContain("isMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('lookupRowStyle')).toContain("isMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('lookupRowStyle')).toContain("'minmax(0, 1fr) minmax(0, 8.5rem)'")
     expect(styleBlock('rsvpActionRowStyle')).toContain('minWidth: 0')
     expect(styleBlock('rsvpStatStyle')).toContain('minWidth: 0')
     expect(styleBlock('scheduleManagePanelStyle')).toContain('minWidth: 0')
