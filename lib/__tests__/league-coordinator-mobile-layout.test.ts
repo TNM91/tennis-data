@@ -105,8 +105,13 @@ describe('League Coordinator mobile layout guards', () => {
   it('keeps the shared coordinator subnav from forcing horizontal scroll', () => {
     expect(subnavSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
     expect(styleBlock(subnavSource, 'linkStyle')).toContain('minWidth: 0')
+    expect(styleBlock(subnavSource, 'linkStyle')).toContain("'minmax(0, 1.875rem) minmax(0, 1fr) minmax(0, 3.5rem)'")
+    expect(styleBlock(subnavSource, 'linkStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(subnavSource, 'linkLabelStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(subnavSource).toContain("gridTemplateColumns: '30px minmax(0, 1fr) auto'")
+    expect(styleBlock(subnavSource, 'linkArrowStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(subnavSource, 'tierRowStyle')).toContain('minWidth: 0')
+    expect(styleBlock(subnavSource, 'tierPillBase')).toContain("whiteSpace: 'normal'")
+    expect(subnavSource).not.toContain("gridTemplateColumns: '30px minmax(0, 1fr) auto'")
     expect(styleBlock(subnavSource, 'gridStyle')).toContain('minWidth: 0')
   })
 
