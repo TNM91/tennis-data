@@ -105,8 +105,8 @@ const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLI
 export default function ExplorePage() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { access } = useProductAccess()
-  const shouldShowAds = shouldShowSponsoredPlacements(access)
+  const { access, authResolved } = useProductAccess()
+  const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,

@@ -88,8 +88,8 @@ export default function PlayersPage() {
   const [searchFocused, setSearchFocused] = useState(false)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { access, user } = useProductAccess()
-  const shouldShowAds = shouldShowSponsoredPlacements(access)
+  const { access, user, authResolved } = useProductAccess()
+  const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
   useEffect(() => {
     void loadPlayers()
@@ -459,7 +459,7 @@ export default function PlayersPage() {
                 <span style={heroHintPill}>Prep with Matchup</span>
               </div>
 
-              {!access.canUseAdvancedPlayerInsights ? (
+              {authResolved && !access.canUseAdvancedPlayerInsights ? (
                 <div style={{ marginTop: 18, maxWidth: 560 }}>
                   <UpgradePrompt
                     planId="player_plus"

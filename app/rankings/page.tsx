@@ -87,8 +87,8 @@ export default function RankingsPage() {
   const [sortCol, setSortCol] = useState<'tiq' | 'trend' | 'form' | 'winRate' | 'matches'>('tiq')
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { access } = useProductAccess()
-  const shouldShowAds = shouldShowSponsoredPlacements(access)
+  const { access, authResolved } = useProductAccess()
+  const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
   const ratingViewLabel = getRatingViewLabel(ratingView)
 
   useEffect(() => {
@@ -508,7 +508,7 @@ export default function RankingsPage() {
                 <Link href="/mylab" style={exploreNavLink}>My Lab</Link>
               </div>
 
-              {!access.canUseAdvancedPlayerInsights ? (
+              {authResolved && !access.canUseAdvancedPlayerInsights ? (
                 <div style={{ marginTop: 18, maxWidth: 560 }}>
                   <UpgradePrompt
                     planId="player_plus"

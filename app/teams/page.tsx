@@ -107,8 +107,8 @@ export default function TeamsPage() {
   const [sortBy, setSortBy] = useState<SortKey>('matches')
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { access } = useProductAccess()
-  const shouldShowAds = shouldShowSponsoredPlacements(access)
+  const { access, authResolved } = useProductAccess()
+  const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
   useEffect(() => {
     void loadTeams()
@@ -453,7 +453,7 @@ export default function TeamsPage() {
                 <StatPill label="Players" value={String(totals.players)} />
               </div>
 
-              {(!access.canUseCaptainWorkflow || !access.canUseLeagueTools) ? (
+              {authResolved && (!access.canUseCaptainWorkflow || !access.canUseLeagueTools) ? (
                 <div style={{ marginTop: 18, display: 'grid', gap: 14 }}>
                   {!access.canUseCaptainWorkflow ? (
                     <UpgradePrompt

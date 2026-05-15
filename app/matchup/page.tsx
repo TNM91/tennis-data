@@ -181,8 +181,8 @@ export default function MatchupPage() {
     low: null,
     sampleSize: 0,
   })
-  const { access, user } = useProductAccess()
-  const shouldShowAds = shouldShowSponsoredPlacements(access)
+  const { access, user, authResolved } = useProductAccess()
+  const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
   useEffect(() => {
     void loadPlayers()
@@ -1728,7 +1728,7 @@ export default function MatchupPage() {
             <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
           </div>
 
-          {!access.canUseAdvancedPlayerInsights ? (
+          {authResolved && !access.canUseAdvancedPlayerInsights ? (
             <div style={{ marginBottom: 16 }}>
               <UpgradePrompt
                 planId="player_plus"
