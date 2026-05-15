@@ -3569,7 +3569,7 @@ const captainOnboardingStripStyle = (isSmallMobile: boolean): CSSProperties => (
 
 const captainOnboardingStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: 10,
   alignItems: 'start',
   minHeight: 112,
@@ -3578,6 +3578,7 @@ const captainOnboardingStepStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
   background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const captainOnboardingNumberStyle: CSSProperties = {
