@@ -413,9 +413,10 @@ export default function ExploreSearchPage() {
               position: 'relative',
               zIndex: 1,
               display: 'grid',
-              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'minmax(0, 1fr)' : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) auto',
+              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'minmax(0, 1fr)' : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) minmax(0, auto)',
               gap: 10,
               minWidth: 0,
+              overflowWrap: 'anywhere',
               alignItems: isMobile ? 'stretch' : 'end',
             }}
           >

@@ -510,17 +510,20 @@ const lightUnlockPathLabelStyle: CSSProperties = {
 const unlockStepGridStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const unlockStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: 10,
   alignItems: 'start',
   padding: '10px 11px',
   borderRadius: 14,
   background: 'rgba(255, 255, 255, 0.04)',
   border: '1px solid rgba(255, 255, 255, 0.07)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const lightUnlockStepStyle: CSSProperties = {

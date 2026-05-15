@@ -28,7 +28,7 @@ describe('auth entry mobile layout guards', () => {
     }
 
     expect(sources.get('app/login/page.tsx')).toContain(
-      "gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto'",
+      "gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)'",
     )
     expect(sources.get('app/reset-password/page.tsx')).toContain(
       "gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))'",
@@ -88,6 +88,10 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'togglePasswordButton')).toContain(
       "overflowWrap: 'anywhere'",
     )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'passwordWrap')).toContain(
+      "'minmax(0, 1fr) minmax(0, auto)'",
+    )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'passwordWrap')).toContain('minWidth: 0')
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'inlineLinkMuted')).toContain(
       "overflowWrap: 'anywhere'",
     )
