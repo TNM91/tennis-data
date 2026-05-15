@@ -10,8 +10,11 @@ describe('site header mobile account drawer', () => {
     expect(source).toContain("display: 'grid'")
     expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
     expect(source).toContain('const mobileAccountToolsStyle')
-    expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr) auto'")
+    expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)'")
     expect(source).toContain("width: '100%'")
+    expect(source).toContain("overflowWrap: 'anywhere'")
+    expect(source).not.toContain("'minmax(0, 1fr) auto'")
+    expect(source).not.toContain("'auto minmax(0, 1fr) auto'")
   })
 
   it('keeps profile and message labels wrap-safe in the drawer', () => {
