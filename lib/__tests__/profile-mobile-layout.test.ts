@@ -88,6 +88,10 @@ describe('Profile mobile layout guards', () => {
       'toolLaunchKickerStyle',
       'toolLaunchValueStyle',
       'toolLaunchNoteStyle',
+      'toolFlowCardStyle',
+      'playerCardTopStyle',
+      'autoContextCalloutStyle',
+      'toolLaunchCardStyle',
     ]) {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     }
@@ -105,7 +109,11 @@ describe('Profile mobile layout guards', () => {
     expect(styleBlock('pillGreenStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('setupProgressStyle')).toContain("minWidth: 'min(100%, 96px)'")
     expect(styleBlock('setupProgressStyle')).toContain("maxWidth: '100%'")
+    for (const styleName of ['toolFlowCardStyle', 'playerCardTopStyle', 'autoContextCalloutStyle', 'toolLaunchCardStyle']) {
+      expect(styleBlock(styleName)).toContain("'minmax(0, auto) minmax(0, 1fr)'")
+    }
     expect(source).not.toContain('minWidth: 96')
+    expect(source).not.toContain("'auto minmax(0, 1fr)'")
     expect(source).not.toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
   })
