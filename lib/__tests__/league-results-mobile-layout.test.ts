@@ -37,7 +37,7 @@ describe('League result workspace mobile layout guards', () => {
       expect(styleBlock(teamSource, styleName)).toContain('minWidth: 0')
     }
 
-    expect(styleBlock(teamSource, 'flowStep')).toContain("gridTemplateColumns: '32px minmax(0, 1fr)'")
+    expect(styleBlock(teamSource, 'flowStep')).toContain("gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain("color: 'var(--foreground-strong)'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain('color-mix(in srgb, var(--brand-green)')
@@ -77,7 +77,7 @@ describe('League result workspace mobile layout guards', () => {
       expect(styleBlock(individualSource, styleName)).toContain('minWidth: 0')
     }
 
-    expect(styleBlock(individualSource, 'flowStep')).toContain("gridTemplateColumns: '32px minmax(0, 1fr)'")
+    expect(styleBlock(individualSource, 'flowStep')).toContain("gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)'")
     expect(styleBlock(individualSource, 'standingRow')).toContain("'minmax(0, 32px) minmax(0, 1fr) minmax(0, auto)'")
     expect(styleBlock(individualSource, 'standingRow')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
@@ -88,6 +88,7 @@ describe('League result workspace mobile layout guards', () => {
     expect(styleBlock(individualSource, 'resultTitle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'metricStack')).toContain("overflowWrap: 'anywhere'")
     expect(individualSource).not.toContain("'32px minmax(0, 1fr) auto'")
+    expect(individualSource).not.toContain("gridTemplateColumns: '32px minmax(0, 1fr)'")
     expect(individualSource).not.toContain("color: '#0a0a0a'")
   })
 })

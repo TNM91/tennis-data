@@ -103,7 +103,7 @@ const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.
 const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10, marginTop: 16, minWidth: 0 }
 const flowStep: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '32px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)',
   gap: 10,
   alignItems: 'center',
   padding: '12px',
