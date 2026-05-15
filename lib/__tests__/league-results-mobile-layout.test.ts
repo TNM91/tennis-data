@@ -78,6 +78,8 @@ describe('League result workspace mobile layout guards', () => {
     }
 
     expect(styleBlock(individualSource, 'flowStep')).toContain("gridTemplateColumns: '32px minmax(0, 1fr)'")
+    expect(styleBlock(individualSource, 'standingRow')).toContain("'minmax(0, 32px) minmax(0, 1fr) minmax(0, auto)'")
+    expect(styleBlock(individualSource, 'standingRow')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'btnPrimary')).toContain("color: 'var(--foreground-strong)'")
     expect(styleBlock(individualSource, 'scorekeeperTile')).toContain("overflowWrap: 'anywhere'")
@@ -85,6 +87,7 @@ describe('League result workspace mobile layout guards', () => {
     expect(styleBlock(individualSource, 'resultCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'resultTitle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'metricStack')).toContain("overflowWrap: 'anywhere'")
+    expect(individualSource).not.toContain("'32px minmax(0, 1fr) auto'")
     expect(individualSource).not.toContain("color: '#0a0a0a'")
   })
 })

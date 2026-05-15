@@ -268,7 +268,7 @@ const insightGrid: CSSProperties = {
 const standingsList: CSSProperties = { display: 'grid', gap: 8, minWidth: 0 }
 const standingRow: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '32px minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr) minmax(0, auto)',
   gap: 10,
   alignItems: 'center',
   padding: '10px 12px',
@@ -276,6 +276,7 @@ const standingRow: CSSProperties = {
   background: 'rgba(255,255,255,0.035)',
   border: '1px solid rgba(255,255,255,0.07)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 const standingRank: CSSProperties = {
   width: 28,
