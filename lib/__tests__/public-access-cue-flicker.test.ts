@@ -39,12 +39,26 @@ describe('public access cue flicker guards', () => {
   })
 
   it('keeps explore search and league upsells on the shared auth provider', () => {
-    for (const path of ['app/explore/search/page.tsx', 'app/explore/leagues/page.tsx']) {
+    for (const path of [
+      'app/explore/search/page.tsx',
+      'app/explore/leagues/page.tsx',
+      'app/explore/leagues/tiq/[league]/page.tsx',
+    ]) {
       const source = readAppFile(path)
-      expect(source).toContain("import { useProductAccess } from '@/lib/use-product-access'")
-      expect(source).toContain('useProductAccess()')
+      expect(source).toMatch(/use(ProductAccess|Auth)\(\)/)
       expect(source).not.toContain('getClientAuthState')
       expect(source).not.toContain('ProductEntitlementSnapshot')
     }
+  })
+
+  it('keeps TIQ league detail paid cues neutral until auth resolves', () => {
+    const source = readAppFile('app/explore/leagues/tiq/[league]/page.tsx')
+    expect(source).toContain('function TiqLeagueDetailContent()')
+    expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
+    expect(source).toContain('buildProductAccessState(resolvedRole, entitlements)')
+    expect(source).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
+    expect(source).toContain("authResolved && league.leagueFormat === 'team' && !entryEnabled")
+    expect(source).toContain('authResolved && !canLogIndividualResults')
   })
 })

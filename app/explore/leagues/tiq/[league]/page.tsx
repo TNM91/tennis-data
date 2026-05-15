@@ -10,8 +10,8 @@ import QuickMessageComposer from '@/app/components/quick-message-composer'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
+import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { getCompetitionLayerLabel, getLeagueFormatLabel } from '@/lib/competition-layers'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
@@ -381,6 +381,14 @@ function buildTeamMatchPublicSummary(
 }
 
 export default function TiqLeagueDetailPage() {
+  return (
+    <SiteShell active="/explore">
+      <TiqLeagueDetailContent />
+    </SiteShell>
+  )
+}
+
+function TiqLeagueDetailContent() {
   const params = useParams()
   const searchParams = useSearchParams()
   const routeSlug = decodeURIComponent(
@@ -399,10 +407,6 @@ export default function TiqLeagueDetailPage() {
   const [saving, setSaving] = useState(false)
   const [entryValue, setEntryValue] = useState('')
   const [selectedTeamKey, setSelectedTeamKey] = useState('')
-  const [userEmail, setUserEmail] = useState('')
-  const [role, setRole] = useState<'public' | 'member' | 'captain' | 'admin'>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [userId, setUserId] = useState('')
   const [teamOptions, setTeamOptions] = useState<TeamDirectoryOption[]>([])
   const [playerOptions, setPlayerOptions] = useState<PlayerDirectoryOption[]>([])
   const [teamEntries, setTeamEntries] = useState<TiqTeamLeagueEntryRecord[]>([])
@@ -442,6 +446,9 @@ export default function TiqLeagueDetailPage() {
   const [scheduleFacility, setScheduleFacility] = useState('')
   const [scheduleNotes, setScheduleNotes] = useState('')
   const [scheduleDisplayMode, setScheduleDisplayMode] = useState<ScheduleDisplayMode>('calendar')
+  const { role, userId, entitlements, authResolved, session } = useAuth()
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const userEmail = session?.user.email || ''
 
   useEffect(() => {
     let active = true
@@ -451,8 +458,7 @@ export default function TiqLeagueDetailPage() {
       setError('')
 
       try {
-        const [authState, leagueResult, loadedTeamOptions, loadedPlayerOptions] = await Promise.all([
-          getClientAuthState(),
+        const [leagueResult, loadedTeamOptions, loadedPlayerOptions] = await Promise.all([
           getTiqLeagueById(leagueIdParam || routeSlug),
           listTeamDirectoryOptions().catch(() => []),
           listPlayerDirectoryOptions().catch(() => []),
@@ -460,10 +466,6 @@ export default function TiqLeagueDetailPage() {
 
         if (!active) return
 
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-        setUserId(authState.user?.id || '')
-        setUserEmail(authState.user?.email || '')
         setTeamOptions(loadedTeamOptions)
         setPlayerOptions(loadedPlayerOptions)
         setStorageSource(leagueResult.source)
@@ -483,7 +485,7 @@ export default function TiqLeagueDetailPage() {
         setEntryValue(
           matchedLeague.leagueFormat === 'team'
             ? matchedLeague.captainTeamName || ''
-            : deriveDefaultParticipantName(authState.user?.email),
+            : '',
         )
         setSelectedTeamKey('')
         setSelectedPlayerId('')
@@ -501,6 +503,11 @@ export default function TiqLeagueDetailPage() {
       active = false
     }
   }, [leagueIdParam, routeSlug])
+
+  useEffect(() => {
+    if (!league || league.leagueFormat === 'team' || entryValue.trim()) return
+    setEntryValue(deriveDefaultParticipantName(userEmail))
+  }, [entryValue, league, userEmail])
 
   useEffect(() => {
     let active = true
@@ -624,7 +631,7 @@ export default function TiqLeagueDetailPage() {
     setMatchEventLinesLoading((prev) => ({ ...prev, [eventId]: false }))
   }
 
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const individualCompetitionFormat = normalizeTiqIndividualCompetitionFormat(
     league?.individualCompetitionFormat,
   )
@@ -2116,8 +2123,7 @@ export default function TiqLeagueDetailPage() {
   }
 
   return (
-    <SiteShell active="/explore">
-      <section style={pageWrap}>
+    <section style={pageWrap}>
         {loading ? (
           <div style={stateCard}>Loading TIQ league detail...</div>
         ) : error || !league ? (
@@ -2352,7 +2358,7 @@ export default function TiqLeagueDetailPage() {
                     </p>
                   )}
                 </div>
-                {!access.canUseAdvancedPlayerInsights ? (
+                {authResolved && !access.canUseAdvancedPlayerInsights ? (
                   <div style={seasonPulseUpgradeStyle}>
                     <span style={pillAmber}>Player unlock</span>
                     <strong>Want to climb from here?</strong>
@@ -2703,7 +2709,7 @@ export default function TiqLeagueDetailPage() {
 
                 {status ? <div style={statusBanner}>{status}</div> : null}
 
-                {league.leagueFormat === 'team' && !entryEnabled ? (
+                {authResolved && league.leagueFormat === 'team' && !entryEnabled ? (
                   <UpgradePrompt
                     planId="league"
                     compact
@@ -3189,7 +3195,7 @@ export default function TiqLeagueDetailPage() {
                   <div style={formatCalloutTitle}>{individualFormatExperience.activityHintTitle}</div>
                   <div style={formatCalloutText}>{individualFormatExperience.activityHintText}</div>
                 </div>
-                {!canLogIndividualResults ? (
+                {authResolved && !canLogIndividualResults ? (
                   <UpgradePrompt
                     planId="league"
                     compact
@@ -3615,8 +3621,7 @@ export default function TiqLeagueDetailPage() {
             </section>
           </>
         )}
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 
