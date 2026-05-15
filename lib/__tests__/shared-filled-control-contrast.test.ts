@@ -67,6 +67,9 @@ describe('shared filled control contrast', () => {
 
   it('keeps tier pathway CTAs shell-aware', () => {
     expect(tierPathwaySource).toContain('const ctaStyle: CSSProperties')
+    expect(tierPathwaySource).toContain('const valueRowStyle: CSSProperties')
+    expect(tierPathwaySource).toContain("gridTemplateColumns: 'minmax(0, 8px) minmax(0, 1fr)'")
+    expect(tierPathwaySource).not.toContain("gridTemplateColumns: '8px minmax(0, 1fr)'")
     expect(tierPathwaySource).toContain(shellAwareControlBackground)
     expect(tierPathwaySource).toContain(shellAwareControlColor)
     expect(tierPathwaySource).not.toContain("background: 'linear-gradient(135deg, var(--brand-lime) 0%, #c7f36b 100%)',\n  color: 'var(--text-dark)'")
