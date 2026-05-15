@@ -950,10 +950,11 @@ const unlockStepListStyle: CSSProperties = {
 
 const unlockStepPillStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 8,
   minHeight: 34,
+  minWidth: 0,
   padding: '5px 9px',
   borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.10)',
@@ -1239,10 +1240,11 @@ const identityFlowGridStyle: CSSProperties = {
 
 const identityFlowCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '54px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 54px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 12,
   minHeight: 92,
+  minWidth: 0,
   padding: 14,
   borderRadius: 20,
   border: '1px solid var(--shell-panel-border)',

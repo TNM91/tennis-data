@@ -35,13 +35,28 @@ describe('pricing mobile layout guards', () => {
     expect(styleBlock('stepRowStyle')).toContain(
       "gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)'",
     )
-    for (const styleName of ['decisionStepStyle', 'featureRowStyle', 'momentCardStyle', 'stepRowStyle']) {
+    expect(styleBlock('unlockStepPillStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
+    )
+    expect(styleBlock('identityFlowCardStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 54px) minmax(0, 1fr)'",
+    )
+    for (const styleName of [
+      'decisionStepStyle',
+      'featureRowStyle',
+      'momentCardStyle',
+      'stepRowStyle',
+      'unlockStepPillStyle',
+      'identityFlowCardStyle',
+    ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
     expect(source).not.toContain("gridTemplateColumns: '28px 34px 1fr'")
     expect(source).not.toContain("gridTemplateColumns: '12px 1fr'")
     expect(source).not.toContain("gridTemplateColumns: '56px 1fr'")
     expect(source).not.toContain("gridTemplateColumns: '42px 1fr'")
+    expect(source).not.toContain("gridTemplateColumns: '24px minmax(0, 1fr)'")
+    expect(source).not.toContain("gridTemplateColumns: '54px minmax(0, 1fr)'")
   })
 
   it('keeps the plan fit matrix scroll contained and text-safe', () => {
