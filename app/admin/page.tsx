@@ -435,8 +435,9 @@ export default function AdminDashboardPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '1.3fr 1fr',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
               gap: 18,
+              minWidth: 0,
             }}
           >
             <div>
@@ -870,11 +871,14 @@ function WorkflowStep({
           display: 'flex',
           gap: 14,
           alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          minWidth: 0,
         }}
       >
         <div
           style={{
-            minWidth: 46,
+            width: 46,
+            flex: '0 0 46px',
             height: 46,
             borderRadius: 14,
             display: 'grid',
@@ -889,7 +893,7 @@ function WorkflowStep({
           {number}
         </div>
 
-        <div>
+        <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
           <div
             style={{
               color: 'var(--foreground)',
