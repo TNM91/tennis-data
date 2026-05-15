@@ -43,30 +43,33 @@ export const pageBackground: CSSProperties = {
   minHeight: '100vh',
   overflow: 'hidden',
   background: 'var(--page-background)',
+  minWidth: 0,
 }
 
 export const orbOne: CSSProperties = {
   position: 'absolute',
   top: '-120px',
   left: '-140px',
-  width: '420px',
-  height: '420px',
+  width: 'min(100%, 360px)',
+  height: 'min(100%, 360px)',
   borderRadius: '999px',
   background: 'var(--theme-orb-one)',
   filter: 'blur(8px)',
   pointerEvents: 'none',
+  maxWidth: '100%',
 }
 
 export const orbTwo: CSSProperties = {
   position: 'absolute',
   right: '-140px',
   top: '140px',
-  width: '420px',
-  height: '420px',
+  width: 'min(100%, 320px)',
+  height: 'min(100%, 320px)',
   borderRadius: '999px',
   background: 'var(--theme-orb-two)',
   filter: 'blur(8px)',
   pointerEvents: 'none',
+  maxWidth: '100%',
 }
 
 export const topBlueWash: CSSProperties = {
@@ -74,7 +77,7 @@ export const topBlueWash: CSSProperties = {
   top: 0,
   left: 0,
   right: 0,
-  height: '420px',
+  height: 'min(48vh, 420px)',
   background: 'var(--theme-top-blue-wash)',
   pointerEvents: 'none',
 }
@@ -95,6 +98,7 @@ export const pageShell: CSSProperties = {
   width: 'min(1280px, calc(100% - 32px))',
   marginInline: 'auto',
   padding: '32px 0 72px',
+  minWidth: 0,
 }
 
 export const pageShellTight: CSSProperties = {
@@ -103,11 +107,13 @@ export const pageShellTight: CSSProperties = {
   width: 'min(1120px, calc(100% - 32px))',
   marginInline: 'auto',
   padding: '24px 0 56px',
+  minWidth: 0,
 }
 
 export const sectionStack: CSSProperties = {
   display: 'grid',
   gap: 24,
+  minWidth: 0,
 }
 
 export const sectionBlock: CSSProperties = {
