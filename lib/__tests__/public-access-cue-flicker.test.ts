@@ -93,4 +93,16 @@ describe('public access cue flicker guards', () => {
     expect(myLabSource).toContain('buildProductAccessState(resolvedRole, entitlements)')
     expect(myLabSource).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
   })
+
+  it('keeps upgrade access state on the shared auth provider', () => {
+    const source = readAppFile('app/upgrade/page.tsx')
+    expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(source).toContain('const { role, userId, entitlements, authResolved, session, refreshAuth } = useAuth()')
+    expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
+    expect(source).toContain('const authLoading = !authResolved')
+    expect(source).toContain('buildProductAccessState(resolvedRole, entitlements)')
+    expect(source).toContain('await refreshAuth()')
+    expect(source).not.toContain('getClientAuthState')
+    expect(source).not.toContain('ProductEntitlementSnapshot')
+  })
 })
