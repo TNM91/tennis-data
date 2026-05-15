@@ -20,10 +20,10 @@ import {
   type TiqTeamParticipationRecord,
 } from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
-import { getClientAuthState } from '@/lib/auth'
 import {
   getReportStatusLabel,
   listMyMatchAccuracyReports,
@@ -270,27 +270,15 @@ export default function TeamPage() {
   const [tiqParticipations, setTiqParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
   const [tiqParticipationWarning, setTiqParticipationWarning] = useState('')
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { userId: currentUserId, authResolved } = useAuth()
 
   useEffect(() => {
-    let active = true
+    if (!authResolved) return
 
-    void (async () => {
-      const authState = await getClientAuthState()
-      if (!active) return
-      setCurrentUserId(authState.user?.id || null)
-    })()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
     if (!currentUserId) {
       setLinkedPlayerId(null)
       setLinkedPlayerName('')
@@ -310,9 +298,11 @@ export default function TeamPage() {
     return () => {
       active = false
     }
-  }, [currentUserId])
+  }, [authResolved, currentUserId])
 
   const refreshMyMatchReports = useCallback(async () => {
+    if (!authResolved) return
+
     if (!currentUserId) {
       setMyMatchReports([])
       return
@@ -323,7 +313,7 @@ export default function TeamPage() {
     } catch {
       setMyMatchReports([])
     }
-  }, [currentUserId])
+  }, [authResolved, currentUserId])
 
   useEffect(() => {
     void refreshMyMatchReports()
@@ -1397,7 +1387,7 @@ export default function TeamPage() {
         <section style={dynamicMetricGrid}>
           <article style={teamDiscoveryPanelStyle}>
             <div style={teamDiscoveryHeaderStyle}>
-              <div>
+              <div style={sectionHeadingCopyStyle}>
                 <p style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} team path</p>
                 <h2 style={sectionTitle}>Use this team page in three moves.</h2>
               </div>
@@ -1457,7 +1447,7 @@ export default function TeamPage() {
 
         <section style={surfaceCard}>
           <div style={sectionHeadingRow}>
-            <div>
+            <div style={sectionHeadingCopyStyle}>
               <p style={sectionKicker}>TIQ Seasons</p>
               <h2 style={sectionTitle}>Entered TIQ Leagues</h2>
             </div>
@@ -1515,7 +1505,7 @@ export default function TeamPage() {
         <section style={dynamicCardGrid}>
           <article style={surfaceCardStrong}>
             <div style={sectionHeadingRow}>
-              <div>
+              <div style={sectionHeadingCopyStyle}>
                 <p style={sectionKicker}>Singles Core</p>
                 <h2 style={sectionTitle}>Top Singles Options</h2>
               </div>
@@ -1553,7 +1543,7 @@ export default function TeamPage() {
 
           <article style={surfaceCardStrong}>
             <div style={sectionHeadingRow}>
-              <div>
+              <div style={sectionHeadingCopyStyle}>
                 <p style={sectionKicker}>Doubles Chemistry</p>
                 <h2 style={sectionTitle}>Best Pairs</h2>
               </div>
@@ -1585,7 +1575,7 @@ export default function TeamPage() {
         <section style={dynamicCardGrid}>
           <article style={surfaceCard}>
             <div style={sectionHeadingRow}>
-              <div>
+              <div style={sectionHeadingCopyStyle}>
                 <p style={sectionKicker}>Captain Tools</p>
                 <h2 style={sectionTitle}>Next Best Actions</h2>
               </div>
@@ -1600,7 +1590,7 @@ export default function TeamPage() {
 
           <article style={surfaceCard}>
             <div style={sectionHeadingRow}>
-              <div>
+              <div style={sectionHeadingCopyStyle}>
                 <p style={sectionKicker}>Depth View</p>
                 <h2 style={sectionTitle}>Top Doubles Players</h2>
               </div>
@@ -1639,7 +1629,7 @@ export default function TeamPage() {
 
         <section style={surfaceCard} id="team-roster">
           <div style={sectionHeadingRow}>
-            <div>
+            <div style={sectionHeadingCopyStyle}>
               <p style={sectionKicker}>Recent Form</p>
               <h2 style={sectionTitle}>Match History</h2>
             </div>
@@ -1780,7 +1770,7 @@ export default function TeamPage() {
 
         <section style={surfaceCard}>
           <div style={sectionHeadingRow}>
-            <div>
+            <div style={sectionHeadingCopyStyle}>
               <p style={sectionKicker}>Roster</p>
               <h2 style={sectionTitle}>Player Breakdown</h2>
             </div>
@@ -1823,7 +1813,7 @@ export default function TeamPage() {
               </div>
 
               <div style={rosterCompareTray}>
-                <div>
+                <div style={sectionHeadingCopyStyle}>
                   <div style={rosterCompareKicker}>Quick Matchup</div>
                   <div style={rosterCompareTitle}>
                     {selectedRosterPlayers.length === 0
@@ -2566,6 +2556,14 @@ const sectionHeadingRow: CSSProperties = {
   marginBottom: '16px',
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const sectionHeadingCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '2px',
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const sectionKicker: CSSProperties = {
