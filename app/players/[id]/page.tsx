@@ -4016,7 +4016,7 @@ const ratingHistoryTableWrapStyle: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 'min(100%, 760px)',
+  minWidth: 0,
 }
 
 const tableHead: CSSProperties = {
@@ -4308,7 +4308,7 @@ const seasonTableWrapStyle: CSSProperties = {
 
 const seasonTableStyle: CSSProperties = {
   ...dataTable,
-  minWidth: 'min(100%, 560px)',
+  minWidth: 0,
 }
 
 const nearbyListStyle: CSSProperties = {
