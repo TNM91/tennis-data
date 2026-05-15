@@ -2644,7 +2644,7 @@ const compactMiniValueStyle: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 'min(100%, 760px)',
+  minWidth: 0,
 }
 
 const tableHead: CSSProperties = {
