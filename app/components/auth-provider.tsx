@@ -21,7 +21,14 @@ type AuthContextValue = {
   role: UserRole
   entitlements: ProductEntitlementSnapshot | null
   authResolved: boolean
-  refreshAuth: () => Promise<void>
+  refreshAuth: () => Promise<AuthRefreshState | null>
+}
+
+type AuthRefreshState = {
+  session: Session | null
+  userId: string | null
+  role: UserRole
+  entitlements: ProductEntitlementSnapshot | null
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -66,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const mountedRef = useRef(true)
 
-  const loadAuth = useCallback(async () => {
+  const loadAuth = useCallback(async (): Promise<AuthRefreshState | null> => {
     let resolvedAuthState = false
 
     try {
@@ -77,21 +84,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
 
       if (isAuthSessionTimeout(sessionResult)) {
-        return
+        return null
       }
 
       const {
         data: { session: nextSession },
       } = sessionResult
 
-      if (!mountedRef.current) return
+      if (!mountedRef.current) return null
       setSession(nextSession ?? null)
 
       if (!nextSession?.user?.id) {
         setRole('public')
         setEntitlements(null)
         resolvedAuthState = true
-        return
+        return {
+          session: null,
+          userId: null,
+          role: 'public',
+          entitlements: null,
+        }
       }
 
       const [nextRole, nextEntitlements] = await Promise.all([
@@ -107,12 +119,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ),
       ])
 
-      if (!mountedRef.current) return
+      if (!mountedRef.current) return null
       setRole(nextRole)
       setEntitlements(nextEntitlements)
       resolvedAuthState = true
+      return {
+        session: nextSession,
+        userId: nextSession.user.id,
+        role: nextRole,
+        entitlements: nextEntitlements,
+      }
     } catch {
-      return
+      return null
     } finally {
       if (mountedRef.current && resolvedAuthState) {
         setAuthResolved(true)

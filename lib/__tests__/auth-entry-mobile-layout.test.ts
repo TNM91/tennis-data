@@ -43,6 +43,17 @@ describe('auth entry mobile layout guards', () => {
     expect(source).not.toContain('supabase.auth.onAuthStateChange')
   })
 
+  it('keeps Login on shared auth before resolving post-login routing', () => {
+    const source = sources.get('app/login/page.tsx')!
+    expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(source).toContain('const { role, userId, entitlements, authResolved, refreshAuth } = useAuth()')
+    expect(source).toContain("if (!authResolved || role !== 'public' || redirecting)")
+    expect(source).toContain('refreshAuth()')
+    expect(source).not.toContain('getClientAuthState')
+    expect(source).not.toContain('const [role, setRole]')
+    expect(source).not.toContain('supabase.auth.onAuthStateChange')
+  })
+
   it('uses shrink-safe one-column grids on auth entry shells', () => {
     for (const [file, source] of sources) {
       expect(source, file).not.toContain("? '1fr'")

@@ -20,4 +20,11 @@ describe('auth provider stability', () => {
     expect(source).toContain('setEntitlements(nextEntitlements)')
     expect(source).toContain('setAuthResolved(true)')
   })
+
+  it('returns the resolved snapshot from manual auth refreshes', () => {
+    expect(source).toContain('refreshAuth: () => Promise<AuthRefreshState | null>')
+    expect(source).toContain('type AuthRefreshState')
+    expect(source).toContain('userId: nextSession.user.id')
+    expect(source).toContain("role: 'public'")
+  })
 })

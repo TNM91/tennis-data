@@ -5,10 +5,10 @@ import { CSSProperties, FormEvent, useCallback, useEffect, useRef, useState } fr
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
-import { getClientAuthState } from '@/lib/auth'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
@@ -115,10 +115,16 @@ function requiresPersonalIdentity(candidate: string) {
 }
 
 export default function LoginPage() {
-  const router = useRouter()
+  return (
+    <SiteShell active="login">
+      <LoginContent />
+    </SiteShell>
+  )
+}
 
-  const [role, setRole] = useState<UserRole>('public')
-  const [, setAuthLoading] = useState(false)
+function LoginContent() {
+  const router = useRouter()
+  const { role, userId, entitlements, authResolved, refreshAuth } = useAuth()
   const [redirecting, setRedirecting] = useState(false)
 
   const [email, setEmail] = useState('')
@@ -160,8 +166,6 @@ export default function LoginPage() {
   }, [router, getPostLoginRoute])
 
   useEffect(() => {
-    let mounted = true
-
     const redirectAuthenticatedUser = async (
       nextRole: UserRole,
       nextEntitlements: ProductEntitlementSnapshot | null,
@@ -170,64 +174,19 @@ export default function LoginPage() {
       if (nextRole === 'public' || hasRedirectedRef.current) return
 
       hasRedirectedRef.current = true
-
-      if (mounted) {
-        setRedirecting(true)
-        setRole(nextRole)
-        setAuthLoading(false)
-      }
-
+      setRedirecting(true)
       router.replace(await getPostLoginRoute(nextRole, nextEntitlements, userId))
     }
 
-    async function loadAuth() {
-      try {
-        if (!mounted) return
-
-        const authState = await getClientAuthState()
-        const nextRole = authState.role
-        setRole(nextRole)
-
-        if (nextRole !== 'public') {
-          void redirectAuthenticatedUser(nextRole, authState.entitlements, authState.user?.id)
-          return
-        }
-      } catch (err) {
-        if (mounted) {
-          console.error('Unable to restore auth session on /login:', err)
-        }
-      } finally {
-        if (mounted && !hasRedirectedRef.current) {
-          setAuthLoading(false)
-        }
-      }
+    if (!authResolved) return
+    if (role !== 'public') {
+      void redirectAuthenticatedUser(role, entitlements, userId)
+      return
     }
 
-    loadAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async () => {
-      if (!mounted) return
-
-      const authState = await getClientAuthState()
-      const nextRole = authState.role
-      setRole(nextRole)
-
-      if (nextRole !== 'public') {
-        void redirectAuthenticatedUser(nextRole, authState.entitlements, authState.user?.id)
-        return
-      }
-
-      setRedirecting(false)
-      setAuthLoading(false)
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [router, getPostLoginRoute])
+    hasRedirectedRef.current = false
+    setRedirecting(false)
+  }, [authResolved, entitlements, getPostLoginRoute, role, router, userId])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -279,25 +238,18 @@ export default function LoginPage() {
       setAuthNote(canUseBrowserStorage() ? 'Session accepted. Opening TenAceIQ...' : 'Session accepted for this tab. Browser storage looks blocked on this device.')
 
       const authState = await withLoginTimeout(
-        getClientAuthState(),
+        refreshAuth(),
         LOGIN_AUTH_TIMEOUT_MS,
-        {
-          user: null,
-          role: 'member',
-          entitlements: null,
-          loading: false,
-        },
+        null,
       )
-      const nextRole = authState.role === 'public' ? 'member' : authState.role
+      const nextRole = authState?.role && authState.role !== 'public' ? authState.role : 'member'
 
       hasRedirectedRef.current = true
       setRedirecting(true)
-      setRole(nextRole)
-      setAuthLoading(false)
       const nextRoute = await getPostLoginRoute(
         nextRole,
-        authState.entitlements,
-        authState.user?.id ?? signInData.session.user.id,
+        authState?.entitlements ?? null,
+        authState?.userId ?? signInData.session.user.id,
       )
       router.replace(nextRoute)
       router.refresh()
@@ -347,22 +299,19 @@ function canUseBrowserStorage() {
     padding: isMobile ? 0 : '22px',
   }
 
-  if (role !== 'public' || redirecting) {
+  if (!authResolved || role !== 'public' || redirecting) {
     return (
-      <SiteShell active="login">
-        <section style={loadingShell}>
-          <div style={loadingCard}>
-            <span style={spinnerStyle} />
-            {submitting ? 'Signing you in...' : 'Redirecting to your workspace...'}
-          </div>
-        </section>
-      </SiteShell>
+      <section style={loadingShell}>
+        <div style={loadingCard}>
+          <span style={spinnerStyle} />
+          {submitting ? 'Signing you in...' : 'Redirecting to your workspace...'}
+        </div>
+      </section>
     )
   }
 
   return (
-    <SiteShell active="login">
-      <section style={heroShellResponsive}>
+    <section style={heroShellResponsive}>
         <div>
           <div style={eyebrow}>{selectedIntent.eyebrow}</div>
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '32px' : isMobile ? '36px' : '58px' }}>
@@ -519,8 +468,7 @@ function canUseBrowserStorage() {
             </div>
           </div>
         </div>
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 
