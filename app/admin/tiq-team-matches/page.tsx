@@ -71,7 +71,7 @@ const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6 }
 const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'var(--shell-chip-bg)', fontSize: 12, color: 'var(--shell-copy-muted)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
 const pillGreen: CSSProperties = { ...pill, background: 'rgba(155,225,29,0.12)', color: '#9be11d' }
 const divider: CSSProperties = { borderTop: '1px solid var(--shell-panel-border)', marginTop: 16, paddingTop: 16 }
-const lineGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 12, marginTop: 14 }
+const lineGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 12, marginTop: 14, minWidth: 0 }
 const lineCard: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
