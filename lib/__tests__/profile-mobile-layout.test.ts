@@ -107,12 +107,13 @@ describe('Profile mobile layout guards', () => {
     expect(styleBlock('ratingTileGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
     expect(styleBlock('pillGreenStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('pillGreenStyle')).toContain("whiteSpace: 'normal'")
-    expect(styleBlock('setupProgressStyle')).toContain("minWidth: 'min(100%, 96px)'")
+    expect(styleBlock('setupProgressStyle')).toContain('minWidth: 0')
     expect(styleBlock('setupProgressStyle')).toContain("maxWidth: '100%'")
     for (const styleName of ['toolFlowCardStyle', 'playerCardTopStyle', 'autoContextCalloutStyle', 'toolLaunchCardStyle']) {
       expect(styleBlock(styleName)).toContain("'minmax(0, auto) minmax(0, 1fr)'")
     }
     expect(source).not.toContain('minWidth: 96')
+    expect(source).not.toContain("minWidth: 'min(100%, 96px)'")
     expect(source).not.toContain("'auto minmax(0, 1fr)'")
     expect(source).not.toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
