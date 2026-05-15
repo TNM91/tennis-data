@@ -1131,7 +1131,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={startPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Start here</div>
               <h2 style={leagueOpsTitleStyle}>
                 {access.canUseLeagueTools
@@ -1153,7 +1153,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           </div>
 
           <div style={responsiveStartActionRowStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <span style={startActionLabelStyle}>Next action</span>
               <strong style={startActionTitleStyle}>{nextLeagueOpsStep.label}</strong>
             </div>
@@ -1230,7 +1230,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={dataAssistOpsPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
               <h2 style={leagueOpsTitleStyle}>Use uploads as the coordinator refresh path.</h2>
               <p style={leagueOpsTextStyle}>
@@ -1260,7 +1260,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={publicReadinessPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Public page readiness</div>
               <h2 style={leagueOpsTitleStyle}>
                 {records.length === 0
@@ -1331,7 +1331,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={reviewQueuePanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Result review queue</div>
               <h2 style={leagueOpsTitleStyle}>{resultQueueHeadline}</h2>
               <p style={leagueOpsTextStyle}>
@@ -1448,7 +1448,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         {teamLeagues.length > 0 ? (
           <section style={resultBookPanelStyle}>
             <div style={leagueOpsHeaderStyle}>
-              <div>
+              <div style={leagueOpsHeaderCopyStyle}>
                 <div style={sectionEyebrow}>Team result books</div>
                 <h2 style={leagueOpsTitleStyle}>
                   {teamResultBooksNeedAttention > 0
@@ -1528,7 +1528,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         {individualLeagues.length > 0 ? (
           <section style={resultBookPanelStyle}>
             <div style={leagueOpsHeaderStyle}>
-              <div>
+              <div style={leagueOpsHeaderCopyStyle}>
                 <div style={sectionEyebrow}>Player result books</div>
                 <h2 style={leagueOpsTitleStyle}>
                   {resultBookNeedsAttention > 0
@@ -1592,7 +1592,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={leagueOpsPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Season readiness</div>
               <h2 style={leagueOpsTitleStyle}>
                 {leagueOpsReadinessScore === 100 ? 'This league is ready to operate.' : 'Tighten setup before the season moves.'}
@@ -1639,7 +1639,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             onToggle={(event) => setSetupOpen(event.currentTarget.open)}
           >
             <summary style={responsiveDetailsSummary}>
-              <div>
+              <div style={leagueOpsHeaderCopyStyle}>
                 <div style={sectionEyebrow}>{editingId ? 'Editing' : 'Setup'}</div>
                 <h2 style={sectionTitle}>
                   {editingId ? 'Edit league setup' : 'Add a league'}
@@ -2167,7 +2167,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
             <div style={setupAssistPanelStyle}>
               <div style={leagueOpsHeaderStyle}>
-                <div>
+                <div style={leagueOpsHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Season calendar</div>
                   <strong style={setupAssistTitleStyle}>
                     {draft.schedulingMode === 'player_arranged'
@@ -2265,7 +2265,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             {status ? <div style={statusBanner}>{status}</div> : null}
             {lastSavedRecord ? (
               <div style={responsiveNextActionCardStyle}>
-                <div>
+                <div style={leagueOpsHeaderCopyStyle}>
                   <div style={nextActionTitleStyle}>
                     Next: review {lastSavedRecord.leagueName}
                   </div>
@@ -3038,6 +3038,13 @@ const leagueOpsHeaderStyle: CSSProperties = {
   gap: '16px',
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const leagueOpsHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leagueOpsTitleStyle: CSSProperties = {
