@@ -65,6 +65,9 @@ describe('My Lab mobile layout guards', () => {
       'insightCardStyle',
       'followListStyle',
       'followCardStyle',
+      'matchupQueueCardStyle',
+      'workshopMatchRowStyle',
+      'nextActionCardStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
@@ -88,6 +91,9 @@ describe('My Lab mobile layout guards', () => {
       'insightTextStyle',
       'followNameStyle',
       'followMetaStyle',
+      'matchupQueueCardStyle',
+      'workshopMatchRowStyle',
+      'nextActionCardStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
     }
@@ -96,5 +102,9 @@ describe('My Lab mobile layout guards', () => {
     expect(styleBlock('followCardStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('tabButtonStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('feedLinkStyle')).toContain("maxWidth: '100%'")
+    for (const styleName of ['matchupQueueCardStyle', 'workshopMatchRowStyle', 'nextActionCardStyle']) {
+      expect(styleBlock(styleName), styleName).toContain("'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)'")
+      expect(styleBlock(styleName), styleName).not.toContain("'auto minmax(0, 1fr) auto'")
+    }
   })
 })

@@ -4178,7 +4178,7 @@ const matchupQueueGridStyle = (isTablet: boolean): CSSProperties => ({
 const matchupQueueCardStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
   gap: 10,
   minHeight: 104,
@@ -4191,6 +4191,7 @@ const matchupQueueCardStyle: CSSProperties = {
   textDecoration: 'none',
   overflow: 'hidden',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchupQueueRankStyle: CSSProperties = {
@@ -4902,7 +4903,7 @@ const goalEditorStyle: CSSProperties = {
 
 const workshopMatchRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
   gap: 10,
   alignItems: 'center',
   borderRadius: 14,
@@ -4910,6 +4911,7 @@ const workshopMatchRowStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   padding: '10px 12px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchActionStackStyle: CSSProperties = {
@@ -5000,7 +5002,7 @@ const workshopRowMetaStyle: CSSProperties = {
 
 const nextActionCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
   gap: 12,
   borderRadius: 16,
@@ -5009,6 +5011,7 @@ const nextActionCardStyle: CSSProperties = {
   padding: 14,
   minHeight: 112,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const miniActionPillStyle: CSSProperties = {
