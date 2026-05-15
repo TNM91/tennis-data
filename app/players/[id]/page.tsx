@@ -2690,7 +2690,7 @@ function SimpleLineChart({ points, baseRating }: { points: ChartPoint[]; baseRat
             border: '1px solid rgba(116,190,255,0.24)',
             borderRadius: 14,
             padding: '10px 14px',
-            minWidth: 'min(100%, 162px)',
+            minWidth: 0,
             boxShadow: '0 14px 34px rgba(0,0,0,0.38)',
             maxWidth: 'calc(100vw - 32px)',
             overflowWrap: 'anywhere',

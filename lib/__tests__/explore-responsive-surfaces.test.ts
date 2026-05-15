@@ -446,7 +446,7 @@ describe('Explore responsive surfaces', () => {
     expect(playerDetailSource).toContain("display: 'grid', gap: 12, marginTop: 20, minWidth: 0")
     expect(playerDetailSource).toContain("display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const, minWidth: 0")
     expect(playerDetailSource).toContain("display: 'flex', flexWrap: 'wrap' as const, gap: '14px', marginTop: '12px', padding: '0 4px', minWidth: 0")
-    expect(playerDetailSource).toContain("minWidth: 'min(100%, 162px)'")
+    expect(playerDetailSource).not.toContain("minWidth: 'min(100%, 162px)'")
     expect(playerDetailSource).not.toContain('minWidth: 560')
     expect(playerDetailSource).not.toContain('minWidth: 162')
     expect(playerDetailSource).not.toContain('minWidth: 112')
