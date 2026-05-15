@@ -62,4 +62,18 @@ describe('public access cue flicker guards', () => {
     expect(source).toContain("authResolved && league.leagueFormat === 'team' && !entryEnabled")
     expect(source).toContain('authResolved && !canLogIndividualResults')
   })
+
+  it('keeps compete paid prompts neutral until auth resolves', () => {
+    for (const path of [
+      'app/compete/teams/page.tsx',
+      'app/compete/schedule/page.tsx',
+      'app/compete/results/page.tsx',
+    ]) {
+      const source = readAppFile(path)
+      expect(source).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
+      expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
+      expect(source).toContain('buildProductAccessState(resolvedRole, entitlements)')
+      expect(source).toContain('authResolved')
+    }
+  })
 })

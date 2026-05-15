@@ -58,11 +58,12 @@ export default function CompeteSchedulePage() {
 }
 
 function CompeteScheduleContent() {
-  const { role, entitlements } = useAuth()
+  const { role, userId, entitlements, authResolved } = useAuth()
   const [matches, setMatches] = useState<ScheduleMatch[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
 
   useEffect(() => {
     let active = true
@@ -122,7 +123,7 @@ function CompeteScheduleContent() {
         />
       </CompeteGrid>
 
-      {!access.canUseCaptainWorkflow ? (
+      {authResolved && !access.canUseCaptainWorkflow ? (
         <div style={upgradeWrapStyle}>
           <UpgradePrompt
             planId="captain"

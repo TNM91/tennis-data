@@ -48,12 +48,13 @@ export default function CompeteTeamsPage() {
 }
 
 function CompeteTeamsContent() {
-  const { role, entitlements } = useAuth()
+  const { role, userId, entitlements, authResolved } = useAuth()
   const [participations, setParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [teamDirectory, setTeamDirectory] = useState<TeamDirectoryOption[]>([])
   const [loading, setLoading] = useState(true)
   const [storageWarning, setStorageWarning] = useState('')
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
 
   useEffect(() => {
     let active = true
@@ -139,32 +140,34 @@ function CompeteTeamsContent() {
         />
       </CompeteGrid>
 
-      <div style={upgradeGridStyle}>
-        {!access.canUseCaptainWorkflow ? (
-          <UpgradePrompt
-            planId="captain"
-            compact
-            headline="Still moving from team context to lineups by hand?"
-            body="Unlock Captain to connect team workflow, availability, lineup building, and messaging without hunting across tools."
-            ctaLabel="Unlock Captain Tools"
-            ctaHref="/pricing"
-            secondaryLabel="See Captain plan"
-            secondaryHref="/pricing"
-          />
-        ) : null}
-        {!access.canUseLeagueTools ? (
-          <UpgradePrompt
-            planId="league"
-            compact
-            headline="Running TIQ team seasons without a real organizer layer?"
-            body="League tools give you one place for season structure, standings, scheduling, and team-level coordination instead of spreadsheet cleanup."
-            ctaLabel="Run Your League on TIQ"
-            ctaHref="/pricing"
-            secondaryLabel="See league plan"
-            secondaryHref="/pricing"
-          />
-        ) : null}
-      </div>
+      {authResolved ? (
+        <div style={upgradeGridStyle}>
+          {!access.canUseCaptainWorkflow ? (
+            <UpgradePrompt
+              planId="captain"
+              compact
+              headline="Still moving from team context to lineups by hand?"
+              body="Unlock Captain to connect team workflow, availability, lineup building, and messaging without hunting across tools."
+              ctaLabel="Unlock Captain Tools"
+              ctaHref="/pricing"
+              secondaryLabel="See Captain plan"
+              secondaryHref="/pricing"
+            />
+          ) : null}
+          {!access.canUseLeagueTools ? (
+            <UpgradePrompt
+              planId="league"
+              compact
+              headline="Running TIQ team seasons without a real organizer layer?"
+              body="League tools give you one place for season structure, standings, scheduling, and team-level coordination instead of spreadsheet cleanup."
+              ctaLabel="Run Your League on TIQ"
+              ctaHref="/pricing"
+              secondaryLabel="See league plan"
+              secondaryHref="/pricing"
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       <section style={sectionStyle}>
         <div style={sectionEyebrowStyle}>TIQ Entered Teams</div>
