@@ -2264,7 +2264,7 @@ function TiqLeagueDetailContent() {
 
             <section id="league-overview" style={leagueHubPanelStyle}>
               <div style={leagueHubHeaderStyle}>
-                <div>
+                <div style={leagueHubHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Season pulse</div>
                   <h2 style={sectionTitle}>Check the table. See what changed. Know what to play next.</h2>
                   <p style={sectionText}>
@@ -2336,7 +2336,7 @@ function TiqLeagueDetailContent() {
                     <div style={upcomingMatchListStyle}>
                       {upcomingScheduleItems.map((item) => (
                         <div key={`upcoming-${item.id}`} style={upcomingMatchRowStyle}>
-                          <div>
+                          <div style={leagueHubHeaderCopyStyle}>
                             <strong>{item.participantAName} vs {item.participantBName}</strong>
                             <span>
                               {[item.scheduledDate, item.scheduledTime, item.facility || league.defaultFacility]
@@ -2380,7 +2380,7 @@ function TiqLeagueDetailContent() {
 
             <section id="league-schedule" style={schedulePanelStyle}>
               <div style={leagueHubHeaderStyle}>
-                <div>
+                <div style={leagueHubHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Schedule</div>
                   <h2 style={sectionTitle}>
                     {league.schedulingMode === 'coordinator_fixed'
@@ -2413,7 +2413,7 @@ function TiqLeagueDetailContent() {
 
               <div style={scheduleActionPanelStyle}>
                 <div style={leagueHubHeaderStyle}>
-                  <div>
+                  <div style={leagueHubHeaderCopyStyle}>
                     <div style={formatCalloutTitle}>
                       {league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
                         ? 'Publish a match slot'
@@ -2555,7 +2555,7 @@ function TiqLeagueDetailContent() {
               {visibleScheduleItems.length > 0 ? (
                 <div style={schedulePublishedPanelStyle}>
                   <div style={scheduleViewHeaderStyle}>
-                    <div>
+                    <div style={leagueHubHeaderCopyStyle}>
                       <div style={formatCalloutTitle}>Published season schedule</div>
                       <div style={formatCalloutText}>
                         Calendar view groups matches by date. List view is faster for status review and result entry.
@@ -2605,7 +2605,7 @@ function TiqLeagueDetailContent() {
                   <div style={scheduleListStyle}>
                     {scheduledTeamEvents.slice(0, 5).map((event) => (
                       <div key={event.id} style={scheduleRowStyle}>
-                        <div>
+                        <div style={leagueHubHeaderCopyStyle}>
                           <div style={listTitle}>{event.teamAName} vs {event.teamBName}</div>
                           <div style={listMeta}>
                             {[formatDateTime(event.matchDate), event.facility || league.defaultFacility]
@@ -3919,6 +3919,14 @@ const leagueHubHeaderStyle: CSSProperties = {
   gap: '16px',
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const leagueHubHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const leagueHubScoreStyle: CSSProperties = {
