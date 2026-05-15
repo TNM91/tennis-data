@@ -1951,11 +1951,12 @@ const pulseModePill: CSSProperties = {
 
 const pulseLeaderGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'end',
   gap: '16px',
   marginTop: '18px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const pulseMiniLabel: CSSProperties = {
@@ -2417,7 +2418,7 @@ const leaderboardActionGrid: CSSProperties = {
 
 const leaderboardActionCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   alignItems: 'center',
   gap: '12px',
   minWidth: 0,
@@ -2430,6 +2431,7 @@ const leaderboardActionCard: CSSProperties = {
   cursor: 'pointer',
   transition: 'transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
 }
 
 const leaderboardActionBody: CSSProperties = {
@@ -2525,9 +2527,11 @@ const compactRankingCardStyle: CSSProperties = {
 
 const compactRankingTopStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   alignItems: 'center',
   gap: '12px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const compactPlayerCopyStyle: CSSProperties = {
