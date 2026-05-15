@@ -1655,7 +1655,7 @@ export default function TeamPage() {
                 <span style={{ padding: '4px 12px', borderRadius: 999, background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>{opponentAnalysis.length} opponent{opponentAnalysis.length !== 1 ? 's' : ''}</span>
               </div>
               <div style={tableWrap}>
-                <table style={{ ...dataTable, minWidth: 'min(100%, 420px)' }}>
+                <table style={{ ...dataTable, minWidth: 0 }}>
                   <thead>
                     <tr>
                       {['Opponent', 'W', 'L', 'Win %', 'Matches', 'Last met'].map((h) => (
@@ -2898,7 +2898,7 @@ const tableWrap: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 'min(100%, 620px)',
+  minWidth: 0,
 }
 
 const tableHeaderCell: CSSProperties = {
