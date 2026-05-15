@@ -188,12 +188,15 @@ const listRowStyle: CSSProperties = {
 const matchupStyle: CSSProperties = {
   width: '100%',
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 18,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchupCardStyle: CSSProperties = {
+  minWidth: 0,
   minHeight: 110,
   padding: 20,
   borderRadius: 22,
