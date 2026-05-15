@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const followButtonSource = readFileSync(join(process.cwd(), 'app/components/follow-button.tsx'), 'utf8')
 const tierPathwaySource = readFileSync(join(process.cwd(), 'app/components/tier-pathway.tsx'), 'utf8')
+const designSystemSource = readFileSync(join(process.cwd(), 'lib/design-system.ts'), 'utf8')
 const shellAwareControlBackground = "background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'"
 const shellAwareControlColor = "color: 'var(--foreground-strong)'"
 const filledControlFiles = [
@@ -55,6 +56,17 @@ function collectTsxSources(directory: string): string[] {
 }
 
 describe('shared filled control contrast', () => {
+  it('keeps centralized design-system primary buttons shell-aware', () => {
+    expect(designSystemSource).toContain('export const buttonPrimary: CSSProperties')
+    expect(designSystemSource).toContain(shellAwareControlBackground)
+    expect(designSystemSource).toContain(shellAwareControlColor)
+    expect(designSystemSource).toContain("maxWidth: '100%'")
+    expect(designSystemSource).toContain("whiteSpace: 'normal'")
+    expect(designSystemSource).toContain("overflowWrap: 'anywhere'")
+    expect(designSystemSource).not.toContain("background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))'")
+    expect(designSystemSource).not.toContain("color: 'var(--text-dark)'")
+  })
+
   it('keeps Follow controls shell-aware when they are not already followed', () => {
     expect(followButtonSource).toContain("color: isFollowing ? (hovered ? '#fecaca' : '#f8fbff') : 'var(--foreground-strong)'")
     expect(followButtonSource).toContain("? 'color-mix(in srgb, var(--brand-green) 26%, var(--shell-chip-bg) 74%)'")

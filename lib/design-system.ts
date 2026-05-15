@@ -247,21 +247,26 @@ export const buttonBase: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   gap: 10,
+  maxWidth: '100%',
   minHeight: 46,
+  minWidth: 0,
   padding: '0 18px',
   borderRadius: 999,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
   transition:
     'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease',
+  textAlign: 'center',
   cursor: 'pointer',
   textDecoration: 'none',
+  whiteSpace: 'normal',
 }
 
 export const buttonPrimary: CSSProperties = {
   ...buttonBase,
-  border: '1px solid rgba(155, 225, 29, 0.34)',
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   boxShadow: shadows.glowGreen,
 }
 
