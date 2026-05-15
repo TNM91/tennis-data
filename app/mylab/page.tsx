@@ -3393,6 +3393,7 @@ const secondaryButtonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minWidth: 0,
   minHeight: 46,
   padding: '0 16px',
   borderRadius: 999,
@@ -3404,10 +3405,12 @@ const secondaryButtonStyle: CSSProperties = {
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const profileLinkSectionStyle: CSSProperties = {
   margin: '0 0 18px',
+  minWidth: 0,
 }
 
 const labRoutinePreviewStyle: CSSProperties = {
@@ -3585,6 +3588,7 @@ const paidWorkspaceProofStyle: CSSProperties = {
 const paidWorkspaceIntroStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
+  minWidth: 0,
 }
 
 const paidWorkspaceTitleStyle: CSSProperties = {
@@ -3623,6 +3627,7 @@ const paidWorkspaceProofCardStyle: CSSProperties = {
 
 const paidWorkspaceProofBodyStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
+  overflowWrap: 'anywhere',
 }
 
 const dataAssistProofStyle: CSSProperties = {
@@ -3641,6 +3646,7 @@ const dataAssistProofStyle: CSSProperties = {
 const dataAssistProofCopyStyle: CSSProperties = {
   flex: '1 1 260px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const dataAssistProofTitleStyle: CSSProperties = {
@@ -3671,6 +3677,8 @@ const warningNoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
   fontSize: 13,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const profileLinkCardStyle: CSSProperties = {

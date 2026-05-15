@@ -86,9 +86,11 @@ describe('My Lab premium surface', () => {
 
     for (const styleName of [
       'personalReadPanelStyle',
+      'profileLinkSectionStyle',
       'labRoutineStepStyle',
       'labPlaybookPanelStyle',
       'labPlaybookCardStyle',
+      'paidWorkspaceIntroStyle',
       'quickProfileStyle',
       'setupPanelStyle',
       'matchupSpotlightStyle',
@@ -133,6 +135,7 @@ describe('My Lab premium surface', () => {
       'sectionHeaderStyle',
       'searchPanelStyle',
       'inputWrapStyle',
+      'warningNoteStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -165,8 +168,12 @@ describe('My Lab premium surface', () => {
       'saveNotebookButtonStyle',
       'metricLabelStyle',
       'metricNoteStyle',
+      'secondaryButtonStyle',
       'labRoutineStepStyle',
       'labPlaybookCardStyle',
+      'paidWorkspaceProofBodyStyle',
+      'dataAssistProofCopyStyle',
+      'warningNoteStyle',
       'matchupSpotlightHeroStyle',
       'optionalContextSummaryStyle',
       'optionalContextCountStyle',
@@ -187,6 +194,7 @@ describe('My Lab premium surface', () => {
       'saveNotebookButtonStyle',
       'readinessPillStyle',
       'optionalContextCountStyle',
+      'secondaryButtonStyle',
     ]) {
       expect(styleBlock(styleName)).toContain("maxWidth: '100%'")
       expect(styleBlock(styleName)).toContain("whiteSpace: 'normal'")
