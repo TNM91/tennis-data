@@ -1836,7 +1836,7 @@ const standingsTableScrollStyle: CSSProperties = {
 const standingsTableStyle: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 'min(100%, 620px)',
+  minWidth: 0,
   tableLayout: 'auto',
 }
 

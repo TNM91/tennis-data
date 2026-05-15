@@ -4740,7 +4740,7 @@ const teamStandingsScrollStyle: CSSProperties = {
 
 const teamStandingsTableStyle: CSSProperties = {
   width: '100%',
-  minWidth: 'min(100%, 560px)',
+  minWidth: 0,
   borderCollapse: 'collapse',
   fontSize: 14,
   tableLayout: 'auto',

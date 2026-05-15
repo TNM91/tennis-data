@@ -20,6 +20,7 @@ describe('league detail table mobile layout guards', () => {
     expect(scrollStyle).toContain("scrollbarWidth: 'thin'")
     expect(scrollStyle).toContain("maxWidth: '100%'")
     expect(scrollStyle).toContain('minWidth: 0')
-    expect(styleBlock('standingsTableStyle')).toContain("minWidth: 'min(100%, 620px)'")
+    expect(styleBlock('standingsTableStyle')).toContain('minWidth: 0')
+    expect(styleBlock('standingsTableStyle')).not.toContain("minWidth: 'min(100%, 620px)'")
   })
 })
