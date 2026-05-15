@@ -3894,6 +3894,8 @@ const levelMeterMetaStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 900,
   flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const levelMeterScaleStyle: CSSProperties = {
@@ -5521,6 +5523,7 @@ const feedMetaRowStyle: CSSProperties = {
   alignItems: 'center',
   gap: 12,
   flexWrap: 'wrap',
+  minWidth: 0,
   marginTop: 14,
 }
 
