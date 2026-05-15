@@ -7,8 +7,8 @@ import CoordinatorSubnav from '@/app/components/coordinator-subnav'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
 import { buildIndividualResultCue } from '@/lib/league-result-cues'
 import {
   getTiqLeagueById,
@@ -32,7 +32,6 @@ import {
   getTiqIndividualCompetitionFormatLabel,
 } from '@/lib/tiq-individual-format'
 import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
-import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
 
 type ResultParticipantOption = {
@@ -504,6 +503,7 @@ export function IndividualLeagueResultsWorkspace({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { role, userId, entitlements, authResolved } = useAuth()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const suggestedResultPlayerA =
     searchParams.get('suggest_player_a') || searchParams.get('playerA') || searchParams.get('player_a') || ''
@@ -532,11 +532,12 @@ export function IndividualLeagueResultsWorkspace({
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
-  const [canEditResults, setCanEditResults] = useState(false)
-  const [accessResolved, setAccessResolved] = useState(false)
-  const [accessMessage, setAccessMessage] = useState('')
   const [resultFormOpen, setResultFormOpen] = useState(false)
   const [appliedSuggestedResultKey, setAppliedSuggestedResultKey] = useState('')
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
+  const canEditResults = access.canCreateTiqIndividualLeague
+  const accessMessage = access.individualLeagueMessage
+  const accessResolved = authResolved && Boolean(userId)
 
   const selectedLeague = useMemo(
     () => leagues.find((league) => league.id === formLeagueId) || null,
@@ -646,31 +647,12 @@ export function IndividualLeagueResultsWorkspace({
   })
 
   useEffect(() => {
-    let mounted = true
+    if (!authResolved) return
 
-    async function checkAuth() {
-      const authState = await getClientAuthState()
-      if (!authState.user && mounted) {
-        router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
-        return
-      }
-
-      if (authState.user && mounted) {
-        const access = buildProductAccessState(authState.role, authState.entitlements)
-        setCanEditResults(access.canCreateTiqIndividualLeague)
-        setAccessMessage(access.individualLeagueMessage)
-        setAccessResolved(true)
-      }
+    if (!userId) {
+      router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
     }
-
-    void checkAuth()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { void checkAuth() })
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [loginNextHref, router])
+  }, [authResolved, loginNextHref, router, userId])
 
   const refreshResults = useCallback(async (leagueId: string) => {
     const result = await listTiqIndividualLeagueResults({ leagueId: leagueId || null })

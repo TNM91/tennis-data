@@ -7,8 +7,8 @@ import CoordinatorSubnav from '@/app/components/coordinator-subnav'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
 import { buildTeamResultCue } from '@/lib/league-result-cues'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import type { TiqLeagueRecord, TiqLeagueScoringSystem } from '@/lib/tiq-league-registry'
@@ -1038,6 +1038,7 @@ export function TeamLeagueResultsWorkspace({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { role, userId, entitlements, authResolved } = useAuth()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const scheduledEventItemId = searchParams.get('scheduleItemId') || searchParams.get('schedule_item_id') || ''
   const scheduledTeamA = searchParams.get('teamA') || searchParams.get('team_a') || ''
@@ -1059,9 +1060,10 @@ export function TeamLeagueResultsWorkspace({
   const [dateFilter, setDateFilter] = useState<TeamResultDateFilter>('all')
   const [newMatchFormOpen, setNewMatchFormOpen] = useState(false)
   const [activeEntryEventId, setActiveEntryEventId] = useState('')
-  const [canEditResults, setCanEditResults] = useState(false)
-  const [accessResolved, setAccessResolved] = useState(false)
-  const [accessMessage, setAccessMessage] = useState('')
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
+  const canEditResults = access.canEnterTiqTeamLeague
+  const accessMessage = access.teamLeagueMessage
+  const accessResolved = authResolved && Boolean(userId)
   const selectedFilterLeague = useMemo(
     () => leagues.find((league) => league.id === filterLeagueId) || null,
     [filterLeagueId, leagues],
@@ -1146,28 +1148,12 @@ export function TeamLeagueResultsWorkspace({
   )
 
   useEffect(() => {
-    let mounted = true
+    if (!authResolved) return
 
-    async function checkAuth() {
-      const authState = await getClientAuthState()
-      if (!authState.user && mounted) {
-        router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
-        return
-      }
-
-      if (authState.user && mounted) {
-        const access = buildProductAccessState(authState.role, authState.entitlements)
-        setCanEditResults(access.canEnterTiqTeamLeague)
-        setAccessMessage(access.teamLeagueMessage)
-        setAccessResolved(true)
-      }
+    if (!userId) {
+      router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
     }
-
-    void checkAuth()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { void checkAuth() })
-    return () => { mounted = false; subscription.unsubscribe() }
-  }, [loginNextHref, router])
+  }, [authResolved, loginNextHref, router, userId])
 
   const loadData = useCallback(async () => {
     setLoading(true)

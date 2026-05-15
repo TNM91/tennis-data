@@ -14,6 +14,11 @@ function styleBlock(source: string, styleName: string) {
 
 describe('League result workspace mobile layout guards', () => {
   it('keeps team result entry forms and scorekeeper cards mobile-safe', () => {
+    expect(teamSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(teamSource).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
+    expect(teamSource).toContain('if (!authResolved)')
+    expect(teamSource).toContain('buildProductAccessState(role, entitlements)')
+    expect(teamSource).not.toContain('getClientAuthState')
     for (const styleName of [
       'pageWrap',
       'introCard',
@@ -49,6 +54,11 @@ describe('League result workspace mobile layout guards', () => {
   })
 
   it('keeps individual result forms, standings, and review cards mobile-safe', () => {
+    expect(individualSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(individualSource).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
+    expect(individualSource).toContain('if (!authResolved)')
+    expect(individualSource).toContain('buildProductAccessState(role, entitlements)')
+    expect(individualSource).not.toContain('getClientAuthState')
     for (const styleName of [
       'pageWrap',
       'introCard',
