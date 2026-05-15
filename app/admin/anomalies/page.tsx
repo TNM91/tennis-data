@@ -389,7 +389,7 @@ const tableWrap: CSSProperties = {
 const table: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 'min(100%, 860px)',
+  minWidth: 0,
   tableLayout: 'auto',
 }
 
