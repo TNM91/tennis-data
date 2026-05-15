@@ -76,4 +76,21 @@ describe('public access cue flicker guards', () => {
       expect(source).toContain('authResolved')
     }
   })
+
+  it('keeps player surfaces neutral until auth resolves', () => {
+    const profileSource = readAppFile('app/players/[id]/page.tsx')
+    const myLabSource = readAppFile('app/mylab/page.tsx')
+
+    expect(profileSource).toContain('function PlayerProfileContent()')
+    expect(profileSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(profileSource).toContain("const resolvedRole = authResolved || !currentUserId ? role : 'member'")
+    expect(profileSource).toContain('buildProductAccessState(resolvedRole, entitlements)')
+    expect(profileSource).toContain(') : authResolved ? (')
+    expect(profileSource).not.toContain('getClientAuthState')
+    expect(profileSource).not.toContain('ProductEntitlementSnapshot')
+
+    expect(myLabSource).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
+    expect(myLabSource).toContain('buildProductAccessState(resolvedRole, entitlements)')
+    expect(myLabSource).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
+  })
 })

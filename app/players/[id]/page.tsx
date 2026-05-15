@@ -6,17 +6,17 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
-import { getClientAuthState } from '@/lib/auth'
 import {
   getReportStatusLabel,
   listMyMatchAccuracyReports,
   type MatchAccuracyReport,
 } from '@/lib/match-accuracy-reports'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import {
   formatRatingValue,
   getRatingViewLabel,
@@ -31,7 +31,6 @@ import {
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
-import { type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 
@@ -146,6 +145,14 @@ type UstaTeamMembership = {
 }
 
 export default function PlayerProfilePage() {
+  return (
+    <SiteShell active="/players">
+      <PlayerProfileContent />
+    </SiteShell>
+  )
+}
+
+function PlayerProfileContent() {
   const params = useParams()
   const playerId = String(params.id)
 
@@ -158,9 +165,6 @@ export default function PlayerProfilePage() {
   const [tiqParticipationWarning, setTiqParticipationWarning] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const [ratingView, setRatingView] = useState<RatingView>('overall')
@@ -172,24 +176,11 @@ export default function PlayerProfilePage() {
   const [fieldAvgRating, setFieldAvgRating] = useState<number | null>(null)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { role, userId: currentUserId, entitlements, authResolved } = useAuth()
+  const resolvedRole = authResolved || !currentUserId ? role : 'member'
 
   useEffect(() => {
-    let active = true
-
-    void (async () => {
-      const authState = await getClientAuthState()
-      if (!active) return
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
-      setCurrentUserId(authState.user?.id || null)
-    })()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
+    if (!authResolved) return
     if (!currentUserId) {
       setLinkedPlayerId(null)
       setMyMatchReports([])
@@ -207,9 +198,10 @@ export default function PlayerProfilePage() {
     return () => {
       active = false
     }
-  }, [currentUserId])
+  }, [authResolved, currentUserId])
 
   const refreshMyMatchReports = useCallback(async () => {
+    if (!authResolved) return
     if (!currentUserId) {
       setMyMatchReports([])
       return
@@ -220,7 +212,7 @@ export default function PlayerProfilePage() {
     } catch {
       setMyMatchReports([])
     }
-  }, [currentUserId])
+  }, [authResolved, currentUserId])
 
   useEffect(() => {
     void refreshMyMatchReports()
@@ -1002,7 +994,7 @@ export default function PlayerProfilePage() {
     color: meterTheme.trendColor,
     border: `1px solid ${meterTheme.trendBorder}`,
   }
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const ratingViewLabel = getRatingViewLabel(ratingView)
   const tiqParticipationCount = tiqParticipations.length
   const playerSignals = [
@@ -1052,41 +1044,37 @@ export default function PlayerProfilePage() {
 
   if (loading) {
     return (
-      <SiteShell active="/players">
-        <section style={dynamicHeroWrap}>
-          <div style={dynamicHeroShell}>
-            <div style={heroNoise} />
-            <div style={loadingCard}>Loading player profile...</div>
-          </div>
-        </section>
-      </SiteShell>
+      <section style={dynamicHeroWrap}>
+        <div style={dynamicHeroShell}>
+          <div style={heroNoise} />
+          <div style={loadingCard}>Loading player profile...</div>
+        </div>
+      </section>
     )
   }
 
   if (error || !player) {
     return (
-      <SiteShell active="/players">
-        <section style={dynamicHeroWrap}>
-          <div style={dynamicHeroShell}>
-            <div style={heroNoise} />
-            <div style={errorCard}>
-              <div style={sectionKicker}>Player profile</div>
-              <h2 style={sectionTitle}>Unable to load player</h2>
-              <p style={sectionText}>{error || 'Player not found.'}</p>
-              <div style={errorActionRow}>
-                <MiniButton onClick={() => void loadPlayerProfile()}>Retry profile load</MiniButton>
-                <MiniLink href="/players">Back to players</MiniLink>
-                <MiniLink href="/rankings">Browse rankings</MiniLink>
-              </div>
+      <section style={dynamicHeroWrap}>
+        <div style={dynamicHeroShell}>
+          <div style={heroNoise} />
+          <div style={errorCard}>
+            <div style={sectionKicker}>Player profile</div>
+            <h2 style={sectionTitle}>Unable to load player</h2>
+            <p style={sectionText}>{error || 'Player not found.'}</p>
+            <div style={errorActionRow}>
+              <MiniButton onClick={() => void loadPlayerProfile()}>Retry profile load</MiniButton>
+              <MiniLink href="/players">Back to players</MiniLink>
+              <MiniLink href="/rankings">Browse rankings</MiniLink>
             </div>
           </div>
-        </section>
-      </SiteShell>
+        </div>
+      </section>
     )
   }
 
   return (
-    <SiteShell active="/players">
+    <>
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
@@ -1369,7 +1357,7 @@ export default function PlayerProfilePage() {
               ))}
             </section>
           </details>
-        ) : (
+        ) : authResolved ? (
           <UpgradePrompt
             planId="player_plus"
             headline="Unlock Matchup and My Lab"
@@ -1381,7 +1369,7 @@ export default function PlayerProfilePage() {
             footnote={access.playerPlusMessage}
             compact
           />
-        )}
+        ) : null}
 
         {isRosterOnlyProfile && primaryUstaMembership && primaryTeamHref ? (
           <article style={rosterReadyCard}>
@@ -2323,7 +2311,7 @@ export default function PlayerProfilePage() {
           </article>
         ) : null}
       </section>
-    </SiteShell>
+    </>
   )
 }
 

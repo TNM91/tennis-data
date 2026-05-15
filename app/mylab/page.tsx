@@ -620,7 +620,8 @@ function MyLabPageInner() {
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet } = useViewportBreakpoints()
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
 
   useEffect(() => {
     const nextGoals = readLocalGoals(userId, profileLink?.linked_player_id)
@@ -2204,7 +2205,7 @@ function MyLabPageInner() {
   ]
   return (
     <section style={pageStyle}>
-      {!access.canUseAdvancedPlayerInsights ? (
+      {authResolved && !access.canUseAdvancedPlayerInsights ? (
         <UpgradePrompt
           planId="player_plus"
           headline={MY_LAB_STORY.upgradeHeadline}
