@@ -28,10 +28,10 @@ export default function ErrorPage({
           An unexpected error occurred. You can try again or return to the homepage.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 28, justifyContent: 'center', flexWrap: 'wrap', minWidth: 0 }}>
-          <button className="button-primary" onClick={unstable_retry} style={{ minWidth: 'min(100%, 130px)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
+          <button className="button-primary" onClick={unstable_retry} style={{ minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
             Try again
           </button>
-          <Link href="/" className="button-ghost" style={{ minWidth: 'min(100%, 130px)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
+          <Link href="/" className="button-ghost" style={{ minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
             Go home
           </Link>
         </div>

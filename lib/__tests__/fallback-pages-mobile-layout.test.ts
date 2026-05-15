@@ -14,8 +14,8 @@ describe('fallback pages mobile layout guards', () => {
       expect(source).toContain("overflowWrap: 'anywhere'")
     }
 
-    expect(errorSource).toContain("minWidth: 'min(100%, 130px)'")
-    expect(notFoundSource).toContain("minWidth: 'min(100%, 140px)'")
+    expect(errorSource).not.toContain("minWidth: 'min(100%, 130px)'")
+    expect(notFoundSource).not.toContain("minWidth: 'min(100%, 140px)'")
     expect(errorSource).not.toContain('minWidth: 130')
     expect(notFoundSource).not.toContain('minWidth: 140')
   })

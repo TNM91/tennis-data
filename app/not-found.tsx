@@ -48,10 +48,10 @@ export default function NotFound() {
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 32, justifyContent: 'center', flexWrap: 'wrap', minWidth: 0 }}>
-          <Link href="/" className="button-primary" style={{ minWidth: 'min(100%, 140px)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
+          <Link href="/" className="button-primary" style={{ minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
             Go home
           </Link>
-          <Link href="/explore/players" className="button-ghost" style={{ minWidth: 'min(100%, 140px)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
+          <Link href="/explore/players" className="button-ghost" style={{ minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>
             Explore players
           </Link>
         </div>
