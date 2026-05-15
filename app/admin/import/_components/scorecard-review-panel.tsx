@@ -866,9 +866,10 @@ function LineReviewCard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
           gap: 12,
           marginTop: 12,
+          minWidth: 0,
         }}
       >
         <PlayerCard title="Home side" players={line.sideAPlayers} />
@@ -879,9 +880,10 @@ function LineReviewCard({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
             gap: 10,
             marginTop: 12,
+            minWidth: 0,
           }}
         >
           <button
