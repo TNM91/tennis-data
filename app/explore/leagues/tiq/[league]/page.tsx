@@ -866,7 +866,7 @@ export default function TiqLeagueDetailPage() {
   }
   const dynamicStandingCard: CSSProperties = {
     ...standingCard,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : '56px minmax(0, 1fr)',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 56px) minmax(0, 1fr)',
   }
   const dynamicStandingRank: CSSProperties = {
     ...standingRank,
@@ -4524,7 +4524,7 @@ const listCard: CSSProperties = {
 
 const standingCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '56px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 56px) minmax(0, 1fr)',
   gap: '14px',
   alignItems: 'stretch',
   padding: '16px',

@@ -556,6 +556,7 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(tiqLeagueDetailSource, 'listWrap')).toContain('minWidth: 0')
     expect(styleBlock(tiqLeagueDetailSource, 'listCard')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(tiqLeagueDetailSource, 'standingCard')).toContain('minWidth: 0')
+    expect(styleBlock(tiqLeagueDetailSource, 'standingCard')).toContain("'minmax(0, 56px) minmax(0, 1fr)'")
     expect(styleBlock(tiqLeagueDetailSource, 'standingHeader')).toContain('minWidth: 0')
     expect(styleBlock(tiqLeagueDetailSource, 'standingNameRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(tiqLeagueDetailSource, 'leagueStatusPillStyle')).toContain("whiteSpace: 'normal'")
@@ -574,13 +575,14 @@ describe('Explore responsive surfaces', () => {
     expect(tiqLeagueDetailSource).not.toContain("color: '#64748b'")
     expect(tiqLeagueDetailSource).not.toContain("color: '#cbd5e1'")
     expect(tiqLeagueDetailSource).not.toContain("'34px minmax(0, 1fr) auto'")
+    expect(tiqLeagueDetailSource).not.toContain("'56px minmax(0, 1fr)'")
     expect(tiqLeagueDetailSource).not.toContain("'minmax(0, 1fr) auto'")
     expect(tiqLeagueDetailSource).not.toContain("'auto minmax(0, 1fr)'")
   })
 
   it('keeps TIQ league detail grids minmax-safe on mobile', () => {
     expect(tiqLeagueDetailSource).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(tiqLeagueDetailSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : '56px minmax(0, 1fr)'")
+    expect(tiqLeagueDetailSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 56px) minmax(0, 1fr)'")
     expect(tiqLeagueDetailSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))'")
     expect(tiqLeagueDetailSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))'")
     expect(tiqLeagueDetailSource).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
