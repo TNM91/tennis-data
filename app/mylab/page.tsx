@@ -3521,7 +3521,7 @@ const labRoutineGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const labRoutineStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: 12,
   minHeight: 144,
   padding: 14,
@@ -3530,6 +3530,7 @@ const labRoutineStepStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--shell-chip-bg) 92%, var(--shell-panel-bg-strong) 8%)',
   color: 'var(--foreground)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const labRoutineNumberStyle: CSSProperties = {
@@ -3778,7 +3779,7 @@ const labPlaybookGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
   minHeight: 132,
@@ -3793,6 +3794,7 @@ const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
   color: 'inherit',
   textDecoration: 'none',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const labPlaybookStepStyle = (complete: boolean): CSSProperties => ({
@@ -4090,10 +4092,11 @@ const matchupSpotlightStyle: CSSProperties = {
 
 const matchupSpotlightHeroStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
   gap: 14,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const matchupSpotlightTitleStyle: CSSProperties = {

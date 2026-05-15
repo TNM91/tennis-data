@@ -86,7 +86,9 @@ describe('My Lab premium surface', () => {
 
     for (const styleName of [
       'personalReadPanelStyle',
+      'labRoutineStepStyle',
       'labPlaybookPanelStyle',
+      'labPlaybookCardStyle',
       'quickProfileStyle',
       'setupPanelStyle',
       'matchupSpotlightStyle',
@@ -163,6 +165,9 @@ describe('My Lab premium surface', () => {
       'saveNotebookButtonStyle',
       'metricLabelStyle',
       'metricNoteStyle',
+      'labRoutineStepStyle',
+      'labPlaybookCardStyle',
+      'matchupSpotlightHeroStyle',
       'optionalContextSummaryStyle',
       'optionalContextCountStyle',
       'compactSignalsHeaderStyle',
@@ -186,5 +191,11 @@ describe('My Lab premium surface', () => {
       expect(styleBlock(styleName)).toContain("maxWidth: '100%'")
       expect(styleBlock(styleName)).toContain("whiteSpace: 'normal'")
     }
+
+    expect(styleBlock('labRoutineStepStyle')).toContain("'minmax(0, auto) minmax(0, 1fr)'")
+    expect(styleBlock('labPlaybookCardStyle')).toContain("'minmax(0, auto) minmax(0, 1fr)'")
+    expect(styleBlock('matchupSpotlightHeroStyle')).toContain("'minmax(0, 1fr) minmax(0, auto)'")
+    expect(source).not.toContain("gridTemplateColumns: 'auto minmax(0, 1fr)'")
+    expect(source).not.toContain("'minmax(0, 1fr) auto'")
   })
 })
