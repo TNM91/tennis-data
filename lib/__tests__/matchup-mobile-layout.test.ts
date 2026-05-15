@@ -62,13 +62,21 @@ describe('matchup mobile layout guards', () => {
       'selectorGrid',
       'editorialPanel',
       'editorialGrid',
+      'editorialCard',
       'handoffSidesGridStyle',
+      'handoffCardStyle',
+      'handoffSideCardStyle',
+      'doublesQuickStartStyle',
       'doublesPreviewGridStyle',
+      'doublesPreviewCardStyle',
       'suggestionGrid',
+      'prefillPromptCard',
       'prepReadGrid',
       'compareGrid',
       'ratingGrid',
       'metricGrid',
+      'recommendationCard',
+      'emptyHeadToHeadActions',
     ].forEach((styleName) => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     })
@@ -77,12 +85,22 @@ describe('matchup mobile layout guards', () => {
       'toolHeaderKickerStyle',
       'headerCopyStyle',
       'toolHeaderTitleStyle',
+      'toolHeaderTextStyle',
       'identitySetupKickerStyle',
       'inputLabel',
+      'errorTitleStyle',
+      'editorialText',
+      'editorialCard',
       'editorialCardLabel',
+      'editorialCardValue',
       'handoffKickerStyle',
+      'handoffCardStyle',
+      'handoffSideCardStyle',
       'handoffSideLabelStyle',
+      'doublesQuickStartStyle',
+      'doublesPreviewCardStyle',
       'doublesPreviewLabelStyle',
+      'prefillPromptCard',
       'formCompareLabel',
       'formCellLabel',
       'engineLabel',
@@ -99,10 +117,15 @@ describe('matchup mobile layout guards', () => {
       'highlightLabel',
       'gapLabel',
       'sectionKicker',
+      'recommendationCard',
+      'intelligenceHintLabel',
+      'emptyHeadToHeadActions',
     ].forEach((styleName) => {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     })
 
+    expect(styleBlock('profileContextLinkStyle')).toContain('minWidth: 0')
+    expect(styleBlock('profileContextLinkStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('emptyState')).toContain('minWidth: 0')
     expect(styleBlock('compareCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('centerColumn')).toContain("maxWidth: '100%'")

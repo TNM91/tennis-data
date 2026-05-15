@@ -2824,6 +2824,8 @@ const profileContextLinkStyle: CSSProperties = {
   color: '#d9f84a',
   fontWeight: 900,
   textDecoration: 'none',
+  maxWidth: '100%',
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -2889,6 +2891,7 @@ const toolHeaderTextStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 800,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3082,6 +3085,7 @@ const errorTitleStyle: CSSProperties = {
   fontSize: '15px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const errorActionRowStyle: CSSProperties = {
@@ -3144,6 +3148,7 @@ const editorialText: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.8,
   maxWidth: '860px',
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3162,6 +3167,7 @@ const editorialCard: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const editorialCardLabel: CSSProperties = {
@@ -3316,6 +3322,7 @@ const handoffCardStyle: CSSProperties = {
     'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(48,99,180,0.10) 46%, var(--shell-panel-bg) 100%)',
   boxShadow: '0 18px 42px rgba(0,0,0,0.16)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const handoffHeaderStyle: CSSProperties = {
@@ -3379,6 +3386,7 @@ const handoffSideCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'rgba(255,255,255,0.04)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const handoffSideCardActiveStyle: CSSProperties = {
@@ -3422,6 +3430,7 @@ const doublesQuickStartStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.20)',
   background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.08) 0%, rgba(13,27,52,0.82) 100%)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const doublesQuickStartTextStyle: CSSProperties = {
@@ -3470,6 +3479,7 @@ const doublesPreviewCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const doublesPreviewLabelStyle: CSSProperties = {
@@ -3506,6 +3516,7 @@ const prefillPromptCard: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.22)',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.10) 0%, rgba(13,27,52,0.86) 100%)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const prefillPromptKicker: CSSProperties = {
@@ -4169,6 +4180,7 @@ const recommendationCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.14)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const recommendationTitle: CSSProperties = {
@@ -4422,6 +4434,7 @@ const emptyHeadToHeadActions: CSSProperties = {
   flexWrap: 'wrap',
   marginTop: '14px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 
@@ -4487,6 +4500,7 @@ const intelligenceHintLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const intelligenceHintText: CSSProperties = {
