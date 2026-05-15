@@ -4328,7 +4328,7 @@ const performanceCardStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   padding: 14,
   display: 'grid',
-  gridTemplateColumns: '64px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 64px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 12,
   minHeight: 104,

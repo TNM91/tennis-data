@@ -3250,7 +3250,7 @@ const exportHelpBodyStyle: CSSProperties = {
 
 const exportHelpStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '28px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 28px) minmax(0, 1fr)',
   gap: 9,
   alignItems: 'start',
   color: 'var(--shell-copy-muted)',

@@ -65,6 +65,7 @@ describe('My Lab mobile layout guards', () => {
       'insightCardStyle',
       'followListStyle',
       'followCardStyle',
+      'performanceCardStyle',
       'matchupQueueCardStyle',
       'workshopMatchRowStyle',
       'nextActionCardStyle',
@@ -102,6 +103,10 @@ describe('My Lab mobile layout guards', () => {
     expect(styleBlock('followCardStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('tabButtonStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('feedLinkStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('performanceCardStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 64px) minmax(0, 1fr)'",
+    )
+    expect(source).not.toContain("gridTemplateColumns: '64px minmax(0, 1fr)'")
     for (const styleName of ['matchupQueueCardStyle', 'workshopMatchRowStyle', 'nextActionCardStyle']) {
       expect(styleBlock(styleName), styleName).toContain("'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)'")
       expect(styleBlock(styleName), styleName).not.toContain("'auto minmax(0, 1fr) auto'")

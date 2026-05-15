@@ -669,7 +669,7 @@ const promiseStack: CSSProperties = {
 
 const promiseStep: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '42px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
   gap: '12px',
   minWidth: 0,
   alignItems: 'center',
@@ -776,7 +776,7 @@ const formTitleMobile: CSSProperties = {
 
 const identityCueStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '36px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 36px) minmax(0, 1fr)',
   gap: '10px',
   minWidth: 0,
   alignItems: 'center',

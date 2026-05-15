@@ -98,6 +98,12 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
       "overflowWrap: 'anywhere'",
     )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 36px) minmax(0, 1fr)'",
+    )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'promiseStep')).toContain(
+      "gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)'",
+    )
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'selectedPlanStepStyle')).toContain(
       "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
     )
@@ -133,5 +139,7 @@ describe('auth entry mobile layout guards', () => {
       expect(source, file).not.toMatch(/width: '[0-9]{3}px'/)
     }
     expect(sources.get('app/join/page.tsx')).not.toContain("gridTemplateColumns: '24px minmax(0, 1fr)'")
+    expect(sources.get('app/join/page.tsx')).not.toContain("gridTemplateColumns: '36px minmax(0, 1fr)'")
+    expect(sources.get('app/join/page.tsx')).not.toContain("gridTemplateColumns: '42px minmax(0, 1fr)'")
   })
 })

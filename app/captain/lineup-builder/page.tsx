@@ -3331,7 +3331,7 @@ const workflowListStyle: CSSProperties = {
 
 const workflowRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '42px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
   minWidth: 0,

@@ -92,6 +92,9 @@ describe('Data Assist mobile layout guards', () => {
     expect(styleBlock('parsedSideHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('exportHelpToggleStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('exportHelpToggleStyle')).toContain('minWidth: 0')
+    expect(styleBlock('exportHelpStepStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 28px) minmax(0, 1fr)'",
+    )
     expect(styleBlock('parsedLineStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
     expect(styleBlock('bulkResultRowStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
     expect(styleBlock('showMoreButtonStyle')).toContain("maxWidth: '100%'")
@@ -100,5 +103,6 @@ describe('Data Assist mobile layout guards', () => {
     expect(styleBlock('screenshotCardStyle')).not.toContain("minmax(min(38%, 108px), 0.34fr)")
     expect(styleBlock('screenshotBodyStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('exportFilePreviewStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(source).not.toContain("gridTemplateColumns: '28px minmax(0, 1fr)'")
   })
 })
