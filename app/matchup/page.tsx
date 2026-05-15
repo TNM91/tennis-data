@@ -1450,7 +1450,7 @@ export default function MatchupPage() {
           <div style={toolHeaderStyle}>
             <div style={toolHeaderTitleClusterStyle}>
               <TiqFeatureIcon name={matchType === 'doubles' ? 'lineupBuilder' : 'matchupAnalysis'} size="md" variant="surface" />
-              <div>
+              <div style={headerCopyStyle}>
                 <div style={toolHeaderKickerStyle}>Build the matchup</div>
                 <h2 style={toolHeaderTitleStyle}>
                   {matchType === 'doubles' ? 'Choose both sides.' : 'Choose two players.'}
@@ -1691,7 +1691,7 @@ export default function MatchupPage() {
 
           {matchType === 'singles' && playerA && !playerB ? (
             <article style={prefillPromptCard}>
-              <div>
+              <div style={headerCopyStyle}>
                 <div style={prefillPromptKicker}>Matchup is ready for one more player</div>
                 <h2 style={prefillPromptTitle}>Choose an opponent for {playerA.name}</h2>
                 <p style={prefillPromptText}>
@@ -1745,7 +1745,7 @@ export default function MatchupPage() {
           {error ? (
             <div role="alert" aria-live="polite" style={errorBanner}>
               <strong style={errorTitleStyle}>Matchup needs a fresh player list.</strong>
-              <div>{error}</div>
+              <div style={headerCopyStyle}>{error}</div>
               <div style={errorActionRowStyle}>
                 <button type="button" onClick={() => void loadPlayers()} style={retryButtonStyle}>
                   Retry matchup load
@@ -1817,7 +1817,7 @@ export default function MatchupPage() {
             <>
               {projection ? (
                 <div style={dynamicDecisionBanner}>
-                  <div>
+                  <div style={headerCopyStyle}>
                     <div style={decisionLabel}>Matchup edge</div>
                     <div style={decisionWinner}>{projection.likelyWinner}</div>
                     <div style={decisionSub}>
@@ -1963,7 +1963,7 @@ export default function MatchupPage() {
                   </div>
 
                   <div style={calloutCard}>
-                    <div>
+                    <div style={headerCopyStyle}>
                       <div style={calloutTitle}>{projection.expectedOutcome}</div>
                       <div style={calloutSub}>
                         Favorite: <strong>{projection.favoriteLabel}</strong> | Underdog:{' '}
@@ -2856,6 +2856,13 @@ const toolHeaderTitleClusterStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '12px',
   minWidth: 0,
+}
+
+const headerCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const toolHeaderKickerStyle: CSSProperties = {

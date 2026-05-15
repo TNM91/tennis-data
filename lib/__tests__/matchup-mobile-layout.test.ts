@@ -75,6 +75,7 @@ describe('matchup mobile layout guards', () => {
 
     ;[
       'toolHeaderKickerStyle',
+      'headerCopyStyle',
       'toolHeaderTitleStyle',
       'identitySetupKickerStyle',
       'inputLabel',
