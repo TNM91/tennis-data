@@ -3146,7 +3146,7 @@ const operatingFlowGridStyle: CSSProperties = {
 
 const operatingFlowStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr)',
   gap: '10px',
   alignItems: 'start',
   padding: '12px',

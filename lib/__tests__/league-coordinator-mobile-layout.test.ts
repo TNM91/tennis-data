@@ -45,8 +45,10 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('Publish schedule')
     expect(source).toContain('Review uploads and results')
     expect(source).toContain('operatingFlowGridStyle')
+    expect(source).toContain("gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr)'")
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
     expect(source).toContain("overflowWrap: 'anywhere'")
+    expect(source).not.toContain("gridTemplateColumns: '34px minmax(0, 1fr)'")
   })
 
   it('keeps operating flow numbers readable in dark and light mode', () => {
