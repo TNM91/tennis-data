@@ -1,45 +1,29 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, FormEvent, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, FormEvent, useMemo, useState } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import { useAuth } from '@/app/components/auth-provider'
 import { supabase } from '@/lib/supabase'
-import { type UserRole } from '@/lib/roles'
-import { getClientAuthState } from '@/lib/auth'
 import SiteShell from '@/app/components/site-shell'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 export default function ForgotPasswordPage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [authLoading, setAuthLoading] = useState(true)
+  return (
+    <SiteShell active="forgot-password">
+      <ForgotPasswordContent />
+    </SiteShell>
+  )
+}
+
+function ForgotPasswordContent() {
+  const { role, authResolved } = useAuth()
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-
-  useEffect(() => {
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-        setRole(authState.role)
-      } finally {
-        setAuthLoading(false)
-      }
-    }
-
-    void loadAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async () => {
-      const authState = await getClientAuthState()
-      setRole(authState.role)
-      setAuthLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+  const authLoading = !authResolved
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -107,17 +91,14 @@ export default function ForgotPasswordPage() {
 
   if (authLoading) {
     return (
-      <SiteShell active="forgot-password">
-        <section style={loadingShell}>
-          <div style={loadingCard}>Checking account status...</div>
-        </section>
-      </SiteShell>
+      <section style={loadingShell}>
+        <div style={loadingCard}>Checking account status...</div>
+      </section>
     )
   }
 
   return (
-    <SiteShell active="forgot-password">
-      <section style={pageWrap}>
+    <section style={pageWrap}>
         <div style={pageGlowOne} />
         <div style={pageGlowTwo} />
 
@@ -202,8 +183,7 @@ export default function ForgotPasswordPage() {
             </div>
           </div>
         </section>
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 

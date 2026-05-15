@@ -21,6 +21,16 @@ function styleBlock(source: string, styleName: string) {
 }
 
 describe('auth entry mobile layout guards', () => {
+  it('keeps Forgot Password on shared auth without local role polling', () => {
+    const source = sources.get('app/forget-password/page.tsx')!
+    expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(source).toContain('const { role, authResolved } = useAuth()')
+    expect(source).toContain('const authLoading = !authResolved')
+    expect(source).not.toContain('getClientAuthState')
+    expect(source).not.toContain('const [role, setRole]')
+    expect(source).not.toContain('supabase.auth.onAuthStateChange')
+  })
+
   it('uses shrink-safe one-column grids on auth entry shells', () => {
     for (const [file, source] of sources) {
       expect(source, file).not.toContain("? '1fr'")
