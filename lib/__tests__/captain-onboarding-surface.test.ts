@@ -34,7 +34,7 @@ describe('Captain onboarding surface', () => {
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
     expect(source).not.toContain("gridTemplateColumns: isMobile ? '1fr'")
-    expect(source).toContain("minWidth: 'min(100%, 62px)'")
+    expect(source).not.toContain("minWidth: 'min(100%, 62px)'")
   })
 
   it('keeps Captain empty states actionable for missing teams and rosters', () => {

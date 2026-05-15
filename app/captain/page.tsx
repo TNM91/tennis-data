@@ -3995,7 +3995,7 @@ const pillStrong: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minWidth: 'min(100%, 62px)',
+  minWidth: 0,
   maxWidth: '100%',
   padding: '8px 12px',
   borderRadius: 999,
