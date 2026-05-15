@@ -40,6 +40,7 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('builderLayoutResponsive')).toContain("'repeat(3, minmax(0, 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr 1fr'")
+    expect(source).not.toContain("gridTemplateColumns: '1fr'")
     expect(styleBlock('workflowRowStyle')).toContain("gridTemplateColumns: '42px minmax(0, 1fr)'")
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")
@@ -100,6 +101,14 @@ describe('Captain lineup builder mobile layout guards', () => {
     }
 
     expect(styleBlock('miniPillStyle')).toContain("whiteSpace: 'normal'")
+    for (const styleName of [
+      'decisionSnapshotGridStyle',
+      'actionPlanGridStyle',
+      'decisionQueueGridStyle',
+      'scenarioDeckGridStyle',
+    ]) {
+      expect(styleBlock(styleName), styleName).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    }
     expect(styleBlock('bannerBlueStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('bannerGreenStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('warningCardStyle')).toContain("overflowWrap: 'anywhere'")

@@ -3808,7 +3808,7 @@ const detailsSummaryStyle: CSSProperties = {
 
 const decisionSnapshotGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1fr',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 12,
   marginTop: 10,
   minWidth: 0,
@@ -3958,7 +3958,7 @@ const decisionCardTextStyle: CSSProperties = {
 
 const actionPlanGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1fr',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 12,
   marginTop: 4,
   minWidth: 0,
@@ -3966,7 +3966,7 @@ const actionPlanGridStyle: CSSProperties = {
 
 const decisionQueueGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1fr',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 10,
   marginTop: 12,
   minWidth: 0,
@@ -4017,7 +4017,7 @@ const actionPlanInsightStyle: CSSProperties = {
 
 const scenarioDeckGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1fr',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 12,
   marginTop: 4,
   minWidth: 0,

@@ -3349,7 +3349,7 @@ const captainValueTitleStyle: CSSProperties = {
 const captainValueGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 })

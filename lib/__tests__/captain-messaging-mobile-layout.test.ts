@@ -126,6 +126,8 @@ describe('Captain messaging mobile layout guards', () => {
 
     expect(styleBlock('lineupHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('lineupPlayersGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(styleBlock('singlePlayerGrid')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(styleBlock('singlePlayerGrid')).not.toContain("gridTemplateColumns: '1fr'")
     expect(styleBlock('statusButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('templateBodyStyle')).toContain("overflowWrap: 'anywhere'")
     expect(source).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
