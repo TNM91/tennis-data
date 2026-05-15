@@ -362,9 +362,10 @@ export default function ScorecardReviewPanel({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
           gap: 12,
           marginTop: 16,
+          minWidth: 0,
         }}
       >
         <MetricCard label="Clean" value={counts.clean} tone="green" />
@@ -376,9 +377,10 @@ export default function ScorecardReviewPanel({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(min(100%, 220px), 260px) 1fr',
+          gridTemplateColumns: 'minmax(min(100%, 220px), 260px) minmax(0, 1fr)',
           gap: 14,
           marginTop: 18,
+          minWidth: 0,
         }}
       >
         <div
