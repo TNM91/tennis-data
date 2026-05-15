@@ -3808,7 +3808,7 @@ const leaderTableStyle: CSSProperties = {
 
 const leaderRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr) minmax(0, auto)',
   gap: '10px',
   alignItems: 'center',
   padding: '10px',
@@ -3817,6 +3817,7 @@ const leaderRowStyle: CSSProperties = {
   background: 'rgba(7,17,33,0.48)',
   color: '#f8fbff',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leaderRankMiniStyle: CSSProperties = {
@@ -3998,7 +3999,7 @@ const upcomingMatchListStyle: CSSProperties = {
 
 const upcomingMatchRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
   gap: '10px',
   alignItems: 'center',
   padding: '10px',
@@ -4291,7 +4292,7 @@ const resultCueGridStyle: CSSProperties = {
 
 const resultCueItemStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: '10px',
   alignItems: 'start',
   padding: '10px',
@@ -4299,6 +4300,7 @@ const resultCueItemStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.035)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const resultCueItemCompleteStyle: CSSProperties = {
