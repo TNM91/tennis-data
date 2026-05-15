@@ -1124,7 +1124,7 @@ const decisionPathStyle: CSSProperties = {
 
 const decisionStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '28px 34px 1fr',
+  gridTemplateColumns: 'minmax(0, 28px) minmax(0, 34px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 10,
   minHeight: 76,
@@ -1134,6 +1134,7 @@ const decisionStepStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
+  minWidth: 0,
 }
 
 const decisionStepActiveStyle: CSSProperties = {
@@ -1455,12 +1456,13 @@ const featureListStyle: CSSProperties = {
 
 const featureRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '12px 1fr',
+  gridTemplateColumns: 'minmax(0, 12px) minmax(0, 1fr)',
   gap: 10,
   alignItems: 'start',
   color: 'var(--foreground)',
   fontSize: 14,
   lineHeight: 1.6,
+  minWidth: 0,
 }
 
 const featureDotStyle: CSSProperties = {
@@ -1588,7 +1590,7 @@ const momentGridStyle: CSSProperties = {
 
 const momentCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '56px 1fr',
+  gridTemplateColumns: 'minmax(0, 56px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 14,
   minHeight: 92,
@@ -1598,6 +1600,7 @@ const momentCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
+  minWidth: 0,
 }
 
 const momentCopyStyle: CSSProperties = {
@@ -1615,9 +1618,10 @@ const stepsStyle: CSSProperties = {
 
 const stepRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '42px 1fr',
+  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
+  minWidth: 0,
 }
 
 const stepNumberStyle: CSSProperties = {
