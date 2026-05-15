@@ -2894,8 +2894,8 @@ const historyFilterStyle: CSSProperties = {
 
 const historyFilterButtonStyle = (selected: boolean): CSSProperties => ({
   flex: '0 0 auto',
-  minWidth: 'min(100%, 92px)',
-  maxWidth: 'min(100%, 180px)',
+  maxWidth: 180,
+  minWidth: 0,
   minHeight: 40,
   borderRadius: 999,
   border: selected
