@@ -2044,6 +2044,7 @@ const matchTop: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'flex-start',
+  flexWrap: 'wrap',
   minWidth: 0,
 }
 
@@ -2091,6 +2092,7 @@ const matchBottom: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'center',
+  flexWrap: 'wrap',
   marginTop: '14px',
   paddingTop: '14px',
   borderTop: '1px solid var(--shell-panel-border)',

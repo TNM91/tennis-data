@@ -265,6 +265,8 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(leagueDetailSource, 'filterWrap')).toContain("width: 'min(100%, 260px)'")
     expect(styleBlock(leagueDetailSource, 'matchList')).toContain('minWidth: 0')
     expect(styleBlock(leagueDetailSource, 'matchCard')).toContain('minWidth: 0')
+    expect(styleBlock(leagueDetailSource, 'matchTop')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(leagueDetailSource, 'matchBottom')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(leagueDetailSource, 'winnerPill')).toContain("maxWidth: '100%'")
     expect(styleBlock(leagueDetailSource, 'matchQualityRowStyle')).toContain('minWidth: 0')
     expect(styleBlock(leagueDetailSource, 'matchQualityPillStyle')).toContain("flexWrap: 'wrap'")
