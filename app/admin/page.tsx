@@ -351,7 +351,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="table-wrap" style={{ marginTop: 16 }}>
-              <table className="data-table" style={{ minWidth: 'min(100%, 880px)', tableLayout: 'auto' }}>
+              <table className="data-table" style={{ width: '100%', tableLayout: 'auto' }}>
                 <thead>
                   <tr>
                     <th>Route</th>

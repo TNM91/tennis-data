@@ -332,7 +332,8 @@ export default function ManageMatchesPage() {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
                   gap: 16,
                   flex: 1,
-                  minWidth: 'min(100%, 320px)',
+                  width: '100%',
+                  minWidth: 0,
                 }}
               >
                 <Field
@@ -533,7 +534,7 @@ export default function ManageMatchesPage() {
               </AdminEmptyState>
             ) : (
               <div className="table-wrap" style={{ marginTop: 20 }}>
-                <table className="data-table" style={{ minWidth: 'min(100%, 1300px)', tableLayout: 'auto' }}>
+                <table className="data-table" style={{ width: '100%', tableLayout: 'auto' }}>
                   <thead>
                     <tr>
                       <th>Date</th>
@@ -554,12 +555,12 @@ export default function ManageMatchesPage() {
                         <td>{match.matchDate}</td>
                         <td>{capitalize(match.matchType)}</td>
                         <td>
-                          <div style={{ minWidth: 'min(100%, 180px)', overflowWrap: 'anywhere' }}>
+                          <div style={{ width: '100%', maxWidth: 180, minWidth: 0, overflowWrap: 'anywhere' }}>
                             <strong>{match.sideA.map((player) => player.name).join(' / ')}</strong>
                           </div>
                         </td>
                         <td>
-                          <div style={{ minWidth: 'min(100%, 180px)', overflowWrap: 'anywhere' }}>
+                          <div style={{ width: '100%', maxWidth: 180, minWidth: 0, overflowWrap: 'anywhere' }}>
                             <strong>{match.sideB.map((player) => player.name).join(' / ')}</strong>
                           </div>
                         </td>
