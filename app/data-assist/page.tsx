@@ -3353,7 +3353,7 @@ const screenshotCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   overflow: 'hidden',
   display: 'grid',
-  gridTemplateColumns: 'minmax(min(38%, 108px), 0.34fr) minmax(0, 0.66fr)',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }

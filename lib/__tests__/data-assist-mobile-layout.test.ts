@@ -96,6 +96,8 @@ describe('Data Assist mobile layout guards', () => {
     expect(styleBlock('bulkResultRowStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
     expect(styleBlock('showMoreButtonStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('scanLoadingStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('screenshotCardStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
+    expect(styleBlock('screenshotCardStyle')).not.toContain("minmax(min(38%, 108px), 0.34fr)")
     expect(styleBlock('screenshotBodyStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('exportFilePreviewStyle')).toContain("overflowWrap: 'anywhere'")
   })
