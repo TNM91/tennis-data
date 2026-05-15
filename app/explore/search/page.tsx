@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type 
 import SiteShell from '@/app/components/site-shell'
 import { useTheme, type ThemeMode } from '@/app/components/theme-provider'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import {
   badgeBlue,
   badgeGreen,
@@ -21,11 +20,10 @@ import {
   surfaceCard,
   surfaceCardStrong,
 } from '@/lib/design-system'
-import { getClientAuthState } from '@/lib/auth'
 import { buildExploreLeagueHref, getCompetitionLayerLabel } from '@/lib/competition-layers'
 import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
-import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
+import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-formatters'
@@ -146,12 +144,18 @@ function buildTeamKey(team: string, league: string | null, flight: string | null
 }
 
 export default function ExploreSearchPage() {
+  return (
+    <SiteShell active="explore">
+      <ExploreSearchContent />
+    </SiteShell>
+  )
+}
+
+function ExploreSearchContent() {
   const { theme } = useTheme()
   const isLight = theme === 'light'
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const { access, authResolved } = useProductAccess()
 
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<SearchScope>('players')
@@ -183,29 +187,6 @@ export default function ExploreSearchPage() {
         : 'players',
     )
     setSearchReady(true)
-  }, [])
-
-  useEffect(() => {
-    let active = true
-
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-        if (!active) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } catch {
-        if (!active) return
-        setRole('public')
-        setEntitlements(null)
-      }
-    }
-
-    void loadAuth()
-
-    return () => {
-      active = false
-    }
   }, [])
 
   useEffect(() => {
@@ -341,6 +322,8 @@ export default function ExploreSearchPage() {
     (showLeagueResults ? filteredLeagues.length : 0)
 
   const upgradeConfig = useMemo(() => {
+    if (!authResolved) return null
+
     if (scope === 'players') {
       if (access.canUseAdvancedPlayerInsights) return null
       return {
@@ -365,11 +348,10 @@ export default function ExploreSearchPage() {
       headline: 'Need league structure, not more spreadsheet cleanup?',
       body: 'League tools keep flights, standings, schedules, and organizer communication in one organized place.',
     }
-  }, [access.canUseAdvancedPlayerInsights, access.canUseCaptainWorkflow, access.canUseLeagueTools, scope])
+  }, [access.canUseAdvancedPlayerInsights, access.canUseCaptainWorkflow, access.canUseLeagueTools, authResolved, scope])
 
   return (
-    <SiteShell active="explore">
-      <div
+    <div
         style={{
           ...pageShell,
           display: 'grid',
@@ -777,8 +759,7 @@ export default function ExploreSearchPage() {
             secondaryLabel="Compare plans"
           />
         ) : null}
-      </div>
-    </SiteShell>
+    </div>
   )
 }
 

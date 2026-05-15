@@ -27,10 +27,24 @@ describe('public access cue flicker guards', () => {
     const rankingsSource = readAppFile('app/rankings/page.tsx')
     const playersSource = readAppFile('app/players/page.tsx')
     const matchupSource = readAppFile('app/matchup/page.tsx')
+    const exploreSearchSource = readAppFile('app/explore/search/page.tsx')
+    const exploreLeaguesSource = readAppFile('app/explore/leagues/page.tsx')
 
     expect(teamsSource).toContain('authResolved && (!access.canUseCaptainWorkflow || !access.canUseLeagueTools)')
     expect(rankingsSource).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
     expect(playersSource).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
     expect(matchupSource).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
+    expect(exploreSearchSource).toContain('if (!authResolved) return null')
+    expect(exploreLeaguesSource).toContain('{authResolved ? (')
+  })
+
+  it('keeps explore search and league upsells on the shared auth provider', () => {
+    for (const path of ['app/explore/search/page.tsx', 'app/explore/leagues/page.tsx']) {
+      const source = readAppFile(path)
+      expect(source).toContain("import { useProductAccess } from '@/lib/use-product-access'")
+      expect(source).toContain('useProductAccess()')
+      expect(source).not.toContain('getClientAuthState')
+      expect(source).not.toContain('ProductEntitlementSnapshot')
+    }
   })
 })
