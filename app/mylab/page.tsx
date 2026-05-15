@@ -3849,6 +3849,7 @@ const levelMeterHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 14,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const levelMeterTitleStyle: CSSProperties = {
@@ -3856,6 +3857,7 @@ const levelMeterTitleStyle: CSSProperties = {
   fontSize: '1.28rem',
   fontWeight: 950,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const levelBadgeRowStyle: CSSProperties = {
@@ -3869,9 +3871,11 @@ const levelRatingBlockStyle: CSSProperties = {
   display: 'grid',
   justifyItems: 'end',
   gap: 4,
+  minWidth: 0,
   color: 'var(--shell-copy-muted)',
   fontWeight: 900,
   textAlign: 'right',
+  overflowWrap: 'anywhere',
 }
 
 const levelRatingNumberStyle: CSSProperties = {

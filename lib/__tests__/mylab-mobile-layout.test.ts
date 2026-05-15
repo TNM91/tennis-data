@@ -23,6 +23,8 @@ describe('My Lab mobile layout guards', () => {
       'teamPrepGridStyle',
       'teamPrepCardStyle',
       'teamPrepActionRowStyle',
+      'levelMeterHeaderStyle',
+      'levelRatingBlockStyle',
       'levelMeterScaleStyle',
       'matchPlanPanelStyle',
       'matchPlanGridStyle',
@@ -39,6 +41,8 @@ describe('My Lab mobile layout guards', () => {
       'smallInlineLinkStyle',
       'teamPrepTitleStyle',
       'teamPrepMetaStyle',
+      'levelMeterTitleStyle',
+      'levelRatingBlockStyle',
       'matchPlanTextStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
