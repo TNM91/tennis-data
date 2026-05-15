@@ -29,6 +29,8 @@ describe('Data Assist mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
+    expect(styleBlock('heroStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(styleBlock('heroStyle')).not.toContain("gridTemplateColumns: '1fr'")
     expect(styleBlock('titleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('typeOptionStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('stepDividerStyle')).toContain("overflowWrap: 'anywhere'")

@@ -2464,7 +2464,7 @@ const pageStyle = (isMobile: boolean): CSSProperties => ({
 
 const heroStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: '1fr',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: isMobile ? 14 : 18,
   alignItems: 'stretch',
   minWidth: 0,
