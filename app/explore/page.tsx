@@ -543,7 +543,7 @@ const startStepStack: CSSProperties = {
 
 const startStepCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: '12px',
   alignItems: 'start',
   padding: '12px 16px',
@@ -554,6 +554,7 @@ const startStepCard: CSSProperties = {
   minWidth: 0,
   boxSizing: 'border-box',
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
 }
 
 const startStepNumber: CSSProperties = {
