@@ -397,6 +397,7 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(playerDetailSource, 'summaryStatsGrid')).toContain('minWidth: 0')
     expect(styleBlock(playerDetailSource, 'summaryStatsGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
     expect(styleBlock(playerDetailSource, 'profileDiscoveryHeaderStyle')).toContain('minWidth: 0')
+    expect(styleBlock(playerDetailSource, 'profileReadSummaryStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(playerDetailSource, 'profileDiscoveryLabelStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(playerDetailSource, 'advancedStatsDetailsStyle')).toContain('minWidth: 0')
     expect(styleBlock(playerDetailSource, 'advancedStatsSummaryStyle')).toContain("flexWrap: 'wrap'")

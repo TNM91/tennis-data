@@ -3463,6 +3463,7 @@ const profileReadSummaryStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: '14px',
+  flexWrap: 'wrap',
   cursor: 'pointer',
   padding: '16px 18px',
   color: 'var(--foreground-strong)',
