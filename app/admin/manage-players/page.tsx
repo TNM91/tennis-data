@@ -536,7 +536,7 @@ export default function ManagePlayersPage() {
                               updatePlayerField(player.id, 'singles_rating', e.target.value)
                             }
                             className="input"
-                            style={{ width: 110, padding: '10px 12px' }}
+                            style={{ width: 'min(100%, 110px)', minWidth: 0, padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>
@@ -553,7 +553,7 @@ export default function ManagePlayersPage() {
                               updatePlayerField(player.id, 'doubles_rating', e.target.value)
                             }
                             className="input"
-                            style={{ width: 110, padding: '10px 12px' }}
+                            style={{ width: 'min(100%, 110px)', minWidth: 0, padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>
@@ -570,7 +570,7 @@ export default function ManagePlayersPage() {
                               updatePlayerField(player.id, 'overall_rating', e.target.value)
                             }
                             className="input"
-                            style={{ width: 110, padding: '10px 12px' }}
+                            style={{ width: 'min(100%, 110px)', minWidth: 0, padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>
