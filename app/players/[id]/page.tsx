@@ -1196,7 +1196,7 @@ function PlayerProfileContent() {
             <div style={dynamicRightColumn}>
               <div style={focusCard}>
                 <div style={focusHead}>
-                  <div>
+                  <div style={panelHeadCopyStyle}>
                     <div style={focusLabel}>Rating focus</div>
                     <div style={focusSubtitle}>
                       Switch between overall, singles, and doubles reads.
@@ -1273,7 +1273,7 @@ function PlayerProfileContent() {
           <div style={scorecardMainStyle}>
             <div style={scorecardHeaderStyle}>
               <TiqFeatureIcon name={isOwnProfile ? 'myLab' : 'opponentScouting'} size="md" variant="surface" />
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>{isOwnProfile ? 'Your read' : 'Quick read'}</div>
                 <h2 style={scorecardTitleStyle}>
                   {isOwnProfile ? 'Your scorecard is ready.' : 'Scout, compare, then play.'}
@@ -1320,7 +1320,7 @@ function PlayerProfileContent() {
 
         <article style={profileDiscoveryPanelStyle} id="profile-ratings">
           <div style={profileDiscoveryHeaderStyle}>
-            <div>
+            <div style={panelHeadCopyStyle}>
               <div style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} profile path</div>
               <h2 style={profileDiscoveryTitleStyle}>Use this profile in three moves.</h2>
             </div>
@@ -1607,7 +1607,7 @@ function PlayerProfileContent() {
         {(careerHighs.peakRating !== null || careerHighs.longestStreak > 0 || careerHighs.bestSeason) ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Career highs</div>
                 <h2 style={panelTitle}>Personal records</h2>
               </div>
@@ -1649,7 +1649,7 @@ function PlayerProfileContent() {
         {benchmark ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Vs. the field</div>
                 <h2 style={panelTitle}>Benchmark comparison</h2>
               </div>
@@ -1693,7 +1693,7 @@ function PlayerProfileContent() {
         {opponentQualityBreakdown ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Matchup quality</div>
                 <h2 style={panelTitle}>Who they beat and lose to</h2>
               </div>
@@ -1736,7 +1736,7 @@ function PlayerProfileContent() {
 
         <article style={panelCard}>
           <div style={panelHead}>
-            <div>
+            <div style={panelHeadCopyStyle}>
               <div style={sectionKicker}>USTA Teams</div>
               <h2 style={panelTitle}>Roster teams</h2>
             </div>
@@ -1784,7 +1784,7 @@ function PlayerProfileContent() {
 
         <article style={panelCard}>
           <div style={panelHead}>
-            <div>
+            <div style={panelHeadCopyStyle}>
               <div style={sectionKicker}>TIQ Leagues</div>
               <h2 style={panelTitle}>TenAceIQ play</h2>
             </div>
@@ -1866,7 +1866,7 @@ function PlayerProfileContent() {
         <div style={dynamicContentGrid}>
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Trend</div>
                 <h2 style={panelTitle}>{capitalize(ratingView)} rating trend</h2>
               </div>
@@ -1999,7 +1999,7 @@ function PlayerProfileContent() {
 
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Recent results</div>
                 <h2 style={panelTitle}>Latest match history</h2>
               </div>
@@ -2169,7 +2169,7 @@ function PlayerProfileContent() {
         {opponentRecords.length > 0 ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Rivalry records</div>
                 <h2 style={panelTitle}>Repeat opponents</h2>
               </div>
@@ -2209,7 +2209,7 @@ function PlayerProfileContent() {
         {seasonBreakdown.length > 0 ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Season history</div>
                 <h2 style={panelTitle}>Year-by-year performance</h2>
               </div>
@@ -2272,7 +2272,7 @@ function PlayerProfileContent() {
         {nearbyPlayers.length > 0 ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Competitive context</div>
                 <h2 style={panelTitle}>Who to play</h2>
               </div>
@@ -3865,6 +3865,14 @@ const panelHead: CSSProperties = {
   marginBottom: '16px',
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const panelHeadCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '2px',
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const leagueRowStyle: CSSProperties = {
