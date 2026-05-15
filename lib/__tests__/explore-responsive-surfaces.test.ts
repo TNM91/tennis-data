@@ -103,6 +103,10 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(rankingsSource, 'pulseLeaderGrid')).toContain("'minmax(0, 1fr) minmax(0, auto)'")
     expect(styleBlock(rankingsSource, 'pulseLeaderGrid')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(rankingsSource, 'controlsGrid')).toContain('minWidth: 0')
+    expect(styleBlock(rankingsSource, 'controlsTopRow')).toContain('flexWrap: \'wrap\'')
+    expect(styleBlock(rankingsSource, 'controlsTopRow')).toContain('minWidth: 0')
+    expect(styleBlock(rankingsSource, 'controlsLabel')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(rankingsSource, 'controlsHint')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(rankingsSource, 'podiumGrid')).toContain('minWidth: 0')
     expect(styleBlock(rankingsSource, 'summaryStatsGrid')).toContain('minWidth: 0')
     expect(styleBlock(rankingsSource, 'summaryStatsGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
@@ -134,6 +138,8 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(rankingsSource, 'signalListItem')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(rankingsSource, 'distributionRow')).toContain("gridTemplateColumns: 'minmax(0, 72px) minmax(0, 1fr) minmax(0, 32px)'")
     expect(styleBlock(rankingsSource, 'distributionTrack')).toContain('minWidth: 0')
+    expect(styleBlock(rankingsSource, 'panelHead')).toContain('minWidth: 0')
+    expect(styleBlock(rankingsSource, 'pulseSignalTop')).toContain('minWidth: 0')
   })
 
   it('keeps public discovery empty states actionable and Data Assist aware', () => {

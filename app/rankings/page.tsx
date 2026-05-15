@@ -2030,6 +2030,7 @@ const pulseSignalTop: CSSProperties = {
   justifyContent: 'space-between',
   gap: '8px',
   flexWrap: 'wrap',
+  minWidth: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: '11px',
   fontWeight: 800,
@@ -2113,6 +2114,8 @@ const controlsTopRow: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   gap: '12px',
+  flexWrap: 'wrap',
+  minWidth: 0,
   marginBottom: '14px',
 }
 
@@ -2121,6 +2124,7 @@ const controlsLabel: CSSProperties = {
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const controlsHint: CSSProperties = {
@@ -2129,6 +2133,7 @@ const controlsHint: CSSProperties = {
   fontWeight: 600,
   fontSize: '14px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const segmentWrap: CSSProperties = {
@@ -2371,6 +2376,7 @@ const panelHead: CSSProperties = {
   gap: '12px',
   marginBottom: '16px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionKicker: CSSProperties = {
