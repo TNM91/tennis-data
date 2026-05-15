@@ -106,7 +106,8 @@ describe('League Coordinator mobile layout guards', () => {
     expect(subnavSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
     expect(styleBlock(subnavSource, 'linkStyle')).toContain('minWidth: 0')
     expect(styleBlock(subnavSource, 'linkLabelStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(subnavSource).toContain("gridTemplateColumns: '30px minmax(0, 1fr) auto'")
+    expect(subnavSource).toContain("gridTemplateColumns: 'minmax(0, 30px) minmax(0, 1fr) minmax(0, auto)'")
+    expect(styleBlock(subnavSource, 'linkStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(subnavSource, 'gridStyle')).toContain('minWidth: 0')
   })
 
