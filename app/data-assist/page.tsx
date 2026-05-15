@@ -651,7 +651,7 @@ function DataAssistWorkspace() {
         {showUploadStep ? (
           <section id="upload" style={panelStyle}>
             <div style={sectionHeaderStyle}>
-              <div>
+              <div style={headerCopyStyle}>
                 <StepBadge step={1} label="Select type" />
                 <h2 style={sectionTitleStyle}>Choose your import.</h2>
                 <p style={copyStyle}>Most weeks, upload scorecards. Add schedule and roster once per season for richer context.</p>
@@ -756,7 +756,7 @@ function DataAssistWorkspace() {
       {showOrderStep ? (
       <section style={panelStyle}>
         <div style={sectionHeaderStyle}>
-          <div>
+          <div style={headerCopyStyle}>
             <StepBadge step={3} label="Scan setup" />
             <h2 style={sectionTitleStyle}>Ready to scan.</h2>
             <p style={copyStyle}>{summary ? getScanSetupText(summary.requestedImportType, summary.screenshots.length) : 'TennisLink exports are ready.'}</p>
@@ -850,7 +850,7 @@ function DataAssistWorkspace() {
               />
             ) : null}
             <div style={submissionCardTopStyle}>
-              <div>
+              <div style={headerCopyStyle}>
                 <StepBadge step={4} label={getLatestReadStepLabel(latestScan)} />
                 <strong>{getLatestReadTitle(latestScan)}</strong>
                 <p style={copyStyle}>{getLatestReadDescription(latestScan)}</p>
@@ -1117,7 +1117,7 @@ function UploadIssueNotice({
   const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and team summaries|schedules and team summaries|up to \d+ scorecard/i.test(message)
   return (
     <div style={uploadIssueStyle}>
-      <div>
+      <div style={headerCopyStyle}>
         <strong>{mixedExportIssue ? 'Use one export type per import' : 'Upload needs attention'}</strong>
         <p style={uploadIssueCopyStyle}>
           {mixedExportIssue
@@ -1138,7 +1138,7 @@ function UploadIssueNotice({
 function ScorecardUploadPausedPanel({ message }: { message: string }) {
   return (
     <div style={scorecardPausedPanelStyle}>
-      <div>
+      <div style={headerCopyStyle}>
         <strong>Scorecard uploads are paused</strong>
         <p style={uploadIssueCopyStyle}>{message}</p>
         <small style={hintStyle}>Schedule and team summary uploads still work. Admins can restore scorecard upload access after review.</small>
@@ -1166,7 +1166,7 @@ function BulkScorecardResultsPanel({
   return (
     <section style={panelStyle}>
       <div style={sectionHeaderStyle}>
-        <div>
+        <div style={headerCopyStyle}>
           <StepBadge step={4} label="Batch results" />
           <h2 style={sectionTitleStyle}>Scorecards processed.</h2>
           <p style={copyStyle}>{pendingCount ? 'Each export is being saved and read as its own match.' : 'Each export was saved and read as its own match.'}</p>
@@ -1183,7 +1183,7 @@ function BulkScorecardResultsPanel({
       <div style={bulkResultListStyle}>
         {results.map((result) => (
           <div key={`${result.fileName}-${result.status}-${result.matchId}-${result.matchDate}`} style={bulkResultRowStyle(result.status)}>
-            <div>
+            <div style={headerCopyStyle}>
               <strong>{getBulkScorecardResultTitle(result)}</strong>
               <p>{getBulkScorecardResultDetail(result)}</p>
             </div>
@@ -1368,7 +1368,7 @@ function MySubmissionsPanel({
   return (
     <section style={panelStyle}>
       <div style={sectionHeaderStyle}>
-        <div>
+        <div style={headerCopyStyle}>
           <div className="section-kicker">History</div>
           <h2 style={sectionTitleStyle}>Saved Data Assist uploads.</h2>
         </div>
@@ -1523,7 +1523,7 @@ function ContributorBadges({ stats }: { stats: DataAssistContributorStats | null
 
   return (
     <div style={badgePanelStyle}>
-      <div>
+      <div style={headerCopyStyle}>
         <div className="section-kicker">Contributor badges</div>
         <p style={copyStyle}>
           Badges unlock from verified upload quality, not upload volume.
@@ -1589,7 +1589,7 @@ function SubmissionCard({
   return (
     <article style={submissionCardStyle}>
       <div style={submissionCardTopStyle}>
-        <div>
+        <div style={headerCopyStyle}>
           <strong>{getDataAssistImportTypeLabel(submission.requestedImportType)}</strong>
           <p style={copyStyle}>
             {formatDate(submission.createdAt)} - {submission.screenshotCount} export{submission.screenshotCount === 1 ? '' : 's'} - {Math.round(submission.confidenceScore * 100)}% confidence
@@ -1705,7 +1705,7 @@ function ImportPreviewPanel({
   return (
     <div style={importPanelStyle}>
       <div style={submissionCardTopStyle}>
-        <div>
+        <div style={headerCopyStyle}>
           <strong>Import preview</strong>
           <p style={copyStyle}>
             Check match, player mapping, and line readiness before TenAceIQ writes match records.
@@ -1775,7 +1775,7 @@ function ImportedSummaryPanel({
   return (
     <div style={importPanelStyle}>
       <div style={submissionCardTopStyle}>
-        <div>
+        <div style={headerCopyStyle}>
           <strong>{summary.duplicate ? 'Already imported' : 'Import complete'}</strong>
           <p style={copyStyle}>
             {summary.duplicate
@@ -1813,7 +1813,7 @@ function DuplicateImportBanner({
 }) {
   return (
     <div style={duplicateBannerStyle}>
-      <div>
+      <div style={headerCopyStyle}>
         <strong>Already in TenAceIQ</strong>
         <p>This upload matches TennisLink match {matchId}. No duplicate result was created.</p>
       </div>
@@ -1859,7 +1859,7 @@ function ScheduleImportedSummaryPanel({
   return (
     <div style={importPanelStyle}>
       <div style={submissionCardTopStyle}>
-        <div>
+        <div style={headerCopyStyle}>
           <strong>Schedule imported</strong>
           <p style={copyStyle}>
             Scheduled matches are now available for league, team, and captain planning views.
@@ -1920,7 +1920,7 @@ function TeamSummaryImportedPanel({
   return (
     <div style={importPanelStyle}>
       <div style={submissionCardTopStyle}>
-        <div>
+        <div style={headerCopyStyle}>
           <strong>Roster imported</strong>
           <p style={copyStyle}>
             Team roster records and starting ratings are now available for player, team, and captain tools.
@@ -2536,6 +2536,13 @@ const sectionHeaderStyle: CSSProperties = {
   gap: 12,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const headerCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitleStyle: CSSProperties = {
