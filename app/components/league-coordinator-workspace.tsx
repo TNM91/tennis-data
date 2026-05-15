@@ -6,8 +6,8 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import CoordinatorSubnav from '@/app/components/coordinator-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
+import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
@@ -61,7 +61,6 @@ import {
   validateTiqLeagueScheduleCapacity,
   validateTiqLeagueSeasonWindow,
 } from '@/lib/tiq-league-limits'
-import { type UserRole } from '@/lib/roles'
 import {
   listTiqLeagues,
   listTiqPlayerLeagueEntries,
@@ -259,9 +258,9 @@ function buildTeamResultLineSummaryMap(
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
   const searchParams = useSearchParams()
   const { isMobile } = useViewportBreakpoints()
+  const { role, userId, entitlements, authResolved } = useAuth()
+  const resolvedRole = authResolved || !userId ? role : 'member'
   const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [records, setRecords] = useState<TiqLeagueRecord[]>([])
   const [draft, setDraft] = useState<TiqLeagueDraft>(EMPTY_DRAFT)
   const [teamListInput, setTeamListInput] = useState('')
@@ -331,23 +330,6 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   useEffect(() => {
     let active = true
 
-    async function loadAuth() {
-      const authState = await getClientAuthState()
-      if (!active) return
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
-    }
-
-    void loadAuth()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
-    let active = true
-
     async function loadIndividualResults() {
       const result = await listTiqIndividualLeagueResults()
       if (!active) return
@@ -365,7 +347,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   }, [])
 
   const leagueCards = useMemo(() => buildLeagueCardsFromRegistry(records), [records])
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const teamLeagues = useMemo(
     () => records.filter((record) => record.leagueFormat === 'team'),
     [records],

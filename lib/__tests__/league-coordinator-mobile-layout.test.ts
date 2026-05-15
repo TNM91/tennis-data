@@ -21,6 +21,12 @@ function styleBlock(sourceText: string, styleName: string) {
 
 describe('League Coordinator mobile layout guards', () => {
   it('stacks setup and action controls on mobile', () => {
+    expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(source).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
+    expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
+    expect(source).toContain('buildProductAccessState(resolvedRole, entitlements)')
+    expect(source).not.toContain('getClientAuthState')
+    expect(source).not.toContain("const [role, setRole] = useState")
     expect(source).toContain('responsiveHeroActionRowStyle')
     expect(source).toContain('responsiveButtonRowStyle')
     expect(source).toContain('responsiveParticipantBuilderStyle')
