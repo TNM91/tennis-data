@@ -1612,7 +1612,7 @@ const replyBoxStyle: CSSProperties = {
 
 const segmentedStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
   gap: 8,
   padding: 4,
   borderRadius: 16,
@@ -1706,9 +1706,10 @@ const textareaStyle: CSSProperties = {
 
 const lookupRowStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
   gap: 8,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const recipientResultsStyle: CSSProperties = {

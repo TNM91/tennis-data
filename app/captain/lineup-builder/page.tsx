@@ -2881,8 +2881,8 @@ function sendCurrentScenarioToMessaging() {
                   const isSwing = pct !== null && pct >= 45 && pct <= 55
                   return (
                     <div key={line.label} style={{ ...listCardStyleCompact, flexDirection: 'column' as const, gap: 8 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
+                        <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                           <div style={listTitleStyle}>{line.label}{isSwing ? <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 999, background: 'rgba(250,204,21,0.12)', color: '#fde047', border: '1px solid rgba(250,204,21,0.22)' }}>swing</span> : null}</div>
                           <div style={listMetaStyle}>
                             You {formatRating(line.yourRating)} - Opp {formatRating(line.opponentRating)} - {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '-'}
@@ -3331,7 +3331,7 @@ const workflowListStyle: CSSProperties = {
 
 const workflowRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '42px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
   minWidth: 0,
@@ -3808,7 +3808,7 @@ const detailsSummaryStyle: CSSProperties = {
 
 const decisionSnapshotGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1fr',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 12,
   marginTop: 10,
   minWidth: 0,
@@ -3958,7 +3958,7 @@ const decisionCardTextStyle: CSSProperties = {
 
 const actionPlanGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1fr',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 12,
   marginTop: 4,
   minWidth: 0,
@@ -3966,7 +3966,7 @@ const actionPlanGridStyle: CSSProperties = {
 
 const decisionQueueGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1fr',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 10,
   marginTop: 12,
   minWidth: 0,
@@ -4017,7 +4017,7 @@ const actionPlanInsightStyle: CSSProperties = {
 
 const scenarioDeckGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1fr',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 12,
   marginTop: 4,
   minWidth: 0,

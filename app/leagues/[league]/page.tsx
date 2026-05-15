@@ -480,7 +480,7 @@ export default function LeagueDetailPage() {
 
   const dynamicMiniGrid: CSSProperties = {
     ...miniGrid,
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   }
 
   const dynamicMatchTop: CSSProperties = {
@@ -1251,7 +1251,7 @@ const seasonToolsActions: CSSProperties = {
 const seasonToolsQuickActionGrid: CSSProperties = {
   marginTop: '18px',
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 148px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -1597,7 +1597,7 @@ const cardGlow: CSSProperties = {
   position: 'absolute',
   top: '-70px',
   right: '-50px',
-  width: '180px',
+  width: 'min(100%, 180px)',
   height: '180px',
   borderRadius: '999px',
   background: 'radial-gradient(circle, rgba(78,178,255,0.24), rgba(78,178,255,0) 70%)',
@@ -1836,7 +1836,7 @@ const standingsTableScrollStyle: CSSProperties = {
 const standingsTableStyle: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 'min(100%, 620px)',
+  minWidth: 0,
   tableLayout: 'auto',
 }
 
@@ -1974,7 +1974,7 @@ const miniStatValue: CSSProperties = {
 }
 
 const filterWrap: CSSProperties = {
-  width: '260px',
+  width: 'min(100%, 260px)',
   maxWidth: '100%',
   minWidth: 0,
 }
@@ -2044,6 +2044,7 @@ const matchTop: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'flex-start',
+  flexWrap: 'wrap',
   minWidth: 0,
 }
 
@@ -2091,6 +2092,7 @@ const matchBottom: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'center',
+  flexWrap: 'wrap',
   marginTop: '14px',
   paddingTop: '14px',
   borderTop: '1px solid var(--shell-panel-border)',

@@ -805,7 +805,7 @@ const heroTextStyle: CSSProperties = {
 
 const toolFlowStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: isMobile ? 16 : 20,
   minWidth: 0,
@@ -813,7 +813,7 @@ const toolFlowStyle = (isMobile: boolean): CSSProperties => ({
 
 const toolFlowCardStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, auto) minmax(0, 1fr)',
   gap: isMobile ? 7 : 10,
   alignItems: isMobile ? 'start' : 'center',
   borderRadius: isMobile ? 16 : 18,
@@ -822,6 +822,7 @@ const toolFlowCardStyle = (isMobile: boolean): CSSProperties => ({
   padding: isMobile ? '10px 9px' : 12,
   minHeight: isMobile ? 92 : 92,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const toolFlowLabelStyle: CSSProperties = {
@@ -928,10 +929,11 @@ const profileBadgeRowStyle: CSSProperties = {
 
 const playerCardTopStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'center',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const avatarStyle: CSSProperties = {
@@ -991,7 +993,7 @@ const statusTextStyle: CSSProperties = {
 
 const miniGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 116px), 1fr))',
   gap: 10,
   minWidth: 0,
 }
@@ -1068,7 +1070,7 @@ const setupPathTextStyle: CSSProperties = {
 }
 
 const setupProgressStyle: CSSProperties = {
-  minWidth: 'min(100%, 96px)',
+  minWidth: 0,
   maxWidth: '100%',
   borderRadius: 18,
   border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
@@ -1227,14 +1229,14 @@ const identityGridStyle = (isMobile: boolean): CSSProperties => ({
 
 const autoContextStripStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: isMobile ? 8 : 10,
   minWidth: 0,
 })
 
 const autoContextCalloutStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, auto) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'center',
   borderRadius: 18,
@@ -1243,6 +1245,7 @@ const autoContextCalloutStyle = (isMobile: boolean): CSSProperties => ({
     'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 9%, transparent), transparent 62%), var(--shell-chip-bg)',
   padding: isMobile ? 14 : 16,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const autoContextTitleStyle: CSSProperties = {
@@ -1343,7 +1346,7 @@ const errorStyle: CSSProperties = {
 
 const ratingTileGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
   minWidth: 0,
 }
@@ -1367,7 +1370,7 @@ const toolLaunchGridStyle: CSSProperties = {
 
 const toolLaunchCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: '8px 10px',
   alignItems: 'center',
   borderRadius: 16,
@@ -1377,6 +1380,7 @@ const toolLaunchCardStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const toolLaunchCardMainStyle: CSSProperties = {

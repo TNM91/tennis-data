@@ -2319,7 +2319,11 @@ const tableHeaderStyle: CSSProperties = {
 
 const tableWrapStyle: CSSProperties = {
   width: '100%',
+  maxWidth: '100%',
   overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'thin',
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',

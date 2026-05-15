@@ -1224,7 +1224,7 @@ const quickStartMeta: CSSProperties = {
 
 const statusGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -1369,7 +1369,7 @@ const decisionPanel: CSSProperties = {
 
 const availabilityActionGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
   minWidth: 0,
 }

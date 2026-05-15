@@ -2136,7 +2136,8 @@ const slotHeaderLeftStyle: CSSProperties = {
 
 const slotLabelInputStyle: CSSProperties = {
   ...inputStyle,
-  minWidth: '180px',
+  width: 'min(100%, 180px)',
+  minWidth: 0,
   maxWidth: '220px',
   height: '42px',
   fontWeight: 700,
@@ -2319,8 +2320,9 @@ const subtleNoteTextStyle: CSSProperties = {
 
 const compareGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const compareCardStyle: CSSProperties = {
@@ -2328,6 +2330,7 @@ const compareCardStyle: CSSProperties = {
   padding: '12px',
   background: 'rgba(255,255,255,0.05)',
   border: '1px solid rgba(255,255,255,0.08)',
+  minWidth: 0,
 }
 
 const compareLabelStyle: CSSProperties = {
@@ -2335,12 +2338,14 @@ const compareLabelStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 700,
   marginBottom: '6px',
+  overflowWrap: 'anywhere',
 }
 
 const compareValueStyle: CSSProperties = {
   color: '#f8fbff',
   fontWeight: 900,
   fontSize: '18px',
+  overflowWrap: 'anywhere',
 }
 
 const goodBadgeStyle: CSSProperties = {

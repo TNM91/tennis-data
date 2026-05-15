@@ -10,8 +10,11 @@ describe('site header mobile account drawer', () => {
     expect(source).toContain("display: 'grid'")
     expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
     expect(source).toContain('const mobileAccountToolsStyle')
-    expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr) auto'")
+    expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)'")
     expect(source).toContain("width: '100%'")
+    expect(source).toContain("overflowWrap: 'anywhere'")
+    expect(source).not.toContain("'minmax(0, 1fr) auto'")
+    expect(source).not.toContain("'auto minmax(0, 1fr) auto'")
   })
 
   it('keeps profile and message labels wrap-safe in the drawer', () => {
@@ -25,13 +28,16 @@ describe('site header mobile account drawer', () => {
     expect(source).toContain("flexWrap: 'wrap' as const")
   })
 
-  it('keeps nowrap desktop header labels bounded', () => {
+  it('keeps desktop header labels bounded and wrap-safe', () => {
     expect(source).toContain('const navTextWrapStyle')
     expect(source).toContain('const navLabelStyle')
     expect(source).toContain('const utilityButtonStyle')
     expect(source).toContain("maxWidth: '100%'")
     expect(source).toContain("overflow: 'hidden'")
+    expect(source).toContain("whiteSpace: 'normal' as const")
+    expect(source).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain("textOverflow: 'ellipsis'")
+    expect(source).not.toContain("whiteSpace: 'nowrap' as const")
   })
 
   it('does not label a signed-in unresolved account as Free before role loads', () => {

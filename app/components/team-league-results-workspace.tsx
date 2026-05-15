@@ -7,8 +7,8 @@ import CoordinatorSubnav from '@/app/components/coordinator-subnav'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
 import { buildTeamResultCue } from '@/lib/league-result-cues'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import type { TiqLeagueRecord, TiqLeagueScoringSystem } from '@/lib/tiq-league-registry'
@@ -71,7 +71,7 @@ const labelStyle: CSSProperties = { fontSize: 11, color: '#94a3b8', fontWeight: 
 const inputStyle: CSSProperties = { width: '100%', padding: '8px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontSize: 14, minWidth: 0 }
 const selectStyle: CSSProperties = { ...inputStyle }
 const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600, overflowWrap: 'anywhere' }
-const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 8, background: '#9be11d', color: '#0a0a0a', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 8, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', fontWeight: 700, fontSize: 14, border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center', boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)' }
 const btnDanger: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 600, fontSize: 13, border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
 const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: '#e2e8f0', fontWeight: 600, fontSize: 13, border: '1px solid rgba(255,255,255,0.10)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
 const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6, overflowWrap: 'anywhere' }
@@ -86,6 +86,7 @@ const lineCard: CSSProperties = {
   borderRadius: 10,
   padding: '12px 14px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, marginTop: 18, minWidth: 0 }
 const scorekeeperTile: CSSProperties = {
@@ -94,6 +95,7 @@ const scorekeeperTile: CSSProperties = {
   border: '1px solid rgba(124,167,255,0.14)',
   background: 'rgba(255,255,255,0.055)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
 const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05, overflowWrap: 'anywhere' }
@@ -101,7 +103,7 @@ const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.
 const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10, marginTop: 16, minWidth: 0 }
 const flowStep: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '32px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)',
   gap: 10,
   alignItems: 'center',
   padding: '12px',
@@ -1036,6 +1038,7 @@ export function TeamLeagueResultsWorkspace({
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { role, userId, entitlements, authResolved } = useAuth()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const scheduledEventItemId = searchParams.get('scheduleItemId') || searchParams.get('schedule_item_id') || ''
   const scheduledTeamA = searchParams.get('teamA') || searchParams.get('team_a') || ''
@@ -1057,9 +1060,10 @@ export function TeamLeagueResultsWorkspace({
   const [dateFilter, setDateFilter] = useState<TeamResultDateFilter>('all')
   const [newMatchFormOpen, setNewMatchFormOpen] = useState(false)
   const [activeEntryEventId, setActiveEntryEventId] = useState('')
-  const [canEditResults, setCanEditResults] = useState(false)
-  const [accessResolved, setAccessResolved] = useState(false)
-  const [accessMessage, setAccessMessage] = useState('')
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
+  const canEditResults = access.canEnterTiqTeamLeague
+  const accessMessage = access.teamLeagueMessage
+  const accessResolved = authResolved && Boolean(userId)
   const selectedFilterLeague = useMemo(
     () => leagues.find((league) => league.id === filterLeagueId) || null,
     [filterLeagueId, leagues],
@@ -1144,28 +1148,12 @@ export function TeamLeagueResultsWorkspace({
   )
 
   useEffect(() => {
-    let mounted = true
+    if (!authResolved) return
 
-    async function checkAuth() {
-      const authState = await getClientAuthState()
-      if (!authState.user && mounted) {
-        router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
-        return
-      }
-
-      if (authState.user && mounted) {
-        const access = buildProductAccessState(authState.role, authState.entitlements)
-        setCanEditResults(access.canEnterTiqTeamLeague)
-        setAccessMessage(access.teamLeagueMessage)
-        setAccessResolved(true)
-      }
+    if (!userId) {
+      router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
     }
-
-    void checkAuth()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { void checkAuth() })
-    return () => { mounted = false; subscription.unsubscribe() }
-  }, [loginNextHref, router])
+  }, [authResolved, loginNextHref, router, userId])
 
   const loadData = useCallback(async () => {
     setLoading(true)

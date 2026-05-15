@@ -10,8 +10,8 @@ import QuickMessageComposer from '@/app/components/quick-message-composer'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
+import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { getCompetitionLayerLabel, getLeagueFormatLabel } from '@/lib/competition-layers'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
@@ -381,6 +381,14 @@ function buildTeamMatchPublicSummary(
 }
 
 export default function TiqLeagueDetailPage() {
+  return (
+    <SiteShell active="/explore">
+      <TiqLeagueDetailContent />
+    </SiteShell>
+  )
+}
+
+function TiqLeagueDetailContent() {
   const params = useParams()
   const searchParams = useSearchParams()
   const routeSlug = decodeURIComponent(
@@ -399,10 +407,6 @@ export default function TiqLeagueDetailPage() {
   const [saving, setSaving] = useState(false)
   const [entryValue, setEntryValue] = useState('')
   const [selectedTeamKey, setSelectedTeamKey] = useState('')
-  const [userEmail, setUserEmail] = useState('')
-  const [role, setRole] = useState<'public' | 'member' | 'captain' | 'admin'>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [userId, setUserId] = useState('')
   const [teamOptions, setTeamOptions] = useState<TeamDirectoryOption[]>([])
   const [playerOptions, setPlayerOptions] = useState<PlayerDirectoryOption[]>([])
   const [teamEntries, setTeamEntries] = useState<TiqTeamLeagueEntryRecord[]>([])
@@ -442,6 +446,9 @@ export default function TiqLeagueDetailPage() {
   const [scheduleFacility, setScheduleFacility] = useState('')
   const [scheduleNotes, setScheduleNotes] = useState('')
   const [scheduleDisplayMode, setScheduleDisplayMode] = useState<ScheduleDisplayMode>('calendar')
+  const { role, userId, entitlements, authResolved, session } = useAuth()
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const userEmail = session?.user.email || ''
 
   useEffect(() => {
     let active = true
@@ -451,8 +458,7 @@ export default function TiqLeagueDetailPage() {
       setError('')
 
       try {
-        const [authState, leagueResult, loadedTeamOptions, loadedPlayerOptions] = await Promise.all([
-          getClientAuthState(),
+        const [leagueResult, loadedTeamOptions, loadedPlayerOptions] = await Promise.all([
           getTiqLeagueById(leagueIdParam || routeSlug),
           listTeamDirectoryOptions().catch(() => []),
           listPlayerDirectoryOptions().catch(() => []),
@@ -460,10 +466,6 @@ export default function TiqLeagueDetailPage() {
 
         if (!active) return
 
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-        setUserId(authState.user?.id || '')
-        setUserEmail(authState.user?.email || '')
         setTeamOptions(loadedTeamOptions)
         setPlayerOptions(loadedPlayerOptions)
         setStorageSource(leagueResult.source)
@@ -483,7 +485,7 @@ export default function TiqLeagueDetailPage() {
         setEntryValue(
           matchedLeague.leagueFormat === 'team'
             ? matchedLeague.captainTeamName || ''
-            : deriveDefaultParticipantName(authState.user?.email),
+            : '',
         )
         setSelectedTeamKey('')
         setSelectedPlayerId('')
@@ -501,6 +503,11 @@ export default function TiqLeagueDetailPage() {
       active = false
     }
   }, [leagueIdParam, routeSlug])
+
+  useEffect(() => {
+    if (!league || league.leagueFormat === 'team' || entryValue.trim()) return
+    setEntryValue(deriveDefaultParticipantName(userEmail))
+  }, [entryValue, league, userEmail])
 
   useEffect(() => {
     let active = true
@@ -624,7 +631,7 @@ export default function TiqLeagueDetailPage() {
     setMatchEventLinesLoading((prev) => ({ ...prev, [eventId]: false }))
   }
 
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const individualCompetitionFormat = normalizeTiqIndividualCompetitionFormat(
     league?.individualCompetitionFormat,
   )
@@ -866,7 +873,7 @@ export default function TiqLeagueDetailPage() {
   }
   const dynamicStandingCard: CSSProperties = {
     ...standingCard,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : '56px minmax(0, 1fr)',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 56px) minmax(0, 1fr)',
   }
   const dynamicStandingRank: CSSProperties = {
     ...standingRank,
@@ -2116,8 +2123,7 @@ export default function TiqLeagueDetailPage() {
   }
 
   return (
-    <SiteShell active="/explore">
-      <section style={pageWrap}>
+    <section style={pageWrap}>
         {loading ? (
           <div style={stateCard}>Loading TIQ league detail...</div>
         ) : error || !league ? (
@@ -2258,7 +2264,7 @@ export default function TiqLeagueDetailPage() {
 
             <section id="league-overview" style={leagueHubPanelStyle}>
               <div style={leagueHubHeaderStyle}>
-                <div>
+                <div style={leagueHubHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Season pulse</div>
                   <h2 style={sectionTitle}>Check the table. See what changed. Know what to play next.</h2>
                   <p style={sectionText}>
@@ -2330,7 +2336,7 @@ export default function TiqLeagueDetailPage() {
                     <div style={upcomingMatchListStyle}>
                       {upcomingScheduleItems.map((item) => (
                         <div key={`upcoming-${item.id}`} style={upcomingMatchRowStyle}>
-                          <div>
+                          <div style={leagueHubHeaderCopyStyle}>
                             <strong>{item.participantAName} vs {item.participantBName}</strong>
                             <span>
                               {[item.scheduledDate, item.scheduledTime, item.facility || league.defaultFacility]
@@ -2352,7 +2358,7 @@ export default function TiqLeagueDetailPage() {
                     </p>
                   )}
                 </div>
-                {!access.canUseAdvancedPlayerInsights ? (
+                {authResolved && !access.canUseAdvancedPlayerInsights ? (
                   <div style={seasonPulseUpgradeStyle}>
                     <span style={pillAmber}>Player unlock</span>
                     <strong>Want to climb from here?</strong>
@@ -2374,7 +2380,7 @@ export default function TiqLeagueDetailPage() {
 
             <section id="league-schedule" style={schedulePanelStyle}>
               <div style={leagueHubHeaderStyle}>
-                <div>
+                <div style={leagueHubHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Schedule</div>
                   <h2 style={sectionTitle}>
                     {league.schedulingMode === 'coordinator_fixed'
@@ -2407,7 +2413,7 @@ export default function TiqLeagueDetailPage() {
 
               <div style={scheduleActionPanelStyle}>
                 <div style={leagueHubHeaderStyle}>
-                  <div>
+                  <div style={leagueHubHeaderCopyStyle}>
                     <div style={formatCalloutTitle}>
                       {league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
                         ? 'Publish a match slot'
@@ -2549,7 +2555,7 @@ export default function TiqLeagueDetailPage() {
               {visibleScheduleItems.length > 0 ? (
                 <div style={schedulePublishedPanelStyle}>
                   <div style={scheduleViewHeaderStyle}>
-                    <div>
+                    <div style={leagueHubHeaderCopyStyle}>
                       <div style={formatCalloutTitle}>Published season schedule</div>
                       <div style={formatCalloutText}>
                         Calendar view groups matches by date. List view is faster for status review and result entry.
@@ -2599,7 +2605,7 @@ export default function TiqLeagueDetailPage() {
                   <div style={scheduleListStyle}>
                     {scheduledTeamEvents.slice(0, 5).map((event) => (
                       <div key={event.id} style={scheduleRowStyle}>
-                        <div>
+                        <div style={leagueHubHeaderCopyStyle}>
                           <div style={listTitle}>{event.teamAName} vs {event.teamBName}</div>
                           <div style={listMeta}>
                             {[formatDateTime(event.matchDate), event.facility || league.defaultFacility]
@@ -2703,7 +2709,7 @@ export default function TiqLeagueDetailPage() {
 
                 {status ? <div style={statusBanner}>{status}</div> : null}
 
-                {league.leagueFormat === 'team' && !entryEnabled ? (
+                {authResolved && league.leagueFormat === 'team' && !entryEnabled ? (
                   <UpgradePrompt
                     planId="league"
                     compact
@@ -3189,7 +3195,7 @@ export default function TiqLeagueDetailPage() {
                   <div style={formatCalloutTitle}>{individualFormatExperience.activityHintTitle}</div>
                   <div style={formatCalloutText}>{individualFormatExperience.activityHintText}</div>
                 </div>
-                {!canLogIndividualResults ? (
+                {authResolved && !canLogIndividualResults ? (
                   <UpgradePrompt
                     planId="league"
                     compact
@@ -3615,8 +3621,7 @@ export default function TiqLeagueDetailPage() {
             </section>
           </>
         )}
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 
@@ -3808,7 +3813,7 @@ const leaderTableStyle: CSSProperties = {
 
 const leaderRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr) minmax(0, auto)',
   gap: '10px',
   alignItems: 'center',
   padding: '10px',
@@ -3817,6 +3822,7 @@ const leaderRowStyle: CSSProperties = {
   background: 'rgba(7,17,33,0.48)',
   color: '#f8fbff',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leaderRankMiniStyle: CSSProperties = {
@@ -3834,8 +3840,8 @@ const leaderRankMiniStyle: CSSProperties = {
 
 const leaderRankAccentStyle: CSSProperties = {
   ...leaderRankMiniStyle,
-  background: '#9be11d',
-  color: '#06121a',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, rgba(255,255,255,0.08) 78%)',
+  color: '#f8fbff',
 }
 
 const leaderNameCellStyle: CSSProperties = {
@@ -3913,6 +3919,14 @@ const leagueHubHeaderStyle: CSSProperties = {
   gap: '16px',
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const leagueHubHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const leagueHubScoreStyle: CSSProperties = {
@@ -3998,7 +4012,7 @@ const upcomingMatchListStyle: CSSProperties = {
 
 const upcomingMatchRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
   gap: '10px',
   alignItems: 'center',
   padding: '10px',
@@ -4006,6 +4020,7 @@ const upcomingMatchRowStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.04)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const schedulePanelStyle: CSSProperties = {
@@ -4290,7 +4305,7 @@ const resultCueGridStyle: CSSProperties = {
 
 const resultCueItemStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: '10px',
   alignItems: 'start',
   padding: '10px',
@@ -4298,6 +4313,7 @@ const resultCueItemStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.035)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const resultCueItemCompleteStyle: CSSProperties = {
@@ -4372,6 +4388,7 @@ const panelCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionEyebrow: CSSProperties = {
@@ -4462,8 +4479,9 @@ const textareaStyle: CSSProperties = {
 
 const resultFormGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '14px',
+  minWidth: 0,
 }
 
 const primaryButton: CSSProperties = {
@@ -4508,6 +4526,7 @@ const listCard: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'center',
+  flexWrap: 'wrap',
   padding: '16px',
   borderRadius: '20px',
   border: '1px solid rgba(116,190,255,0.10)',
@@ -4518,7 +4537,7 @@ const listCard: CSSProperties = {
 
 const standingCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '56px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 56px) minmax(0, 1fr)',
   gap: '14px',
   alignItems: 'stretch',
   padding: '16px',
@@ -4636,7 +4655,7 @@ const resultMetaStack: CSSProperties = {
 
 const opportunityGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
   minWidth: 0,
 }
@@ -4649,6 +4668,7 @@ const opportunityCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(255,255,255,0.04)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const opportunityTitleRow: CSSProperties = {
@@ -4733,7 +4753,7 @@ const teamStandingsScrollStyle: CSSProperties = {
 
 const teamStandingsTableStyle: CSSProperties = {
   width: '100%',
-  minWidth: 'min(100%, 560px)',
+  minWidth: 0,
   borderCollapse: 'collapse',
   fontSize: 14,
   tableLayout: 'auto',
@@ -4853,7 +4873,7 @@ const teamLineScoreTextStyle: CSSProperties = {
 
 const quickGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -4884,6 +4904,8 @@ const stateCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
   color: '#dbeafe',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stateTitle: CSSProperties = {
@@ -4891,6 +4913,7 @@ const stateTitle: CSSProperties = {
   fontSize: '24px',
   fontWeight: 900,
   lineHeight: 1.08,
+  overflowWrap: 'anywhere',
 }
 
 const stateText: CSSProperties = {

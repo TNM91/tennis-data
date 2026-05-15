@@ -88,6 +88,10 @@ describe('Profile mobile layout guards', () => {
       'toolLaunchKickerStyle',
       'toolLaunchValueStyle',
       'toolLaunchNoteStyle',
+      'toolFlowCardStyle',
+      'playerCardTopStyle',
+      'autoContextCalloutStyle',
+      'toolLaunchCardStyle',
     ]) {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     }
@@ -95,10 +99,23 @@ describe('Profile mobile layout guards', () => {
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('setupStepTopStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('teamContextRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('toolFlowStyle')).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+    expect(styleBlock('toolFlowStyle')).toContain("repeat(auto-fit, minmax(min(100%, 180px), 1fr))")
+    expect(styleBlock('miniGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 116px), 1fr))")
+    expect(styleBlock('autoContextStripStyle')).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+    expect(styleBlock('autoContextStripStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
+    expect(styleBlock('ratingTileGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
     expect(styleBlock('pillGreenStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('pillGreenStyle')).toContain("whiteSpace: 'normal'")
-    expect(styleBlock('setupProgressStyle')).toContain("minWidth: 'min(100%, 96px)'")
+    expect(styleBlock('setupProgressStyle')).toContain('minWidth: 0')
     expect(styleBlock('setupProgressStyle')).toContain("maxWidth: '100%'")
+    for (const styleName of ['toolFlowCardStyle', 'playerCardTopStyle', 'autoContextCalloutStyle', 'toolLaunchCardStyle']) {
+      expect(styleBlock(styleName)).toContain("'minmax(0, auto) minmax(0, 1fr)'")
+    }
     expect(source).not.toContain('minWidth: 96')
+    expect(source).not.toContain("minWidth: 'min(100%, 96px)'")
+    expect(source).not.toContain("'auto minmax(0, 1fr)'")
+    expect(source).not.toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(source).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
   })
 })

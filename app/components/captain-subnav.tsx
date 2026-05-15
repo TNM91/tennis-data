@@ -125,11 +125,12 @@ const gridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const linkStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '30px minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 30px) minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
   gap: 12,
   minHeight: 56,
@@ -140,6 +141,8 @@ const linkStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--home-control-shadow)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stepStyle: CSSProperties = {
@@ -222,10 +225,11 @@ const secondaryGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: 12,
+  minWidth: 0,
 }
 
 const secondaryLinkStyle: CSSProperties = {
   ...linkStyle,
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
   minHeight: 48,
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import NavLockIcon from '@/app/components/nav-lock-icon'
@@ -365,10 +365,14 @@ export default function SiteHeader({ active }: { active?: string }) {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: useCompactHeader ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
+            gridTemplateColumns: useCompactHeader
+              ? 'minmax(0, 1fr) minmax(0, auto)'
+              : 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
             alignItems: 'center',
             gap: isMobile ? '10px' : useCompactHeader ? '12px' : '16px',
             padding: isMobile ? '7px 7px' : useCompactHeader ? '8px 9px' : '10px 12px',
+            minWidth: 0,
+            overflowWrap: 'anywhere',
             borderRadius: isMobile ? 18 : 999,
             border: '1px solid color-mix(in srgb, var(--shell-panel-border) 76%, rgba(116,190,255,0.18) 24%)',
             background:
@@ -683,9 +687,10 @@ const utilityLinkStyle = {
   letterSpacing: 0,
   textDecoration: 'none',
   background: 'transparent',
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
   maxWidth: '100%',
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
   textOverflow: 'ellipsis',
 } as const
 
@@ -701,11 +706,12 @@ const navLinkStyle = {
   fontWeight: 750,
   letterSpacing: '0',
   textDecoration: 'none',
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
   transition: 'border-color 160ms ease, color 160ms ease, background 160ms ease',
   minWidth: 0,
   maxWidth: '100%',
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
 } as const
 
 const navPendingStyle = {
@@ -789,8 +795,9 @@ const accountPillStyle = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase' as const,
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
   textOverflow: 'ellipsis',
 } as const
 
@@ -869,9 +876,10 @@ const utilityButtonStyle = {
   fontWeight: 700,
   letterSpacing: 0,
   cursor: 'pointer',
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
   maxWidth: '100%',
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
   textOverflow: 'ellipsis',
 } as const
 
@@ -1005,12 +1013,13 @@ const mobilePanelTopStyle = {
   minWidth: 0,
 }
 
-const mobileAccountToolsStyle = {
+const mobileAccountToolsStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
   gap: 8,
   width: '100%',
   minWidth: 0,
   maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }

@@ -62,26 +62,45 @@ describe('matchup mobile layout guards', () => {
       'selectorGrid',
       'editorialPanel',
       'editorialGrid',
+      'editorialCard',
       'handoffSidesGridStyle',
+      'handoffCardStyle',
+      'handoffSideCardStyle',
+      'doublesQuickStartStyle',
       'doublesPreviewGridStyle',
+      'doublesPreviewCardStyle',
       'suggestionGrid',
+      'prefillPromptCard',
       'prepReadGrid',
       'compareGrid',
       'ratingGrid',
       'metricGrid',
+      'recommendationCard',
+      'emptyHeadToHeadActions',
     ].forEach((styleName) => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     })
 
     ;[
       'toolHeaderKickerStyle',
+      'headerCopyStyle',
       'toolHeaderTitleStyle',
+      'toolHeaderTextStyle',
       'identitySetupKickerStyle',
       'inputLabel',
+      'errorTitleStyle',
+      'editorialText',
+      'editorialCard',
       'editorialCardLabel',
+      'editorialCardValue',
       'handoffKickerStyle',
+      'handoffCardStyle',
+      'handoffSideCardStyle',
       'handoffSideLabelStyle',
+      'doublesQuickStartStyle',
+      'doublesPreviewCardStyle',
       'doublesPreviewLabelStyle',
+      'prefillPromptCard',
       'formCompareLabel',
       'formCellLabel',
       'engineLabel',
@@ -98,10 +117,15 @@ describe('matchup mobile layout guards', () => {
       'highlightLabel',
       'gapLabel',
       'sectionKicker',
+      'recommendationCard',
+      'intelligenceHintLabel',
+      'emptyHeadToHeadActions',
     ].forEach((styleName) => {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     })
 
+    expect(styleBlock('profileContextLinkStyle')).toContain('minWidth: 0')
+    expect(styleBlock('profileContextLinkStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('emptyState')).toContain('minWidth: 0')
     expect(styleBlock('compareCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('centerColumn')).toContain("maxWidth: '100%'")
@@ -113,11 +137,20 @@ describe('matchup mobile layout guards', () => {
     expect(styleBlock('swapSidesRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('trajectoryPanelStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('emptyHeadToHeadCard')).toContain("overflowWrap: 'anywhere'")
+    expect(functionBlock('headToHeadBarFillStyle')).toContain('var(--brand-green)')
+    expect(functionBlock('headToHeadBarFillStyle')).toContain('var(--brand-lime)')
+    expect(styleBlock('headToHeadBarRemainderStyle')).toContain('minWidth: 0')
+    expect(styleBlock('headToHeadPercentLabelGreenStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('headToHeadTagPillBlueStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('headToHeadMatchDateStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('headToHeadMatchTypeStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('headToHeadQualityPillStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('toolHeaderTitleClusterStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('handoffTitleClusterStyle')).toContain("flexWrap: 'wrap'")
     expect(functionBlock('CopyLinkButton')).toContain("maxWidth: '100%'")
     expect(functionBlock('CopyLinkButton')).toContain("overflowWrap: 'anywhere'")
     expect(functionBlock('SwapSidesButton')).toContain("maxWidth: '100%'")
     expect(functionBlock('SwapSidesButton')).toContain("whiteSpace: 'normal' as const")
+    expect(matchupSource).not.toContain("linear-gradient(90deg, #9be11d, #4ade80)")
   })
 })

@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import {
   buildExploreLeagueHref,
   getCompetitionLayerDescription,
@@ -12,7 +11,6 @@ import {
   getLeagueFormatLabel,
   type CompetitionLayer,
 } from '@/lib/competition-layers'
-import { getClientAuthState } from '@/lib/auth'
 import {
   getTiqIndividualCompetitionFormatLabel,
   getTiqIndividualCompetitionFormatPreview,
@@ -28,7 +26,7 @@ import {
   type TiqIndividualLeagueSummary,
 } from '@/lib/tiq-individual-results-summary'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
-import { type UserRole } from '@/lib/roles'
+import { useProductAccess } from '@/lib/use-product-access'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
@@ -43,8 +41,15 @@ function buildLeagueSubtitle(league: LeagueCard) {
 }
 
 export default function ExploreLeaguesPage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
+  return (
+    <SiteShell active="/explore">
+      <ExploreLeaguesContent />
+    </SiteShell>
+  )
+}
+
+function ExploreLeaguesContent() {
+  const { access, authResolved } = useProductAccess()
   const [leagues, setLeagues] = useState<LeagueCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -65,35 +70,10 @@ export default function ExploreLeaguesPage() {
   const [individualLeagueSummaries, setIndividualLeagueSummaries] = useState<Map<string, TiqIndividualLeagueSummary>>(
     new Map(),
   )
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
-
   useEffect(() => {
     void loadLeagueSummary()
     void loadRegistryLeagues()
     void loadIndividualLeagueResults()
-  }, [])
-
-  useEffect(() => {
-    let active = true
-
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-        if (!active) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } catch {
-        if (!active) return
-        setRole('public')
-        setEntitlements(null)
-      }
-    }
-
-    void loadAuth()
-
-    return () => {
-      active = false
-    }
   }, [])
 
   useEffect(() => {
@@ -225,8 +205,7 @@ export default function ExploreLeaguesPage() {
   }, [decoratedLeagues])
 
   return (
-    <SiteShell active="/explore">
-      <section style={wrapStyle}>
+    <section style={wrapStyle}>
         <div style={heroStyle}>
           <div style={noiseStyle} />
 
@@ -315,32 +294,34 @@ export default function ExploreLeaguesPage() {
 
         {!loading && !error ? (
           <>
-            <div style={upgradeGridStyle}>
-              {!access.canUseCaptainWorkflow ? (
-                <UpgradePrompt
-                  planId="captain"
-                  compact
-                  headline="Need TIQ team leagues to turn into smarter weekly decisions?"
-                  body="Unlock Captain to move from league discovery into availability, lineups, scenarios, and team messaging without losing context."
-                  ctaLabel="Unlock Captain Tools"
-                  ctaHref="/pricing"
-                  secondaryLabel="See Captain value"
-                  secondaryHref="/pricing"
-                />
-              ) : null}
-              {!access.canUseLeagueTools ? (
-                <UpgradePrompt
-                  planId="league"
-                  compact
-                  headline="Want to run TIQ leagues without spreadsheets?"
-                  body="League tools give organizers one place for season setup, scheduling, standings, and league-wide communication."
-                  ctaLabel="Run Your League on TIQ"
-                  ctaHref="/pricing"
-                  secondaryLabel="See league plan"
-                  secondaryHref="/pricing"
-                />
-              ) : null}
-            </div>
+            {authResolved ? (
+              <div style={upgradeGridStyle}>
+                {!access.canUseCaptainWorkflow ? (
+                  <UpgradePrompt
+                    planId="captain"
+                    compact
+                    headline="Need TIQ team leagues to turn into smarter weekly decisions?"
+                    body="Unlock Captain to move from league discovery into availability, lineups, scenarios, and team messaging without losing context."
+                    ctaLabel="Unlock Captain Tools"
+                    ctaHref="/pricing"
+                    secondaryLabel="See Captain value"
+                    secondaryHref="/pricing"
+                  />
+                ) : null}
+                {!access.canUseLeagueTools ? (
+                  <UpgradePrompt
+                    planId="league"
+                    compact
+                    headline="Want to run TIQ leagues without spreadsheets?"
+                    body="League tools give organizers one place for season setup, scheduling, standings, and league-wide communication."
+                    ctaLabel="Run Your League on TIQ"
+                    ctaHref="/pricing"
+                    secondaryLabel="See league plan"
+                    secondaryHref="/pricing"
+                  />
+                ) : null}
+              </div>
+            ) : null}
 
             <LeagueSection
               title="USTA Leagues"
@@ -374,8 +355,7 @@ export default function ExploreLeaguesPage() {
             />
           </>
         ) : null}
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 
@@ -550,7 +530,7 @@ const heroGridStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
   gap: '24px',
   minWidth: 0,
 }
@@ -682,7 +662,7 @@ const filterBarStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '16px',
   marginTop: '24px',
   minWidth: 0,
@@ -772,7 +752,7 @@ const sectionStyle: CSSProperties = {
 
 const sectionHeaderStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: '22px',
   alignItems: 'end',
   minWidth: 0,
@@ -806,7 +786,7 @@ const sectionDescriptionStyle: CSSProperties = {
 
 const gridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
   gap: '16px',
   marginTop: '20px',
   minWidth: 0,

@@ -118,7 +118,7 @@ const gridStyle: CSSProperties = {
 
 const linkStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '30px minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 30px) minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
   gap: 12,
   minHeight: 56,
@@ -130,6 +130,7 @@ const linkStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--home-control-shadow)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const stepStyle: CSSProperties = {

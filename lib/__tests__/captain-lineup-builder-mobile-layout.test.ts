@@ -40,7 +40,9 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('builderLayoutResponsive')).toContain("'repeat(3, minmax(0, 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr 1fr'")
-    expect(styleBlock('workflowRowStyle')).toContain("gridTemplateColumns: '42px minmax(0, 1fr)'")
+    expect(source).not.toContain("gridTemplateColumns: '1fr'")
+    expect(styleBlock('workflowRowStyle')).toContain("gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)'")
+    expect(source).not.toContain("gridTemplateColumns: '42px minmax(0, 1fr)'")
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('ghostButton')).toContain("overflowWrap: 'anywhere'")
@@ -66,6 +68,8 @@ describe('Captain lineup builder mobile layout guards', () => {
 
     expect(styleBlock('listCardStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('listCardStyleCompact')).toContain("flexWrap: 'wrap'")
+    expect(source).toContain("gap: 8, flexWrap: 'wrap', minWidth: 0")
+    expect(source).toContain("style={{ minWidth: 0, overflowWrap: 'anywhere' }}")
     expect(styleBlock('slotLabelInputStyle')).toContain("width: 'min(100%, 180px)'")
     expect(styleBlock('slotLabelInputStyle')).toContain('minWidth: 0')
   })
@@ -98,6 +102,14 @@ describe('Captain lineup builder mobile layout guards', () => {
     }
 
     expect(styleBlock('miniPillStyle')).toContain("whiteSpace: 'normal'")
+    for (const styleName of [
+      'decisionSnapshotGridStyle',
+      'actionPlanGridStyle',
+      'decisionQueueGridStyle',
+      'scenarioDeckGridStyle',
+    ]) {
+      expect(styleBlock(styleName), styleName).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    }
     expect(styleBlock('bannerBlueStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('bannerGreenStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('warningCardStyle')).toContain("overflowWrap: 'anywhere'")

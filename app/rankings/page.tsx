@@ -87,8 +87,8 @@ export default function RankingsPage() {
   const [sortCol, setSortCol] = useState<'tiq' | 'trend' | 'form' | 'winRate' | 'matches'>('tiq')
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { access } = useProductAccess()
-  const shouldShowAds = shouldShowSponsoredPlacements(access)
+  const { access, authResolved } = useProductAccess()
+  const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
   const ratingViewLabel = getRatingViewLabel(ratingView)
 
   useEffect(() => {
@@ -508,7 +508,7 @@ export default function RankingsPage() {
                 <Link href="/mylab" style={exploreNavLink}>My Lab</Link>
               </div>
 
-              {!access.canUseAdvancedPlayerInsights ? (
+              {authResolved && !access.canUseAdvancedPlayerInsights ? (
                 <div style={{ marginTop: 18, maxWidth: 560 }}>
                   <UpgradePrompt
                     planId="player_plus"
@@ -771,12 +771,12 @@ export default function RankingsPage() {
                   </div>
                   <div style={{ display: 'grid', gap: 7 }}>
                     {ratingDistribution.map((band) => (
-                      <div key={band.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ minWidth: 70, color: 'rgba(190,210,240,0.6)', fontSize: 11, fontWeight: 700, textAlign: 'right' as const }}>{band.label}</span>
-                        <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 999, overflow: 'hidden', height: 18 }}>
+                      <div key={band.label} style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                        <span style={{ flex: '0 1 70px', minWidth: 0, color: 'rgba(190,210,240,0.6)', fontSize: 11, fontWeight: 700, textAlign: 'right' as const, overflowWrap: 'anywhere' }}>{band.label}</span>
+                        <div style={{ flex: 1, minWidth: 0, background: 'rgba(255,255,255,0.05)', borderRadius: 999, overflow: 'hidden', height: 18 }}>
                           <div style={{ width: `${(band.count / maxCount) * 100}%`, background: 'linear-gradient(90deg, rgba(37,91,227,0.6), rgba(63,167,255,0.5))', height: '100%', borderRadius: 999, transition: 'width 400ms ease', minWidth: band.count > 0 ? 4 : 0 }} />
                         </div>
-                        <span style={{ minWidth: 28, color: 'rgba(190,210,240,0.55)', fontSize: 12, fontWeight: 800 }}>{band.count}</span>
+                        <span style={{ flex: '0 1 28px', minWidth: 0, color: 'rgba(190,210,240,0.55)', fontSize: 12, fontWeight: 800, overflowWrap: 'anywhere' }}>{band.count}</span>
                       </div>
                     ))}
                   </div>
@@ -801,8 +801,8 @@ export default function RankingsPage() {
                 <div>
                   <div style={{ color: '#9be11d', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 12 }}>Rising</div>
                   {risers.map(({ player, delta }) => (
-                    <div key={player.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: 16, background: 'rgba(155,225,29,0.05)', border: '1px solid rgba(155,225,29,0.14)', marginBottom: 8 }}>
-                      <div>
+                    <div key={player.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, minWidth: 0, padding: '12px 14px', borderRadius: 16, background: 'rgba(155,225,29,0.05)', border: '1px solid rgba(155,225,29,0.14)', marginBottom: 8 }}>
+                      <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                         <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                         <div style={{ color: 'rgba(224,234,247,0.55)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.selectedRating.toFixed(2)} TIQ</div>
                       </div>
@@ -816,8 +816,8 @@ export default function RankingsPage() {
                 <div>
                   <div style={{ color: '#f87171', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 12 }}>Falling</div>
                   {fallers.map(({ player, delta }) => (
-                    <div key={player.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: 16, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.14)', marginBottom: 8 }}>
-                      <div>
+                    <div key={player.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, minWidth: 0, padding: '12px 14px', borderRadius: 16, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.14)', marginBottom: 8 }}>
+                      <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                         <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                         <div style={{ color: 'rgba(224,234,247,0.55)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.selectedRating.toFixed(2)} TIQ</div>
                       </div>
@@ -844,8 +844,8 @@ export default function RankingsPage() {
               {hotFormPlayers.map((player, i) => {
                 const boardRank = rankedPlayers.findIndex((p) => p.id === player.id) + 1
                 return (
-                <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 18, background: 'rgba(155,225,29,0.04)', border: '1px solid rgba(155,225,29,0.12)' }}>
-                  <span style={{ minWidth: 24, color: 'rgba(190,210,240,0.4)', fontWeight: 900, fontSize: 13, textAlign: 'right' as const }}>#{i + 1}</span>
+                <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, padding: '12px 16px', borderRadius: 18, background: 'rgba(155,225,29,0.04)', border: '1px solid rgba(155,225,29,0.12)' }}>
+                  <span style={{ flex: '0 1 24px', minWidth: 0, color: 'rgba(190,210,240,0.4)', fontWeight: 900, fontSize: 13, textAlign: 'right' as const }}>#{i + 1}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                     <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.matches} matches{boardRank > 0 ? ` · board #${boardRank}` : ''}</div>
@@ -902,8 +902,8 @@ export default function RankingsPage() {
             </p>
             <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
               {breakthroughPlayers.map(({ player, delta30, matchesThisMonth }, i) => (
-                <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 18, background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.14)' }}>
-                  <span style={{ minWidth: 24, color: 'rgba(190,210,240,0.4)', fontWeight: 900, fontSize: 13, textAlign: 'center' as const }}>#{i + 1}</span>
+                <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, padding: '12px 16px', borderRadius: 18, background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.14)' }}>
+                  <span style={{ flex: '0 1 24px', minWidth: 0, color: 'rgba(190,210,240,0.4)', fontWeight: 900, fontSize: 13, textAlign: 'center' as const }}>#{i + 1}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                     <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {matchesThisMonth} match{matchesThisMonth !== 1 ? 'es' : ''} this month · {player.selectedRating.toFixed(2)} TIQ</div>
@@ -1951,11 +1951,12 @@ const pulseModePill: CSSProperties = {
 
 const pulseLeaderGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'end',
   gap: '16px',
   marginTop: '18px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const pulseMiniLabel: CSSProperties = {
@@ -2029,6 +2030,7 @@ const pulseSignalTop: CSSProperties = {
   justifyContent: 'space-between',
   gap: '8px',
   flexWrap: 'wrap',
+  minWidth: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: '11px',
   fontWeight: 800,
@@ -2112,6 +2114,8 @@ const controlsTopRow: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   gap: '12px',
+  flexWrap: 'wrap',
+  minWidth: 0,
   marginBottom: '14px',
 }
 
@@ -2120,6 +2124,7 @@ const controlsLabel: CSSProperties = {
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const controlsHint: CSSProperties = {
@@ -2128,6 +2133,7 @@ const controlsHint: CSSProperties = {
   fontWeight: 600,
   fontSize: '14px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const segmentWrap: CSSProperties = {
@@ -2234,8 +2240,9 @@ const errorBanner: CSSProperties = {
 
 const summaryStatsGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const chipStat: CSSProperties = {
@@ -2258,6 +2265,7 @@ const chipStatLabel: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '6px',
+  overflowWrap: 'anywhere',
 }
 
 const chipStatValue: CSSProperties = {
@@ -2265,6 +2273,7 @@ const chipStatValue: CSSProperties = {
   fontSize: '20px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const contentWrap: CSSProperties = {
@@ -2367,6 +2376,7 @@ const panelHead: CSSProperties = {
   gap: '12px',
   marginBottom: '16px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionKicker: CSSProperties = {
@@ -2414,7 +2424,7 @@ const leaderboardActionGrid: CSSProperties = {
 
 const leaderboardActionCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   alignItems: 'center',
   gap: '12px',
   minWidth: 0,
@@ -2427,6 +2437,7 @@ const leaderboardActionCard: CSSProperties = {
   cursor: 'pointer',
   transition: 'transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
   overflow: 'hidden',
+  overflowWrap: 'anywhere',
 }
 
 const leaderboardActionBody: CSSProperties = {
@@ -2522,9 +2533,11 @@ const compactRankingCardStyle: CSSProperties = {
 
 const compactRankingTopStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   alignItems: 'center',
   gap: '12px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const compactPlayerCopyStyle: CSSProperties = {
@@ -2637,7 +2650,7 @@ const compactMiniValueStyle: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 'min(100%, 760px)',
+  minWidth: 0,
 }
 
 const tableHead: CSSProperties = {

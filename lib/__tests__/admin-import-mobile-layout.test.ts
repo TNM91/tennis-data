@@ -3,12 +3,14 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/admin/import/page.tsx'), 'utf8')
+const reviewPanelSource = readFileSync(join(process.cwd(), 'app/admin/import/_components/scorecard-review-panel.tsx'), 'utf8')
+const sharedImportSource = readFileSync(join(process.cwd(), 'app/components/admin-import-ui.tsx'), 'utf8')
 
-function styleBlock(styleName: string) {
-  const start = source.indexOf(`const ${styleName}`)
+function styleBlock(styleName: string, content = source) {
+  const start = content.indexOf(`const ${styleName}`)
   expect(start).toBeGreaterThanOrEqual(0)
-  const nextStyle = source.indexOf('\nconst ', start + 1)
-  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+  const nextStyle = content.indexOf('\nconst ', start + 1)
+  return content.slice(start, nextStyle === -1 ? undefined : nextStyle)
 }
 
 describe('Admin import mobile layout guards', () => {
@@ -17,6 +19,17 @@ describe('Admin import mobile layout guards', () => {
     expect(styleBlock('glassCardStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('adminImportActionRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('adminImportActionRowStyle')).toContain('minWidth: 0')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(source).not.toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(reviewPanelSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))'")
+    expect(reviewPanelSource).not.toContain("gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'")
+    expect(reviewPanelSource).toContain("gridTemplateColumns: 'minmax(min(100%, 220px), 260px) minmax(0, 1fr)'")
+    expect(reviewPanelSource).not.toContain("gridTemplateColumns: 'minmax(min(100%, 220px), 260px) 1fr'")
+    expect(reviewPanelSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
+    expect(source).not.toContain("gridTemplateColumns: '1fr 1fr'")
+    expect(reviewPanelSource).not.toContain("gridTemplateColumns: '1fr 1fr'")
+    expect(reviewPanelSource).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
     expect(source).not.toContain("display: 'flex', gap: 12, marginTop: 18 }")
   })
 
@@ -31,5 +44,20 @@ describe('Admin import mobile layout guards', () => {
 
     expect(styleBlock('primaryButtonStyle')).toContain("color: 'var(--foreground-strong)'")
     expect(styleBlock('primaryButtonStyle')).not.toContain("color: '#0a0a0a'")
+  })
+
+  it('keeps shared import preview tables within the mobile scroll shell', () => {
+    expect(styleBlock('importTableWrapStyle', sharedImportSource)).toContain('minWidth: 0')
+    expect(styleBlock('importTableWrapStyle', sharedImportSource)).toContain("overflowX: 'auto'")
+    expect(styleBlock('importTableWrapStyle', sharedImportSource)).toContain("overscrollBehaviorX: 'contain'")
+    expect(styleBlock('importTableWrapStyle', sharedImportSource)).toContain("WebkitOverflowScrolling: 'touch'")
+    expect(styleBlock('invalidRowsTableStyle', sharedImportSource)).toContain("width: '100%'")
+    expect(styleBlock('invalidRowsTableStyle', sharedImportSource)).toContain('minWidth: 0')
+    expect(styleBlock('previewRowsTableStyle', sharedImportSource)).toContain("width: '100%'")
+    expect(styleBlock('previewRowsTableStyle', sharedImportSource)).toContain('minWidth: 0')
+    expect(sharedImportSource).not.toContain("minWidth: 'min(100%, 840px)'")
+    expect(sharedImportSource).not.toContain("minWidth: 'min(100%, 1080px)'")
+    expect(sharedImportSource).not.toContain('style={{ minWidth: 840 }}')
+    expect(sharedImportSource).not.toContain('style={{ minWidth: 1080 }}')
   })
 })

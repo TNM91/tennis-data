@@ -3089,9 +3089,10 @@ const workflowStack: CSSProperties = {
 
 const workflowRow: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '42px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
+  minWidth: 0,
 }
 
 const workflowStep: CSSProperties = {
@@ -3349,7 +3350,7 @@ const captainValueTitleStyle: CSSProperties = {
 const captainValueGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 })
@@ -3569,7 +3570,7 @@ const captainOnboardingStripStyle = (isSmallMobile: boolean): CSSProperties => (
 
 const captainOnboardingStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: 10,
   alignItems: 'start',
   minHeight: 112,
@@ -3578,6 +3579,7 @@ const captainOnboardingStepStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
   background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const captainOnboardingNumberStyle: CSSProperties = {
@@ -3994,7 +3996,7 @@ const pillStrong: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minWidth: 'min(100%, 62px)',
+  minWidth: 0,
   maxWidth: '100%',
   padding: '8px 12px',
   borderRadius: 999,

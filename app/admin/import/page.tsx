@@ -1803,9 +1803,10 @@ export default function AdminImportPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
               gap: 12,
               marginTop: 16,
+              minWidth: 0,
             }}
           >
             <TypeCard
@@ -2324,9 +2325,10 @@ export default function AdminImportPage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
                 gap: 10,
                 marginTop: 14,
+                minWidth: 0,
               }}
             >
               <SummaryMetric
@@ -2546,8 +2548,9 @@ export default function AdminImportPage() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
                     gap: 10,
+                    minWidth: 0,
                   }}
                 >
                   <SummaryMetric

@@ -50,11 +50,12 @@ export default function CompeteResultsPage() {
 }
 
 function CompeteResultsContent() {
-  const { role, entitlements } = useAuth()
+  const { role, userId, entitlements, authResolved } = useAuth()
   const [results, setResults] = useState<TiqIndividualLeagueResultRecord[]>([])
   const [leagueNames, setLeagueNames] = useState<Record<string, string>>({})
   const [storageWarning, setStorageWarning] = useState('')
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const resultStats = useMemo(() => {
     const playerIds = new Set<string>()
     let matchupReadyCount = 0
@@ -119,7 +120,7 @@ function CompeteResultsContent() {
         />
       </CompeteGrid>
 
-      {!access.canUseCaptainWorkflow ? (
+      {authResolved && !access.canUseCaptainWorkflow ? (
         <div style={upgradeWrapStyle}>
           <UpgradePrompt
             planId="captain"

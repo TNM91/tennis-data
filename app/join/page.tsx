@@ -10,9 +10,9 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
-import { getClientAuthState } from '@/lib/auth'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -113,11 +113,17 @@ function getDefaultSignedInRoute(
 }
 
 export default function JoinPage() {
+  return (
+    <SiteShell active="/join">
+      <JoinContent />
+    </SiteShell>
+  )
+}
+
+function JoinContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-
-  const [role, setRole] = useState<UserRole>('public')
-  const [authLoading, setAuthLoading] = useState(true)
+  const { role, entitlements, authResolved } = useAuth()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -136,39 +142,12 @@ export default function JoinPage() {
   const selectedIntent = JOIN_INTENT_COPY[selectedPlanId]
   const selectedTier = getMembershipTier(selectedPlanId)
   const selectedNextRoute = isSafeLocalNextHref(searchParams.get('next'), getJoinNextRoute(selectedPlanId))
+  const authLoading = !authResolved
 
   useEffect(() => {
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-        const nextRole = authState.role
-        setRole(nextRole)
-
-        if (nextRole !== 'public') {
-          router.replace(getDefaultSignedInRoute(nextRole, authState.entitlements))
-        }
-      } finally {
-        setAuthLoading(false)
-      }
-    }
-
-    loadAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async () => {
-      const authState = await getClientAuthState()
-      const nextRole = authState.role
-      setRole(nextRole)
-      setAuthLoading(false)
-
-      if (nextRole !== 'public') {
-        router.replace(getDefaultSignedInRoute(nextRole, authState.entitlements))
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [router])
+    if (!authResolved || role === 'public') return
+    router.replace(getDefaultSignedInRoute(role, entitlements))
+  }, [authResolved, entitlements, role, router])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -249,19 +228,16 @@ export default function JoinPage() {
 
   if (authLoading) {
     return (
-      <SiteShell active="/join">
-        <section style={loadingShell}>
-          <div style={loadingCard}>Checking account status...</div>
-        </section>
-      </SiteShell>
+      <section style={loadingShell}>
+        <div style={loadingCard}>Checking account status...</div>
+      </section>
     )
   }
 
   if (role !== 'public') return null
 
   return (
-    <SiteShell active="/join">
-      <section style={heroShellResponsive}>
+    <section style={heroShellResponsive}>
         <div>
           <div style={eyebrow}>{selectedIntent.eyebrow}</div>
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '32px' : isMobile ? '36px' : '58px' }}>
@@ -459,8 +435,7 @@ export default function JoinPage() {
             </form>
           </div>
         </div>
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 
@@ -584,7 +559,7 @@ const selectedPlanStepGridStyle: CSSProperties = {
 
 const selectedPlanStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
   gap: '8px',
   minWidth: 0,
   alignItems: 'center',
@@ -669,7 +644,7 @@ const promiseStack: CSSProperties = {
 
 const promiseStep: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '42px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
   gap: '12px',
   minWidth: 0,
   alignItems: 'center',
@@ -708,7 +683,7 @@ const loginPanel: CSSProperties = {
 const loginPanelGlow: CSSProperties = {
   position: 'absolute',
   inset: 'auto auto 8px 50%',
-  width: '250px',
+  width: 'min(100%, 250px)',
   height: '250px',
   transform: 'translateX(-50%)',
   borderRadius: '999px',
@@ -776,7 +751,7 @@ const formTitleMobile: CSSProperties = {
 
 const identityCueStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '36px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 36px) minmax(0, 1fr)',
   gap: '10px',
   minWidth: 0,
   alignItems: 'center',

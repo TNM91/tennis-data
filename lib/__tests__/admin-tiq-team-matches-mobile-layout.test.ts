@@ -20,6 +20,7 @@ describe('Admin TIQ team matches mobile layout guards', () => {
       'cardHeaderRow',
       'lineCardHeaderRow',
       'fieldWrap',
+      'lineGrid',
       'lineCard',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')

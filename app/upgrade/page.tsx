@@ -3,15 +3,14 @@
 import Link from 'next/link'
 import { use, useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
+import { buildProductAccessState } from '@/lib/access-model'
 import { getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { getMembershipTier } from '@/lib/product-story'
 import { buildSupportMessageHref } from '@/lib/message-links'
-import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
@@ -128,6 +127,7 @@ type UpgradePageProps = {
 export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const resolvedSearchParams = use(searchParams)
   const { isTablet, isSmallMobile } = useViewportBreakpoints()
+  const { role, userId, entitlements, authResolved, session, refreshAuth } = useAuth()
   const requestedPlan = getSearchParamValue(resolvedSearchParams.plan)
   const planId: PricingPlanId = PLAN_IDS.includes(requestedPlan as PricingPlanId)
     ? (requestedPlan as PricingPlanId)
@@ -139,9 +139,6 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const successHandoff = SUCCESS_HANDOFF_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
 
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
   const [requestName, setRequestName] = useState('')
   const [requestEmail, setRequestEmail] = useState('')
   const [requestOrganization, setRequestOrganization] = useState('')
@@ -160,24 +157,12 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const checkoutReturnSessionId = getSearchParamValue(resolvedSearchParams.session_id) ?? ''
 
   useEffect(() => {
-    let active = true
-
-    void (async () => {
-      const authState = await getClientAuthState()
-      if (!active) return
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
-      setRequestEmail(authState.user?.email ?? '')
-      setAuthLoading(false)
-      if (authState.user?.id) {
-        void claimLastRemoteRequest(authState.user.email ?? '')
-      }
-    })()
-
-    return () => {
-      active = false
+    if (!authResolved) return
+    setRequestEmail(session?.user?.email ?? '')
+    if (userId) {
+      void claimLastRemoteRequest(session?.user?.email ?? '')
     }
-  }, [])
+  }, [authResolved, session?.user?.email, userId])
 
   async function claimLastRemoteRequest(userEmail: string) {
     const stored = readLastRemoteRequest()
@@ -333,13 +318,15 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     }
   }, [checkoutSubmitting, nextHref, plan.name, planId, pricingSnapshot, startCheckoutForRequest])
 
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const authLoading = !authResolved
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const hasAccess =
     planId === 'free' ||
     (planId === 'player_plus' && access.canUseAdvancedPlayerInsights) ||
     (planId === 'captain' && access.canUseCaptainWorkflow) ||
     (planId === 'league' && access.canUseLeagueTools)
-  const isPublic = role === 'public'
+  const isPublic = resolvedRole === 'public'
   const isPaidPlan = planId === 'player_plus' || planId === 'captain' || planId === 'league'
   const showAccessRequest = isPaidPlan && !hasAccess && (isPublic || !authLoading)
 
@@ -397,11 +384,9 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
           throw new Error(body?.message ?? 'Checkout could not be confirmed.')
         }
 
-        const refreshedAuthState = await getClientAuthState()
+        await refreshAuth()
         if (active) {
-          setRole(refreshedAuthState.role)
-          setEntitlements(refreshedAuthState.entitlements)
-          setRequestEmail(refreshedAuthState.user?.email ?? '')
+          setRequestEmail(session?.user?.email ?? '')
           setCheckoutSubmitting(false)
           setCheckoutSuccessMessage(`${successHandoff.body} Opening ${getPlanDestinationLabel(planId)}...`)
           redirectTimeout = window.setTimeout(() => {
@@ -429,6 +414,8 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     isPublic,
     nextHref,
     planId,
+    refreshAuth,
+    session?.user?.email,
     successHandoff.body,
   ])
 
@@ -1049,7 +1036,7 @@ const activationStepGridStyle: CSSProperties = {
 
 const activationStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
   gap: 8,
   minWidth: 0,
   alignItems: 'center',
@@ -1230,7 +1217,7 @@ const handoffStepGridStyle: CSSProperties = {
 
 const handoffStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
   gap: 8,
   minWidth: 0,
   alignItems: 'center',

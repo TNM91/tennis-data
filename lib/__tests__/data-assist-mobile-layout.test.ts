@@ -17,6 +17,7 @@ describe('Data Assist mobile layout guards', () => {
       'pageStyle',
       'heroStyle',
       'heroCopyStyle',
+      'headerCopyStyle',
       'panelStyle',
       'sectionHeaderStyle',
       'typeOptionGridStyle',
@@ -29,6 +30,8 @@ describe('Data Assist mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
+    expect(styleBlock('heroStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(styleBlock('heroStyle')).not.toContain("gridTemplateColumns: '1fr'")
     expect(styleBlock('titleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('typeOptionStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('stepDividerStyle')).toContain("overflowWrap: 'anywhere'")
@@ -42,6 +45,7 @@ describe('Data Assist mobile layout guards', () => {
       'submissionListStyle',
       'submissionCardStyle',
       'submissionCardTopStyle',
+      'headerCopyStyle',
       'submissionMetaStyle',
       'historyManagementStyle',
       'historyFilterStyle',
@@ -58,8 +62,9 @@ describe('Data Assist mobile layout guards', () => {
     expect(styleBlock('historyFilterStyle')).toContain("WebkitOverflowScrolling: 'touch'")
     expect(styleBlock('historyFilterStyle')).toContain("scrollbarWidth: 'thin'")
     expect(styleBlock('historyFilterButtonStyle')).toContain("flex: '0 0 auto'")
-    expect(styleBlock('historyFilterButtonStyle')).toContain("minWidth: 'min(100%, 92px)'")
-    expect(styleBlock('historyFilterButtonStyle')).toContain("maxWidth: 'min(100%, 180px)'")
+    expect(styleBlock('historyFilterButtonStyle')).toContain('minWidth: 0')
+    expect(styleBlock('historyFilterButtonStyle')).toContain('maxWidth: 180')
+    expect(styleBlock('historyFilterButtonStyle')).not.toContain("minWidth: 'min(100%, 92px)'")
     expect(styleBlock('historyFilterButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('badgeCardStyle')).toContain("flex: '1 1 min(100%, 190px)'")
   })
@@ -87,11 +92,19 @@ describe('Data Assist mobile layout guards', () => {
     expect(source).not.toContain("? '1fr'")
     expect(styleBlock('screenshotGridStyle')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(styleBlock('parsedSideHeaderStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('exportHelpToggleStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('exportHelpToggleStyle')).toContain('minWidth: 0')
+    expect(styleBlock('exportHelpStepStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 28px) minmax(0, 1fr)'",
+    )
     expect(styleBlock('parsedLineStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
     expect(styleBlock('bulkResultRowStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
     expect(styleBlock('showMoreButtonStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('scanLoadingStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('screenshotCardStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
+    expect(styleBlock('screenshotCardStyle')).not.toContain("minmax(min(38%, 108px), 0.34fr)")
     expect(styleBlock('screenshotBodyStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('exportFilePreviewStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(source).not.toContain("gridTemplateColumns: '28px minmax(0, 1fr)'")
   })
 })

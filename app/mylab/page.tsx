@@ -620,7 +620,8 @@ function MyLabPageInner() {
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet } = useViewportBreakpoints()
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
 
   useEffect(() => {
     const nextGoals = readLocalGoals(userId, profileLink?.linked_player_id)
@@ -2204,7 +2205,7 @@ function MyLabPageInner() {
   ]
   return (
     <section style={pageStyle}>
-      {!access.canUseAdvancedPlayerInsights ? (
+      {authResolved && !access.canUseAdvancedPlayerInsights ? (
         <UpgradePrompt
           planId="player_plus"
           headline={MY_LAB_STORY.upgradeHeadline}
@@ -2218,7 +2219,7 @@ function MyLabPageInner() {
 
       <section style={labRoutinePreviewStyle} aria-label="My Lab routine">
         <div style={labRoutineHeaderStyle}>
-          <div>
+          <div style={sectionHeaderCopyStyle}>
             <p style={sectionKickerStyle}>{MY_LAB_STORY.eyebrow}</p>
             <h2 style={labRoutineTitleStyle}>A weekly tennis routine, not another dashboard.</h2>
             <p style={labRoutineIntroStyle}>
@@ -2313,7 +2314,7 @@ function MyLabPageInner() {
 
           <section style={personalReadPanelStyle}>
             <div style={personalReadHeaderStyle}>
-              <div>
+              <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>Today&apos;s next move</p>
                 <h3 style={personalReadTitleStyle}>
                   {linkedPlayer ? `${linkedPlayer.name}: ${nextMoveCta}` : 'Connect your profile to unlock your read'}
@@ -2367,7 +2368,7 @@ function MyLabPageInner() {
               <section id="scorecard-summary" style={levelUpPanelStyle(isTablet)}>
                 <div style={levelMeterStyle}>
                   <div style={levelMeterHeaderStyle}>
-                    <div>
+                    <div style={sectionHeaderCopyStyle}>
                       <div style={levelMeterTitleStyle}>Level-up meter</div>
                       <div style={levelBadgeRowStyle}>
                         <span style={levelStatus === 'Trending up' ? pillGreenStyle : levelStatus === 'Needs work' ? pillRedStyle : pillBlueStyle}>
@@ -2645,7 +2646,7 @@ function MyLabPageInner() {
         <section id="player-tools" style={profileLinkSectionStyle}>
           <div style={profileLinkCardStyle}>
             <div style={sectionHeaderStyle}>
-              <div>
+              <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>Player workshop</p>
                 <h2 style={sectionTitleStyle}>What should I do next?</h2>
                 <p style={sectionTextStyle}>
@@ -2672,7 +2673,7 @@ function MyLabPageInner() {
             {tiqActionCards.length ? (
               <section style={tiqActionRailStyle}>
                 <div style={sectionHeaderStyle}>
-                  <div>
+                  <div style={sectionHeaderCopyStyle}>
                     <p style={sectionKickerStyle}>TIQ action rail</p>
                     <h3 style={compactSectionTitleStyle}>League prompts ready to act on</h3>
                   </div>
@@ -2706,7 +2707,7 @@ function MyLabPageInner() {
             {teamPrepCards.length ? (
               <section style={teamPrepRailStyle}>
                 <div style={sectionHeaderStyle}>
-                  <div>
+                  <div style={sectionHeaderCopyStyle}>
                     <p style={sectionKickerStyle}>Team prep</p>
                     <h3 style={compactSectionTitleStyle}>Captain actions from your player context</h3>
                   </div>
@@ -2740,7 +2741,7 @@ function MyLabPageInner() {
 
             <section id="goal-progress" style={goalProgressPanelStyle}>
               <div style={sectionHeaderStyle}>
-                <div>
+                <div style={sectionHeaderCopyStyle}>
                   <p style={sectionKickerStyle}>Optional goals</p>
                   <h3 style={compactSectionTitleStyle}>Training notes when you need them</h3>
                 </div>
@@ -2759,7 +2760,7 @@ function MyLabPageInner() {
               </div>
               <div style={goalReadinessPanelStyle}>
                 <div style={goalReadinessHeaderStyle}>
-                  <div>
+                  <div style={sectionHeaderCopyStyle}>
                     <div style={metricLabelStyle}>Active goal readiness</div>
                     <p style={goalReadinessTextStyle}>
                       {goalReadinessScore === 100
@@ -2973,7 +2974,7 @@ function MyLabPageInner() {
 
               <div id="match-report-status" style={workshopPanelStyle}>
                 <div style={sectionHeaderStyle}>
-                  <div>
+                  <div style={sectionHeaderCopyStyle}>
                     <div style={sectionKickerStyle}>Report status</div>
                     <h3 style={compactSectionTitleStyle}>Match issues you sent</h3>
                   </div>
@@ -3083,7 +3084,7 @@ function MyLabPageInner() {
 
           <section style={surfaceStrongStyle}>
             <div style={sectionHeaderStyle}>
-              <div>
+              <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>Watchlist</p>
                 <h2 style={sectionTitleStyle}>Follow tennis context</h2>
                 <p style={sectionTextStyle}>
@@ -3392,6 +3393,7 @@ const secondaryButtonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minWidth: 0,
   minHeight: 46,
   padding: '0 16px',
   borderRadius: 999,
@@ -3403,10 +3405,12 @@ const secondaryButtonStyle: CSSProperties = {
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const profileLinkSectionStyle: CSSProperties = {
   margin: '0 0 18px',
+  minWidth: 0,
 }
 
 const labRoutinePreviewStyle: CSSProperties = {
@@ -3521,7 +3525,7 @@ const labRoutineGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const labRoutineStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: 12,
   minHeight: 144,
   padding: 14,
@@ -3530,6 +3534,7 @@ const labRoutineStepStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--shell-chip-bg) 92%, var(--shell-panel-bg-strong) 8%)',
   color: 'var(--foreground)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const labRoutineNumberStyle: CSSProperties = {
@@ -3583,6 +3588,7 @@ const paidWorkspaceProofStyle: CSSProperties = {
 const paidWorkspaceIntroStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
+  minWidth: 0,
 }
 
 const paidWorkspaceTitleStyle: CSSProperties = {
@@ -3621,6 +3627,7 @@ const paidWorkspaceProofCardStyle: CSSProperties = {
 
 const paidWorkspaceProofBodyStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
+  overflowWrap: 'anywhere',
 }
 
 const dataAssistProofStyle: CSSProperties = {
@@ -3639,6 +3646,7 @@ const dataAssistProofStyle: CSSProperties = {
 const dataAssistProofCopyStyle: CSSProperties = {
   flex: '1 1 260px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const dataAssistProofTitleStyle: CSSProperties = {
@@ -3669,6 +3677,8 @@ const warningNoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
   fontSize: 13,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const profileLinkCardStyle: CSSProperties = {
@@ -3778,7 +3788,7 @@ const labPlaybookGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
   minHeight: 132,
@@ -3793,6 +3803,7 @@ const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
   color: 'inherit',
   textDecoration: 'none',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const labPlaybookStepStyle = (complete: boolean): CSSProperties => ({
@@ -3847,6 +3858,7 @@ const levelMeterHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 14,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const levelMeterTitleStyle: CSSProperties = {
@@ -3854,6 +3866,7 @@ const levelMeterTitleStyle: CSSProperties = {
   fontSize: '1.28rem',
   fontWeight: 950,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const levelBadgeRowStyle: CSSProperties = {
@@ -3867,9 +3880,11 @@ const levelRatingBlockStyle: CSSProperties = {
   display: 'grid',
   justifyItems: 'end',
   gap: 4,
+  minWidth: 0,
   color: 'var(--shell-copy-muted)',
   fontWeight: 900,
   textAlign: 'right',
+  overflowWrap: 'anywhere',
 }
 
 const levelRatingNumberStyle: CSSProperties = {
@@ -3888,6 +3903,8 @@ const levelMeterMetaStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 900,
   flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const levelMeterScaleStyle: CSSProperties = {
@@ -3898,6 +3915,9 @@ const levelMeterScaleStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 900,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const levelProgressFillStyle = (value: number, hasProgress: boolean): CSSProperties => ({
@@ -4087,10 +4107,11 @@ const matchupSpotlightStyle: CSSProperties = {
 
 const matchupSpotlightHeroStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
   gap: 14,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const matchupSpotlightTitleStyle: CSSProperties = {
@@ -4175,7 +4196,7 @@ const matchupQueueGridStyle = (isTablet: boolean): CSSProperties => ({
 const matchupQueueCardStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
   gap: 10,
   minHeight: 104,
@@ -4188,6 +4209,7 @@ const matchupQueueCardStyle: CSSProperties = {
   textDecoration: 'none',
   overflow: 'hidden',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchupQueueRankStyle: CSSProperties = {
@@ -4303,6 +4325,7 @@ const matchPlanTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const performanceGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -4320,7 +4343,7 @@ const performanceCardStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   padding: 14,
   display: 'grid',
-  gridTemplateColumns: '64px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 64px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 12,
   minHeight: 104,
@@ -4456,13 +4479,18 @@ const tiqActionLabelStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: 0,
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tiqActionMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   fontWeight: 850,
+  maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tiqActionTitleStyle: CSSProperties = {
@@ -4470,6 +4498,7 @@ const tiqActionTitleStyle: CSSProperties = {
   fontSize: '1rem',
   lineHeight: 1.25,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const tiqActionTextStyle: CSSProperties = {
@@ -4477,6 +4506,7 @@ const tiqActionTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const tiqActionButtonRowStyle: CSSProperties = {
@@ -4485,6 +4515,7 @@ const tiqActionButtonRowStyle: CSSProperties = {
   gap: 8,
   alignItems: 'center',
   marginTop: 4,
+  minWidth: 0,
 }
 
 const smallInlineLinkStyle: CSSProperties = {
@@ -4492,7 +4523,9 @@ const smallInlineLinkStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   textDecoration: 'none',
+  maxWidth: '100%',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const teamPrepRailStyle: CSSProperties = {
@@ -4540,6 +4573,7 @@ const teamPrepMetaStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 800,
   lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const teamPrepActionRowStyle: CSSProperties = {
@@ -4887,7 +4921,7 @@ const goalEditorStyle: CSSProperties = {
 
 const workshopMatchRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
   gap: 10,
   alignItems: 'center',
   borderRadius: 14,
@@ -4895,6 +4929,7 @@ const workshopMatchRowStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   padding: '10px 12px',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchActionStackStyle: CSSProperties = {
@@ -4985,7 +5020,7 @@ const workshopRowMetaStyle: CSSProperties = {
 
 const nextActionCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
   gap: 12,
   borderRadius: 16,
@@ -4994,6 +5029,7 @@ const nextActionCardStyle: CSSProperties = {
   padding: 14,
   minHeight: 112,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const miniActionPillStyle: CSSProperties = {
@@ -5232,6 +5268,14 @@ const sectionHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const sectionHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
 const sectionTitleClusterStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
@@ -5319,6 +5363,7 @@ const filterRowStyle: CSSProperties = {
   display: 'flex',
   gap: 8,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const tabButtonStyle: CSSProperties = {
@@ -5330,6 +5375,9 @@ const tabButtonStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 700,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const tabActiveStyle: CSSProperties = {
@@ -5342,6 +5390,7 @@ const tabActiveStyle: CSSProperties = {
 const searchResultsStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
 }
 
 const searchResultItemStyle: CSSProperties = {
@@ -5354,17 +5403,21 @@ const searchResultItemStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const searchResultTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const searchResultMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   marginTop: 4,
+  overflowWrap: 'anywhere',
 }
 
 const primaryMiniButtonStyle: CSSProperties = {
@@ -5432,6 +5485,7 @@ const feedListStyle: CSSProperties = {
   maxHeight: 640,
   overflowY: 'auto',
   paddingRight: 6,
+  minWidth: 0,
 }
 
 const feedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
@@ -5444,6 +5498,8 @@ const feedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
       : accent === 'violet'
         ? 'color-mix(in srgb, #7762ff 10%, var(--shell-panel-bg) 90%)'
         : 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-panel-bg) 90%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const feedTopRowStyle: CSSProperties = {
@@ -5452,11 +5508,14 @@ const feedTopRowStyle: CSSProperties = {
   alignItems: 'center',
   gap: 12,
   marginBottom: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const feedTimeStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
+  overflowWrap: 'anywhere',
 }
 
 const feedTitleStyle: CSSProperties = {
@@ -5465,12 +5524,14 @@ const feedTitleStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: 20,
   lineHeight: 1.2,
+  overflowWrap: 'anywhere',
 }
 
 const feedBodyStyle: CSSProperties = {
   margin: '10px 0 0 0',
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const feedMetaRowStyle: CSSProperties = {
@@ -5479,6 +5540,7 @@ const feedMetaRowStyle: CSSProperties = {
   alignItems: 'center',
   gap: 12,
   flexWrap: 'wrap',
+  minWidth: 0,
   marginTop: 14,
 }
 
@@ -5486,6 +5548,9 @@ const feedLinkStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 800,
   textDecoration: 'none',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const pillSlateStyle: CSSProperties = {
@@ -5499,6 +5564,9 @@ const pillSlateStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   border: '1px solid var(--shell-panel-border)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const pillGreenStyle: CSSProperties = {
@@ -5539,29 +5607,34 @@ const summaryGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const collectionsStackStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
+  minWidth: 0,
 }
 
 const manageFollowsHeaderStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
   paddingTop: 4,
+  minWidth: 0,
 }
 
 const supportTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 18,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const supportTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 }
 
 const summaryCardStyle: CSSProperties = {
@@ -5569,6 +5642,7 @@ const summaryCardStyle: CSSProperties = {
   padding: 14,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const summaryValueStyle: CSSProperties = {
@@ -5576,12 +5650,14 @@ const summaryValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: 26,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const insightStackStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   marginTop: 14,
+  minWidth: 0,
 }
 
 const insightCardStyle: CSSProperties = {
@@ -5589,22 +5665,27 @@ const insightCardStyle: CSSProperties = {
   padding: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const insightTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   marginBottom: 6,
+  overflowWrap: 'anywhere',
 }
 
 const insightTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const followListStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const followCardStyle: CSSProperties = {
@@ -5616,16 +5697,21 @@ const followCardStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const followNameStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const followMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   marginTop: 4,
+  overflowWrap: 'anywhere',
 }
 

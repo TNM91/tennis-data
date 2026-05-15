@@ -282,12 +282,14 @@ const valueListStyle: CSSProperties = {
 
 const valueRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '8px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 8px) minmax(0, 1fr)',
   alignItems: 'start',
   gap: 9,
   color: 'var(--foreground)',
   fontSize: 12,
   lineHeight: 1.45,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const dotStyle: CSSProperties = {

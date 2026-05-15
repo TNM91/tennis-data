@@ -66,8 +66,8 @@ export default function LeaguesPage() {
   const [genderFilter, setGenderFilter] = useState('all')
   const [ratingFilter, setRatingFilter] = useState('all')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { access } = useProductAccess()
-  const shouldShowAds = shouldShowSponsoredPlacements(access)
+  const { access, authResolved } = useProductAccess()
+  const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
   useEffect(() => {
     void loadLeagueSummary()
@@ -1227,7 +1227,7 @@ const cardGlow: CSSProperties = {
   position: 'absolute',
   top: '-70px',
   right: '-50px',
-  width: '180px',
+  width: 'min(100%, 180px)',
   height: '180px',
   borderRadius: '999px',
   background: 'radial-gradient(circle, rgba(78,178,255,0.24), rgba(78,178,255,0) 70%)',

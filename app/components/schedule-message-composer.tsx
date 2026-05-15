@@ -349,6 +349,8 @@ const targetStyle: CSSProperties = {
   background: 'rgba(155,225,29,0.06)',
   color: '#e7ffd1',
   fontSize: 13,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const recipientPreviewStyle: CSSProperties = {
@@ -361,17 +363,21 @@ const recipientPreviewStyle: CSSProperties = {
   color: '#dbeafe',
   fontSize: 13,
   lineHeight: 1.45,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const fieldGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const fieldStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
+  minWidth: 0,
 }
 
 const labelStyle: CSSProperties = {
@@ -380,10 +386,12 @@ const labelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const inputStyle: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   minHeight: 44,
   borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.16)',

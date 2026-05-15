@@ -1,11 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { Fragment, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { Fragment, useMemo, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import { getClientAuthState } from '@/lib/auth'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { type UserRole } from '@/lib/roles'
+import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import {
   getPricingPlan,
   getPricingBillingCue,
@@ -199,31 +198,38 @@ const PLAN_FIT_ROWS: Array<{
 ]
 
 export default function PricingPage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-
-  useEffect(() => {
-    let active = true
-
-    void (async () => {
-      const authState = await getClientAuthState()
-      if (!active) return
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
-    })()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
-  const recommendedPlan = getPricingPlan(access.recommendedUpgradePlanId ?? access.currentPlanId)
-  const currentPlan = getPricingPlan(access.currentPlanId)
-
   return (
     <SiteShell active="">
-      <section style={pageWrapStyle}>
+      <PricingContent />
+    </SiteShell>
+  )
+}
+
+function PricingContent() {
+  const { role, userId, entitlements, authResolved } = useAuth()
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const accessPending = !authResolved
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
+  const recommendedPlan = getPricingPlan(access.recommendedUpgradePlanId ?? access.currentPlanId)
+  const currentPlan = getPricingPlan(access.currentPlanId)
+  const recommendationLabel = accessPending
+    ? 'Checking access'
+    : access.currentPlanId === recommendedPlan.id
+      ? 'Current access'
+      : 'Recommended next'
+  const recommendationTitle = accessPending
+    ? 'Checking your TenAceIQ access.'
+    : access.currentPlanId === recommendedPlan.id
+      ? `${currentPlan.name} is active.`
+      : `${PLAN_VERBS[recommendedPlan.id]} with ${recommendedPlan.name}.`
+  const recommendationText = accessPending
+    ? 'We are matching this page to your account before marking a plan active.'
+    : access.currentPlanId === recommendedPlan.id
+      ? 'You already have the right access for this role. Open the tools that match how you play or lead.'
+      : recommendedPlan.outcome
+
+  return (
+    <section style={pageWrapStyle}>
         <section style={heroStyle}>
           <div style={eyebrowStyle}>Pricing</div>
           <h1 style={heroTitleStyle}>Choose the tier that clears the next tennis job.</h1>
@@ -272,8 +278,8 @@ export default function PricingPage() {
 
         <section style={decisionPathStyle} aria-label="Membership path">
           {PRICING_PLANS.map((plan, index) => {
-            const active = isPlanActive(plan.id, access)
-            const recommended = !active && (access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular')
+            const active = !accessPending && isPlanActive(plan.id, access)
+            const recommended = !accessPending && !active && (access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular')
             return (
               <a
                 key={plan.id}
@@ -339,24 +345,16 @@ export default function PricingPage() {
           <TiqFeatureIcon name={PLAN_ICON_BY_ID[recommendedPlan.id]} size="md" variant="surface" />
           <div style={recommendationCopyStyle}>
             <div style={sectionEyebrowStyle}>
-              {access.currentPlanId === recommendedPlan.id ? 'Current access' : 'Recommended next'}
+              {recommendationLabel}
             </div>
-            <h2 style={recommendationTitleStyle}>
-              {access.currentPlanId === recommendedPlan.id
-                ? `${currentPlan.name} is active.`
-                : `${PLAN_VERBS[recommendedPlan.id]} with ${recommendedPlan.name}.`}
-            </h2>
-            <p style={recommendationTextStyle}>
-              {access.currentPlanId === recommendedPlan.id
-                ? 'You already have the right access for this role. Open the tools that match how you play or lead.'
-                : recommendedPlan.outcome}
-            </p>
+            <h2 style={recommendationTitleStyle}>{recommendationTitle}</h2>
+            <p style={recommendationTextStyle}>{recommendationText}</p>
           </div>
           <Link
-            href={getPlanHref(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
+            href={accessPending ? '#pricing-plans' : getPlanHref(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
             style={featuredCtaStyle}
           >
-            {getPlanCta(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
+            {accessPending ? 'View tiers' : getPlanCta(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
           </Link>
         </section>
 
@@ -381,10 +379,10 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section style={cardGridStyle}>
+        <section id="pricing-plans" style={cardGridStyle}>
           {PRICING_PLANS.map((plan) => {
-            const active = isPlanActive(plan.id, access)
-            const recommended = access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular'
+            const active = !accessPending && isPlanActive(plan.id, access)
+            const recommended = !accessPending && (access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular')
             const tier = getMembershipTier(plan.id)
             return (
               <article
@@ -515,8 +513,7 @@ export default function PricingPage() {
 
         <PricingFinalCta />
 
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 
@@ -878,6 +875,7 @@ const unlockPathHeaderStyle: CSSProperties = {
   gap: 14,
   alignItems: 'end',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const unlockPathTitleStyle: CSSProperties = {
@@ -887,6 +885,7 @@ const unlockPathTitleStyle: CSSProperties = {
   lineHeight: 1.08,
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const unlockPathGridStyle: CSSProperties = {
@@ -948,10 +947,11 @@ const unlockStepListStyle: CSSProperties = {
 
 const unlockStepPillStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 8,
   minHeight: 34,
+  minWidth: 0,
   padding: '5px 9px',
   borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.10)',
@@ -1122,7 +1122,7 @@ const decisionPathStyle: CSSProperties = {
 
 const decisionStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '28px 34px 1fr',
+  gridTemplateColumns: 'minmax(0, 28px) minmax(0, 34px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 10,
   minHeight: 76,
@@ -1132,6 +1132,7 @@ const decisionStepStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
+  minWidth: 0,
 }
 
 const decisionStepActiveStyle: CSSProperties = {
@@ -1236,10 +1237,11 @@ const identityFlowGridStyle: CSSProperties = {
 
 const identityFlowCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '54px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 54px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 12,
   minHeight: 92,
+  minWidth: 0,
   padding: 14,
   borderRadius: 20,
   border: '1px solid var(--shell-panel-border)',
@@ -1453,12 +1455,13 @@ const featureListStyle: CSSProperties = {
 
 const featureRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '12px 1fr',
+  gridTemplateColumns: 'minmax(0, 12px) minmax(0, 1fr)',
   gap: 10,
   alignItems: 'start',
   color: 'var(--foreground)',
   fontSize: 14,
   lineHeight: 1.6,
+  minWidth: 0,
 }
 
 const featureDotStyle: CSSProperties = {
@@ -1586,7 +1589,7 @@ const momentGridStyle: CSSProperties = {
 
 const momentCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '56px 1fr',
+  gridTemplateColumns: 'minmax(0, 56px) minmax(0, 1fr)',
   alignItems: 'center',
   gap: 14,
   minHeight: 92,
@@ -1596,6 +1599,7 @@ const momentCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
+  minWidth: 0,
 }
 
 const momentCopyStyle: CSSProperties = {
@@ -1613,9 +1617,10 @@ const stepsStyle: CSSProperties = {
 
 const stepRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '42px 1fr',
+  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
+  minWidth: 0,
 }
 
 const stepNumberStyle: CSSProperties = {

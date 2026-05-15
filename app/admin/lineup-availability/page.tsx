@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic'
 
 import type { CSSProperties, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   AdminEmptyState,
   AdminReviewFrame,
@@ -13,10 +12,9 @@ import {
   AdminStatusPanel,
 } from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
+import { useAuth } from '@/app/components/auth-provider'
 import SiteShell from '@/app/components/site-shell'
-import { getClientAuthState } from '@/lib/auth'
 import { formatDate, formatRating, safeText } from '@/lib/captain-formatters'
-import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 
 type MatchRow = {
@@ -116,9 +114,17 @@ const statusOptions: AvailabilityStatus[] = [
 ]
 
 export default function LineupAvailabilityPage() {
-  const router = useRouter()
-  const [role, setRole] = useState<UserRole>('public')
-  const [authResolved, setAuthResolved] = useState(false)
+  return (
+    <SiteShell active="/admin">
+      <AdminGate>
+        <LineupAvailabilityWorkspace />
+      </AdminGate>
+    </SiteShell>
+  )
+}
+
+function LineupAvailabilityWorkspace() {
+  const { role, authResolved } = useAuth()
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -135,34 +141,6 @@ export default function LineupAvailabilityPage() {
   const [availabilityMap, setAvailabilityMap] = useState<
     Record<string, { status: AvailabilityStatus; notes: string }>
   >({})
-
-  useEffect(() => {
-    async function loadAuth() {
-      const authState = await getClientAuthState()
-      setRole(authState.role)
-      setAuthResolved(true)
-
-      if (authState.role !== 'admin') {
-        router.replace(`/login?next=${encodeURIComponent('/admin/lineup-availability')}`)
-      }
-    }
-
-    void loadAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async () => {
-      const authState = await getClientAuthState()
-      setRole(authState.role)
-      setAuthResolved(true)
-
-      if (authState.role !== 'admin') {
-        router.replace(`/login?next=${encodeURIComponent('/admin/lineup-availability')}`)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [router])
 
   useEffect(() => {
     if (!authResolved || role !== 'admin') return
@@ -481,9 +459,7 @@ export default function LineupAvailabilityPage() {
   }
 
   return (
-    <SiteShell active="/admin">
-      <AdminGate>
-        <AdminReviewFrame>
+    <AdminReviewFrame>
           <AdminReviewHero kicker="Admin Tool" title="Lineup Availability">
             Set player availability for a team and match date so lineup suggestions can be built
             from realistic captain inputs.
@@ -678,9 +654,7 @@ export default function LineupAvailabilityPage() {
               </>
             )}
           </AdminReviewPanel>
-        </AdminReviewFrame>
-      </AdminGate>
-    </SiteShell>
+    </AdminReviewFrame>
   )
 }
 
@@ -760,8 +734,9 @@ const ratingBadge: CSSProperties = {
 
 const statusGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const statusButton: CSSProperties = {
@@ -774,6 +749,10 @@ const statusButton: CSSProperties = {
   cursor: 'pointer',
   textTransform: 'none',
   textAlign: 'center',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const activeStatusButton: CSSProperties = {

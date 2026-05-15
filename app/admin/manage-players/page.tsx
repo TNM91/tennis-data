@@ -326,7 +326,8 @@ export default function ManagePlayersPage() {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
                   gap: '16px',
                   flex: 1,
-                  minWidth: '320px',
+                  width: '100%',
+                  minWidth: 0,
                 }}
               >
                 <Field
@@ -485,7 +486,7 @@ export default function ManagePlayersPage() {
               </AdminEmptyState>
             ) : (
               <div className="table-wrap" style={{ marginTop: '20px' }}>
-                <table className="data-table" style={{ minWidth: 1250 }}>
+                <table className="data-table" style={{ width: '100%', tableLayout: 'auto' }}>
                   <thead>
                     <tr>
                       <th>Name</th>
@@ -511,7 +512,7 @@ export default function ManagePlayersPage() {
                             value={String(getPlayerValue(player, 'name') || '')}
                             onChange={(e) => updatePlayerField(player.id, 'name', e.target.value)}
                             className="input"
-                            style={{ minWidth: 180, padding: '10px 12px' }}
+                            style={{ width: '100%', maxWidth: 180, minWidth: 0, padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>
@@ -521,7 +522,7 @@ export default function ManagePlayersPage() {
                             value={String(getPlayerValue(player, 'location') || '')}
                             onChange={(e) => updatePlayerField(player.id, 'location', e.target.value)}
                             className="input"
-                            style={{ minWidth: 150, padding: '10px 12px' }}
+                            style={{ width: '100%', maxWidth: 150, minWidth: 0, padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>
@@ -535,7 +536,7 @@ export default function ManagePlayersPage() {
                               updatePlayerField(player.id, 'singles_rating', e.target.value)
                             }
                             className="input"
-                            style={{ width: 110, padding: '10px 12px' }}
+                            style={{ width: 'min(100%, 110px)', minWidth: 0, padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>
@@ -552,7 +553,7 @@ export default function ManagePlayersPage() {
                               updatePlayerField(player.id, 'doubles_rating', e.target.value)
                             }
                             className="input"
-                            style={{ width: 110, padding: '10px 12px' }}
+                            style={{ width: 'min(100%, 110px)', minWidth: 0, padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>
@@ -569,7 +570,7 @@ export default function ManagePlayersPage() {
                               updatePlayerField(player.id, 'overall_rating', e.target.value)
                             }
                             className="input"
-                            style={{ width: 110, padding: '10px 12px' }}
+                            style={{ width: 'min(100%, 110px)', minWidth: 0, padding: '10px 12px' }}
                             disabled={savingId === player.id || deletingId === player.id}
                           />
                         </td>

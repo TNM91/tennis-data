@@ -362,9 +362,10 @@ export default function ScorecardReviewPanel({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
           gap: 12,
           marginTop: 16,
+          minWidth: 0,
         }}
       >
         <MetricCard label="Clean" value={counts.clean} tone="green" />
@@ -376,9 +377,10 @@ export default function ScorecardReviewPanel({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(min(100%, 220px), 260px) 1fr',
+          gridTemplateColumns: 'minmax(min(100%, 220px), 260px) minmax(0, 1fr)',
           gap: 14,
           marginTop: 18,
+          minWidth: 0,
         }}
       >
         <div
@@ -864,9 +866,10 @@ function LineReviewCard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
           gap: 12,
           marginTop: 12,
+          minWidth: 0,
         }}
       >
         <PlayerCard title="Home side" players={line.sideAPlayers} />
@@ -877,9 +880,10 @@ function LineReviewCard({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
             gap: 10,
             marginTop: 12,
+            minWidth: 0,
           }}
         >
           <button
@@ -924,9 +928,10 @@ function LineReviewCard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
           gap: 12,
           marginTop: 12,
+          minWidth: 0,
         }}
       >
         <ValueRow label="Raw score text" value={line.rawScoreText || line.score || '—'} />
@@ -936,9 +941,10 @@ function LineReviewCard({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
           gap: 12,
           marginTop: 12,
+          minWidth: 0,
         }}
       >
         <label style={{ display: 'grid', gap: 8 }}>
@@ -1011,9 +1017,10 @@ function LineReviewCard({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
             gap: 12,
             marginTop: 12,
+            minWidth: 0,
           }}
         >
           <label style={{ display: 'grid', gap: 8 }}>

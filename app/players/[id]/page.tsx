@@ -6,17 +6,17 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
-import { getClientAuthState } from '@/lib/auth'
 import {
   getReportStatusLabel,
   listMyMatchAccuracyReports,
   type MatchAccuracyReport,
 } from '@/lib/match-accuracy-reports'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import {
   formatRatingValue,
   getRatingViewLabel,
@@ -31,7 +31,6 @@ import {
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
-import { type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 
@@ -146,6 +145,14 @@ type UstaTeamMembership = {
 }
 
 export default function PlayerProfilePage() {
+  return (
+    <SiteShell active="/players">
+      <PlayerProfileContent />
+    </SiteShell>
+  )
+}
+
+function PlayerProfileContent() {
   const params = useParams()
   const playerId = String(params.id)
 
@@ -158,9 +165,6 @@ export default function PlayerProfilePage() {
   const [tiqParticipationWarning, setTiqParticipationWarning] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const [ratingView, setRatingView] = useState<RatingView>('overall')
@@ -172,24 +176,11 @@ export default function PlayerProfilePage() {
   const [fieldAvgRating, setFieldAvgRating] = useState<number | null>(null)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { role, userId: currentUserId, entitlements, authResolved } = useAuth()
+  const resolvedRole = authResolved || !currentUserId ? role : 'member'
 
   useEffect(() => {
-    let active = true
-
-    void (async () => {
-      const authState = await getClientAuthState()
-      if (!active) return
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
-      setCurrentUserId(authState.user?.id || null)
-    })()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
+    if (!authResolved) return
     if (!currentUserId) {
       setLinkedPlayerId(null)
       setMyMatchReports([])
@@ -207,9 +198,10 @@ export default function PlayerProfilePage() {
     return () => {
       active = false
     }
-  }, [currentUserId])
+  }, [authResolved, currentUserId])
 
   const refreshMyMatchReports = useCallback(async () => {
+    if (!authResolved) return
     if (!currentUserId) {
       setMyMatchReports([])
       return
@@ -220,7 +212,7 @@ export default function PlayerProfilePage() {
     } catch {
       setMyMatchReports([])
     }
-  }, [currentUserId])
+  }, [authResolved, currentUserId])
 
   useEffect(() => {
     void refreshMyMatchReports()
@@ -1002,7 +994,7 @@ export default function PlayerProfilePage() {
     color: meterTheme.trendColor,
     border: `1px solid ${meterTheme.trendBorder}`,
   }
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const ratingViewLabel = getRatingViewLabel(ratingView)
   const tiqParticipationCount = tiqParticipations.length
   const playerSignals = [
@@ -1052,41 +1044,37 @@ export default function PlayerProfilePage() {
 
   if (loading) {
     return (
-      <SiteShell active="/players">
-        <section style={dynamicHeroWrap}>
-          <div style={dynamicHeroShell}>
-            <div style={heroNoise} />
-            <div style={loadingCard}>Loading player profile...</div>
-          </div>
-        </section>
-      </SiteShell>
+      <section style={dynamicHeroWrap}>
+        <div style={dynamicHeroShell}>
+          <div style={heroNoise} />
+          <div style={loadingCard}>Loading player profile...</div>
+        </div>
+      </section>
     )
   }
 
   if (error || !player) {
     return (
-      <SiteShell active="/players">
-        <section style={dynamicHeroWrap}>
-          <div style={dynamicHeroShell}>
-            <div style={heroNoise} />
-            <div style={errorCard}>
-              <div style={sectionKicker}>Player profile</div>
-              <h2 style={sectionTitle}>Unable to load player</h2>
-              <p style={sectionText}>{error || 'Player not found.'}</p>
-              <div style={errorActionRow}>
-                <MiniButton onClick={() => void loadPlayerProfile()}>Retry profile load</MiniButton>
-                <MiniLink href="/players">Back to players</MiniLink>
-                <MiniLink href="/rankings">Browse rankings</MiniLink>
-              </div>
+      <section style={dynamicHeroWrap}>
+        <div style={dynamicHeroShell}>
+          <div style={heroNoise} />
+          <div style={errorCard}>
+            <div style={sectionKicker}>Player profile</div>
+            <h2 style={sectionTitle}>Unable to load player</h2>
+            <p style={sectionText}>{error || 'Player not found.'}</p>
+            <div style={errorActionRow}>
+              <MiniButton onClick={() => void loadPlayerProfile()}>Retry profile load</MiniButton>
+              <MiniLink href="/players">Back to players</MiniLink>
+              <MiniLink href="/rankings">Browse rankings</MiniLink>
             </div>
           </div>
-        </section>
-      </SiteShell>
+        </div>
+      </section>
     )
   }
 
   return (
-    <SiteShell active="/players">
+    <>
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
@@ -1208,7 +1196,7 @@ export default function PlayerProfilePage() {
             <div style={dynamicRightColumn}>
               <div style={focusCard}>
                 <div style={focusHead}>
-                  <div>
+                  <div style={panelHeadCopyStyle}>
                     <div style={focusLabel}>Rating focus</div>
                     <div style={focusSubtitle}>
                       Switch between overall, singles, and doubles reads.
@@ -1285,7 +1273,7 @@ export default function PlayerProfilePage() {
           <div style={scorecardMainStyle}>
             <div style={scorecardHeaderStyle}>
               <TiqFeatureIcon name={isOwnProfile ? 'myLab' : 'opponentScouting'} size="md" variant="surface" />
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>{isOwnProfile ? 'Your read' : 'Quick read'}</div>
                 <h2 style={scorecardTitleStyle}>
                   {isOwnProfile ? 'Your scorecard is ready.' : 'Scout, compare, then play.'}
@@ -1332,7 +1320,7 @@ export default function PlayerProfilePage() {
 
         <article style={profileDiscoveryPanelStyle} id="profile-ratings">
           <div style={profileDiscoveryHeaderStyle}>
-            <div>
+            <div style={panelHeadCopyStyle}>
               <div style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} profile path</div>
               <h2 style={profileDiscoveryTitleStyle}>Use this profile in three moves.</h2>
             </div>
@@ -1369,7 +1357,7 @@ export default function PlayerProfilePage() {
               ))}
             </section>
           </details>
-        ) : (
+        ) : authResolved ? (
           <UpgradePrompt
             planId="player_plus"
             headline="Unlock Matchup and My Lab"
@@ -1381,7 +1369,7 @@ export default function PlayerProfilePage() {
             footnote={access.playerPlusMessage}
             compact
           />
-        )}
+        ) : null}
 
         {isRosterOnlyProfile && primaryUstaMembership && primaryTeamHref ? (
           <article style={rosterReadyCard}>
@@ -1619,7 +1607,7 @@ export default function PlayerProfilePage() {
         {(careerHighs.peakRating !== null || careerHighs.longestStreak > 0 || careerHighs.bestSeason) ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Career highs</div>
                 <h2 style={panelTitle}>Personal records</h2>
               </div>
@@ -1661,7 +1649,7 @@ export default function PlayerProfilePage() {
         {benchmark ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Vs. the field</div>
                 <h2 style={panelTitle}>Benchmark comparison</h2>
               </div>
@@ -1705,7 +1693,7 @@ export default function PlayerProfilePage() {
         {opponentQualityBreakdown ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Matchup quality</div>
                 <h2 style={panelTitle}>Who they beat and lose to</h2>
               </div>
@@ -1748,7 +1736,7 @@ export default function PlayerProfilePage() {
 
         <article style={panelCard}>
           <div style={panelHead}>
-            <div>
+            <div style={panelHeadCopyStyle}>
               <div style={sectionKicker}>USTA Teams</div>
               <h2 style={panelTitle}>Roster teams</h2>
             </div>
@@ -1796,7 +1784,7 @@ export default function PlayerProfilePage() {
 
         <article style={panelCard}>
           <div style={panelHead}>
-            <div>
+            <div style={panelHeadCopyStyle}>
               <div style={sectionKicker}>TIQ Leagues</div>
               <h2 style={panelTitle}>TenAceIQ play</h2>
             </div>
@@ -1878,7 +1866,7 @@ export default function PlayerProfilePage() {
         <div style={dynamicContentGrid}>
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Trend</div>
                 <h2 style={panelTitle}>{capitalize(ratingView)} rating trend</h2>
               </div>
@@ -2011,7 +1999,7 @@ export default function PlayerProfilePage() {
 
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Recent results</div>
                 <h2 style={panelTitle}>Latest match history</h2>
               </div>
@@ -2181,7 +2169,7 @@ export default function PlayerProfilePage() {
         {opponentRecords.length > 0 ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Rivalry records</div>
                 <h2 style={panelTitle}>Repeat opponents</h2>
               </div>
@@ -2221,7 +2209,7 @@ export default function PlayerProfilePage() {
         {seasonBreakdown.length > 0 ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Season history</div>
                 <h2 style={panelTitle}>Year-by-year performance</h2>
               </div>
@@ -2284,7 +2272,7 @@ export default function PlayerProfilePage() {
         {nearbyPlayers.length > 0 ? (
           <article style={panelCard}>
             <div style={panelHead}>
-              <div>
+              <div style={panelHeadCopyStyle}>
                 <div style={sectionKicker}>Competitive context</div>
                 <h2 style={panelTitle}>Who to play</h2>
               </div>
@@ -2323,7 +2311,7 @@ export default function PlayerProfilePage() {
           </article>
         ) : null}
       </section>
-    </SiteShell>
+    </>
   )
 }
 
@@ -2690,7 +2678,7 @@ function SimpleLineChart({ points, baseRating }: { points: ChartPoint[]; baseRat
             border: '1px solid rgba(116,190,255,0.24)',
             borderRadius: 14,
             padding: '10px 14px',
-            minWidth: 'min(100%, 162px)',
+            minWidth: 0,
             boxShadow: '0 14px 34px rgba(0,0,0,0.38)',
             maxWidth: 'calc(100vw - 32px)',
             overflowWrap: 'anywhere',
@@ -3406,7 +3394,7 @@ const summaryTitle: CSSProperties = {
 
 const summaryStatsGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -3463,6 +3451,7 @@ const profileReadSummaryStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: '14px',
+  flexWrap: 'wrap',
   cursor: 'pointer',
   padding: '16px 18px',
   color: 'var(--foreground-strong)',
@@ -3863,7 +3852,7 @@ const rosterReadyText: CSSProperties = {
 
 const rosterReadyStats: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
   minWidth: 0,
 }
@@ -3876,6 +3865,14 @@ const panelHead: CSSProperties = {
   marginBottom: '16px',
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const panelHeadCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '2px',
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const leagueRowStyle: CSSProperties = {
@@ -4015,7 +4012,7 @@ const ratingHistoryTableWrapStyle: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 'min(100%, 760px)',
+  minWidth: 0,
 }
 
 const tableHead: CSSProperties = {
@@ -4307,7 +4304,7 @@ const seasonTableWrapStyle: CSSProperties = {
 
 const seasonTableStyle: CSSProperties = {
   ...dataTable,
-  minWidth: 'min(100%, 560px)',
+  minWidth: 0,
 }
 
 const nearbyListStyle: CSSProperties = {

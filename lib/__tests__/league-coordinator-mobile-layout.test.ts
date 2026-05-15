@@ -21,6 +21,12 @@ function styleBlock(sourceText: string, styleName: string) {
 
 describe('League Coordinator mobile layout guards', () => {
   it('stacks setup and action controls on mobile', () => {
+    expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(source).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
+    expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
+    expect(source).toContain('buildProductAccessState(resolvedRole, entitlements)')
+    expect(source).not.toContain('getClientAuthState')
+    expect(source).not.toContain("const [role, setRole] = useState")
     expect(source).toContain('responsiveHeroActionRowStyle')
     expect(source).toContain('responsiveButtonRowStyle')
     expect(source).toContain('responsiveParticipantBuilderStyle')
@@ -45,8 +51,10 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('Publish schedule')
     expect(source).toContain('Review uploads and results')
     expect(source).toContain('operatingFlowGridStyle')
+    expect(source).toContain("gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr)'")
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
     expect(source).toContain("overflowWrap: 'anywhere'")
+    expect(source).not.toContain("gridTemplateColumns: '34px minmax(0, 1fr)'")
   })
 
   it('keeps operating flow numbers readable in dark and light mode', () => {
@@ -106,7 +114,8 @@ describe('League Coordinator mobile layout guards', () => {
     expect(subnavSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
     expect(styleBlock(subnavSource, 'linkStyle')).toContain('minWidth: 0')
     expect(styleBlock(subnavSource, 'linkLabelStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(subnavSource).toContain("gridTemplateColumns: '30px minmax(0, 1fr) auto'")
+    expect(subnavSource).toContain("gridTemplateColumns: 'minmax(0, 30px) minmax(0, 1fr) minmax(0, auto)'")
+    expect(styleBlock(subnavSource, 'linkStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(subnavSource, 'gridStyle')).toContain('minWidth: 0')
   })
 
@@ -117,6 +126,7 @@ describe('League Coordinator mobile layout guards', () => {
       'heroActionRow',
       'commandGrid',
       'dataAssistOpsGridStyle',
+      'resultHandoffGridStyle',
       'reviewQueueGridStyle',
       'publicReadinessGridStyle',
       'publicReadinessFilterRowStyle',
@@ -124,6 +134,7 @@ describe('League Coordinator mobile layout guards', () => {
       'resultBookGridStyle',
       'resultBookMetricRowStyle',
       'leagueOpsHeaderStyle',
+      'leagueOpsHeaderCopyStyle',
       'leagueOpsScoreStyle',
       'leagueOpsTrackStyle',
       'startCardGridStyle',
@@ -134,7 +145,10 @@ describe('League Coordinator mobile layout guards', () => {
       'calendarGridStyle',
       'fileInputStyle',
       'textareaStyle',
+      'statusBanner',
       'nextActionButtonRowStyle',
+      'emptyCard',
+      'registryCard',
       'noteCard',
     ]) {
       expect(styleBlock(source, styleName)).toContain('minWidth: 0')
@@ -147,10 +161,12 @@ describe('League Coordinator mobile layout guards', () => {
       'pillBase',
       'commandLabel',
       'commandValue',
+      'dataAssistOpsCardStyle',
       'publicReadinessFilterButtonStyle',
       'reviewCueValueStyle',
       'reviewCueTitleStyle',
       'leagueOpsTextStyle',
+      'leagueOpsHeaderCopyStyle',
       'leagueOpsScoreStyle',
       'startActionLabelStyle',
       'startCardCtaStyle',
@@ -162,8 +178,12 @@ describe('League Coordinator mobile layout guards', () => {
       'calendarDateStyle',
       'calendarMetaStyle',
       'calendarActionStyle',
+      'photoPlaceholder',
       'fileInputStyle',
       'textareaStyle',
+      'statusBanner',
+      'emptyCard',
+      'registryCard',
       'noteCard',
     ]) {
       expect(styleBlock(source, styleName)).toContain("overflowWrap: 'anywhere'")
@@ -181,6 +201,7 @@ describe('League Coordinator mobile layout guards', () => {
     for (const styleName of [
       'commandGrid',
       'dataAssistOpsGridStyle',
+      'resultHandoffGridStyle',
       'reviewQueueGridStyle',
       'publicReadinessGridStyle',
       'resultBookGridStyle',
@@ -195,5 +216,7 @@ describe('League Coordinator mobile layout guards', () => {
     }
 
     expect(source).not.toContain("whiteSpace: 'nowrap'")
+    expect(source).not.toContain("linear-gradient(90deg, #4ade80, #9be11d)")
+    expect(source).toContain("linear-gradient(90deg, var(--brand-green), var(--brand-lime))")
   })
 })

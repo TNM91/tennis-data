@@ -6,8 +6,8 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import CoordinatorSubnav from '@/app/components/coordinator-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
+import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
@@ -61,7 +61,6 @@ import {
   validateTiqLeagueScheduleCapacity,
   validateTiqLeagueSeasonWindow,
 } from '@/lib/tiq-league-limits'
-import { type UserRole } from '@/lib/roles'
 import {
   listTiqLeagues,
   listTiqPlayerLeagueEntries,
@@ -259,9 +258,9 @@ function buildTeamResultLineSummaryMap(
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
   const searchParams = useSearchParams()
   const { isMobile } = useViewportBreakpoints()
+  const { role, userId, entitlements, authResolved } = useAuth()
+  const resolvedRole = authResolved || !userId ? role : 'member'
   const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [records, setRecords] = useState<TiqLeagueRecord[]>([])
   const [draft, setDraft] = useState<TiqLeagueDraft>(EMPTY_DRAFT)
   const [teamListInput, setTeamListInput] = useState('')
@@ -331,23 +330,6 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   useEffect(() => {
     let active = true
 
-    async function loadAuth() {
-      const authState = await getClientAuthState()
-      if (!active) return
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
-    }
-
-    void loadAuth()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
-    let active = true
-
     async function loadIndividualResults() {
       const result = await listTiqIndividualLeagueResults()
       if (!active) return
@@ -365,7 +347,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   }, [])
 
   const leagueCards = useMemo(() => buildLeagueCardsFromRegistry(records), [records])
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const teamLeagues = useMemo(
     () => records.filter((record) => record.leagueFormat === 'team'),
     [records],
@@ -1131,7 +1113,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={startPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Start here</div>
               <h2 style={leagueOpsTitleStyle}>
                 {access.canUseLeagueTools
@@ -1153,7 +1135,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           </div>
 
           <div style={responsiveStartActionRowStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <span style={startActionLabelStyle}>Next action</span>
               <strong style={startActionTitleStyle}>{nextLeagueOpsStep.label}</strong>
             </div>
@@ -1230,7 +1212,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={dataAssistOpsPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
               <h2 style={leagueOpsTitleStyle}>Use uploads as the coordinator refresh path.</h2>
               <p style={leagueOpsTextStyle}>
@@ -1260,7 +1242,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={publicReadinessPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Public page readiness</div>
               <h2 style={leagueOpsTitleStyle}>
                 {records.length === 0
@@ -1331,7 +1313,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={reviewQueuePanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Result review queue</div>
               <h2 style={leagueOpsTitleStyle}>{resultQueueHeadline}</h2>
               <p style={leagueOpsTextStyle}>
@@ -1448,7 +1430,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         {teamLeagues.length > 0 ? (
           <section style={resultBookPanelStyle}>
             <div style={leagueOpsHeaderStyle}>
-              <div>
+              <div style={leagueOpsHeaderCopyStyle}>
                 <div style={sectionEyebrow}>Team result books</div>
                 <h2 style={leagueOpsTitleStyle}>
                   {teamResultBooksNeedAttention > 0
@@ -1528,7 +1510,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         {individualLeagues.length > 0 ? (
           <section style={resultBookPanelStyle}>
             <div style={leagueOpsHeaderStyle}>
-              <div>
+              <div style={leagueOpsHeaderCopyStyle}>
                 <div style={sectionEyebrow}>Player result books</div>
                 <h2 style={leagueOpsTitleStyle}>
                   {resultBookNeedsAttention > 0
@@ -1592,7 +1574,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
         <section style={leagueOpsPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
-            <div>
+            <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Season readiness</div>
               <h2 style={leagueOpsTitleStyle}>
                 {leagueOpsReadinessScore === 100 ? 'This league is ready to operate.' : 'Tighten setup before the season moves.'}
@@ -1639,7 +1621,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             onToggle={(event) => setSetupOpen(event.currentTarget.open)}
           >
             <summary style={responsiveDetailsSummary}>
-              <div>
+              <div style={leagueOpsHeaderCopyStyle}>
                 <div style={sectionEyebrow}>{editingId ? 'Editing' : 'Setup'}</div>
                 <h2 style={sectionTitle}>
                   {editingId ? 'Edit league setup' : 'Add a league'}
@@ -2167,7 +2149,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
             <div style={setupAssistPanelStyle}>
               <div style={leagueOpsHeaderStyle}>
-                <div>
+                <div style={leagueOpsHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Season calendar</div>
                   <strong style={setupAssistTitleStyle}>
                     {draft.schedulingMode === 'player_arranged'
@@ -2265,7 +2247,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             {status ? <div style={statusBanner}>{status}</div> : null}
             {lastSavedRecord ? (
               <div style={responsiveNextActionCardStyle}>
-                <div>
+                <div style={leagueOpsHeaderCopyStyle}>
                   <div style={nextActionTitleStyle}>
                     Next: review {lastSavedRecord.leagueName}
                   </div>
@@ -2867,12 +2849,14 @@ const dataAssistOpsCardStyle: CSSProperties = {
   lineHeight: 1.55,
   fontWeight: 750,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const resultHandoffGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const resultHandoffStepStyle: CSSProperties = {
@@ -3038,6 +3022,13 @@ const leagueOpsHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const leagueOpsHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const leagueOpsTitleStyle: CSSProperties = {
   margin: '4px 0 0',
   color: 'var(--foreground-strong)',
@@ -3093,7 +3084,7 @@ const leagueOpsFillStyle = (value: number): CSSProperties => ({
   height: '100%',
   width: `${Math.max(0, Math.min(value, 100))}%`,
   borderRadius: '999px',
-  background: 'linear-gradient(90deg, #4ade80, #9be11d)',
+  background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
 })
 
 const startActionRowStyle: CSSProperties = {
@@ -3144,7 +3135,7 @@ const operatingFlowGridStyle: CSSProperties = {
 
 const operatingFlowStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr)',
   gap: '10px',
   alignItems: 'start',
   padding: '12px',
@@ -3531,6 +3522,8 @@ const photoPlaceholder: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const fileInputStyle: CSSProperties = {
@@ -3562,6 +3555,7 @@ const statusBanner: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   fontWeight: 700,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3684,6 +3678,7 @@ const emptyCard: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   background: 'var(--shell-chip-bg)',
   lineHeight: 1.7,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3701,6 +3696,7 @@ const registryCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const registryPhotoWrap: CSSProperties = {
