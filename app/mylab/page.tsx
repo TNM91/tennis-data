@@ -2219,7 +2219,7 @@ function MyLabPageInner() {
 
       <section style={labRoutinePreviewStyle} aria-label="My Lab routine">
         <div style={labRoutineHeaderStyle}>
-          <div>
+          <div style={sectionHeaderCopyStyle}>
             <p style={sectionKickerStyle}>{MY_LAB_STORY.eyebrow}</p>
             <h2 style={labRoutineTitleStyle}>A weekly tennis routine, not another dashboard.</h2>
             <p style={labRoutineIntroStyle}>
@@ -2314,7 +2314,7 @@ function MyLabPageInner() {
 
           <section style={personalReadPanelStyle}>
             <div style={personalReadHeaderStyle}>
-              <div>
+              <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>Today&apos;s next move</p>
                 <h3 style={personalReadTitleStyle}>
                   {linkedPlayer ? `${linkedPlayer.name}: ${nextMoveCta}` : 'Connect your profile to unlock your read'}
@@ -2368,7 +2368,7 @@ function MyLabPageInner() {
               <section id="scorecard-summary" style={levelUpPanelStyle(isTablet)}>
                 <div style={levelMeterStyle}>
                   <div style={levelMeterHeaderStyle}>
-                    <div>
+                    <div style={sectionHeaderCopyStyle}>
                       <div style={levelMeterTitleStyle}>Level-up meter</div>
                       <div style={levelBadgeRowStyle}>
                         <span style={levelStatus === 'Trending up' ? pillGreenStyle : levelStatus === 'Needs work' ? pillRedStyle : pillBlueStyle}>
@@ -2646,7 +2646,7 @@ function MyLabPageInner() {
         <section id="player-tools" style={profileLinkSectionStyle}>
           <div style={profileLinkCardStyle}>
             <div style={sectionHeaderStyle}>
-              <div>
+              <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>Player workshop</p>
                 <h2 style={sectionTitleStyle}>What should I do next?</h2>
                 <p style={sectionTextStyle}>
@@ -2673,7 +2673,7 @@ function MyLabPageInner() {
             {tiqActionCards.length ? (
               <section style={tiqActionRailStyle}>
                 <div style={sectionHeaderStyle}>
-                  <div>
+                  <div style={sectionHeaderCopyStyle}>
                     <p style={sectionKickerStyle}>TIQ action rail</p>
                     <h3 style={compactSectionTitleStyle}>League prompts ready to act on</h3>
                   </div>
@@ -2707,7 +2707,7 @@ function MyLabPageInner() {
             {teamPrepCards.length ? (
               <section style={teamPrepRailStyle}>
                 <div style={sectionHeaderStyle}>
-                  <div>
+                  <div style={sectionHeaderCopyStyle}>
                     <p style={sectionKickerStyle}>Team prep</p>
                     <h3 style={compactSectionTitleStyle}>Captain actions from your player context</h3>
                   </div>
@@ -2741,7 +2741,7 @@ function MyLabPageInner() {
 
             <section id="goal-progress" style={goalProgressPanelStyle}>
               <div style={sectionHeaderStyle}>
-                <div>
+                <div style={sectionHeaderCopyStyle}>
                   <p style={sectionKickerStyle}>Optional goals</p>
                   <h3 style={compactSectionTitleStyle}>Training notes when you need them</h3>
                 </div>
@@ -2760,7 +2760,7 @@ function MyLabPageInner() {
               </div>
               <div style={goalReadinessPanelStyle}>
                 <div style={goalReadinessHeaderStyle}>
-                  <div>
+                  <div style={sectionHeaderCopyStyle}>
                     <div style={metricLabelStyle}>Active goal readiness</div>
                     <p style={goalReadinessTextStyle}>
                       {goalReadinessScore === 100
@@ -2974,7 +2974,7 @@ function MyLabPageInner() {
 
               <div id="match-report-status" style={workshopPanelStyle}>
                 <div style={sectionHeaderStyle}>
-                  <div>
+                  <div style={sectionHeaderCopyStyle}>
                     <div style={sectionKickerStyle}>Report status</div>
                     <h3 style={compactSectionTitleStyle}>Match issues you sent</h3>
                   </div>
@@ -3084,7 +3084,7 @@ function MyLabPageInner() {
 
           <section style={surfaceStrongStyle}>
             <div style={sectionHeaderStyle}>
-              <div>
+              <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>Watchlist</p>
                 <h2 style={sectionTitleStyle}>Follow tennis context</h2>
                 <p style={sectionTextStyle}>
@@ -5258,6 +5258,14 @@ const sectionHeaderStyle: CSSProperties = {
   flexWrap: 'wrap',
   marginBottom: 16,
   minWidth: 0,
+}
+
+const sectionHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitleClusterStyle: CSSProperties = {

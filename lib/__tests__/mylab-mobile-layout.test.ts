@@ -64,6 +64,7 @@ describe('My Lab mobile layout guards', () => {
       'feedCardStyle',
       'feedTopRowStyle',
       'feedMetaRowStyle',
+      'sectionHeaderCopyStyle',
       'summaryGridStyle',
       'collectionsStackStyle',
       'manageFollowsHeaderStyle',
@@ -107,6 +108,8 @@ describe('My Lab mobile layout guards', () => {
     }
 
     expect(styleBlock('feedTopRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('sectionHeaderCopyStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('sectionHeaderCopyStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('followCardStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('tabButtonStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('feedLinkStyle')).toContain("maxWidth: '100%'")
