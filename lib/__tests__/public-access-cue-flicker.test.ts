@@ -14,6 +14,7 @@ describe('public access cue flicker guards', () => {
       'app/rankings/page.tsx',
       'app/players/page.tsx',
       'app/matchup/page.tsx',
+      'app/leagues/page.tsx',
     ]) {
       const source = readAppFile(path)
       expect(source).toContain('authResolved')
