@@ -1049,7 +1049,7 @@ const activationStepGridStyle: CSSProperties = {
 
 const activationStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
   gap: 8,
   minWidth: 0,
   alignItems: 'center',
@@ -1230,7 +1230,7 @@ const handoffStepGridStyle: CSSProperties = {
 
 const handoffStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
   gap: 8,
   minWidth: 0,
   alignItems: 'center',

@@ -584,7 +584,7 @@ const selectedPlanStepGridStyle: CSSProperties = {
 
 const selectedPlanStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
   gap: '8px',
   minWidth: 0,
   alignItems: 'center',

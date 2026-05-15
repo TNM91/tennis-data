@@ -49,6 +49,14 @@ describe('upgrade and compete mobile layout guards', () => {
       expect(block, styleName).toContain("overflowWrap: 'anywhere'")
       expect(block, styleName).toMatch(/maxWidth: '100%'|minWidth: 0/)
     }
+
+    expect(styleBlock(upgradeSource, 'activationStepStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
+    )
+    expect(styleBlock(upgradeSource, 'handoffStepStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
+    )
+    expect(upgradeSource).not.toContain("gridTemplateColumns: '24px minmax(0, 1fr)'")
   })
 
   it('wraps long upgrade and compete product copy without forcing overflow', () => {

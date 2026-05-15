@@ -98,6 +98,9 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
       "overflowWrap: 'anywhere'",
     )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'selectedPlanStepStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
+    )
     expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'pillBase')).toContain(
       "overflowWrap: 'anywhere'",
     )
@@ -129,5 +132,6 @@ describe('auth entry mobile layout guards', () => {
     for (const [file, source] of sources) {
       expect(source, file).not.toMatch(/width: '[0-9]{3}px'/)
     }
+    expect(sources.get('app/join/page.tsx')).not.toContain("gridTemplateColumns: '24px minmax(0, 1fr)'")
   })
 })
