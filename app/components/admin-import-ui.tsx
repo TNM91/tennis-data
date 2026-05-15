@@ -38,12 +38,14 @@ const importTableWrapStyle: React.CSSProperties = {
 }
 
 const invalidRowsTableStyle: React.CSSProperties = {
-  minWidth: 'min(100%, 840px)',
+  width: '100%',
+  minWidth: 0,
   tableLayout: 'auto',
 }
 
 const previewRowsTableStyle: React.CSSProperties = {
-  minWidth: 'min(100%, 1080px)',
+  width: '100%',
+  minWidth: 0,
   tableLayout: 'auto',
 }
 
