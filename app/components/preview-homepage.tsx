@@ -465,7 +465,9 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
         style={{
           ...glassCard,
           display: 'grid',
-          gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'auto minmax(min(100%, 132px), 160px) minmax(0, 1fr) auto',
+          gridTemplateColumns: isMobile
+            ? 'minmax(0, 1fr)'
+            : 'minmax(0, auto) minmax(min(100%, 132px), 160px) minmax(0, 1fr) minmax(0, auto)',
           gap: 8,
           alignItems: 'center',
           padding: isSmallMobile ? 10 : 11,
@@ -945,7 +947,7 @@ function FinalConversionRow() {
       style={{
         ...surfaceCardStrong,
         display: 'grid',
-        gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+        gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
         gap: 14,
         alignItems: 'center',
         padding: isSmallMobile ? 16 : 18,
@@ -955,7 +957,7 @@ function FinalConversionRow() {
           'linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 92%, var(--brand-green) 8%) 0%, color-mix(in srgb, var(--surface) 96%, var(--brand-blue) 4%) 100%)',
       }}
     >
-      <div style={{ display: 'grid', gap: 6, maxWidth: 760 }}>
+      <div style={{ display: 'grid', gap: 6, maxWidth: 760, minWidth: 0 }}>
         <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-green)' }}>Ready when the next tennis job appears</div>
         <h2
           style={{
@@ -974,7 +976,7 @@ function FinalConversionRow() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: isTablet ? 'start' : 'end' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: isTablet ? 'start' : 'end', minWidth: 0 }}>
         <Link href="/join" style={buttonPrimary}>
           Get Started Free
         </Link>
@@ -1109,7 +1111,9 @@ function RoleChooserPreview() {
                 href={item.href}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(min(100%, 126px), 126px) minmax(0, 1fr) auto',
+                  gridTemplateColumns: isSmallMobile
+                    ? 'minmax(0, 1fr)'
+                    : 'minmax(min(100%, 126px), 126px) minmax(0, 1fr) minmax(0, auto)',
                   gap: 12,
                   alignItems: 'center',
                   minHeight: isSmallMobile ? 92 : 72,
@@ -1124,11 +1128,11 @@ function RoleChooserPreview() {
                 }}
               >
                 <span style={{ ...theme.tierBadge, width: 'fit-content' }}>{item.label}</span>
-                <span style={{ display: 'grid', gap: 4 }}>
+                <span style={{ display: 'grid', gap: 4, minWidth: 0 }}>
                   <strong style={{ color: 'var(--foreground-strong)', fontSize: 14, lineHeight: 1.12 }}>{item.title}</strong>
                   <span style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.35 }}>{item.text}</span>
                 </span>
-                <span style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>{item.cta}</span>
+                <span style={{ ...snapshotPanelLabelStyle, color: theme.priceColor, overflowWrap: 'anywhere' }}>{item.cta}</span>
               </Link>
             )
           })}
@@ -1642,17 +1646,20 @@ function LineupRow({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: isSmallMobile ? '44px minmax(0, 1fr)' : '52px minmax(0, 1fr) auto auto',
+        gridTemplateColumns: isSmallMobile
+          ? 'minmax(0, 44px) minmax(0, 1fr)'
+          : 'minmax(0, 52px) minmax(0, 1fr) minmax(0, auto) minmax(0, auto)',
         gap: 10,
         alignItems: 'center',
+        minWidth: 0,
         padding: 12,
         borderRadius: 15,
         border: '1px solid rgba(116,190,255,0.1)',
         background: 'color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%)',
       }}
     >
-      <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>{label}</div>
-      <div style={{ color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 800 }}>{value}</div>
+      <div style={{ color: 'var(--foreground)', fontWeight: 900, minWidth: 0, overflowWrap: 'anywhere' }}>{label}</div>
+      <div style={{ color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 800, minWidth: 0, overflowWrap: 'anywhere' }}>{value}</div>
       {isSmallMobile ? (
         <>
           <span style={{ ...statusStyle, width: 'fit-content', minHeight: 28, gridColumn: '2 / 3' }}>{status}</span>
@@ -1681,20 +1688,21 @@ function ListRow({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) auto',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
         gap: 12,
         alignItems: 'center',
+        minWidth: 0,
         padding: 12,
         borderRadius: 15,
         border: '1px solid rgba(116,190,255,0.1)',
         background: 'color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%)',
       }}
     >
-      <div style={{ display: 'grid', gap: 4 }}>
+      <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
         <div style={{ color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 800 }}>{title}</div>
         <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.55 }}>{meta}</div>
       </div>
-      <div style={{ ...badgeBlue, width: 'fit-content' }}>{trailing}</div>
+      <div style={{ ...badgeBlue, width: 'fit-content', overflowWrap: 'anywhere' }}>{trailing}</div>
     </div>
   )
 }
@@ -1714,15 +1722,16 @@ function StandingsRow({
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '28px minmax(0, 1fr) auto auto',
+        gridTemplateColumns: 'minmax(0, 28px) minmax(0, 1fr) minmax(0, auto) minmax(0, auto)',
         gap: 10,
         alignItems: 'center',
+        minWidth: 0,
         padding: 10,
         borderRadius: 14,
       }}
     >
       <div style={{ color: '#9be11d', fontWeight: 900 }}>{rank}</div>
-      <div style={{ color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 800 }}>{team}</div>
+      <div style={{ color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 800, minWidth: 0, overflowWrap: 'anywhere' }}>{team}</div>
       <div style={{ color: 'var(--muted-strong)', fontSize: 12, fontWeight: 800 }}>{record}</div>
       <div style={{ color: 'var(--foreground)', fontSize: 12, fontWeight: 900 }}>{points} pts</div>
     </div>
@@ -1855,9 +1864,10 @@ const lockedTierBadgeStyle: CSSProperties = {
 
 const bulletRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '12px 1fr',
+  gridTemplateColumns: 'minmax(0, 12px) minmax(0, 1fr)',
   gap: 10,
   alignItems: 'start',
+  minWidth: 0,
   color: 'var(--foreground)',
   fontSize: 14,
   lineHeight: 1.68,
@@ -2065,9 +2075,10 @@ const featuredNoteTextStyle: CSSProperties = {
 
 const captainSignalRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
   gap: 10,
   alignItems: 'center',
+  minWidth: 0,
   padding: 10,
   borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.08)',
