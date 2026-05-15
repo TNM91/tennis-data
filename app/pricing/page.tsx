@@ -1,11 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { Fragment, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { Fragment, useMemo, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import { getClientAuthState } from '@/lib/auth'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { type UserRole } from '@/lib/roles'
+import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import {
   getPricingPlan,
   getPricingBillingCue,
@@ -199,31 +198,38 @@ const PLAN_FIT_ROWS: Array<{
 ]
 
 export default function PricingPage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-
-  useEffect(() => {
-    let active = true
-
-    void (async () => {
-      const authState = await getClientAuthState()
-      if (!active) return
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
-    })()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
-  const recommendedPlan = getPricingPlan(access.recommendedUpgradePlanId ?? access.currentPlanId)
-  const currentPlan = getPricingPlan(access.currentPlanId)
-
   return (
     <SiteShell active="">
-      <section style={pageWrapStyle}>
+      <PricingContent />
+    </SiteShell>
+  )
+}
+
+function PricingContent() {
+  const { role, userId, entitlements, authResolved } = useAuth()
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const accessPending = !authResolved
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
+  const recommendedPlan = getPricingPlan(access.recommendedUpgradePlanId ?? access.currentPlanId)
+  const currentPlan = getPricingPlan(access.currentPlanId)
+  const recommendationLabel = accessPending
+    ? 'Checking access'
+    : access.currentPlanId === recommendedPlan.id
+      ? 'Current access'
+      : 'Recommended next'
+  const recommendationTitle = accessPending
+    ? 'Checking your TenAceIQ access.'
+    : access.currentPlanId === recommendedPlan.id
+      ? `${currentPlan.name} is active.`
+      : `${PLAN_VERBS[recommendedPlan.id]} with ${recommendedPlan.name}.`
+  const recommendationText = accessPending
+    ? 'We are matching this page to your account before marking a plan active.'
+    : access.currentPlanId === recommendedPlan.id
+      ? 'You already have the right access for this role. Open the tools that match how you play or lead.'
+      : recommendedPlan.outcome
+
+  return (
+    <section style={pageWrapStyle}>
         <section style={heroStyle}>
           <div style={eyebrowStyle}>Pricing</div>
           <h1 style={heroTitleStyle}>Choose the tier that clears the next tennis job.</h1>
@@ -272,8 +278,8 @@ export default function PricingPage() {
 
         <section style={decisionPathStyle} aria-label="Membership path">
           {PRICING_PLANS.map((plan, index) => {
-            const active = isPlanActive(plan.id, access)
-            const recommended = !active && (access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular')
+            const active = !accessPending && isPlanActive(plan.id, access)
+            const recommended = !accessPending && !active && (access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular')
             return (
               <a
                 key={plan.id}
@@ -339,24 +345,16 @@ export default function PricingPage() {
           <TiqFeatureIcon name={PLAN_ICON_BY_ID[recommendedPlan.id]} size="md" variant="surface" />
           <div style={recommendationCopyStyle}>
             <div style={sectionEyebrowStyle}>
-              {access.currentPlanId === recommendedPlan.id ? 'Current access' : 'Recommended next'}
+              {recommendationLabel}
             </div>
-            <h2 style={recommendationTitleStyle}>
-              {access.currentPlanId === recommendedPlan.id
-                ? `${currentPlan.name} is active.`
-                : `${PLAN_VERBS[recommendedPlan.id]} with ${recommendedPlan.name}.`}
-            </h2>
-            <p style={recommendationTextStyle}>
-              {access.currentPlanId === recommendedPlan.id
-                ? 'You already have the right access for this role. Open the tools that match how you play or lead.'
-                : recommendedPlan.outcome}
-            </p>
+            <h2 style={recommendationTitleStyle}>{recommendationTitle}</h2>
+            <p style={recommendationTextStyle}>{recommendationText}</p>
           </div>
           <Link
-            href={getPlanHref(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
+            href={accessPending ? '#pricing-plans' : getPlanHref(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
             style={featuredCtaStyle}
           >
-            {getPlanCta(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
+            {accessPending ? 'View tiers' : getPlanCta(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
           </Link>
         </section>
 
@@ -381,10 +379,10 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section style={cardGridStyle}>
+        <section id="pricing-plans" style={cardGridStyle}>
           {PRICING_PLANS.map((plan) => {
-            const active = isPlanActive(plan.id, access)
-            const recommended = access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular'
+            const active = !accessPending && isPlanActive(plan.id, access)
+            const recommended = !accessPending && (access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular')
             const tier = getMembershipTier(plan.id)
             return (
               <article
@@ -515,8 +513,7 @@ export default function PricingPage() {
 
         <PricingFinalCta />
 
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 
