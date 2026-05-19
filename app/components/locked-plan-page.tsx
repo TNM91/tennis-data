@@ -46,7 +46,8 @@ export default function LockedPlanPage({
 const pageWrapStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  width: 'min(1180px, calc(100% - 32px))',
+  width: 'min(1180px, calc(100% - clamp(24px, 5vw, 32px)))',
   margin: '0 auto',
   padding: '28px 0 36px',
+  minWidth: 0,
 }
