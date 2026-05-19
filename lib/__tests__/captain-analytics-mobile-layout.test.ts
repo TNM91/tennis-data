@@ -42,6 +42,8 @@ describe('Captain analytics mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
+    expect(styleBlock('pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))'")
+    expect(source).not.toContain("calc(100% - 48px)")
     expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('builderLayoutResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")

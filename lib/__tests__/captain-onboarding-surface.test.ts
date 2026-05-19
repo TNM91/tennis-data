@@ -4,6 +4,13 @@ import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
 
+function styleBlock(styleName: string) {
+  const start = source.indexOf(`const ${styleName}: CSSProperties = {`)
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextStyle = source.indexOf('\nconst ', start + 1)
+  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
+
 describe('Captain onboarding surface', () => {
   it('keeps the first Captain screen progressive and Data Assist aware', () => {
     expect(source).toContain('CAPTAIN_ONBOARDING_STEPS')
@@ -23,6 +30,10 @@ describe('Captain onboarding surface', () => {
   })
 
   it('keeps Captain onboarding compact on small mobile screens', () => {
+    expect(styleBlock('pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))'")
+    expect(styleBlock('loadingWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))'")
+    expect(styleBlock('loadingWrap')).toContain('minWidth: 0')
+    expect(source).not.toContain("calc(100% - 48px)")
     expect(source).toContain('captainOnboardingStripStyle(isSmallMobile)')
     expect(source).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(source).toContain('captainOnboardingStepStyle')
