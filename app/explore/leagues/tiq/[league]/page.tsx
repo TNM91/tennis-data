@@ -1716,7 +1716,7 @@ function TiqLeagueDetailContent() {
             league.flight,
           ]
             .filter(Boolean)
-            .join(' · '),
+            .join(' | '),
           title: `Saved TIQ prompt in ${league.leagueName}`,
           body: result.suggestion.title,
         },
@@ -2175,7 +2175,7 @@ function TiqLeagueDetailContent() {
                       entityType="league"
                       entityId={`tiq__${league.id}`}
                       entityName={league.leagueName}
-                      subtitle={[league.seasonLabel, league.flight].filter(Boolean).join(' · ')}
+                      subtitle={[league.seasonLabel, league.flight].filter(Boolean).join(' | ')}
                     />
                     <GhostLink href="/explore/leagues">Back to Explore</GhostLink>
                     <GhostLink href="/compete/leagues">Open Compete</GhostLink>
@@ -2781,7 +2781,7 @@ function TiqLeagueDetailContent() {
                               <div style={listMeta}>
                                 {[entry.sourceLeagueName, entry.sourceFlight, 'Team participant']
                                   .filter(Boolean)
-                                  .join(' · ')}
+                                  .join(' | ')}
                               </div>
                             </div>
                             <GhostLink href={`/team/${encodeURIComponent(entry.teamName)}?layer=tiq&league=${encodeURIComponent(entry.sourceLeagueName || league.leagueName)}${entry.sourceFlight || league.flight ? `&flight=${encodeURIComponent(entry.sourceFlight || league.flight || '')}` : ''}`}>
@@ -2794,7 +2794,7 @@ function TiqLeagueDetailContent() {
                         <div>
                           <div style={listTitle}>{entry.playerName}</div>
                           <div style={listMeta}>
-                            {[entry.playerLocation, 'Individual participant'].filter(Boolean).join(' · ')}
+                            {[entry.playerLocation, 'Individual participant'].filter(Boolean).join(' | ')}
                           </div>
                         </div>
                         {entry.playerId ? (
@@ -2875,7 +2875,7 @@ function TiqLeagueDetailContent() {
                                     `${entry.trackedMatches} tracked matches`,
                                   ]
                                     .filter(Boolean)
-                                    .join(' · ') || 'TIQ individual entrant'}
+                                    .join(' | ') || 'TIQ individual entrant'}
                                 </div>
                               </div>
                               <div style={dynamicStandingMetrics}>
@@ -3354,7 +3354,7 @@ function TiqLeagueDetailContent() {
                             {opponentName}
                           </div>
                           <div style={listMeta}>
-                            {[result.score, formatDateTime(result.resultDate), result.notes].filter(Boolean).join(' · ')}
+                            {[result.score, formatDateTime(result.resultDate), result.notes].filter(Boolean).join(' | ')}
                           </div>
                         </div>
                         <div style={dynamicResultMetaStack}>
@@ -3515,7 +3515,7 @@ function TiqLeagueDetailContent() {
 
                       return (
                         <div key={event.id} style={dynamicListCard}>
-                          <div style={{ width: '100%' }}>
+                          <div style={teamResultEventShellStyle}>
                             <div style={teamResultHeaderRowStyle}>
                               <div style={teamResultHeaderCopyStyle}>
                                 <div style={listTitle}>
@@ -3554,7 +3554,7 @@ function TiqLeagueDetailContent() {
                             </div>
 
                             {isExpanded && (
-                              <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14 }}>
+                              <div style={teamResultLinesShellStyle}>
                                 {linesLoading ? (
                                   <p style={listMeta}>Loading lines...</p>
                                 ) : lines.length === 0 ? (
@@ -4720,6 +4720,13 @@ const versusTextStyle: CSSProperties = {
   fontWeight: 500,
 }
 
+const teamResultEventShellStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
 const teamResultHeaderRowStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -4740,6 +4747,15 @@ const teamResultPillRowStyle: CSSProperties = {
   gap: 6,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const teamResultLinesShellStyle: CSSProperties = {
+  marginTop: 14,
+  borderTop: '1px solid rgba(255,255,255,0.06)',
+  paddingTop: 14,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const teamStandingsScrollStyle: CSSProperties = {
