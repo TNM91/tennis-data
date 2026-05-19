@@ -1577,7 +1577,7 @@ function toggleGridResponsive(isSmallMobile: boolean): CSSProperties {
 }
 
 const pageWrap: CSSProperties = {
-  width: 'min(1280px, calc(100% - 48px))',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))',
   margin: '0 auto',
   display: 'grid',
   gap: '18px',

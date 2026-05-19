@@ -2830,7 +2830,7 @@ function PrimaryBtn({
 }
 
 const pageWrap: CSSProperties = {
-  width: 'min(1280px, calc(100% - 48px))',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))',
   margin: '0 auto',
   display: 'grid',
   gap: 24,
@@ -2839,11 +2839,12 @@ const pageWrap: CSSProperties = {
 }
 
 const loadingWrap: CSSProperties = {
-  width: 'min(1280px, calc(100% - 48px))',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))',
   margin: '0 auto',
   display: 'grid',
   gap: 20,
   padding: '32px 0 72px',
+  minWidth: 0,
 }
 
 const loadingStateCardStyle: CSSProperties = {

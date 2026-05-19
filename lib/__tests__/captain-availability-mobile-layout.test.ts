@@ -37,6 +37,7 @@ describe('Captain availability mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
+    expect(styleBlock('pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))'")
     expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
     expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('selectorPanelResponsive')).toContain('minWidth: 0')
@@ -88,6 +89,8 @@ describe('Captain availability mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
+    expect(styleBlock('loadingWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))'")
+    expect(source).not.toContain("calc(100% - 48px)")
     expect(functionBlock('playerRowResponsive')).toContain('minWidth: 0')
     expect(functionBlock('statusButtonRowResponsive')).toContain('minWidth: 0')
     expect(styleBlock('playerRow')).toContain("flexWrap: 'wrap'")
