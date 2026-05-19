@@ -1325,7 +1325,7 @@ function PlayerProfileContent() {
               <h2 style={profileDiscoveryTitleStyle}>Use this profile in three moves.</h2>
             </div>
             <p style={profileDiscoveryCopyStyle}>
-              {MEMBERSHIP_TIERS.free.shortPromise} Player unlocks follows, My Lab, and deeper matchup prep when this profile becomes part of your regular tennis routine.
+              {MEMBERSHIP_TIERS.free.shortPromise} {MEMBERSHIP_TIERS.player_plus.upgradeCue}
             </p>
           </div>
 
