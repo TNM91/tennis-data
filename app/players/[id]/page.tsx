@@ -677,7 +677,7 @@ function PlayerProfileContent() {
     return { w, l, total: w + l }
   }, [matches])
 
-  // How many consecutive matches the current USTA status has held, reading snapshots newest→oldest.
+  // How many consecutive matches the current USTA status has held, reading snapshots newest to oldest.
   const statusStreakMatches = useMemo(() => {
     const relevant = snapshots
       .filter((s) => !s.rating_type || s.rating_type === 'overall')
@@ -850,7 +850,7 @@ function PlayerProfileContent() {
   const longestWinStreak = useMemo(() => {
     let best = 0
     let current = 0
-    for (const match of [...matches].reverse()) { // oldest→newest
+    for (const match of [...matches].reverse()) { // oldest to newest
       if (match.result === 'W') {
         current++
         if (current > best) best = current
@@ -2276,10 +2276,10 @@ function PlayerProfileContent() {
                 <div style={sectionKicker}>Competitive context</div>
                 <h2 style={panelTitle}>Who to play</h2>
               </div>
-              <span style={panelChip}>{nearbyPlayers.length} within ±0.15</span>
+              <span style={panelChip}>{nearbyPlayers.length} within +/-0.15</span>
             </div>
             <p style={sectionText}>
-              Players currently rated within 0.15 TIQ of this profile — the most competitive match range for pushing the signal in either direction.
+              Players currently rated within 0.15 TIQ of this profile - the most competitive match range for pushing the signal in either direction.
             </p>
             <div style={nearbyListStyle}>
               {nearbyPlayers.map((p) => {
@@ -2299,7 +2299,7 @@ function PlayerProfileContent() {
                     <div style={nearbyPlayerActionRowStyle}>
                       <span style={{ fontWeight: 800, fontSize: 15, color: '#f8fbff' }}>{p.overall_dynamic_rating.toFixed(2)}</span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: isHigher ? '#93c5fd' : isLower ? '#9be11d' : 'rgba(224,234,247,0.5)' }}>
-                        {isHigher ? `▲ +${diff.toFixed(2)}` : isLower ? `▼ ${diff.toFixed(2)}` : '≈ even'}
+                        {isHigher ? `Up +${diff.toFixed(2)}` : isLower ? `Down ${diff.toFixed(2)}` : 'Even'}
                       </span>
                       <Link href={nearbyMatchupHref} style={nearbyPrimaryActionStyle}>Compare</Link>
                       <Link href="/mylab#player-notebook" style={nearbySecondaryActionStyle}>Log</Link>
@@ -2921,9 +2921,9 @@ function getTrendShortLabel(direction: TrendDirection) {
 }
 
 function getTrendIcon(direction: TrendDirection) {
-  if (direction === 'up') return '▲'
-  if (direction === 'down') return '▼'
-  return '→'
+  if (direction === 'up') return '+'
+  if (direction === 'down') return '-'
+  return '='
 }
 
 function getMeterTheme(status: RatingStatus) {
@@ -4056,7 +4056,7 @@ const reportStatusPillStyle = (status: MatchAccuracyReport['status']): CSSProper
   const reviewing = status === 'reviewing'
   return {
     ...resultPill,
-    minWidth: 'auto',
+    minWidth: 0,
     padding: '0.3rem 0.65rem',
     background: resolved
       ? 'rgba(155,225,29,0.10)'
