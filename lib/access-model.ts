@@ -3,12 +3,17 @@
 import { supabase } from './supabase'
 import { isCaptain, isMember, type UserRole } from './roles'
 import { getPricingPlan, type PricingPlanId } from './pricing-plans'
+import { MEMBERSHIP_TIERS } from './product-story'
 
 export const CAPTAIN_SUBSCRIPTION_PRICE_LABEL = getPricingPlan('captain').priceLabel
 export const PLAYER_PRICE_LABEL = getPricingPlan('player_plus').priceLabel
 export const PLAYER_PLUS_PRICE_LABEL = PLAYER_PRICE_LABEL
 export const LEAGUE_PRICE_LABEL = getPricingPlan('league').priceLabel
 export const TIQ_SEASON_FEE_PRICE_LABEL = '$25/season'
+
+const PLAYER_TIER = MEMBERSHIP_TIERS.player_plus
+const CAPTAIN_TIER = MEMBERSHIP_TIERS.captain
+const LEAGUE_TIER = MEMBERSHIP_TIERS.league
 
 export type CaptainSubscriptionStatus = 'inactive' | 'trial' | 'active' | 'past_due' | 'canceled'
 
@@ -207,29 +212,29 @@ export function buildProductAccessState(
     canCreateTiqIndividualLeague,
     canJoinTiqIndividualLeague,
     playerPlusLabel: playerPlusActive
-      ? 'Player active'
-      : `Player - ${PLAYER_PRICE_LABEL}`,
+      ? `${PLAYER_TIER.name} active`
+      : `${PLAYER_TIER.name} - ${PLAYER_PRICE_LABEL}`,
     playerPlusMessage: playerPlusActive
-      ? 'Player tools are active for My Lab, follows, matchup insight, player-linked context, and clearer match prep.'
-      : 'Player unlocks My Lab, follows, matchup insight, and a personalized tennis home built around your game.',
+      ? `${PLAYER_TIER.name} tools are active. ${PLAYER_TIER.description}`
+      : PLAYER_TIER.description,
     captainTierLabel: captainSubscriptionActive
-      ? `Captain ${captainTierStatusLabel}`
-      : `Captain - ${CAPTAIN_SUBSCRIPTION_PRICE_LABEL}`,
+      ? `${CAPTAIN_TIER.name} ${captainTierStatusLabel}`
+      : `${CAPTAIN_TIER.name} - ${CAPTAIN_SUBSCRIPTION_PRICE_LABEL}`,
     captainTierMessage: captainSubscriptionActive
-      ? 'Captain tools are active for lineup building, scenario planning, projections, team messaging, and weekly match-day execution.'
-      : 'Still building lineups manually? Captain turns availability, lineup decisions, projections, and communication into one weekly workflow.',
+      ? `${CAPTAIN_TIER.name} tools are active. ${CAPTAIN_TIER.description}`
+      : CAPTAIN_TIER.description,
     leagueTierLabel: canUseLeagueTools
-      ? 'TIQ League Coordinator active'
-      : `TIQ League Coordinator - ${LEAGUE_PRICE_LABEL}`,
+      ? `${LEAGUE_TIER.name} active`
+      : `${LEAGUE_TIER.name} - ${LEAGUE_PRICE_LABEL}`,
     leagueTierMessage: canUseLeagueTools
-      ? 'TIQ League Coordinator tools are active for league setup, scheduling, standings, visibility, and organizer workflows.'
-      : 'Ready to run your league without spreadsheets? TIQ League Coordinator gives organizers one place for structure, visibility, and communication.',
+      ? `${LEAGUE_TIER.name} tools are active. ${LEAGUE_TIER.description}`
+      : LEAGUE_TIER.description,
     teamLeagueMessage: canCreateTiqTeamLeague
-      ? 'Team-league coordinator tools are active. Create team leagues, structure participants, and keep competition inside TIQ.'
-      : 'TIQ League Coordinator keeps organized team play in one place: teams, season flow, and competition tools.',
+      ? `${LEAGUE_TIER.name} tools are active. Create team leagues, structure participants, and keep competition inside TIQ.`
+      : `${LEAGUE_TIER.upgradeCue} Team leagues keep teams, season flow, and competition tools together.`,
     individualLeagueMessage: canCreateTiqIndividualLeague
-      ? 'Individual-league tools are active. Create the competition container, organize players, and keep standings out of spreadsheets.'
-      : 'TIQ League Coordinator makes it easy to launch individual TIQ competition without forcing every player into a subscription.',
+      ? `${LEAGUE_TIER.name} tools are active. Create the competition container, organize players, and keep standings out of spreadsheets.`
+      : `${LEAGUE_TIER.upgradeCue} Individual leagues can start without forcing every player into a subscription.`,
   }
 }
 
