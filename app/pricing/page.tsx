@@ -962,7 +962,7 @@ const unlockStepPillStyle: CSSProperties = {
 }
 
 const pageWrapStyle: CSSProperties = {
-  width: 'min(1280px, calc(100% - 28px))',
+  width: 'min(1280px, calc(100% - clamp(20px, 5vw, 28px)))',
   maxWidth: '100%',
   margin: '0 auto',
   padding: '20px 0 36px',
