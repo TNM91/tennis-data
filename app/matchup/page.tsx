@@ -1710,7 +1710,7 @@ export default function MatchupPage() {
                     >
                       <span style={suggestionName}>{player.name}</span>
                       <span style={suggestionMeta}>
-                        S {formatRating(getSelectedRating(player, 'singles'))} · O {formatRating(getSelectedRating(player, 'overall'))}
+                        S {formatRating(getSelectedRating(player, 'singles'))} - O {formatRating(getSelectedRating(player, 'overall'))}
                       </span>
                     </button>
                   ))}
@@ -1821,7 +1821,7 @@ export default function MatchupPage() {
                     <div style={decisionLabel}>Matchup edge</div>
                     <div style={decisionWinner}>{projection.likelyWinner}</div>
                     <div style={decisionSub}>
-                      {projection.favoriteEdgeText} · {projection.confidenceLabel} confidence
+                      {projection.favoriteEdgeText} - {projection.confidenceLabel} confidence
                     </div>
                   </div>
 
@@ -2099,7 +2099,7 @@ export default function MatchupPage() {
                         if (sets.some((s: string) => /^7-6$|^6-7$/.test(s))) tiebreaks++
                       }
                       return (
-                      <div style={{ marginTop: 18 }}>
+                      <div style={headToHeadHistoryStackStyle}>
                         {scoredMatches > 0 ? (
                           <div style={headToHeadTagRowStyle}>
                             {threeSets > 0 ? <span style={headToHeadTagPillBlueStyle}>{threeSets} went 3 sets</span> : null}
@@ -2175,7 +2175,7 @@ export default function MatchupPage() {
         </section>
       ) : null}
       {shouldShowAds ? (
-        <div style={{ marginTop: 12 }}>
+        <div style={inlineAdWrapStyle}>
           <AdsenseSlot slot={MATCHUP_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
         </div>
       ) : null}
@@ -4355,6 +4355,13 @@ const headToHeadTagRowStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const headToHeadHistoryStackStyle: CSSProperties = {
+  marginTop: 18,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
 const headToHeadTagPillBlueStyle: CSSProperties = {
   padding: '3px 10px',
   borderRadius: 999,
@@ -4534,6 +4541,12 @@ const intelligenceHintText: CSSProperties = {
   lineHeight: 1.65,
   fontWeight: 500,
   overflowWrap: 'anywhere',
+}
+
+const inlineAdWrapStyle: CSSProperties = {
+  marginTop: 12,
+  minWidth: 0,
+  maxWidth: '100%',
 }
 
 const summaryHead: CSSProperties = {
