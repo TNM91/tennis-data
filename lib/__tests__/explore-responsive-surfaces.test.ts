@@ -309,6 +309,8 @@ describe('Explore responsive surfaces', () => {
     expect(teamDetailSource).toContain('No reviewed scorecards yet')
     expect(teamDetailSource).toContain('reviewed Data Assist scorecards')
     expect(teamDetailSource).toContain('DATA_ASSIST_STORY.cta')
+    expect(teamDetailSource).toContain('MEMBERSHIP_TIERS.captain.description')
+    expect(teamDetailSource).not.toContain('Captain unlocks availability, lineup building, scenario testing')
     expect(teamDetailSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(teamDetailSource).toContain('const { userId: currentUserId, authResolved } = useAuth()')
     expect(teamDetailSource).toContain('if (!authResolved) return')
