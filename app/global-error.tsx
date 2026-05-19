@@ -23,13 +23,15 @@ export default function GlobalError({
         <div
           style={{
             maxWidth: 460,
-            width: 'calc(100% - 48px)',
+            width: 'calc(100% - clamp(24px, 6vw, 48px))',
             padding: '40px 36px',
             borderRadius: 28,
             border: '1px solid rgba(116,190,255,0.18)',
             background: 'linear-gradient(180deg, rgba(19,40,76,0.78) 0%, rgba(10,24,47,0.96) 100%)',
             boxShadow: '0 26px 80px rgba(7,18,42,0.36)',
             textAlign: 'center',
+            minWidth: 0,
+            overflowWrap: 'anywhere',
           }}
         >
           <div style={{ fontSize: '2.8rem', marginBottom: 16 }}>⚠️</div>
