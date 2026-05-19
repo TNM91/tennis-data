@@ -28,6 +28,9 @@ describe('League result workspace mobile layout guards', () => {
       'inputStyle',
       'lineGrid',
       'lineCard',
+      'eventHeaderCopy',
+      'lineHeaderRow',
+      'lineTypeRow',
       'scorekeeperGrid',
       'scorekeeperTile',
       'flowStrip',
@@ -43,6 +46,17 @@ describe('League result workspace mobile layout guards', () => {
     }
 
     expect(styleBlock(teamSource, 'flowStep')).toContain("gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)'")
+    expect(teamSource).toContain('<div style={eventHeaderCopy}>')
+    expect(teamSource).toContain('<div style={eventTitleText}>')
+    expect(teamSource).toContain('<div style={eventMetaText}>')
+    expect(teamSource).toContain('<div style={lineHeaderRow}>')
+    expect(teamSource).toContain('<div style={linePlayerText}>')
+    expect(teamSource).toContain('<div style={lineScoreText}>{line.score}</div>')
+    expect(styleBlock(teamSource, 'eventHeaderCopy')).toContain("maxWidth: '100%'")
+    expect(styleBlock(teamSource, 'eventTitleText')).toContain("maxWidth: '100%'")
+    expect(styleBlock(teamSource, 'eventMetaText')).toContain("maxWidth: '100%'")
+    expect(styleBlock(teamSource, 'linePlayerText')).toContain("maxWidth: '100%'")
+    expect(styleBlock(teamSource, 'lineScoreText')).toContain("maxWidth: '100%'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain("color: 'var(--foreground-strong)'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain('color-mix(in srgb, var(--brand-green)')
@@ -81,6 +95,7 @@ describe('League result workspace mobile layout guards', () => {
       'insightGrid',
       'standingsList',
       'standingRow',
+      'standingCopy',
       'metricStack',
       'reviewToolbar',
     ]) {
@@ -90,6 +105,8 @@ describe('League result workspace mobile layout guards', () => {
     expect(styleBlock(individualSource, 'flowStep')).toContain("gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)'")
     expect(styleBlock(individualSource, 'standingRow')).toContain("'minmax(0, 32px) minmax(0, 1fr) minmax(0, auto)'")
     expect(styleBlock(individualSource, 'standingRow')).toContain("overflowWrap: 'anywhere'")
+    expect(individualSource).toContain('<div style={standingCopy}>')
+    expect(styleBlock(individualSource, 'standingCopy')).toContain("maxWidth: '100%'")
     expect(styleBlock(individualSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'btnPrimary')).toContain("color: 'var(--foreground-strong)'")
     expect(styleBlock(individualSource, 'scorekeeperTile')).toContain("overflowWrap: 'anywhere'")
