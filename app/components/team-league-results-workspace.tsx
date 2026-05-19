@@ -78,6 +78,14 @@ const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6, ove
 const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6, overflowWrap: 'anywhere' }
 const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: '#94a3b8', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
 const pillGreen: CSSProperties = { ...pill, background: 'rgba(155,225,29,0.12)', color: '#9be11d' }
+const eventHeaderCopy: CSSProperties = { minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }
+const eventTitleText: CSSProperties = { fontWeight: 700, fontSize: 15, marginBottom: 4, minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }
+const eventMetaText: CSSProperties = { fontSize: 13, color: '#94a3b8', minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }
+const lineHeaderRow: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 8, flexWrap: 'wrap', minWidth: 0 }
+const lineTypeRow: CSSProperties = { display: 'flex', gap: 5, flexWrap: 'wrap', minWidth: 0 }
+const lineNumberText: CSSProperties = { fontWeight: 700, fontSize: 14, overflowWrap: 'anywhere' }
+const linePlayerText: CSSProperties = { fontSize: 13, color: '#cbd5e1', marginBottom: 4, minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }
+const lineScoreText: CSSProperties = { fontSize: 13, color: '#94a3b8', marginBottom: 8, minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }
 const divider: CSSProperties = { borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 14, paddingTop: 14 }
 const lineGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 10, marginTop: 12, minWidth: 0 }
 const lineCard: CSSProperties = {
@@ -585,11 +593,11 @@ function EventCard({
   return (
     <div style={card}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', minWidth: 0 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, overflowWrap: 'anywhere' }}>
+        <div style={eventHeaderCopy}>
+          <div style={eventTitleText}>
             {event.teamAName} <span style={{ color: '#64748b' }}>vs</span> {event.teamBName}
           </div>
-          <div style={{ fontSize: 13, color: '#94a3b8', overflowWrap: 'anywhere' }}>
+          <div style={eventMetaText}>
             {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
           </div>
           {displayTotalLines > 0 && (
@@ -661,9 +669,9 @@ function EventCard({
                   />
                 ) : (
                   <div key={line.id} style={lineCard}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-                      <span style={{ fontWeight: 700, fontSize: 14, overflowWrap: 'anywhere' }}>Line {line.lineNumber}</span>
-                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', minWidth: 0 }}>
+                    <div style={lineHeaderRow}>
+                      <span style={lineNumberText}>Line {line.lineNumber}</span>
+                      <div style={lineTypeRow}>
                         <span style={line.matchType === 'doubles' ? pillGreen : pill}>{line.matchType}</span>
                         {line.winnerSide ? (
                           <span style={pillGreen}>{line.winnerSide === 'A' ? event.teamAName : event.teamBName} won</span>
@@ -672,11 +680,11 @@ function EventCard({
                         )}
                       </div>
                     </div>
-                    <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 4, overflowWrap: 'anywhere' }}>
+                    <div style={linePlayerText}>
                       <div>A: {line.sideAPlayer1Name}{line.sideAPlayer2Name ? ` / ${line.sideAPlayer2Name}` : ''}</div>
                       <div>B: {line.sideBPlayer1Name}{line.sideBPlayer2Name ? ` / ${line.sideBPlayer2Name}` : ''}</div>
                     </div>
-                    {line.score && <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8, overflowWrap: 'anywhere' }}>{line.score}</div>}
+                    {line.score && <div style={lineScoreText}>{line.score}</div>}
                     {showDynamicPoints && line.winnerSide && line.score && (
                       <DynamicPointsLine line={line} />
                     )}

@@ -291,6 +291,7 @@ const standingRank: CSSProperties = {
 }
 const standingName: CSSProperties = { color: '#f8fbff', fontWeight: 850, fontSize: 14, minWidth: 0, overflowWrap: 'anywhere' }
 const standingSubtext: CSSProperties = { color: '#94a3b8', fontSize: 12, marginTop: 3, overflowWrap: 'anywhere' }
+const standingCopy: CSSProperties = { minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }
 const metricStack: CSSProperties = { display: 'grid', gap: 5, justifyItems: 'end', color: '#dbeafe', fontSize: 12, fontWeight: 800, minWidth: 0, overflowWrap: 'anywhere' }
 const emptyCard: CSSProperties = {
   ...card,
@@ -1312,7 +1313,7 @@ export function IndividualLeagueResultsWorkspace({
                 {selectedLeagueStandings.slice(0, 8).map((entry) => (
                   <div key={`${entry.playerName}-${entry.playerId || entry.rank}`} style={standingRow}>
                     <div style={standingRank}>{entry.rank}</div>
-                    <div style={{ minWidth: 0 }}>
+                    <div style={standingCopy}>
                       <div style={standingName}>{entry.playerName}</div>
                       <div style={standingSubtext}>
                         {entry.uniqueOpponents}/{entry.possibleOpponents} opponents
