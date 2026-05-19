@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const adminGateSource = readFileSync(join(process.cwd(), 'app/components/admin-gate.tsx'), 'utf8')
 const adsenseSlotSource = readFileSync(join(process.cwd(), 'app/components/adsense-slot.tsx'), 'utf8')
+const globalErrorSource = readFileSync(join(process.cwd(), 'app/global-error.tsx'), 'utf8')
 
 function styleBlock(source: string, name: string) {
   const pattern = new RegExp(`const ${name}: CSSProperties = \\{([\\s\\S]*?)\\n\\}`)
@@ -35,5 +36,12 @@ describe('shared shell component mobile layout guards', () => {
     expect(styleBlock(adsenseSlotSource, 'adLabelStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(adsenseSlotSource, 'adPlacementStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(adsenseSlotSource, 'adCopyStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
+  it('keeps the global error fallback shell mobile-safe', () => {
+    expect(globalErrorSource).toContain("width: 'calc(100% - clamp(24px, 6vw, 48px))'")
+    expect(globalErrorSource).toContain('minWidth: 0')
+    expect(globalErrorSource).toContain("overflowWrap: 'anywhere'")
+    expect(globalErrorSource).not.toContain("calc(100% - 48px)")
   })
 })
