@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const upgradeSource = readFileSync(join(process.cwd(), 'app/upgrade/page.tsx'), 'utf8')
+const lockedPlanSource = readFileSync(join(process.cwd(), 'app/components/locked-plan-page.tsx'), 'utf8')
 const competeFrameSource = readFileSync(
   join(process.cwd(), 'app/compete/_components/compete-page-frame.tsx'),
   'utf8',
@@ -57,6 +58,14 @@ describe('upgrade and compete mobile layout guards', () => {
       "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
     )
     expect(upgradeSource).not.toContain("gridTemplateColumns: '24px minmax(0, 1fr)'")
+  })
+
+  it('keeps shared locked plan gates shrink-safe', () => {
+    expect(styleBlock(lockedPlanSource, 'pageWrapStyle')).toContain('minWidth: 0')
+    expect(styleBlock(lockedPlanSource, 'pageWrapStyle')).toContain(
+      "width: 'min(1180px, calc(100% - clamp(24px, 5vw, 32px)))'",
+    )
+    expect(lockedPlanSource).not.toContain("calc(100% - 32px)")
   })
 
   it('wraps long upgrade and compete product copy without forcing overflow', () => {
