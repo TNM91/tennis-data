@@ -1291,7 +1291,7 @@ function ScreenshotCard({
       </div>
       <div style={screenshotBodyStyle}>
         <div style={screenshotHeaderStyle}>
-          <strong>{screenshot.fileName}</strong>
+          <strong style={screenshotFileNameStyle}>{screenshot.fileName}</strong>
           <span style={rejected ? pillDangerStyle : supported ? pillGreenStyle : pillAmberStyle}>
             {rejected ? 'Rejected' : supported ? 'Supported' : 'Review'}
           </span>
@@ -1729,9 +1729,9 @@ function ImportPreviewPanel({
           <div style={parsedLineListStyle}>
             {preview.playerMappings.slice(0, 6).map((mapping) => (
               <div key={mapping.name} style={parsedLineStyle}>
-                <span>{mapping.name}</span>
-                <strong>{mapping.status}</strong>
-                <small>{mapping.matchedPlayerName || 'Will be created from TennisLink name'}</small>
+                <span style={parsedLineNameStyle}>{mapping.name}</span>
+                <strong style={parsedLineStatusStyle}>{mapping.status}</strong>
+                <small style={parsedLineDetailStyle}>{mapping.matchedPlayerName || 'Will be created from TennisLink name'}</small>
               </div>
             ))}
           </div>
@@ -3034,6 +3034,27 @@ const parsedLineStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const parsedLineNameStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
+const parsedLineStatusStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  justifySelf: 'start',
+  overflowWrap: 'anywhere',
+}
+
+const parsedLineDetailStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  minWidth: 0,
+  maxWidth: '100%',
+  color: 'var(--shell-copy-muted)',
+  overflowWrap: 'anywhere',
+}
+
 const parsedScorecardLineStyle = (winner: string): CSSProperties => ({
   borderRadius: 14,
   border: winner === 'home' || winner === 'away'
@@ -3462,6 +3483,12 @@ const screenshotHeaderStyle: CSSProperties = {
   alignItems: 'flex-start',
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const screenshotFileNameStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const signalListStyle: CSSProperties = {

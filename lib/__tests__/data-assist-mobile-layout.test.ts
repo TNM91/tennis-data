@@ -81,6 +81,9 @@ describe('Data Assist mobile layout guards', () => {
       'reviewFactValueStyle',
       'parsedLineListStyle',
       'parsedLineStyle',
+      'parsedLineNameStyle',
+      'parsedLineStatusStyle',
+      'parsedLineDetailStyle',
       'parsedScorecardLineStyle',
       'scheduleMatchRowStyle',
       'bulkResultRowStyle',
@@ -90,6 +93,7 @@ describe('Data Assist mobile layout guards', () => {
       'screenshotGridStyle',
       'screenshotCardStyle',
       'thumbnailWrapStyle',
+      'screenshotFileNameStyle',
       'exportFilePreviewStyle',
       'screenshotBodyStyle',
       'exportHelpBodyStyle',
@@ -108,11 +112,19 @@ describe('Data Assist mobile layout guards', () => {
     expect(styleBlock('parsedLineStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
     expect(styleBlock('bulkResultRowStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
     expect(source).toContain('<span style={bulkResultStatusStyle}>{getBulkScorecardStatusLabel(result.status)}</span>')
+    expect(source).toContain('<strong style={screenshotFileNameStyle}>{screenshot.fileName}</strong>')
+    expect(source).toContain('<span style={parsedLineNameStyle}>{mapping.name}</span>')
+    expect(source).toContain('<strong style={parsedLineStatusStyle}>{mapping.status}</strong>')
+    expect(source).toContain('<small style={parsedLineDetailStyle}>{mapping.matchedPlayerName')
     expect(source).toContain('<p style={parsedSidePlayersStyle}>{players.join')
     expect(source).toContain('<strong style={reviewFactValueStyle}>{value}</strong>')
     expect(styleBlock('bulkResultStatusStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('bulkResultStatusStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('parsedSidePlayersStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('parsedLineNameStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('parsedLineStatusStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('parsedLineDetailStyle')).toContain("gridColumn: '1 / -1'")
+    expect(styleBlock('screenshotFileNameStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('reviewFactValueStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('showMoreButtonStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('scanLoadingStyle')).toContain("flexWrap: 'wrap'")
