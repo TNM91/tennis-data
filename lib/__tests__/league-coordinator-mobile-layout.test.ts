@@ -120,6 +120,11 @@ describe('League Coordinator mobile layout guards', () => {
   })
 
   it('keeps coordinator shells, grids, and action rows min-width safe', () => {
+    expect(styleBlock(source, 'pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))'")
+    expect(styleBlock(source, 'pageWrap')).not.toContain("calc(100% - 40px)")
+    expect(styleBlock(source, 'mobilePageWrap')).toContain("width: 'calc(100% - clamp(20px, 5vw, 28px))'")
+    expect(styleBlock(source, 'mobilePageWrap')).not.toContain("calc(100% - 28px)")
+
     for (const styleName of [
       'pageWrap',
       'heroPillRow',

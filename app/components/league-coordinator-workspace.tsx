@@ -2579,7 +2579,7 @@ function DangerBtn({ onClick, children }: { onClick: () => void; children: React
 }
 
 const pageWrap: CSSProperties = {
-  width: 'min(1280px, calc(100% - 40px))',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
   padding: '18px 0 30px',
   display: 'grid',
@@ -2588,7 +2588,7 @@ const pageWrap: CSSProperties = {
 }
 
 const mobilePageWrap: CSSProperties = {
-  width: 'min(100%, calc(100% - 28px))',
+  width: 'calc(100% - clamp(20px, 5vw, 28px))',
   padding: '14px 0 24px',
   gap: '14px',
 }
