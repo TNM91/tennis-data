@@ -13,6 +13,12 @@ function styleBlock(styleName: string) {
 
 describe('pricing mobile layout guards', () => {
   it('keeps pricing icon-card grids bounded and shrinkable', () => {
+    expect(styleBlock('pageWrapStyle')).toContain(
+      "width: 'min(1280px, calc(100% - clamp(20px, 5vw, 28px)))'",
+    )
+    expect(styleBlock('pageWrapStyle')).toContain('minWidth: 0')
+    expect(source).not.toContain("calc(100% - 28px)")
+
     expect(styleBlock('entitlementClarityCardStyle')).toContain(
       "gridTemplateColumns: 'minmax(0, 2.25rem) minmax(0, 1fr)'",
     )
