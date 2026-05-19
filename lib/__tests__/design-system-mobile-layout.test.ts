@@ -15,6 +15,8 @@ describe('shared design system mobile layout guards', () => {
     expect(styleBlock('pageShell')).toContain('minWidth: 0')
     expect(styleBlock('pageShellTight')).toContain('minWidth: 0')
     expect(styleBlock('sectionStack')).toContain('minWidth: 0')
+    expect(styleBlock('pageShell')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 32px)))'")
+    expect(styleBlock('pageShellTight')).toContain("width: 'min(1120px, calc(100% - clamp(24px, 5vw, 32px)))'")
 
     expect(styleBlock('orbOne')).toContain("width: 'min(100%, 360px)'")
     expect(styleBlock('orbOne')).toContain("height: 'min(100%, 360px)'")
@@ -25,5 +27,6 @@ describe('shared design system mobile layout guards', () => {
 
     expect(source).not.toContain("width: '420px'")
     expect(source).not.toContain("height: '420px'")
+    expect(source).not.toContain("calc(100% - 32px)")
   })
 })

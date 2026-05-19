@@ -95,7 +95,7 @@ export const gridGlow: CSSProperties = {
 export const pageShell: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  width: 'min(1280px, calc(100% - 32px))',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 32px)))',
   marginInline: 'auto',
   padding: '32px 0 72px',
   minWidth: 0,
@@ -104,7 +104,7 @@ export const pageShell: CSSProperties = {
 export const pageShellTight: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  width: 'min(1120px, calc(100% - 32px))',
+  width: 'min(1120px, calc(100% - clamp(24px, 5vw, 32px)))',
   marginInline: 'auto',
   padding: '24px 0 56px',
   minWidth: 0,
