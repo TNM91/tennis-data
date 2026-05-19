@@ -24,8 +24,11 @@ describe('Data Assist mobile layout guards', () => {
       'uploadChoiceStackStyle',
       'seasonSetupGroupStyle',
       'stepDividerStyle',
+      'primaryTypeOptionStyle',
       'typeOptionStyle',
       'dropzoneStyle',
+      'compactDropzoneStyle',
+      'scorecardPausedPanelStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -72,13 +75,18 @@ describe('Data Assist mobile layout guards', () => {
   it('keeps parsed review rows and screenshot cards wrapped on narrow screens', () => {
     for (const styleName of [
       'scorecardReviewStyle',
+      'latestReadStyle',
+      'importPanelStyle',
       'scorecardHeaderGridStyle',
+      'reviewFactValueStyle',
       'parsedLineListStyle',
       'parsedLineStyle',
       'parsedScorecardLineStyle',
       'scheduleMatchRowStyle',
       'bulkResultRowStyle',
+      'bulkResultStatusStyle',
       'playerSidesGridStyle',
+      'parsedSidePlayersStyle',
       'screenshotGridStyle',
       'screenshotCardStyle',
       'thumbnailWrapStyle',
@@ -99,6 +107,13 @@ describe('Data Assist mobile layout guards', () => {
     )
     expect(styleBlock('parsedLineStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
     expect(styleBlock('bulkResultRowStyle')).toContain("'minmax(0, 1fr) minmax(0, 8rem)'")
+    expect(source).toContain('<span style={bulkResultStatusStyle}>{getBulkScorecardStatusLabel(result.status)}</span>')
+    expect(source).toContain('<p style={parsedSidePlayersStyle}>{players.join')
+    expect(source).toContain('<strong style={reviewFactValueStyle}>{value}</strong>')
+    expect(styleBlock('bulkResultStatusStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('bulkResultStatusStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('parsedSidePlayersStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('reviewFactValueStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('showMoreButtonStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('scanLoadingStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('screenshotCardStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
