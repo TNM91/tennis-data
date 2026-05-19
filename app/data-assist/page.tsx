@@ -1187,7 +1187,7 @@ function BulkScorecardResultsPanel({
               <strong>{getBulkScorecardResultTitle(result)}</strong>
               <p>{getBulkScorecardResultDetail(result)}</p>
             </div>
-            <span>{getBulkScorecardStatusLabel(result.status)}</span>
+            <span style={bulkResultStatusStyle}>{getBulkScorecardStatusLabel(result.status)}</span>
           </div>
         ))}
       </div>
@@ -2266,7 +2266,7 @@ function ParsedSidePlayers({
         <span>{label}</span>
         {won ? <strong>Won</strong> : null}
       </div>
-      <p>{players.join(' / ') || 'Check players'}</p>
+      <p style={parsedSidePlayersStyle}>{players.join(' / ') || 'Check players'}</p>
     </div>
   )
 }
@@ -2275,7 +2275,7 @@ function ReviewFact({ label, value }: { label: string; value: string }) {
   return (
     <div style={reviewFactStyle}>
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong style={reviewFactValueStyle}>{value}</strong>
     </div>
   )
 }
@@ -2571,6 +2571,8 @@ const primaryTypeOptionStyle = (selected: boolean): CSSProperties => ({
   ...typeOptionStyle(selected),
   minHeight: 142,
   padding: 16,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
   border: selected
     ? '1px solid color-mix(in srgb, var(--brand-green) 68%, var(--shell-panel-border) 32%)'
     : '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
@@ -2749,6 +2751,8 @@ const compactDropzoneStyle: CSSProperties = {
   ...dropzoneStyle(''),
   minHeight: 92,
   padding: 12,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const fileInputStyle: CSSProperties = {
@@ -2940,11 +2944,15 @@ const latestReadStyle: CSSProperties = {
   marginTop: 18,
   border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
   background: 'color-mix(in srgb, var(--brand-green) 5%, var(--shell-panel-bg) 95%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const importPanelStyle: CSSProperties = {
   ...scorecardReviewStyle,
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const scorecardHeaderGridStyle: CSSProperties = {
@@ -2967,6 +2975,12 @@ const reviewFactStyle: CSSProperties = {
   fontWeight: 900,
   textTransform: 'uppercase',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const reviewFactValueStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
   overflowWrap: 'anywhere',
 }
 
@@ -3115,6 +3129,22 @@ const bulkResultRowStyle = (status: BulkScorecardResult['status']): CSSPropertie
   overflowWrap: 'anywhere',
 })
 
+const bulkResultStatusStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  justifySelf: 'start',
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '4px 8px',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
 const parsedLineMainStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -3162,6 +3192,15 @@ const parsedSideHeaderStyle: CSSProperties = {
   textTransform: 'uppercase',
   flexWrap: 'wrap',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const parsedSidePlayersStyle: CSSProperties = {
+  margin: 0,
+  minWidth: 0,
+  maxWidth: '100%',
+  color: 'var(--foreground-strong)',
+  lineHeight: 1.4,
   overflowWrap: 'anywhere',
 }
 
@@ -3607,6 +3646,8 @@ const scorecardPausedPanelStyle: CSSProperties = {
   ...uploadIssueStyle,
   border: '1px solid rgba(248,113,113,0.28)',
   background: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.08))',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const uploadIssueCopyStyle: CSSProperties = {
