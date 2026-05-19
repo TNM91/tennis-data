@@ -3,6 +3,7 @@ import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 import TierPathway from '@/app/components/tier-pathway'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 export const metadata: Metadata = {
   title: 'FAQ',
@@ -39,8 +40,7 @@ export default function FaqPage() {
           <p>
             The site works with player, team, league, ranking, matchup, and scorecard-related
             context so users can understand performance, roster options, lineup tradeoffs, and
-            season shape. When information needs to refresh, TenAceIQ uses reviewed uploads through{' '}
-            <Link href="/data-assist">Data Assist</Link> rather than assuming a direct USTA API feed.
+            season shape. {DATA_ASSIST_STORY.shortCue}
           </p>
         </div>
 
@@ -58,8 +58,8 @@ export default function FaqPage() {
           <p>
             Open a <Link href="/messages?compose=support&category=data">TenAceIQ support thread</Link>{' '}
             and include the affected league, team, date, player, or match reference. If you have the
-            source record, upload it through <Link href="/data-assist">Data Assist</Link> so the fix
-            can be reviewed before it changes platform data.
+            source record, start with <Link href="/data-assist">{DATA_ASSIST_STORY.cta}</Link> so the
+            fix can be reviewed before it changes platform data.
           </p>
         </div>
       </InfoPage>

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 import TierPathway from '@/app/components/tier-pathway'
-import { PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
 
 export const metadata: Metadata = {
   title: 'About',
@@ -26,8 +26,7 @@ export default function AboutPage() {
           <p>
             TenAceIQ brings player profiles, rankings, teams, leagues, matchup context, Captain
             tools, and League Coordinator tools into one place so each user can move from search
-            to the next useful decision. Data Assist keeps tennis context current through reviewed
-            uploads instead of relying on a direct feed.
+            to the next useful decision. {DATA_ASSIST_STORY.shortCue}
           </p>
         </div>
 
