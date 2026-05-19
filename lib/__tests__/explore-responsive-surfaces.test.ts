@@ -609,6 +609,8 @@ describe('Explore responsive surfaces', () => {
     expect(tiqLeagueDetailSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))'")
     expect(tiqLeagueDetailSource).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
     expect(styleBlock(tiqLeagueDetailSource, 'pageWrap')).toContain('minWidth: 0')
+    expect(styleBlock(tiqLeagueDetailSource, 'pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))'")
+    expect(styleBlock(tiqLeagueDetailSource, 'pageWrap')).not.toContain("calc(100% - 40px)")
     expect(styleBlock(tiqLeagueDetailSource, 'heroGrid')).toContain('minWidth: 0')
     expect(styleBlock(tiqLeagueDetailSource, 'pillBase')).toContain("whiteSpace: 'normal'")
   })
