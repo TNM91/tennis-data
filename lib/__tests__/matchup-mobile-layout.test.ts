@@ -60,6 +60,8 @@ describe('matchup mobile layout guards', () => {
   it('keeps Matchup support grids and labels from expanding past the shell', () => {
     ;[
       'selectorGrid',
+      'selectFieldStyle',
+      'ratingSignalStyle',
       'editorialPanel',
       'editorialGrid',
       'editorialCard',
@@ -88,6 +90,7 @@ describe('matchup mobile layout guards', () => {
       'toolHeaderTextStyle',
       'identitySetupKickerStyle',
       'inputLabel',
+      'ratingSectionLabelStyle',
       'errorTitleStyle',
       'editorialText',
       'editorialCard',
@@ -126,6 +129,13 @@ describe('matchup mobile layout guards', () => {
 
     expect(styleBlock('profileContextLinkStyle')).toContain('minWidth: 0')
     expect(styleBlock('profileContextLinkStyle')).toContain("maxWidth: '100%'")
+    expect(matchupSource).toContain('<div style={selectFieldStyle}>')
+    expect(matchupSource).toContain('<div style={ratingSectionLabelStyle}>TIQ DYNAMIC</div>')
+    expect(matchupSource).toContain("<div style={{ ...ratingSectionLabelStyle, marginTop: 10 }}>USTA DYNAMIC</div>")
+    expect(matchupSource).toContain('<div style={{ ...ratingSignalStyle, color }}>')
+    expect(matchupSource).toContain("{label} - TIQ signal")
+    expect(styleBlock('selectFieldStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('ratingSignalStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('emptyState')).toContain('minWidth: 0')
     expect(styleBlock('compareCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('centerColumn')).toContain("maxWidth: '100%'")
