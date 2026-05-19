@@ -1392,7 +1392,7 @@ export default function TeamPage() {
                 <h2 style={sectionTitle}>Use this team page in three moves.</h2>
               </div>
               <p style={teamDiscoveryCopyStyle}>
-                {MEMBERSHIP_TIERS.free.shortPromise} Captain unlocks availability, lineup building, scenario testing, and weekly team decisions when this becomes your team workspace.
+                {MEMBERSHIP_TIERS.free.shortPromise} {MEMBERSHIP_TIERS.captain.description}
               </p>
             </div>
 
