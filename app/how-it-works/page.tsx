@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 export const metadata: Metadata = {
   title: 'How It Works',
@@ -57,7 +58,7 @@ export default function HowItWorksPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. Data Assist refreshes records</h2>
           <p>
             When rosters, schedules, or scorecards need to be updated, players, captains, coordinators,
-            and admins can use <Link href="/data-assist">Data Assist</Link> to upload TennisLink exports.
+            and admins can start with <Link href="/data-assist">{DATA_ASSIST_STORY.cta}</Link>.
             Uploads are reviewed before they shape ratings, standings, matchup context, or team tools.
           </p>
         </div>
