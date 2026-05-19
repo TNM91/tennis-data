@@ -830,7 +830,7 @@ function readLastRemoteRequest(): { id?: string; email?: string } | null {
 }
 
 const pageStyle: CSSProperties = {
-  width: 'min(1180px, calc(100% - 32px))',
+  width: 'min(1180px, calc(100% - clamp(24px, 5vw, 32px)))',
   minWidth: 0,
   margin: '0 auto',
   padding: '20px 0 36px',

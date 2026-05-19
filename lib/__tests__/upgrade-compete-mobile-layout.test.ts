@@ -44,6 +44,10 @@ describe('upgrade and compete mobile layout guards', () => {
     ]) {
       expect(styleBlock(upgradeSource, styleName), styleName).toContain('minWidth: 0')
     }
+    expect(styleBlock(upgradeSource, 'pageStyle')).toContain(
+      "width: 'min(1180px, calc(100% - clamp(24px, 5vw, 32px)))'",
+    )
+    expect(upgradeSource).not.toContain("calc(100% - 32px)")
 
     for (const styleName of ['primaryButtonStyle', 'valuePillStyle', 'activationStepStyle', 'handoffStepStyle']) {
       const block = styleBlock(upgradeSource, styleName)
