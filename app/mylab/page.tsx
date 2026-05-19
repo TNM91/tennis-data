@@ -2275,7 +2275,7 @@ function MyLabPageInner() {
               <span style={miniActionPillStyle}>Data Assist</span>
               <p style={dataAssistProofTitleStyle}>{DATA_ASSIST_STORY.shortCue}</p>
               <p style={dataAssistProofTextStyle}>
-                Upload match history once, then use reviewed results across My Lab, Matchup, Captain, and Coordinator tools without depending on a direct USTA feed.
+                {DATA_ASSIST_STORY.proof.join(' · ')}
               </p>
             </div>
             <Link href="/data-assist" style={secondaryButtonStyle}>
