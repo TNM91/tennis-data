@@ -2233,14 +2233,14 @@ function CompareCard({
         ) : null}
       </div>
 
-      <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.04em' }}>TIQ DYNAMIC</div>
+      <div style={ratingSectionLabelStyle}>TIQ DYNAMIC</div>
       <div style={dynamicRatingGrid}>
         <RatingPill label="Overall" value={ratings.overall} active={ratingView === 'overall'} />
         <RatingPill label="Singles" value={ratings.singles} active={ratingView === 'singles'} />
         <RatingPill label="Doubles" value={ratings.doubles} active={ratingView === 'doubles'} />
       </div>
 
-      <div style={{ marginTop: 10, marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.04em' }}>USTA DYNAMIC</div>
+      <div style={{ ...ratingSectionLabelStyle, marginTop: 10 }}>USTA DYNAMIC</div>
       <div style={dynamicRatingGrid}>
         <RatingPill label="Overall" value={ustaRatings.overall} active={ratingView === 'overall'} />
         <RatingPill label="Singles" value={ustaRatings.singles} active={ratingView === 'singles'} />
@@ -2259,11 +2259,11 @@ function CompareCard({
         const ustaVal = ratingView === 'singles' ? ustaRatings.singles : ratingView === 'doubles' ? ustaRatings.doubles : ustaRatings.overall
         if (tiqVal == null || ustaVal == null) return null
         const diff = tiqVal - ustaVal
-        const label = diff >= 0.15 ? '▲ Hot' : diff >= 0.07 ? '↑ Rising' : diff <= -0.15 ? '▼ Cooling' : diff <= -0.07 ? '↓ Softening' : '→ Stable'
+        const label = diff >= 0.15 ? 'Hot' : diff >= 0.07 ? 'Rising' : diff <= -0.15 ? 'Cooling' : diff <= -0.07 ? 'Softening' : 'Stable'
         const color = diff >= 0.07 ? '#9be11d' : diff <= -0.07 ? '#f87171' : 'rgba(190,210,240,0.6)'
         return (
-          <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color }}>
-            {label} · TIQ signal {diff >= 0 ? '+' : ''}{diff.toFixed(2)}
+          <div style={{ ...ratingSignalStyle, color }}>
+            {label} - TIQ signal {diff >= 0 ? '+' : ''}{diff.toFixed(2)}
           </div>
         )
       })()}
@@ -2424,7 +2424,7 @@ function SelectField({
     : 'No active players'
 
   return (
-    <div>
+    <div style={selectFieldStyle}>
       <label style={inputLabel}>{label}</label>
       <select
         value={selectedValue}
@@ -3037,6 +3037,12 @@ const selectorGrid: CSSProperties = {
   gap: '16px',
   marginBottom: '16px',
   minWidth: 0,
+}
+
+const selectFieldStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const inputLabel: CSSProperties = {
@@ -3837,6 +3843,24 @@ const ratingGrid: CSSProperties = {
   gap: '12px',
   marginBottom: '16px',
   minWidth: 0,
+}
+
+const ratingSectionLabelStyle: CSSProperties = {
+  marginBottom: 6,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const ratingSignalStyle: CSSProperties = {
+  marginTop: 10,
+  minWidth: 0,
+  maxWidth: '100%',
+  fontSize: 12,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const ratingPill: CSSProperties = {
