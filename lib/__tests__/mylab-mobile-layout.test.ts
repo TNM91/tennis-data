@@ -58,6 +58,8 @@ describe('My Lab mobile layout guards', () => {
   it('keeps My Lab filters, feed, and follow cards from forcing horizontal overflow', () => {
     for (const styleName of [
       'filterRowStyle',
+      'labRoutineCopyStyle',
+      'labPlaybookCopyStyle',
       'searchResultsStyle',
       'searchResultItemStyle',
       'feedListStyle',
@@ -75,8 +77,11 @@ describe('My Lab mobile layout guards', () => {
       'followCardStyle',
       'performanceCardStyle',
       'matchupQueueCardStyle',
+      'matchupQueueCopyStyle',
       'workshopMatchRowStyle',
+      'workshopRowCopyStyle',
       'nextActionCardStyle',
+      'compactSignalCopyStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
@@ -113,6 +118,22 @@ describe('My Lab mobile layout guards', () => {
     expect(styleBlock('followCardStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('tabButtonStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('feedLinkStyle')).toContain("maxWidth: '100%'")
+    expect(source).toContain('<div style={matchupQueueCopyStyle}>')
+    expect(source).toContain('<div style={workshopRowCopyStyle}>')
+    expect(source).toContain('<div style={labRoutineCopyStyle}>')
+    expect(source).toContain('<div style={labPlaybookCopyStyle}>')
+    expect(source).toContain('<div style={compactSignalCopyStyle}>')
+    expect(styleBlock('labRoutineCopyStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('labPlaybookCopyStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('matchupQueueCopyStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('matchupQueueNameStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('matchupQueueMetaStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('workshopRowCopyStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('workshopRowTitleStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('workshopRowMetaStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('compactSignalCopyStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('compactSignalNameStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('compactSignalMetaStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('performanceCardStyle')).toContain(
       "gridTemplateColumns: 'minmax(0, 64px) minmax(0, 1fr)'",
     )

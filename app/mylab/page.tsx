@@ -2251,7 +2251,7 @@ function MyLabPageInner() {
           {MY_LAB_ROUTINE_STEPS.map((step, index) => (
             <div key={step.label} style={labRoutineStepStyle}>
               <span style={labRoutineNumberStyle}>{index + 1}</span>
-              <div style={{ minWidth: 0 }}>
+              <div style={labRoutineCopyStyle}>
                 <span style={miniActionPillStyle}>{step.label}</span>
                 <strong style={labRoutineStepTitleStyle}>{step.title}</strong>
                 <span style={labRoutineStepBodyStyle}>{step.body}</span>
@@ -2352,7 +2352,7 @@ function MyLabPageInner() {
               {labPlaybookCards.map((card) => (
                 <Link key={card.step} href={card.href} style={labPlaybookCardStyle(card.complete)}>
                   <span style={labPlaybookStepStyle(card.complete)}>{card.step}</span>
-                  <div style={{ minWidth: 0 }}>
+                  <div style={labPlaybookCopyStyle}>
                     <div style={metricLabelStyle}>{card.label}</div>
                     <div style={labPlaybookValueStyle}>{card.value}</div>
                     <div style={metricNoteStyle}>{card.note}</div>
@@ -2473,7 +2473,7 @@ function MyLabPageInner() {
                     {matchupQueue.map((candidate, index) => (
                       <Link key={candidate.player.id} href={candidate.href} style={matchupQueueCardStyle}>
                         <div style={matchupQueueRankStyle}>{index + 1}</div>
-                        <div style={{ minWidth: 0 }}>
+                        <div style={matchupQueueCopyStyle}>
                           <div style={matchupQueueNameStyle}>{candidate.player.name}</div>
                           <div style={matchupQueueMetaStyle}>
                             {candidate.read} - gap {candidate.gap.toFixed(2)}
@@ -2925,7 +2925,7 @@ function MyLabPageInner() {
                           <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
                             {match.result}
                           </span>
-                          <div style={{ minWidth: 0 }}>
+                          <div style={workshopRowCopyStyle}>
                             <div style={workshopRowTitleStyle}>{match.opponent}</div>
                             <div style={workshopRowMetaStyle}>
                               {[safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')}
@@ -3018,7 +3018,7 @@ function MyLabPageInner() {
                 <div style={sectionKickerStyle}>Next action</div>
                 <div style={nextActionCardStyle}>
                   <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
-                  <div>
+                  <div style={workshopRowCopyStyle}>
                     <div style={workshopRowTitleStyle}>
                       {topMatchupCandidate ? `Open the read vs ${topMatchupCandidate.player.name}` : 'Build your first read'}
                     </div>
@@ -3068,7 +3068,7 @@ function MyLabPageInner() {
                         : { background: 'rgba(116,190,255,0.08)', color: '#93c5fd', border: '1px solid rgba(116,190,255,0.16)' }
                     return (
                       <div key={s.id} style={compactSignalCardStyle}>
-                        <div style={{ minWidth: 0 }}>
+                        <div style={compactSignalCopyStyle}>
                           <div style={compactSignalNameStyle}>{s.name}</div>
                           {s.tiq != null ? <div style={compactSignalMetaStyle}>TIQ {s.tiq.toFixed(2)}</div> : null}
                         </div>
@@ -3552,6 +3552,12 @@ const labRoutineNumberStyle: CSSProperties = {
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
+const labRoutineCopyStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
 const labRoutineStepTitleStyle: CSSProperties = {
   display: 'block',
   marginTop: 10,
@@ -3825,6 +3831,12 @@ const labPlaybookStepStyle = (complete: boolean): CSSProperties => ({
   fontWeight: 950,
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 })
+
+const labPlaybookCopyStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
 
 const labPlaybookValueStyle: CSSProperties = {
   marginTop: 6,
@@ -4229,7 +4241,15 @@ const matchupQueueRankStyle: CSSProperties = {
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
+const matchupQueueCopyStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
 const matchupQueueNameStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
   fontSize: '1rem',
   fontWeight: 950,
   lineHeight: 1.15,
@@ -4240,6 +4260,8 @@ const matchupQueueNameStyle: CSSProperties = {
 }
 
 const matchupQueueMetaStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
   marginTop: 4,
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
@@ -5001,6 +5023,8 @@ const workshopContextRowStyle: CSSProperties = {
 }
 
 const workshopRowTitleStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   overflow: 'hidden',
@@ -5010,6 +5034,8 @@ const workshopRowTitleStyle: CSSProperties = {
 }
 
 const workshopRowMetaStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
   marginTop: 3,
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
@@ -5017,6 +5043,12 @@ const workshopRowMetaStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const workshopRowCopyStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
   overflowWrap: 'anywhere',
 }
 
@@ -5209,7 +5241,15 @@ const compactSignalCardStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactSignalCopyStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
 const compactSignalNameStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
   color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: 13,
@@ -5220,6 +5260,8 @@ const compactSignalNameStyle: CSSProperties = {
 }
 
 const compactSignalMetaStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   fontWeight: 600,
