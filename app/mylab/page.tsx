@@ -2275,7 +2275,7 @@ function MyLabPageInner() {
               <span style={miniActionPillStyle}>Data Assist</span>
               <p style={dataAssistProofTitleStyle}>{DATA_ASSIST_STORY.shortCue}</p>
               <p style={dataAssistProofTextStyle}>
-                {DATA_ASSIST_STORY.proof.join(' · ')}
+                {DATA_ASSIST_STORY.proof.join(' - ')}
               </p>
             </div>
             <Link href="/data-assist" style={secondaryButtonStyle}>
@@ -3623,6 +3623,7 @@ const paidWorkspaceProofCardStyle: CSSProperties = {
   lineHeight: 1.55,
   fontWeight: 750,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const paidWorkspaceProofBodyStyle: CSSProperties = {
@@ -3641,6 +3642,7 @@ const dataAssistProofStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
   background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const dataAssistProofCopyStyle: CSSProperties = {

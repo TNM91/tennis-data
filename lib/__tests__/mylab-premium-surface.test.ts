@@ -19,7 +19,8 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('Match prep')
     expect(source).toContain('Reviewed uploads')
     expect(source).toContain('Use reviewed uploads for scorecards, schedules, and rosters')
-    expect(source).toContain("DATA_ASSIST_STORY.proof.join(' · ')")
+    expect(source).toContain("DATA_ASSIST_STORY.proof.join(' - ')")
+    expect(source).not.toContain("DATA_ASSIST_STORY.proof.join(' · ')")
     expect(source).toContain('Connect your player record, review what changed, and leave with one action for the next match.')
     expect(source).toContain('Player identity')
     expect(source).toContain('Scorecard review')
@@ -174,6 +175,8 @@ describe('My Lab premium surface', () => {
       'labRoutineStepStyle',
       'labPlaybookCardStyle',
       'paidWorkspaceProofBodyStyle',
+      'paidWorkspaceProofCardStyle',
+      'dataAssistProofStyle',
       'dataAssistProofCopyStyle',
       'warningNoteStyle',
       'matchupSpotlightHeroStyle',
