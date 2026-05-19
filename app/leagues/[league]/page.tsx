@@ -726,7 +726,7 @@ export default function LeagueDetailPage() {
               <h2 style={sectionTitle}>Use this league page in three moves.</h2>
             </div>
             <p style={leagueDiscoveryCopyStyle}>
-              {MEMBERSHIP_TIERS.free.shortPromise} Captain and coordinator tiers unlock the planning and operating tools once this league becomes active work.
+              {MEMBERSHIP_TIERS.free.shortPromise} {MEMBERSHIP_TIERS.captain.upgradeCue} {MEMBERSHIP_TIERS.league.upgradeCue}
             </p>
           </div>
 
