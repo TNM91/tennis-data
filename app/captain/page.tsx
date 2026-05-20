@@ -6,8 +6,6 @@ import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
-import CaptainSubnav from '@/app/components/captain-subnav'
-import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -183,39 +181,6 @@ type CaptainCommandStep = {
   cta: string
   premium?: boolean
 }
-
-const CAPTAIN_ONBOARDING_STEPS = [
-  {
-    label: '1',
-    title: 'Choose scope',
-    detail: 'Captain starts with your linked profile team when available, then falls back to roster history or TIQ entries.',
-  },
-  {
-    label: '2',
-    title: 'Confirm availability',
-    detail: 'See who can play before you build courts or chase follow-ups.',
-  },
-  {
-    label: '3',
-    title: 'Send the plan',
-    detail: 'Move from lineup to team note once the week is ready.',
-  },
-] as const
-
-const CAPTAIN_TEAM_SCOPE_HANDOFF = [
-  {
-    label: 'Profile first',
-    text: 'Link your player identity in My Lab so Captain can auto-select the team tied to your profile.',
-  },
-  {
-    label: 'Roster history',
-    text: 'If no profile team is available, Captain looks for active roster history and TIQ captain entries.',
-  },
-  {
-    label: 'Data refresh',
-    text: 'Use reviewed Data Assist uploads when schedules, rosters, or scorecards need to refresh the scope.',
-  },
-] as const
 
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
   'Link your player identity in My Lab so Captain can find your profile team.',
@@ -1103,36 +1068,25 @@ function CaptainHubContent() {
   const scopeStatusText = loadingOptions
     ? 'Loading your team options and recent match context.'
     : captainScopeRestricted && teamScopeResolved && !captainTeamScopes.length
-      ? `Link your player profile in My Lab, or ${DATA_ASSIST_STORY.shortCue.toLowerCase()}`
+      ? 'Link your player profile or refresh team data to load your captain scope.'
     : !filteredTeamOptions.length
       ? 'No active team history matches your linked player, team, TIQ captain entries, or reviewed Data Assist uploads yet.'
     : selectedFromCaptainScope
-        ? `Auto-loaded from ${selectedCaptainScopeSourceLabel}: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
+        ? `${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
       : hasTeamScope
-        ? `Active scope: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
+        ? `${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
         : 'Choose a team, league, and flight to start planning.'
 
   const dynamicHeroCard: CSSProperties = {
     ...heroCard,
-    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.02fr) minmax(min(100%, 380px), 0.98fr)',
-    gap: isMobile ? 18 : 22,
-    padding: isSmallMobile ? 18 : isMobile ? 20 : 24,
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gap: isMobile ? 16 : 18,
+    padding: isSmallMobile ? 18 : isMobile ? 20 : 22,
   }
-
-const dynamicHeroRightCard: CSSProperties = {
-  ...heroRightCard,
-  position: 'relative',
-  padding: isSmallMobile ? 16 : isMobile ? 18 : 20,
-  minHeight: isTablet ? 320 : 100,
-  overflow: 'hidden',
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
-}
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '2.5rem' : isMobile ? '3rem' : heroTitle.fontSize,
+    fontSize: isSmallMobile ? '2.35rem' : isMobile ? '2.75rem' : 'clamp(2.6rem, 5vw, 4.7rem)',
   }
 
   const dynamicHeroText: CSSProperties = {
@@ -1192,46 +1146,6 @@ const dynamicHeroRightCard: CSSProperties = {
     minWidth: 0,
     width: '100%',
     flex: '1 1 min(100%, 320px)',
-  }
-
-  const captainHeroVisualStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-  }
-
-const captainHeroBoardGridStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
-  backgroundSize: '28px 28px',
-  opacity: 0.16,
-  pointerEvents: 'none',
-}
-
-const captainHeroVisualMaskStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background: isTablet ? 'var(--shell-hero-mask-mobile)' : 'var(--shell-hero-mask)',
-  pointerEvents: 'none',
-  zIndex: 1,
-}
-
-  const captainHeroVisualGlowStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    background: 'radial-gradient(circle at 68% 62%, rgba(155,225,29,0.14) 0%, rgba(155,225,29,0.04) 26%, rgba(155,225,29,0) 58%)',
-    pointerEvents: 'none',
-    zIndex: 1,
-  }
-
-  const captainHeroVisualContentStyle: CSSProperties = {
-    position: 'relative',
-    zIndex: 2,
-    display: 'grid',
-    alignContent: 'space-between',
-    gap: 16,
-    minHeight: '100%',
   }
 
   const nextAction = useMemo(() => {
@@ -1501,41 +1415,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     ...nextAction,
     stage: 'brief' as CaptainResumeStage,
   }
-  const captainCloseoutCards = [
-    {
-      label: 'Blocker',
-      title: captainReadinessNext.label,
-      detail: captainReadinessScore === 100
-        ? 'No blocking step is left. Review the brief or send the team note.'
-        : captainPrimaryAction.detail,
-      href: captainPrimaryAction.href,
-      stage: captainPrimaryAction.stage,
-      cta: captainPrimaryAction.cta,
-      tone: captainPrimaryAction.tone,
-    },
-    {
-      label: 'Team note',
-      title: workspaceState.messagingReady ? 'Ready to send' : 'Needs lineup or event context',
-      detail: workspaceState.messagingReady
-        ? 'Messaging has enough saved context for a clean player update.'
-        : 'Open messaging after the lineup and event details are in place.',
-      href: messagingHref,
-      stage: 'messaging' as CaptainResumeStage,
-      cta: 'Open messaging',
-      tone: workspaceState.messagingReady ? 'good' as const : 'warn' as const,
-    },
-    {
-      label: 'Brief',
-      title: workspaceState.briefReady ? 'Brief is ready' : 'Brief is building',
-      detail: workspaceState.briefReady
-        ? 'Open the weekly brief for the final captain read before match day.'
-        : 'Add lineup, event, or response context to make the weekly brief more useful.',
-      href: weeklyBriefHref,
-      stage: 'brief' as CaptainResumeStage,
-      cta: 'Open brief',
-      tone: workspaceState.briefReady ? 'good' as const : 'info' as const,
-    },
-  ]
 
   function handleCaptainAction(href: string, stage: CaptainResumeStage) {
     if (href.startsWith('#')) {
@@ -1655,11 +1534,15 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     <div style={pageWrap}>
         <section style={dynamicHeroCard}>
           <div style={heroLeft}>
-            <TiqFeatureIcon name="captainDashboard" size="lg" variant="surface" />
-            <div style={eyebrow}>{CAPTAIN_STORY.eyebrow}</div>
-            <h1 style={dynamicHeroTitle}>{CAPTAIN_STORY.headline}</h1>
+            <div style={captainWorkbenchHeaderStyle(isMobile)}>
+              <TiqFeatureIcon name="captainDashboard" size="lg" variant="surface" />
+              <div>
+                <div style={eyebrow}>Captain workspace</div>
+                <h1 style={dynamicHeroTitle}>Run the team week.</h1>
+              </div>
+            </div>
             <p style={dynamicHeroText}>
-              {CAPTAIN_STORY.body}
+              Pick the team, see the blocker, build the lineup, and send the plan.
             </p>
 
             <div id="captain-team-scope" style={dynamicHeroControlRow}>
@@ -1732,27 +1615,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               {scopeStatusText}
             </div>
 
-            <div style={captainScopeHandoffGridStyle(isSmallMobile)} aria-label="Captain team scope handoff">
-              {CAPTAIN_TEAM_SCOPE_HANDOFF.map((item) => (
-                <div key={item.label} style={captainScopeHandoffCardStyle}>
-                  <strong>{item.label}</strong>
-                  <span>{item.text}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={captainOnboardingStripStyle(isSmallMobile)} aria-label="Captain first steps">
-              {CAPTAIN_ONBOARDING_STEPS.map((step) => (
-                <div key={step.label} style={captainOnboardingStepStyle}>
-                  <span style={captainOnboardingNumberStyle}>{step.label}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <strong style={captainOnboardingTitleStyle}>{step.title}</strong>
-                    <span style={captainOnboardingTextStyle}>{step.detail}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
             {!loadingOptions && !filteredTeamOptions.length ? (
               <div style={captainDataAssistCueStyle}>
                 <div>
@@ -1796,56 +1658,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <span style={badgeBlue}>Top pair {quickStats.topPairWinPct}</span>
             </div>
           </div>
-
-          <div style={dynamicHeroRightCard}>
-            <div style={captainHeroVisualStyle}>
-              <div style={captainHeroBoardGridStyle} />
-              <div style={captainHeroVisualGlowStyle} />
-              <div style={captainHeroVisualMaskStyle} />
-            </div>
-
-            <div style={captainHeroVisualContentStyle}>
-              <div>
-                <div style={miniKicker}>{CAPTAIN_STORY.quickStartKicker}</div>
-                <h2 style={quickStartTitle}>{CAPTAIN_STORY.quickStartTitle}</h2>
-              </div>
-
-              <div style={workflowStack}>
-                {CAPTAIN_STORY.workflow.map(([step, title, text]) => (
-                  <div key={step} style={workflowRow}>
-                    <div style={workflowStep}>
-                      <TiqFeatureIcon
-                        name={step === '1' ? 'schedule' : step === '2' ? 'lineupBuilder' : step === '3' ? 'messagingCenter' : 'reports'}
-                        size="sm"
-                        variant="ghost"
-                      />
-                    </div>
-                    <div>
-                      <div style={workflowTitle}>{title}</div>
-                      <div style={workflowText}>{text}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={captainQuickMetricCardStyle}>
-                <div style={miniKicker}>This week</div>
-                <div style={captainQuickMetricValueStyle}>{weekStatusMeta.label}</div>
-                <div style={captainQuickMetricTextStyle}>{weekStatusMeta.detail}</div>
-              </div>
-            </div>
-          </div>
         </section>
-
-        <CaptainSubnav
-          title="Run the week"
-          description="Availability, lineup, message, brief. Keep the week moving."
-        />
-
-        <CaptainSuitePanel
-          active="availability"
-          teamLabel={[selectedTeam, selectedFlight].filter(Boolean).join(' - ') || undefined}
-        />
 
         {error ? (
           <section style={errorCard}>
@@ -1891,81 +1704,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             detail={workspaceState.briefReady ? 'Open the captain or team brief' : 'Add lineup, event, or response context'}
             tone={workspaceState.briefReady ? 'good' : 'info'}
           />
-        </section>
-
-        <section style={captainValueProofStyle} aria-label="Captain workspace value">
-          <div style={captainValueIntroStyle}>
-            <div style={sectionKicker}>Captain value</div>
-            <h2 style={captainValueTitleStyle}>{CAPTAIN_STORY.activeTitle}</h2>
-            <div style={sectionSub}>{CAPTAIN_STORY.activeBody}</div>
-          </div>
-          <div style={captainValueGridStyle(isTablet)}>
-            {CAPTAIN_STORY.workspaceProof.map((item) => (
-              <div key={item.label} style={captainValueCardStyle}>
-                <span style={badgeBlue}>{item.label}</span>
-                <strong>{item.title}</strong>
-                <span style={captainValueBodyStyle}>{item.body}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section style={captainReadinessPanelStyle}>
-          <div style={captainReadinessHeaderStyle}>
-            <div>
-              <div style={sectionKicker}>Captain readiness</div>
-              <h2 style={captainReadinessTitleStyle}>
-                {captainReadinessScore === 100 ? 'This week is ready to send.' : 'Tighten the week before match day.'}
-              </h2>
-              <div style={sectionSub}>
-                {captainReadinessScore === 100
-                  ? 'Availability, match context, lineup, and messaging are all in place.'
-                  : `Next: ${captainReadinessNext.label.toLowerCase()}.`}
-              </div>
-            </div>
-            <div style={captainReadinessScoreBlockStyle}>
-              <strong>{captainReadinessScore}%</strong>
-              <span>{captainReadinessCompleteCount}/{captainReadinessChecks.length} ready</span>
-            </div>
-          </div>
-          <div style={captainReadinessTrackStyle} aria-label={`Captain readiness ${captainReadinessScore} percent`}>
-            <span style={captainReadinessFillStyle(captainReadinessScore)} />
-          </div>
-          <div style={captainReadinessChecklistStyle}>
-            {captainReadinessChecks.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                disabled={!premiumEnabled && !item.href.startsWith('#')}
-                onClick={() => {
-                  handleCaptainAction(item.href, item.stage)
-                }}
-                style={{
-                  ...(item.complete ? captainReadinessPillCompleteStyle : captainReadinessPillStyle),
-                  ...(!premiumEnabled && !item.href.startsWith('#') ? disabledButtonSecondary : {}),
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div style={captainReadinessActionRowStyle}>
-            <PrimarySmallBtn
-              disabled={!premiumEnabled || captainReadinessScore === 100 || (!hasTeamScope && !captainReadinessNext.href.startsWith('#'))}
-              onClick={() => {
-                if (!captainReadinessNext) return
-                handleCaptainAction(captainReadinessNext.href, captainReadinessNext.stage)
-              }}
-            >
-              {captainReadinessScore === 100 ? 'Week ready' : captainReadinessNext.cta}
-            </PrimarySmallBtn>
-            <SecondarySmallBtn
-              disabled={!premiumEnabled || !hasTeamScope}
-              onClick={() => handleCaptainNav(weeklyBriefHref, 'brief')}
-            >
-              Open brief
-            </SecondarySmallBtn>
-          </div>
         </section>
 
         <section style={commandCenterShell}>
@@ -2085,54 +1823,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 Open messaging
               </SecondarySmallBtn>
             </div>
-          </div>
-        </section>
-
-        <section style={captainCloseoutPanelStyle}>
-          <div style={sectionHead}>
-            <div>
-              <div style={sectionKicker}>Weekly closeout</div>
-              <h2 style={sectionTitle}>Get from planning to sent.</h2>
-              <div style={sectionSub}>
-                A tighter Captain workspace should show the blocker, the team note, and the final brief without making you hunt.
-              </div>
-            </div>
-            <span style={captainReadinessScore === 100 ? badgeGreen : warnBadge}>
-              {captainReadinessScore === 100 ? 'Ready' : `${captainReadinessScore}% ready`}
-            </span>
-          </div>
-          <div style={captainCloseoutGridStyle(isTablet)}>
-            {captainCloseoutCards.map((card) => (
-              <article key={card.label} style={captainCloseoutCardStyle}>
-                <div style={nextActionHeader}>
-                  <span style={nextActionLabel}>{card.label}</span>
-                  <span style={card.tone === 'good' ? badgeGreen : card.tone === 'warn' ? warnBadge : badgeBlue}>
-                    {card.tone === 'good' ? 'Ready' : card.tone === 'warn' ? 'Needs work' : 'Open'}
-                  </span>
-                </div>
-                <div style={captainCloseoutTitleStyle}>{card.title}</div>
-                <div style={nextActionText}>{card.detail}</div>
-                <PrimarySmallBtn
-                  disabled={!premiumEnabled || (!hasTeamScope && !card.href.startsWith('#'))}
-                  onClick={() => {
-                    void trackProductUsageEvent({
-                      eventName: 'captain_closeout_action',
-                      surface: 'captain',
-                      planId: 'captain',
-                      metadata: {
-                        label: card.label,
-                        stage: card.stage,
-                        href: card.href,
-                        readinessScore: captainReadinessScore,
-                      },
-                    })
-                    handleCaptainAction(card.href, card.stage)
-                  }}
-                >
-                  {card.cta}
-                </PrimarySmallBtn>
-              </article>
-            ))}
           </div>
         </section>
 
@@ -2895,17 +2585,13 @@ const heroLeft: CSSProperties = {
   minWidth: 0,
 }
 
-const heroRightCard: CSSProperties = {
+const captainWorkbenchHeaderStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gap: 16,
-  alignContent: 'start',
-  padding: 20,
-  borderRadius: 24,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  backdropFilter: 'blur(10px)',
-  WebkitBackdropFilter: 'blur(10px)',
-}
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, auto) minmax(0, 1fr)',
+  gap: 14,
+  alignItems: 'center',
+  minWidth: 0,
+})
 
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
@@ -3069,84 +2755,6 @@ const badgeSlate: CSSProperties = {
   background: 'var(--shell-chip-bg)',
 }
 
-const miniKicker: CSSProperties = {
-  fontSize: 12,
-  color: 'var(--brand-blue-2)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.12em',
-  fontWeight: 800,
-}
-
-const quickStartTitle: CSSProperties = {
-  margin: 0,
-  fontSize: 24,
-  lineHeight: 1.1,
-  letterSpacing: 0,
-  color: 'var(--foreground-strong)',
-}
-
-const workflowStack: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-}
-
-const workflowRow: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
-  gap: 12,
-  alignItems: 'start',
-  minWidth: 0,
-}
-
-const workflowStep: CSSProperties = {
-  width: 42,
-  height: 42,
-  display: 'grid',
-  placeItems: 'center',
-  borderRadius: 14,
-  fontWeight: 900,
-  color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
-}
-
-const workflowTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontWeight: 800,
-  fontSize: 15,
-  marginBottom: 4,
-}
-
-const workflowText: CSSProperties = {
-  color: 'var(--foreground)',
-  fontSize: 14,
-  lineHeight: 1.6,
-}
-
-const captainQuickMetricCardStyle: CSSProperties = {
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  padding: '14px 14px 13px',
-  boxShadow: 'var(--shadow-soft)',
-  display: 'grid',
-  gap: 8,
-}
-
-const captainQuickMetricValueStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 22,
-  fontWeight: 900,
-  letterSpacing: 0,
-  lineHeight: 1,
-}
-
-const captainQuickMetricTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.6,
-}
-
 const errorCard: CSSProperties = {
   padding: 16,
   borderRadius: 20,
@@ -3161,90 +2769,6 @@ const statusStrip: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
-}
-
-const captainReadinessPanelStyle: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  padding: 18,
-  borderRadius: 24,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, transparent) 0%, var(--shell-panel-bg-strong) 68%)',
-  boxShadow: 'var(--shadow-soft)',
-}
-
-const captainReadinessHeaderStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: 16,
-  flexWrap: 'wrap',
-}
-
-const captainReadinessTitleStyle: CSSProperties = {
-  margin: '4px 0 0',
-  color: 'var(--foreground-strong)',
-  fontSize: 22,
-  lineHeight: 1.12,
-  fontWeight: 950,
-}
-
-const captainReadinessScoreBlockStyle: CSSProperties = {
-  display: 'grid',
-  gap: 4,
-  justifyItems: 'end',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  fontWeight: 900,
-}
-
-const captainReadinessTrackStyle: CSSProperties = {
-  height: 14,
-  borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--foreground-strong) 12%, var(--shell-panel-border) 88%)',
-  background: 'var(--shell-chip-bg)',
-  overflow: 'hidden',
-  padding: 2,
-}
-
-const captainReadinessFillStyle = (value: number): CSSProperties => ({
-  display: 'block',
-  height: '100%',
-  width: `${Math.max(0, Math.min(value, 100))}%`,
-  borderRadius: 999,
-  background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
-})
-
-const captainReadinessChecklistStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-}
-
-const captainReadinessPillStyle: CSSProperties = {
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--shell-copy-muted)',
-  borderRadius: 999,
-  minHeight: 34,
-  padding: '0 11px',
-  fontSize: 12,
-  fontWeight: 900,
-  cursor: 'pointer',
-}
-
-const captainReadinessPillCompleteStyle: CSSProperties = {
-  ...captainReadinessPillStyle,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 35%, var(--shell-panel-border) 65%)',
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
-  color: 'var(--foreground-strong)',
-}
-
-const captainReadinessActionRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 10,
 }
 
 const statusCard: CSSProperties = {
@@ -3326,55 +2850,6 @@ const commandCenterCardInfo: CSSProperties = {
 
 const commandCenterCardLocked: CSSProperties = {
   opacity: 0.82,
-}
-
-const captainValueProofStyle: CSSProperties = {
-  display: 'grid',
-  gap: 16,
-  padding: 22,
-  borderRadius: 24,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
-  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
-}
-
-const captainValueIntroStyle: CSSProperties = {
-  display: 'grid',
-  gap: 4,
-}
-
-const captainValueTitleStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(1.35rem, 2.3vw, 2rem)',
-  lineHeight: 1.08,
-  fontWeight: 950,
-}
-
-const captainValueGridStyle = (isTablet: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isTablet
-    ? 'minmax(0, 1fr)'
-    : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-  gap: 12,
-})
-
-const captainValueCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 9,
-  alignContent: 'start',
-  minHeight: 150,
-  padding: 14,
-  borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
-  fontSize: 13,
-  lineHeight: 1.55,
-  fontWeight: 750,
-}
-
-const captainValueBodyStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
 }
 
 const commandCenterTopRow: CSSProperties = {
@@ -3494,40 +2969,6 @@ const nextActionButtonRow: CSSProperties = {
   gap: 10,
 }
 
-const captainCloseoutPanelStyle: CSSProperties = {
-  display: 'grid',
-  gap: 16,
-  padding: 22,
-  borderRadius: 24,
-  border: '1px solid color-mix(in srgb, var(--brand-blue) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-blue) 6%, var(--shell-panel-bg) 94%)',
-  boxShadow: '0 18px 42px rgba(2,10,24,0.12)',
-}
-
-const captainCloseoutGridStyle = (isTablet: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  gap: 12,
-})
-
-const captainCloseoutCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  alignContent: 'space-between',
-  minHeight: 210,
-  padding: 16,
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-}
-
-const captainCloseoutTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 20,
-  fontWeight: 900,
-  lineHeight: 1.12,
-}
-
 const warnBadge: CSSProperties = {
   ...badgeBase,
   color: '#fecaca',
@@ -3561,85 +3002,6 @@ const scopeBannerWarn: CSSProperties = {
   background: 'color-mix(in srgb, #f59e0b 12%, var(--shell-chip-bg) 88%)',
   border: '1px solid color-mix(in srgb, #f59e0b 22%, var(--shell-panel-border) 78%)',
   color: 'var(--foreground-strong)',
-}
-
-const captainOnboardingStripStyle = (isSmallMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  gap: 10,
-  minWidth: 0,
-  maxWidth: 940,
-})
-
-const captainOnboardingStepStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
-  gap: 10,
-  alignItems: 'start',
-  minHeight: 112,
-  padding: 12,
-  borderRadius: 18,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
-  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const captainOnboardingNumberStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 30,
-  height: 30,
-  borderRadius: 12,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  fontWeight: 950,
-}
-
-const captainOnboardingTitleStyle: CSSProperties = {
-  display: 'block',
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  lineHeight: 1.2,
-  fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
-const captainOnboardingTextStyle: CSSProperties = {
-  display: 'block',
-  marginTop: 5,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.5,
-  fontWeight: 750,
-  overflowWrap: 'anywhere',
-}
-
-const captainScopeHandoffGridStyle = (isSmallMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  gap: 10,
-  maxWidth: 940,
-  minWidth: 0,
-})
-
-const captainScopeHandoffCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 5,
-  minHeight: 96,
-  padding: '12px 13px',
-  borderRadius: 16,
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.5,
-  fontWeight: 750,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
 }
 
 const captainDataAssistCueStyle: CSSProperties = {
