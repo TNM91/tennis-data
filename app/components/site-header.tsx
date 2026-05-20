@@ -232,12 +232,13 @@ export default function SiteHeader({ active }: { active?: string }) {
 
   const authenticated = Boolean(userId) || role !== 'public'
   const authPending = !authResolved
+  const accessPending = authenticated && (authPending || entitlements === null)
   const resolvedRole = authResolved || !userId ? role : 'member'
   const useCompactHeader = shouldUseCompactSiteHeader({ role: resolvedRole, authenticated, screenWidth })
   const useCompactBrand = useCompactHeader
   const access = buildProductAccessState(resolvedRole, entitlements)
   const roleLabel =
-    !authResolved && authenticated
+    accessPending
       ? 'Account'
       : role === 'admin'
       ? 'Admin'
@@ -459,11 +460,9 @@ export default function SiteHeader({ active }: { active?: string }) {
               }}
             >
               <div style={mobilePanelTopStyle}>
-                <div style={mobileSectionLabelStyle}>{authPending ? 'Checking access' : roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
+                <div style={mobileSectionLabelStyle}>{accessPending ? 'Account navigation' : roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
                 <div style={mobileAccountToolsStyle}>
-                  {authPending ? (
-                    <span aria-live="polite" style={mobileAccountPillStyle}>Checking access</span>
-                  ) : accountLabel ? (
+                  {accountLabel ? (
                     <span style={mobileAccountPillStyle}>
                       {profilePhotoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -475,14 +474,12 @@ export default function SiteHeader({ active }: { active?: string }) {
                 </div>
               </div>
 
-              {authPending ? (
-                <div aria-live="polite" style={mobileItemStyle}>
-                  <span style={mobilePlainItemTextStyle}>Checking access</span>
-                </div>
-              ) : PRIMARY_NAV_ITEMS.map((item) => {
+              {PRIMARY_NAV_ITEMS.map((item) => {
                 const activeNow = isActiveLink(active, pathname, item.href)
                 const visual = PRIMARY_NAV_VISUALS[item.href]
-                const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
+                const navTarget = accessPending
+                  ? { href: item.href, locked: false, requiredPlan: null }
+                  : getPrimaryNavTarget(item.href, access, authenticated)
                 const lockedLabel = getPrimaryNavLockedLabel(item.label, navTarget.requiredPlan)
                 return (
                   <Link

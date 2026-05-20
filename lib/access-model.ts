@@ -277,7 +277,7 @@ export async function getClientEntitlementSnapshot(
     }
 
     const row = (data || null) as ProductEntitlementRow | null
-    if (!row) return null
+    if (!row) return DEFAULT_ENTITLEMENTS
 
     return {
       playerPlusSubscriptionActive: Boolean(row.player_plus_subscription_active),

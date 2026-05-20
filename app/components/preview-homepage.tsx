@@ -430,7 +430,19 @@ function getTierOpenLabel(planId: PricingPlanId) {
   return 'Explore Free'
 }
 
-function getTierAccessPresentation(planId: PricingPlanId, access: ProductAccessState, authenticated: boolean) {
+function getTierAccessPresentation(planId: PricingPlanId, access: ProductAccessState, authenticated: boolean, accessPending = false) {
+  if (authenticated && accessPending) {
+    return {
+      active: true,
+      statusLabel: 'Checking',
+      priceLabel: 'Checking',
+      primaryCta: {
+        label: getTierOpenLabel(planId),
+        href: getPlanDestinationHref(planId),
+      },
+    }
+  }
+
   const active = canUseTier(access, planId)
   const destinationHref = getPlanDestinationHref(planId)
   const story = TIER_HOMEPAGE_STORY[planId]
@@ -464,12 +476,14 @@ function CommandCenterHome({
   firstName,
   profileLinked,
   profileResolved,
+  accessPending,
 }: {
   access: ProductAccessState
   authenticated: boolean
   firstName: string
   profileLinked: boolean
   profileResolved: boolean
+  accessPending: boolean
 }) {
   const router = useRouter()
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -598,7 +612,7 @@ function CommandCenterHome({
             {commandModes.map((mode) => {
               const active = activeLane === mode.planId
               const accent = getModeAccent(mode.planId)
-              const accessState = getTierAccessPresentation(mode.planId, access, authenticated)
+              const accessState = getTierAccessPresentation(mode.planId, access, authenticated, accessPending)
               return (
                 <button
                   key={mode.planId}
@@ -715,7 +729,7 @@ function CommandCenterHome({
             }}
           >
             {selectedTasks.map((task) => {
-              const taskAccess = getTierAccessPresentation(task.requiredPlan, access, authenticated)
+              const taskAccess = getTierAccessPresentation(task.requiredPlan, access, authenticated, accessPending)
               const href = taskAccess.active ? task.href : getPlanUnlockHref(task.requiredPlan, task.href)
               return (
                 <Link
@@ -1896,9 +1910,11 @@ export default function PreviewHomepage() {
 
 function PreviewHomepageContent() {
   const { isMobile } = useViewportBreakpoints()
-  const { role, entitlements, session, userId } = useAuth()
-  const authenticated = role !== 'public'
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const { role, entitlements, session, userId, authResolved } = useAuth()
+  const authenticated = Boolean(userId) || role !== 'public'
+  const accessPending = authenticated && (!authResolved || entitlements === null)
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [profileDisplayName, setProfileDisplayName] = useState('')
   const [profileLinked, setProfileLinked] = useState(false)
@@ -1961,6 +1977,7 @@ function PreviewHomepageContent() {
           firstName={firstName}
           profileLinked={profileLinked}
           profileResolved={profileResolved}
+          accessPending={accessPending}
         />
         {!authenticated ? <TierChoiceGrid access={access} authenticated={authenticated} /> : null}
       </div>
