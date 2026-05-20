@@ -511,33 +511,43 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
         }}
       >
         <div style={{ display: 'grid', gap: isMobile ? 16 : 18, minWidth: 0 }}>
-          <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
-            <div style={{ ...badgeGreen, width: 'fit-content' }}>Premium tennis command center</div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
+              gap: 14,
+              alignItems: 'start',
+              minWidth: 0,
+            }}
+          >
+            <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
+              <div style={{ ...badgeGreen, width: 'fit-content' }}>TenAceIQ dashboard</div>
             <h1
               style={{
                 margin: 0,
-                maxWidth: 780,
+                  maxWidth: 760,
                 color: 'var(--foreground-strong)',
-                fontSize: 'clamp(2.55rem, 6vw, 5.35rem)',
-                lineHeight: 0.92,
+                  fontSize: 'clamp(2rem, 4vw, 3.45rem)',
+                  lineHeight: 0.96,
                 letterSpacing: 0,
                 fontWeight: 950,
                 overflowWrap: 'anywhere',
               }}
             >
-              Find the signal. Pick the tool. Get back to tennis.
+                Open the tool you need today.
             </h1>
             <p
               style={{
                 margin: 0,
-                maxWidth: 720,
+                  maxWidth: 680,
                 color: 'var(--shell-copy-muted)',
-                fontSize: isMobile ? 15 : 17,
-                lineHeight: 1.65,
+                  fontSize: isMobile ? 14 : 15,
+                  lineHeight: 1.55,
               }}
             >
-              Start with public tennis context, then unlock the workflow that saves time: your game, your team week, or your league season.
+                Everything is visible up front. Find is active for free; You, Team, and League unlock when those tools make your tennis life easier.
             </p>
+            </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href={selectedAccess.primaryCta.href} style={{ ...buttonPrimary, minHeight: 46 }}>
                 {selectedAccess.primaryCta.label}
@@ -571,7 +581,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                     gridTemplateColumns: '42px minmax(0, 1fr)',
                     gap: 10,
                     alignItems: 'center',
-                    minHeight: 76,
+                    minHeight: 82,
                     padding: 12,
                     borderRadius: 18,
                     border: active ? `1px solid ${accent}` : '1px solid rgba(116,190,255,0.14)',
@@ -598,7 +608,20 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                     <TiqFeatureIcon name={mode.icon} size="sm" variant="ghost" />
                   </span>
                   <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
-                    <strong style={{ fontSize: 15, lineHeight: 1.05 }}>{mode.lane}</strong>
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
+                      <strong style={{ fontSize: 15, lineHeight: 1.05 }}>{mode.lane}</strong>
+                      <em
+                        style={{
+                          color: accessState.active ? accent : 'var(--shell-copy-muted)',
+                          fontSize: 10,
+                          fontStyle: 'normal',
+                          fontWeight: 950,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {accessState.active ? 'Open' : 'Locked'}
+                      </em>
+                    </span>
                     <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
                       {accessState.active ? mode.action : 'Preview unlock'}
                     </span>
@@ -672,7 +695,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                   style={{
                     display: 'grid',
                     gap: 10,
-                    minHeight: 138,
+                    minHeight: 128,
                     padding: 13,
                     borderRadius: 18,
                     border: '1px solid rgba(116,190,255,0.13)',
@@ -715,25 +738,30 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
             <p style={{ margin: 0, color: 'var(--shell-copy-muted)', fontSize: 14, lineHeight: 1.6 }}>
               {selectedDetails.subhead}
             </p>
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gap: 8,
+                minWidth: 0,
+              }}
+            >
               {selectedMode.proof.map((proof) => (
                 <div
                   key={proof}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '26px minmax(0, 1fr)',
-                    gap: 9,
-                    alignItems: 'center',
-                    padding: '10px 11px',
+                    gap: 4,
+                    minHeight: 72,
+                    padding: 10,
                     borderRadius: 14,
                     background: 'rgba(255,255,255,0.055)',
                     border: '1px solid rgba(255,255,255,0.07)',
+                    minWidth: 0,
                   }}
                 >
-                  <span style={{ display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 999, background: `color-mix(in srgb, ${activeAccent} 22%, transparent 78%)`, color: activeAccent, fontSize: 11, fontWeight: 950 }}>
-                    {proof.slice(0, 2)}
-                  </span>
-                  <strong style={{ color: 'var(--foreground-strong)', fontSize: 13, overflowWrap: 'anywhere' }}>{proof}</strong>
+                  <span style={{ color: activeAccent, fontSize: 11, fontWeight: 950 }}>{proof.slice(0, 2)}</span>
+                  <strong style={{ color: 'var(--foreground-strong)', fontSize: 12, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{proof}</strong>
                 </div>
               ))}
             </div>
