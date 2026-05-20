@@ -14,7 +14,7 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 
-const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
+const DEFAULT_POST_LOGIN_ROUTE = '/'
 const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
 const LOGIN_AUTH_TIMEOUT_MS = 8000
 const LOGIN_PLAN_ICON_BY_ID: Record<MembershipTierId, TiqFeatureIconName> = {
@@ -78,8 +78,6 @@ async function getDefaultPostLoginRoute(
   userId?: string | null,
 ) {
   const access = buildProductAccessState(role, entitlements)
-  if (access.currentPlanId === 'league') return '/league-coordinator'
-  if (access.currentPlanId === 'captain') return '/captain'
   if (access.canUseAdvancedPlayerInsights) {
     const profileRes = await withLoginTimeout(
       loadUserProfileLink(userId),

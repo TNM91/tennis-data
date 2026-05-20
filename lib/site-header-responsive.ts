@@ -11,5 +11,6 @@ export function shouldUseCompactSiteHeader(input: {
   authenticated: boolean
   screenWidth: number
 }) {
-  return input.screenWidth < getSiteHeaderCompactBreakpoint(input.role, input.authenticated)
+  void input
+  return true
 }

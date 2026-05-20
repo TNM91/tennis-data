@@ -623,6 +623,7 @@ function MyLabPageInner() {
   const { isTablet } = useViewportBreakpoints()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
+  const accessPending = !authResolved || (Boolean(userId) && entitlements === null)
 
   useEffect(() => {
     const nextGoals = readLocalGoals(userId, profileLink?.linked_player_id)
@@ -2206,7 +2207,7 @@ function MyLabPageInner() {
   ]
   return (
     <section style={pageStyle}>
-      {authResolved && !access.canUseAdvancedPlayerInsights ? (
+      {!accessPending && !access.canUseAdvancedPlayerInsights ? (
         <UpgradePrompt
           planId="player_plus"
           headline={MY_LAB_STORY.upgradeHeadline}
