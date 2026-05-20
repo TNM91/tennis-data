@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -10,9 +9,6 @@ import { supabase } from '@/lib/supabase'
 import { formatDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { buildProductAccessState } from '@/lib/access-model'
-import CaptainSubnav from '@/app/components/captain-subnav'
-import CaptainSuitePanel from '@/app/components/captain-suite-panel'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -384,7 +380,6 @@ function ScenarioComparisonContent() {
   const [rightId, setRightId] = useState(initialContext.rightId)
   const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const heroArtworkSrc = '/og-image.png'
 
   useEffect(() => {
     if (!authResolved || role !== 'public') {
@@ -538,34 +533,6 @@ function ScenarioComparisonContent() {
 
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const premiumEnabled = access.canUseCaptainWorkflow
-  const dynamicQuickStartCard: CSSProperties = {
-    ...quickStartCard,
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: isTablet ? 320 : 360,
-    background: 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))',
-    border: '1px solid rgba(116,190,255,0.12)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-  }
-
-  const scenarioVisualStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-  }
-
-  const scenarioVisualMaskStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    background: 'linear-gradient(135deg, rgba(8,18,38,0.24) 8%, rgba(8,18,38,0.76) 50%, rgba(8,18,38,0.94) 100%)',
-  }
-
-  const scenarioVisualContentStyle: CSSProperties = {
-    position: 'relative',
-    zIndex: 1,
-    display: 'grid',
-    gap: 14,
-  }
-
   const builderHref = (scenarioId: string) => {
     const params = new URLSearchParams()
     params.set('scenario', scenarioId)
@@ -656,73 +623,29 @@ function ScenarioComparisonContent() {
             </div>
           </div>
 
-          <div style={dynamicQuickStartCard}>
-            <div style={scenarioVisualStyle}>
-              <Image
-                src={heroArtworkSrc}
-                alt="TenAceIQ scenario comparison concept art"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 34vw"
-                style={{ objectFit: 'cover', objectPosition: isTablet ? 'center center' : '72% center' }}
-              />
-              <div style={scenarioVisualMaskStyle} />
+          <div style={captainReadCard}>
+            <div style={captainReadTop}>
+              <div>
+                <p style={sectionKicker}>Decision support</p>
+                <h2 style={captainReadTitle}>{winningScenarioName}</h2>
+                <p style={captainReadText}>
+                  {leftScenario && rightScenario
+                    ? `${separationLabel}. ${yourComparison.changedCount + opponentComparison.changedCount} changed courts.`
+                    : 'Pick two saved versions to see the swing courts.'}
+                </p>
+              </div>
+              <TiqFeatureIcon name="scenarioBuilder" size="md" variant="surface" />
             </div>
 
-            <div style={scenarioVisualContentStyle}>
-              <p style={sectionKicker}>Decision support</p>
-              <h2 style={quickStartTitle}>Pick the better build</h2>
-              <div style={workflowListStyle}>
-                {[
-                  ['1', 'Filter', 'Get down to the real team, match, and saved versions.'],
-                  ['2', 'Compare', 'Review changed courts and projected edge.'],
-                  ['3', 'Choose', 'Return to the builder or message the team.'],
-                  ].map(([step, title, text]) => (
-                   <div key={step} style={workflowRowStyle}>
-                     <div style={workflowNumberStyle}>
-                       <TiqFeatureIcon name={step === '1' ? 'schedule' : step === '2' ? 'scenarioBuilder' : 'messagingCenter'} size="sm" variant="ghost" />
-                     </div>
-                    <div>
-                      <div style={workflowTitleStyle}>{title}</div>
-                      <div style={workflowTextStyle}>{text}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {!premiumEnabled ? (
-                <div style={{ marginTop: 18 }}>
-                  <span style={warnPill}>Preview mode</span>
-                </div>
-              ) : null}
+            <div style={compactPillRowStyle}>
+              <span style={leftScenario && rightScenario ? miniPillGreen : miniPillSlate}>
+                {leftScenario && rightScenario ? 'Compare ready' : 'Choose versions'}
+              </span>
+              <span style={miniPillSlate}>{filteredScenarios.length} saved</span>
+              <span style={miniPillSlate}>{teamFilter || 'All teams'}</span>
             </div>
           </div>
         </section>
-
-        <CaptainSubnav
-          title="Step 3: Compare"
-          description="Use scenarios to choose the lineup, then move into messaging."
-          tierLabel={access.captainTierLabel}
-          tierActive={access.captainSubscriptionActive}
-        />
-
-        <CaptainSuitePanel
-          active="scenario"
-          teamLabel={[teamFilter, flightFilter].filter(Boolean).join(' - ') || undefined}
-          flow={['availability', 'lineup', 'scenario', 'messaging', 'brief']}
-        />
-
-        {!premiumEnabled ? (
-          <UpgradePrompt
-            planId="captain"
-            headline="Need a clearer answer than guess-and-check?"
-            body="Captain helps you compare real lineup versions, spot the swing lines faster, and move the winning plan into team communication without bouncing across tools."
-            ctaLabel="Unlock Captain Tools"
-            ctaHref="/pricing"
-            secondaryLabel="Keep comparing"
-            compact
-          />
-        ) : null}
 
         <section style={contentWrap}>
           <details style={surfaceCardStrong}>
@@ -1153,20 +1076,6 @@ function ScenarioComparisonContent() {
                       </div>
                     </div>
 
-                    {!premiumEnabled ? (
-                      <div style={{ marginTop: 16 }}>
-                        <UpgradePrompt
-                          planId="captain"
-                          compact
-                          headline="Ready to move the winning version into action?"
-                          body="Captain turns this comparison into a real weekly handoff by connecting the winning scenario to messaging, lineup execution, and the rest of the captain workflow."
-                          ctaLabel="Unlock Captain Tools"
-                          ctaHref="/pricing"
-                          secondaryLabel="See Captain plan"
-                          secondaryHref="/pricing"
-                        />
-                      </div>
-                    ) : null}
                   </section>
 
                   <section style={surfaceCard}>
@@ -1462,20 +1371,6 @@ function ScenarioComparisonContent() {
                       </GhostSmallBtn>
                     </div>
 
-                    {!premiumEnabled ? (
-                      <div style={{ marginTop: 16 }}>
-                        <UpgradePrompt
-                          planId="captain"
-                          compact
-                          headline="Still copying the winning plan by hand?"
-                          body="Captain unlocks the clean path from scenario decision into team messaging so the best version does not get lost between tabs, notes, and group texts."
-                          ctaLabel="Send Smarter Team Updates"
-                          ctaHref="/pricing"
-                          secondaryLabel="Compare plans"
-                          secondaryHref="/pricing"
-                        />
-                      </div>
-                    ) : null}
                   </section>
 
                   <section style={notesGridResponsive(isTablet)}>
@@ -1874,7 +1769,15 @@ const metricValueStyleHero: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const quickStartCard: CSSProperties = {
+const compactPillRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  marginTop: 16,
+  minWidth: 0,
+}
+
+const captainReadCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -1883,54 +1786,30 @@ const quickStartCard: CSSProperties = {
   minWidth: 0,
 }
 
-const quickStartTitle: CSSProperties = {
-  marginTop: 10,
-  marginBottom: 14,
-  fontSize: '1.35rem',
-  lineHeight: 1.14,
-  color: 'var(--foreground)',
-  overflowWrap: 'anywhere',
-}
-
-const workflowListStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  minWidth: 0,
-}
-
-const workflowRowStyle: CSSProperties = {
+const captainReadTop: CSSProperties = {
   display: 'flex',
-  gap: 12,
+  justifyContent: 'space-between',
   alignItems: 'flex-start',
+  gap: 14,
+  flexWrap: 'wrap',
+  marginBottom: 16,
   minWidth: 0,
 }
 
-const workflowNumberStyle: CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 999,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 800,
-  fontSize: '.92rem',
+const captainReadTitle: CSSProperties = {
+  margin: '6px 0',
+  fontSize: '1.55rem',
+  lineHeight: 1.08,
   color: 'var(--foreground-strong)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  flexShrink: 0,
-}
-
-const workflowTitleStyle: CSSProperties = {
-  fontWeight: 700,
-  color: 'var(--foreground)',
-  marginBottom: 4,
+  fontWeight: 900,
   overflowWrap: 'anywhere',
 }
 
-const workflowTextStyle: CSSProperties = {
+const captainReadText: CSSProperties = {
+  margin: 0,
   color: 'var(--shell-copy-muted)',
-  lineHeight: 1.55,
-  fontSize: '.95rem',
+  lineHeight: 1.6,
+  fontSize: '.96rem',
   overflowWrap: 'anywhere',
 }
 
