@@ -1264,13 +1264,38 @@ function UnlockPathPreview({
 }) {
   const tier = getMembershipTier(mode)
   return (
-    <section style={commandPanelStyle}>
+    <section
+      style={{
+        display: 'grid',
+        gap: 14,
+        minWidth: 0,
+        padding: 16,
+        borderRadius: 18,
+        border: active ? '1px solid rgba(155,225,29,0.24)' : '1px solid rgba(116,190,255,0.14)',
+        background: active
+          ? 'linear-gradient(180deg, rgba(155,225,29,0.10), rgba(255,255,255,0.045))'
+          : 'rgba(255,255,255,0.045)',
+        color: 'var(--foreground)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+      }}
+    >
       <div style={commandPanelHeaderStyle}>
-        <h2 style={commandPanelTitleStyle}>{active ? `${tier.name} is active` : `Unlock ${tier.name}`}</h2>
+        <h2
+          style={{
+            margin: 0,
+            color: 'var(--foreground-strong)',
+            fontSize: 16,
+            lineHeight: 1.15,
+            fontWeight: 950,
+            letterSpacing: 0,
+          }}
+        >
+          {active ? `${tier.name} is active` : `Unlock ${tier.name}`}
+        </h2>
         <span style={{ ...rangePillStyle, ...(active ? activeRangePillStyle : null) }}>{active ? 'Open' : 'Preview'}</span>
       </div>
-      <p style={{ margin: 0, color: '#526177', fontSize: 13, lineHeight: 1.55 }}>{line}</p>
-      <Link href={href} style={{ ...outlineBlueButtonStyle, width: 'fit-content' }}>
+      <p style={{ margin: 0, color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.55 }}>{line}</p>
+      <Link href={href} style={{ ...buttonGhost, width: 'fit-content', minHeight: 38 }}>
         {cta}
       </Link>
     </section>
@@ -1891,6 +1916,27 @@ function PreviewHomepageContent() {
   const { role, entitlements } = useAuth()
   const authenticated = role !== 'public'
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const hasPaidAccess =
+    access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow || access.canUseLeagueTools
+
+  if (hasPaidAccess) {
+    return (
+      <div
+        style={{
+          ...pageShell,
+          display: 'grid',
+          gap: isMobile ? 16 : 18,
+          paddingTop: isMobile ? 10 : 14,
+        }}
+      >
+        <CommandCenterHome
+          key={`${authenticated ? 'signed-in' : 'public'}-${getPreferredPortalLane(access)}`}
+          access={access}
+          authenticated={authenticated}
+        />
+      </div>
+    )
+  }
 
   return (
     <div
