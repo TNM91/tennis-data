@@ -86,7 +86,6 @@ export default function LeagueSuitePanel({
       >
         <TiqFeatureIcon name={activeConfig.icon} size="md" variant="surface" />
         <div style={headerCopyStyle}>
-          <div style={eyebrowStyle}>League suite</div>
           <h2 style={titleStyle}>{activeConfig.title}</h2>
           <p style={bodyStyle}>{activeConfig.body}</p>
         </div>
@@ -159,14 +158,6 @@ const headerCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
   minWidth: 0,
-}
-
-const eyebrowStyle: CSSProperties = {
-  color: 'var(--brand-green)',
-  fontSize: 10,
-  fontWeight: 950,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
 }
 
 const titleStyle: CSSProperties = {

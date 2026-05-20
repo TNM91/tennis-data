@@ -544,7 +544,6 @@ function CommandCenterHome({
             }}
           >
             <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
-              <div style={{ ...badgeGreen, width: 'fit-content' }}>TenAceIQ command center</div>
               <h1
                 style={{
                   margin: 0,

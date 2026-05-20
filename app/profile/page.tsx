@@ -483,7 +483,6 @@ function ProfilePageInner() {
     <section style={pageStyle}>
         <section style={heroStyle(isTablet, isMobile)}>
           <div>
-            <div style={eyebrowStyle}>Manage profile</div>
             <h1 style={heroTitleStyle}>{heroTitle}</h1>
             <p style={heroTextStyle}>
               {heroCopy}
@@ -825,23 +824,6 @@ const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   boxShadow: 'var(--shadow-card)',
   minWidth: 0,
 })
-
-const eyebrowStyle: CSSProperties = {
-  display: 'inline-flex',
-  maxWidth: '100%',
-  padding: '8px 14px',
-  borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
-  color: 'var(--home-eyebrow-color)',
-  fontWeight: 900,
-  fontSize: 13,
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: 10,
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
 
 const heroTitleStyle: CSSProperties = {
   margin: 0,

@@ -87,7 +87,6 @@ export default function CaptainSubnav({
         }}
       >
         <div style={headerCopyStyle}>
-          <div style={eyebrowStyle} aria-hidden="true">Captain suite</div>
           <div style={titleStyle}>{title}</div>
           <div style={descriptionStyle}>{description}</div>
         </div>
@@ -229,14 +228,6 @@ const statusValueStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.15,
   overflowWrap: 'anywhere',
-}
-
-const eyebrowStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: 12,
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
 }
 
 const titleStyle: CSSProperties = {
