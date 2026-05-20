@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import NavLockIcon from '@/app/components/nav-lock-icon'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   badgeBlue,
@@ -464,6 +465,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
     authenticated ? getPreferredPortalLane(access) : 'free',
   )
   const selectedDetails = commandModeDetails[activeLane]
+  const selectedMode = commandModes.find((mode) => mode.planId === activeLane) ?? commandModes[0]
   const selectedTasks = commandTaskSets[activeLane]
   const activeAccent = getModeAccent(activeLane)
 
@@ -507,6 +509,63 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
         }}
       >
         <div style={{ display: 'grid', gap: isMobile ? 16 : 18, minWidth: 0 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
+              gap: 14,
+              alignItems: 'center',
+              minWidth: 0,
+            }}
+          >
+            <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+              <div style={{ ...badgeGreen, width: 'fit-content' }}>TenAceIQ command center</div>
+              <h1
+                style={{
+                  margin: 0,
+                  maxWidth: 760,
+                  color: 'var(--foreground-strong)',
+                  fontSize: 'clamp(1.75rem, 3.5vw, 3.05rem)',
+                  lineHeight: 0.98,
+                  letterSpacing: 0,
+                  fontWeight: 950,
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {selectedDetails.headline}
+              </h1>
+              <p
+                style={{
+                  margin: 0,
+                  maxWidth: 700,
+                  color: 'var(--shell-copy-muted)',
+                  fontSize: isMobile ? 13 : 14,
+                  lineHeight: 1.5,
+                }}
+              >
+                {selectedDetails.subhead}
+              </p>
+            </div>
+            <div
+              aria-hidden="true"
+              style={{
+                display: isMobile ? 'none' : 'grid',
+                gridTemplateColumns: 'repeat(2, 46px)',
+                gap: 8,
+                padding: 10,
+                borderRadius: 22,
+                border: `1px solid color-mix(in srgb, ${activeAccent} 24%, rgba(116,190,255,0.14) 76%)`,
+                background: `radial-gradient(circle at 50% 30%, color-mix(in srgb, ${activeAccent} 16%, transparent) 0%, rgba(255,255,255,0.045) 72%)`,
+                boxShadow: `0 18px 42px color-mix(in srgb, ${activeAccent} 10%, transparent)`,
+              }}
+            >
+              <TiqFeatureIcon name={selectedMode.icon} size="md" variant="surface" />
+              <TiqFeatureIcon name={activeLane === 'captain' ? 'messagingCenter' : activeLane === 'league' ? 'schedule' : activeLane === 'player_plus' ? 'matchupAnalysis' : 'playerRatings'} size="md" variant="ghost" />
+              <TiqFeatureIcon name={activeLane === 'captain' ? 'scenarioBuilder' : activeLane === 'league' ? 'reports' : activeLane === 'player_plus' ? 'matchPrep' : 'opponentScouting'} size="md" variant="ghost" />
+              <TiqFeatureIcon name={activeLane === 'league' ? 'teamRankings' : 'alerts'} size="md" variant="surface" />
+            </div>
+          </div>
+
           <nav
             aria-label="Choose a TenAceIQ workflow"
             style={{
@@ -529,10 +588,10 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                   onClick={() => setActiveLane(mode.planId)}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(0, 1fr)',
-                    gap: 6,
+                    gridTemplateColumns: isMobile ? '42px minmax(0, 1fr) minmax(0, auto)' : '42px minmax(0, 1fr)',
+                    gap: 10,
                     alignItems: 'center',
-                    minHeight: isMobile ? 72 : 78,
+                    minHeight: isMobile ? 70 : 84,
                     padding: 12,
                     borderRadius: 18,
                     border: active ? `1px solid ${accent}` : '1px solid rgba(116,190,255,0.14)',
@@ -545,25 +604,37 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                     minWidth: 0,
                   }}
                 >
+                  <TiqFeatureIcon name={mode.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
                   <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
                     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
                       <strong style={{ fontSize: 15, lineHeight: 1.05 }}>{mode.lane}</strong>
-                      <em
-                        style={{
-                          color: accessState.active ? accent : 'var(--shell-copy-muted)',
-                          fontSize: 10,
-                          fontStyle: 'normal',
-                          fontWeight: 950,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {accessState.active ? 'Open' : 'Locked'}
-                      </em>
+                      {accessState.active ? (
+                        <em
+                          style={{
+                            color: accent,
+                            fontSize: 10,
+                            fontStyle: 'normal',
+                            fontWeight: 950,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Open
+                        </em>
+                      ) : isMobile ? null : (
+                        <span title={`${mode.lane} unlocks with ${getPricingPlan(mode.planId).name}`} style={{ color: 'var(--shell-copy-muted)', display: 'inline-flex' }}>
+                          <NavLockIcon size={13} />
+                        </span>
+                      )}
                     </span>
                     <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
                       {accessState.active ? mode.action : 'Preview unlock'}
                     </span>
                   </span>
+                  {!accessState.active && isMobile ? (
+                    <span title={`${mode.lane} unlocks with ${getPricingPlan(mode.planId).name}`} style={{ color: 'var(--shell-copy-muted)', display: 'inline-flex' }}>
+                      <NavLockIcon size={14} />
+                    </span>
+                  ) : null}
                 </button>
               )
             })}
@@ -634,6 +705,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                   href={href}
                   style={{
                     display: 'grid',
+                    gridTemplateRows: 'minmax(0, auto) minmax(0, 1fr)',
                     gap: 10,
                     minHeight: 128,
                     padding: 13,
@@ -644,11 +716,18 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                     minWidth: 0,
                   }}
                 >
-                  <span style={{ color: activeAccent, fontSize: 12, fontWeight: 950 }}>{task.metric}</span>
-                  <strong style={{ color: 'var(--foreground-strong)', fontSize: 15, lineHeight: 1.1 }}>{task.title}</strong>
-                  <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45 }}>{task.detail}</span>
-                  <span style={{ color: taskAccess.active ? activeAccent : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 900 }}>
-                    {taskAccess.active ? 'Open' : 'Unlock'}
+                  <span style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: 10, minWidth: 0 }}>
+                    <span style={{ color: activeAccent, fontSize: 12, fontWeight: 950 }}>{task.metric}</span>
+                    <span style={{ display: 'grid', placeItems: 'center', width: 52, height: 42, minWidth: 0, overflow: 'hidden' }}>
+                      <CommandTaskGraphic graphic={task.graphic} />
+                    </span>
+                  </span>
+                  <span style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+                    <strong style={{ color: 'var(--foreground-strong)', fontSize: 15, lineHeight: 1.1 }}>{task.title}</strong>
+                    <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45 }}>{task.detail}</span>
+                    <span style={{ color: taskAccess.active ? activeAccent : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      {taskAccess.active ? 'Open' : <><NavLockIcon size={12} /> Unlock</>}
+                    </span>
                   </span>
                 </Link>
               )
@@ -1817,6 +1896,7 @@ function PreviewHomepageContent() {
           access={access}
           authenticated={authenticated}
         />
+        {!authenticated ? <TierChoiceGrid access={access} authenticated={authenticated} /> : null}
       </div>
   )
 }
@@ -2344,8 +2424,6 @@ function AppCommandDeck({ access, authenticated }: { access: ProductAccessState;
   )
 }
 
-// Kept temporarily as a fallback while the command-center homepage is reviewed.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState; authenticated: boolean }) {
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
 
@@ -2382,7 +2460,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
           gap: 10,
           alignItems: 'stretch',
           minWidth: 0,
@@ -2486,8 +2564,12 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
                 <Link href={accessPresentation.primaryCta.href} style={featured ? theme.primaryButton : getTierSecondaryButton(theme)}>
                   {accessPresentation.primaryCta.label}
                 </Link>
-                <span style={accessPresentation.active ? activeTierBadgeStyle : lockedTierBadgeStyle}>
-                  {accessPresentation.statusLabel}
+                <span
+                  title={accessPresentation.active ? accessPresentation.statusLabel : `${dashboardLane.label} unlock`}
+                  aria-label={accessPresentation.active ? accessPresentation.statusLabel : `${dashboardLane.label} locked`}
+                  style={accessPresentation.active ? activeTierBadgeStyle : lockedTierBadgeStyle}
+                >
+                  {accessPresentation.active ? accessPresentation.statusLabel : <NavLockIcon size={13} />}
                 </span>
               </div>
             </article>

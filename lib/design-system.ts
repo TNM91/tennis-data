@@ -42,15 +42,17 @@ export const pageBackground: CSSProperties = {
   position: 'relative',
   minHeight: '100vh',
   overflow: 'hidden',
+  overflowX: 'clip',
   background: 'var(--page-background)',
   minWidth: 0,
+  maxWidth: '100vw',
 }
 
 export const orbOne: CSSProperties = {
   position: 'absolute',
   top: '-120px',
-  left: '-140px',
-  width: 'min(100%, 360px)',
+  left: 0,
+  width: 'min(84vw, 360px)',
   height: 'min(100%, 360px)',
   borderRadius: '999px',
   background: 'var(--theme-orb-one)',
@@ -61,9 +63,9 @@ export const orbOne: CSSProperties = {
 
 export const orbTwo: CSSProperties = {
   position: 'absolute',
-  right: '-140px',
+  right: 0,
   top: '140px',
-  width: 'min(100%, 320px)',
+  width: 'min(74vw, 320px)',
   height: 'min(100%, 320px)',
   borderRadius: '999px',
   background: 'var(--theme-orb-two)',
@@ -99,6 +101,9 @@ export const pageShell: CSSProperties = {
   marginInline: 'auto',
   padding: '32px 0 72px',
   minWidth: 0,
+  maxWidth: '100%',
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 export const pageShellTight: CSSProperties = {
