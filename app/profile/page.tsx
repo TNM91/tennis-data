@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
-import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -12,7 +11,6 @@ import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
-import { uploadProfilePhoto } from '@/lib/profile-photo-service'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
@@ -116,8 +114,6 @@ function ProfilePageInner() {
   const [prefs, setPrefs] = useState<ProfilePrefs>(DEFAULT_PREFS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [photoUploading, setPhotoUploading] = useState(false)
-  const [photoMessage, setPhotoMessage] = useState('')
   const [billingPortalOpening, setBillingPortalOpening] = useState(false)
   const [billingMessage, setBillingMessage] = useState('')
   const [message, setMessage] = useState('')
@@ -297,32 +293,6 @@ function ProfilePageInner() {
     }
   }
 
-  async function handleProfilePhotoUpload(file: File | null) {
-    if (!file) return
-
-    setPhotoUploading(true)
-    setPhotoMessage('Uploading profile photo...')
-    setError('')
-
-    const result = await uploadProfilePhoto(file)
-    if (result.warning) {
-      setPhotoMessage(result.warning)
-    } else {
-      setProfile((current) => ({
-        linked_player_id: current?.linked_player_id || null,
-        linked_player_name: current?.linked_player_name || null,
-        linked_team_name: current?.linked_team_name || null,
-        linked_league_name: current?.linked_league_name || null,
-        linked_flight: current?.linked_flight || null,
-        profile_photo_url: result.publicUrl,
-        message_display_name: current?.message_display_name || null,
-      }))
-      setPhotoMessage('Profile photo uploaded.')
-    }
-
-    setPhotoUploading(false)
-  }
-
   async function openBillingPortal() {
     if (!userId || billingPortalOpening) return
 
@@ -392,12 +362,6 @@ function ProfilePageInner() {
     (access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow),
   )
   const profileDisplayName = profile?.linked_player_name || selectedPlayer?.name || 'Choose player'
-  const profileInitials = profileDisplayName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'TIQ'
   const toolFlowCards = [
     {
       label: 'Identity',
@@ -564,54 +528,9 @@ function ProfilePageInner() {
             {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
           </div>
 
-          <div style={statusPanelStyle}>
-            <div style={profileBadgeRowStyle}>
-              <span style={profileComplete ? pillGreenStyle : pillSlateStyle}>
-                {profileComplete ? 'Linked' : access.canUseAdvancedPlayerInsights ? 'Player tools active' : 'Free profile'}
-              </span>
-              <span style={pillSlateStyle}>{availabilityLabel}</span>
-            </div>
-            <div style={playerCardTopStyle}>
-              <div style={avatarStyle}>
-                {profile?.profile_photo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={profile.profile_photo_url} alt="" style={avatarImageStyle} />
-                ) : (
-                  profileInitials
-                )}
-              </div>
-              <div>
-                <div style={statusTitleStyle}>{profileDisplayName}</div>
-                <div style={statusTextStyle}>{roleLabel}</div>
-              </div>
-            </div>
-            <div style={photoControlStyle}>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                disabled={photoUploading || !userId}
-                onChange={(event) => {
-                  const file = event.target.files?.[0] || null
-                  void handleProfilePhotoUpload(file)
-                  event.target.value = ''
-                }}
-                style={photoInputStyle}
-              />
-              {photoMessage ? <div style={photoMessageStyle}>{photoMessage}</div> : null}
-            </div>
-            <div style={miniGridStyle}>
-                <Metric label="Teams" value={selectedPlayerTeams.length ? String(selectedPlayerTeams.length) : 'Detecting'} />
-                <Metric label="Leagues" value={detectedLeagueCount ? String(detectedLeagueCount) : 'Detecting'} />
-                <Metric label="Matchup" value={profileComplete || selectedPlayerId ? 'Ready' : 'Set'} />
-              </div>
-            </div>
         </section>
 
-        <PlayerSuitePanel
-          active="connect"
-          playerLabel={profileComplete ? profileDisplayName : undefined}
-        />
-
+        {!profileComplete ? (
         <section style={setupPathStyle(isMobile)} aria-label="Profile setup path">
           <div style={setupPathHeaderStyle(isMobile)}>
             <div>
@@ -639,6 +558,7 @@ function ProfilePageInner() {
             ))}
           </div>
         </section>
+        ) : null}
 
           <section style={contentGridStyle(isTablet)}>
             <div id="profile-identity" style={surfaceStyle}>
@@ -815,7 +735,7 @@ const pageStyle: CSSProperties = {
 
 const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.25fr) minmax(min(100%, 320px), 0.75fr)',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: isMobile ? 18 : 24,
   padding: isMobile ? '20px 18px' : '30px 28px',
   borderRadius: isMobile ? 24 : 30,
@@ -977,97 +897,6 @@ const secondaryButtonStyle: CSSProperties = {
   whiteSpace: 'normal',
   textAlign: 'center',
   overflowWrap: 'anywhere',
-}
-
-const statusPanelStyle: CSSProperties = {
-  borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 12%, transparent) 0%, transparent 34%), var(--shell-panel-bg)',
-  padding: 18,
-  display: 'grid',
-  gap: 12,
-  minWidth: 0,
-}
-
-const profileBadgeRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-  justifyContent: 'space-between',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const playerCardTopStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
-  gap: 12,
-  alignItems: 'center',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const avatarStyle: CSSProperties = {
-  width: 58,
-  height: 58,
-  borderRadius: 18,
-  overflow: 'hidden',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--brand-blue-2), var(--brand-green))',
-  color: 'white',
-  fontSize: 18,
-  fontWeight: 950,
-  boxShadow: 'var(--shadow-soft)',
-}
-
-const avatarImageStyle: CSSProperties = {
-  width: '100%',
-  height: '100%',
-  display: 'block',
-  objectFit: 'cover',
-}
-
-const photoControlStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const photoInputStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  overflowWrap: 'anywhere',
-}
-
-const photoMessageStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.45,
-  overflowWrap: 'anywhere',
-}
-
-const statusTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '1.35rem',
-  fontWeight: 900,
-  overflowWrap: 'anywhere',
-}
-
-const statusTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.6,
-  overflowWrap: 'anywhere',
-}
-
-const miniGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 116px), 1fr))',
-  gap: 10,
-  minWidth: 0,
 }
 
 const metricStyle: CSSProperties = {
