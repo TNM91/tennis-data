@@ -470,6 +470,8 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
   const [activeLane, setActiveLane] = useState<PricingPlanId>(() =>
     authenticated ? getPreferredPortalLane(access) : 'free',
   )
+  const hasPaidAccess =
+    access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow || access.canUseLeagueTools
   const startHref = authenticated ? getPlanDestinationHref('free') : '/join'
   const selectedMode = commandModes.find((mode) => mode.planId === activeLane) ?? commandModes[0]
   const selectedDetails = commandModeDetails[activeLane]
@@ -506,7 +508,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(min(100%, 430px), 0.72fr)',
+          gridTemplateColumns: hasPaidAccess || isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(min(100%, 430px), 0.72fr)',
           gap: isMobile ? 16 : 22,
           alignItems: 'start',
           minWidth: 0,
@@ -718,6 +720,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
           </div>
         </div>
 
+        {hasPaidAccess ? null : (
         <aside style={{ display: 'grid', gap: 12, alignContent: 'start', minWidth: 0 }}>
           <div
             style={{
@@ -770,6 +773,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
             <UnlockPathPreview mode={activeLane} active={selectedAccess.active} line={selectedDetails.unlockLine} href={selectedAccess.primaryCta.href} cta={selectedAccess.primaryCta.label} />
           </div>
         </aside>
+        )}
       </div>
     </section>
   )
