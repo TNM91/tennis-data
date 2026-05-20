@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   CSSProperties,
@@ -15,9 +14,6 @@ import { useRouter } from 'next/navigation'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import { useAuth } from '@/app/components/auth-provider'
 import SiteShell from '@/app/components/site-shell'
-import CaptainSubnav from '@/app/components/captain-subnav'
-import CaptainSuitePanel from '@/app/components/captain-suite-panel'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import {
   buildCaptainScopedHref,
@@ -185,7 +181,6 @@ function CaptainAvailabilityContent() {
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, entitlements, authResolved } = useAuth()
-  const heroArtworkSrc = '/og-image.png'
 
   const loadTeamOptions = useCallback(async () => {
     setLoadingOptions(true)
@@ -501,31 +496,6 @@ function CaptainAvailabilityContent() {
     responseAnswered,
     responseTotal,
   ])
-  const dynamicQuickStartCard: CSSProperties = {
-    ...quickStartCard,
-    position: 'relative',
-    overflow: 'hidden',
-    background: 'var(--shell-panel-bg)',
-  }
-
-  const availabilityVisualStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-  }
-
-  const availabilityVisualMaskStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    background: isTablet ? 'var(--shell-hero-mask-mobile)' : 'var(--shell-hero-mask)',
-    pointerEvents: 'none',
-    zIndex: 1,
-  }
-
-  const availabilityVisualContentStyle: CSSProperties = {
-    position: 'relative',
-    zIndex: 2,
-  }
-
   if (!authResolved) {
     return (
       <section style={loadingWrap}>
@@ -643,99 +613,44 @@ function CaptainAvailabilityContent() {
             </div>
           </div>
 
-          <div style={dynamicQuickStartCard}>
-            <div style={availabilityVisualStyle}>
-              <Image
-                src={heroArtworkSrc}
-                alt="TenAceIQ availability concept art"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 34vw"
-                style={{
-                  objectFit: 'cover',
-                  objectPosition: isTablet ? 'center center' : '72% center',
-                  opacity: 0.94,
-                }}
-              />
-              <div style={availabilityVisualMaskStyle} />
+          <div style={captainReadCard}>
+            <div style={captainReadTop}>
+              <div>
+                <div style={sectionKicker}>Live read</div>
+                <h2 style={captainReadTitle}>{selectedTeam || 'Select a team'}</h2>
+                <p style={captainReadText}>
+                  {selectedLeague || 'League'} - {selectedFlight || 'Flight'}
+                </p>
+              </div>
+              <span style={responseProgress >= 80 ? badgeGreen : responseProgress >= 50 ? badgeBlue : badgeSlate}>
+                {responseProgress}% answered
+              </span>
             </div>
 
-            <div style={availabilityVisualContentStyle}>
-              <div style={quickStartLabel}>Availability snapshot</div>
-              <h2 style={quickStartTitle}>{selectedTeam || 'Select a team'}</h2>
-              <div style={quickStartMeta}>
-                {selectedLeague || 'League'} - {selectedFlight || 'Flight'}
-              </div>
-
-              <div style={statusGrid}>
-                <div style={statusCard}>
-                  <div style={statusLabelGreen}>In</div>
-                  <div style={statusValue}>{counts.in}</div>
-                </div>
-                <div style={statusCard}>
-                  <div style={statusLabelBlue}>Out</div>
-                  <div style={statusValue}>{counts.out}</div>
-                </div>
-                <div style={statusCard}>
-                  <div style={statusLabelSlate}>No reply</div>
-                  <div style={statusValue}>{counts.unanswered}</div>
-                </div>
-              </div>
-
-              <div style={responseMeterShell}>
-                <div style={responseMeterTop}>
-                  <span>{responseProgress}% answered</span>
-                  <span>{lineupPoolLabel}</span>
-                </div>
-                <div
-                  style={responseTrack}
-                  role="meter"
-                  aria-label="Availability responses answered"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={responseProgress}
-                >
-                  <span style={{ ...responseFill, width: `${responseProgress}%` }} />
-                </div>
-                <div style={responseMeterMeta}>
-                  {responseAnswered} answered - {lineupPoolCount} in play
-                </div>
-              </div>
-
-              {requestSent ? (
-                <div style={successBanner}>Availability request prepared for {weekLabel}.</div>
-              ) : (
-                <div style={helperBanner}>{responseSummary}</div>
-              )}
+            <div
+              style={responseTrack}
+              role="meter"
+              aria-label="Availability responses answered"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={responseProgress}
+            >
+              <span style={{ ...responseFill, width: `${responseProgress}%` }} />
             </div>
+
+            <div style={captainReadStats}>
+              <span>{responseAnswered} answered</span>
+              <span>{lineupPoolLabel}</span>
+              <span>{counts.out} out</span>
+            </div>
+
+            {requestSent ? (
+              <div style={successBanner}>Availability request prepared for {weekLabel}.</div>
+            ) : (
+              <div style={helperBanner}>{responseSummary}</div>
+            )}
           </div>
         </section>
-
-        <CaptainSubnav
-          title="Step 1: Availability"
-          description="Clear the player pool first. Then build, compare, and send the plan."
-          tierLabel={access.captainTierLabel}
-          tierActive={access.captainSubscriptionActive}
-        />
-
-        <CaptainSuitePanel
-          active="availability"
-          teamLabel={[selectedTeam, selectedFlight].filter(Boolean).join(' - ') || undefined}
-        />
-
-        {!access.canUseCaptainWorkflow ? (
-          <UpgradePrompt
-            planId="captain"
-            compact
-            headline="Still chasing availability one player at a time?"
-            body="Unlock Captain to keep roster status, reminders, lineup prep, and match-week communication in one workflow instead of rebuilding the process every week."
-            ctaLabel="Unlock Captain Tools"
-            ctaHref="/pricing"
-            secondaryLabel="See Captain value"
-            secondaryHref="/pricing"
-            footnote="Best for captains who want less back-and-forth, clearer roster reads, and a faster path into lineup decisions."
-          />
-        ) : null}
 
         {error ? (
           <section style={errorCard}>
@@ -1187,7 +1102,7 @@ const warnBadge: CSSProperties = {
   borderColor: 'rgba(248,113,113,0.22)',
 }
 
-const quickStartCard: CSSProperties = {
+const captainReadCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -1197,104 +1112,45 @@ const quickStartCard: CSSProperties = {
   minWidth: 0,
 }
 
-const quickStartLabel: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  overflowWrap: 'anywhere',
+const captainReadTop: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '14px',
+  flexWrap: 'wrap',
+  marginBottom: '16px',
+  minWidth: 0,
 }
 
-const quickStartTitle: CSSProperties = {
-  margin: '8px 0 10px',
+const captainReadTitle: CSSProperties = {
+  margin: '6px 0',
   color: 'var(--foreground-strong)',
-  fontSize: '28px',
+  fontSize: '26px',
   lineHeight: 1.04,
   fontWeight: 900,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
-const quickStartMeta: CSSProperties = {
+const captainReadText: CSSProperties = {
+  margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.55,
-  marginBottom: '14px',
   overflowWrap: 'anywhere',
 }
 
-const statusGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))',
-  gap: '10px',
-  minWidth: 0,
-}
-
-const statusCard: CSSProperties = {
-  borderRadius: '18px',
-  padding: '14px 12px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  textAlign: 'center',
-  minWidth: 0,
-}
-
-const statusLabelGreen: CSSProperties = {
-  color: '#dffad5',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  overflowWrap: 'anywhere',
-}
-
-const statusLabelBlue: CSSProperties = {
-  color: '#c7dbff',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  overflowWrap: 'anywhere',
-}
-
-const statusLabelSlate: CSSProperties = {
-  color: 'var(--foreground)',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  overflowWrap: 'anywhere',
-}
-
-const statusValue: CSSProperties = {
-  marginTop: '8px',
-  color: 'var(--foreground-strong)',
-  fontSize: '28px',
-  fontWeight: 900,
-  lineHeight: 1,
-  overflowWrap: 'anywhere',
-}
-
-const responseMeterShell: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  marginTop: 14,
-  padding: '12px 14px',
-  borderRadius: 18,
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 72%, var(--brand-blue-2) 10%)',
-  border: '1px solid var(--shell-panel-border)',
-  minWidth: 0,
-}
-
-const responseMeterTop: CSSProperties = {
+const captainReadStats: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   gap: 10,
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  fontWeight: 900,
   flexWrap: 'wrap',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+  marginTop: 10,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
   minWidth: 0,
 }
 
@@ -1313,13 +1169,6 @@ const responseFill: CSSProperties = {
   borderRadius: 999,
   background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-green))',
   minWidth: 2,
-}
-
-const responseMeterMeta: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  fontWeight: 800,
-  overflowWrap: 'anywhere',
 }
 
 const successBanner: CSSProperties = {

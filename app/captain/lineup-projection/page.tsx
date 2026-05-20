@@ -4,9 +4,6 @@ export const dynamic = 'force-dynamic'
 
 import Image from 'next/image'
 import Link from 'next/link'
-import CaptainSubnav from '@/app/components/captain-subnav'
-import CaptainSuitePanel from '@/app/components/captain-suite-panel'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
@@ -864,34 +861,27 @@ function LineupProjectionContent() {
           </div>
         </div>
 
-        <div style={quickStartCard}>
-          <div style={quickStartLabel}>Starting point</div>
-          <div style={quickStartValue}>Project, check, build</div>
-          <div style={quickStartText}>
-            Use this when you want a fast first draft before fine-tuning courts in the builder.
-          </div>
-
-          <div style={workflowListStyle}>
-            {[
-              ['1', 'Pick team', 'Choose the league, team, and match date.'],
-              ['2', 'Review suggestion', 'Check singles, doubles, and the confidence read.'],
-              ['3', 'Build it', 'Open the builder and turn the preview into a saved plan.'],
-            ].map(([step, title, text]) => (
-              <div key={step} style={workflowRowStyle}>
-                <div style={workflowNumberStyle}>{step}</div>
-                <div>
-                  <div style={workflowTitleStyle}>{title}</div>
-                  <div style={workflowTextStyle}>{text}</div>
-                </div>
-              </div>
-            ))}
+        <div style={captainReadCard}>
+          <div style={captainReadTop}>
+            <div>
+              <p style={sectionKicker}>Projection status</p>
+              <h2 style={captainReadTitle}>{selectedTeam || 'Choose a team'}</h2>
+              <p style={captainReadText}>{selectedLeagueDisplayLabel || 'League and flight pending'}</p>
+            </div>
+            <span style={roster.length ? miniPillGreen : miniPillSlate}>
+              {roster.length ? 'Ready' : 'Set context'}
+            </span>
           </div>
 
           <div style={heroBadgeRowStyleCompact}>
             <span style={miniPillSlate}>{selectedLeagueKey ? 'League selected' : 'Pick a league'}</span>
             <span style={miniPillSlate}>{selectedTeam ? 'Team selected' : 'Pick a team'}</span>
-            <span style={miniPillSlate}>{roster.length ? 'Roster loaded' : 'Roster pending'}</span>
+            <span style={miniPillSlate}>{roster.length ? `${roster.length} loaded` : 'Roster pending'}</span>
           </div>
+
+          <p style={captainReadText}>
+            The projection updates from the filters below, then opens straight into Lineup Builder when the read is useful.
+          </p>
         </div>
       </section>
 
@@ -1061,19 +1051,6 @@ function LineupProjectionContent() {
               </div>
             </section>
 
-            {!access.canUseCaptainWorkflow ? (
-              <UpgradePrompt
-                planId="captain"
-                compact
-                headline="Want to turn this estimate into a lineup you can actually use?"
-                body="Captain takes projection reads out of preview mode and moves them into saved lineup versions, scenario testing, and team communication."
-                ctaLabel="Unlock Captain Tools"
-                ctaHref="/pricing"
-                secondaryLabel="See Captain plan"
-                secondaryHref="/pricing"
-              />
-            ) : null}
-
             <section style={surfaceCard}>
               <div style={sectionHeaderStyle}>
                 <div>
@@ -1157,19 +1134,6 @@ function LineupProjectionContent() {
                 </div>
               ) : null}
             </section>
-
-            {!access.canUseCaptainWorkflow ? (
-              <UpgradePrompt
-                planId="captain"
-                compact
-                headline="Still hand-carrying projection notes into builder and scenarios?"
-                body="Captain keeps the same team context flowing from projection into lineup builder, scenario comparison, and match-week messaging so the next step is obvious."
-                ctaLabel="Build Smarter Lineups"
-                ctaHref="/pricing"
-                secondaryLabel="See how Captain works"
-                secondaryHref="/pricing"
-              />
-            ) : null}
 
             <section style={sectionCard}>
               <div style={sectionHeaderStyle}>
@@ -1286,35 +1250,6 @@ function LineupProjectionContent() {
               </div>
             </section>
           </>
-        ) : null}
-      </section>
-
-      <section style={{ padding: '0 24px 32px' }}>
-        <CaptainSubnav
-          title="Lineup Projection"
-          description="Use this as a quick starting point before the full builder."
-          tierLabel={access.captainTierLabel}
-          tierActive={access.captainSubscriptionActive}
-        />
-        <div style={{ marginTop: 14 }}>
-          <CaptainSuitePanel
-            active="projection"
-            teamLabel={[selectedTeam, selectedLeagueDisplayLabel].filter(Boolean).join(' - ') || undefined}
-            flow={['availability', 'projection', 'lineup', 'messaging']}
-          />
-        </div>
-        {!access.canUseCaptainWorkflow ? (
-          <div style={{ marginTop: 18 }}>
-            <UpgradePrompt
-              planId="captain"
-              headline="Want projection reads you can actually act on?"
-              body="Captain turns availability and roster context into smarter lineup projections, then carries the result straight into builder, scenarios, and messaging."
-              ctaLabel="Build Smarter Lineups"
-              ctaHref="/pricing"
-              secondaryLabel="Keep reviewing"
-              compact
-            />
-          </div>
         ) : null}
       </section>
 
@@ -1789,7 +1724,7 @@ const metricValueStyleHero: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const quickStartCard: CSSProperties = {
+const captainReadCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -1797,74 +1732,32 @@ const quickStartCard: CSSProperties = {
   minWidth: 0,
 }
 
-const quickStartLabel: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  lineHeight: 1.5,
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  overflowWrap: 'anywhere',
+const captainReadTop: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '14px',
+  flexWrap: 'wrap',
+  marginBottom: '16px',
+  minWidth: 0,
 }
 
-const quickStartValue: CSSProperties = {
-  marginTop: 8,
+const captainReadTitle: CSSProperties = {
+  margin: '6px 0',
   color: 'var(--foreground)',
-  fontSize: '30px',
-  lineHeight: 1,
+  fontSize: '26px',
+  lineHeight: 1.05,
   fontWeight: 900,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
-const quickStartText: CSSProperties = {
-  marginTop: 10,
+const captainReadText: CSSProperties = {
+  margin: '0 0 16px',
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
-  overflowWrap: 'anywhere',
-}
-
-const workflowListStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  marginTop: 16,
-  minWidth: 0,
-}
-
-const workflowRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: 12,
-  alignItems: 'flex-start',
-  minWidth: 0,
-}
-
-const workflowNumberStyle: CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 999,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 800,
-  fontSize: '.92rem',
-  color: '#0f1632',
-  background: 'linear-gradient(135deg, #c7ff5e 0%, #7dffb3 100%)',
-  flexShrink: 0,
-}
-
-const workflowTitleStyle: CSSProperties = {
-  fontWeight: 700,
-  color: 'var(--foreground)',
-  marginBottom: 4,
-  overflowWrap: 'anywhere',
-}
-
-const workflowTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.55,
-  fontSize: '.95rem',
   overflowWrap: 'anywhere',
 }
 
