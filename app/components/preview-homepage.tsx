@@ -467,7 +467,9 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
   const router = useRouter()
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const [query, setQuery] = useState('')
-  const [activeLane, setActiveLane] = useState<PricingPlanId>('free')
+  const [activeLane, setActiveLane] = useState<PricingPlanId>(() =>
+    authenticated ? getPreferredPortalLane(access) : 'free',
+  )
   const startHref = authenticated ? getPlanDestinationHref('free') : '/join'
   const selectedMode = commandModes.find((mode) => mode.planId === activeLane) ?? commandModes[0]
   const selectedDetails = commandModeDetails[activeLane]
@@ -778,6 +780,13 @@ function getModeAccent(planId: PricingPlanId) {
   if (planId === 'player_plus') return '#4aa3ff'
   if (planId === 'captain') return '#f3b51b'
   return '#19c8b6'
+}
+
+function getPreferredPortalLane(access: ProductAccessState): PricingPlanId {
+  if (access.canUseCaptainWorkflow) return 'captain'
+  if (access.canUseLeagueTools) return 'league'
+  if (access.canUseAdvancedPlayerInsights) return 'player_plus'
+  return 'free'
 }
 
 function getDashboardLane(planId: PricingPlanId) {
@@ -1892,7 +1901,11 @@ function PreviewHomepageContent() {
           paddingTop: isMobile ? 10 : 14,
         }}
       >
-        <CommandCenterHome access={access} authenticated={authenticated} />
+        <CommandCenterHome
+          key={`${authenticated ? 'signed-in' : 'public'}-${getPreferredPortalLane(access)}`}
+          access={access}
+          authenticated={authenticated}
+        />
 
         <TierChoiceGrid access={access} authenticated={authenticated} />
 

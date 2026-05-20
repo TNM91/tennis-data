@@ -290,10 +290,16 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [customSeasonLabelOpen, setCustomSeasonLabelOpen] = useState(false)
 
   const refreshRegistry = useCallback(async () => {
-    const result = await listTiqLeagues()
-    setRecords(result.records)
-    setStorageSource(result.source)
-    setStorageWarning(result.warning || '')
+    try {
+      const result = await listTiqLeagues()
+      setRecords(result.records)
+      setStorageSource(result.source)
+      setStorageWarning(result.warning || '')
+    } catch (error) {
+      setRecords([])
+      setStorageSource('local')
+      setStorageWarning(error instanceof Error ? error.message : 'League workspace data could not load.')
+    }
   }, [])
 
   useEffect(() => {
@@ -308,17 +314,25 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     let active = true
 
     async function loadEntryRequests() {
-      const teamLeagues = records.filter((record) => record.leagueFormat === 'team')
-      const playerLeagues = records.filter((record) => record.leagueFormat === 'individual')
+      try {
+        const teamLeagues = records.filter((record) => record.leagueFormat === 'team')
+        const playerLeagues = records.filter((record) => record.leagueFormat === 'individual')
 
-      const [teamResults, playerResults] = await Promise.all([
-        Promise.all(teamLeagues.map((record) => listTiqTeamLeagueEntries(record.id, { includeAllStatuses: true }))),
-        Promise.all(playerLeagues.map((record) => listTiqPlayerLeagueEntries(record.id, { includeAllStatuses: true }))),
-      ])
+        const [teamResults, playerResults] = await Promise.all([
+          Promise.all(teamLeagues.map((record) => listTiqTeamLeagueEntries(record.id, { includeAllStatuses: true }))),
+          Promise.all(playerLeagues.map((record) => listTiqPlayerLeagueEntries(record.id, { includeAllStatuses: true }))),
+        ])
 
-      if (!active) return
-      setTeamEntryRequests(teamResults.flatMap((result) => result.entries))
-      setPlayerEntryRequests(playerResults.flatMap((result) => result.entries))
+        if (!active) return
+        setTeamEntryRequests(teamResults.flatMap((result) => result.entries))
+        setPlayerEntryRequests(playerResults.flatMap((result) => result.entries))
+        setEntryRequestStatus('')
+      } catch (error) {
+        if (!active) return
+        setTeamEntryRequests([])
+        setPlayerEntryRequests([])
+        setEntryRequestStatus(error instanceof Error ? error.message : 'League entry requests could not load.')
+      }
     }
 
     void loadEntryRequests()
@@ -332,12 +346,19 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     let active = true
 
     async function loadIndividualResults() {
-      const result = await listTiqIndividualLeagueResults()
-      if (!active) return
+      try {
+        const result = await listTiqIndividualLeagueResults()
+        if (!active) return
 
-      setIndividualResults(result.results)
-      setResultStorageSource(result.source)
-      setResultStorageWarning(result.warning || '')
+        setIndividualResults(result.results)
+        setResultStorageSource(result.source)
+        setResultStorageWarning(result.warning || '')
+      } catch (error) {
+        if (!active) return
+        setIndividualResults([])
+        setResultStorageSource('local')
+        setResultStorageWarning(error instanceof Error ? error.message : 'Individual results could not load.')
+      }
     }
 
     void loadIndividualResults()
@@ -365,35 +386,43 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         return
       }
 
-      const eventsResult = await listTiqTeamMatchEvents()
-      const [linesResult, standingsResults] = await Promise.all([
-        listTiqTeamMatchLinesForEvents(eventsResult.events.map((event) => event.id)),
-        Promise.all(
-          teamLeagues.map(async (league) => ({
-            leagueId: league.id,
-            result: await computeTiqTeamLeagueStandings(league.id),
-          })),
-        ),
-      ])
+      try {
+        const eventsResult = await listTiqTeamMatchEvents()
+        const [linesResult, standingsResults] = await Promise.all([
+          listTiqTeamMatchLinesForEvents(eventsResult.events.map((event) => event.id)),
+          Promise.all(
+            teamLeagues.map(async (league) => ({
+              leagueId: league.id,
+              result: await computeTiqTeamLeagueStandings(league.id),
+            })),
+          ),
+        ])
 
-      if (!active) return
+        if (!active) return
 
-      setTeamMatchEvents(eventsResult.events)
-      setTeamMatchLines(linesResult.lines)
-      setTeamStandingsByLeague(
-        standingsResults.reduce<Record<string, TiqTeamStandingRow[]>>((nextMap, item) => {
-          nextMap[item.leagueId] = item.result.standings
-          return nextMap
-        }, {}),
-      )
-      setTeamResultWarning(
-        [
-          eventsResult.warning,
-          linesResult.warning,
-          ...standingsResults.map((item) => item.result.warning),
-        ]
-          .filter(Boolean)[0] || '',
-      )
+        setTeamMatchEvents(eventsResult.events)
+        setTeamMatchLines(linesResult.lines)
+        setTeamStandingsByLeague(
+          standingsResults.reduce<Record<string, TiqTeamStandingRow[]>>((nextMap, item) => {
+            nextMap[item.leagueId] = item.result.standings
+            return nextMap
+          }, {}),
+        )
+        setTeamResultWarning(
+          [
+            eventsResult.warning,
+            linesResult.warning,
+            ...standingsResults.map((item) => item.result.warning),
+          ]
+            .filter(Boolean)[0] || '',
+        )
+      } catch (error) {
+        if (!active) return
+        setTeamMatchEvents([])
+        setTeamMatchLines([])
+        setTeamStandingsByLeague({})
+        setTeamResultWarning(error instanceof Error ? error.message : 'Team result books could not load.')
+      }
     }
 
     void loadTeamResultBooks()
