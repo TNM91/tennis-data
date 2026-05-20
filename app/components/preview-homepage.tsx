@@ -503,6 +503,10 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
         overflow: 'hidden',
         padding: isSmallMobile ? 16 : isMobile ? 18 : 26,
         minWidth: 0,
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        contain: 'layout paint',
       }}
     >
       <div
@@ -566,9 +570,11 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
             aria-label="Choose a TenAceIQ workflow"
             style={{
               display: 'grid',
-              gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
               gap: 10,
               minWidth: 0,
+              width: '100%',
+              maxWidth: '100%',
             }}
           >
             {commandModes.map((mode) => {
@@ -684,9 +690,11 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
               gap: 10,
               minWidth: 0,
+              width: '100%',
+              maxWidth: '100%',
             }}
           >
             {selectedTasks.map((task) => {

@@ -13,8 +13,8 @@ export default function BrandWordmark({
   footer = false,
   top = false,
 }: BrandWordmarkProps) {
-  const width = compact ? 176 : top ? 276 : footer ? 288 : 236
-  const height = compact ? 30 : top ? 46 : footer ? 48 : 40
+  const width = compact ? 208 : top ? 288 : footer ? 288 : 244
+  const height = compact ? 35 : top ? 48 : footer ? 48 : 41
   const logoSrc = '/logo-header-dark.svg'
   return (
     <span
