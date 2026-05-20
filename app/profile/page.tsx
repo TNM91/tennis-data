@@ -369,6 +369,7 @@ function ProfilePageInner() {
   }
 
   const profileComplete = Boolean(profile?.linked_player_id || profile?.linked_player_name)
+  const signedIn = Boolean(userId)
   const primaryRating = linkedPlayer || selectedPlayer
   const detectedLeagueCount = new Set(
     selectedPlayerTeams
@@ -462,10 +463,16 @@ function ProfilePageInner() {
     },
   ]
   const setupProgress = setupSteps.filter((step) => step.complete).length
-  const heroTitle = profileComplete ? 'Your player identity is connected.' : 'Link your player profile.'
+  const heroTitle = profileComplete
+    ? 'Your player identity is connected.'
+    : signedIn
+      ? 'Link your player profile.'
+      : 'Sign in to link your profile.'
   const heroCopy = profileComplete
     ? 'Your account knows which player record powers My Lab, Matchup, Team, and League context.'
-    : 'TenAceIQ knows you are signed in. Now choose the player record that should personalize your tools.'
+    : signedIn
+      ? 'TenAceIQ knows you are signed in. Now choose the player record that should personalize your tools.'
+      : 'Sign in first, then choose the player record that should personalize your TenAceIQ tools.'
 
   return (
     <section style={pageStyle}>
@@ -477,15 +484,17 @@ function ProfilePageInner() {
               {heroCopy}
             </p>
             {!profileComplete ? (
-              <a href="#profile-identity" style={profileSetupNoticeStyle}>
+              <Link href={signedIn ? '#profile-identity' : '/login?next=%2Fprofile'} style={profileSetupNoticeStyle}>
                 <TiqFeatureIcon name="accountSecurity" size="sm" variant="surface" />
                 <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-                  <strong style={profileSetupNoticeTitleStyle}>Start here: choose your player record</strong>
+                  <strong style={profileSetupNoticeTitleStyle}>{signedIn ? 'Start here: choose your player record' : 'Start here: sign in'}</strong>
                   <span style={profileSetupNoticeTextStyle}>
-                    This unlocks the personal greeting, ratings, team context, and match prep starting point.
+                    {signedIn
+                      ? 'This unlocks the personal greeting, ratings, team context, and match prep starting point.'
+                      : 'Your player link belongs to your account, so TenAceIQ needs you signed in first.'}
                   </span>
                 </span>
-              </a>
+              </Link>
             ) : null}
             <div style={toolFlowStyle(isMobile)}>
               {toolFlowCards.map((card) => (
@@ -507,7 +516,11 @@ function ProfilePageInner() {
                 </>
               ) : (
                 <>
-                  <a href="#profile-identity" style={primaryButtonStyle}>Choose player record</a>
+                  {signedIn ? (
+                    <a href="#profile-identity" style={primaryButtonStyle}>Choose player record</a>
+                  ) : (
+                    <Link href="/login?next=%2Fprofile" style={primaryButtonStyle}>Sign in</Link>
+                  )}
                   <Link href="/explore/players" style={secondaryButtonStyle}>Browse players</Link>
                 </>
               )}
