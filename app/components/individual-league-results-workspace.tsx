@@ -3,10 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import CoordinatorSubnav from '@/app/components/coordinator-subnav'
-import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import SiteShell from '@/app/components/site-shell'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -159,31 +156,6 @@ const scorekeeperTile: CSSProperties = {
 const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
 const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05, overflowWrap: 'anywhere' }
 const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.5, marginTop: 6, overflowWrap: 'anywhere' }
-const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10, marginTop: 16, minWidth: 0 }
-const flowStep: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)',
-  gap: 10,
-  alignItems: 'center',
-  padding: 12,
-  borderRadius: 14,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
-  minWidth: 0,
-}
-const flowNumber: CSSProperties = {
-  display: 'grid',
-  placeItems: 'center',
-  width: 32,
-  height: 32,
-  borderRadius: 999,
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  fontWeight: 950,
-}
-const flowTitle: CSSProperties = { color: '#f8fbff', fontWeight: 900, fontSize: 14, overflowWrap: 'anywhere' }
-const flowText: CSSProperties = { color: '#b8c7dc', fontSize: 12, marginTop: 2, overflowWrap: 'anywhere' }
 const readinessPanel: CSSProperties = {
   display: 'grid',
   gap: 14,
@@ -1033,18 +1005,7 @@ export function IndividualLeagueResultsWorkspace({
 
   return (
     <SiteShell active={activeRoute}>
-      <CoordinatorSubnav
-        title="Individual results"
-        description="Log player results for ladders, round robins, and challenge leagues without leaving League."
-        tierLabel={canEditResults ? 'Player results active' : 'League results locked'}
-        tierActive={canEditResults}
-      />
       <div style={pageWrap}>
-        <LeagueSuitePanel
-          active="player-results"
-          leagueLabel={selectedLeague?.leagueName || leagues[0]?.leagueName}
-          flow={['setup', 'participants', 'schedule', 'player-results', 'public-page']}
-        />
         <div style={introCard}>
           <div style={heading}>Record player results fast.</div>
           <div style={subheading}>
@@ -1080,20 +1041,6 @@ export function IndividualLeagueResultsWorkspace({
               <div style={tileLabel}>Corrections</div>
               <div style={tileValue}>{editedResultsCount}</div>
               <div style={tileText}>{editedResultsCount === 1 ? 'Edited player result' : 'Edited player results'}</div>
-            </div>
-          </div>
-          <div style={flowStrip}>
-            <div style={flowStep}>
-              <div style={flowNumber}>1</div>
-              <div><div style={flowTitle}>Pick league</div><div style={flowText}>Ladder, round robin, challenge.</div></div>
-            </div>
-            <div style={flowStep}>
-              <div style={flowNumber}>2</div>
-              <div><div style={flowTitle}>Log result</div><div style={flowText}>Players, winner, score.</div></div>
-            </div>
-            <div style={flowStep}>
-              <div style={flowNumber}>3</div>
-              <div><div style={flowTitle}>Close prompts</div><div style={flowText}>Suggestions and ratings update.</div></div>
             </div>
           </div>
         </div>
@@ -1152,19 +1099,6 @@ export function IndividualLeagueResultsWorkspace({
             {status}
           </p>
         ) : null}
-        {accessResolved && !canEditResults ? (
-          <div style={{ marginBottom: 14 }}>
-            <UpgradePrompt
-              planId="league"
-              compact
-              headline="Unlock individual result entry with TIQ League Coordinator"
-              body={accessMessage || 'TIQ League Coordinator lets organizers create individual leagues, log player results, and keep standings current.'}
-              ctaLabel="Run Your League on TIQ"
-              secondaryLabel="Back to League"
-            />
-          </div>
-        ) : null}
-
         <details
           id="player-result-entry"
           style={detailsCard}
