@@ -17,7 +17,6 @@ import {
   pageShell,
   pageSubtitle,
   sectionKicker,
-  sectionStack,
   sectionTitle,
   surfaceCard,
   surfaceCardStrong,
@@ -130,14 +129,6 @@ const heroSearchFilters: Array<{
   },
 ]
 
-const tierSections: TierSectionConfig[] = [
-  buildTierSection('free', <FreeSnapshot />),
-  buildTierSection('player_plus', <PlayerPlusSnapshot />),
-  buildTierSection('captain', <CaptainSnapshot />, true),
-  buildTierSection('league', <LeagueSnapshot />),
-]
-
-const paidTierSections = tierSections.filter((section) => section.planId !== 'free')
 const conversionTierIds: PricingPlanId[] = ['free', 'player_plus', 'captain', 'league']
 const commandModes: Array<{
   planId: PricingPlanId
@@ -395,6 +386,8 @@ const commandModeDetails: Record<
   },
 }
 
+// Kept temporarily as a fallback while the command-center homepage is reviewed.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildTierSection(planId: MembershipTierId, snapshot: ReactNode, featured = false): TierSectionConfig {
   const tier = getMembershipTier(planId)
   const story = TIER_HOMEPAGE_STORY[planId]
@@ -514,45 +507,6 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
         }}
       >
         <div style={{ display: 'grid', gap: isMobile ? 16 : 18, minWidth: 0 }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
-              gap: 14,
-              alignItems: 'start',
-              minWidth: 0,
-            }}
-          >
-            <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
-              <div style={{ ...badgeGreen, width: 'fit-content' }}>TenAceIQ dashboard</div>
-            <h1
-              style={{
-                margin: 0,
-                  maxWidth: 760,
-                color: 'var(--foreground-strong)',
-                  fontSize: 'clamp(2rem, 4vw, 3.45rem)',
-                  lineHeight: 0.96,
-                letterSpacing: 0,
-                fontWeight: 950,
-                overflowWrap: 'anywhere',
-              }}
-            >
-                Open the tool you need today.
-            </h1>
-            <p
-              style={{
-                margin: 0,
-                  maxWidth: 680,
-                color: 'var(--shell-copy-muted)',
-                  fontSize: isMobile ? 14 : 15,
-                  lineHeight: 1.55,
-              }}
-            >
-                Everything is visible up front. Find is active for free; You, Team, and League unlock when those tools make your tennis life easier.
-            </p>
-            </div>
-          </div>
-
           <nav
             aria-label="Choose a TenAceIQ workflow"
             style={{
@@ -1844,31 +1798,10 @@ export default function PreviewHomepage() {
 }
 
 function PreviewHomepageContent() {
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile } = useViewportBreakpoints()
   const { role, entitlements } = useAuth()
   const authenticated = role !== 'public'
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
-  const hasPaidAccess =
-    access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow || access.canUseLeagueTools
-
-  if (hasPaidAccess || authenticated) {
-    return (
-      <div
-        style={{
-          ...pageShell,
-          display: 'grid',
-          gap: isMobile ? 16 : 18,
-          paddingTop: isMobile ? 10 : 14,
-        }}
-      >
-        <CommandCenterHome
-          key={`${authenticated ? 'signed-in' : 'public'}-${getPreferredPortalLane(access)}`}
-          access={access}
-          authenticated={authenticated}
-        />
-      </div>
-    )
-  }
 
   return (
     <div
@@ -1884,64 +1817,6 @@ function PreviewHomepageContent() {
           access={access}
           authenticated={authenticated}
         />
-
-        <TierChoiceGrid access={access} authenticated={authenticated} />
-
-        <section style={{ ...sectionStack, gap: isMobile ? 14 : 16 }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.1fr) minmax(min(100%, 280px), 0.9fr)',
-              gap: 12,
-              alignItems: 'stretch',
-              minWidth: 0,
-            }}
-          >
-            <div style={{ display: 'grid', gap: 8, maxWidth: 860 }}>
-              <div style={sectionKicker}>Dashboard lanes</div>
-              <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.7rem)', lineHeight: 1.02 }}>
-                Pick the job. Open the tool. Move on.
-              </h2>
-              <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
-                The homepage should work like the product: Find what matters, prep your own match, run the team week, or operate the season without reading a manual.
-              </p>
-            </div>
-
-            <div
-              style={{
-                ...surfaceCard,
-                display: 'grid',
-                gap: 7,
-                padding: isSmallMobile ? 13 : 14,
-                borderLeft: '2px solid rgba(155,225,29,0.42)',
-                background: 'transparent',
-              }}
-            >
-              <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                Show first
-              </div>
-              <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.08 }}>
-                Each lane shows the next useful action.
-              </div>
-              <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.68 }}>
-                Pricing stays available, but the main experience should feel like choosing a tennis task, not decoding a software bundle.
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gap: isMobile ? 14 : 16 }}>
-            {paidTierSections.map((section, index) => (
-              <TierSection
-                key={section.planId}
-                {...section}
-                access={access}
-                authenticated={authenticated}
-                reverse={!isTablet && index % 2 === 1}
-              />
-            ))}
-          </div>
-        </section>
-
       </div>
   )
 }
@@ -2469,6 +2344,8 @@ function AppCommandDeck({ access, authenticated }: { access: ProductAccessState;
   )
 }
 
+// Kept temporarily as a fallback while the command-center homepage is reviewed.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState; authenticated: boolean }) {
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
 
@@ -2777,6 +2654,8 @@ function RoleChooserPreview() {
   )
 }
 
+// Kept temporarily as a fallback while the command-center homepage is reviewed.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function TierSection({
   planId,
   stage,
