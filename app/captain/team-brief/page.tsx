@@ -4,9 +4,6 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import CaptainSubnav from '@/app/components/captain-subnav'
-import CaptainSuitePanel from '@/app/components/captain-suite-panel'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -20,6 +17,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import {
   formatWeekdayDate as formatDate,
   cleanText as safeText,
@@ -384,10 +382,13 @@ function CaptainTeamBriefContent() {
       <div style={contentStyle}>
           <section style={heroCard}>
             <div style={heroTopRow}>
-              <div>
-                <p style={sectionKicker}>Team Brief</p>
-                <h1 style={heroTitle}>{resolvedOpponent ? `Team update vs ${resolvedOpponent}` : 'Team update'}</h1>
-                <p style={heroText}>One clean message for match day.</p>
+              <div style={heroIdentityStyle}>
+                <TiqFeatureIcon name="messagingCenter" size="lg" variant="surface" />
+                <div>
+                  <p style={sectionKicker}>Team Brief</p>
+                  <h1 style={heroTitle}>{resolvedOpponent ? `Team update vs ${resolvedOpponent}` : 'Team update'}</h1>
+                  <p style={heroText}>One clean message for match day.</p>
+                </div>
               </div>
 
               <div style={heroButtonRow}>
@@ -584,32 +585,6 @@ function CaptainTeamBriefContent() {
           </section>
         </div>
 
-        <CaptainSubnav
-          title="Team Brief"
-          description="Use this when the team needs one clean weekly summary."
-          tierLabel={access.captainTierLabel}
-          tierActive={access.captainSubscriptionActive}
-        />
-
-        <CaptainSuitePanel
-          active="team-brief"
-          teamLabel={[team, flight].filter(Boolean).join(' - ') || undefined}
-          flow={['team-brief', 'availability', 'lineup', 'messaging']}
-        />
-
-        {!access.canUseCaptainWorkflow ? (
-          <UpgradePrompt
-            planId="captain"
-            compact
-            headline="Need one place to prep your team for the week?"
-            body="Unlock Captain to connect team brief context, availability, lineup planning, and match-day communication instead of managing each step separately."
-            ctaLabel="Unlock Captain Tools"
-            ctaHref="/pricing"
-            secondaryLabel="See Captain plan"
-            secondaryHref="/pricing"
-            footnote="Best for captains who want cleaner weekly prep, less scrambling, and clearer decisions before match day."
-          />
-        ) : null}
     </main>
   )
 }
@@ -653,9 +628,17 @@ const heroCard: CSSProperties = {
   gap: 18,
   padding: 24,
   borderRadius: 28,
-  border: '1px solid rgba(74,222,128,0.16)',
-  background: 'linear-gradient(180deg, rgba(14,30,58,0.86) 0%, rgba(16,38,70,0.78) 100%)',
-  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, rgba(116,190,255,0.14) 78%)',
+  background:
+    'radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--brand-green) 14%, transparent) 0%, transparent 34%), linear-gradient(135deg, rgba(14,30,58,0.92) 0%, rgba(16,38,70,0.82) 56%, rgba(10,22,44,0.94) 100%)',
+  boxShadow: '0 22px 58px rgba(2,10,24,0.22), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+const heroIdentityStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
+  gap: 14,
+  alignItems: 'center',
   minWidth: 0,
 }
 const heroTopRow: CSSProperties = {
