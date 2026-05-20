@@ -465,15 +465,12 @@ function getTierAccessPresentation(planId: PricingPlanId, access: ProductAccessS
 
 function CommandCenterHome({ access, authenticated }: { access: ProductAccessState; authenticated: boolean }) {
   const router = useRouter()
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const [query, setQuery] = useState('')
   const [activeLane, setActiveLane] = useState<PricingPlanId>(() =>
     authenticated ? getPreferredPortalLane(access) : 'free',
   )
-  const hasPaidAccess =
-    access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow || access.canUseLeagueTools
   const startHref = authenticated ? getPlanDestinationHref('free') : '/join'
-  const selectedMode = commandModes.find((mode) => mode.planId === activeLane) ?? commandModes[0]
   const selectedDetails = commandModeDetails[activeLane]
   const selectedAccess = getTierAccessPresentation(activeLane, access, authenticated)
   const selectedTasks = commandTaskSets[activeLane]
@@ -512,7 +509,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: hasPaidAccess || isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(min(100%, 430px), 0.72fr)',
+          gridTemplateColumns: 'minmax(0, 1fr)',
           gap: isMobile ? 16 : 22,
           alignItems: 'start',
           minWidth: 0,
@@ -556,7 +553,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                 Everything is visible up front. Find is active for free; You, Team, and League unlock when those tools make your tennis life easier.
             </p>
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: isMobile ? 'none' : 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href={selectedAccess.primaryCta.href} style={{ ...buttonPrimary, minHeight: 46 }}>
                 {selectedAccess.primaryCta.label}
               </Link>
@@ -588,10 +585,10 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                   onClick={() => setActiveLane(mode.planId)}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '42px minmax(0, 1fr)',
-                    gap: 10,
+                    gridTemplateColumns: 'minmax(0, 1fr)',
+                    gap: 6,
                     alignItems: 'center',
-                    minHeight: 82,
+                    minHeight: isMobile ? 72 : 78,
                     padding: 12,
                     borderRadius: 18,
                     border: active ? `1px solid ${accent}` : '1px solid rgba(116,190,255,0.14)',
@@ -604,19 +601,6 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                     minWidth: 0,
                   }}
                 >
-                  <span
-                    style={{
-                      display: 'grid',
-                      placeItems: 'center',
-                      width: 42,
-                      height: 42,
-                      borderRadius: 14,
-                      background: `color-mix(in srgb, ${accent} 20%, rgba(255,255,255,0.06) 80%)`,
-                      border: `1px solid color-mix(in srgb, ${accent} 34%, rgba(255,255,255,0.10) 66%)`,
-                    }}
-                  >
-                    <TiqFeatureIcon name={mode.icon} size="sm" variant="ghost" />
-                  </span>
                   <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
                     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
                       <strong style={{ fontSize: 15, lineHeight: 1.05 }}>{mode.lane}</strong>
@@ -728,60 +712,6 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
           </div>
         </div>
 
-        {hasPaidAccess ? null : (
-        <aside style={{ display: 'grid', gap: 12, alignContent: 'start', minWidth: 0 }}>
-          <div
-            style={{
-              display: 'grid',
-              gap: 12,
-              padding: isSmallMobile ? 14 : 18,
-              borderRadius: 24,
-              border: `1px solid color-mix(in srgb, ${activeAccent} 28%, rgba(116,190,255,0.12) 72%)`,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.045))',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ ...badgeSlate, color: 'var(--foreground-strong)' }}>{selectedMode.lane}</span>
-              <span style={{ color: activeAccent, fontSize: 12, fontWeight: 950 }}>{selectedAccess.statusLabel}</span>
-            </div>
-            <h2 style={{ margin: 0, color: 'var(--foreground-strong)', fontSize: 'clamp(1.45rem, 3vw, 2.15rem)', lineHeight: 1.02 }}>
-              {selectedDetails.headline}
-            </h2>
-            <p style={{ margin: 0, color: 'var(--shell-copy-muted)', fontSize: 14, lineHeight: 1.6 }}>
-              {selectedDetails.subhead}
-            </p>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                gap: 8,
-                minWidth: 0,
-              }}
-            >
-              {selectedMode.proof.map((proof) => (
-                <div
-                  key={proof}
-                  style={{
-                    display: 'grid',
-                    gap: 4,
-                    minHeight: 72,
-                    padding: 10,
-                    borderRadius: 14,
-                    background: 'rgba(255,255,255,0.055)',
-                    border: '1px solid rgba(255,255,255,0.07)',
-                    minWidth: 0,
-                  }}
-                >
-                  <span style={{ color: activeAccent, fontSize: 11, fontWeight: 950 }}>{proof.slice(0, 2)}</span>
-                  <strong style={{ color: 'var(--foreground-strong)', fontSize: 12, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{proof}</strong>
-                </div>
-              ))}
-            </div>
-            <UnlockPathPreview mode={activeLane} active={selectedAccess.active} line={selectedDetails.unlockLine} href={selectedAccess.primaryCta.href} cta={selectedAccess.primaryCta.label} />
-          </div>
-        </aside>
-        )}
       </div>
     </section>
   )

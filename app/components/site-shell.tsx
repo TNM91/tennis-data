@@ -6,7 +6,6 @@ import type { ReactNode } from 'react'
 import SiteHeader from '@/app/components/site-header'
 import SiteFooter from '@/app/components/site-footer'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
-import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
 import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/design-system'
 import { getPlanSignupHref } from '@/lib/plan-intent'
@@ -17,7 +16,6 @@ type ShellMode = {
   label: string
   intent: string
   href: string
-  icon: TiqFeatureIconName
   locked: (access: ProductAccessState) => boolean
   requiredPlan: 'free' | 'player_plus' | 'captain' | 'league'
 }
@@ -28,7 +26,6 @@ const SHELL_MODES: ShellMode[] = [
     label: 'Find',
     intent: 'Public tennis map',
     href: '/explore',
-    icon: 'opponentScouting',
     locked: () => false,
     requiredPlan: 'free',
   },
@@ -37,7 +34,6 @@ const SHELL_MODES: ShellMode[] = [
     label: 'You',
     intent: 'My Lab and prep',
     href: '/mylab',
-    icon: 'myLab',
     locked: (access) => !access.canUseAdvancedPlayerInsights,
     requiredPlan: 'player_plus',
   },
@@ -46,7 +42,6 @@ const SHELL_MODES: ShellMode[] = [
     label: 'Team',
     intent: 'Captain decisions',
     href: '/captain',
-    icon: 'lineupBuilder',
     locked: (access) => !access.canUseCaptainWorkflow,
     requiredPlan: 'captain',
   },
@@ -55,7 +50,6 @@ const SHELL_MODES: ShellMode[] = [
     label: 'League',
     intent: 'League tools',
     href: '/league-coordinator',
-    icon: 'teamRankings',
     locked: (access) => !access.canUseLeagueTools,
     requiredPlan: 'league',
   },
@@ -110,7 +104,7 @@ function PlatformModeBar() {
         aria-label="TenAceIQ work modes"
         style={{
           ...modeBarStyle,
-          gridTemplateColumns: isMobile ? 'repeat(4, minmax(0, 1fr))' : modeBarStyle.gridTemplateColumns,
+          gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : modeBarStyle.gridTemplateColumns,
           gap: isMobile ? 6 : modeBarStyle.gap,
           padding: isMobile ? 6 : modeBarStyle.padding,
         }}
@@ -131,7 +125,6 @@ function PlatformModeBar() {
                 ...(locked ? modePillLockedStyle : null),
               }}
             >
-              <TiqFeatureIcon name={mode.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
               <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
                 <strong style={modePillLabelStyle}>{mode.label}</strong>
                 {isMobile ? null : <em style={modePillIntentStyle}>{locked ? 'Preview unlock' : mode.intent}</em>}
@@ -161,16 +154,14 @@ const modeBarStyle = {
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'linear-gradient(180deg, rgba(9,18,35,0.58) 0%, rgba(8,18,34,0.72) 100%)',
   boxShadow: '0 14px 34px rgba(2,10,24,0.10), inset 0 1px 0 rgba(255,255,255,0.04)',
-  overflowX: 'auto',
-  overscrollBehaviorX: 'contain',
-  WebkitOverflowScrolling: 'touch',
+  overflow: 'hidden',
   minWidth: 0,
 } as const
 
 const modePillStyle = {
   display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr)',
-  gap: 9,
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 2,
   alignItems: 'center',
   minHeight: 52,
   minWidth: 0,
@@ -184,11 +175,11 @@ const modePillStyle = {
 
 const modePillMobileStyle = {
   gridTemplateColumns: 'minmax(0, 1fr)',
-  justifyItems: 'center',
-  gap: 5,
-  minHeight: 58,
-  padding: '7px 4px',
-  textAlign: 'center',
+  justifyItems: 'start',
+  gap: 2,
+  minHeight: 50,
+  padding: '8px 10px',
+  textAlign: 'left',
 } as const
 
 const modePillActiveStyle = {
