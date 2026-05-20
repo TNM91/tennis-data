@@ -104,7 +104,7 @@ export default function ProfilePage() {
 }
 
 function ProfilePageInner() {
-  const { role, entitlements, userId, authResolved } = useAuth()
+  const { role, entitlements, session, userId, authResolved } = useAuth()
   const { isTablet, isMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
@@ -369,7 +369,8 @@ function ProfilePageInner() {
   }
 
   const profileComplete = Boolean(profile?.linked_player_id || profile?.linked_player_name)
-  const signedIn = Boolean(userId)
+  const signedIn = Boolean(userId || session?.user?.id)
+  const authPending = !authResolved && !signedIn
   const primaryRating = linkedPlayer || selectedPlayer
   const detectedLeagueCount = new Set(
     selectedPlayerTeams
@@ -463,12 +464,16 @@ function ProfilePageInner() {
     },
   ]
   const setupProgress = setupSteps.filter((step) => step.complete).length
-  const heroTitle = profileComplete
+  const heroTitle = authPending
+    ? 'Checking your account.'
+    : profileComplete
     ? 'Your player identity is connected.'
     : signedIn
       ? 'Link your player profile.'
       : 'Sign in to link your profile.'
-  const heroCopy = profileComplete
+  const heroCopy = authPending
+    ? 'Give TenAceIQ a moment to confirm whether this profile should open as signed in or public.'
+    : profileComplete
     ? 'Your account knows which player record powers My Lab, Matchup, Team, and League context.'
     : signedIn
       ? 'TenAceIQ knows you are signed in. Now choose the player record that should personalize your tools.'
@@ -483,7 +488,7 @@ function ProfilePageInner() {
             <p style={heroTextStyle}>
               {heroCopy}
             </p>
-            {!profileComplete ? (
+            {!profileComplete && !authPending ? (
               <Link href={signedIn ? '#profile-identity' : '/login?next=%2Fprofile'} style={profileSetupNoticeStyle}>
                 <TiqFeatureIcon name="accountSecurity" size="sm" variant="surface" />
                 <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
@@ -514,6 +519,8 @@ function ProfilePageInner() {
                   <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
                   <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
                 </>
+              ) : authPending ? (
+                <span style={secondaryButtonStyle}>Checking access</span>
               ) : (
                 <>
                   {signedIn ? (

@@ -56,7 +56,7 @@ async function withTimeout<T, F>(promise: Promise<T>, timeoutMs: number, fallbac
   return await Promise.race<T | F>([
     promise,
     new Promise<F>((resolve) => {
-      window.setTimeout(() => resolve(fallback), timeoutMs)
+      globalThis.setTimeout(() => resolve(fallback), timeoutMs)
     }),
   ])
 }
@@ -84,7 +84,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
 
       if (isAuthSessionTimeout(sessionResult)) {
-        return null
+        if (!mountedRef.current) return null
+        setSession(null)
+        setRole('public')
+        setEntitlements(null)
+        resolvedAuthState = true
+        return {
+          session: null,
+          userId: null,
+          role: 'public',
+          entitlements: null,
+        }
       }
 
       const {
@@ -130,6 +140,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         entitlements: nextEntitlements,
       }
     } catch {
+      if (!mountedRef.current) return null
+      setSession(null)
+      setRole('public')
+      setEntitlements(null)
+      resolvedAuthState = true
       return null
     } finally {
       if (mountedRef.current && resolvedAuthState) {
@@ -145,6 +160,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      let resolvedAuthState = false
+
       if (!mountedRef.current) return
 
       setSession(nextSession ?? null)
@@ -158,23 +175,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setAuthResolved(false)
 
-      const [nextRole, nextEntitlements] = await Promise.all([
-        withTimeout(
-          fetchProfileRole(nextSession.user.id),
-          AUTH_PROVIDER_TIMEOUT_MS,
-          'member' as UserRole,
-        ),
-        withTimeout(
-          getClientEntitlementSnapshot(nextSession.user.id),
-          AUTH_PROVIDER_TIMEOUT_MS,
-          null,
-        ),
-      ])
+      try {
+        const [nextRole, nextEntitlements] = await Promise.all([
+          withTimeout(
+            fetchProfileRole(nextSession.user.id),
+            AUTH_PROVIDER_TIMEOUT_MS,
+            'member' as UserRole,
+          ),
+          withTimeout(
+            getClientEntitlementSnapshot(nextSession.user.id),
+            AUTH_PROVIDER_TIMEOUT_MS,
+            null,
+          ),
+        ])
 
-      if (!mountedRef.current) return
-      setRole(nextRole)
-      setEntitlements(nextEntitlements)
-      setAuthResolved(true)
+        if (!mountedRef.current) return
+        setRole(nextRole)
+        setEntitlements(nextEntitlements)
+        resolvedAuthState = true
+      } catch {
+        if (!mountedRef.current) return
+        setRole('member')
+        setEntitlements(null)
+        resolvedAuthState = true
+      } finally {
+        if (mountedRef.current && resolvedAuthState) {
+          setAuthResolved(true)
+        }
+      }
     })
 
     return () => {
