@@ -34,8 +34,8 @@ ________________________________________________________________________________
 - [y ] Confirm you are testing the preview, not production.
 - [ y] Open desktop viewport.
 - [ y] Open mobile viewport or browser device mode.
-- [ y] Confirm light mode works.
-- [y ] Confirm dark mode works.
+- [ y] Confirm the single dark-shell visual system loads.
+- [y ] Confirm the page does not show a theme toggle.
 - [y ] Sign out before starting the public-state pass.
 
 Setup notes:
@@ -53,8 +53,8 @@ Desktop:
 - [ y] Header logo is sharp and aligned.
 - [ y] Header spacing feels balanced.
 - [N ] Navigation labels fit.
-- [y] Lock icons are visible in light mode.
-- [ y] Lock icons are visible in dark mode.
+- [y] Lock icons are visible in the single dark-shell theme.
+- [ y] Locked cues are readable against premium surfaces.
 - [ y No horizontal scrolling.
 - [ y] Hero typography feels intentional.
 - [ y] "Choose your path" panel wraps cleanly.
@@ -67,8 +67,8 @@ Mobile:
 - [y ] Header logo fits.
 - [y ] Menu button is easy to tap.
 - [ y] Mobile menu opens and closes.
-- [ y] Locked items are readable in light mode.
-- [ y] Locked items are readable in dark mode.
+- [ y] Locked items are readable in the single dark-shell theme.
+- [ y] Locked items remain clear in the mobile menu.
 - [ y] No sideways scrolling.
 - [y ] Text does not overlap.
 - [ y] Buttons fit their containers.
@@ -90,8 +90,8 @@ Desktop:
 - [ y] Buttons align cleanly.
 - [ N] Legal/support wording is easy to find.
 - [ y] No crowded cards.
-- [y ] No contrast issues in light mode.
-- [ y] No contrast issues in dark mode.
+- [y ] No contrast issues in the single dark-shell theme.
+- [ y] Pricing states remain readable across plan cards.
 
 Mobile:
 
@@ -159,13 +159,13 @@ Public/free state:
 - [ y] Locked state is clear.
 - [y ] Upgrade path is clear.
 - [ n] Copy feels tennis-specific.
-- [n ] Layout is polished in light mode.
-- [ n] Layout is polished in dark mode.
+- [n ] Layout is polished in the single dark-shell theme.
+- [ n] Locked and unlocked states are visually distinct.
 - [ n] Mobile layout is not squeezed.
 
 Notes:
 
-______________lots of design opportunities on both desktop and mobile things like blank font that you cant read and light mode is very bare more like a white sheet__________________________________________________________________
+______________lots of design opportunities on both desktop and mobile things like blank font that you cant read and the old light theme felt bare like a white sheet__________________________________________________________________
 
 ________________________________________________________________________________
 
@@ -233,7 +233,7 @@ ________________________________________________________________________________
 - [ y] Form fits mobile.
 - [y ] Password/reset links are visible.
 - [ y] Error states are readable if tested.
-- [ y] Light and dark modes both work.
+- [ y] Single dark-shell theme works.
 
 Notes:
 
@@ -257,22 +257,22 @@ Email support@tenaceiq.com with the account email, plan, charge date, and a shor
 
 ________________________________________________________________________________
 
-## 2. Navigation And Theme Pass - 10 Minutes
+## 2. Navigation And Single Theme Pass - 10 Minutes
 
 Desktop:
 
-- [ n] Switch light to dark.
-- [n ] Switch dark to light.
-- [ y] Header logo changes correctly.
-- [y ] Header lock icons remain visible in both modes.
-- [ y] Footer lock icons remain visible in both modes.
+- [ n] No theme toggle is exposed.
+- [n ] Pages stay in the single dark-shell theme after refresh.
+- [ y] Header logo renders correctly.
+- [y ] Header lock icons remain visible.
+- [ y] Footer lock icons remain visible.
 - [y ] Header and footer lock glyphs match.
 - [ y] Active nav state is clear.
 - [ y] Hover states are not jarring.
 
 Mobile:
 
-- [ y] Theme toggle works inside mobile menu.
+- [ y] Mobile menu does not expose a theme toggle.
 - [ y] Mobile menu does not shift awkwardly.
 - [ y] Locked nav rows are readable.
 - [ y] Tap targets feel large enough.
@@ -434,8 +434,8 @@ ________________________________________________________________________________
 - [ y] Refresh coordinator page.
 - [ y] Navigate with browser back/forward.
 - [ y] Open and close mobile menu repeatedly.
-- [ y] Toggle theme after signing in.
-- [ y] Toggle theme after signing out.
+- [ y] Refresh after signing in and confirm the single theme remains.
+- [ y] Refresh after signing out and confirm the single theme remains.
 - [ y] Confirm no obvious broken images.
 - [ y] Confirm no page has horizontal scrolling.
 - [ y] Confirm nothing feels visually worse than production.
@@ -454,7 +454,7 @@ ________________________________________________________________________________
 
 Page:
 
-Mode: desktop / mobile, light / dark
+Mode: desktop / mobile
 
 What happened:
 
@@ -472,7 +472,7 @@ Severity: blocker / important / polish
 
 Page:
 
-Mode: desktop / mobile, light / dark
+Mode: desktop / mobile
 
 What happened:
 
@@ -490,7 +490,7 @@ Severity: blocker / important / polish
 
 Page:
 
-Mode: desktop / mobile, light / dark
+Mode: desktop / mobile
 
 What happened:
 
@@ -508,7 +508,7 @@ Severity: blocker / important / polish
 
 Page:
 
-Mode: desktop / mobile, light / dark
+Mode: desktop / mobile
 
 What happened:
 
@@ -533,4 +533,3 @@ Decision notes:
 ________________________________________________________________________________
 
 ________________________________________________________________________________
-

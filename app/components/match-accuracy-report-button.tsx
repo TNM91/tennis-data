@@ -234,7 +234,7 @@ const selectStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   padding: '0 12px',
-  colorScheme: 'normal',
+  colorScheme: 'dark',
 }
 
 const textareaStyle: CSSProperties = {
@@ -247,7 +247,7 @@ const textareaStyle: CSSProperties = {
   padding: 12,
   lineHeight: 1.55,
   resize: 'vertical',
-  colorScheme: 'normal',
+  colorScheme: 'dark',
 }
 
 const actionRowStyle: CSSProperties = {

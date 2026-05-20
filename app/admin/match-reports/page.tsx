@@ -498,7 +498,7 @@ const selectStyle = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   padding: '0 12px',
-  colorScheme: 'normal' as const,
+  colorScheme: 'dark' as const,
 }
 
 const textAreaStyle = {
@@ -510,5 +510,5 @@ const textAreaStyle = {
   padding: 12,
   lineHeight: 1.55,
   resize: 'vertical' as const,
-  colorScheme: 'normal' as const,
+  colorScheme: 'dark' as const,
 }

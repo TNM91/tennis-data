@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import SiteShell from '@/app/components/site-shell'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 export default function ResetPasswordPage() {
@@ -127,10 +128,10 @@ export default function ResetPasswordPage() {
           <div style={panelCard}>
             <div style={panelLabel}>Reset checklist</div>
             <div style={infoGridResponsive}>
-              <InfoCard title="8+ characters" text="Use at least 8 characters." />
-              <InfoCard title="Match fields" text="Both password fields must match." />
-              <InfoCard title="Save it" text="Use your password manager if you have one." />
-              <InfoCard title="Sign in" text="You will return to login after reset." />
+              <InfoCard icon="accountSecurity" title="8+ characters" text="Use at least 8 characters." />
+              <InfoCard icon="reliabilityIndex" title="Match fields" text="Both password fields must match." />
+              <InfoCard icon="reports" title="Save it" text="Use your password manager if you have one." />
+              <InfoCard icon="myLab" title="Sign in" text="You will return to login after reset." />
             </div>
           </div>
         </div>
@@ -229,11 +230,14 @@ export default function ResetPasswordPage() {
   )
 }
 
-function InfoCard({ title, text }: { title: string; text: string }) {
+function InfoCard({ icon, title, text }: { icon: TiqFeatureIconName; title: string; text: string }) {
   return (
     <div style={infoCard}>
-      <div style={infoTitle}>{title}</div>
-      <div style={infoText}>{text}</div>
+      <TiqFeatureIcon name={icon} size="sm" variant="ghost" />
+      <div>
+        <div style={infoTitle}>{title}</div>
+        <div style={infoText}>{text}</div>
+      </div>
     </div>
   )
 }
@@ -249,7 +253,7 @@ const pillGreen: CSSProperties = { ...pillBase, background: 'color-mix(in srgb, 
 const panelCard: CSSProperties = { marginTop: '24px', minWidth: 0, borderRadius: '24px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', padding: '18px', maxWidth: '900px', boxShadow: 'var(--shadow-soft)' }
 const panelLabel: CSSProperties = { color: 'var(--home-eyebrow-color)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }
 const infoGrid: CSSProperties = { display: 'grid', gap: '12px' }
-const infoCard: CSSProperties = { minWidth: 0, borderRadius: '18px', padding: '16px', background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)' }
+const infoCard: CSSProperties = { display: 'grid', gridTemplateColumns: '34px minmax(0, 1fr)', gap: '10px', alignItems: 'center', minWidth: 0, borderRadius: '18px', padding: '16px', background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)' }
 const infoTitle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: '16px', fontWeight: 800, lineHeight: 1.35, overflowWrap: 'anywhere' }
 const infoText: CSSProperties = { marginTop: '6px', color: 'var(--shell-copy-muted)', fontSize: '14px', lineHeight: 1.6, overflowWrap: 'anywhere' }
 const formPanel: CSSProperties = { position: 'relative', minWidth: 0, borderRadius: '30px', overflow: 'hidden', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', boxShadow: 'var(--shadow-card)' }

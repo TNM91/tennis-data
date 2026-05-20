@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import { useTheme, type ThemeMode } from '@/app/components/theme-provider'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   badgeBlue,
   badgeGreen,
@@ -126,6 +126,19 @@ const scopeGuides: Record<
   },
 }
 
+const scopeCommandCards: Array<{
+  scope: SearchScope
+  label: string
+  title: string
+  icon: TiqFeatureIconName
+}> = [
+  { scope: 'players', label: 'Players', title: 'Profile and rating context', icon: 'playerRatings' },
+  { scope: 'teams', label: 'Teams', title: 'Roster and match context', icon: 'teamRankings' },
+  { scope: 'leagues', label: 'Leagues', title: 'Season and flight layer', icon: 'reports' },
+  { scope: 'flight', label: 'Flight', title: 'Rating-level lane', icon: 'matchupAnalysis' },
+  { scope: 'area', label: 'Area', title: 'Local league map', icon: 'opponentScouting' },
+]
+
 function formatCompactDate(value: string | null | undefined) {
   if (!value) return 'No recent match date'
 
@@ -152,8 +165,6 @@ export default function ExploreSearchPage() {
 }
 
 function ExploreSearchContent() {
-  const { theme } = useTheme()
-  const isLight = theme === 'light'
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { access, authResolved } = useProductAccess()
 
@@ -389,6 +400,16 @@ function ExploreSearchContent() {
             </p>
           </div>
 
+          <SearchCommandPanel
+            activeScope={scope}
+            query={query}
+            totalResults={totalResults}
+            onScopeChange={(nextScope) => {
+              setScope(nextScope)
+              syncUrl(query, nextScope)
+            }}
+          />
+
           <form
             onSubmit={handleSubmit}
             style={{
@@ -411,11 +432,11 @@ function ExploreSearchContent() {
                   setScope(nextScope)
                   syncUrl(query, nextScope)
                 }}
-                style={getSearchSelectStyle(theme)}
+                style={getSearchSelectStyle()}
                 aria-label="Search by scope"
               >
                 {searchScopes.map((item) => (
-                  <option key={item.value} value={item.value} style={getSearchOptionStyle(theme)}>
+                  <option key={item.value} value={item.value} style={getSearchOptionStyle()}>
                     {item.label}
                   </option>
                 ))}
@@ -470,10 +491,10 @@ function ExploreSearchContent() {
 
           {leagues.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(min(100%, 150px), 1fr))', gap: 10, minWidth: 0, marginTop: 12 }}>
-              <FilterSelect label="Year" value={yearFilter} onChange={setYearFilter} options={leagueYears} theme={theme} />
-              <FilterSelect label="Season" value={seasonFilter} onChange={setSeasonFilter} options={leagueSeasons} theme={theme} />
-              <FilterSelect label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={leagueGenders} theme={theme} />
-              <FilterSelect label="Rating / Flight" value={leagueRatingFilter} onChange={setLeagueRatingFilter} options={leagueRatings} theme={theme} />
+              <FilterSelect label="Year" value={yearFilter} onChange={setYearFilter} options={leagueYears} />
+              <FilterSelect label="Season" value={seasonFilter} onChange={setSeasonFilter} options={leagueSeasons} />
+              <FilterSelect label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={leagueGenders} />
+              <FilterSelect label="Rating / Flight" value={leagueRatingFilter} onChange={setLeagueRatingFilter} options={leagueRatings} />
             </div>
           ) : null}
 
@@ -526,9 +547,7 @@ function ExploreSearchContent() {
                 minWidth: 0,
                 padding: isSmallMobile ? 14 : 16,
                 alignContent: 'start',
-                background: isLight
-                  ? 'color-mix(in srgb, var(--surface) 96%, var(--brand-blue-2) 4%)'
-                  : 'color-mix(in srgb, var(--surface) 92%, var(--brand-blue-2) 8%)',
+                background: 'color-mix(in srgb, var(--surface) 92%, var(--brand-blue-2) 8%)',
               }}
             >
               <div style={sectionKicker}>Quick context</div>
@@ -598,7 +617,7 @@ function ExploreSearchContent() {
                   ctaLabel="Open player directory"
                 >
                   {filteredPlayers.map((player) => (
-                    <Link key={player.id} href={`/players/${player.id}`} style={getResultCardStyle(theme)}>
+                    <Link key={player.id} href={`/players/${player.id}`} style={getResultCardStyle()}>
                       <div style={resultHeaderStyle}>
                         <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{player.name}</div>
@@ -638,7 +657,7 @@ function ExploreSearchContent() {
                   ctaLabel="Open My Lab"
                 >
                   {matchupSuggestions.map((item) => (
-                    <Link key={item.key} href={item.href} style={getResultCardStyle(theme)}>
+                    <Link key={item.key} href={item.href} style={getResultCardStyle()}>
                       <div style={resultTitleStyle}>{item.title}</div>
                       <div style={resultMetaStyle}>{item.text}</div>
                     </Link>
@@ -670,7 +689,7 @@ function ExploreSearchContent() {
                         ...(team.league ? { league: team.league } : {}),
                         ...(team.flight ? { flight: team.flight } : {}),
                       }).toString()}` : ''}`}
-                      style={getResultCardStyle(theme)}
+                      style={getResultCardStyle()}
                     >
                       <div style={resultHeaderStyle}>
                         <div style={resultPrimaryStyle}>
@@ -693,7 +712,7 @@ function ExploreSearchContent() {
                   ctaLabel="Open leagues"
                 >
                   {showLeagueResults ? filteredLeagues.map((league) => (
-                    <Link key={league.key} href={buildExploreLeagueHref(league)} style={getResultCardStyle(theme)}>
+                    <Link key={league.key} href={buildExploreLeagueHref(league)} style={getResultCardStyle()}>
                       <div style={resultHeaderStyle}>
                         <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{league.leagueName}</div>
@@ -866,6 +885,57 @@ async function searchLeagues(term: string, scope: SearchScope): Promise<LeagueCa
     .slice(0, 8)
 }
 
+function SearchCommandPanel({
+  activeScope,
+  query,
+  totalResults,
+  onScopeChange,
+}: {
+  activeScope: SearchScope
+  query: string
+  totalResults: number
+  onScopeChange: (scope: SearchScope) => void
+}) {
+  return (
+    <section style={searchCommandPanelStyle} aria-label="Search scope guide">
+      <div style={searchCommandHeaderStyle}>
+        <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
+        <div style={searchCommandHeaderCopyStyle}>
+          <div style={searchCommandEyebrowStyle}>Find path</div>
+          <h2 style={searchCommandTitleStyle}>Choose the clue you have.</h2>
+          <p style={searchCommandTextStyle}>
+            {query.trim() ? `${totalResults} result${totalResults === 1 ? '' : 's'} in the current view.` : 'Start broad, then switch scope when the clue becomes clearer.'}
+          </p>
+        </div>
+      </div>
+
+      <div style={searchCommandGridStyle}>
+        {scopeCommandCards.map((card, index) => {
+          const selected = card.scope === activeScope
+          return (
+            <button
+              key={card.scope}
+              type="button"
+              onClick={() => onScopeChange(card.scope)}
+              style={{
+                ...searchCommandCardStyle,
+                ...(selected ? searchCommandCardActiveStyle : null),
+              }}
+            >
+              <span style={searchCommandNumberStyle}>{index + 1}</span>
+              <TiqFeatureIcon name={card.icon} size="sm" variant={selected ? 'surface' : 'ghost'} />
+              <span style={searchCommandCardCopyStyle}>
+                <span style={searchCommandLabelStyle}>{card.label}</span>
+                <strong style={searchCommandCardTitleStyle}>{card.title}</strong>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function uniqueSorted(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.map((value) => cleanText(value)).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b),
@@ -877,21 +947,19 @@ function FilterSelect({
   value,
   onChange,
   options,
-  theme,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   options: string[]
-  theme: ThemeMode
 }) {
   return (
     <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
       <span style={searchLabelStyle}>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} style={getSearchSelectStyle(theme)}>
-        <option value="all" style={getSearchOptionStyle(theme)}>All</option>
+      <select value={value} onChange={(event) => onChange(event.target.value)} style={getSearchSelectStyle()}>
+        <option value="all" style={getSearchOptionStyle()}>All</option>
         {options.map((option) => (
-          <option key={option} value={option} style={getSearchOptionStyle(theme)}>
+          <option key={option} value={option} style={getSearchOptionStyle()}>
             {option}
           </option>
         ))}
@@ -952,6 +1020,121 @@ function SearchIcon() {
   )
 }
 
+const searchCommandPanelStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: 14,
+  padding: 14,
+  borderRadius: 20,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'linear-gradient(180deg, rgba(13,28,53,0.74) 0%, rgba(9,20,39,0.9) 100%)',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.14), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+
+const searchCommandHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '48px minmax(0, 1fr)',
+  gap: 12,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const searchCommandHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const searchCommandEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const searchCommandTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.12rem, 2vw, 1.45rem)',
+  lineHeight: 1.05,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const searchCommandTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const searchCommandGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const searchCommandCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '28px 32px minmax(0, 1fr)',
+  gap: 9,
+  alignItems: 'center',
+  minHeight: 62,
+  padding: '9px 10px',
+  borderRadius: 15,
+  border: '1px solid rgba(116,190,255,0.09)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--foreground)',
+  font: 'inherit',
+  textAlign: 'left',
+  cursor: 'pointer',
+  minWidth: 0,
+}
+
+const searchCommandCardActiveStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, rgba(116,190,255,0.12) 66%)',
+  background: 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)',
+}
+
+const searchCommandNumberStyle: CSSProperties = {
+  width: 26,
+  height: 26,
+  borderRadius: 999,
+  display: 'grid',
+  placeItems: 'center',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+}
+
+const searchCommandCardCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+}
+
+const searchCommandLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const searchCommandCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
 const searchLabelStyle: CSSProperties = {
   color: 'var(--muted-strong)',
   fontSize: 11,
@@ -961,8 +1144,7 @@ const searchLabelStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-function getSearchSelectStyle(theme: ThemeMode): CSSProperties {
-  const isLight = theme === 'light'
+function getSearchSelectStyle(): CSSProperties {
   return {
     ...surfaceCard,
     minWidth: 0,
@@ -975,13 +1157,11 @@ function getSearchSelectStyle(theme: ThemeMode): CSSProperties {
     fontWeight: 700,
     outline: 'none',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-    colorScheme: theme,
+    colorScheme: 'dark',
     appearance: 'none',
     WebkitAppearance: 'none',
     MozAppearance: 'none',
-    backgroundImage: isLight
-      ? 'linear-gradient(45deg, transparent 50%, rgba(17,32,56,0.72) 50%), linear-gradient(135deg, rgba(17,32,56,0.72) 50%, transparent 50%)'
-      : 'linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.88) 50%), linear-gradient(135deg, rgba(255,255,255,0.88) 50%, transparent 50%)',
+    backgroundImage: 'linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.88) 50%), linear-gradient(135deg, rgba(255,255,255,0.88) 50%, transparent 50%)',
     backgroundPosition: 'calc(100% - 20px) calc(50% - 2px), calc(100% - 14px) calc(50% - 2px)',
     backgroundSize: '6px 6px, 6px 6px',
     backgroundRepeat: 'no-repeat',
@@ -989,10 +1169,10 @@ function getSearchSelectStyle(theme: ThemeMode): CSSProperties {
   }
 }
 
-function getSearchOptionStyle(theme: ThemeMode): CSSProperties {
+function getSearchOptionStyle(): CSSProperties {
   return {
-    backgroundColor: theme === 'light' ? '#f4f7fb' : '#13233b',
-    color: theme === 'light' ? '#112038' : '#f5f8ff',
+    backgroundColor: '#13233b',
+    color: '#f5f8ff',
   }
 }
 
@@ -1120,7 +1300,7 @@ const resultGroupListStyle: CSSProperties = {
   minWidth: 0,
 }
 
-function getResultCardStyle(theme: ThemeMode): CSSProperties {
+function getResultCardStyle(): CSSProperties {
   return {
     ...surfaceCard,
     minWidth: 0,
@@ -1129,10 +1309,7 @@ function getResultCardStyle(theme: ThemeMode): CSSProperties {
     display: 'grid',
     gap: 8,
     textDecoration: 'none',
-    background:
-      theme === 'light'
-        ? 'color-mix(in srgb, var(--surface) 97%, var(--brand-blue-2) 3%)'
-        : 'color-mix(in srgb, var(--surface) 94%, var(--brand-blue-2) 6%)',
+    background: 'color-mix(in srgb, var(--surface) 94%, var(--brand-blue-2) 6%)',
   }
 }
 

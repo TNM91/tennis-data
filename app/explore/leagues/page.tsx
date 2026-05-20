@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import FindModeBridge from '@/app/components/find-mode-bridge'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import {
   buildExploreLeagueHref,
@@ -288,6 +289,18 @@ function ExploreLeaguesContent() {
           {notice ? <div style={noticeStyle}>{notice}</div> : null}
           {registryWarning ? <div style={noticeStyle}>{registryWarning}</div> : null}
         </div>
+
+        <FindModeBridge
+          active="Leagues"
+          primary="Open the right competition layer"
+          secondary="Use leagues when season, flight, area, or organizer context is the clue you have."
+          links={[
+            { href: '/explore/search?scope=leagues', label: 'Search', icon: 'opponentScouting' },
+            { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
+            { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
+            { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
+          ]}
+        />
 
         {loading ? <div style={stateStyle}>Loading league layers...</div> : null}
         {error ? <div style={errorStyle}>{error}</div> : null}

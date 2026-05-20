@@ -21,6 +21,13 @@ import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '
 
 const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
 
+const JOIN_PLAN_ICON_BY_ID: Record<MembershipTierId, TiqFeatureIconName> = {
+  free: 'opponentScouting',
+  player_plus: 'myLab',
+  captain: 'lineupBuilder',
+  league: 'teamRankings',
+}
+
 const JOIN_INTENT_COPY: Record<MembershipTierId, {
   eyebrow: string
   mobileTitle: string
@@ -143,6 +150,12 @@ function JoinContent() {
   const selectedTier = getMembershipTier(selectedPlanId)
   const selectedNextRoute = isSafeLocalNextHref(searchParams.get('next'), getJoinNextRoute(selectedPlanId))
   const authLoading = !authResolved
+  const joinPlanChoices = JOIN_PLAN_IDS.map((planId) => ({
+    id: planId,
+    tier: getMembershipTier(planId),
+    selected: planId === selectedPlanId,
+    href: planId === 'free' ? '/join' : `/join?plan=${planId}`,
+  }))
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
@@ -272,6 +285,26 @@ function JoinContent() {
                 Preview next step
               </Link>
             </div>
+          </div>
+
+          <div style={pathPickerStyle} aria-label="Choose signup path">
+            {joinPlanChoices.map((choice) => (
+              <Link
+                key={choice.id}
+                href={choice.href}
+                aria-current={choice.selected ? 'page' : undefined}
+                style={{
+                  ...pathPickerCardStyle,
+                  ...(choice.selected ? pathPickerCardActiveStyle : null),
+                }}
+              >
+                <TiqFeatureIcon name={JOIN_PLAN_ICON_BY_ID[choice.id]} size="sm" variant={choice.selected ? 'surface' : 'ghost'} />
+                <span style={pathPickerCopyStyle}>
+                  <strong>{choice.tier.name}</strong>
+                  <small>{choice.tier.shortPromise}</small>
+                </span>
+              </Link>
+            ))}
           </div>
 
           {isMobile ? (
@@ -595,6 +628,45 @@ const selectedPlanLinkStyle: CSSProperties = {
   textDecoration: 'none',
   fontSize: '13px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const pathPickerStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: '9px',
+  width: 'min(100%, 760px)',
+  minWidth: 0,
+  marginTop: '14px',
+}
+
+const pathPickerCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gap: '9px',
+  alignItems: 'center',
+  minHeight: '70px',
+  padding: '10px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  minWidth: 0,
+}
+
+const pathPickerCardActiveStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)',
+}
+
+const pathPickerCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '3px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  lineHeight: 1.2,
   overflowWrap: 'anywhere',
 }
 

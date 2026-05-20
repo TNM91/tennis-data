@@ -16,30 +16,40 @@ export default function CompetePage() {
           meta="Competition context"
           title="My Leagues"
           text="Separate team-league participation from individual-league participation so weekly decisions start with the right competition model."
+          icon="teamRankings"
+          action="Check leagues"
         />
         <CompeteCard
           href="/compete/teams"
           meta="Roster context"
           title="My Teams"
           text="Open team-level operations, review roster and match context, and bridge straight into availability, lineups, and messaging."
+          icon="lineupBuilder"
+          action="Open teams"
         />
         <CompeteCard
           href="/compete/schedule"
           meta="What is next"
           title="Schedule"
           text="Use upcoming matches as the weekly decision spine and keep captain work tied to real dates, opponents, and league context."
+          icon="schedule"
+          action="See next"
         />
         <CompeteCard
           href="/compete/results"
           meta="What happened"
           title="Results"
           text="Review completed match outcomes, recent movement, and the competitive signals that should feed your next lineup or scenario pass."
+          icon="reports"
+          action="Review results"
         />
         <CompeteCard
           href="/data-assist"
           meta="Community assist"
           title="Data Assist"
           text="Upload TennisLink screenshots as review-first drafts so scorecards, schedules, and roster context can improve the platform safely."
+          icon="accountSecurity"
+          action="Refresh data"
         />
       </CompeteGrid>
 

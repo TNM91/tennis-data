@@ -103,7 +103,8 @@ describe('upgrade and compete mobile layout guards', () => {
       expect(block, styleName).toMatch(/minWidth: 0|overflowWrap: 'anywhere'/)
     }
 
-    expect(competeFrameSource).toContain("<span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{label}</span>")
+    expect(styleBlock(competeFrameSource, 'subnavLabelStyle')).toContain('minWidth: 0')
+    expect(styleBlock(competeFrameSource, 'subnavLabelStyle')).toContain("overflowWrap: 'anywhere'")
     expect(competeFrameSource).toContain("flexWrap: 'wrap'")
     expect(styleBlock(competeFrameSource, 'cardCtaStyle')).toContain("whiteSpace: 'normal'")
   })

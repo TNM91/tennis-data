@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import FindModeBridge from '@/app/components/find-mode-bridge'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import {
   formatRatingValue,
@@ -669,6 +670,18 @@ export default function RankingsPage() {
           </div>
         </div>
       </section>
+
+      <FindModeBridge
+        active="Rankings"
+        primary="Scan the field, then drill in"
+        secondary="Use rankings when you need a broad view before opening a profile, team, league, or Matchup prep."
+        links={[
+          { href: '/explore/search?scope=players', label: 'Search', icon: 'opponentScouting' },
+          { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
+          { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
+          { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
+        ]}
+      />
 
       {!loading && !error && topThree.length > 0 ? (
         <section style={contentWrap}>

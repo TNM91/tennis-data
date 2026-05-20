@@ -189,17 +189,17 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(teamsSource, 'metricsGrid')).toContain('minWidth: 0')
   })
 
-  it('keeps Teams directory readable in light mode with shell tokens', () => {
+  it('keeps Teams directory readable in the single dark shell with tokens', () => {
     expect(teamsSource).toContain('var(--background)')
     expect(teamsSource).toContain("color: 'var(--foreground)'")
     expect(teamsSource).toContain("background: 'var(--shell-panel-bg)'")
     expect(teamsSource).toContain("color: 'var(--foreground-strong)'")
     expect(teamsSource).toContain("color: 'var(--shell-copy-muted)'")
-    expect(teamsSource).toContain("colorScheme: 'normal'")
-    expect(teamsSource).not.toContain("colorScheme: 'dark'")
+    expect(teamsSource).toContain("colorScheme: 'dark'")
+    expect(teamsSource).not.toContain("colorScheme: 'normal'")
   })
 
-  it('keeps Leagues directory Data Assist centered and light-mode readable', () => {
+  it('keeps Leagues directory Data Assist centered and dark-shell readable', () => {
     expect(leaguesSource).toContain('Browse uploaded league seasons.')
     expect(leaguesSource).toContain('reviewed Data Assist league groupings')
     expect(leaguesSource).toContain('DATA_ASSIST_STORY.cta')
@@ -232,11 +232,11 @@ describe('Explore responsive surfaces', () => {
     expect(leaguesSource).toContain("background: 'var(--shell-chip-bg)'")
     expect(leaguesSource).toContain("color: 'var(--foreground-strong)'")
     expect(leaguesSource).toContain("color: 'var(--shell-copy-muted)'")
-    expect(leaguesSource).toContain("colorScheme: 'normal'")
+    expect(leaguesSource).toContain("colorScheme: 'dark'")
     expect(leaguesSource).toContain("overflowWrap: 'anywhere'")
   })
 
-  it('keeps league detail pages Data Assist aware and light-mode readable', () => {
+  it('keeps league detail pages Data Assist aware and dark-shell readable', () => {
     expect(leagueDetailSource).toContain('reviewed match rows')
     expect(leagueDetailSource).toContain('DATA_ASSIST_STORY.cta')
     expect(leagueDetailSource).toContain('Use reviewed Data Assist uploads')
@@ -251,7 +251,7 @@ describe('Explore responsive surfaces', () => {
     expect(leagueDetailSource).toContain("background: 'var(--shell-chip-bg)'")
     expect(leagueDetailSource).toContain("color: 'var(--foreground-strong)'")
     expect(leagueDetailSource).toContain("color: 'var(--shell-copy-muted)'")
-    expect(leagueDetailSource).toContain("colorScheme: 'normal'")
+    expect(leagueDetailSource).toContain("colorScheme: 'dark'")
     expect(leagueDetailSource).toContain("overflowWrap: 'anywhere'")
     expect(leagueDetailSource).toContain('const topPerformerGridStyle: CSSProperties')
     expect(leagueDetailSource).toContain('const standingsViewToggleRowStyle: CSSProperties')
@@ -307,7 +307,7 @@ describe('Explore responsive surfaces', () => {
     expect(ustaExploreLeagueDetailSource).toContain("export { default } from '@/app/leagues/[league]/page'")
   })
 
-  it('keeps team detail pages Data Assist aware and light-mode readable', () => {
+  it('keeps team detail pages Data Assist aware and dark-shell readable', () => {
     expect(teamDetailSource).toContain('reviewed scorecards')
     expect(teamDetailSource).toContain('No reviewed scorecards yet')
     expect(teamDetailSource).toContain('reviewed Data Assist scorecards')

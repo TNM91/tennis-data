@@ -4,10 +4,65 @@ import Link from 'next/link'
 import { CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
 import { CAPTAIN_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS } from '@/lib/site-navigation'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+
+const CAPTAIN_NAV_META: Record<string, { icon: TiqFeatureIconName; short: string; result: string }> = {
+  '/captain/availability': {
+    icon: 'reliabilityIndex',
+    short: 'Roster signal',
+    result: 'Know who is in, out, or needs a nudge.',
+  },
+  '/captain/lineup-builder': {
+    icon: 'lineupBuilder',
+    short: 'Lineup choice',
+    result: 'Build the strongest practical court plan.',
+  },
+  '/captain/messaging': {
+    icon: 'messagingCenter',
+    short: 'Team handoff',
+    result: 'Send one clean plan without retyping.',
+  },
+  '/captain/weekly-brief': {
+    icon: 'captainDashboard',
+    short: 'Captain read',
+    result: 'See the week, risks, and next action.',
+  },
+  '/data-assist': {
+    icon: 'reports',
+    short: 'Data refresh',
+    result: 'Bring scorecards, schedules, and rosters current.',
+  },
+  '/captain/scenario-builder': {
+    icon: 'scenarioBuilder',
+    short: 'Compare options',
+    result: 'See which version has the cleanest edge.',
+  },
+  '/captain/lineup-projection': {
+    icon: 'matchupAnalysis',
+    short: 'Court projection',
+    result: 'Preview where the swing courts may be.',
+  },
+  '/captain/lineup-availability': {
+    icon: 'reliabilityIndex',
+    short: 'Match status',
+    result: 'Tie availability directly to match planning.',
+  },
+  '/captain/analytics': {
+    icon: 'playerRatings',
+    short: 'Captain IQ',
+    result: 'Find the signal behind team choices.',
+  },
+  '/captain/team-brief': {
+    icon: 'reports',
+    short: 'Team brief',
+    result: 'Turn context into a fast team read.',
+  },
+}
 
 export default function CaptainSubnav({
-  title = 'Captain path',
-  description = 'Start with the weekly actions captains repeat most. Open extra tools only when the week needs them.',
+  title = 'Team week command path',
+  description = 'Work left to right: confirm availability, build the lineup, send the plan, read the brief, and refresh data when the week changes.',
   tierLabel,
   tierActive,
 }: {
@@ -17,21 +72,35 @@ export default function CaptainSubnav({
   tierActive?: boolean
 }) {
   const pathname = usePathname()
+  const { isMobile } = useViewportBreakpoints()
   const secondaryItems = CAPTAIN_NAV_ITEMS.filter(
     (item) => !CAPTAIN_QUICK_NAV_ITEMS.some((quickItem) => quickItem.href === item.href),
   )
 
   return (
     <section style={shellStyle} aria-label="Captain tools">
-      <div style={headerStyle}>
-        <div style={eyebrowStyle} aria-hidden="true">Weekly path</div>
-        <div style={titleStyle}>{title}</div>
-        <div style={descriptionStyle}>{description}</div>
-        {tierLabel ? (
-          <div style={tierRowStyle}>
-            <span style={tierActive ? tierPillGreen : tierPillSlate}>{tierLabel}</span>
+      <div style={meshStyle} aria-hidden="true" />
+      <div
+        style={{
+          ...headerStyle,
+          gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : headerStyle.gridTemplateColumns,
+        }}
+      >
+        <div style={headerCopyStyle}>
+          <div style={eyebrowStyle} aria-hidden="true">Captain suite</div>
+          <div style={titleStyle}>{title}</div>
+          <div style={descriptionStyle}>{description}</div>
+        </div>
+        <div style={headerStatusStyle}>
+          <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
+          <div style={statusCopyStyle}>
+            <span style={statusLabelStyle}>Best use</span>
+            <strong style={statusValueStyle}>One match-week flow</strong>
           </div>
-        ) : null}
+          {tierLabel ? (
+            <span style={tierActive ? tierPillGreen : tierPillSlate}>{tierLabel}</span>
+          ) : null}
+        </div>
       </div>
 
       <nav aria-label="Captain weekly workflow" style={gridStyle}>
@@ -48,7 +117,11 @@ export default function CaptainSubnav({
               }}
             >
               <span style={stepStyle}>{index + 1}</span>
-              <span style={linkLabelStyle}>{item.label}</span>
+              <TiqFeatureIcon name={CAPTAIN_NAV_META[item.href]?.icon ?? 'captainDashboard'} size="sm" variant={active ? 'surface' : 'ghost'} />
+              <span style={linkCopyStyle}>
+                <span style={linkLabelStyle}>{item.label}</span>
+                <span style={linkMetaStyle}>{CAPTAIN_NAV_META[item.href]?.short ?? 'Captain tool'}</span>
+              </span>
               <span aria-hidden="true" style={linkArrowStyle}>{active ? 'Here' : 'Open'}</span>
             </Link>
           )
@@ -66,12 +139,16 @@ export default function CaptainSubnav({
                   key={item.href}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  style={{
-                    ...secondaryLinkStyle,
-                    ...(active ? activeLinkStyle : null),
-                  }}
-                >
-                  <span style={linkLabelStyle}>{item.label}</span>
+                style={{
+                  ...secondaryLinkStyle,
+                  ...(active ? activeLinkStyle : null),
+                }}
+              >
+                  <TiqFeatureIcon name={CAPTAIN_NAV_META[item.href]?.icon ?? 'captainDashboard'} size="sm" variant={active ? 'surface' : 'ghost'} />
+                  <span style={linkCopyStyle}>
+                    <span style={linkLabelStyle}>{item.label}</span>
+                    <span style={linkMetaStyle}>{CAPTAIN_NAV_META[item.href]?.result ?? 'Open the captain tool.'}</span>
+                  </span>
                   <span aria-hidden="true" style={linkArrowStyle}>{active ? 'Here' : 'Open'}</span>
                 </Link>
               )
@@ -84,19 +161,74 @@ export default function CaptainSubnav({
 }
 
 const shellStyle: CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
   display: 'grid',
   gap: 16,
-  padding: 20,
-  borderRadius: 24,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'linear-gradient(180deg, rgba(12,26,50,0.82) 0%, rgba(9,20,39,0.92) 100%)',
+  boxShadow: '0 22px 54px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const meshStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background:
+    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
+  backgroundSize: '28px 28px',
+  opacity: 0.16,
+  pointerEvents: 'none',
 }
 
 const headerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 310px), auto)',
+  gap: 14,
+  alignItems: 'start',
+  minWidth: 0,
+}
+
+const headerCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
-  maxWidth: 720,
+  minWidth: 0,
+}
+
+const headerStatusStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '40px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const statusCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const statusLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const statusValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
 }
 
 const eyebrowStyle: CSSProperties = {
@@ -122,24 +254,26 @@ const descriptionStyle: CSSProperties = {
 }
 
 const gridStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 12,
   minWidth: 0,
 }
 
 const linkStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 30px) minmax(0, 1fr) minmax(0, auto)',
+  gridTemplateColumns: 'minmax(0, 30px) minmax(0, 34px) minmax(0, 1fr) minmax(0, auto)',
   alignItems: 'center',
-  gap: 12,
-  minHeight: 56,
-  padding: '0 14px',
-  borderRadius: 18,
+  gap: 10,
+  minHeight: 66,
+  padding: '10px 12px',
+  borderRadius: 16,
   textDecoration: 'none',
   color: 'var(--foreground)',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
   boxShadow: 'var(--home-control-shadow)',
   minWidth: 0,
   overflowWrap: 'anywhere',
@@ -165,8 +299,23 @@ const activeLinkStyle: CSSProperties = {
 
 const linkLabelStyle: CSSProperties = {
   fontSize: 14,
-  fontWeight: 800,
+  lineHeight: 1.15,
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
   minWidth: 0,
+}
+
+const linkCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const linkMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.25,
+  fontWeight: 750,
 }
 
 const linkArrowStyle: CSSProperties = {
@@ -175,13 +324,6 @@ const linkArrowStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
-}
-
-const tierRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-  marginTop: 4,
 }
 
 const tierPillBase: CSSProperties = {
@@ -198,18 +340,24 @@ const tierPillBase: CSSProperties = {
 
 const tierPillGreen: CSSProperties = {
   ...tierPillBase,
+  gridColumn: '1 / -1',
+  width: 'fit-content',
   background: 'color-mix(in srgb, var(--shell-chip-bg) 82%, var(--brand-green) 18%)',
   color: 'color-mix(in srgb, var(--brand-green) 76%, var(--foreground-strong) 24%)',
 }
 
 const tierPillSlate: CSSProperties = {
   ...tierPillBase,
+  gridColumn: '1 / -1',
+  width: 'fit-content',
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
 }
 
 const moreToolsStyle: CSSProperties = {
-  borderTop: '1px solid var(--shell-panel-border)',
+  position: 'relative',
+  zIndex: 1,
+  borderTop: '1px solid rgba(116,190,255,0.10)',
   paddingTop: 12,
 }
 
@@ -230,6 +378,6 @@ const secondaryGridStyle: CSSProperties = {
 
 const secondaryLinkStyle: CSSProperties = {
   ...linkStyle,
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
-  minHeight: 48,
+  gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr) minmax(0, auto)',
+  minHeight: 58,
 }

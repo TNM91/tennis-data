@@ -41,14 +41,14 @@ const UNLOCK_COPY: Record<PricingPlanId, {
     eyebrow: 'Free path',
     title: 'Start with the tennis map.',
     body: 'Search players, teams, leagues, rankings, flights, and areas before you need paid tools.',
-    action: 'Explore TenAceIQ',
-    checkoutAction: 'Explore TenAceIQ',
+    action: 'Open Find',
+    checkoutAction: 'Open Find',
     setupAction: 'Open Free',
   },
   player_plus: {
     eyebrow: 'Player unlock',
     title: 'Make TenAceIQ personal.',
-    body: 'Continue with Player when you want My Lab, follows, matchup reads, and player-linked prep around your game.',
+    body: 'Continue with Player when you want My Lab, follows, Prep reads, and player-linked context around your game.',
     action: 'Continue with Player',
     checkoutAction: 'Unlock Player',
     setupAction: 'Preview Player setup',
@@ -57,25 +57,25 @@ const UNLOCK_COPY: Record<PricingPlanId, {
     eyebrow: 'Captain unlock',
     title: 'Run the team week.',
     body: 'Continue with Captain when lineup decisions, scouting, readiness, and team communication need one cleaner flow.',
-    action: 'Continue with Captain',
-    checkoutAction: 'Unlock Captain Tools',
-    setupAction: 'Preview Captain tools',
+    action: 'Continue with Team',
+    checkoutAction: 'Unlock Team Tools',
+    setupAction: 'Preview Team tools',
   },
   league: {
-    eyebrow: 'Coordinator unlock',
+    eyebrow: 'League unlock',
     title: 'Operate the season.',
-    body: 'Continue with TIQ League Coordinator when league structure, visibility, standings, schedules, and results need one place.',
-    action: 'Continue with Coordinator',
+    body: 'Continue with League when structure, visibility, standings, schedules, and results need one place.',
+    action: 'Continue with League',
     checkoutAction: 'Run Your League on TIQ',
     setupAction: 'Preview league setup',
   },
 }
 
 const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
-  free: ['Open Explore', 'Search public tennis context', 'Upgrade when a tool helps'],
-  player_plus: ['Request Player access', 'Link your player identity', 'Use My Lab and Matchup'],
+  free: ['Open Find', 'Search public tennis context', 'Upgrade when a tool helps'],
+  player_plus: ['Request Player access', 'Link your player identity', 'Use My Lab and Prep'],
   captain: ['Request Captain access', 'Choose the team context', 'Build lineup and weekly flow'],
-  league: ['Request Coordinator access', 'Structure the season', 'Track participants and results'],
+  league: ['Request League access', 'Structure the season', 'Track participants and results'],
 }
 
 const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
@@ -89,31 +89,31 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   free: {
     title: 'Free is ready.',
     body: 'Search public tennis context, then upgrade when a paid tool helps.',
-    primaryAction: 'Explore TenAceIQ',
+    primaryAction: 'Open Find',
     secondaryAction: 'Compare plans',
     secondaryHref: '/pricing',
     steps: ['Search players and teams', 'Review public rankings', 'Upgrade when you need more'],
   },
   player_plus: {
     title: 'Player is active. Start in My Lab.',
-    body: 'Link your player identity, follow the players you care about, and prep your next matchup.',
+    body: 'Link your player identity, follow the players you care about, and prep your next match.',
     primaryAction: 'Open My Lab',
     secondaryAction: 'Set profile',
     secondaryHref: '/profile',
-    steps: ['Confirm your player identity', 'Open My Lab', 'Compare your next matchup'],
+    steps: ['Confirm your player identity', 'Open My Lab', 'Compare your next match'],
   },
   captain: {
-    title: 'Captain is active. Build the week.',
+    title: 'Team is active. Build the week.',
     body: 'Start with your team context, then turn scouting and lineup decisions into a cleaner match plan.',
-    primaryAction: 'Open Captain',
+    primaryAction: 'Open Team',
     secondaryAction: 'Set profile',
     secondaryHref: '/profile',
     steps: ['Confirm team context', 'Review player readiness', 'Build a lineup plan'],
   },
   league: {
-    title: 'Coordinator is active. Set up the season.',
+    title: 'League is active. Set up the season.',
     body: 'Create the league structure, bring players or teams into scope, and keep standings visible.',
-    primaryAction: 'Open Coordinator',
+    primaryAction: 'Open League',
     secondaryAction: 'View leagues',
     secondaryHref: '/compete/leagues',
     steps: ['Create the league shell', 'Add participants', 'Track results and rankings'],
@@ -329,6 +329,18 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const isPublic = resolvedRole === 'public'
   const isPaidPlan = planId === 'player_plus' || planId === 'captain' || planId === 'league'
   const showAccessRequest = isPaidPlan && !hasAccess && (isPublic || !authLoading)
+  const planChoiceCards = PLAN_IDS.map((choicePlanId) => {
+    const choicePlan = getPricingPlan(choicePlanId)
+    const choiceTier = getMembershipTier(choicePlanId)
+    return {
+      id: choicePlanId,
+      plan: choicePlan,
+      tier: choiceTier,
+      selected: choicePlanId === planId,
+      active: isPlanAlreadyActive(choicePlanId, access),
+      href: `/upgrade?plan=${choicePlanId}&next=${encodeURIComponent(getPlanDestinationHref(choicePlanId))}`,
+    }
+  })
 
   useEffect(() => {
     if (autoCheckoutStarted || authLoading || !isPaidPlan || hasAccess || isPublic || checkoutReturnState) return
@@ -589,6 +601,41 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
           </aside>
         </section>
 
+        <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis job">
+          <div style={tierMapHeaderStyle}>
+            <div>
+              <div style={labelStyle}>Choose by job</div>
+              <h2 style={tierMapTitleStyle}>Unlock the level that removes the work in front of you.</h2>
+            </div>
+            <Link href="/pricing" style={secondaryButtonStyle}>
+              Compare full plans
+            </Link>
+          </div>
+          <div style={tierMapGridStyle}>
+            {planChoiceCards.map((choice) => (
+              <Link
+                key={choice.id}
+                href={choice.href}
+                aria-current={choice.selected ? 'page' : undefined}
+                style={{
+                  ...tierChoiceCardStyle,
+                  ...(choice.selected ? tierChoiceSelectedStyle : null),
+                }}
+              >
+                <div style={tierChoiceTopStyle}>
+                  <TiqFeatureIcon name={PLAN_ICON_BY_ID[choice.id]} size="md" variant={choice.selected ? 'surface' : 'ghost'} />
+                  <span style={choice.active ? activeBadgeStyle : tierBadgeStyle}>
+                    {choice.active ? 'Active' : choice.selected ? 'Selected' : UNLOCK_COPY[choice.id].eyebrow}
+                  </span>
+                </div>
+                <strong style={tierChoiceNameStyle}>{choice.plan.name}</strong>
+                <span style={tierChoiceBodyStyle}>{choice.tier.shortPromise}</span>
+                <span style={tierChoicePriceStyle}>{choice.plan.priceLabel}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {showAccessRequest ? (
           <section id="activation" style={activationStyle}>
             <div style={activationCopyStyle}>
@@ -807,9 +854,17 @@ function getSearchParamValue(value: string | string[] | undefined) {
 
 function getPlanDestinationLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'My Lab'
-  if (planId === 'captain') return 'Captain'
-  if (planId === 'league') return 'Coordinator'
-  return 'Explore'
+  if (planId === 'captain') return 'Team'
+  if (planId === 'league') return 'League'
+  return 'Find'
+}
+
+function isPlanAlreadyActive(planId: PricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
+  if (planId === 'free') return access.currentPlanId === 'free'
+  if (planId === 'player_plus') return access.canUseAdvancedPlayerInsights
+  if (planId === 'captain') return access.canUseCaptainWorkflow
+  if (planId === 'league') return access.canUseLeagueTools
+  return false
 }
 
 function createClientRequestId(planId: PricingPlanId) {
@@ -937,6 +992,117 @@ const planCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-blue-2) 8%)',
   boxShadow: 'var(--shadow-soft)',
+}
+
+const tierMapStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 18,
+  borderRadius: 24,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'linear-gradient(180deg, rgba(13,28,53,0.72) 0%, rgba(8,18,36,0.9) 100%)',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.12), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const tierMapHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+}
+
+const tierMapTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.6vw, 2.15rem)',
+  lineHeight: 1.05,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const tierMapGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const tierChoiceCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  minHeight: 172,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const tierChoiceSelectedStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, rgba(116,190,255,0.14) 64%)',
+  background: 'color-mix(in srgb, rgba(255,255,255,0.05) 82%, var(--brand-green) 18%)',
+}
+
+const tierChoiceTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+}
+
+const tierBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 28,
+  maxWidth: '100%',
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const activeBadgeStyle: CSSProperties = {
+  ...tierBadgeStyle,
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.1)',
+  color: 'var(--foreground-strong)',
+}
+
+const tierChoiceNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const tierChoiceBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const tierChoicePriceStyle: CSSProperties = {
+  alignSelf: 'end',
+  color: 'var(--brand-green)',
+  fontSize: 13,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const planNameStyle: CSSProperties = {

@@ -7,6 +7,7 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import FindModeBridge from '@/app/components/find-mode-bridge'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
@@ -623,6 +624,18 @@ export default function PlayersPage() {
           </div>
         </div>
       </section>
+
+      <FindModeBridge
+        active="Players"
+        primary="Open a player profile"
+        secondary="Use this directory when a name, location, or rating clue is your starting point."
+        links={[
+          { href: '/explore/search?scope=players', label: 'Search', icon: 'opponentScouting' },
+          { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
+          { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
+          { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
+        ]}
+      />
 
       {error ? (
       <section style={errorCard}>

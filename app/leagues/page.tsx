@@ -1010,7 +1010,7 @@ const searchInput: CSSProperties = {
   fontSize: '15px',
   outline: 'none',
   boxShadow: 'var(--home-control-shadow)',
-  colorScheme: 'normal',
+  colorScheme: 'dark',
 }
 
 const clearFilterButton: CSSProperties = {
@@ -1052,7 +1052,7 @@ const selectStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   outline: 'none',
-  colorScheme: 'normal',
+  colorScheme: 'dark',
 }
 
 const stateBox: CSSProperties = {

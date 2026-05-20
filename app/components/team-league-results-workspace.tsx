@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import CoordinatorSubnav from '@/app/components/coordinator-subnav'
+import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
@@ -1365,8 +1366,8 @@ export function TeamLeagueResultsWorkspace({
         planId="league"
         headline="Need to record TIQ team results?"
         body="Unlock TIQ League Coordinator to enter team match results, manage season structure, and keep standings out of spreadsheets."
-        ctaLabel="Unlock Coordinator"
-        secondaryLabel="Back to Coordinator"
+        ctaLabel="Unlock League"
+        secondaryLabel="Back to League"
         secondaryHref="/league-coordinator"
       />
     )
@@ -1377,10 +1378,15 @@ export function TeamLeagueResultsWorkspace({
       <CoordinatorSubnav
         title="League results"
         description="Record team matches, save each line, and keep ratings, standings, and league history current."
-        tierLabel={canEditResults ? 'Team results active' : 'Coordinator results locked'}
+        tierLabel={canEditResults ? 'Team results active' : 'League results locked'}
         tierActive={canEditResults}
       />
       <div style={pageWrap}>
+        <LeagueSuitePanel
+          active="team-results"
+          leagueLabel={selectedFilterLeague?.leagueName || leagues[0]?.leagueName}
+          flow={['setup', 'participants', 'schedule', 'team-results', 'public-page']}
+        />
         <div style={introCard}>
           <div style={heading}>Record league results fast.</div>
           <div style={subheading}>Create the team match, enter each line, and keep TIQ ratings, standings, and history current.</div>
@@ -1466,7 +1472,7 @@ export function TeamLeagueResultsWorkspace({
               headline="Unlock team result entry with TIQ League Coordinator"
               body={accessMessage || 'TIQ League Coordinator lets organizers create team leagues, record match results, and keep league history current.'}
               ctaLabel="Run Your League on TIQ"
-              secondaryLabel="Back to Coordinator"
+              secondaryLabel="Back to League"
             />
           </div>
         ) : null}

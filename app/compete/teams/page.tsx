@@ -125,18 +125,24 @@ function CompeteTeamsContent() {
           meta="Roster view"
           title="Team Directory"
           text="Open current team pages for roster, standings context, and existing team-level analytics."
+          icon="teamRankings"
+          action="Find team"
         />
         <CompeteCard
           href="/captain/availability"
           meta="Action surface"
           title="Availability"
           text="Collect or review availability before you move into lineup construction."
+          icon="reliabilityIndex"
+          action="Check status"
         />
         <CompeteCard
           href="/captain/lineup-builder"
           meta="Action surface"
           title="Lineup Builder"
           text="Move from team context into lineup optimization without needing to rediscover the right captain tool."
+          icon="lineupBuilder"
+          action="Build lineup"
         />
       </CompeteGrid>
 

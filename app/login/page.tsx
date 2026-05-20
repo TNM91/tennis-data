@@ -10,12 +10,19 @@ import { loadUserProfileLink } from '@/lib/user-profile'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
 const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
 const LOGIN_AUTH_TIMEOUT_MS = 8000
+const LOGIN_PLAN_ICON_BY_ID: Record<MembershipTierId, TiqFeatureIconName> = {
+  free: 'opponentScouting',
+  player_plus: 'myLab',
+  captain: 'lineupBuilder',
+  league: 'teamRankings',
+}
 
 const LOGIN_INTENT_COPY: Record<MembershipTierId, {
   eyebrow: string
@@ -157,6 +164,12 @@ function LoginContent() {
   const selectedPlanId = getLoginPlanIntent()
   const selectedIntent = LOGIN_INTENT_COPY[selectedPlanId]
   const selectedTier = getMembershipTier(selectedPlanId)
+  const loginPlanChoices = LOGIN_PLAN_IDS.map((planId) => ({
+    id: planId,
+    tier: getMembershipTier(planId),
+    selected: planId === selectedPlanId,
+    href: planId === 'free' ? '/login' : `/login?plan=${planId}`,
+  }))
 
   useEffect(() => {
     router.prefetch(DEFAULT_POST_LOGIN_ROUTE)
@@ -330,6 +343,26 @@ function canUseBrowserStorage() {
                 Sign-in restores your account. {selectedTier.name} opens only when that plan or access is active.
               </div>
             ) : null}
+          </div>
+
+          <div style={pathPickerStyle} aria-label="Choose sign-in path">
+            {loginPlanChoices.map((choice) => (
+              <Link
+                key={choice.id}
+                href={choice.href}
+                aria-current={choice.selected ? 'page' : undefined}
+                style={{
+                  ...pathPickerCardStyle,
+                  ...(choice.selected ? pathPickerCardActiveStyle : null),
+                }}
+              >
+                <TiqFeatureIcon name={LOGIN_PLAN_ICON_BY_ID[choice.id]} size="sm" variant={choice.selected ? 'surface' : 'ghost'} />
+                <span style={pathPickerCopyStyle}>
+                  <strong>{choice.tier.name}</strong>
+                  <small>{choice.tier.shortPromise}</small>
+                </span>
+              </Link>
+            ))}
           </div>
 
           {isMobile ? (
@@ -600,6 +633,45 @@ const entitlementNoticeStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 800,
+}
+
+const pathPickerStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: '9px',
+  width: 'min(100%, 760px)',
+  minWidth: 0,
+  marginTop: '14px',
+}
+
+const pathPickerCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gap: '9px',
+  alignItems: 'center',
+  minHeight: '70px',
+  padding: '10px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  minWidth: 0,
+}
+
+const pathPickerCardActiveStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)',
+}
+
+const pathPickerCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '3px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
 }
 
 const accessPanel: CSSProperties = {

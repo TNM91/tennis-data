@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import CaptainSubnav from '@/app/components/captain-subnav'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
@@ -133,12 +134,12 @@ type ProjectionActionCard = {
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
+  { href: '/explore/players', label: 'Players' },
+  { href: '/explore/rankings', label: 'Rankings' },
   { href: '/mylab', label: 'My Lab' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/teams', label: 'Teams' },
-  { href: '/captain', label: 'Captain' },
+  { href: '/explore/leagues', label: 'Leagues' },
+  { href: '/explore/teams', label: 'Teams' },
+  { href: '/captain', label: 'Team' },
 ]
 
 
@@ -1295,6 +1296,13 @@ function LineupProjectionContent() {
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
+        <div style={{ marginTop: 14 }}>
+          <CaptainSuitePanel
+            active="projection"
+            teamLabel={[selectedTeam, selectedLeagueDisplayLabel].filter(Boolean).join(' - ') || undefined}
+            flow={['availability', 'projection', 'lineup', 'messaging']}
+          />
+        </div>
         {!access.canUseCaptainWorkflow ? (
           <div style={{ marginTop: 18 }}>
             <UpgradePrompt
@@ -1318,12 +1326,12 @@ function LineupProjectionContent() {
             </Link>
 
             <div style={footerLinksResponsive(isTablet)}>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+              <Link href="/explore/players" style={footerUtilityLink}>Players</Link>
+              <Link href="/explore/rankings" style={footerUtilityLink}>Rankings</Link>
               <Link href="/mylab" style={footerUtilityLink}>My Lab</Link>
-              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
-              <Link href="/captain" style={footerUtilityLink}>Captain</Link>
+              <Link href="/explore/leagues" style={footerUtilityLink}>Leagues</Link>
+              <Link href="/explore/teams" style={footerUtilityLink}>Teams</Link>
+              <Link href="/captain" style={footerUtilityLink}>Team</Link>
             </div>
 
             <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
@@ -1446,6 +1447,14 @@ export default function MatchupPage() {
       </section>
 
       <section style={contentWrap}>
+        <PlayerSuitePanel
+          active="matchup"
+          playerLabel={profilePlayer?.name || undefined}
+          flow={['connect', 'lab', 'matchup', 'refresh']}
+        />
+      </section>
+
+      <section style={contentWrap}>
         <article style={controlsCard}>
           <div style={toolHeaderStyle}>
             <div style={toolHeaderTitleClusterStyle}>
@@ -2037,10 +2046,10 @@ export default function MatchupPage() {
                       exact singles pairing or doubles team matchup.
                     </p>
                     <div style={emptyHeadToHeadActions}>
-                      <Link href="/players" style={miniGhostButton}>
+                      <Link href="/explore/players" style={miniGhostButton}>
                         Browse players
                       </Link>
-                      <Link href="/rankings" style={miniGhostButton}>
+                      <Link href="/explore/rankings" style={miniGhostButton}>
                         Check rankings
                       </Link>
                     </div>

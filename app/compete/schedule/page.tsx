@@ -108,18 +108,24 @@ function CompeteScheduleContent() {
           meta="Weekly hub"
           title="Captain Week View"
           text="Use Captain tools as the current working surface for upcoming team matches and preparation status."
+          icon="captainDashboard"
+          action="Open week"
         />
         <CompeteCard
           href="/captain/scenario-builder"
           meta="Scenario prep"
           title="Scenario Builder"
           text="Test likely opponent outcomes and lineup branches before match day."
+          icon="scenarioBuilder"
+          action="Test options"
         />
         <CompeteCard
           href="/mylab"
           meta="Player prep"
           title="My Lab"
           text="Use premium comparison work when schedule context turns into opponent-specific preparation."
+          icon="myLab"
+          action="Open lab"
         />
       </CompeteGrid>
 

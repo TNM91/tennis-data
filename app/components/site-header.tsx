@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
-import { useTheme } from '@/app/components/theme-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { countUnreadInternalNotifications } from '@/lib/internal-notifications'
 import { countUnreadInternalConversations, getInternalIdentity } from '@/lib/internal-messages'
@@ -38,34 +37,6 @@ function CloseIcon() {
   )
 }
 
-function SunIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
-      <circle cx="10" cy="10" r="3.6" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M10 2.2v2M10 15.8v2M17.8 10h-2M4.2 10h-2M15.6 4.4l-1.5 1.5M5.9 14.1l-1.5 1.5M15.6 15.6l-1.5-1.5M5.9 5.9 4.4 4.4"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function MoonIcon() {
-  return (
-    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
-      <path
-        d="M14.9 12.9A6.5 6.5 0 0 1 7.1 5.1a7 7 0 1 0 7.8 7.8Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 function normalizeRouteKey(value: string | undefined) {
   if (!value) return ''
   if (value === '/') return value
@@ -74,6 +45,14 @@ function normalizeRouteKey(value: string | undefined) {
 
 function isActiveLink(active: string | undefined, pathname: string, href: string) {
   const normalizedActive = normalizeRouteKey(active)
+  const currentRoute = normalizedActive || pathname
+
+  if (
+    href === '/explore' &&
+    ['/players', '/teams', '/rankings', '/leagues', '/explore'].some((route) => currentRoute === route || currentRoute.startsWith(`${route}/`))
+  ) {
+    return true
+  }
 
   if (normalizedActive) {
     if (normalizedActive === href) return true
@@ -83,46 +62,6 @@ function isActiveLink(active: string | undefined, pathname: string, href: string
   if (pathname === href) return true
   if (href !== '/' && pathname.startsWith(href)) return true
   return false
-}
-
-function ThemeToggle({
-  compact = false,
-  onClick,
-  theme,
-}: {
-  compact?: boolean
-  onClick: () => void
-  theme: 'dark' | 'light'
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 0,
-        minWidth: compact ? '40px' : '42px',
-        minHeight: compact ? '40px' : '42px',
-        padding: 0,
-        borderRadius: compact ? '13px' : '999px',
-        border: '1px solid rgba(116,190,255,0.10)',
-        background: 'color-mix(in srgb, var(--header-bg) 78%, var(--surface) 22%)',
-        color: 'var(--foreground-strong)',
-        fontWeight: 750,
-        fontSize: '12px',
-        letterSpacing: 0,
-        cursor: 'pointer',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-        transition: 'transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease',
-      }}
-    >
-      {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-    </button>
-  )
 }
 
 function HeaderNavLink({
@@ -214,7 +153,6 @@ export default function SiteHeader({ active }: { active?: string }) {
   const pathname = usePathname()
   const router = useRouter()
   const { role, userId, entitlements, authResolved } = useAuth()
-  const { theme, toggleTheme } = useTheme()
   const { screenWidth, isTablet, isMobile } = useViewportBreakpoints()
   const [menuOpen, setMenuOpen] = useState(false)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
@@ -441,8 +379,6 @@ export default function SiteHeader({ active }: { active?: string }) {
               maxWidth: '100%',
             }}
           >
-            {useCompactHeader ? null : <ThemeToggle onClick={toggleTheme} theme={theme} />}
-
             {useCompactHeader ? null : authPending ? (
               <span aria-live="polite" style={accountPillStyle}>Checking access</span>
             ) : authenticated ? (
@@ -536,7 +472,6 @@ export default function SiteHeader({ active }: { active?: string }) {
                       {accountLabel}
                     </span>
                   ) : null}
-                  <ThemeToggle compact onClick={toggleTheme} theme={theme} />
                 </div>
               </div>
 

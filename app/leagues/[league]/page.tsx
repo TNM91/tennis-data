@@ -2001,7 +2001,7 @@ const selectStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   outline: 'none',
-  colorScheme: 'normal',
+  colorScheme: 'dark',
 }
 
 const clearFilterButton: CSSProperties = {

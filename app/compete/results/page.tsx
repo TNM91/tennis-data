@@ -99,24 +99,32 @@ function CompeteResultsContent() {
           meta="Movement"
           title="Rankings"
           text="Check leaderboard movement and competitive shifts after recent results settle."
+          icon="teamRankings"
+          action="See movement"
         />
         <CompeteCard
           href="/mylab"
           meta="Personal insight"
           title="My Lab"
           text="Review followed entities, trend signals, and personalized feed items after the week closes."
+          icon="myLab"
+          action="Open lab"
         />
         <CompeteCard
-          href="/players"
+          href="/explore/players"
           meta="Player impact"
           title="Player Profiles"
           text="Jump into player-level context when a TIQ result changes how you should think about form or future matchups."
+          icon="playerRatings"
+          action="View players"
         />
         <CompeteCard
           href={DATA_ASSIST_STORY.href}
           meta="Refresh results"
           title="Upload Scorecards"
           text={DATA_ASSIST_STORY.shortCue}
+          icon="reports"
+          action="Upload scores"
         />
       </CompeteGrid>
 

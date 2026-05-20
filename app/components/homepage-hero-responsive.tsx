@@ -432,7 +432,7 @@ export default function HomePageHeroResponsive() {
               }}
             >
               <Image
-                src="/logo-icon-current.png"
+                src="/logo-icon.png"
                 alt="TenAceIQ Data Ball"
                 fill
                 priority

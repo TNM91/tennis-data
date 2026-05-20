@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import CoordinatorSubnav from '@/app/components/coordinator-subnav'
+import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
@@ -1023,8 +1024,8 @@ export function IndividualLeagueResultsWorkspace({
         planId="league"
         headline="Need to record individual league results?"
         body="Unlock TIQ League Coordinator to enter player results, keep standings current, and manage the season without spreadsheet cleanup."
-        ctaLabel="Unlock Coordinator"
-        secondaryLabel="Back to Coordinator"
+        ctaLabel="Unlock League"
+        secondaryLabel="Back to League"
         secondaryHref="/league-coordinator"
       />
     )
@@ -1034,11 +1035,16 @@ export function IndividualLeagueResultsWorkspace({
     <SiteShell active={activeRoute}>
       <CoordinatorSubnav
         title="Individual results"
-        description="Log player results for ladders, round robins, and challenge leagues without leaving Coordinator."
-        tierLabel={canEditResults ? 'Player results active' : 'Coordinator results locked'}
+        description="Log player results for ladders, round robins, and challenge leagues without leaving League."
+        tierLabel={canEditResults ? 'Player results active' : 'League results locked'}
         tierActive={canEditResults}
       />
       <div style={pageWrap}>
+        <LeagueSuitePanel
+          active="player-results"
+          leagueLabel={selectedLeague?.leagueName || leagues[0]?.leagueName}
+          flow={['setup', 'participants', 'schedule', 'player-results', 'public-page']}
+        />
         <div style={introCard}>
           <div style={heading}>Record player results fast.</div>
           <div style={subheading}>
@@ -1154,7 +1160,7 @@ export function IndividualLeagueResultsWorkspace({
               headline="Unlock individual result entry with TIQ League Coordinator"
               body={accessMessage || 'TIQ League Coordinator lets organizers create individual leagues, log player results, and keep standings current.'}
               ctaLabel="Run Your League on TIQ"
-              secondaryLabel="Back to Coordinator"
+              secondaryLabel="Back to League"
             />
           </div>
         ) : null}

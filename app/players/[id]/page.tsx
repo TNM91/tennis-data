@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
+import FindModeBridge from '@/app/components/find-mode-bridge'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import {
@@ -1267,6 +1268,18 @@ function PlayerProfileContent() {
           </div>
         </div>
       </section>
+
+      <FindModeBridge
+        active="Player Profile"
+        primary="Turn this profile into the next action"
+        secondary="Open the player record, compare the matchup, scan rankings, or move back into public discovery."
+        links={[
+          { href: '/explore/search?scope=players', label: 'Search', icon: 'opponentScouting' },
+          { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
+          { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
+          { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
+        ]}
+      />
 
       <section style={contentWrap}>
         <article style={scorecardPanelStyle} id="profile-scorecard">

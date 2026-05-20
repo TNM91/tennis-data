@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
+import InfoActionGrid, { type InfoActionCard } from '@/app/components/info-action-grid'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 export const metadata: Metadata = {
@@ -9,6 +10,30 @@ export const metadata: Metadata = {
   description:
     'See how TenAceIQ connects free discovery, Player personalization, Captain tools, and league coordination into one tennis decision system.',
 }
+
+const workflowCards: InfoActionCard[] = [
+  {
+    title: 'Explore',
+    text: 'Use public tennis intelligence to understand who, where, and what level.',
+    href: '/explore',
+    cta: 'Start free',
+    icon: 'opponentScouting',
+  },
+  {
+    title: 'Personalize',
+    text: 'Connect your player record so My Lab and Matchup start from your game.',
+    href: '/profile',
+    cta: 'Connect profile',
+    icon: 'myLab',
+  },
+  {
+    title: 'Operate',
+    text: 'Move team weeks and league seasons into repeatable tools when the work grows.',
+    href: '/pricing',
+    cta: 'Choose a tier',
+    icon: 'teamRankings',
+  },
+]
 
 export default function HowItWorksPage() {
   return (
@@ -18,11 +43,13 @@ export default function HowItWorksPage() {
         title="Start with discovery. Upgrade when it saves time."
         intro="TenAceIQ is organized by need: Free helps people explore the tennis landscape, Player makes the site personal, Captain supports weekly team decisions, and TIQ League Coordinator helps organizers run leagues of players or teams."
       >
+        <InfoActionGrid cards={workflowCards} />
+
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>1. Free discovery</h2>
           <p>
-            Public pages like <Link href="/players">Players</Link>, <Link href="/rankings">Rankings</Link>,{' '}
-            <Link href="/teams">Teams</Link>, and <Link href="/leagues">Leagues</Link> help players,
+            Public pages like <Link href="/explore/players">Players</Link>, <Link href="/explore/rankings">Rankings</Link>,{' '}
+            <Link href="/explore/teams">Teams</Link>, and <Link href="/explore/leagues">Leagues</Link> help players,
             captains, and organizers understand the landscape before they need personal tools.
           </p>
         </div>

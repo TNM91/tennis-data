@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
+import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -407,7 +408,7 @@ function ProfilePageInner() {
       icon: 'myLab' as TiqFeatureIconName,
     },
     {
-      label: 'Matchup',
+      label: 'Prep',
       value: profileComplete || selectedPlayerId ? 'Ready' : 'Waiting',
       note: 'Starts with you',
       icon: 'matchupAnalysis' as TiqFeatureIconName,
@@ -422,13 +423,13 @@ function ProfilePageInner() {
   const toolActionCards = [
     { label: 'My Lab', value: 'Scorecard', href: '/mylab', note: 'Stats, goals, next read', icon: 'myLab' as TiqFeatureIconName },
     {
-      label: 'Matchup',
+      label: 'Prep',
       value: profileComplete || selectedPlayerId ? 'Ready' : 'Waiting',
       href: profileMatchupHref,
       note: 'Compare from your profile',
       icon: 'matchupAnalysis' as TiqFeatureIconName,
     },
-    { label: 'Captain', value: 'Context', href: '/captain', note: 'Roster and team tools', icon: 'captainDashboard' as TiqFeatureIconName },
+    { label: 'Team', value: 'Context', href: '/captain', note: 'Roster and team tools', icon: 'captainDashboard' as TiqFeatureIconName },
   ]
   const playerTier = MEMBERSHIP_TIERS.player_plus
   const setupSteps = [
@@ -560,6 +561,11 @@ function ProfilePageInner() {
               </div>
             </div>
         </section>
+
+        <PlayerSuitePanel
+          active="connect"
+          playerLabel={profileComplete ? profileDisplayName : undefined}
+        />
 
         <section style={setupPathStyle(isMobile)} aria-label="Profile setup path">
           <div style={setupPathHeaderStyle(isMobile)}>

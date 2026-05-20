@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import { useTheme } from '@/app/components/theme-provider'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { COMPETE_NAV_ITEMS } from '@/lib/site-navigation'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -51,14 +52,37 @@ const WORKFLOW_PULSES = [
   },
 ]
 
+const COMPETE_NAV_META: Record<string, { icon: TiqFeatureIconName; short: string }> = {
+  '/compete/leagues': {
+    icon: 'teamRankings',
+    short: 'Know the competition layer',
+  },
+  '/compete/teams': {
+    icon: 'lineupBuilder',
+    short: 'Find the team context',
+  },
+  '/compete/schedule': {
+    icon: 'schedule',
+    short: 'See what is next',
+  },
+  '/compete/results': {
+    icon: 'reports',
+    short: 'Review what changed',
+  },
+  '/data-assist': {
+    icon: 'accountSecurity',
+    short: 'Refresh trusted data',
+  },
+}
+
 export default function CompetePageFrame({
   title,
   eyebrow,
   description,
   children,
 }: FrameProps) {
-  const { theme } = useTheme()
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const pathname = usePathname()
 
   return (
     <SiteShell active="/compete">
@@ -93,7 +117,7 @@ export default function CompetePageFrame({
                 backgroundImage:
                   'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
                 backgroundSize: isSmallMobile ? '26px 26px' : '32px 32px',
-                opacity: theme === 'dark' ? 0.22 : 0.32,
+                opacity: 0.22,
                 pointerEvents: 'none',
               }}
             />
@@ -252,8 +276,16 @@ export default function CompetePageFrame({
                       ))}
                     </div>
 
-                    {COMPETE_NAV_ITEMS.map((item) => (
-                      <SubnavLink key={item.href} href={item.href} label={item.label} />
+                    {COMPETE_NAV_ITEMS.map((item, index) => (
+                      <SubnavLink
+                        key={item.href}
+                        href={item.href}
+                        label={item.label}
+                        index={index + 1}
+                        active={pathname === item.href}
+                        meta={COMPETE_NAV_META[item.href]?.short ?? 'Open competition tool'}
+                        icon={COMPETE_NAV_META[item.href]?.icon ?? 'teamRankings'}
+                      />
                     ))}
                   </div>
                 </div>
@@ -330,11 +362,15 @@ export function CompeteCard({
   text,
   href,
   meta,
+  icon = 'teamRankings',
+  action = 'Open',
 }: {
   title: string
   text: string
   href: string
   meta: string
+  icon?: TiqFeatureIconName
+  action?: string
 }) {
   const [hovered, setHovered] = useState(false)
 
@@ -349,10 +385,13 @@ export function CompeteCard({
         borderColor: hovered ? 'rgba(74, 163, 255, 0.24)' : 'var(--shell-panel-border)',
       }}
     >
-      <div style={cardMetaStyle}>{meta}</div>
+      <div style={cardTopStyle}>
+        <TiqFeatureIcon name={icon} size="sm" variant="ghost" />
+        <div style={cardMetaStyle}>{meta}</div>
+      </div>
       <div style={cardTitleStyle}>{title}</div>
       <div style={cardTextStyle}>{text}</div>
-      <div style={cardCtaStyle}>Open {'\u2192'}</div>
+      <div style={cardCtaStyle}>{action} {'\u2192'}</div>
     </Link>
   )
 }
@@ -372,7 +411,21 @@ export function CompeteGrid({ children }: { children: ReactNode }) {
   )
 }
 
-function SubnavLink({ href, label }: { href: string; label: string }) {
+function SubnavLink({
+  href,
+  label,
+  index,
+  active,
+  meta,
+  icon,
+}: {
+  href: string
+  label: string
+  index: number
+  active: boolean
+  meta: string
+  icon: TiqFeatureIconName
+}) {
   const [hovered, setHovered] = useState(false)
 
   return (
@@ -380,28 +433,37 @@ function SubnavLink({ href, label }: { href: string; label: string }) {
       href={href}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      aria-current={active ? 'page' : undefined}
       style={{
-        minHeight: '58px',
-        borderRadius: '20px',
-        border: '1px solid rgba(116, 190, 255, 0.16)',
-        background: hovered ? 'var(--shell-chip-bg-strong)' : 'rgba(8, 18, 35, 0.42)',
-        display: 'flex',
+        minHeight: '64px',
+        borderRadius: '18px',
+        border: active
+          ? '1px solid color-mix(in srgb, var(--brand-green) 34%, rgba(116,190,255,0.12) 66%)'
+          : '1px solid rgba(116, 190, 255, 0.16)',
+        background: active
+          ? 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)'
+          : hovered
+            ? 'var(--shell-chip-bg-strong)'
+            : 'rgba(8, 18, 35, 0.42)',
+        display: 'grid',
+        gridTemplateColumns: '28px 34px minmax(0, 1fr) minmax(0, auto)',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px',
+        gap: '10px',
         minWidth: 0,
-        padding: '0 18px',
+        padding: '9px 12px',
         color: 'var(--foreground-strong)',
-        fontSize: '17px',
-        fontWeight: 800,
         letterSpacing: 0,
         textDecoration: 'none',
         boxShadow: 'var(--shadow-soft)',
       }}
     >
-      <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{label}</span>
-      <span style={{ opacity: 0.58, flexShrink: 0, overflowWrap: 'anywhere' }}>{'\u2192'}</span>
+      <span style={subnavStepStyle}>{index}</span>
+      <TiqFeatureIcon name={icon} size="sm" variant={active ? 'surface' : 'ghost'} />
+      <span style={subnavCopyStyle}>
+        <span style={subnavLabelStyle}>{label}</span>
+        <span style={subnavMetaStyle}>{meta}</span>
+      </span>
+      <span style={subnavStateStyle}>{active ? 'Here' : 'Open'}</span>
     </Link>
   )
 }
@@ -490,6 +552,14 @@ const cardStyle: CSSProperties = {
   transition: 'transform 160ms ease, border-color 160ms ease',
 }
 
+const cardTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: '10px',
+  minWidth: 0,
+}
+
 const cardMetaStyle: CSSProperties = {
   color: 'var(--muted)',
   fontSize: '11px',
@@ -523,4 +593,48 @@ const cardCtaStyle: CSSProperties = {
   maxWidth: '100%',
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const subnavStepStyle: CSSProperties = {
+  width: 26,
+  height: 26,
+  display: 'grid',
+  placeItems: 'center',
+  borderRadius: 999,
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+}
+
+const subnavCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const subnavLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const subnavMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.25,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const subnavStateStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  minWidth: 0,
 }

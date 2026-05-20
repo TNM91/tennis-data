@@ -7,11 +7,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#081a31' },
-    { media: '(prefers-color-scheme: light)', color: '#f4f7fb' },
-  ],
-  colorScheme: 'dark light',
+  themeColor: '#081a31',
+  colorScheme: 'dark',
 }
 
 export const metadata: Metadata = {
@@ -71,7 +68,7 @@ export const metadata: Metadata = {
       'Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
     images: [
       {
-        url: '/df190aef-4a8e-4587-bce8-7e2e22655646.png',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
         alt: 'TenAceIQ tennis intelligence for players, captains, and league coordinators',
@@ -83,7 +80,7 @@ export const metadata: Metadata = {
     title: 'TenAceIQ | Premium Tennis Intelligence',
     description:
       'Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
-    images: ['/df190aef-4a8e-4587-bce8-7e2e22655646.png'],
+    images: ['/og-image.png'],
   },
   manifest: '/manifest.webmanifest',
 }
@@ -104,12 +101,8 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive">{`
           (function () {
             try {
-              var storedTheme = window.localStorage.getItem('tenaceiq-theme-mode');
-              var resolvedTheme = storedTheme === 'light' || storedTheme === 'dark'
-                ? storedTheme
-                : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-              document.documentElement.dataset.theme = resolvedTheme;
-              document.documentElement.style.colorScheme = resolvedTheme;
+              document.documentElement.dataset.theme = 'dark';
+              document.documentElement.style.colorScheme = 'dark';
             } catch (error) {
               document.documentElement.dataset.theme = 'dark';
               document.documentElement.style.colorScheme = 'dark';

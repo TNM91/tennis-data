@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import CaptainSubnav from '@/app/components/captain-subnav'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useAuth } from '@/app/components/auth-provider'
@@ -26,7 +27,6 @@ import {
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
-import { useTheme } from '@/app/components/theme-provider'
 import { formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -925,7 +925,6 @@ export default function LineupBuilderPage() {
 
 function LineupBuilderContent() {
   const router = useRouter()
-  const { theme } = useTheme()
   const initialContext = readInitialLineupBuilderContext()
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
@@ -970,9 +969,7 @@ function LineupBuilderContent() {
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, entitlements, authResolved } = useAuth()
-  const heroArtworkSrc = theme === 'dark'
-    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
-    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
+  const heroArtworkSrc = '/og-image.png'
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const isCaptainAccess = access.canUseCaptainWorkflow
   const isPreviewMode = role === 'member'
@@ -2067,18 +2064,9 @@ function sendCurrentScenarioToMessaging() {
     position: 'relative',
     overflow: 'hidden',
     minHeight: isTablet ? 320 : 360,
-    background:
-      theme === 'dark'
-        ? 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))'
-        : 'linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.98))',
-    border:
-      theme === 'dark'
-        ? '1px solid rgba(116,190,255,0.12)'
-        : '1px solid rgba(148,163,184,0.18)',
-    boxShadow:
-      theme === 'dark'
-        ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
-        : '0 16px 38px rgba(15,23,42,0.08)',
+    background: 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))',
+    border: '1px solid rgba(116,190,255,0.12)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   }
 
   const lineupVisualStyle: CSSProperties = {
@@ -2089,10 +2077,7 @@ function sendCurrentScenarioToMessaging() {
   const lineupVisualMaskStyle: CSSProperties = {
     position: 'absolute',
     inset: 0,
-    background:
-      theme === 'dark'
-        ? 'linear-gradient(135deg, rgba(8,18,38,0.26) 8%, rgba(8,18,38,0.76) 50%, rgba(8,18,38,0.94) 100%)'
-        : 'linear-gradient(135deg, rgba(255,255,255,0.18) 8%, rgba(255,255,255,0.78) 52%, rgba(248,250,252,0.94) 100%)',
+    background: 'linear-gradient(135deg, rgba(8,18,38,0.26) 8%, rgba(8,18,38,0.76) 50%, rgba(8,18,38,0.94) 100%)',
   }
 
   const lineupVisualContentStyle: CSSProperties = {
@@ -2203,6 +2188,12 @@ function sendCurrentScenarioToMessaging() {
           description="Build the match sheet, compare versions, then send the final plan."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
+        />
+
+        <CaptainSuitePanel
+          active="lineup"
+          teamLabel={[teamName, flight].filter(Boolean).join(' - ') || undefined}
+          flow={['availability', 'lineup', 'scenario', 'messaging', 'brief']}
         />
 
         {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}

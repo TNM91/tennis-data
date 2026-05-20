@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
+import InfoActionGrid, { type InfoActionCard } from '@/app/components/info-action-grid'
 import TierPathway from '@/app/components/tier-pathway'
 import { DATA_ASSIST_STORY, PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
 
@@ -11,6 +12,30 @@ export const metadata: Metadata = {
     'Learn how TenAceIQ helps players, captains, and organizers make clearer tennis decisions.',
 }
 
+const aboutActions: InfoActionCard[] = [
+  {
+    title: 'Find context',
+    text: 'Search players, teams, leagues, rankings, flights, and areas before you need paid tools.',
+    href: '/explore',
+    cta: 'Open Explore',
+    icon: 'opponentScouting',
+  },
+  {
+    title: 'Make it personal',
+    text: 'Player turns broad discovery into My Lab, follows, matchups, and a linked tennis identity.',
+    href: '/mylab',
+    cta: 'Open My Lab',
+    icon: 'myLab',
+  },
+  {
+    title: 'Run the week',
+    text: 'Captain and Coordinator tools reduce scattered work for teams and seasons.',
+    href: '/pricing',
+    cta: 'Compare tiers',
+    icon: 'lineupBuilder',
+  },
+]
+
 export default function AboutPage() {
   return (
     <SiteShell active="/about">
@@ -19,6 +44,8 @@ export default function AboutPage() {
         title="Less guessing. More playing."
         intro={PRODUCT_NORTH_STAR}
       >
+        <InfoActionGrid cards={aboutActions} />
+
         <TierPathway compact framed={false} />
 
         <div>

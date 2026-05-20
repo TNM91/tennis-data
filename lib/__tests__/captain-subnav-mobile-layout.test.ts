@@ -14,11 +14,11 @@ function styleBlock(styleName: string) {
 describe('Captain subnav mobile layout guards', () => {
   it('keeps shared Captain navigation rows shrink-safe', () => {
     expect(styleBlock('gridStyle')).toContain('minWidth: 0')
-    expect(styleBlock('linkStyle')).toContain("'minmax(0, 30px) minmax(0, 1fr) minmax(0, auto)'")
+    expect(styleBlock('linkStyle')).toContain("'minmax(0, 30px) minmax(0, 34px) minmax(0, 1fr) minmax(0, auto)'")
     expect(styleBlock('linkStyle')).toContain('minWidth: 0')
     expect(styleBlock('linkStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('secondaryGridStyle')).toContain('minWidth: 0')
-    expect(styleBlock('secondaryLinkStyle')).toContain("'minmax(0, 1fr) minmax(0, auto)'")
+    expect(styleBlock('secondaryLinkStyle')).toContain("'minmax(0, 34px) minmax(0, 1fr) minmax(0, auto)'")
     expect(source).not.toContain("'30px minmax(0, 1fr) auto'")
     expect(source).not.toContain("'minmax(0, 1fr) auto'")
   })

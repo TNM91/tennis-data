@@ -5,6 +5,7 @@ import { CSSProperties, useEffect, useMemo, useState, type ReactNode } from 'rea
 import AdsenseSlot from '@/app/components/adsense-slot'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import FindModeBridge from '@/app/components/find-mode-bridge'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { supabase } from '@/lib/supabase'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
@@ -480,6 +481,18 @@ export default function TeamsPage() {
             </div>
           </div>
         </section>
+
+        <FindModeBridge
+          active="Teams"
+          primary="Open the team context"
+          secondary="Use this directory when roster shape, league, or flight is the clue you have."
+          links={[
+            { href: '/explore/search?scope=teams', label: 'Search', icon: 'opponentScouting' },
+            { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
+            { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
+            { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
+          ]}
+        />
 
         <section style={contentWrap}>
           {!loading && !error ? (
@@ -1080,7 +1093,7 @@ const inputStyle: CSSProperties = {
   padding: '0 14px',
   fontSize: '14px',
   outline: 'none',
-  colorScheme: 'normal',
+  colorScheme: 'dark',
 }
 
 const surfaceCard: CSSProperties = {

@@ -24,8 +24,8 @@ describe('primary nav access', () => {
   })
 
   it('explains that a free account starts access before the paid plan activates', () => {
-    expect(getPrimaryNavLockedLabel('Coordinator', 'league')).toBe(
-      'Coordinator requires TIQ League Coordinator. Create a free account first, then activate TIQ League Coordinator.',
+    expect(getPrimaryNavLockedLabel('League', 'league')).toBe(
+      'League requires TIQ League Coordinator. Create a free account first, then activate TIQ League Coordinator.',
     )
   })
 })

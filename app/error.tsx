@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 export default function ErrorPage({
   error,
@@ -20,12 +21,14 @@ export default function ErrorPage({
         className="surface-card"
         style={{ padding: '36px 32px', maxWidth: 460, width: '100%', textAlign: 'center', minWidth: 0 }}
       >
-        <div style={{ fontSize: '2.4rem', marginBottom: 12 }}>⚠️</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+          <TiqFeatureIcon name="accountSecurity" size="lg" variant="surface" />
+        </div>
         <h2 style={{ margin: 0, color: 'var(--foreground-strong)', fontSize: '1.35rem', fontWeight: 800 }}>
-          Something went wrong
+          This view needs a quick reset
         </h2>
         <p style={{ marginTop: 12, color: 'var(--muted-strong)', fontSize: '0.95rem', lineHeight: 1.65, marginBottom: 0 }}>
-          An unexpected error occurred. You can try again or return to the homepage.
+          Try again, or return home and reopen the tennis workspace from there.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 28, justifyContent: 'center', flexWrap: 'wrap', minWidth: 0 }}>
           <button className="button-primary" onClick={unstable_retry} style={{ minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>

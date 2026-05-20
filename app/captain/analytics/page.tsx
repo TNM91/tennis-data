@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/app/components/auth-provider'
 import CaptainSubnav from '@/app/components/captain-subnav'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
@@ -1447,6 +1448,12 @@ function CaptainAnalyticsContent() {
           description="Use this deeper read when a lineup needs one more check before saving or messaging."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
+        />
+
+        <CaptainSuitePanel
+          active="analytics"
+          teamLabel={[teamName, flight].filter(Boolean).join(' - ') || undefined}
+          flow={['availability', 'analytics', 'lineup', 'messaging']}
         />
 
       </div>

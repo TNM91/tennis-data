@@ -29,6 +29,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+server-*.log
+
+# local rollout artifacts
+/backups/
+/screenshots-*.png
 
 # env files (can opt-in for committing if needed)
 .env*

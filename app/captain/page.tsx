@@ -7,9 +7,9 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNod
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSubnav from '@/app/components/captain-subnav'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
-import { useTheme } from '@/app/components/theme-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
 import {
@@ -266,7 +266,6 @@ export default function CaptainHubPage() {
 
 function CaptainHubContent() {
   const router = useRouter()
-  const { theme } = useTheme()
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const { userId, role, entitlements, authResolved } = useAuth()
@@ -1221,9 +1220,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
   const captainHeroVisualGlowStyle: CSSProperties = {
     position: 'absolute',
     inset: 0,
-    background: theme === 'dark'
-      ? 'radial-gradient(circle at 68% 62%, rgba(155,225,29,0.14) 0%, rgba(155,225,29,0.04) 26%, rgba(155,225,29,0) 58%)'
-      : 'radial-gradient(circle at 68% 62%, rgba(155,225,29,0.16) 0%, rgba(155,225,29,0.05) 26%, rgba(155,225,29,0) 58%)',
+    background: 'radial-gradient(circle at 68% 62%, rgba(155,225,29,0.14) 0%, rgba(155,225,29,0.04) 26%, rgba(155,225,29,0) 58%)',
     pointerEvents: 'none',
     zIndex: 1,
   }
@@ -1843,6 +1840,11 @@ const captainHeroVisualMaskStyle: CSSProperties = {
         <CaptainSubnav
           title="Run the week"
           description="Availability, lineup, message, brief. Keep the week moving."
+        />
+
+        <CaptainSuitePanel
+          active="availability"
+          teamLabel={[selectedTeam, selectedFlight].filter(Boolean).join(' - ') || undefined}
         />
 
         {error ? (

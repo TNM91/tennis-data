@@ -77,24 +77,32 @@ export default function CompeteLeaguesPage() {
           meta="Create TIQ leagues"
           title="TIQ League Coordinator"
           text={LEAGUE_COORDINATOR_STORY.body}
+          icon="teamRankings"
+          action="Run league"
         />
         <CompeteCard
           href="/explore/leagues"
           meta="Explore"
           title="Browse League Layers"
           text="Review uploaded USTA-style history, TIQ team leagues, and TIQ individual leagues from one browse surface."
+          icon="opponentScouting"
+          action="Browse leagues"
         />
         <CompeteCard
           href={DATA_ASSIST_STORY.href}
           meta="Refresh context"
           title="Data Assist Uploads"
           text={DATA_ASSIST_STORY.shortCue}
+          icon="accountSecurity"
+          action="Upload data"
         />
         <CompeteCard
           href="/captain"
           meta="Captain workflow"
           title="Captain Command Center"
           text="Continue into Captain tools when this week requires action instead of season setup."
+          icon="captainDashboard"
+          action="Open captain"
         />
       </CompeteGrid>
 

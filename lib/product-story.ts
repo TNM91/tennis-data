@@ -57,11 +57,11 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   free: {
     id: 'free',
     name: 'Free',
-    shortPromise: 'Explore the tennis landscape.',
+    shortPromise: 'Find the tennis landscape.',
     audience: 'Players, captains, and fans getting oriented',
     upgradeCue: 'Start with public tennis intelligence.',
     description:
-      'Explore players, leagues, teams, rankings, and public tennis intelligence before you need personal tools.',
+      'Find players, leagues, teams, rankings, and public tennis intelligence before you need personal tools.',
     valueProps: [
       'Search players, teams, leagues, and rankings',
       'View public tennis context',
@@ -105,7 +105,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     name: 'TIQ League Coordinator',
     shortPromise: 'Run the season from one place.',
     audience: 'League coordinators and admins running players or teams',
-    upgradeCue: 'Give coordinators and members one place for requests, schedules, results, and standings.',
+    upgradeCue: 'Give league leaders and members one place for requests, schedules, results, and standings.',
     description:
       'Run leagues of players or teams with one home for participation, scheduling, results, standings, visibility, and admin workflows.',
     valueProps: [
@@ -127,6 +127,68 @@ export const PRODUCT_PROOF_POINTS = [
   'Cleaner league operations',
 ] as const
 
+export type ProductModeId = 'find' | 'you' | 'prep' | 'team' | 'league' | 'plans'
+
+export type ProductModeLanguage = {
+  id: ProductModeId
+  label: string
+  route: string
+  planId: MembershipTierId | null
+  job: string
+  cue: string
+}
+
+export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> = {
+  find: {
+    id: 'find',
+    label: 'Find',
+    route: '/explore',
+    planId: 'free',
+    job: 'Find public tennis context',
+    cue: 'Search players, teams, leagues, and rankings before you need paid tools.',
+  },
+  you: {
+    id: 'you',
+    label: 'You',
+    route: '/mylab',
+    planId: 'player_plus',
+    job: 'Make TenAceIQ personal',
+    cue: 'Unlock My Lab, follows, and player-linked context around your game.',
+  },
+  prep: {
+    id: 'prep',
+    label: 'Prep',
+    route: '/matchup',
+    planId: 'player_plus',
+    job: 'Prepare for the next match',
+    cue: 'Compare the matchup, read the edge, and know what to watch.',
+  },
+  team: {
+    id: 'team',
+    label: 'Team',
+    route: '/captain',
+    planId: 'captain',
+    job: 'Lead the team week',
+    cue: 'Use lineup, readiness, scouting, messaging, and brief tools in one flow.',
+  },
+  league: {
+    id: 'league',
+    label: 'League',
+    route: '/league-coordinator',
+    planId: 'league',
+    job: 'Run the season',
+    cue: 'Manage structure, schedules, results, standings, and visibility from one place.',
+  },
+  plans: {
+    id: 'plans',
+    label: 'Plans',
+    route: '/pricing',
+    planId: null,
+    job: 'Choose the right unlock',
+    cue: 'Start free, then activate Player, Captain, or League when that role saves time.',
+  },
+} as const
+
 export type TierHomepageStory = {
   stage: string
   headline: string
@@ -140,7 +202,7 @@ export type TierHomepageStory = {
 export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = {
   free: {
     stage: 'Start here',
-    headline: 'Start free. Explore the tennis landscape.',
+    headline: 'Start free. Find the tennis landscape.',
     copy: 'Search players, teams, leagues, rankings, flights, and areas before you need personal tools.',
     bullets: [
       'Search players, teams, leagues, and rankings',
@@ -148,7 +210,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
       'Understand the landscape before upgrading',
     ],
     primaryCta: { label: 'Get Started Free', href: '/join' },
-    secondaryCta: { label: 'Explore TIQ', href: '/explore' },
+    secondaryCta: { label: 'Open Find', href: '/explore' },
   },
   player_plus: {
     stage: 'Player unlock',
@@ -171,14 +233,14 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
       'Scout players and teams before decisions',
       'Track readiness and keep the week moving',
     ],
-    primaryCta: { label: 'Unlock Captain Tools', href: '/pricing#captain' },
-    secondaryCta: { label: 'See Captain tools', href: '/captain' },
+    primaryCta: { label: 'Unlock Team Tools', href: '/pricing#captain' },
+    secondaryCta: { label: 'See Team tools', href: '/captain' },
     featuredNote: 'Best for captains who want fewer scattered texts and clearer weekly decisions.',
   },
   league: {
-    stage: 'Coordinator unlock',
+    stage: 'League unlock',
     headline: 'Run the season from one place.',
-    copy: 'Manage approvals, schedules, results, standings, and league visibility so coordinators and members spend less time chasing details.',
+    copy: 'Manage approvals, schedules, results, standings, and league visibility so league leaders and members spend less time chasing details.',
     bullets: [
       'Approve players or teams before they enter',
       'Keep schedule and site details visible',
@@ -263,7 +325,7 @@ export const CAPTAIN_STORY = {
   upgradeBody:
     'Captain brings availability, lineup building, scenario testing, scouting, readiness, and team messaging into one weekly workflow.',
   upgradeResult: 'Spend less time chasing answers and more time sending a lineup you trust.',
-  upgradeCta: 'Unlock Captain Tools',
+  upgradeCta: 'Unlock Team Tools',
   lockedMessage:
     'Unlock Captain to save time, reduce stress, and build clearer weekly team plans.',
   workspaceProof: [
@@ -292,19 +354,19 @@ export const CAPTAIN_STORY = {
 } as const
 
 export const LEAGUE_COORDINATOR_STORY = {
-  eyebrow: 'TIQ League Coordinator unlock',
+  eyebrow: 'League unlock',
   headline: 'Run the season from one place.',
   body:
     'Approve entries, set the schedule shape, collect Data Assist uploads, and keep standings moving so everyone can focus on playing.',
-  subnavTitle: 'League Coordinator',
+  subnavTitle: 'League Command',
   subnavDescription:
-    'Manage league operations separately from weekly captain tools, with Data Assist as the upload path for schedules, rosters, and scorecards.',
+    'Manage league operations separately from weekly team tools, with Data Assist as the upload path for schedules, rosters, and scorecards.',
   newLeagueTitle: 'Create league setup',
   newLeagueBody:
     'Choose team or individual format, name the season, set visibility, then approve participants.',
   upgradeHeadline: 'Ready to run organized competition without spreadsheets?',
   upgradeBody:
-    'TIQ League Coordinator gives organizers one operating home for approvals, schedules, results, standings, and member clarity.',
+    'TIQ League Coordinator gives organizers one League workspace for approvals, schedules, results, standings, and member clarity.',
   draftUpgradeHeadline: 'Need this draft to become a real league workspace?',
   draftUpgradeBody:
     'TIQ League Coordinator turns setup into a season workspace where requests, scheduling, results, and standings stay together.',

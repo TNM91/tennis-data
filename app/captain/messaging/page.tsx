@@ -8,11 +8,11 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import CaptainSubnav from '@/app/components/captain-subnav'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import { useTheme } from '@/app/components/theme-provider'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
 import {
@@ -491,7 +491,6 @@ export default function CaptainMessagingPage() {
 
 function CaptainMessagingContent() {
   const router = useRouter()
-  const { theme } = useTheme()
   const initialContext = readInitialMessagingContext()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -551,9 +550,7 @@ function CaptainMessagingContent() {
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, entitlements, authResolved } = useAuth()
-  const heroArtworkSrc = theme === 'dark'
-    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
-    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
+  const heroArtworkSrc = '/og-image.png'
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const captainAccess = access.canUseCaptainWorkflow
   const showAdvancedMessagingPanels = false
@@ -1999,18 +1996,9 @@ function importScenarioToLineup() {
     position: 'relative',
     overflow: 'hidden',
     minHeight: isTablet ? 320 : 360,
-    background:
-      theme === 'dark'
-        ? 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))'
-        : 'linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.98))',
-    border:
-      theme === 'dark'
-        ? '1px solid rgba(116,190,255,0.12)'
-        : '1px solid rgba(148,163,184,0.18)',
-    boxShadow:
-      theme === 'dark'
-        ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
-        : '0 16px 38px rgba(15,23,42,0.08)',
+    background: 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))',
+    border: '1px solid rgba(116,190,255,0.12)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   }
 
   const messagingVisualStyle: CSSProperties = {
@@ -2021,10 +2009,7 @@ function importScenarioToLineup() {
   const messagingVisualMaskStyle: CSSProperties = {
     position: 'absolute',
     inset: 0,
-    background:
-      theme === 'dark'
-        ? 'linear-gradient(135deg, rgba(8,18,38,0.22) 8%, rgba(8,18,38,0.74) 50%, rgba(8,18,38,0.94) 100%)'
-        : 'linear-gradient(135deg, rgba(255,255,255,0.16) 8%, rgba(255,255,255,0.78) 52%, rgba(248,250,252,0.94) 100%)',
+    background: 'linear-gradient(135deg, rgba(8,18,38,0.22) 8%, rgba(8,18,38,0.74) 50%, rgba(8,18,38,0.94) 100%)',
   }
 
   const messagingVisualContentStyle: CSSProperties = {
@@ -2160,6 +2145,12 @@ function importScenarioToLineup() {
           description="Send the lineup, logistics, reminders, and follow-ups from one place."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
+        />
+
+        <CaptainSuitePanel
+          active="messaging"
+          teamLabel={[teamFilter || inferredTeamName, flightFilter].filter(Boolean).join(' - ') || undefined}
+          flow={['availability', 'lineup', 'scenario', 'messaging', 'brief']}
         />
 
         <section style={messagePlaybookSurfaceStyle}>

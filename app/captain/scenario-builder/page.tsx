@@ -11,11 +11,11 @@ import { formatDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { buildProductAccessState } from '@/lib/access-model'
 import CaptainSubnav from '@/app/components/captain-subnav'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import { useTheme } from '@/app/components/theme-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
@@ -367,7 +367,6 @@ export default function ScenarioComparisonPage() {
 function ScenarioComparisonContent() {
   const router = useRouter()
   const { role, entitlements, authResolved } = useAuth()
-  const { theme } = useTheme()
   const initialContext = readInitialScenarioBuilderContext()
 
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
@@ -385,9 +384,7 @@ function ScenarioComparisonContent() {
   const [rightId, setRightId] = useState(initialContext.rightId)
   const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const heroArtworkSrc = theme === 'dark'
-    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
-    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
+  const heroArtworkSrc = '/og-image.png'
 
   useEffect(() => {
     if (!authResolved || role !== 'public') {
@@ -546,18 +543,9 @@ function ScenarioComparisonContent() {
     position: 'relative',
     overflow: 'hidden',
     minHeight: isTablet ? 320 : 360,
-    background:
-      theme === 'dark'
-        ? 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))'
-        : 'linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.98))',
-    border:
-      theme === 'dark'
-        ? '1px solid rgba(116,190,255,0.12)'
-        : '1px solid rgba(148,163,184,0.18)',
-    boxShadow:
-      theme === 'dark'
-        ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
-        : '0 16px 38px rgba(15,23,42,0.08)',
+    background: 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))',
+    border: '1px solid rgba(116,190,255,0.12)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   }
 
   const scenarioVisualStyle: CSSProperties = {
@@ -568,10 +556,7 @@ function ScenarioComparisonContent() {
   const scenarioVisualMaskStyle: CSSProperties = {
     position: 'absolute',
     inset: 0,
-    background:
-      theme === 'dark'
-        ? 'linear-gradient(135deg, rgba(8,18,38,0.24) 8%, rgba(8,18,38,0.76) 50%, rgba(8,18,38,0.94) 100%)'
-        : 'linear-gradient(135deg, rgba(255,255,255,0.18) 8%, rgba(255,255,255,0.78) 52%, rgba(248,250,252,0.94) 100%)',
+    background: 'linear-gradient(135deg, rgba(8,18,38,0.24) 8%, rgba(8,18,38,0.76) 50%, rgba(8,18,38,0.94) 100%)',
   }
 
   const scenarioVisualContentStyle: CSSProperties = {
@@ -719,6 +704,12 @@ function ScenarioComparisonContent() {
           description="Use scenarios to choose the lineup, then move into messaging."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
+        />
+
+        <CaptainSuitePanel
+          active="scenario"
+          teamLabel={[teamFilter, flightFilter].filter(Boolean).join(' - ') || undefined}
+          flow={['availability', 'lineup', 'scenario', 'messaging', 'brief']}
         />
 
         {!premiumEnabled ? (

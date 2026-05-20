@@ -12,7 +12,7 @@ export default function GlobalError({
         style={{
           margin: 0,
           background: 'linear-gradient(180deg, #0b1830 0%, #102347 50%, #0c1a33 100%)',
-          color: '#e5eefb',
+          color: 'var(--foreground)',
           fontFamily: '"Manrope", "Segoe UI", system-ui, sans-serif',
           minHeight: '100vh',
           display: 'flex',
@@ -34,12 +34,14 @@ export default function GlobalError({
             overflowWrap: 'anywhere',
           }}
         >
-          <div style={{ fontSize: '2.8rem', marginBottom: 16 }}>⚠️</div>
-          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#f8fbff', lineHeight: 1.2 }}>
-            Something went wrong
+          <div style={{ margin: '0 auto 16px', width: 54, height: 54, borderRadius: 18, display: 'grid', placeItems: 'center', border: '1px solid color-mix(in srgb, var(--brand-green) 24%, rgba(116,190,255,0.18) 76%)', background: 'color-mix(in srgb, var(--brand-green) 10%, transparent 90%)', color: 'var(--foreground-strong)', fontSize: 24, fontWeight: 900 }}>
+            TIQ
+          </div>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: 'var(--foreground-strong)', lineHeight: 1.2 }}>
+            TenAceIQ needs a quick reset
           </h1>
-          <p style={{ marginTop: 14, color: '#c5d5ea', lineHeight: 1.65, fontSize: '0.97rem' }}>
-            A critical error occurred. Please try again.
+          <p style={{ marginTop: 14, color: 'var(--shell-copy-muted)', lineHeight: 1.65, fontSize: '0.97rem' }}>
+            A critical view failed to load. Try again to reopen the platform.
           </p>
           <button
             onClick={unstable_retry}
@@ -57,7 +59,7 @@ export default function GlobalError({
               border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
               background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
               color: 'var(--foreground-strong)',
-              boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
             }}
           >
             Try again

@@ -16,9 +16,9 @@ import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import { useAuth } from '@/app/components/auth-provider'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSubnav from '@/app/components/captain-subnav'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
-import { useTheme } from '@/app/components/theme-provider'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
@@ -157,7 +157,6 @@ export default function CaptainAvailabilityPage() {
 
 function CaptainAvailabilityContent() {
   const router = useRouter()
-  const { theme } = useTheme()
   const initialContext = readInitialAvailabilityContext()
 
   const [teamParam] = useState(initialContext.team)
@@ -186,9 +185,7 @@ function CaptainAvailabilityContent() {
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, entitlements, authResolved } = useAuth()
-  const heroArtworkSrc = theme === 'dark'
-    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
-    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
+  const heroArtworkSrc = '/og-image.png'
 
   const loadTeamOptions = useCallback(async () => {
     setLoadingOptions(true)
@@ -657,7 +654,7 @@ function CaptainAvailabilityContent() {
                 style={{
                   objectFit: 'cover',
                   objectPosition: isTablet ? 'center center' : '72% center',
-                  opacity: theme === 'dark' ? 0.94 : 0.82,
+                  opacity: 0.94,
                 }}
               />
               <div style={availabilityVisualMaskStyle} />
@@ -719,6 +716,11 @@ function CaptainAvailabilityContent() {
           description="Clear the player pool first. Then build, compare, and send the plan."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
+        />
+
+        <CaptainSuitePanel
+          active="availability"
+          teamLabel={[selectedTeam, selectedFlight].filter(Boolean).join(' - ') || undefined}
         />
 
         {!access.canUseCaptainWorkflow ? (

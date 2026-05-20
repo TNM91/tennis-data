@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
-import { useTheme } from '@/app/components/theme-provider'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
 import { buildUpgradePricingSnapshot, type UpgradeRequestRecord } from '@/lib/upgrade-requests'
@@ -35,11 +34,9 @@ export default function UpgradePrompt({
   compact = false,
   children,
 }: UpgradePromptProps) {
-  const { theme } = useTheme()
   const { session, authResolved } = useAuth()
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
-  const isLight = theme === 'light'
   const plan = getPricingPlan(planId)
   const resolvedResult = result || plan.outcome
   const isSignedIn = Boolean(session?.user?.id)
@@ -127,53 +124,50 @@ export default function UpgradePrompt({
         ...(compact ? compactWrapStyle : null),
         ...(planId === 'captain' ? captainWrapStyle : null),
         ...(planId === 'league' ? leagueWrapStyle : null),
-        ...(isLight ? lightWrapStyle : null),
-        ...(isLight && planId === 'captain' ? lightCaptainWrapStyle : null),
-        ...(isLight && planId === 'league' ? lightLeagueWrapStyle : null),
       }}
     >
       <div style={contentStyle}>
         <div style={labelRowStyle}>
-          <span style={{ ...eyebrowStyle, ...(isLight ? lightEyebrowStyle : null) }}>{plan.name}</span>
+          <span style={eyebrowStyle}>{plan.name}</span>
           {plan.badge ? <span style={badgeStyle}>{plan.badge}</span> : null}
         </div>
 
         <h3 style={titleStyle}>{headline}</h3>
         <p style={bodyStyle}>{body}</p>
         {planId !== 'free' ? (
-          <p style={{ ...entitlementNoteStyle, ...(isLight ? lightEntitlementNoteStyle : null) }}>
-            Creating an account starts Free access. {plan.name} unlocks after the plan is active.
+          <p style={entitlementNoteStyle}>
+            Creating an account starts Free access. This tier unlocks after the plan is active.
           </p>
         ) : null}
 
-        <div style={{ ...resultWrapStyle, ...(isLight ? lightResultWrapStyle : null) }}>
-          <span style={{ ...resultLabelStyle, ...(isLight ? lightResultLabelStyle : null) }}>Result</span>
-          <span style={{ ...resultTextStyle, ...(isLight ? lightResultTextStyle : null) }}>{resolvedResult}</span>
+        <div style={resultWrapStyle}>
+          <span style={resultLabelStyle}>Result</span>
+          <span style={resultTextStyle}>{resolvedResult}</span>
         </div>
 
         <div style={planMetaStyle}>
           <span style={priceStyle}>{plan.priceLabel}</span>
-          <span style={{ ...subtitleStyle, ...(isLight ? lightSubtitleStyle : null) }}>{plan.subtitle}</span>
+          <span style={subtitleStyle}>{plan.subtitle}</span>
           {plan.alternatePriceNote ? <span style={noteStyle}>{plan.alternatePriceNote}</span> : null}
         </div>
 
         <div style={valueListStyle}>
           {plan.valueProps.slice(0, compact ? 3 : 4).map((valueProp) => (
-            <span key={valueProp} style={{ ...valuePillStyle, ...(isLight ? lightValuePillStyle : null) }}>
+            <span key={valueProp} style={valuePillStyle}>
               {valueProp}
             </span>
           ))}
         </div>
 
-        <div style={{ ...unlockPathStyle, ...(isLight ? lightUnlockPathStyle : null) }}>
-          <div style={{ ...unlockPathLabelStyle, ...(isLight ? lightUnlockPathLabelStyle : null) }}>Best next unlock</div>
+        <div style={unlockPathStyle}>
+          <div style={unlockPathLabelStyle}>Best next unlock</div>
           <div style={unlockStepGridStyle}>
             {unlockSteps.map((step, index) => (
-              <div key={step.title} style={{ ...unlockStepStyle, ...(isLight ? lightUnlockStepStyle : null) }}>
+              <div key={step.title} style={unlockStepStyle}>
                 <span style={unlockStepNumberStyle}>{index + 1}</span>
                 <span style={unlockStepTextStyle}>
                   <strong style={unlockStepTitleStyle}>{step.title}</strong>
-                  <span style={{ ...unlockStepBodyStyle, ...(isLight ? lightUnlockStepBodyStyle : null) }}>{step.body}</span>
+                  <span style={unlockStepBodyStyle}>{step.body}</span>
                 </span>
               </div>
             ))}
@@ -182,7 +176,7 @@ export default function UpgradePrompt({
 
         {children}
 
-        {footnote ? <div style={{ ...footnoteStyle, ...(isLight ? lightFootnoteStyle : null) }}>{footnote}</div> : null}
+        {footnote ? <div style={footnoteStyle}>{footnote}</div> : null}
       </div>
 
       <div style={actionRowStyle}>
@@ -205,11 +199,11 @@ export default function UpgradePrompt({
           </Link>
         )}
         {resolvedSecondaryHref ? (
-          <Link href={resolvedSecondaryHref} style={{ ...secondaryActionStyle, ...(isLight ? lightSecondaryActionStyle : null) }}>
+          <Link href={resolvedSecondaryHref} style={secondaryActionStyle}>
             {secondaryLabel}
           </Link>
         ) : (
-          <span style={{ ...secondaryStaticStyle, ...(isLight ? lightSecondaryStaticStyle : null) }}>{secondaryLabel}</span>
+          <span style={secondaryStaticStyle}>{secondaryLabel}</span>
         )}
       </div>
       {checkoutError ? <p role="alert" style={errorTextStyle}>{checkoutError}</p> : null}
@@ -233,7 +227,7 @@ function getCurrentPathname() {
 function getUnlockSteps(planId: PricingPlanId) {
   if (planId === 'captain') {
     return [
-      { title: 'Claim the team week', body: 'Bring availability, lineup work, and decisions into one captain flow.' },
+      { title: 'Claim the team week', body: 'Bring availability, lineup work, and decisions into one team flow.' },
       { title: 'Build the lineup', body: 'Use roster context and scenarios before you commit.' },
       { title: 'Send the plan', body: 'Move from decision to team communication faster.' },
     ]
@@ -256,9 +250,9 @@ function getUnlockSteps(planId: PricingPlanId) {
   }
 
   return [
-    { title: 'Explore', body: 'Search public players, teams, leagues, and rankings.' },
+    { title: 'Find', body: 'Search public players, teams, leagues, and rankings.' },
     { title: 'Learn', body: 'Use the profile paths to understand the tennis landscape.' },
-    { title: 'Upgrade when useful', body: 'Add personal, captain, or league tools only when they help.' },
+    { title: 'Upgrade when useful', body: 'Add personal, team, or league tools only when they help.' },
   ]
 }
 
@@ -287,24 +281,6 @@ const leagueWrapStyle: CSSProperties = {
   border: '1px solid rgba(116, 190, 255, 0.18)',
 }
 
-const lightWrapStyle: CSSProperties = {
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
-}
-
-const lightCaptainWrapStyle: CSSProperties = {
-  border: '1px solid rgba(155, 225, 29, 0.22)',
-  background:
-    'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 92%, var(--brand-green) 8%) 0%, color-mix(in srgb, var(--surface) 98%, var(--brand-blue) 2%) 100%)',
-}
-
-const lightLeagueWrapStyle: CSSProperties = {
-  border: '1px solid rgba(74, 163, 255, 0.18)',
-  background:
-    'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, var(--brand-blue-2) 6%) 0%, color-mix(in srgb, var(--surface) 98%, var(--brand-blue) 2%) 100%)',
-}
-
 const contentStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
@@ -330,12 +306,6 @@ const eyebrowStyle: CSSProperties = {
   color: '#dbeafe',
   background: 'rgba(37, 91, 227, 0.14)',
   border: '1px solid rgba(116, 190, 255, 0.18)',
-}
-
-const lightEyebrowStyle: CSSProperties = {
-  color: 'var(--brand-blue)',
-  background: 'rgba(37, 91, 227, 0.08)',
-  border: '1px solid rgba(37, 91, 227, 0.14)',
 }
 
 const badgeStyle: CSSProperties = {
@@ -381,11 +351,6 @@ const entitlementNoteStyle: CSSProperties = {
   fontWeight: 800,
 }
 
-const lightEntitlementNoteStyle: CSSProperties = {
-  border: '1px solid rgba(155, 225, 29, 0.22)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, var(--brand-green) 12%)',
-}
-
 const resultWrapStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
@@ -393,11 +358,6 @@ const resultWrapStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid rgba(116, 190, 255, 0.12)',
   background: 'rgba(255, 255, 255, 0.04)',
-}
-
-const lightResultWrapStyle: CSSProperties = {
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
 }
 
 const resultLabelStyle: CSSProperties = {
@@ -408,19 +368,11 @@ const resultLabelStyle: CSSProperties = {
   color: '#9be11d',
 }
 
-const lightResultLabelStyle: CSSProperties = {
-  color: 'color-mix(in srgb, var(--brand-green) 68%, var(--foreground-strong) 32%)',
-}
-
 const resultTextStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 700,
-}
-
-const lightResultTextStyle: CSSProperties = {
-  color: 'var(--foreground)',
 }
 
 const planMetaStyle: CSSProperties = {
@@ -444,10 +396,6 @@ const subtitleStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
-}
-
-const lightSubtitleStyle: CSSProperties = {
-  color: 'color-mix(in srgb, var(--brand-green) 78%, var(--foreground-strong) 22%)',
 }
 
 const noteStyle: CSSProperties = {
@@ -475,12 +423,6 @@ const valuePillStyle: CSSProperties = {
   border: '1px solid rgba(116, 190, 255, 0.12)',
 }
 
-const lightValuePillStyle: CSSProperties = {
-  color: 'var(--foreground)',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-}
-
 const unlockPathStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -490,21 +432,12 @@ const unlockPathStyle: CSSProperties = {
   background: 'rgba(155, 225, 29, 0.05)',
 }
 
-const lightUnlockPathStyle: CSSProperties = {
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, var(--brand-green) 14%)',
-}
-
 const unlockPathLabelStyle: CSSProperties = {
   color: '#9be11d',
   fontSize: 11,
   fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-}
-
-const lightUnlockPathLabelStyle: CSSProperties = {
-  color: 'color-mix(in srgb, var(--brand-green) 68%, var(--foreground-strong) 32%)',
 }
 
 const unlockStepGridStyle: CSSProperties = {
@@ -524,11 +457,6 @@ const unlockStepStyle: CSSProperties = {
   border: '1px solid rgba(255, 255, 255, 0.07)',
   minWidth: 0,
   overflowWrap: 'anywhere',
-}
-
-const lightUnlockStepStyle: CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--shell-panel-border)',
 }
 
 const unlockStepNumberStyle: CSSProperties = {
@@ -564,18 +492,10 @@ const unlockStepBodyStyle: CSSProperties = {
   fontWeight: 600,
 }
 
-const lightUnlockStepBodyStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-}
-
 const footnoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.6,
-}
-
-const lightFootnoteStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
 }
 
 const actionRowStyle: CSSProperties = {
@@ -626,20 +546,10 @@ const secondaryActionStyle: CSSProperties = {
   fontWeight: 800,
 }
 
-const lightSecondaryActionStyle: CSSProperties = {
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  border: '1px solid var(--shell-panel-border)',
-}
-
 const secondaryStaticStyle: CSSProperties = {
   color: 'rgba(229, 238, 251, 0.7)',
   fontSize: 13,
   fontWeight: 700,
-}
-
-const lightSecondaryStaticStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
 }
 
 const errorTextStyle: CSSProperties = {

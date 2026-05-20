@@ -33,7 +33,7 @@ describe('route loading shells', () => {
     expect(source).toContain('pattern="upload"')
   })
 
-  it('avoids hard-coded white loader text so light mode remains readable', () => {
+  it('avoids hard-coded white loader text so route loaders stay shell-readable', () => {
     expect(readAppFile('components/TiqLoader.tsx')).not.toContain('text-white/70')
     expect(readAppFile('app/components/TiqLoader.tsx')).not.toContain('text-white/70')
   })

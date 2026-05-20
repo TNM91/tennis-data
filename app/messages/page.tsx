@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   cancelInternalScheduleEvent,
   listInternalScheduleEventsForConversation,
@@ -62,6 +63,28 @@ type MessagePrefill = {
   entityId: string
   threadId: string
 }
+
+const MESSAGE_LANES: Array<{
+  title: string
+  text: string
+  icon: TiqFeatureIconName
+}> = [
+  {
+    title: 'Support',
+    text: 'Billing, account, data, and platform help stay in one thread.',
+    icon: 'accountSecurity',
+  },
+  {
+    title: 'Schedule',
+    text: 'RSVPs and match timing can move from conversation to action.',
+    icon: 'schedule',
+  },
+  {
+    title: 'Players',
+    text: 'Reach another TenAceIQ user without leaving the tennis context.',
+    icon: 'playerRatings',
+  },
+]
 
 function formatMessageTime(value: string) {
   if (!value) return ''
@@ -687,6 +710,17 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           <p style={copyStyle}>
             Search by player or account name, message another user, or open a support thread without leaving the platform.
           </p>
+          <div style={messageLaneGridStyle}>
+            {MESSAGE_LANES.map((lane) => (
+              <div key={lane.title} style={messageLaneCardStyle}>
+                <TiqFeatureIcon name={lane.icon} size="sm" variant="ghost" />
+                <span style={messageLaneCopyStyle}>
+                  <strong>{lane.title}</strong>
+                  <small>{lane.text}</small>
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
         <div style={identityPanelStyle}>
           <span style={pillStyle}>{identity.role === 'admin' ? 'Admin identity' : 'Messaging identity'}</span>
@@ -1214,6 +1248,36 @@ const titleStyle: CSSProperties = {
   fontSize: 'clamp(2rem, 4vw, 3.4rem)',
   lineHeight: 1,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const messageLaneGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  marginTop: 18,
+  minWidth: 0,
+}
+
+const messageLaneCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'center',
+  minHeight: 72,
+  padding: 11,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+
+const messageLaneCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
   overflowWrap: 'anywhere',
 }
 

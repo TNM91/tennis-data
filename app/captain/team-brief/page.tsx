@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import CaptainSubnav from '@/app/components/captain-subnav'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
@@ -588,6 +589,12 @@ function CaptainTeamBriefContent() {
           description="Use this when the team needs one clean weekly summary."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
+        />
+
+        <CaptainSuitePanel
+          active="team-brief"
+          teamLabel={[team, flight].filter(Boolean).join(' - ') || undefined}
+          flow={['team-brief', 'availability', 'lineup', 'messaging']}
         />
 
         {!access.canUseCaptainWorkflow ? (

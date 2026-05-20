@@ -28,10 +28,10 @@ const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
 }
 
 const PLAN_VERBS: Record<PricingPlanId, string> = {
-  free: 'Explore',
+  free: 'Find',
   player_plus: 'Personalize',
   captain: 'Lead',
-  league: 'Organize',
+  league: 'Run',
 }
 
 const VALUE_MOMENTS: {
@@ -54,13 +54,13 @@ const VALUE_MOMENTS: {
   },
   {
     title: 'Making decisions?',
-    cue: 'Use Captain tools when lineup week needs one cleaner flow.',
+    cue: 'Use Team tools when lineup week needs one cleaner flow.',
     icon: 'lineupBuilder',
     href: '#captain',
   },
   {
     title: 'Running a league?',
-    cue: 'Use Coordinator when the season needs structure, standings, and results.',
+    cue: 'Use League when the season needs structure, standings, and results.',
     icon: 'teamRankings',
     href: '#league',
   },
@@ -89,7 +89,7 @@ const PERSONALIZATION_FLOW: {
   },
   {
     title: 'Open your tools',
-    cue: 'Open the Player, Captain, or Coordinator workspace that matches your role.',
+    cue: 'Open the You, Team, or League workspace that matches your role.',
     icon: 'myLab',
   },
   {
@@ -114,15 +114,15 @@ const UNLOCK_PATHS: Array<{
 }> = [
   {
     planId: 'free',
-    title: 'Explore the landscape',
+    title: 'Find the landscape',
     cue: 'Use public search until a tennis job becomes personal.',
     steps: ['Search players', 'Open teams or leagues', 'Check rankings'],
   },
   {
     planId: 'player_plus',
     title: 'Make TenAceIQ yours',
-    cue: 'Upgrade when profiles, follows, and matchups should revolve around your game.',
-    steps: ['Link your player', 'Follow what matters', 'Prep matchups'],
+    cue: 'Upgrade when profiles, follows, and Prep reads should revolve around your game.',
+    steps: ['Link your player', 'Follow what matters', 'Prep matches'],
   },
   {
     planId: 'captain',
@@ -150,7 +150,7 @@ const ENTITLEMENT_CLARITY_STEPS: Array<{
   },
   {
     title: 'Paid tools need activation',
-    cue: 'My Lab, Matchup insight, Captain, and Coordinator tools open only after the matching plan is active.',
+    cue: 'My Lab, Prep insight, Team, and League tools open only after the matching plan is active.',
     icon: 'accountSecurity',
   },
   {
@@ -168,7 +168,7 @@ const PLAN_FIT_ROWS: Array<{
   league: string
 }> = [
   {
-    job: 'Explore public tennis context',
+    job: 'Find public tennis context',
     free: 'Included',
     player_plus: 'Included',
     captain: 'Included',
@@ -194,6 +194,65 @@ const PLAN_FIT_ROWS: Array<{
     player_plus: '-',
     captain: '-',
     league: 'Best fit',
+  },
+]
+
+const TIME_BACK_MOMENTS: Array<{
+  planId: PricingPlanId
+  before: string
+  after: string
+  saved: string
+  action: string
+}> = [
+  {
+    planId: 'free',
+    before: 'Searching scattered pages just to understand who plays where.',
+    after: 'Open the tennis map and get oriented before you commit to a tool.',
+    saved: 'Start faster',
+    action: 'Search first',
+  },
+  {
+    planId: 'player_plus',
+    before: 'Rechecking opponents, old results, and notes before every match.',
+    after: 'My Lab keeps your player context, follows, and match prep together.',
+    saved: 'Prep clearer',
+    action: 'Make it yours',
+  },
+  {
+    planId: 'captain',
+    before: 'Text threads, availability guesses, lineup drafts, and last-minute changes.',
+    after: 'Team tools turn match week into a clean readiness and lineup flow.',
+    saved: 'Win back the week',
+    action: 'Lead easier',
+  },
+  {
+    planId: 'league',
+    before: 'Spreadsheet cleanup, scorecard chasing, and standings questions.',
+    after: 'League keeps structure, results, rankings, and visibility in one place.',
+    saved: 'Run cleaner',
+    action: 'Operate the season',
+  },
+]
+
+const PREMIUM_TOOL_SIGNALS: Array<{
+  title: string
+  cue: string
+  icon: TiqFeatureIconName
+}> = [
+  {
+    title: 'Show first',
+    cue: 'Every paid tier previews the actual work it unlocks before asking users to decide.',
+    icon: 'opponentScouting',
+  },
+  {
+    title: 'Unlock by job',
+    cue: 'Users choose Find, You, Team, or League instead of decoding feature bundles.',
+    icon: 'accountSecurity',
+  },
+  {
+    title: 'Stay tennis-specific',
+    cue: 'The value is fewer lineup guesses, clearer prep, and cleaner results, not generic dashboards.',
+    icon: 'lineupBuilder',
   },
 ]
 
@@ -242,7 +301,7 @@ function PricingContent() {
               Start Free
             </Link>
             <a href="#league" style={ctaStyle}>
-              See Coordinator
+              See League
             </a>
           </div>
 
@@ -260,7 +319,7 @@ function PricingContent() {
             <div style={sectionEyebrowStyle}>Access clarity</div>
             <h2 style={entitlementClarityTitleStyle}>A free account is the starting line, not a paid unlock.</h2>
             <p style={entitlementClarityTextStyle}>
-              Start with Free to explore. Activate Player, Captain, or Coordinator when the job needs private tools, role workflows, or league operations.
+              Start with Free to find context. Activate Player, Captain, or League when the job needs private tools, role workflows, or league operations.
             </p>
           </div>
           <div style={entitlementClarityGridStyle}>
@@ -300,6 +359,10 @@ function PricingContent() {
             )
           })}
         </section>
+
+        <PricingShowcase access={access} accessPending={accessPending} />
+
+        <PremiumValueBand />
 
         <PlanFitMatrix />
 
@@ -457,7 +520,7 @@ function PricingContent() {
             <div style={sectionEyebrowStyle}>Billing clarity</div>
             <h2 style={billingPolicyTitleStyle}>Monthly plans renew until canceled. League covers one season.</h2>
             <p style={billingPolicyTextStyle}>
-              Player and Captain are monthly subscriptions. TIQ League Coordinator is a season fee with standard season limits.
+              Player and Captain are monthly subscriptions. TIQ League Coordinator is the League season fee with standard season limits.
               Refunds are reviewed under the posted billing policy. {SUPPORT_THREAD_ASSURANCE}
             </p>
           </div>
@@ -534,16 +597,318 @@ function getPlanHref(planId: PricingPlanId, active: boolean) {
 
 function getPlanCta(planId: PricingPlanId, active: boolean) {
   if (active) {
-    if (planId === 'captain') return 'Open Captain tools'
+    if (planId === 'captain') return 'Open Team tools'
     if (planId === 'league') return 'Open league desk'
     if (planId === 'player_plus') return 'Personalize My Lab'
-    return 'Explore players'
+    return 'Find players'
   }
 
   if (planId === 'free') return 'Start free'
   if (planId === 'player_plus') return 'Set up My Lab'
-  if (planId === 'captain') return 'Open Captain tools'
+  if (planId === 'captain') return 'Open Team tools'
   return 'Run a league'
+}
+
+function PricingShowcase({
+  access,
+  accessPending,
+}: {
+  access: ReturnType<typeof buildProductAccessState>
+  accessPending: boolean
+}) {
+  const { isTablet, isMobile } = useViewportBreakpoints()
+
+  return (
+    <section
+      style={{
+        display: 'grid',
+        gap: 14,
+        padding: isMobile ? 16 : 20,
+        borderRadius: 28,
+        border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+        background:
+          'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-green) 12%) 0%, color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-blue-2) 6%) 100%)',
+        boxShadow: '0 20px 48px rgba(2, 10, 24, 0.12)',
+        overflow: 'hidden',
+        minWidth: 0,
+      }}
+      aria-label="Plan preview"
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 14,
+          alignItems: 'end',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 6, maxWidth: 760, minWidth: 0 }}>
+          <div style={sectionEyebrowStyle}>Show me the tool</div>
+          <h2
+            style={{
+              margin: 0,
+              color: 'var(--foreground-strong)',
+              fontSize: 'clamp(1.7rem, 3vw, 2.8rem)',
+              lineHeight: 1,
+              fontWeight: 950,
+              letterSpacing: 0,
+              overflowWrap: 'anywhere',
+            }}
+          >
+            Each tier opens a familiar tennis workspace.
+          </h2>
+        </div>
+        <Link href="/join" style={featuredCtaStyle}>
+          Start Free
+        </Link>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
+          gap: 12,
+          minWidth: 0,
+        }}
+      >
+        {PRICING_PLANS.map((plan) => {
+          const active = !accessPending && isPlanActive(plan.id, access)
+          return (
+            <article
+              key={plan.id}
+              style={{
+                display: 'grid',
+                gap: 12,
+                minHeight: 320,
+                padding: 15,
+                borderRadius: 20,
+                border:
+                  plan.id === 'captain'
+                    ? '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)'
+                    : '1px solid var(--shell-panel-border)',
+                background:
+                  plan.id === 'captain'
+                    ? 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 76%, var(--brand-green) 24%) 0%, var(--shell-chip-bg) 100%)'
+                    : 'var(--shell-chip-bg)',
+                boxShadow: plan.id === 'captain' ? '0 18px 38px rgba(155,225,29,0.10)' : 'none',
+                minWidth: 0,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <TiqFeatureIcon name={PLAN_ICON_BY_ID[plan.id]} size="sm" variant="ghost" />
+                <span style={active ? activeBadgeStyle : badgeStyle}>{active ? 'Active' : plan.priceLabel}</span>
+              </div>
+
+              <div style={{ display: 'grid', gap: 5 }}>
+                <div style={cardPlanStyle}>{plan.name}</div>
+                <h3
+                  style={{
+                    margin: 0,
+                    color: 'var(--foreground-strong)',
+                    fontSize: 23,
+                    lineHeight: 1.02,
+                    fontWeight: 950,
+                    letterSpacing: 0,
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {PLAN_DECISION_HINTS[plan.id]}
+                </h3>
+              </div>
+
+              <PlanMiniPreview planId={plan.id} />
+
+              <Link
+                href={getPlanHref(plan.id, active)}
+                style={plan.id === 'captain' ? featuredCtaStyle : ctaStyle}
+              >
+                {getPlanCta(plan.id, active)}
+              </Link>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function PlanMiniPreview({ planId }: { planId: PricingPlanId }) {
+  if (planId === 'player_plus') {
+    return (
+      <div style={miniPreviewShellStyle}>
+        <MiniMetric label="TIQ" value="4.48" tone="green" />
+        <MiniMetric label="Next edge" value="63%" tone="blue" />
+        <MiniRow title="Prep" meta="You vs Rivera" status="Compare" />
+        <MiniRow title="Followed" meta="3 teams, 2 leagues" status="Live" />
+      </div>
+    )
+  }
+
+  if (planId === 'captain') {
+    return (
+      <div style={miniPreviewShellStyle}>
+        <MiniMetric label="Available" value="8/10" tone="green" />
+        <MiniMetric label="Best lineup" value="71%" tone="green" />
+        <MiniRow title="D1" meta="Mei + Brooks" status="Ready" />
+        <MiniRow title="Team note" meta="Arrival + lineup" status="Send" />
+      </div>
+    )
+  }
+
+  if (planId === 'league') {
+    return (
+      <div style={miniPreviewShellStyle}>
+        <MiniMetric label="Teams" value="10" tone="blue" />
+        <MiniMetric label="Matches" value="36" tone="green" />
+        <MiniRow title="Aces" meta="5-1, 16 pts" status="#1" />
+        <MiniRow title="Schedule" meta="Sat, Court 3" status="Posted" />
+      </div>
+    )
+  }
+
+  return (
+    <div style={miniPreviewShellStyle}>
+      <MiniMetric label="Search" value="Free" tone="blue" />
+      <MiniMetric label="Data" value="Assist" tone="green" />
+      <MiniRow title="Players" meta="Profiles and ratings" status="Open" />
+      <MiniRow title="Leagues" meta="Teams and standings" status="Browse" />
+    </div>
+  )
+}
+
+function MiniMetric({ label, value, tone }: { label: string; value: string; tone: 'green' | 'blue' }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gap: 4,
+        padding: 11,
+        borderRadius: 14,
+        border: tone === 'green' ? '1px solid rgba(155,225,29,0.18)' : '1px solid rgba(116,190,255,0.16)',
+        background:
+          tone === 'green'
+            ? 'color-mix(in srgb, var(--shell-chip-bg) 82%, var(--brand-green) 18%)'
+            : 'color-mix(in srgb, var(--shell-chip-bg) 82%, var(--brand-blue-2) 18%)',
+      }}
+    >
+      <span style={{ color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 950, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+        {label}
+      </span>
+      <strong style={{ color: 'var(--foreground-strong)', fontSize: 22, lineHeight: 1, fontWeight: 950 }}>
+        {value}
+      </strong>
+    </div>
+  )
+}
+
+function MiniRow({ title, meta, status }: { title: string; meta: string; status: string }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridColumn: '1 / -1',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+        gap: 10,
+        alignItems: 'center',
+        padding: 10,
+        borderRadius: 14,
+        border: '1px solid var(--shell-panel-border)',
+        background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, var(--surface) 14%)',
+        minWidth: 0,
+      }}
+    >
+      <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+        <strong style={{ color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 900, overflowWrap: 'anywhere' }}>{title}</strong>
+        <em style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontStyle: 'normal', fontWeight: 700, overflowWrap: 'anywhere' }}>{meta}</em>
+      </span>
+      <span style={recommendedBadgeStyle}>{status}</span>
+    </div>
+  )
+}
+
+function PremiumValueBand() {
+  const { isTablet, isMobile } = useViewportBreakpoints()
+
+  return (
+    <section style={premiumValueShellStyle} aria-labelledby="premium-value-title">
+      <div style={premiumValueHeaderStyle}>
+        <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+          <div style={sectionEyebrowStyle}>Why pay</div>
+          <h2 id="premium-value-title" style={premiumValueTitleStyle}>
+            Buy back the tennis work that gets in the way of playing.
+          </h2>
+          <p style={premiumValueTextStyle}>
+            The tiers are not just access levels. They are shortcuts for the jobs that take time away from your game, your team, or your league.
+          </p>
+        </div>
+        <div style={premiumSignalGridStyle}>
+          {PREMIUM_TOOL_SIGNALS.map((signal) => (
+            <div key={signal.title} style={premiumSignalCardStyle}>
+              <TiqFeatureIcon name={signal.icon} size="sm" variant="ghost" />
+              <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+                <strong style={{ color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 950 }}>{signal.title}</strong>
+                <em style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.35, fontStyle: 'normal', fontWeight: 700 }}>{signal.cue}</em>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
+          gap: 12,
+          minWidth: 0,
+        }}
+      >
+        {TIME_BACK_MOMENTS.map((moment) => {
+          const plan = getPricingPlan(moment.planId)
+          const tier = getMembershipTier(moment.planId)
+          const featured = moment.planId === 'captain'
+          return (
+            <article
+              key={moment.planId}
+              style={{
+                ...timeBackCardStyle,
+                ...(featured ? timeBackFeaturedCardStyle : null),
+              }}
+            >
+              <div style={timeBackCardTopStyle}>
+                <TiqFeatureIcon name={PLAN_ICON_BY_ID[moment.planId]} size="md" variant={featured ? 'surface' : 'ghost'} />
+                <span style={featured ? activeBadgeStyle : badgeStyle}>{plan.priceLabel}</span>
+              </div>
+              <div style={{ display: 'grid', gap: 4 }}>
+                <div style={cardPlanStyle}>{plan.name}</div>
+                <h3 style={timeBackCardTitleStyle}>{moment.saved}</h3>
+              </div>
+              <div style={timeBackCompareStyle}>
+                <div style={timeBackBeforeStyle}>
+                  <span style={timeBackLabelStyle}>Before</span>
+                  {moment.before}
+                </div>
+                <div style={timeBackAfterStyle}>
+                  <span style={timeBackLabelStyle}>With {tier.name}</span>
+                  {moment.after}
+                </div>
+              </div>
+              <Link href={getPlanSignupHref(moment.planId)} style={featured ? featuredCtaStyle : ctaStyle}>
+                {moment.action}
+              </Link>
+            </article>
+          )
+        })}
+      </div>
+
+      {isMobile ? null : (
+        <div style={premiumFooterStripStyle}>
+          <strong>Premium should feel practical:</strong>
+          <span>less tab-hopping, fewer texts, clearer next steps, and more time enjoying tennis.</span>
+        </div>
+      )}
+    </section>
+  )
 }
 
 function PlanFitMatrix() {
@@ -559,7 +924,7 @@ function PlanFitMatrix() {
           </h2>
         </div>
         <Link href="#league" style={ctaStyle}>
-          Coordinator is separate
+          League is separate
         </Link>
       </div>
 
@@ -636,6 +1001,157 @@ function PlanFitMatrix() {
   )
 }
 
+const miniPreviewShellStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const premiumValueShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 20,
+  borderRadius: 28,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 86%, var(--brand-green) 14%) 0%, color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-blue-2) 6%) 100%)',
+  boxShadow: '0 22px 52px rgba(2, 10, 24, 0.14)',
+  minWidth: 0,
+  overflow: 'hidden',
+}
+
+const premiumValueHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+  gap: 16,
+  alignItems: 'end',
+  minWidth: 0,
+}
+
+const premiumValueTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.75rem, 3vw, 3rem)',
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  maxWidth: 820,
+  overflowWrap: 'anywhere',
+}
+
+const premiumValueTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.65,
+  fontWeight: 700,
+  maxWidth: 760,
+}
+
+const premiumSignalGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const premiumSignalCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 38px) minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  padding: 11,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, var(--surface) 12%)',
+  minWidth: 0,
+}
+
+const timeBackCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minHeight: 360,
+  padding: 15,
+  borderRadius: 20,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
+}
+
+const timeBackFeaturedCardStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 76%, var(--brand-green) 24%) 0%, var(--shell-chip-bg) 100%)',
+  boxShadow: '0 18px 38px rgba(155,225,29,0.10)',
+}
+
+const timeBackCardTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const timeBackCardTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.02,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const timeBackCompareStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+}
+
+const timeBackBeforeStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 11,
+  borderRadius: 15,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--surface) 88%, var(--shell-chip-bg) 12%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const timeBackAfterStyle: CSSProperties = {
+  ...timeBackBeforeStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground)',
+}
+
+const timeBackLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const premiumFooterStripStyle: CSSProperties = {
+  display: 'flex',
+  gap: 9,
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  padding: '12px 14px',
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, var(--surface) 14%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 750,
+}
+
 function PricingFinalCta() {
   return (
     <section style={pricingFinalCtaStyle}>
@@ -654,7 +1170,7 @@ function PricingFinalCta() {
           Compare Captain
         </a>
         <a href="#league" style={ctaStyle}>
-          Compare Coordinator
+          Compare League
         </a>
       </div>
     </section>

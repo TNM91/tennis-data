@@ -92,7 +92,7 @@ export default function SiteFooter() {
 
         <div style={footerJourneyGridStyle(isMobile)}>
           {PRIMARY_NAV_ITEMS.map((item) => {
-            const visual = FOOTER_JOURNEY[item.href] || { step: '•', intent: item.label, note: '' }
+            const visual = FOOTER_JOURNEY[item.href] || { step: '*', intent: item.label, note: '' }
             const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
             const lockedLabel = getPrimaryNavLockedLabel(item.label, navTarget.requiredPlan)
             const lockedTitle = getPrimaryNavLockedTitle(item.label, navTarget.requiredPlan)

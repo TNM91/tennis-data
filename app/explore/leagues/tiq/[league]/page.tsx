@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import FollowButton from '@/app/components/follow-button'
+import FindModeBridge from '@/app/components/find-mode-bridge'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import SiteShell from '@/app/components/site-shell'
@@ -2261,6 +2262,18 @@ function TiqLeagueDetailContent() {
 
               {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
             </section>
+
+            <FindModeBridge
+              active="TIQ League"
+              primary="Keep the league page connected"
+              secondary="Move from this season into public discovery, team context, rankings, or the broader league directory."
+              links={[
+                { href: '/explore/search?scope=leagues', label: 'Search', icon: 'opponentScouting' },
+                { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
+                { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
+                { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
+              ]}
+            />
 
             <section id="league-overview" style={leagueHubPanelStyle}>
               <div style={leagueHubHeaderStyle}>

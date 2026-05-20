@@ -29,7 +29,7 @@ describe('My Lab premium surface', () => {
     expect(source).not.toContain('direct USTA feed')
   })
 
-  it('keeps premium signal cards responsive for light-mode mobile scanning', () => {
+  it('keeps premium signal cards responsive for dark-shell mobile scanning', () => {
     expect(source).toContain('labPremiumSignalGridStyle(isTablet)')
     expect(source).toContain('labPremiumSignalCardStyle')
     expect(source).toContain('gridTemplateColumns: isTablet')

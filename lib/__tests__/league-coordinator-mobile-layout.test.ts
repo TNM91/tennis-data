@@ -57,7 +57,7 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).not.toContain("gridTemplateColumns: '34px minmax(0, 1fr)'")
   })
 
-  it('keeps operating flow numbers readable in dark and light mode', () => {
+  it('keeps operating flow numbers readable in the dark shell', () => {
     expect(source).toContain('const operatingFlowNumberStyle: CSSProperties')
     expect(source).toContain("background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'")
     expect(source).toContain("color: 'var(--foreground-strong)'")
@@ -114,7 +114,7 @@ describe('League Coordinator mobile layout guards', () => {
     expect(subnavSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
     expect(styleBlock(subnavSource, 'linkStyle')).toContain('minWidth: 0')
     expect(styleBlock(subnavSource, 'linkLabelStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(subnavSource).toContain("gridTemplateColumns: 'minmax(0, 30px) minmax(0, 1fr) minmax(0, auto)'")
+    expect(subnavSource).toContain("gridTemplateColumns: 'minmax(0, 28px) minmax(0, 34px) minmax(0, 1fr) minmax(0, auto)'")
     expect(styleBlock(subnavSource, 'linkStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(subnavSource, 'gridStyle')).toContain('minWidth: 0')
   })

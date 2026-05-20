@@ -54,8 +54,8 @@ If a slot id is not set, the related ad surface safely stays hidden.
 
 ## Quick Smoke Test
 
-- Check dark and light mode header/footer branding
-- Check homepage hero, Player+ matchup card, and footer CTAs
+- Check single dark-shell header/footer branding
+- Check homepage hero, Player Prep card, and footer CTAs
 - Check mobile header menu
 - Check `/pricing`
 - Check `/explore`

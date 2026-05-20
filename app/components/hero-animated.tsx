@@ -180,7 +180,7 @@ export default function HeroAnimated() {
             />
 
             <Image
-              src="/logo-icon-current.png"
+              src="/logo-icon.png"
               alt="TenAceIQ data tennis ball"
               width={560}
               height={560}

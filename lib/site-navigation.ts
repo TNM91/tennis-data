@@ -1,3 +1,5 @@
+import { PRODUCT_MODE_LANGUAGE, type ProductModeId } from './product-story'
+
 export type NavItem = {
   href: string
   label: string
@@ -8,13 +10,18 @@ export type NavSection = {
   items: NavItem[]
 }
 
+function modeNavItem(modeId: ProductModeId): NavItem {
+  const mode = PRODUCT_MODE_LANGUAGE[modeId]
+  return { href: mode.route, label: mode.label }
+}
+
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { href: '/explore', label: 'Explore' },
-  { href: '/mylab', label: 'My Lab' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/captain', label: 'Captain' },
-  { href: '/league-coordinator', label: 'Coordinator' },
-  { href: '/pricing', label: 'Pricing' },
+  modeNavItem('find'),
+  modeNavItem('you'),
+  modeNavItem('prep'),
+  modeNavItem('team'),
+  modeNavItem('league'),
+  modeNavItem('plans'),
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
@@ -51,22 +58,22 @@ export const CAPTAIN_NAV_ITEMS: NavItem[] = [
 ]
 
 export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
-  { href: '/captain/availability', label: 'Availability' },
-  { href: '/captain/lineup-builder', label: 'Lineup' },
-  { href: '/captain/messaging', label: 'Message' },
-  { href: '/captain/weekly-brief', label: 'Brief' },
-  { href: '/data-assist', label: 'Data Assist' },
+  { href: '/captain/availability', label: 'Who can play' },
+  { href: '/captain/lineup-builder', label: 'Build lineup' },
+  { href: '/captain/messaging', label: 'Send plan' },
+  { href: '/captain/weekly-brief', label: 'Read brief' },
+  { href: '/data-assist', label: 'Refresh data' },
 ]
 
 export const COORDINATOR_NAV_ITEMS: NavItem[] = [
-  { href: '/league-coordinator', label: 'Overview' },
-  { href: '/league-coordinator#league-setup-form', label: 'Setup' },
-  { href: '/league-coordinator/results', label: 'Team Results' },
-  { href: '/league-coordinator/individual-results', label: 'Player Results' },
-  { href: '/data-assist', label: 'Data Assist' },
-  { href: '/compete/leagues', label: 'My Leagues' },
-  { href: '/explore/leagues', label: 'Browse' },
-  { href: '/pricing#league', label: 'Plan' },
+  { href: '/league-coordinator', label: 'Command' },
+  { href: '/league-coordinator#league-setup-form', label: 'Setup season' },
+  { href: '/league-coordinator/results', label: 'Team book' },
+  { href: '/league-coordinator/individual-results', label: 'Player book' },
+  { href: '/data-assist', label: 'Uploads' },
+  { href: '/compete/leagues', label: 'My leagues' },
+  { href: '/explore/leagues', label: 'Public pages' },
+  { href: '/pricing#league', label: 'League plan' },
 ]
 
 export const FOOTER_NAV_SECTIONS: NavSection[] = [
@@ -82,36 +89,36 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Player',
+    title: PRODUCT_MODE_LANGUAGE.you.label,
     items: [
       { href: '/profile', label: 'Profile' },
       { href: '/messages', label: 'Messages' },
       { href: '/data-assist', label: 'Data Assist' },
-      { href: '/explore', label: 'Explore' },
+      modeNavItem('find'),
       { href: '/mylab', label: 'My Lab' },
-      { href: '/matchup', label: 'Matchup' },
+      modeNavItem('prep'),
       { href: '/compete', label: 'Compete' },
     ],
   },
   {
-    title: 'Find',
+    title: PRODUCT_MODE_LANGUAGE.find.label,
     items: EXPLORE_NAV_ITEMS,
   },
   {
-    title: 'Run',
+    title: PRODUCT_MODE_LANGUAGE.team.label,
     items: [
-      { href: '/captain', label: 'Captain Hub' },
+      { href: '/captain', label: 'Team Hub' },
       ...CAPTAIN_QUICK_NAV_ITEMS,
     ],
   },
   {
-    title: 'Coordinate',
+    title: PRODUCT_MODE_LANGUAGE.league.label,
     items: [
-      { href: '/league-coordinator', label: 'League Coordinator' },
+      { href: '/league-coordinator', label: 'League Command' },
       { href: '/data-assist', label: 'Data Assist' },
       { href: '/compete/leagues', label: 'My Leagues' },
       { href: '/compete/results', label: 'Results' },
-      { href: '/pricing#league', label: 'Coordinator Plan' },
+      { href: '/pricing#league', label: 'League Plan' },
     ],
   },
 ]

@@ -164,9 +164,9 @@ export const PRICING_PLANS: PricingPlan[] = [
     priceLabel: formatPricingBillingLabel(PRICING_BILLING.player_plus),
     ctaLabel: 'Unlock Player',
     problem: 'Want TenAceIQ to revolve around your game?',
-    friction: 'Raw match history does not tell you who to follow, how you match up, or what to prepare for next.',
+    friction: 'Raw match history does not tell you who to follow, how the next match shapes up, or what to prepare for next.',
     solution: getMembershipTier('player_plus').description,
-    outcome: 'Follow what matters, compare matchups faster, and prepare with a personalized tennis lab.',
+    outcome: 'Follow what matters, compare matches faster, and prepare with a personalized tennis lab.',
     valueProps: getMembershipTier('player_plus').valueProps,
   },
   {
@@ -178,7 +178,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     entitlementGrant: CAPTAIN_ENTITLEMENTS,
     priceLabel: formatPricingBillingLabel(PRICING_BILLING.captain),
     badge: 'Most Popular',
-    ctaLabel: 'Unlock Captain Tools',
+    ctaLabel: 'Unlock Team Tools',
     problem: 'Running a team every week?',
     friction: 'Availability chaos, lineup guesswork, and group-text coordination turn every week into extra work.',
     solution: getMembershipTier('captain').description,
@@ -223,7 +223,7 @@ export const WHY_TENACEIQ_POINTS = [
   },
   {
     title: 'Upgrade by role',
-    text: 'Captain is for team leaders. TIQ League Coordinator is for organizers and admins.',
+    text: 'Team is for captains. League is for organizers and admins.',
   },
 ] as const
 

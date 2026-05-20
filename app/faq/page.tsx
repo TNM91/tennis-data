@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
+import InfoActionGrid, { type InfoActionCard } from '@/app/components/info-action-grid'
 import TierPathway from '@/app/components/tier-pathway'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
@@ -11,6 +12,30 @@ export const metadata: Metadata = {
     'Frequently asked questions about TenAceIQ, including Free, Player, Captain, and TIQ League Coordinator tools.',
 }
 
+const faqActions: InfoActionCard[] = [
+  {
+    title: 'Which tier?',
+    text: 'Free explores, Player personalizes, Captain leads, Coordinator operates.',
+    href: '/pricing',
+    cta: 'Compare tiers',
+    icon: 'accountSecurity',
+  },
+  {
+    title: 'Need data fixed?',
+    text: 'Use Data Assist or open a support thread with the affected tennis record.',
+    href: '/data-assist',
+    cta: DATA_ASSIST_STORY.cta,
+    icon: 'reports',
+  },
+  {
+    title: 'Need help?',
+    text: 'Open support from inside TenAceIQ so account and data context stays together.',
+    href: '/messages?compose=support',
+    cta: 'Open support',
+    icon: 'messagingCenter',
+  },
+]
+
 export default function FaqPage() {
   return (
     <SiteShell active="/faq">
@@ -19,6 +44,8 @@ export default function FaqPage() {
         title="Common questions about the platform."
         intro="These answers explain what TenAceIQ is built to do and how the Free, Player, Captain, and TIQ League Coordinator layers fit together."
       >
+        <InfoActionGrid cards={faqActions} />
+
         <TierPathway
           compact
           framed={false}

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
+import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import {
   getIssueTypeLabel,
@@ -2216,6 +2217,11 @@ function MyLabPageInner() {
           compact
         />
       ) : null}
+
+      <PlayerSuitePanel
+        active="lab"
+        playerLabel={linkedPlayer?.name || undefined}
+      />
 
       <section style={labRoutinePreviewStyle} aria-label="My Lab routine">
         <div style={labRoutineHeaderStyle}>

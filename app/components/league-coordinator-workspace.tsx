@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import CoordinatorSubnav from '@/app/components/coordinator-subnav'
+import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -675,7 +676,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     {
       label: 'Access',
       complete: access.canUseLeagueTools,
-      detail: access.canUseLeagueTools ? 'Coordinator tools are active.' : 'Coordinator access is not active yet.',
+      detail: access.canUseLeagueTools ? 'League tools are active.' : 'League access is not active yet.',
       href: '/pricing#league',
       cta: 'See plan',
     },
@@ -1111,6 +1112,12 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           tierActive={access.canUseLeagueTools}
         />
 
+        <LeagueSuitePanel
+          active="setup"
+          leagueLabel={latestTeamLeague?.leagueName || latestIndividualLeague?.leagueName || records[0]?.leagueName}
+          flow={['setup', 'participants', 'schedule', latestTeamLeague ? 'team-results' : 'player-results', 'public-page']}
+        />
+
         <section style={startPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
             <div style={leagueOpsHeaderCopyStyle}>
@@ -1120,7 +1127,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   ? records.length > 0
                     ? 'Your next Coordinator move is ready.'
                     : 'Set up the first league workspace.'
-                  : 'Unlock Coordinator access to save league workspaces.'}
+                  : 'Unlock League access to save league workspaces.'}
               </h2>
               <p style={leagueOpsTextStyle}>
                 {nextLeagueOpsStep.detail}

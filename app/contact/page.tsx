@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
+import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { SUPPORT_THREAD_ASSURANCE, buildSupportMessageHref } from '@/lib/message-links'
 
 export const metadata: Metadata = {
@@ -39,6 +41,36 @@ const partnershipSupportHref = buildSupportMessageHref({
   ].join('\n'),
 })
 
+const contactCards: Array<{
+  title: string
+  text: string
+  href: string
+  cta: string
+  icon: TiqFeatureIconName
+}> = [
+  {
+    title: 'General support',
+    text: 'Membership, billing, account access, or help finding the right workspace.',
+    href: generalSupportHref,
+    cta: 'Open support',
+    icon: 'accountSecurity',
+  },
+  {
+    title: 'Data quality',
+    text: 'Schedules, leagues, teams, scorecards, imports, or records that need review.',
+    href: dataSupportHref,
+    cta: 'Report data issue',
+    icon: 'reports',
+  },
+  {
+    title: 'Partnerships',
+    text: 'Club, team, or league rollout conversations that should stay inside TenAceIQ.',
+    href: partnershipSupportHref,
+    cta: 'Start conversation',
+    icon: 'teamRankings',
+  },
+]
+
 export default function ContactPage() {
   return (
     <SiteShell active="/contact">
@@ -47,6 +79,19 @@ export default function ContactPage() {
         title="Questions, support, or data issues."
         intro={`If you need help with an account, want to report a data problem, or have a partnership or product question, this page is the best place to start. ${SUPPORT_THREAD_ASSURANCE}`}
       >
+        <div style={contactGridStyle}>
+          {contactCards.map((card) => (
+            <Link key={card.title} href={card.href} style={contactCardStyle}>
+              <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
+              <span style={contactCardCopyStyle}>
+                <strong>{card.title}</strong>
+                <small>{card.text}</small>
+                <em>{card.cta}</em>
+              </span>
+            </Link>
+          ))}
+        </div>
+
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>General support</h2>
           <p>
@@ -86,4 +131,34 @@ export default function ContactPage() {
       </InfoPage>
     </SiteShell>
   )
+}
+
+const contactGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: 12,
+}
+
+const contactCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '48px minmax(0, 1fr)',
+  gap: 12,
+  alignItems: 'start',
+  minWidth: 0,
+  minHeight: 150,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+}
+
+const contactCardCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
 }

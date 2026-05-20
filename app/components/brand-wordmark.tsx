@@ -1,7 +1,6 @@
 'use client'
 
 import Image from 'next/image'
-import { useTheme } from '@/app/components/theme-provider'
 
 type BrandWordmarkProps = {
   compact?: boolean
@@ -14,10 +13,9 @@ export default function BrandWordmark({
   footer = false,
   top = false,
 }: BrandWordmarkProps) {
-  const { theme } = useTheme()
   const width = compact ? 176 : top ? 276 : footer ? 288 : 236
   const height = compact ? 30 : top ? 46 : footer ? 48 : 40
-  const logoSrc = theme === 'dark' ? '/logo-header-dark.svg' : '/logo-header-light.svg'
+  const logoSrc = '/logo-header-dark.svg'
   return (
     <span
       style={{

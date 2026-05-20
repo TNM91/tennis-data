@@ -170,15 +170,6 @@ export default function TiqFeatureIcon({
           --tiq-icon-plate-cool: transparent;
         }
 
-        :global(:root[data-theme='light']) .tiq-feature-icon {
-          --tiq-icon-primary: #0b1b31;
-          --tiq-icon-muted: color-mix(in srgb, var(--brand-blue-2, #2f6fcf) 72%, #0b1b31 28%);
-          --tiq-icon-ball-fill: rgba(255, 255, 255, 0.86);
-          --tiq-icon-ball-hot: #ffffff;
-          --tiq-icon-plate-hot: rgba(47, 111, 207, 0.10);
-          --tiq-icon-plate-mid: rgba(155, 225, 29, 0.08);
-        }
-
         .tiq-feature-icon:hover {
           --tiq-icon-shadow: rgba(155, 225, 29, 0.22);
           transform: translateY(-2px) scale(1.015);

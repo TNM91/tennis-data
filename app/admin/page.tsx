@@ -9,6 +9,7 @@ import {
 } from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { supabase } from '@/lib/supabase'
 
 type Accent = 'blue' | 'green' | 'slate'
@@ -19,6 +20,7 @@ type AdminTool = {
   description: string
   badge: string
   accent: Accent
+  icon: TiqFeatureIconName
   highlights: string[]
   statLabel: string
   statValue: string
@@ -32,6 +34,7 @@ const adminTools: AdminTool[] = [
       'Admin-only fallback for reviewed schedule, roster, and scorecard files when Data Assist needs a manual correction path.',
     badge: 'Fallback',
     accent: 'green',
+    icon: 'reports',
     highlights: ['Reviewed files', 'Manual paste', 'Preview warnings', 'Commit control'],
     statLabel: 'Best for',
     statValue: 'Corrections',
@@ -43,6 +46,7 @@ const adminTools: AdminTool[] = [
       'Review captured payloads that need human confirmation before they can become trusted TenAceIQ records.',
     badge: 'Review',
     accent: 'blue',
+    icon: 'accountSecurity',
     highlights: ['Pending uploads', 'Review handoff', 'Reject + process states', 'Fallback workflow'],
     statLabel: 'Best for',
     statValue: 'Needs review',
@@ -54,6 +58,7 @@ const adminTools: AdminTool[] = [
       'Review player, captain, and coordinator TennisLink uploads, confirm confidence, and keep imports locked behind verification before anything can affect trusted data.',
     badge: 'Data Assist',
     accent: 'green',
+    icon: 'reports',
     highlights: ['Upload batches', 'Layout confidence', 'Review boundary', 'Import lock'],
     statLabel: 'Best for',
     statValue: 'Community uploads',
@@ -65,6 +70,7 @@ const adminTools: AdminTool[] = [
       'Review player-reported match inaccuracies, action data corrections, and pause scorecard uploads for linked contributors when trust issues repeat.',
     badge: 'Data Quality',
     accent: 'blue',
+    icon: 'matchupAnalysis',
     highlights: ['Player reports', 'Admin action queue', 'Uploader trust switch', 'Correction notes'],
     statLabel: 'Best for',
     statValue: 'Accuracy',
@@ -76,6 +82,7 @@ const adminTools: AdminTool[] = [
       'Track which scheduled matches still need scorecard uploads, filter by league and team, and jump directly into Data Assist or match review.',
     badge: 'Operations',
     accent: 'green',
+    icon: 'schedule',
     highlights: ['Past due queue', 'League + team filters', 'Import handoff'],
     statLabel: 'Best for',
     statValue: 'Weekly ops',
@@ -87,6 +94,7 @@ const adminTools: AdminTool[] = [
       'Review player availability snapshots and lineup readiness so admin support stays aligned with the captain workflow.',
     badge: 'Support',
     accent: 'slate',
+    icon: 'reliabilityIndex',
     highlights: ['Availability audit', 'Roster support', 'Lineup readiness'],
     statLabel: 'Best for',
     statValue: 'Weekly support',
@@ -98,6 +106,7 @@ const adminTools: AdminTool[] = [
       'Create a single match manually when you need a precise entry, correction, or one-off administrative adjustment.',
     badge: 'Manual',
     accent: 'blue',
+    icon: 'reports',
     highlights: ['Single entry', 'Controlled workflow', 'Precise edits'],
     statLabel: 'Best for',
     statValue: 'One-off records',
@@ -109,6 +118,7 @@ const adminTools: AdminTool[] = [
       'Review, inspect, and clean up match records from one operational surface built for ongoing data quality control.',
     badge: 'Control',
     accent: 'green',
+    icon: 'matchupAnalysis',
     highlights: ['Match cleanup', 'Record review', 'Operational oversight'],
     statLabel: 'Best for',
     statValue: 'Match hygiene',
@@ -120,6 +130,7 @@ const adminTools: AdminTool[] = [
       'Manage captain subscriptions and TIQ league entitlement flags so monetization and league access stay explicit instead of being inferred only from role names.',
     badge: 'Access',
     accent: 'blue',
+    icon: 'accountSecurity',
     highlights: ['Captain subscription', 'Team entry', 'Individual creation', 'Profile entitlements'],
     statLabel: 'Best for',
     statValue: 'Access control',
@@ -131,6 +142,7 @@ const adminTools: AdminTool[] = [
       'Review paid-plan requests, open internal support follow-up, and activate Player, Captain, or TIQ League access once an account is linked.',
     badge: 'Leads',
     accent: 'green',
+    icon: 'myLab',
     highlights: ['Plan intent', 'Support follow-up', 'Account activation', 'Request status'],
     statLabel: 'Best for',
     statValue: 'Upgrade ops',
@@ -142,6 +154,7 @@ const adminTools: AdminTool[] = [
       'Review paid usage signals like billing portal opens, profile linking, My Lab match-plan actions, and Captain closeout actions.',
     badge: 'Analytics',
     accent: 'blue',
+    icon: 'playerRatings',
     highlights: ['Billing opens', 'Player activation', 'My Lab actions', 'Captain closeout'],
     statLabel: 'Best for',
     statValue: 'Retention',
@@ -153,6 +166,7 @@ const adminTools: AdminTool[] = [
       'Update player records, ratings, metadata, and notes so your player graph stays trustworthy and usable.',
     badge: 'Roster',
     accent: 'slate',
+    icon: 'playerRatings',
     highlights: ['Player editing', 'Ratings upkeep', 'Metadata control'],
     statLabel: 'Best for',
     statValue: 'Player upkeep',
@@ -164,6 +178,7 @@ const adminTools: AdminTool[] = [
       'Create team match events, enter line-by-line results, and watch completed lines feed the TIQ rating engine automatically.',
     badge: 'TIQ',
     accent: 'green',
+    icon: 'teamRankings',
     highlights: ['Team events', 'Line entry', 'Auto rating sync', 'Singles + doubles'],
     statLabel: 'Best for',
     statValue: 'Team leagues',
@@ -175,6 +190,7 @@ const adminTools: AdminTool[] = [
       'Detect players whose names are within two edits of each other, confirm which record to keep, and merge match history automatically before deleting the duplicate.',
     badge: 'Data quality',
     accent: 'slate',
+    icon: 'playerRatings',
     highlights: ['Edit-distance detection', 'Match reassignment', 'Safe merge flow'],
     statLabel: 'Best for',
     statValue: 'Player hygiene',
@@ -186,6 +202,7 @@ const adminTools: AdminTool[] = [
       'Scan all matches for suspicious data: extreme rating gaps, missing scores, and possible duplicate entries before bad records corrupt ratings.',
     badge: 'Data quality',
     accent: 'slate',
+    icon: 'opponentScouting',
     highlights: ['Extreme mismatches', 'Missing scores', 'Duplicate detection'],
     statLabel: 'Best for',
     statValue: 'Data integrity',
@@ -209,7 +226,6 @@ function accentStyles(accent: Accent) {
       chipBg: 'rgba(155,225,29,0.10)',
       chipBorder: 'rgba(155,225,29,0.15)',
       chipText: '#C8F56B',
-      icon: '+',
       shadow: '0 28px 60px rgba(31, 58, 18, 0.20)',
     }
   }
@@ -222,7 +238,6 @@ function accentStyles(accent: Accent) {
       chipBg: 'rgba(148,163,184,0.10)',
       chipBorder: 'rgba(148,163,184,0.16)',
       chipText: '#D7E2F2',
-      icon: 'v',
       shadow: '0 28px 60px rgba(15, 23, 42, 0.24)',
     }
   }
@@ -234,7 +249,6 @@ function accentStyles(accent: Accent) {
     chipBg: 'rgba(74,163,255,0.10)',
     chipBorder: 'rgba(74,163,255,0.16)',
     chipText: '#BFE1FF',
-    icon: 'o',
     shadow: '0 28px 60px rgba(17, 53, 88, 0.22)',
   }
 }
@@ -669,17 +683,16 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
           }}
         >
           <span className={accent.badgeClass}>{tool.badge}</span>
-          <span
+          <div
             style={{
-            color: 'var(--foreground)',
-              fontWeight: 800,
-              fontSize: '1rem',
+              display: 'grid',
+              placeItems: 'center',
               opacity: hovered ? 1 : 0.72,
               transition: 'opacity 180ms ease',
             }}
           >
-            {accent.icon}
-          </span>
+            <TiqFeatureIcon name={tool.icon} size="sm" variant={hovered ? 'surface' : 'ghost'} />
+          </div>
         </div>
 
         <div

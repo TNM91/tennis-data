@@ -1,12 +1,33 @@
 import type { Metadata } from 'next'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
+import InfoActionGrid, { type InfoActionCard } from '@/app/components/info-action-grid'
 
 export const metadata: Metadata = {
   title: 'Methodology',
   description:
     'How TenAceIQ calculates dynamic player ratings -- the Elo-based algorithm, K-factors, score multipliers, recency weighting, and inactivity decay.',
 }
+
+const methodologyCards: InfoActionCard[] = [
+  {
+    title: 'Rating tracks',
+    text: 'TIQ and USTA tracks stay separate across singles, doubles, and overall ratings.',
+    icon: 'playerRatings',
+  },
+  {
+    title: 'Match signal',
+    text: 'Expected outcome, score quality, recency, and inactivity shape movement.',
+    icon: 'matchupAnalysis',
+  },
+  {
+    title: 'Reviewed data',
+    text: 'Data Assist and admin review keep source records from changing the platform unchecked.',
+    href: '/data-assist',
+    cta: 'Open Data Assist',
+    icon: 'reports',
+  },
+]
 
 export default function MethodologyPage() {
   return (
@@ -16,6 +37,8 @@ export default function MethodologyPage() {
         title="How TenAceIQ calculates dynamic ratings."
         intro="TenAceIQ uses an Elo-based rating system tuned for recreational tennis. Every match updates a player's rating based on who they played, what the expected outcome was, how dominant the win or loss was, and how recently it happened. This page explains each part of that calculation."
       >
+        <InfoActionGrid cards={methodologyCards} />
+
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>The rating scale</h2>
           <p>

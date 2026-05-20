@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainSubnav from '@/app/components/captain-subnav'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
@@ -677,6 +678,12 @@ function CaptainWeeklyBriefContent() {
           description="Use this readout to check the week, then open the team brief or messaging."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
+        />
+
+        <CaptainSuitePanel
+          active="brief"
+          teamLabel={[team, flight].filter(Boolean).join(' - ') || undefined}
+          flow={['availability', 'lineup', 'messaging', 'brief']}
         />
 
         {!access.canUseCaptainWorkflow ? (

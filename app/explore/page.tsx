@@ -100,6 +100,50 @@ const DISCOVERY_PATHS = [
   },
 ]
 
+const FIND_COMMAND_STEPS: Array<{
+  href: string
+  label: string
+  title: string
+  body: string
+  icon: TiqFeatureIconName
+}> = [
+  {
+    href: '/explore/search',
+    label: 'Search',
+    title: 'Type what you know',
+    body: 'Names, teams, leagues, or flights.',
+    icon: 'opponentScouting',
+  },
+  {
+    href: '/explore/players',
+    label: 'Players',
+    title: 'Open a player record',
+    body: 'Ratings, teams, and match context.',
+    icon: 'playerRatings',
+  },
+  {
+    href: '/explore/teams',
+    label: 'Teams',
+    title: 'Check the team shape',
+    body: 'Roster, league, and recent results.',
+    icon: 'teamRankings',
+  },
+  {
+    href: '/explore/leagues',
+    label: 'Leagues',
+    title: 'See the competition layer',
+    body: 'USTA-style history and TIQ seasons.',
+    icon: 'reports',
+  },
+  {
+    href: '/explore/rankings',
+    label: 'Rankings',
+    title: 'Scan the field',
+    body: 'Start broad, then drill in.',
+    icon: 'matchupAnalysis',
+  },
+]
+
 const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLINE || null
 
 export default function ExplorePage() {
@@ -247,6 +291,8 @@ export default function ExplorePage() {
             </div>
           </div>
 
+          <FindCommandPanel />
+
           <div style={discoveryPathPanel}>
             <div style={dynamicDiscoveryPathHeader}>
               <div>
@@ -305,6 +351,38 @@ function getCardIcon(icon: string) {
   }
 
   return <TiqFeatureIcon name={iconMap[icon] || 'opponentScouting'} size="lg" variant="ghost" />
+}
+
+function FindCommandPanel() {
+  return (
+    <section style={findCommandPanel} aria-label="Find mode paths">
+      <div style={findCommandHeader}>
+        <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
+        <div style={findCommandCopy}>
+          <div style={findCommandEyebrow}>Find mode</div>
+          <h2 style={findCommandTitle}>Everything starts with one tennis clue.</h2>
+          <p style={findCommandText}>
+            Search first, then move into the right public record. Upgrade only when saving, comparing, or acting on the context makes life easier.
+          </p>
+        </div>
+        <Link href="/pricing#free" style={findCommandPill}>Free to start</Link>
+      </div>
+
+      <div style={findCommandGrid}>
+        {FIND_COMMAND_STEPS.map((step, index) => (
+          <Link key={step.href} href={step.href} style={findCommandCard}>
+            <span style={findCommandNumber}>{index + 1}</span>
+            <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
+            <span style={findCommandCardCopy}>
+              <span style={findCommandLabel}>{step.label}</span>
+              <strong style={findCommandCardTitle}>{step.title}</strong>
+              <span style={findCommandCardText}>{step.body}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
 }
 
 function ActionCard({
@@ -614,6 +692,139 @@ const discoveryBoardGrid: CSSProperties = {
   backgroundSize: '28px 28px',
   opacity: 0.18,
   pointerEvents: 'none',
+}
+
+const findCommandPanel: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: '14px',
+  marginBottom: '18px',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'linear-gradient(180deg, rgba(13,28,53,0.74) 0%, rgba(9,20,39,0.9) 100%)',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.14), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+
+const findCommandHeader: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '48px minmax(0, 1fr) minmax(0, auto)',
+  gap: '12px',
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const findCommandCopy: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+}
+
+const findCommandEyebrow: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '10px',
+  fontWeight: 950,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const findCommandTitle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.2rem, 2vw, 1.6rem)',
+  lineHeight: 1.05,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandText: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandPill: CSSProperties = {
+  justifySelf: 'end',
+  minHeight: 34,
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
+}
+
+const findCommandGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const findCommandCard: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '28px 32px minmax(0, 1fr)',
+  gap: '9px',
+  alignItems: 'center',
+  minHeight: 74,
+  padding: '10px',
+  borderRadius: '15px',
+  border: '1px solid rgba(116,190,255,0.09)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  minWidth: 0,
+}
+
+const findCommandNumber: CSSProperties = {
+  width: 26,
+  height: 26,
+  borderRadius: 999,
+  display: 'grid',
+  placeItems: 'center',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+}
+
+const findCommandCardCopy: CSSProperties = {
+  display: 'grid',
+  gap: '2px',
+  minWidth: 0,
+}
+
+const findCommandLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '10px',
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const findCommandCardTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandCardText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  lineHeight: 1.3,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const discoveryPathPanel: CSSProperties = {

@@ -22,6 +22,7 @@ import {
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
+import FindModeBridge from '@/app/components/find-mode-bridge'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import {
@@ -1358,6 +1359,18 @@ export default function TeamPage() {
             ) : null}
           </div>
         </section>
+
+        <FindModeBridge
+          active="Team Detail"
+          primary="Turn this team page into context"
+          secondary="Move from roster and match history into players, leagues, rankings, or a broader search."
+          links={[
+            { href: '/explore/search?scope=teams', label: 'Search', icon: 'opponentScouting' },
+            { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
+            { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
+            { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
+          ]}
+        />
 
         {error ? (
           <section style={surfaceCard}>

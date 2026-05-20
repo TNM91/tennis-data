@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CSSProperties, FormEvent, useMemo, useState } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -124,10 +125,10 @@ function ForgotPasswordContent() {
               </div>
 
               <div style={infoGridResponsive}>
-                <InfoCard title="1" text="Enter your account email." />
-                <InfoCard title="2" text="Open the secure reset link." />
-                <InfoCard title="3" text="Create a new password." />
-                <InfoCard title="4" text="Sign back in." />
+                <InfoCard icon="accountSecurity" title="Account email" text="Enter the email tied to your TenAceIQ account." />
+                <InfoCard icon="messagingCenter" title="Reset link" text="Open the secure reset link from your inbox." />
+                <InfoCard icon="reliabilityIndex" title="New password" text="Create a new password with at least 8 characters." />
+                <InfoCard icon="myLab" title="Return to play" text="Sign back in and continue to your workspace." />
               </div>
             </div>
           </div>
@@ -187,11 +188,14 @@ function ForgotPasswordContent() {
   )
 }
 
-function InfoCard({ title, text }: { title: string; text: string }) {
+function InfoCard({ icon, title, text }: { icon: TiqFeatureIconName; title: string; text: string }) {
   return (
     <div style={infoCard}>
-      <div style={infoTitle}>{title}</div>
-      <div style={infoText}>{text}</div>
+      <TiqFeatureIcon name={icon} size="sm" variant="ghost" />
+      <div>
+        <div style={infoTitle}>{title}</div>
+        <div style={infoText}>{text}</div>
+      </div>
     </div>
   )
 }
@@ -377,6 +381,10 @@ const statusPill: CSSProperties = {
 }
 
 const infoCard: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gap: '10px',
+  alignItems: 'center',
   minWidth: 0,
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
