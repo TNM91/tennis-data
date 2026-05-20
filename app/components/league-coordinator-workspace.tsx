@@ -3,8 +3,6 @@
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import CoordinatorSubnav from '@/app/components/coordinator-subnav'
-import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -131,29 +129,6 @@ const TIME_ZONE_OPTIONS = [
 const CUSTOM_SEASON_VALUE = '__custom_season__'
 
 const FLIGHT_OPTIONS = ['2.5', '3.0', '3.5', '4.0', '4.5', '5.0', 'Open', 'Advanced', 'Intermediate', 'Beginner']
-
-const COORDINATOR_OPERATING_FLOW = [
-  {
-    label: '1',
-    title: 'Set structure',
-    text: 'Choose format, dates, scoring, and season limits before anything goes public.',
-  },
-  {
-    label: '2',
-    title: 'Approve participants',
-    text: 'Add teams or players, then keep join requests in coordinator review.',
-  },
-  {
-    label: '3',
-    title: 'Publish schedule',
-    text: 'Use recurring day, time, and facility defaults to make the season visible.',
-  },
-  {
-    label: '4',
-    title: 'Review uploads and results',
-    text: 'Use Data Assist for reviewed schedules, rosters, and scorecards before standings move.',
-  },
-]
 
 const RESULT_ENTRY_HANDOFF_STEPS = [
   {
@@ -1134,19 +1109,6 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           </div>
         </div>
 
-        <CoordinatorSubnav
-          title={LEAGUE_COORDINATOR_STORY.subnavTitle}
-          description={LEAGUE_COORDINATOR_STORY.subnavDescription}
-          tierLabel={access.leagueTierLabel}
-          tierActive={access.canUseLeagueTools}
-        />
-
-        <LeagueSuitePanel
-          active="setup"
-          leagueLabel={latestTeamLeague?.leagueName || latestIndividualLeague?.leagueName || records[0]?.leagueName}
-          flow={['setup', 'participants', 'schedule', latestTeamLeague ? 'team-results' : 'player-results', 'public-page']}
-        />
-
         <section style={startPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
             <div style={leagueOpsHeaderCopyStyle}>
@@ -1176,18 +1138,6 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <strong style={startActionTitleStyle}>{nextLeagueOpsStep.label}</strong>
             </div>
             <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
-          </div>
-
-          <div style={operatingFlowGridStyle} aria-label="Coordinator operating order">
-            {COORDINATOR_OPERATING_FLOW.map((step) => (
-              <div key={step.title} style={operatingFlowStepStyle}>
-                <span style={operatingFlowNumberStyle}>{step.label}</span>
-                <span style={operatingFlowCopyStyle}>
-                  <strong>{step.title}</strong>
-                  <em>{step.text}</em>
-                </span>
-              </div>
-            ))}
           </div>
 
           <div style={startCardGridStyle}>
@@ -3159,51 +3109,6 @@ const startActionTitleStyle: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.15,
   fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
-const operatingFlowGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: '10px',
-  minWidth: 0,
-}
-
-const operatingFlowStepStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr)',
-  gap: '10px',
-  alignItems: 'start',
-  padding: '12px',
-  borderRadius: '16px',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-panel-border) 84%)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 92%, var(--surface) 8%)',
-  minWidth: 0,
-}
-
-const operatingFlowNumberStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '30px',
-  height: '30px',
-  borderRadius: '999px',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  color: 'var(--foreground-strong)',
-  fontSize: '12px',
-  fontWeight: 950,
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
-}
-
-const operatingFlowCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: '4px',
-  color: 'var(--foreground-strong)',
-  fontSize: '13px',
-  lineHeight: 1.35,
-  fontWeight: 900,
-  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
