@@ -473,6 +473,297 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
   const selectedDetails = commandModeDetails[activeLane]
   const selectedAccess = getTierAccessPresentation(activeLane, access, authenticated)
   const selectedTasks = commandTaskSets[activeLane]
+  const activeAccent = getModeAccent(activeLane)
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const scope = activeLane === 'league' ? 'leagues' : activeLane === 'captain' ? 'teams' : 'players'
+    const params = new URLSearchParams({ scope })
+    if (query.trim()) params.set('q', query.trim())
+    router.push(`/explore/search?${params.toString()}`)
+  }
+
+  return (
+    <section
+      aria-label="TenAceIQ command center"
+      style={{
+        position: 'relative',
+        display: 'grid',
+        gap: isMobile ? 16 : 18,
+        borderRadius: isSmallMobile ? 24 : 30,
+        border: '1px solid rgba(116,190,255,0.15)',
+        background:
+          'radial-gradient(circle at 18% 8%, rgba(155,225,29,0.16), transparent 26%), radial-gradient(circle at 88% 18%, rgba(74,163,255,0.16), transparent 30%), linear-gradient(145deg, rgba(7,18,38,0.96) 0%, rgba(10,25,48,0.98) 52%, rgba(4,13,29,0.98) 100%)',
+        color: 'var(--foreground)',
+        boxShadow: '0 28px 80px rgba(2, 10, 24, 0.32), inset 0 1px 0 rgba(255,255,255,0.06)',
+        overflow: 'hidden',
+        padding: isSmallMobile ? 16 : isMobile ? 18 : 26,
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(min(100%, 430px), 0.72fr)',
+          gap: isMobile ? 16 : 22,
+          alignItems: 'start',
+          minWidth: 0,
+        }}
+      >
+        <div style={{ display: 'grid', gap: isMobile ? 16 : 18, minWidth: 0 }}>
+          <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+            <div style={{ ...badgeGreen, width: 'fit-content' }}>Premium tennis command center</div>
+            <h1
+              style={{
+                margin: 0,
+                maxWidth: 780,
+                color: 'var(--foreground-strong)',
+                fontSize: 'clamp(2.55rem, 6vw, 5.35rem)',
+                lineHeight: 0.92,
+                letterSpacing: 0,
+                fontWeight: 950,
+                overflowWrap: 'anywhere',
+              }}
+            >
+              Find the signal. Pick the tool. Get back to tennis.
+            </h1>
+            <p
+              style={{
+                margin: 0,
+                maxWidth: 720,
+                color: 'var(--shell-copy-muted)',
+                fontSize: isMobile ? 15 : 17,
+                lineHeight: 1.65,
+              }}
+            >
+              Start with public tennis context, then unlock the workflow that saves time: your game, your team week, or your league season.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href={selectedAccess.primaryCta.href} style={{ ...buttonPrimary, minHeight: 46 }}>
+                {selectedAccess.primaryCta.label}
+              </Link>
+              <Link href={startHref} style={{ ...buttonGhost, minHeight: 46 }}>
+                Start Free
+              </Link>
+            </div>
+          </div>
+
+          <nav
+            aria-label="Choose a TenAceIQ workflow"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+              gap: 10,
+              minWidth: 0,
+            }}
+          >
+            {commandModes.map((mode) => {
+              const active = activeLane === mode.planId
+              const accent = getModeAccent(mode.planId)
+              const accessState = getTierAccessPresentation(mode.planId, access, authenticated)
+              return (
+                <button
+                  key={mode.planId}
+                  type="button"
+                  onClick={() => setActiveLane(mode.planId)}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '42px minmax(0, 1fr)',
+                    gap: 10,
+                    alignItems: 'center',
+                    minHeight: 76,
+                    padding: 12,
+                    borderRadius: 18,
+                    border: active ? `1px solid ${accent}` : '1px solid rgba(116,190,255,0.14)',
+                    background: active
+                      ? `linear-gradient(135deg, color-mix(in srgb, ${accent} 22%, rgba(16,34,60,0.92) 78%) 0%, rgba(13,28,52,0.92) 100%)`
+                      : 'rgba(255,255,255,0.045)',
+                    color: 'var(--foreground-strong)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'grid',
+                      placeItems: 'center',
+                      width: 42,
+                      height: 42,
+                      borderRadius: 14,
+                      background: `color-mix(in srgb, ${accent} 20%, rgba(255,255,255,0.06) 80%)`,
+                      border: `1px solid color-mix(in srgb, ${accent} 34%, rgba(255,255,255,0.10) 66%)`,
+                    }}
+                  >
+                    <TiqFeatureIcon name={mode.icon} size="sm" variant="ghost" />
+                  </span>
+                  <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+                    <strong style={{ fontSize: 15, lineHeight: 1.05 }}>{mode.lane}</strong>
+                    <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
+                      {accessState.active ? mode.action : 'Preview unlock'}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+
+          <form
+            onSubmit={handleSubmit}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
+              gap: 12,
+              minWidth: 0,
+            }}
+          >
+            <label
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '22px minmax(0, 1fr)',
+                gap: 10,
+                alignItems: 'center',
+                minHeight: 54,
+                padding: '0 16px',
+                borderRadius: 18,
+                border: '1px solid rgba(116,190,255,0.18)',
+                background: 'rgba(255,255,255,0.07)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+              }}
+            >
+              <SearchIcon />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={selectedDetails.searchPlaceholder}
+                aria-label="Search players, teams, or leagues"
+                style={{
+                  width: '100%',
+                  minWidth: 0,
+                  border: 0,
+                  outline: 'none',
+                  background: 'transparent',
+                  color: 'var(--foreground-strong)',
+                  fontSize: 15,
+                  fontWeight: 700,
+                }}
+              />
+            </label>
+            <button type="submit" style={{ ...buttonGhost, minHeight: 54, cursor: 'pointer' }}>
+              Search
+            </button>
+          </form>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+              gap: 10,
+              minWidth: 0,
+            }}
+          >
+            {selectedTasks.map((task) => {
+              const taskAccess = getTierAccessPresentation(task.requiredPlan, access, authenticated)
+              const href = taskAccess.active ? task.href : getPlanUnlockHref(task.requiredPlan, task.href)
+              return (
+                <Link
+                  key={task.title}
+                  href={href}
+                  style={{
+                    display: 'grid',
+                    gap: 10,
+                    minHeight: 138,
+                    padding: 13,
+                    borderRadius: 18,
+                    border: '1px solid rgba(116,190,255,0.13)',
+                    background: 'rgba(255,255,255,0.055)',
+                    textDecoration: 'none',
+                    minWidth: 0,
+                  }}
+                >
+                  <span style={{ color: activeAccent, fontSize: 12, fontWeight: 950 }}>{task.metric}</span>
+                  <strong style={{ color: 'var(--foreground-strong)', fontSize: 15, lineHeight: 1.1 }}>{task.title}</strong>
+                  <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45 }}>{task.detail}</span>
+                  <span style={{ color: taskAccess.active ? activeAccent : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 900 }}>
+                    {taskAccess.active ? 'Open' : 'Unlock'}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+
+        <aside style={{ display: 'grid', gap: 12, alignContent: 'start', minWidth: 0 }}>
+          <div
+            style={{
+              display: 'grid',
+              gap: 12,
+              padding: isSmallMobile ? 14 : 18,
+              borderRadius: 24,
+              border: `1px solid color-mix(in srgb, ${activeAccent} 28%, rgba(116,190,255,0.12) 72%)`,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.045))',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ ...badgeSlate, color: 'var(--foreground-strong)' }}>{selectedMode.lane}</span>
+              <span style={{ color: activeAccent, fontSize: 12, fontWeight: 950 }}>{selectedAccess.statusLabel}</span>
+            </div>
+            <h2 style={{ margin: 0, color: 'var(--foreground-strong)', fontSize: 'clamp(1.45rem, 3vw, 2.15rem)', lineHeight: 1.02 }}>
+              {selectedDetails.headline}
+            </h2>
+            <p style={{ margin: 0, color: 'var(--shell-copy-muted)', fontSize: 14, lineHeight: 1.6 }}>
+              {selectedDetails.subhead}
+            </p>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {selectedMode.proof.map((proof) => (
+                <div
+                  key={proof}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '26px minmax(0, 1fr)',
+                    gap: 9,
+                    alignItems: 'center',
+                    padding: '10px 11px',
+                    borderRadius: 14,
+                    background: 'rgba(255,255,255,0.055)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                  }}
+                >
+                  <span style={{ display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 999, background: `color-mix(in srgb, ${activeAccent} 22%, transparent 78%)`, color: activeAccent, fontSize: 11, fontWeight: 950 }}>
+                    {proof.slice(0, 2)}
+                  </span>
+                  <strong style={{ color: 'var(--foreground-strong)', fontSize: 13, overflowWrap: 'anywhere' }}>{proof}</strong>
+                </div>
+              ))}
+            </div>
+            <UnlockPathPreview mode={activeLane} active={selectedAccess.active} line={selectedDetails.unlockLine} href={selectedAccess.primaryCta.href} cta={selectedAccess.primaryCta.label} />
+          </div>
+        </aside>
+      </div>
+    </section>
+  )
+}
+
+function getModeAccent(planId: PricingPlanId) {
+  if (planId === 'free') return '#9be11d'
+  if (planId === 'player_plus') return '#4aa3ff'
+  if (planId === 'captain') return '#f3b51b'
+  return '#19c8b6'
+}
+
+// Kept temporarily while the unified homepage command hero is validated.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function LegacyCommandCenterHome({ access, authenticated }: { access: ProductAccessState; authenticated: boolean }) {
+  const router = useRouter()
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const [query, setQuery] = useState('')
+  const [activeLane, setActiveLane] = useState<PricingPlanId>('free')
+  const startHref = authenticated ? getPlanDestinationHref('free') : '/join'
+  const selectedMode = commandModes.find((mode) => mode.planId === activeLane) ?? commandModes[0]
+  const selectedDetails = commandModeDetails[activeLane]
+  const selectedAccess = getTierAccessPresentation(activeLane, access, authenticated)
+  const selectedTasks = commandTaskSets[activeLane]
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
