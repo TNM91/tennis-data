@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   useCallback,
@@ -14,8 +13,6 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
-import CaptainSubnav from '@/app/components/captain-subnav'
-import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useAuth } from '@/app/components/auth-provider'
@@ -969,7 +966,6 @@ function LineupBuilderContent() {
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, entitlements, authResolved } = useAuth()
-  const heroArtworkSrc = '/og-image.png'
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const isCaptainAccess = access.canUseCaptainWorkflow
   const isPreviewMode = role === 'member'
@@ -2059,33 +2055,6 @@ function sendCurrentScenarioToMessaging() {
     },
   ]
   const readinessCompleteCount = builderReadiness.filter((item) => item.done).length
-  const dynamicQuickStartCard: CSSProperties = {
-    ...quickStartCard,
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: isTablet ? 320 : 360,
-    background: 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))',
-    border: '1px solid rgba(116,190,255,0.12)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-  }
-
-  const lineupVisualStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-  }
-
-  const lineupVisualMaskStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    background: 'linear-gradient(135deg, rgba(8,18,38,0.26) 8%, rgba(8,18,38,0.76) 50%, rgba(8,18,38,0.94) 100%)',
-  }
-
-  const lineupVisualContentStyle: CSSProperties = {
-    position: 'relative',
-    zIndex: 1,
-    display: 'grid',
-    gap: 14,
-  }
 
   if (!authResolved) {
     return (
@@ -2118,7 +2087,7 @@ function sendCurrentScenarioToMessaging() {
          <section style={heroShellResponsive(isTablet, isMobile)}>
             <div>
               <TiqFeatureIcon name="lineupBuilder" size="lg" variant="surface" />
-              <div style={eyebrow}>Captain tools</div>
+              <div style={eyebrow}>Lineup builder</div>
             <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Build the lineup.</h1>
             <p style={heroTextStyle}>
               Start from available players, fill the courts, check the edge, then send the plan.
@@ -2139,62 +2108,7 @@ function sendCurrentScenarioToMessaging() {
               ))}
             </div>
           </div>
-
-          <div style={dynamicQuickStartCard}>
-            <div style={lineupVisualStyle}>
-              <Image
-                src={heroArtworkSrc}
-                alt="TenAceIQ lineup builder concept art"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 34vw"
-                style={{ objectFit: 'cover', objectPosition: isTablet ? 'center center' : '72% center' }}
-              />
-              <div style={lineupVisualMaskStyle} />
-            </div>
-
-            <div style={lineupVisualContentStyle}>
-              <p style={sectionKicker}>Builder workflow</p>
-              <h2 style={quickStartTitle}>Build, check, send</h2>
-              <div style={workflowListStyle}>
-                {[
-                  ['1', 'Pick the match', 'Team, opponent, and date keep the build tied to the real week.'],
-                  ['2', 'Fill the courts', 'Use availability-aware players and lock anything you already trust.'],
-                  ['3', 'Check the edge', 'Save, compare, and send the version you want the team to follow.'],
-                 ].map(([step, title, text]) => (
-                    <div key={step} style={workflowRowStyle}>
-                      <div style={workflowNumberStyle}>
-                        <TiqFeatureIcon name={step === '1' ? 'schedule' : step === '2' ? 'lineupBuilder' : 'messagingCenter'} size="sm" variant="ghost" />
-                      </div>
-                    <div>
-                      <div style={workflowTitleStyle}>{title}</div>
-                      <div style={workflowTextStyle}>{text}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ marginTop: 18 }}>
-                <span style={miniPillSlateStyle}>
-                  {currentScenario ? `Loaded: ${currentScenario.scenario_name}` : 'No scenario loaded'}
-                </span>
-              </div>
-            </div>
-          </div>
         </section>
-
-        <CaptainSubnav
-          title="Step 2: Lineup"
-          description="Build the match sheet, compare versions, then send the final plan."
-          tierLabel={access.captainTierLabel}
-          tierActive={access.captainSubscriptionActive}
-        />
-
-        <CaptainSuitePanel
-          active="lineup"
-          teamLabel={[teamName, flight].filter(Boolean).join(' - ') || undefined}
-          flow={['availability', 'lineup', 'scenario', 'messaging', 'brief']}
-        />
 
         {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}
         {!!error && (
@@ -3293,64 +3207,6 @@ const metricValueStyleHero: CSSProperties = {
   fontSize: 28,
   fontWeight: 900,
   marginTop: 10,
-  overflowWrap: 'anywhere',
-}
-
-const quickStartCard: CSSProperties = {
-  borderRadius: 24,
-  padding: 22,
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  minWidth: 0,
-}
-
-const quickStartTitle: CSSProperties = {
-  margin: '6px 0 0',
-  color: 'var(--foreground)',
-  fontSize: 28,
-  lineHeight: 1.1,
-  fontWeight: 900,
-  overflowWrap: 'anywhere',
-}
-
-const workflowListStyle: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  marginTop: 18,
-  minWidth: 0,
-}
-
-const workflowRowStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
-  gap: 12,
-  alignItems: 'start',
-  minWidth: 0,
-}
-
-const workflowNumberStyle: CSSProperties = {
-  width: 42,
-  height: 42,
-  borderRadius: 999,
-  background: 'rgba(37, 99, 235, 0.22)',
-  color: '#dbeafe',
-  display: 'grid',
-  placeItems: 'center',
-  fontWeight: 900,
-}
-
-const workflowTitleStyle: CSSProperties = {
-  color: 'var(--foreground)',
-  fontWeight: 800,
-  fontSize: 15,
-  overflowWrap: 'anywhere',
-}
-
-const workflowTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.55,
-  marginTop: 4,
   overflowWrap: 'anywhere',
 }
 

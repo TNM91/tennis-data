@@ -2,13 +2,10 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
-import CaptainSubnav from '@/app/components/captain-subnav'
-import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
@@ -550,7 +547,6 @@ function CaptainMessagingContent() {
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, entitlements, authResolved } = useAuth()
-  const heroArtworkSrc = '/og-image.png'
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const captainAccess = access.canUseCaptainWorkflow
   const showAdvancedMessagingPanels = false
@@ -1991,34 +1987,6 @@ function importScenarioToLineup() {
     )
   }
 
-  const dynamicQuickStartCard: CSSProperties = {
-    ...quickStartCard,
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: isTablet ? 320 : 360,
-    background: 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))',
-    border: '1px solid rgba(116,190,255,0.12)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-  }
-
-  const messagingVisualStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-  }
-
-  const messagingVisualMaskStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    background: 'linear-gradient(135deg, rgba(8,18,38,0.22) 8%, rgba(8,18,38,0.74) 50%, rgba(8,18,38,0.94) 100%)',
-  }
-
-  const messagingVisualContentStyle: CSSProperties = {
-    position: 'relative',
-    zIndex: 1,
-    display: 'grid',
-    gap: 14,
-  }
-
   async function copyBody() {
     try {
       await navigator.clipboard.writeText(messageBody)
@@ -2068,7 +2036,7 @@ function importScenarioToLineup() {
          <section style={heroShellResponsive(isTablet, isMobile)}>
             <div>
               <TiqFeatureIcon name="messagingCenter" size="lg" variant="surface" />
-              <div style={eyebrow}>Captain communications</div>
+              <div style={eyebrow}>Messaging</div>
             <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Send the plan.</h1>
             <p style={heroTextStyle}>
               Choose the audience, load the right lineup context, and prepare the message your team needs next.
@@ -2102,56 +2070,7 @@ function importScenarioToLineup() {
               <MetricStat label="No response" value={String(responseSummary.noResponseCount)} />
             </div>
           </div>
-
-          <div style={dynamicQuickStartCard}>
-            <div style={messagingVisualStyle}>
-              <Image
-                src={heroArtworkSrc}
-                alt="TenAceIQ captain messaging concept art"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 34vw"
-                style={{ objectFit: 'cover', objectPosition: isTablet ? 'center center' : '72% center' }}
-              />
-              <div style={messagingVisualMaskStyle} />
-            </div>
-
-            <div style={messagingVisualContentStyle}>
-              <p style={sectionKicker}>Weekly flow</p>
-              <h2 style={quickStartTitle}>Right message, right group</h2>
-              <div style={workflowListStyle}>
-                {[
-                  ['1', 'Pick scope', 'Load the team and match week.'],
-                  ['2', 'Choose audience', 'Use lineup, availability, or follow-up groups.'],
-                  ['3', 'Prepare text', 'Send lineup, logistics, reminders, or blockers.'],
-                  ].map(([step, title, text]) => (
-                    <div key={step} style={workflowRowStyle}>
-                      <div style={workflowNumberStyle}>
-                        <TiqFeatureIcon name={step === '1' ? 'schedule' : step === '2' ? 'lineupBuilder' : 'messagingCenter'} size="sm" variant="ghost" />
-                      </div>
-                    <div>
-                      <div style={workflowTitleStyle}>{title}</div>
-                      <div style={workflowTextStyle}>{text}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         </section>
-
-        <CaptainSubnav
-          title="Step 4: Messaging"
-          description="Send the lineup, logistics, reminders, and follow-ups from one place."
-          tierLabel={access.captainTierLabel}
-          tierActive={access.captainSubscriptionActive}
-        />
-
-        <CaptainSuitePanel
-          active="messaging"
-          teamLabel={[teamFilter || inferredTeamName, flightFilter].filter(Boolean).join(' - ') || undefined}
-          flow={['availability', 'lineup', 'scenario', 'messaging', 'brief']}
-        />
 
         <section style={messagePlaybookSurfaceStyle}>
           <div style={tableHeaderStyle}>
@@ -2194,51 +2113,6 @@ function importScenarioToLineup() {
               <span style={messagePlaybookTextStyle}>Thank the team and collect score notes</span>
             </button>
           </div>
-        </section>
-
-        <section style={teamRoomSurfaceStyle}>
-          <div style={tableHeaderStyle}>
-            <div>
-              <p style={sectionKicker}>Team room</p>
-              <h2 style={sectionTitle}>Group chat energy, captain control</h2>
-            </div>
-            <span style={miniPillBlue}>SMS-ready now</span>
-          </div>
-
-          <div style={teamRoomGridStyle}>
-            <div style={teamRoomStepStyle}>
-              <span style={workflowNumberStyle}>1</span>
-              <div>
-                <div style={workflowTitleStyle}>Ask</div>
-                <div style={workflowTextStyle}>Availability and blockers.</div>
-              </div>
-            </div>
-            <div style={teamRoomStepStyle}>
-              <span style={workflowNumberStyle}>2</span>
-              <div>
-                <div style={workflowTitleStyle}>Decide</div>
-                <div style={workflowTextStyle}>Lineup and match notes.</div>
-              </div>
-            </div>
-            <div style={teamRoomStepStyle}>
-              <span style={workflowNumberStyle}>3</span>
-              <div>
-                <div style={workflowTitleStyle}>Send</div>
-                <div style={workflowTextStyle}>One clean team update.</div>
-              </div>
-            </div>
-            <div style={teamRoomStepStyle}>
-              <span style={workflowNumberStyle}>4</span>
-              <div>
-                <div style={workflowTitleStyle}>Track</div>
-                <div style={workflowTextStyle}>Replies, subs, and changes.</div>
-              </div>
-            </div>
-          </div>
-
-          <p style={teamRoomNoteStyle}>
-            Start with text handoff. Later this can become an in-app thread or connect to GroupMe-style channels.
-          </p>
         </section>
 
         <section style={builderHandoffSurfaceStyle}>
@@ -4032,43 +3906,6 @@ const metricValueStyleHero: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const quickStartCard: CSSProperties = {
-  borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(29,56,105,0.62), rgba(14,30,59,0.78))',
-  padding: '20px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-  minWidth: 0,
-}
-
-const quickStartTitle: CSSProperties = {
-  marginTop: 10,
-  marginBottom: 14,
-  fontSize: '1.35rem',
-  lineHeight: 1.14,
-  color: '#ffffff',
-  overflowWrap: 'anywhere',
-}
-
-const workflowListStyle: CSSProperties = { display: 'grid', gap: 12, minWidth: 0 }
-const workflowRowStyle: CSSProperties = { display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0 }
-const workflowNumberStyle: CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 999,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 800,
-  fontSize: '.92rem',
-  color: 'var(--foreground-strong)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  flexShrink: 0,
-}
-const workflowTitleStyle: CSSProperties = { fontWeight: 700, color: 'var(--foreground)', marginBottom: 4, overflowWrap: 'anywhere' }
-const workflowTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', lineHeight: 1.55, fontSize: '.95rem', overflowWrap: 'anywhere' }
-
 const contentWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 18, marginTop: 18, minWidth: 0 }
 
 const surfaceCardStrong: CSSProperties = {
@@ -4090,13 +3927,6 @@ const surfaceCard: CSSProperties = {
   boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
-  minWidth: 0,
-}
-
-const teamRoomSurfaceStyle: CSSProperties = {
-  ...surfaceCardStrong,
-  maxWidth: 1280,
-  margin: '0 auto 18px',
   minWidth: 0,
 }
 
@@ -4155,34 +3985,6 @@ const messagePlaybookTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
-
-const teamRoomGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
-  gap: 12,
-  marginTop: 16,
-  minWidth: 0,
-}
-
-const teamRoomStepStyle: CSSProperties = {
-  display: 'flex',
-  gap: 12,
-  alignItems: 'flex-start',
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  padding: 14,
-  flexWrap: 'wrap',
-  minWidth: 0,
-}
-
-const teamRoomNoteStyle: CSSProperties = {
-  margin: '14px 0 0',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.5,
   overflowWrap: 'anywhere',
 }
 
