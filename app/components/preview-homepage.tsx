@@ -470,9 +470,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
   const [activeLane, setActiveLane] = useState<PricingPlanId>(() =>
     authenticated ? getPreferredPortalLane(access) : 'free',
   )
-  const startHref = authenticated ? getPlanDestinationHref('free') : '/join'
   const selectedDetails = commandModeDetails[activeLane]
-  const selectedAccess = getTierAccessPresentation(activeLane, access, authenticated)
   const selectedTasks = commandTaskSets[activeLane]
   const activeAccent = getModeAccent(activeLane)
 
@@ -552,14 +550,6 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
             >
                 Everything is visible up front. Find is active for free; You, Team, and League unlock when those tools make your tennis life easier.
             </p>
-            </div>
-            <div style={{ display: isMobile ? 'none' : 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link href={selectedAccess.primaryCta.href} style={{ ...buttonPrimary, minHeight: 46 }}>
-                {selectedAccess.primaryCta.label}
-              </Link>
-              <Link href={startHref} style={{ ...buttonGhost, minHeight: 46 }}>
-                Start Free
-              </Link>
             </div>
           </div>
 
@@ -1861,7 +1851,7 @@ function PreviewHomepageContent() {
   const hasPaidAccess =
     access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow || access.canUseLeagueTools
 
-  if (hasPaidAccess) {
+  if (hasPaidAccess || authenticated) {
     return (
       <div
         style={{
@@ -1952,7 +1942,6 @@ function PreviewHomepageContent() {
           </div>
         </section>
 
-        <FinalConversionRow />
       </div>
   )
 }
@@ -2627,55 +2616,6 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
             </article>
           )
         })}
-      </div>
-    </section>
-  )
-}
-
-function FinalConversionRow() {
-  const { isTablet, isSmallMobile } = useViewportBreakpoints()
-
-  return (
-    <section
-      style={{
-        ...surfaceCardStrong,
-        display: 'grid',
-        gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
-        gap: 14,
-        alignItems: 'center',
-        padding: isSmallMobile ? 16 : 18,
-        minWidth: 0,
-        border: '1px solid rgba(155,225,29,0.18)',
-        background:
-          'linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 92%, var(--brand-green) 8%) 0%, color-mix(in srgb, var(--surface) 96%, var(--brand-blue) 4%) 100%)',
-      }}
-    >
-      <div style={{ display: 'grid', gap: 6, maxWidth: 760, minWidth: 0 }}>
-        <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-green)' }}>Ready when the next tennis job appears</div>
-        <h2
-          style={{
-            margin: 0,
-            color: 'var(--foreground-strong)',
-            fontSize: 'clamp(1.35rem, 1.9vw, 2rem)',
-            lineHeight: 1.04,
-            letterSpacing: '-0.04em',
-            fontWeight: 900,
-          }}
-        >
-          Start free, then choose the tier that saves the most time.
-        </h2>
-        <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.5 }}>
-          Search first. Upgrade for Player prep, Captain decisions, or league operations when those tools matter.
-        </p>
-      </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: isTablet ? 'start' : 'end', minWidth: 0 }}>
-        <Link href="/join" style={buttonPrimary}>
-          Get Started Free
-        </Link>
-        <Link href="/pricing" style={buttonGhost}>
-          Compare tiers
-        </Link>
       </div>
     </section>
   )

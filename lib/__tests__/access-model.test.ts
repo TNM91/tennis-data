@@ -59,4 +59,20 @@ describe('buildProductAccessState', () => {
     expect(captainAccess.captainTierLabel).toBe(`${MEMBERSHIP_TIERS.captain.name} active`)
     expect(captainAccess.captainTierMessage).toContain(MEMBERSHIP_TIERS.captain.description)
   })
+
+  it('keeps admin access active even when profile entitlement flags are false', () => {
+    const access = buildProductAccessState('admin', {
+      playerPlusSubscriptionActive: false,
+      playerPlusSubscriptionStatus: 'inactive',
+      captainSubscriptionActive: false,
+      captainSubscriptionStatus: 'inactive',
+      tiqTeamLeagueEntryEnabled: false,
+      tiqIndividualLeagueCreatorEnabled: false,
+    })
+
+    expect(access.currentPlanId).toBe('captain')
+    expect(access.canUseAdvancedPlayerInsights).toBe(true)
+    expect(access.canUseCaptainWorkflow).toBe(true)
+    expect(access.canUseLeagueTools).toBe(true)
+  })
 })

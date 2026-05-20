@@ -146,8 +146,8 @@ export function buildProductAccessState(
   }
 
   const signedInMember = isMember(role)
-  const captainSubscriptionActive = snapshot.captainSubscriptionActive
-  const playerPlusActive = snapshot.playerPlusSubscriptionActive || captainSubscriptionActive || role === 'admin'
+  const captainSubscriptionActive = role === 'admin' || snapshot.captainSubscriptionActive
+  const playerPlusActive = snapshot.playerPlusSubscriptionActive || captainSubscriptionActive
   const leagueToolsActive =
     role === 'admin' || snapshot.tiqTeamLeagueEntryEnabled || snapshot.tiqIndividualLeagueCreatorEnabled
 
