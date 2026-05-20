@@ -15,6 +15,7 @@ export type UserProfileLink = {
   linked_league_name: string | null
   linked_flight?: string | null
   profile_photo_url?: string | null
+  message_display_name?: string | null
 }
 
 export type SaveUserProfileLinkPayload = UserProfileLink & {
@@ -43,6 +44,7 @@ function normalizeStoredProfileLink(value: StoredProfileLink | null): UserProfil
     linked_team_name: value.linked_team_name || null,
     linked_league_name: value.linked_league_name || null,
     linked_flight: value.linked_flight || null,
+    message_display_name: null,
   }
 }
 
@@ -57,7 +59,7 @@ export async function loadUserProfileLink(userId: string | null | undefined): Pr
 
   const fullRes = await supabase
     .from('profiles')
-    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name,linked_flight,profile_photo_url')
+    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name,linked_flight,profile_photo_url,message_display_name')
     .eq('id', userId)
     .maybeSingle()
 

@@ -462,10 +462,14 @@ function CommandCenterHome({
   access,
   authenticated,
   firstName,
+  profileLinked,
+  profileResolved,
 }: {
   access: ProductAccessState
   authenticated: boolean
   firstName: string
+  profileLinked: boolean
+  profileResolved: boolean
 }) {
   const router = useRouter()
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -476,11 +480,18 @@ function CommandCenterHome({
   const selectedDetails = commandModeDetails[activeLane]
   const selectedTasks = commandTaskSets[activeLane]
   const activeAccent = getModeAccent(activeLane)
+  const needsProfileLink = authenticated && profileResolved && !profileLinked
   const heroHeadline = authenticated
-    ? `Hi${firstName ? ` ${firstName}` : ''}, welcome back!`
+    ? firstName
+      ? `Hi ${firstName}, welcome back!`
+      : needsProfileLink
+        ? 'Welcome back. Link your profile.'
+        : 'Welcome back.'
     : selectedDetails.headline
-  const heroSubhead = authenticated
-    ? 'What do we want to work on today?'
+  const heroSubhead = needsProfileLink
+    ? 'TenAceIQ knows your account is signed in, but it does not know which player record should power your tools yet.'
+    : authenticated
+      ? 'What do we want to work on today?'
     : selectedDetails.subhead
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -559,6 +570,18 @@ function CommandCenterHome({
               >
                 {heroSubhead}
               </p>
+              {needsProfileLink ? (
+                <Link href="/profile" style={profileLinkNoticeStyle}>
+                  <span style={homeLockChipStyle}>
+                    <NavLockIcon size={14} />
+                  </span>
+                  <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+                    <strong style={profileLinkNoticeTitleStyle}>Profile not linked yet</strong>
+                    <span style={profileLinkNoticeTextStyle}>Choose your player once. Then My Lab, Matchup, Team, and League can start from you.</span>
+                  </span>
+                  <span style={profileLinkNoticeCtaStyle}>Link profile</span>
+                </Link>
+              ) : null}
             </div>
           </div>
 
@@ -1878,6 +1901,9 @@ function PreviewHomepageContent() {
   const authenticated = role !== 'public'
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
+  const [profileDisplayName, setProfileDisplayName] = useState('')
+  const [profileLinked, setProfileLinked] = useState(false)
+  const [profileResolved, setProfileResolved] = useState(!authenticated)
   const metadataName = useMemo(() => {
     const metadata = session?.user?.user_metadata || {}
     const raw =
@@ -1890,7 +1916,7 @@ function PreviewHomepageContent() {
             : ''
     return raw.trim()
   }, [session?.user?.user_metadata])
-  const firstName = (metadataName || linkedPlayerName).split(' ')[0] || ''
+  const firstName = (metadataName || (profileLinked ? profileDisplayName || linkedPlayerName : '')).split(' ')[0] || ''
 
   useEffect(() => {
     let active = true
@@ -1898,12 +1924,19 @@ function PreviewHomepageContent() {
     async function loadProfileName() {
       if (!userId) {
         setLinkedPlayerName('')
+        setProfileDisplayName('')
+        setProfileLinked(false)
+        setProfileResolved(true)
         return
       }
 
+      setProfileResolved(false)
       const result = await loadUserProfileLink(userId)
       if (!active) return
       setLinkedPlayerName(result.data?.linked_player_name || '')
+      setProfileDisplayName(result.data?.message_display_name || '')
+      setProfileLinked(Boolean(result.data?.linked_player_id || result.data?.linked_player_name))
+      setProfileResolved(true)
     }
 
     void loadProfileName()
@@ -1927,6 +1960,8 @@ function PreviewHomepageContent() {
           access={access}
           authenticated={authenticated}
           firstName={firstName}
+          profileLinked={profileLinked}
+          profileResolved={profileResolved}
         />
         {!authenticated ? <TierChoiceGrid access={access} authenticated={authenticated} /> : null}
       </div>
@@ -3687,6 +3722,54 @@ const activeTierBadgeStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 18%, var(--surface-soft) 82%)',
   color: 'var(--foreground-strong)',
   width: 'fit-content',
+}
+
+const profileLinkNoticeStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
+  gap: 12,
+  alignItems: 'center',
+  width: 'min(100%, 720px)',
+  marginTop: 12,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, rgba(116,190,255,0.18) 70%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.13), rgba(255,255,255,0.055))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+  minWidth: 0,
+  maxWidth: '100%',
+  boxSizing: 'border-box',
+}
+
+const profileLinkNoticeTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  lineHeight: 1.15,
+}
+
+const profileLinkNoticeTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 700,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const profileLinkNoticeCtaStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 34,
+  padding: '0 12px',
+  borderRadius: 999,
+  background: 'var(--brand-green)',
+  color: '#061226',
+  fontSize: 12,
+  fontWeight: 950,
+  whiteSpace: 'nowrap',
 }
 
 const homeLockChipStyle: CSSProperties = {

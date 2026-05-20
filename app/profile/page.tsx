@@ -271,6 +271,7 @@ function ProfilePageInner() {
         linked_league_name: payload.linked_league_name,
         linked_flight: payload.linked_flight,
         profile_photo_url: profile?.profile_photo_url || null,
+        message_display_name: profile?.message_display_name || payload.linked_player_name || null,
       })
       setMessage(
         saveRes.source === 'local'
@@ -314,6 +315,7 @@ function ProfilePageInner() {
         linked_league_name: current?.linked_league_name || null,
         linked_flight: current?.linked_flight || null,
         profile_photo_url: result.publicUrl,
+        message_display_name: current?.message_display_name || null,
       }))
       setPhotoMessage('Profile photo uploaded.')
     }
@@ -460,16 +462,31 @@ function ProfilePageInner() {
     },
   ]
   const setupProgress = setupSteps.filter((step) => step.complete).length
+  const heroTitle = profileComplete ? 'Your player identity is connected.' : 'Link your player profile.'
+  const heroCopy = profileComplete
+    ? 'Your account knows which player record powers My Lab, Matchup, Team, and League context.'
+    : 'TenAceIQ knows you are signed in. Now choose the player record that should personalize your tools.'
 
   return (
     <section style={pageStyle}>
         <section style={heroStyle(isTablet, isMobile)}>
           <div>
             <div style={eyebrowStyle}>Manage profile</div>
-            <h1 style={heroTitleStyle}>Your player identity, connected.</h1>
+            <h1 style={heroTitleStyle}>{heroTitle}</h1>
             <p style={heroTextStyle}>
-              Pick your player once. TenAceIQ pulls your tennis context forward from there.
+              {heroCopy}
             </p>
+            {!profileComplete ? (
+              <a href="#profile-identity" style={profileSetupNoticeStyle}>
+                <TiqFeatureIcon name="accountSecurity" size="sm" variant="surface" />
+                <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+                  <strong style={profileSetupNoticeTitleStyle}>Start here: choose your player record</strong>
+                  <span style={profileSetupNoticeTextStyle}>
+                    This unlocks the personal greeting, ratings, team context, and match prep starting point.
+                  </span>
+                </span>
+              </a>
+            ) : null}
             <div style={toolFlowStyle(isMobile)}>
               {toolFlowCards.map((card) => (
                 <div key={card.label} style={toolFlowCardStyle(isMobile)}>
@@ -483,8 +500,17 @@ function ProfilePageInner() {
               ))}
             </div>
             <div style={heroButtonRowStyle}>
-              <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
-              <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
+              {profileComplete ? (
+                <>
+                  <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
+                  <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
+                </>
+              ) : (
+                <>
+                  <a href="#profile-identity" style={primaryButtonStyle}>Choose player record</a>
+                  <Link href="/explore/players" style={secondaryButtonStyle}>Browse players</Link>
+                </>
+              )}
               {canManageBilling ? (
                 <button
                   type="button"
@@ -595,21 +621,27 @@ function ProfilePageInner() {
           </div>
         </section>
 
-        {loading ? (
-          <div style={surfaceStyle}>Loading profile...</div>
-        ) : (
           <section style={contentGridStyle(isTablet)}>
-            <div style={surfaceStyle}>
+            <div id="profile-identity" style={surfaceStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKickerStyle}>Identity</p>
-                  <h2 style={sectionTitleStyle}>Set your player once</h2>
-                  <p style={sectionTextStyle}>Teams and leagues are detected from match history as your tennis footprint grows.</p>
+                  <h2 style={sectionTitleStyle}>{profileComplete ? 'Player linked' : 'Choose the player TenAceIQ should know'}</h2>
+                  <p style={sectionTextStyle}>
+                    {profileComplete
+                      ? 'Teams and leagues are detected from match history as your tennis footprint grows.'
+                      : 'Select your player record, save it once, and the rest of the platform can start from your tennis identity.'}
+                  </p>
                 </div>
                 <span style={profileComplete ? pillGreenStyle : pillSlateStyle}>
                   {profileComplete ? 'Linked' : 'Not linked'}
                 </span>
               </div>
+              {loading ? (
+                <div style={profileLoadingNoticeStyle}>
+                  Loading player records. You can start here as soon as the list appears.
+                </div>
+              ) : null}
 
               <div style={identityGridStyle(isMobile)}>
                 <label style={fieldStyle}>
@@ -622,8 +654,9 @@ function ProfilePageInner() {
                       setError('')
                     }}
                     style={inputStyle}
+                    disabled={loading}
                   >
-                    <option value="">Select your player record</option>
+                    <option value="">{loading ? 'Loading player records...' : 'Select your player record'}</option>
                     {players.map((player) => (
                       <option key={player.id} value={player.id}>
                         {player.name}{player.location ? ` - ${player.location}` : ''}
@@ -684,7 +717,7 @@ function ProfilePageInner() {
               </div>
 
               <div style={actionRowStyle}>
-                <button type="button" onClick={saveProfile} disabled={saving || !userId} style={primaryButtonStyle}>
+                <button type="button" onClick={saveProfile} disabled={saving || loading || !userId} style={primaryButtonStyle}>
                   {saving ? 'Saving...' : 'Save player identity'}
                 </button>
                 <Link href="/explore/players" style={secondaryButtonStyle}>Find players</Link>
@@ -738,7 +771,6 @@ function ProfilePageInner() {
               </div>
             </aside>
           </section>
-        )}
     </section>
   )
 }
@@ -806,6 +838,38 @@ const heroTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '1.02rem',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const profileSetupNoticeStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
+  gap: 12,
+  alignItems: 'center',
+  width: 'min(100%, 620px)',
+  marginTop: 16,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 13%, transparent 87%), var(--shell-chip-bg))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  boxSizing: 'border-box',
+  minWidth: 0,
+}
+
+const profileSetupNoticeTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  lineHeight: 1.2,
+}
+
+const profileSetupNoticeTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 750,
+  lineHeight: 1.4,
   overflowWrap: 'anywhere',
 }
 
@@ -1162,6 +1226,18 @@ const surfaceStyle: CSSProperties = {
   display: 'grid',
   gap: 16,
   minWidth: 0,
+}
+
+const profileLoadingNoticeStyle: CSSProperties = {
+  padding: '10px 12px',
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-blue) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 800,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const sectionHeaderStyle: CSSProperties = {
