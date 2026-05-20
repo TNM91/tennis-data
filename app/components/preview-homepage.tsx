@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import NavLockIcon from '@/app/components/nav-lock-icon'
@@ -30,6 +30,7 @@ import {
   TIER_HOMEPAGE_STORY,
   type MembershipTierId,
 } from '@/lib/product-story'
+import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TierTheme = {
@@ -457,7 +458,15 @@ function getTierAccessPresentation(planId: PricingPlanId, access: ProductAccessS
   }
 }
 
-function CommandCenterHome({ access, authenticated }: { access: ProductAccessState; authenticated: boolean }) {
+function CommandCenterHome({
+  access,
+  authenticated,
+  firstName,
+}: {
+  access: ProductAccessState
+  authenticated: boolean
+  firstName: string
+}) {
   const router = useRouter()
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const [query, setQuery] = useState('')
@@ -465,9 +474,14 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
     authenticated ? getPreferredPortalLane(access) : 'free',
   )
   const selectedDetails = commandModeDetails[activeLane]
-  const selectedMode = commandModes.find((mode) => mode.planId === activeLane) ?? commandModes[0]
   const selectedTasks = commandTaskSets[activeLane]
   const activeAccent = getModeAccent(activeLane)
+  const heroHeadline = authenticated
+    ? `Hi${firstName ? ` ${firstName}` : ''}, welcome back!`
+    : selectedDetails.headline
+  const heroSubhead = authenticated
+    ? 'What do we want to work on today?'
+    : selectedDetails.subhead
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -532,7 +546,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                   overflowWrap: 'anywhere',
                 }}
               >
-                {selectedDetails.headline}
+                {heroHeadline}
               </h1>
               <p
                 style={{
@@ -543,26 +557,8 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                   lineHeight: 1.5,
                 }}
               >
-                {selectedDetails.subhead}
+                {heroSubhead}
               </p>
-            </div>
-            <div
-              aria-hidden="true"
-              style={{
-                display: isMobile ? 'none' : 'grid',
-                gridTemplateColumns: 'repeat(2, 46px)',
-                gap: 8,
-                padding: 10,
-                borderRadius: 22,
-                border: `1px solid color-mix(in srgb, ${activeAccent} 24%, rgba(116,190,255,0.14) 76%)`,
-                background: `radial-gradient(circle at 50% 30%, color-mix(in srgb, ${activeAccent} 16%, transparent) 0%, rgba(255,255,255,0.045) 72%)`,
-                boxShadow: `0 18px 42px color-mix(in srgb, ${activeAccent} 10%, transparent)`,
-              }}
-            >
-              <TiqFeatureIcon name={selectedMode.icon} size="md" variant="surface" />
-              <TiqFeatureIcon name={activeLane === 'captain' ? 'messagingCenter' : activeLane === 'league' ? 'schedule' : activeLane === 'player_plus' ? 'matchupAnalysis' : 'playerRatings'} size="md" variant="ghost" />
-              <TiqFeatureIcon name={activeLane === 'captain' ? 'scenarioBuilder' : activeLane === 'league' ? 'reports' : activeLane === 'player_plus' ? 'matchPrep' : 'opponentScouting'} size="md" variant="ghost" />
-              <TiqFeatureIcon name={activeLane === 'league' ? 'teamRankings' : 'alerts'} size="md" variant="surface" />
             </div>
           </div>
 
@@ -621,7 +617,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                           Open
                         </em>
                       ) : isMobile ? null : (
-                        <span title={`${mode.lane} unlocks with ${getPricingPlan(mode.planId).name}`} style={{ color: 'var(--shell-copy-muted)', display: 'inline-flex' }}>
+                        <span title={`${mode.lane} unlocks with ${getPricingPlan(mode.planId).name}`} style={homeLockChipStyle}>
                           <NavLockIcon size={13} />
                         </span>
                       )}
@@ -631,7 +627,7 @@ function CommandCenterHome({ access, authenticated }: { access: ProductAccessSta
                     </span>
                   </span>
                   {!accessState.active && isMobile ? (
-                    <span title={`${mode.lane} unlocks with ${getPricingPlan(mode.planId).name}`} style={{ color: 'var(--shell-copy-muted)', display: 'inline-flex' }}>
+                    <span title={`${mode.lane} unlocks with ${getPricingPlan(mode.planId).name}`} style={homeLockChipStyle}>
                       <NavLockIcon size={14} />
                     </span>
                   ) : null}
@@ -1878,9 +1874,44 @@ export default function PreviewHomepage() {
 
 function PreviewHomepageContent() {
   const { isMobile } = useViewportBreakpoints()
-  const { role, entitlements } = useAuth()
+  const { role, entitlements, session, userId } = useAuth()
   const authenticated = role !== 'public'
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const [linkedPlayerName, setLinkedPlayerName] = useState('')
+  const metadataName = useMemo(() => {
+    const metadata = session?.user?.user_metadata || {}
+    const raw =
+      typeof metadata.name === 'string'
+        ? metadata.name
+        : typeof metadata.full_name === 'string'
+          ? metadata.full_name
+          : typeof metadata.display_name === 'string'
+            ? metadata.display_name
+            : ''
+    return raw.trim()
+  }, [session?.user?.user_metadata])
+  const firstName = (metadataName || linkedPlayerName).split(' ')[0] || ''
+
+  useEffect(() => {
+    let active = true
+
+    async function loadProfileName() {
+      if (!userId) {
+        setLinkedPlayerName('')
+        return
+      }
+
+      const result = await loadUserProfileLink(userId)
+      if (!active) return
+      setLinkedPlayerName(result.data?.linked_player_name || '')
+    }
+
+    void loadProfileName()
+
+    return () => {
+      active = false
+    }
+  }, [userId])
 
   return (
     <div
@@ -1895,6 +1926,7 @@ function PreviewHomepageContent() {
           key={`${authenticated ? 'signed-in' : 'public'}-${getPreferredPortalLane(access)}`}
           access={access}
           authenticated={authenticated}
+          firstName={firstName}
         />
         {!authenticated ? <TierChoiceGrid access={access} authenticated={authenticated} /> : null}
       </div>
@@ -2567,7 +2599,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
                 <span
                   title={accessPresentation.active ? accessPresentation.statusLabel : `${dashboardLane.label} unlock`}
                   aria-label={accessPresentation.active ? accessPresentation.statusLabel : `${dashboardLane.label} locked`}
-                  style={accessPresentation.active ? activeTierBadgeStyle : lockedTierBadgeStyle}
+                  style={accessPresentation.active ? activeTierBadgeStyle : homeLockChipStyle}
                 >
                   {accessPresentation.active ? accessPresentation.statusLabel : <NavLockIcon size={13} />}
                 </span>
@@ -3657,12 +3689,17 @@ const activeTierBadgeStyle: CSSProperties = {
   width: 'fit-content',
 }
 
-const lockedTierBadgeStyle: CSSProperties = {
-  ...mostPopularBadgeStyle,
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'color-mix(in srgb, var(--surface-soft) 84%, var(--foreground) 16%)',
-  color: 'var(--muted-strong)',
-  width: 'fit-content',
+const homeLockChipStyle: CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  color: 'var(--foreground-strong)',
+  flexShrink: 0,
 }
 
 const bulletRowStyle: CSSProperties = {
