@@ -752,6 +752,46 @@ function getModeAccent(planId: PricingPlanId) {
   return '#19c8b6'
 }
 
+function getDashboardLane(planId: PricingPlanId) {
+  if (planId === 'player_plus') {
+    return {
+      label: 'You',
+      title: 'Your game in one place.',
+      show: 'My Lab, follows, matchup prep, and the player context that matters to you.',
+      removes: 'Re-checking scattered profiles before every match.',
+      next: 'Unlock Player when you want TenAceIQ to revolve around your game.',
+    }
+  }
+
+  if (planId === 'captain') {
+    return {
+      label: 'Team',
+      title: 'The team week, organized.',
+      show: 'Availability, lineup building, scouting, messaging, and weekly team decisions.',
+      removes: 'Group-text chaos and last-minute lineup guesswork.',
+      next: 'Unlock Captain when making the lineup should feel calmer.',
+    }
+  }
+
+  if (planId === 'league') {
+    return {
+      label: 'League',
+      title: 'The season, in motion.',
+      show: 'Entries, schedules, results, standings, and league visibility in one operating lane.',
+      removes: 'Spreadsheet cleanup, unclear schedules, and result chasing.',
+      next: 'Unlock League when members need one clear season home.',
+    }
+  }
+
+  return {
+    label: 'Find',
+    title: 'The public tennis map.',
+    show: 'Players, teams, leagues, rankings, and public context stay searchable for free.',
+    removes: 'Hunting through scattered tennis pages just to get oriented.',
+    next: 'Start free, then unlock the lane that saves you real time.',
+  }
+}
+
 // Kept temporarily while the unified homepage command hero is validated.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function LegacyCommandCenterHome({ access, authenticated }: { access: ProductAccessState; authenticated: boolean }) {
@@ -1839,12 +1879,12 @@ function PreviewHomepageContent() {
             }}
           >
             <div style={{ display: 'grid', gap: 8, maxWidth: 860 }}>
-              <div style={sectionKicker}>Paid unlocks</div>
+              <div style={sectionKicker}>Dashboard lanes</div>
               <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.7rem)', lineHeight: 1.02 }}>
-                What opens after Free.
+                Pick the job. Open the tool. Move on.
               </h2>
               <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
-                Free gets people oriented. Player, Captain, and TIQ League Coordinator unlock the higher-value workflows: personal prep, team decisions, and league operations.
+                The homepage should work like the product: Find what matters, prep your own match, run the team week, or operate the season without reading a manual.
               </p>
             </div>
 
@@ -1859,13 +1899,13 @@ function PreviewHomepageContent() {
               }}
             >
               <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                Paid upgrade path
+                Show first
               </div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.08 }}>
-                Captain is the clearest team conversion.
+                Each lane shows the next useful action.
               </div>
               <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.68 }}>
-                Player makes TenAceIQ personal. Captain turns that intelligence into weekly decisions for the whole team.
+                Pricing stays available, but the main experience should feel like choosing a tennis task, not decoding a software bundle.
               </div>
             </div>
           </div>
@@ -2431,12 +2471,12 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
         }}
       >
         <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
-          <div style={sectionKicker}>Choose your tier</div>
+          <div style={sectionKicker}>Your dashboard lanes</div>
           <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.65rem)', lineHeight: 1.02 }}>
-            Start free. Upgrade by the job.
+            Four doors. One tennis day.
           </h2>
           <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
-            Every tier has a clear reason to exist: discovery, personal prep, team decisions, or league operations.
+            Start with Find. Unlock You, Team, or League when that lane removes work from your week.
           </p>
         </div>
         <Link href="/pricing" style={{ ...buttonGhost, minHeight: 40 }}>
@@ -2454,10 +2494,10 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
         }}
       >
         {conversionTierIds.map((planId) => {
-          const tier = getMembershipTier(planId)
           const story = TIER_HOMEPAGE_STORY[planId]
           const theme = getTierTheme(planId)
           const accessPresentation = getTierAccessPresentation(planId, access, authenticated)
+          const dashboardLane = getDashboardLane(planId)
           const featured = planId === 'captain'
 
           return (
@@ -2485,7 +2525,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
               ) : null}
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
                 <div style={{ display: 'grid', gap: 7 }}>
-                  <span style={{ ...theme.tierBadge, width: 'fit-content' }}>{tier.name}</span>
+                  <span style={{ ...theme.tierBadge, width: 'fit-content' }}>{dashboardLane.label}</span>
                   <h3
                     style={{
                       margin: 0,
@@ -2496,7 +2536,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
                       fontWeight: 900,
                     }}
                   >
-                    {tier.shortPromise}
+                    {dashboardLane.title}
                   </h3>
                 </div>
                 <div style={{ color: theme.priceColor, fontSize: 13, fontWeight: 950, whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'right' }}>
@@ -2505,7 +2545,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
               </div>
 
               <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.48 }}>
-                {story.copy}
+                {dashboardLane.show}
               </p>
 
               <div
@@ -2518,9 +2558,9 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
                   background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
                 }}
               >
-                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Best for</div>
+                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>What it removes</div>
                 <div style={{ color: 'var(--foreground-strong)', fontSize: 12, lineHeight: 1.4, fontWeight: 800 }}>
-                  {tier.audience}
+                  {dashboardLane.removes}
                 </div>
               </div>
 
@@ -2532,9 +2572,9 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
                   borderLeft: `2px solid ${theme.priceColor}`,
                 }}
               >
-                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Upgrade trigger</div>
+                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Next action</div>
                 <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.42, fontWeight: 700 }}>
-                  {tier.upgradeCue}
+                  {dashboardLane.next}
                 </div>
               </div>
 
