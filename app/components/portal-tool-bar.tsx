@@ -101,10 +101,8 @@ const portalLanes: PortalLane[] = [
 ]
 
 const hiddenPrefixes = ['/login', '/join', '/legal', '/reset-password', '/forget-password']
-const portalSurfaceBackground =
-  'radial-gradient(circle at 18% 8%, rgba(155,225,29,0.16), transparent 26%), radial-gradient(circle at 88% 18%, rgba(74,163,255,0.14), transparent 30%), linear-gradient(145deg, rgba(7,18,38,0.96) 0%, rgba(10,25,48,0.98) 52%, rgba(4,13,29,0.98) 100%)'
-const portalActiveCardBackground =
-  'linear-gradient(135deg, rgba(17,36,67,0.86) 0%, rgba(12,26,50,0.92) 100%)'
+const portalSurfaceBackground = 'var(--portal-surface-bg)'
+const portalActiveCardBackground = 'var(--portal-active-card-bg)'
 
 function isLaneActive(pathname: string, lane: PortalLane) {
   return lane.paths.some((path) => pathname === path || pathname.startsWith(`${path}/`))

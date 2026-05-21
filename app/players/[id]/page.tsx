@@ -8,7 +8,6 @@ import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
-import FindModeBridge from '@/app/components/find-mode-bridge'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import {
@@ -1268,18 +1267,6 @@ function PlayerProfileContent() {
           </div>
         </div>
       </section>
-
-      <FindModeBridge
-        active="Player Profile"
-        primary="Turn this profile into the next action"
-        secondary="Open the player record, compare the matchup, scan rankings, or move back into public discovery."
-        links={[
-          { href: '/explore/search?scope=players', label: 'Search', icon: 'opponentScouting' },
-          { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
-          { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
-          { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
-        ]}
-      />
 
       <section style={contentWrap}>
         <article style={scorecardPanelStyle} id="profile-scorecard">
@@ -3011,10 +2998,10 @@ const heroShell: CSSProperties = {
   margin: '0 auto',
   minWidth: 0,
   borderRadius: '30px',
-  background: 'var(--shell-panel-bg-strong)',
+  background: 'var(--portal-tool-surface-bg)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow:
-    '0 26px 80px rgba(7,18,42,0.16), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 80px rgba(88,170,255,0.03)',
+    '0 26px 80px rgba(2,10,24,0.28), inset 0 1px 0 rgba(255,255,255,0.05)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -3023,7 +3010,7 @@ const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
   background:
-    'radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%), radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)',
+    'radial-gradient(circle at 12% 0%, rgba(116,190,255,0.10), transparent 30%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.07), transparent 28%), linear-gradient(180deg, rgba(255,255,255,0.018) 0%, rgba(255,255,255,0) 26%)',
   pointerEvents: 'none',
 }
 

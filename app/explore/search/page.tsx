@@ -345,7 +345,7 @@ function ExploreSearchContent() {
             gap: isMobile ? 14 : 16,
             overflow: 'hidden',
             position: 'relative',
-            background: 'linear-gradient(180deg, rgba(10,24,47,0.94) 0%, rgba(7,17,33,0.98) 100%)',
+            background: 'var(--portal-tool-surface-bg)',
           }}
         >
           <SearchCommandPanel
