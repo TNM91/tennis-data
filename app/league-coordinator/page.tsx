@@ -1,7 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { LeagueCoordinatorWorkspace } from '@/app/components/league-coordinator-workspace'
+import SiteShell from '@/app/components/site-shell'
 
 export default function LeagueCoordinatorPage() {
-  return <LeagueCoordinatorWorkspace activeRoute="/league-coordinator" />
+  return (
+    <SiteShell active="/league-coordinator">
+      <LeagueCoordinatorWorkspace />
+    </SiteShell>
+  )
 }

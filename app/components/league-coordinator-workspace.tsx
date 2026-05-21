@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
-import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
@@ -231,7 +230,7 @@ function buildTeamResultLineSummaryMap(
   return summaries
 }
 
-export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
+export function LeagueCoordinatorWorkspace() {
   const searchParams = useSearchParams()
   const { isMobile } = useViewportBreakpoints()
   const { role, userId, entitlements, authResolved } = useAuth()
@@ -1041,8 +1040,6 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   }
 
   const responsivePageWrap = isMobile ? { ...pageWrap, ...mobilePageWrap } : pageWrap
-  const responsiveHeroCard = isMobile ? { ...heroCard, ...mobileHeroCard } : heroCard
-  const responsiveHeroTitle = isMobile ? { ...heroTitle, ...mobileHeroTitle } : heroTitle
   const responsivePanelCard = isMobile ? { ...panelCard, ...mobilePanelCard } : panelCard
   const responsiveLayoutGrid = singleColumnGrid
   const responsiveFieldGrid = isMobile ? singleColumnGrid : fieldGrid
@@ -1077,37 +1074,8 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
 
   return (
-    <SiteShell active={activeRoute}>
       <section style={responsivePageWrap}>
-        <div style={responsiveHeroCard}>
-          <div style={heroEyebrow}>{LEAGUE_COORDINATOR_STORY.eyebrow}</div>
-          <h1 style={responsiveHeroTitle}>{LEAGUE_COORDINATOR_STORY.headline}</h1>
-          <p style={heroText}>
-            {LEAGUE_COORDINATOR_STORY.body}
-          </p>
-
-          <div style={heroPillRow}>
-            <span style={pillBlue}>{records.length} TIQ leagues</span>
-            <span style={pillGreen}>{teamLeagues.length} team leagues</span>
-            <span style={pillSlate}>{individualLeagues.length} individual leagues</span>
-            <span style={storageSource === 'supabase' ? pillGreen : pillSlate}>
-              {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
-            </span>
-            <span style={access.canUseLeagueTools ? pillGreen : pillSlate}>
-              {access.leagueTierLabel}
-            </span>
-          </div>
-
-          {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
-          {!access.canUseLeagueTools ? <div style={noteBanner}>{access.leagueTierMessage}</div> : null}
-
-          <div style={responsiveHeroActionRowStyle}>
-            <GhostLink href={resultEntryHref}>Record results</GhostLink>
-            <GhostLink href="/data-assist">Upload data</GhostLink>
-            <GhostLink href="/compete/leagues">My leagues</GhostLink>
-            <GhostLink href="/explore/leagues">Browse leagues</GhostLink>
-          </div>
-        </div>
+        {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
 
         <section style={startPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
@@ -1196,7 +1164,15 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           </div>
         </section>
 
-        <section style={dataAssistOpsPanelStyle}>
+        <details style={dataAssistOpsPanelStyle}>
+          <summary style={responsiveDetailsSummary}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
+              <h2 style={leagueOpsTitleStyle}>Data refresh path</h2>
+              <p style={leagueOpsTextStyle}>Open when schedules, rosters, or scorecards need to refresh the season.</p>
+            </div>
+            <GhostLink href="/data-assist">{DATA_ASSIST_STORY.cta}</GhostLink>
+          </summary>
           <div style={leagueOpsHeaderStyle}>
             <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
@@ -1224,9 +1200,24 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <span>Uploaded scorecards should land in review before they update result books and public standings.</span>
             </div>
           </div>
-        </section>
+        </details>
 
-        <section style={publicReadinessPanelStyle}>
+        <details style={publicReadinessPanelStyle}>
+          <summary style={responsiveDetailsSummary}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>Public page readiness</div>
+              <h2 style={leagueOpsTitleStyle}>
+                {records.length === 0
+                  ? 'Public pages unlock after setup.'
+                  : publicPageNeedsWorkCount > 0
+                    ? `${publicPageNeedsWorkCount} page${publicPageNeedsWorkCount === 1 ? '' : 's'} need data.`
+                    : 'Public pages are ready.'}
+              </h2>
+            </div>
+            <span style={publicPageNeedsWorkCount > 0 ? pillSlate : pillGreen}>
+              {records.length === 0 ? 'Setup first' : `${publicReadyLeagueCount}/${records.length} ready`}
+            </span>
+          </summary>
           <div style={leagueOpsHeaderStyle}>
             <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Public page readiness</div>
@@ -1295,9 +1286,18 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                 : 'No public league pages match this filter.'}
             </div>
           )}
-        </section>
+        </details>
 
-        <section style={reviewQueuePanelStyle}>
+        <details style={reviewQueuePanelStyle}>
+          <summary style={responsiveDetailsSummary}>
+            <div style={leagueOpsHeaderCopyStyle}>
+              <div style={sectionEyebrow}>Result review queue</div>
+              <h2 style={leagueOpsTitleStyle}>{resultQueueHeadline}</h2>
+            </div>
+            <span style={resultQueueItemCount > 0 ? pillSlate : pillGreen}>
+              {resultQueueItemCount > 0 ? 'Review needed' : 'In shape'}
+            </span>
+          </summary>
           <div style={leagueOpsHeaderStyle}>
             <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Result review queue</div>
@@ -1411,7 +1411,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </div>
             </div>
           </div>
-        </section>
+        </details>
 
         {teamLeagues.length > 0 ? (
           <section style={resultBookPanelStyle}>
@@ -2443,8 +2443,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             ) : null}
           </section>
         </div>
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 
@@ -2577,63 +2576,6 @@ const mobilePageWrap: CSSProperties = {
   width: 'calc(100% - clamp(20px, 5vw, 28px))',
   padding: '14px 0 24px',
   gap: '14px',
-}
-
-const heroCard: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  padding: 'clamp(20px, 4vw, 28px)',
-  borderRadius: '24px',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 12%, transparent) 0%, transparent 34%), linear-gradient(180deg, color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-panel-bg) 90%) 0%, var(--shell-panel-bg-strong) 100%)',
-  boxShadow: 'var(--shadow-card)',
-  minWidth: 0,
-}
-
-const mobileHeroCard: CSSProperties = {
-  padding: '20px',
-  borderRadius: '24px',
-}
-
-const heroEyebrow: CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: 0,
-  textTransform: 'uppercase',
-  color: 'var(--brand-blue-2)',
-  overflowWrap: 'anywhere',
-}
-
-const heroTitle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2.3rem, 6vw, 3.25rem)',
-  lineHeight: 0.98,
-  letterSpacing: 0,
-  maxWidth: '940px',
-  overflowWrap: 'anywhere',
-}
-
-const mobileHeroTitle: CSSProperties = {
-  fontSize: '38px',
-  lineHeight: 1.02,
-}
-
-const heroText: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '16px',
-  lineHeight: 1.75,
-  maxWidth: '920px',
-  overflowWrap: 'anywhere',
-}
-
-const heroPillRow: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  minWidth: 0,
 }
 
 const pillBase: CSSProperties = {
