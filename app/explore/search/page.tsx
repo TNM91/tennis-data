@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   badgeBlue,
@@ -13,7 +12,6 @@ import {
   colors,
   pageShell,
   pageSubtitle,
-  pageTitle,
   sectionKicker,
   sectionStack,
   sectionTitle,
@@ -23,7 +21,6 @@ import {
 import { buildExploreLeagueHref, getCompetitionLayerLabel } from '@/lib/competition-layers'
 import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
 import { supabase } from '@/lib/supabase'
-import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-formatters'
@@ -166,7 +163,6 @@ export default function ExploreSearchPage() {
 
 function ExploreSearchContent() {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const { access, authResolved } = useProductAccess()
 
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<SearchScope>('players')
@@ -332,35 +328,6 @@ function ExploreSearchContent() {
     (showTeamResults ? teams.length : 0) +
     (showLeagueResults ? filteredLeagues.length : 0)
 
-  const upgradeConfig = useMemo(() => {
-    if (!authResolved) return null
-
-    if (scope === 'players') {
-      if (access.canUseAdvancedPlayerInsights) return null
-      return {
-        planId: 'player_plus' as const,
-        headline: 'Want better answers than a basic directory?',
-        body: 'Unlock Player to move from simple search into projections, role fit, and practical player insight.',
-      }
-    }
-
-    if (scope === 'teams') {
-      if (access.canUseCaptainWorkflow) return null
-      return {
-        planId: 'captain' as const,
-        headline: 'Still piecing team context together manually?',
-        body: 'Captain connects availability, lineup building, scenarios, and messaging so team search turns into weekly action.',
-      }
-    }
-
-    if (access.canUseLeagueTools) return null
-    return {
-      planId: 'league' as const,
-      headline: 'Need league structure, not more spreadsheet cleanup?',
-      body: 'League tools keep flights, standings, schedules, and organizer communication in one organized place.',
-    }
-  }, [access.canUseAdvancedPlayerInsights, access.canUseCaptainWorkflow, access.canUseLeagueTools, authResolved, scope])
-
   return (
     <div
         style={{
@@ -375,31 +342,12 @@ function ExploreSearchContent() {
             ...surfaceCardStrong,
             padding: isSmallMobile ? 18 : isMobile ? 22 : 28,
             display: 'grid',
-            gap: 18,
+            gap: isMobile ? 14 : 16,
             overflow: 'hidden',
             position: 'relative',
+            background: 'linear-gradient(180deg, rgba(10,24,47,0.94) 0%, rgba(7,17,33,0.98) 100%)',
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              background:
-                'radial-gradient(circle at 18% 22%, rgba(74,163,255,0.16) 0%, transparent 28%), radial-gradient(circle at 82% 18%, rgba(155,225,29,0.14) 0%, transparent 24%)',
-            }}
-          />
-
-          <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 12, minWidth: 0 }}>
-            <div style={sectionKicker}>Unified Explore Search</div>
-            <h1 style={{ ...pageTitle, fontSize: 'clamp(2.2rem, 4vw, 4rem)', lineHeight: 0.95, overflowWrap: 'anywhere' }}>
-              Search once. See the right layer faster.
-            </h1>
-            <p style={{ ...pageSubtitle, marginTop: 0, maxWidth: 840, overflowWrap: 'anywhere' }}>
-              Find players, teams, leagues, flights, areas, and My Lab prep paths from one place.
-            </p>
-          </div>
-
           <SearchCommandPanel
             activeScope={scope}
             query={query}
@@ -769,15 +717,6 @@ function ExploreSearchContent() {
           ) : null}
         </section>
 
-        {upgradeConfig ? (
-          <UpgradePrompt
-            planId={upgradeConfig.planId}
-            headline={upgradeConfig.headline}
-            body={upgradeConfig.body}
-            secondaryHref="/pricing"
-            secondaryLabel="Compare plans"
-          />
-        ) : null}
     </div>
   )
 }
