@@ -522,15 +522,17 @@ function CaptainAvailabilityContent() {
 
   return (
     <div style={pageWrap}>
-        <section style={heroShellResponsive(isTablet, isMobile)}>
+        <section style={availabilityControlShellResponsive(isTablet, isMobile)} aria-label="Availability controls">
           <div>
-            <div style={eyebrow}>Captain availability</div>
-            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>
-              Who can play?
-            </h1>
-            <p style={heroText}>
-              Pick the match, mark responses, then build the lineup from players who are actually available.
-            </p>
+            <div style={availabilityControlHeader}>
+              <div>
+                <div style={sectionKicker}>Availability controls</div>
+                <h1 style={availabilityControlTitle}>Who can play?</h1>
+              </div>
+              <span style={responseProgress >= 80 ? badgeGreen : responseProgress >= 50 ? badgeBlue : badgeSlate}>
+                {responseProgress}% answered
+              </span>
+            </div>
 
             <div style={selectorPanelResponsive(isSmallMobile)}>
               <select
@@ -604,12 +606,6 @@ function CaptainAvailabilityContent() {
               >
                 {loadingRoster ? 'Refreshing...' : 'Refresh roster'}
               </button>
-            </div>
-
-            <div style={heroBadgeRow}>
-              <span style={badgeBlue}>{counts.in} available</span>
-              <span style={badgeGreen}>{counts.maybe} maybe</span>
-              <span style={badgeSlate}>{counts.unanswered} unanswered</span>
             </div>
           </div>
 
@@ -859,20 +855,13 @@ function MetricCard({
   )
 }
 
-function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
+function availabilityControlShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
-    ...heroShell,
+    ...availabilityControlShell,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.08fr) minmax(min(100%, 330px), 0.84fr)',
-    padding: isMobile ? '26px 18px' : '34px 26px',
+    padding: isMobile ? '20px 18px' : '24px 22px',
     gap: isMobile ? '18px' : '22px',
     minWidth: 0,
-  }
-}
-
-function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
-  return {
-    ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '56px',
   }
 }
 
@@ -941,7 +930,7 @@ const pageWrap: CSSProperties = {
   minWidth: 0,
 }
 
-const heroShell: CSSProperties = {
+const availabilityControlShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
   borderRadius: '34px',
@@ -951,42 +940,23 @@ const heroShell: CSSProperties = {
   minWidth: 0,
 }
 
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
+const availabilityControlHeader: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
   alignItems: 'center',
-  alignSelf: 'flex-start',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(130,244,118,0.28)',
-  background: 'rgba(89,145,73,0.14)',
-  color: 'var(--home-eyebrow-color)',
-  fontWeight: 800,
-  fontSize: '14px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  justifyContent: 'space-between',
+  gap: 12,
+  marginBottom: 14,
+  minWidth: 0,
 }
 
-const heroTitle: CSSProperties = {
-  margin: '0 0 12px',
+const availabilityControlTitle: CSSProperties = {
+  margin: '6px 0 0',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  lineHeight: 0.98,
+  fontSize: 'clamp(1.45rem, 2.5vw, 2.1rem)',
+  lineHeight: 1.08,
   letterSpacing: 0,
-  maxWidth: '760px',
-  overflowWrap: 'anywhere',
-}
-
-const heroText: CSSProperties = {
-  margin: '0 0 20px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '18px',
-  lineHeight: 1.6,
-  maxWidth: '760px',
   overflowWrap: 'anywhere',
 }
 
@@ -1046,14 +1016,6 @@ const disabledAction: CSSProperties = {
   opacity: 0.55,
   cursor: 'not-allowed',
   boxShadow: 'none',
-}
-
-const heroBadgeRow: CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap',
-  marginTop: '14px',
-  minWidth: 0,
 }
 
 const badgeBase: CSSProperties = {

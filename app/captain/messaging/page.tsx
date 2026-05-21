@@ -37,7 +37,6 @@ import {
 import { buildProductAccessState } from '@/lib/access-model'
 import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type ContactRow = {
   id: string
@@ -545,7 +544,7 @@ function CaptainMessagingContent() {
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [copiedState, setCopiedState] = useState<'none' | 'body' | 'numbers'>('none')
 
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isTablet, isMobile } = useViewportBreakpoints()
   const { role, entitlements, authResolved } = useAuth()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const captainAccess = access.canUseCaptainWorkflow
@@ -2033,22 +2032,27 @@ function importScenarioToLineup() {
 
   return (
     <section style={pageContentStyle}>
-         <section style={heroShellResponsive(isTablet, isMobile)}>
+         <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
             <div>
-              <TiqFeatureIcon name="messagingCenter" size="lg" variant="surface" />
-              <div style={eyebrow}>Messaging</div>
-            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Send the plan.</h1>
-            <p style={heroTextStyle}>
-              Choose the audience, load the right lineup context, and prepare the message your team needs next.
-            </p>
-            <div style={heroButtonRowStyle}>
-              <PrimaryLink href="/captain/lineup-builder">Edit lineup</PrimaryLink>
-              <GhostLink href="/captain/weekly-brief">Weekly brief</GhostLink>
-              <GhostLink href="/captain">Back to Captain</GhostLink>
+              <div style={messageControlHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Messaging controls</p>
+                  <h1 style={messageControlTitleStyle}>Send the plan.</h1>
+                </div>
+                <span style={deliveryReadiness.score >= 4 ? miniPillGreen : deliveryReadiness.score >= 2 ? miniPillBlue : warnPill}>
+                  {deliveryReadiness.label}
+                </span>
+              </div>
+              <div style={messageControlButtonRowStyle}>
+                <PrimaryLink href="/captain/lineup-builder">Edit lineup</PrimaryLink>
+                <GhostLink href="/captain/weekly-brief">Weekly brief</GhostLink>
+                <GhostLink href="/captain">Back to Captain</GhostLink>
+              </div>
             </div>
+
             <div style={heroStatusShell}>
               <div>
-                <div style={eyebrow}>This week</div>
+                <div style={sectionKicker}>This week</div>
                 <div style={heroStatusValue}>{weekStatusMeta.label}</div>
                 <div style={heroStatusText}>{weekStatusMeta.detail}</div>
               </div>
@@ -2064,12 +2068,6 @@ function importScenarioToLineup() {
                 </button>
               </div>
             </div>
-            <div style={heroMetricGridStyle(isSmallMobile)}>
-              <MetricStat label="Team contacts" value={String(scopedContacts.length)} />
-              <MetricStat label="Available this week" value={String(availabilitySummary.availableCount)} />
-              <MetricStat label="No response" value={String(responseSummary.noResponseCount)} />
-            </div>
-          </div>
         </section>
 
         <section style={messagePlaybookSurfaceStyle}>
@@ -3703,15 +3701,6 @@ function Field({ label, htmlFor, hint, children }: { label: string; htmlFor?: st
   )
 }
 
-function MetricStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={heroMetricCardStyle}>
-      <div style={metricLabelStyle}>{label}</div>
-      <div style={metricValueStyleHero}>{value}</div>
-    </div>
-  )
-}
-
 function MetricMini({ label, value, pill }: { label: string; value: string; pill: CSSProperties }) {
   return (
     <div style={miniMetricCardStyle}>
@@ -3722,27 +3711,12 @@ function MetricMini({ label, value, pill }: { label: string; value: string; pill
   )
 }
 
-function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
+function messageControlShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
-    ...heroShell,
+    ...messageControlShell,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.45fr) minmax(min(100%, 320px), 0.95fr)',
     gap: isMobile ? 18 : 24,
-    padding: isMobile ? '26px 18px' : '34px 26px',
-    minWidth: 0,
-  }
-}
-
-function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
-  return {
-    ...heroTitleStyle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '50px',
-  }
-}
-
-function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
-  return {
-    ...heroMetricGridBaseStyle,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+    padding: isMobile ? '20px 18px' : '24px 22px',
     minWidth: 0,
   }
 }
@@ -3780,7 +3754,7 @@ const pageContentStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const heroShell: CSSProperties = {
+const messageControlShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
   borderRadius: '34px',
@@ -3792,50 +3766,30 @@ const heroShell: CSSProperties = {
   minWidth: 0,
 }
 
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
+const messageControlHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
   alignItems: 'center',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
-  fontWeight: 800,
-  fontSize: '14px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
 }
 
-const heroTitleStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground)',
+const messageControlTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
-  lineHeight: 0.98,
+  fontSize: 'clamp(1.45rem, 2.5vw, 2.1rem)',
+  lineHeight: 1.08,
   letterSpacing: 0,
-  maxWidth: '760px',
   overflowWrap: 'anywhere',
 }
 
-const heroTextStyle: CSSProperties = {
-  marginTop: 16,
-  marginBottom: 0,
-  maxWidth: 820,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '1.02rem',
-  lineHeight: 1.72,
-  overflowWrap: 'anywhere',
-}
-
-const heroButtonRowStyle: CSSProperties = {
+const messageControlButtonRowStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
-  marginTop: 22,
+  marginTop: 14,
   minWidth: 0,
 }
 
@@ -3875,34 +3829,11 @@ const heroStatusButtonRow: CSSProperties = {
   minWidth: 0,
 }
 
-const heroMetricGridBaseStyle: CSSProperties = {
-  marginTop: 22,
-  display: 'grid',
-  gap: 14,
-  minWidth: 0,
-}
-
-const heroMetricCardStyle: CSSProperties = {
-  borderRadius: '22px',
-  padding: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  minWidth: 0,
-}
-
 const metricLabelStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '0.82rem',
   marginBottom: '0.42rem',
   fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
-
-const metricValueStyleHero: CSSProperties = {
-  color: 'var(--foreground)',
-  fontSize: '1.05rem',
-  fontWeight: 800,
-  lineHeight: 1.4,
   overflowWrap: 'anywhere',
 }
 

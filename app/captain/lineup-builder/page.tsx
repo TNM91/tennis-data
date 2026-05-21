@@ -27,7 +27,6 @@ import SiteShell from '@/app/components/site-shell'
 import { formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type PlayerRow = {
   id: string
@@ -2020,13 +2019,6 @@ function sendCurrentScenarioToMessaging() {
     setError('')
   }
 
-  const heroStats = [
-    { label: 'Scenario mode', value: currentScenarioId ? 'Editing saved scenario' : 'New scenario' },
-    { label: 'Player pool', value: `${myPlayerPool.length} team players` },
-    { label: 'Saved versions', value: `${scenarioOptions.length} scenarios` },
-    { label: 'Win chance', value: formatPercent(analysis.projection) },
-  ]
-
   const currentScenario = savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
   const hasScenarioName = !!scenarioName.trim()
   const hasCoreContext = !!teamName && !!opponentTeam && !!matchDate
@@ -2084,29 +2076,24 @@ function sendCurrentScenarioToMessaging() {
 
   return (
     <div style={pageWrap}>
-         <section style={heroShellResponsive(isTablet, isMobile)}>
+         <section style={builderControlShellStyle(isMobile)} aria-label="Lineup controls">
+          <div style={builderControlHeaderStyle}>
             <div>
-              <TiqFeatureIcon name="lineupBuilder" size="lg" variant="surface" />
-              <div style={eyebrow}>Lineup builder</div>
-            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Build the lineup.</h1>
-            <p style={heroTextStyle}>
-              Start from available players, fill the courts, check the edge, then send the plan.
-            </p>
-
-            <div style={heroButtonRowStyle}>
-              <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                {saving ? 'Saving...' : currentScenarioId ? 'Update lineup' : 'Save lineup'}
-              </PrimaryBtn>
-              <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
-              <PrimaryBtn onClick={sendCurrentScenarioToMessaging}>Send to messaging</PrimaryBtn>
-              <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
+              <p style={sectionKicker}>Lineup controls</p>
+              <h1 style={builderControlTitleStyle}>Build, compare, send.</h1>
             </div>
+            <span style={lineupHasAssignments ? miniPillGreenStyle : miniPillSlateStyle}>
+              {lineupHasAssignments ? `${formatPercent(analysis.projection)} projected` : 'Start lineup'}
+            </span>
+          </div>
 
-            <div style={heroMetricGridStyle(isSmallMobile)}>
-              {heroStats.map((stat) => (
-                <MetricStat key={stat.label} label={stat.label} value={stat.value} />
-              ))}
-            </div>
+          <div style={builderControlRowStyle(isSmallMobile)}>
+            <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
+              {saving ? 'Saving...' : currentScenarioId ? 'Update lineup' : 'Save lineup'}
+            </PrimaryBtn>
+            <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
+            <PrimaryBtn onClick={sendCurrentScenarioToMessaging}>Send to messaging</PrimaryBtn>
+            <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
           </div>
         </section>
 
@@ -3025,15 +3012,6 @@ function Field({ label, htmlFor, hint, children }: { label: string; htmlFor?: st
   )
 }
 
-function MetricStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={heroMetricCardStyle}>
-      <div style={metricLabelStyle}>{label}</div>
-      <div style={metricValueStyleHero}>{value}</div>
-    </div>
-  )
-}
-
 function SlotEditor({
   side,
   slot,
@@ -3128,11 +3106,10 @@ const pageWrap: CSSProperties = {
   minWidth: 0,
 }
 
-const heroShellResponsive = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
+const builderControlShellStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.3fr) minmax(0, 0.9fr)',
-  gap: isMobile ? 16 : 22,
-  padding: isMobile ? 18 : 26,
+  gap: isMobile ? 14 : 16,
+  padding: isMobile ? 18 : 22,
   borderRadius: 28,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
@@ -3140,75 +3117,33 @@ const heroShellResponsive = (isTablet: boolean, isMobile: boolean): CSSPropertie
   minWidth: 0,
 })
 
-const eyebrow: CSSProperties = {
-  color: '#93c5fd',
-  fontSize: 12,
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-  marginBottom: 10,
+const builderControlHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
 }
 
-const heroTitleResponsive = (isSmallMobile: boolean, isMobile: boolean): CSSProperties => ({
-  margin: 0,
-  color: 'var(--foreground)',
-  fontSize: isSmallMobile ? 32 : isMobile ? 40 : 52,
-  lineHeight: 1.02,
+const builderControlTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 2.5vw, 2.1rem)',
+  lineHeight: 1.08,
   letterSpacing: 0,
   fontWeight: 900,
   overflowWrap: 'anywhere',
-})
-
-const heroTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.65,
-  fontSize: 16,
-  maxWidth: 760,
-  marginTop: 14,
-  overflowWrap: 'anywhere',
 }
 
-const heroButtonRowStyle: CSSProperties = {
+const builderControlRowStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gridTemplateColumns: isSmallMobile
+    ? 'minmax(0, 1fr)'
+    : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
-  marginTop: 18,
-  minWidth: 0,
-}
-
-const heroMetricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
-  gap: 12,
-  marginTop: 22,
   minWidth: 0,
 })
-
-const heroMetricCardStyle: CSSProperties = {
-  borderRadius: 22,
-  padding: '16px 16px 14px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  minHeight: 96,
-  minWidth: 0,
-}
-
-const metricLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  overflowWrap: 'anywhere',
-}
-
-const metricValueStyleHero: CSSProperties = {
-  color: 'var(--foreground)',
-  fontSize: 28,
-  fontWeight: 900,
-  marginTop: 10,
-  overflowWrap: 'anywhere',
-}
 
 const builderLayoutResponsive = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
