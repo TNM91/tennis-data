@@ -121,17 +121,17 @@
   --container-tight: 1120px;
 
   --page-background:
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.16) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.12) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.08) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0a1425 0%, #0d1a31 34%, #0c182d 68%, #091322 100%);
+    radial-gradient(circle at 14% 2%, rgba(77, 139, 206, 0.1) 0%, rgba(77, 139, 206, 0) 24%),
+    radial-gradient(circle at 82% 10%, rgba(50, 109, 178, 0.08) 0%, rgba(50, 109, 178, 0) 26%),
+    radial-gradient(circle at 50% -8%, rgba(87, 146, 204, 0.045) 0%, rgba(87, 146, 204, 0) 28%),
+    linear-gradient(180deg, #071222 0%, #08162a 34%, #071426 68%, #050d19 100%);
   --page-grid-line: rgba(255, 255, 255, 0.024);
   --theme-orb-one:
     radial-gradient(circle, rgba(74,163,255,0.12) 0%, rgba(74,163,255,0.05) 40%, rgba(74,163,255,0) 74%);
   --theme-orb-two:
     radial-gradient(circle, rgba(var(--brand-green-rgb),0.055) 0%, rgba(var(--brand-green-rgb),0.018) 36%, rgba(var(--brand-green-rgb),0) 72%);
   --theme-top-blue-wash:
-    linear-gradient(180deg, rgba(74,163,255,0.06) 0%, rgba(74,163,255,0.02) 38%, rgba(74,163,255,0) 100%);
+    linear-gradient(180deg, rgba(74,163,255,0.028) 0%, rgba(74,163,255,0.01) 38%, rgba(74,163,255,0) 100%);
   --theme-grid-glow:
     linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px);

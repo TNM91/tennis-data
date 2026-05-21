@@ -497,6 +497,7 @@ function CommandCenterHome({
   )
   const selectedDetails = commandModeDetails[activeLane]
   const selectedTasks = commandTaskSets[activeLane]
+  const activeAccent = getModeAccent(activeLane)
   const needsProfileLink = authenticated && profileResolved && !profileLinked
   const heroHeadline = authenticated
     ? firstName
@@ -750,7 +751,7 @@ function CommandCenterHome({
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: 10, minWidth: 0 }}>
-                    <span style={{ color: 'var(--brand-green)', fontSize: 12, fontWeight: 950 }}>{task.metric}</span>
+                    <span style={{ color: activeAccent, fontSize: 12, fontWeight: 950 }}>{task.metric}</span>
                     <span style={{ display: 'grid', placeItems: 'center', width: 52, height: 42, minWidth: 0, overflow: 'hidden' }}>
                       <CommandTaskGraphic graphic={task.graphic} />
                     </span>
@@ -758,7 +759,7 @@ function CommandCenterHome({
                   <span style={{ display: 'grid', gap: 8, minWidth: 0 }}>
                     <strong style={{ color: 'var(--foreground-strong)', fontSize: 15, lineHeight: 1.1 }}>{task.title}</strong>
                     <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45 }}>{task.detail}</span>
-                    <span style={{ color: taskAccess.active ? 'var(--brand-green)' : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: taskAccess.active ? activeAccent : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       {taskAccess.active ? 'Open' : <><NavLockIcon size={12} /> Unlock</>}
                     </span>
                   </span>

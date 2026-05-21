@@ -182,6 +182,7 @@ export default function PortalToolBar() {
       ? `Hi ${firstName}, welcome back!`
       : 'Welcome back.'
     : PRODUCT_MOTTO
+  const activeAccent = getLaneAccent(activeLane.id)
 
   return (
     <section
@@ -279,6 +280,7 @@ export default function PortalToolBar() {
               access={access}
               authenticated={authenticated}
               accessPending={accessPending}
+              accent={activeAccent}
             />
           ))}
         </div>
@@ -303,7 +305,7 @@ function PortalLaneCard({
   const target = accessPending
     ? { href: lane.route, locked: false, requiredPlan: null }
     : getPrimaryNavTarget(lane.planRoute, access, authenticated)
-  const accent = lane.id === 'find' ? '#9be11d' : lane.id === 'you' ? '#4aa3ff' : lane.id === 'team' ? '#f3b51b' : '#19c8b6'
+  const accent = getLaneAccent(lane.id)
 
   return (
     <Link
@@ -339,11 +341,13 @@ function PortalTaskCard({
   access,
   authenticated,
   accessPending,
+  accent,
 }: {
   task: PortalLane['tasks'][number]
   access: ProductAccessState
   authenticated: boolean
   accessPending: boolean
+  accent: string
 }) {
   const target = accessPending
     ? { href: task.href, locked: false, requiredPlan: null }
@@ -353,19 +357,26 @@ function PortalTaskCard({
   return (
     <Link href={href} style={taskCardStyle}>
       <span style={taskTopStyle}>
-        <span style={taskMetricStyle}>{task.metric}</span>
+        <span style={{ ...taskMetricStyle, color: accent }}>{task.metric}</span>
         <TiqFeatureIcon name={task.icon} size="sm" variant="ghost" />
       </span>
       <span style={taskBodyStyle}>
         <strong style={taskTitleStyle}>{task.title}</strong>
         <span style={taskDetailStyle}>{task.detail}</span>
-        <span style={taskOpenStyle}>
+        <span style={{ ...taskOpenStyle, color: target.locked ? 'var(--shell-copy-muted)' : accent }}>
           {target.locked ? <NavLockIcon size={12} /> : null}
           {target.locked ? 'Unlock' : 'Open'}
         </span>
       </span>
     </Link>
   )
+}
+
+function getLaneAccent(laneId: PortalLaneId) {
+  if (laneId === 'find') return '#9be11d'
+  if (laneId === 'you') return '#4aa3ff'
+  if (laneId === 'team') return '#f3b51b'
+  return '#19c8b6'
 }
 
 function SearchIcon() {
