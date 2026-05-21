@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
 import SiteHeader from '@/app/components/site-header'
 import SiteFooter from '@/app/components/site-footer'
 import { AuthProvider } from '@/app/components/auth-provider'
@@ -15,6 +16,9 @@ export default function SiteShell({ children, active }: { children: ReactNode; a
 }
 
 function SiteShellContent({ children, active }: { children: ReactNode; active?: string }) {
+  const pathname = usePathname() || '/'
+  const atmosphereClassName = getBrandAtmosphereClassName(pathname)
+
   return (
       <main
         style={{
@@ -26,10 +30,34 @@ function SiteShellContent({ children, active }: { children: ReactNode; active?: 
         <div style={orbTwo} />
         <div style={gridGlow} />
         <div style={topBlueWash} />
+        <div className={atmosphereClassName} aria-hidden="true" />
 
         <SiteHeader active={active} />
         <div id="main-content" className="page-reveal">{children}</div>
         <SiteFooter />
       </main>
   )
+}
+
+function getBrandAtmosphereClassName(pathname: string) {
+  const hubRoutes = new Set(['/', '/mylab', '/captain', '/league-coordinator', '/admin'])
+  const quietPrefixes = [
+    '/admin/',
+    '/captain/',
+    '/league-coordinator/results',
+    '/league-coordinator/individual-results',
+    '/profile',
+    '/login',
+    '/pricing',
+  ]
+
+  if (quietPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+    return 'brand-atmosphere-mark brand-atmosphere-mark--quiet'
+  }
+
+  if (hubRoutes.has(pathname)) {
+    return 'brand-atmosphere-mark brand-atmosphere-mark--hub'
+  }
+
+  return 'brand-atmosphere-mark'
 }

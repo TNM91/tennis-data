@@ -354,6 +354,44 @@ footer {
   overflow-x: clip;
 }
 
+.brand-atmosphere-mark {
+  position: fixed;
+  top: clamp(88px, 11vw, 150px);
+  right: max(-260px, -10vw);
+  width: min(58vw, 760px);
+  aspect-ratio: 1;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.065;
+  background-image: url("/logo-icon.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter:
+    drop-shadow(0 0 42px rgba(155, 225, 29, 0.28))
+    drop-shadow(0 0 78px rgba(116, 190, 255, 0.16));
+  transform: rotate(-9deg);
+  mix-blend-mode: screen;
+}
+
+.brand-atmosphere-mark--hub {
+  opacity: 0.082;
+  width: min(62vw, 820px);
+  right: max(-300px, -12vw);
+  filter:
+    drop-shadow(0 0 48px rgba(155, 225, 29, 0.32))
+    drop-shadow(0 0 92px rgba(116, 190, 255, 0.18));
+}
+
+.brand-atmosphere-mark--quiet {
+  opacity: 0.038;
+  width: min(48vw, 620px);
+  right: max(-280px, -16vw);
+  filter:
+    drop-shadow(0 0 30px rgba(155, 225, 29, 0.18))
+    drop-shadow(0 0 58px rgba(116, 190, 255, 0.10));
+}
+
 .admin-shell {
   width: min(1400px, calc(100% - 32px));
   margin-inline: auto;
@@ -1243,6 +1281,26 @@ hr {
     width: min(var(--container), calc(100% - 28px));
     padding-top: 20px;
     padding-bottom: calc(56px + var(--safe-bottom));
+  }
+
+  .brand-atmosphere-mark {
+    top: 96px;
+    right: -118px;
+    width: 320px;
+    opacity: 0.052;
+    transform: rotate(-8deg);
+  }
+
+  .brand-atmosphere-mark--hub {
+    width: 350px;
+    right: -128px;
+    opacity: 0.062;
+  }
+
+  .brand-atmosphere-mark--quiet {
+    width: 280px;
+    right: -118px;
+    opacity: 0.032;
   }
 
   .hero-panel {
