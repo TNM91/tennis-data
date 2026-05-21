@@ -3,8 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import FindModeBridge from '@/app/components/find-mode-bridge'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import {
   buildExploreLeagueHref,
   getCompetitionLayerDescription,
@@ -27,7 +25,6 @@ import {
   type TiqIndividualLeagueSummary,
 } from '@/lib/tiq-individual-results-summary'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
-import { useProductAccess } from '@/lib/use-product-access'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
@@ -50,7 +47,6 @@ export default function ExploreLeaguesPage() {
 }
 
 function ExploreLeaguesContent() {
-  const { access, authResolved } = useProductAccess()
   const [leagues, setLeagues] = useState<LeagueCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -208,37 +204,20 @@ function ExploreLeaguesContent() {
   return (
     <section style={wrapStyle}>
         <div style={heroStyle}>
-          <div style={noiseStyle} />
-
-          <div style={heroGridStyle}>
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <div style={eyebrowStyle}>Explore leagues</div>
-              <h1 style={titleStyle}>Browse imported TennisLink and TIQ leagues without mixing their context.</h1>
+          <div style={panelHeaderStyle}>
+            <div>
+              <div style={eyebrowStyle}>Leagues</div>
+              <h1 style={titleStyle}>Find a league, then open the season view.</h1>
               <p style={descriptionStyle}>
-                Keep uploaded league history, ratings, flights, and team structure clear while TIQ leagues
-                stay focused on planning, play, and captain workflows.
+                Search by league, flight, section, or district.
               </p>
-
-              <div style={heroPillRowStyle}>
-                <span style={heroPillBlueStyle}>{layerCounts.usta} USTA leagues</span>
-                <span style={heroPillGreenStyle}>{layerCounts.tiq} TIQ leagues</span>
-                <span style={heroPillBlueStyle}>{summary.totalFlights} flights</span>
-                <span style={heroPillBlueStyle}>Latest: {formatDate(summary.latestMatch)}</span>
-              </div>
-              <div style={exploreNavRowStyle}>
-                <Link href="/explore/players" style={exploreNavLinkStyle}>Players</Link>
-                <Link href="/explore/rankings" style={exploreNavLinkStyle}>Rankings</Link>
-                <Link href="/mylab" style={exploreNavLinkStyle}>My Lab</Link>
-              </div>
             </div>
 
-            <div style={heroPanelStyle}>
-              <div style={heroPanelLabelStyle}>Product model</div>
-              <div style={heroPanelValueStyle}>One player, multiple competition contexts.</div>
-              <div style={heroPanelTextStyle}>
-                Data Assist keeps TennisLink exports reviewable. TIQ answers strategy questions. These routes
-                keep the two concepts structurally separate instead of blending them into one mixed league list.
-              </div>
+            <div style={heroPillRowStyle}>
+              <span style={heroPillBlueStyle}>{layerCounts.usta} USTA</span>
+              <span style={heroPillGreenStyle}>{layerCounts.tiq} TIQ</span>
+              <span style={heroPillBlueStyle}>{summary.totalFlights} flights</span>
+              <span style={heroPillBlueStyle}>Latest: {formatDate(summary.latestMatch)}</span>
             </div>
           </div>
 
@@ -290,52 +269,11 @@ function ExploreLeaguesContent() {
           {registryWarning ? <div style={noticeStyle}>{registryWarning}</div> : null}
         </div>
 
-        <FindModeBridge
-          active="Leagues"
-          primary="Open the right competition layer"
-          secondary="Use leagues when season, flight, area, or organizer context is the clue you have."
-          links={[
-            { href: '/explore/search?scope=leagues', label: 'Search', icon: 'opponentScouting' },
-            { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
-            { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
-            { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
-          ]}
-        />
-
         {loading ? <div style={stateStyle}>Loading league layers...</div> : null}
         {error ? <div style={errorStyle}>{error}</div> : null}
 
         {!loading && !error ? (
           <>
-            {authResolved ? (
-              <div style={upgradeGridStyle}>
-                {!access.canUseCaptainWorkflow ? (
-                  <UpgradePrompt
-                    planId="captain"
-                    compact
-                    headline="Need TIQ team leagues to turn into smarter weekly decisions?"
-                    body="Unlock Captain to move from league discovery into availability, lineups, scenarios, and team messaging without losing context."
-                    ctaLabel="Unlock Captain Tools"
-                    ctaHref="/pricing"
-                    secondaryLabel="See Captain value"
-                    secondaryHref="/pricing"
-                  />
-                ) : null}
-                {!access.canUseLeagueTools ? (
-                  <UpgradePrompt
-                    planId="league"
-                    compact
-                    headline="Want to run TIQ leagues without spreadsheets?"
-                    body="League tools give organizers one place for season setup, scheduling, standings, and league-wide communication."
-                    ctaLabel="Run Your League on TIQ"
-                    ctaHref="/pricing"
-                    secondaryLabel="See league plan"
-                    secondaryHref="/pricing"
-                  />
-                ) : null}
-              </div>
-            ) : null}
-
             <LeagueSection
               title="USTA Leagues"
               eyebrow={getCompetitionLayerLabel('usta')}
@@ -519,32 +457,12 @@ const heroStyle: CSSProperties = {
   position: 'relative',
   maxWidth: '1280px',
   margin: '0 auto',
-  padding: '34px 28px 28px',
-  borderRadius: '32px',
+  padding: '22px',
+  borderRadius: '28px',
   overflow: 'hidden',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
-  minWidth: 0,
-}
-
-const noiseStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  pointerEvents: 'none',
-  background: `
-    radial-gradient(circle at 0% 0%, rgba(74,163,255,0.18) 0%, transparent 34%),
-    radial-gradient(circle at 100% 0%, rgba(155,225,29,0.08) 0%, transparent 26%),
-    linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%)
-  `,
-}
-
-const heroGridStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  gap: '24px',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -558,22 +476,31 @@ const eyebrowStyle: CSSProperties = {
 }
 
 const titleStyle: CSSProperties = {
-  margin: '10px 0 0',
+  margin: '8px 0 0',
   maxWidth: '760px',
-  fontSize: 'clamp(34px, 5vw, 58px)',
-  lineHeight: 0.98,
+  fontSize: '28px',
+  lineHeight: 1.05,
   letterSpacing: 0,
   color: '#f4f9ff',
   overflowWrap: 'anywhere',
 }
 
 const descriptionStyle: CSSProperties = {
-  margin: '16px 0 0',
+  margin: '8px 0 0',
   maxWidth: '700px',
-  fontSize: '17px',
-  lineHeight: 1.8,
+  fontSize: '14px',
+  lineHeight: 1.6,
   color: 'rgba(214,228,246,0.78)',
   overflowWrap: 'anywhere',
+}
+
+const panelHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '16px',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const heroPillRowStyle: CSSProperties = {
@@ -582,34 +509,6 @@ const heroPillRowStyle: CSSProperties = {
   gap: '10px',
   marginTop: '18px',
   minWidth: 0,
-}
-
-const exploreNavRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '12px',
-  minWidth: 0,
-}
-
-const exploreNavLinkStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '36px',
-  padding: '0 13px',
-  borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  fontSize: '13px',
-  fontWeight: 800,
-  maxWidth: '100%',
-  minWidth: 0,
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-  textAlign: 'center',
 }
 
 const heroPillBlueStyle: CSSProperties = {
@@ -631,44 +530,6 @@ const heroPillBlueStyle: CSSProperties = {
 const heroPillGreenStyle: CSSProperties = {
   ...heroPillBlueStyle,
   background: 'rgba(155,225,29,0.14)',
-}
-
-const heroPanelStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  padding: '22px',
-  borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const heroPanelLabelStyle: CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.16em',
-  textTransform: 'uppercase',
-  color: 'rgba(116,190,255,0.82)',
-  overflowWrap: 'anywhere',
-}
-
-const heroPanelValueStyle: CSSProperties = {
-  marginTop: '12px',
-  fontSize: '28px',
-  lineHeight: 1.15,
-  fontWeight: 800,
-  color: '#f4f9ff',
-  overflowWrap: 'anywhere',
-}
-
-const heroPanelTextStyle: CSSProperties = {
-  marginTop: '14px',
-  fontSize: '15px',
-  lineHeight: 1.8,
-  color: 'rgba(214,228,246,0.74)',
-  overflowWrap: 'anywhere',
 }
 
 const filterBarStyle: CSSProperties = {
@@ -976,14 +837,6 @@ const errorStyle: CSSProperties = {
   ...stateStyle,
   color: '#ffd8d8',
   border: '1px solid rgba(255,120,120,0.18)',
-}
-
-const upgradeGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-  gap: '16px',
-  marginBottom: '24px',
-  minWidth: 0,
 }
 
 function GhostLink({ href, children }: { href: string; children: ReactNode }) {

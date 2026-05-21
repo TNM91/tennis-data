@@ -49,7 +49,6 @@ export default function LeaguesPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [datasetTotalMatches, setDatasetTotalMatches] = useState(0)
-  const [datasetTotalParentMatches, setDatasetTotalParentMatches] = useState(0)
   const [datasetTotalFlights, setDatasetTotalFlights] = useState(0)
   const [datasetLatestMatch, setDatasetLatestMatch] = useState<string | null>(null)
   const [diagnostics, setDiagnostics] = useState<LeagueSummaryPayload['diagnostics']>({
@@ -65,7 +64,7 @@ export default function LeaguesPage() {
   const [seasonFilter, setSeasonFilter] = useState('all')
   const [genderFilter, setGenderFilter] = useState('all')
   const [ratingFilter, setRatingFilter] = useState('all')
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
@@ -95,7 +94,6 @@ export default function LeaguesPage() {
 
       setLeagues(payload.leagues || [])
       setDatasetTotalMatches(payload.totalMatches || 0)
-      setDatasetTotalParentMatches(payload.diagnostics?.totalParentMatches || payload.totalMatches || 0)
       setDatasetTotalFlights(payload.totalFlights || 0)
       setDatasetLatestMatch(payload.latestMatch || null)
       setNotice(payload.notice || '')
@@ -173,41 +171,6 @@ export default function LeaguesPage() {
     }
   }, [datasetLatestMatch, datasetTotalFlights, datasetTotalMatches, filteredLeagues.length])
 
-  const dynamicHeroWrap: CSSProperties = {
-    ...heroWrap,
-    padding: isMobile ? '14px 16px 22px' : '10px 18px 24px',
-  }
-
-  const dynamicHeroShell: CSSProperties = {
-    ...heroShell,
-    padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
-  }
-
-  const dynamicHeroContent: CSSProperties = {
-    ...heroContent,
-    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
-    gap: isMobile ? '18px' : '22px',
-  }
-
-  const dynamicHeroTitle: CSSProperties = {
-    ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '60px',
-    lineHeight: isMobile ? 1.04 : 0.98,
-    maxWidth: '560px',
-  }
-
-  const dynamicHeroText: CSSProperties = {
-    ...heroText,
-    fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '560px',
-  }
-
-  const dynamicCoverageCard: CSSProperties = {
-    ...coverageCard,
-    position: isTablet ? 'relative' : 'sticky',
-    top: isTablet ? 'auto' : '24px',
-  }
-
   const dynamicSummaryGrid: CSSProperties = {
     ...summaryGrid,
     gridTemplateColumns: isSmallMobile
@@ -240,80 +203,15 @@ export default function LeaguesPage() {
 
   return (
     <SiteShell active="leagues">
-      <section style={dynamicHeroWrap}>
-        <div style={dynamicHeroShell}>
-          <div style={heroNoise} />
-
-          <div style={dynamicHeroContent}>
-            <div style={heroLeft}>
-              <div style={eyebrow}>League Explorer</div>
-              <h1 style={dynamicHeroTitle}>Browse uploaded league seasons.</h1>
-              <p style={dynamicHeroText}>
-                Explore reviewed Data Assist league groupings by league name, flight, section, and district.
-                This is the foundation for season views, team pages, matchup prep, and future lineup
-                projections across TenAceIQ.
-              </p>
-
-              <div style={heroHintRow}>
-                <span style={heroHintPill}>{summary.totalLeagues} leagues</span>
-                <span style={heroHintPill}>{datasetTotalParentMatches} reviewed parent matches</span>
-                <span style={heroHintPill}>Latest: {formatDate(summary.latestMatch)}</span>
-              </div>
-            </div>
-
-            <div style={dynamicCoverageCard}>
-              <div style={coverageLabel}>Coverage snapshot</div>
-              <div style={coverageValue}>{summary.totalFlights}</div>
-              <div style={coverageText}>
-                Unique flights currently represented across reviewed uploads with a real league name.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section style={contentWrap}>
-        {!loading && !error ? (
-          <article style={editorialPanel}>
-            <div style={sectionKicker}>Season context</div>
-            <h2 style={panelTitle}>League cards are strongest when they explain structure, not just existence.</h2>
-            <p style={editorialText}>
-              Use this board to understand how reviewed uploads are grouped across league name, flight,
-              section, and district. It is the discovery layer for season browsing, and it becomes
-              much more useful once you move from a league card into the underlying team and season view.
-            </p>
-            <div style={editorialGrid}>
-              <div style={editorialCard}>
-                <div style={editorialCardLabel}>Visible leagues</div>
-                <div style={editorialCardValue}>{summary.totalLeagues}</div>
-                <div style={editorialCardText}>Named league groupings currently available to browse.</div>
-              </div>
-              <div style={editorialCard}>
-                <div style={editorialCardLabel}>Reviewed parent matches</div>
-                <div style={editorialCardValue}>{datasetTotalParentMatches}</div>
-                <div style={editorialCardText}>The Data Assist-reviewed season rows powering league discovery.</div>
-              </div>
-              <div style={editorialCard}>
-                <div style={editorialCardLabel}>Best next step</div>
-                <div style={editorialCardValue}>Open season</div>
-                <div style={editorialCardText}>Use league cards to narrow the field, then inspect the actual season detail.</div>
-              </div>
-            </div>
-          </article>
-        ) : null}
-
-        <div style={dynamicSummaryGrid}>
-          <MetricCard label="Visible leagues" value={String(summary.totalLeagues)} />
-          <MetricCard label="League matches" value={String(summary.totalMatches)} />
-          <MetricCard label="Flights" value={String(summary.totalFlights)} />
-          <MetricCard label="Latest match" value={formatDate(summary.latestMatch)} accent />
-        </div>
-
         <article style={panelCard}>
           <div style={panelHead}>
             <div>
-              <div style={sectionKicker}>Filters</div>
-              <h2 style={panelTitle}>Search and narrow league groups</h2>
+              <div style={sectionKicker}>Leagues</div>
+              <h2 style={panelTitle}>Find a league, then open the season view.</h2>
+              <p style={panelIntro}>
+                Search reviewed league groupings by league name, flight, section, or district.
+              </p>
             </div>
             <div style={filterActionRow}>
               <button type="button" onClick={() => void loadLeagueSummary()} style={clearFilterButton}>
@@ -336,6 +234,13 @@ export default function LeaguesPage() {
                 </button>
               ) : null}
             </div>
+          </div>
+
+          <div style={dynamicSummaryGrid}>
+            <MetricCard label="Visible leagues" value={String(summary.totalLeagues)} />
+            <MetricCard label="League matches" value={String(summary.totalMatches)} />
+            <MetricCard label="Flights" value={String(summary.totalFlights)} />
+            <MetricCard label="Latest match" value={formatDate(summary.latestMatch)} accent />
           </div>
 
           <div style={dynamicFilterGrid}>
@@ -672,91 +577,6 @@ function SearchIcon() {
   )
 }
 
-const heroWrap: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-}
-
-const heroShell: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '30px',
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-card)',
-  overflow: 'hidden',
-  position: 'relative',
-}
-
-const heroNoise: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background: `
-    radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%),
-    radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%),
-    radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%),
-    linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)
-  `,
-  pointerEvents: 'none',
-}
-
-const heroContent: CSSProperties = {
-  display: 'grid',
-  alignItems: 'stretch',
-  position: 'relative',
-  zIndex: 1,
-  minWidth: 0,
-}
-
-const heroLeft: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  gap: '16px',
-  minWidth: 0,
-}
-
-const heroTitle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  letterSpacing: 0,
-}
-
-const heroText: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.65,
-  fontWeight: 500,
-  overflowWrap: 'anywhere',
-}
-
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  width: 'fit-content',
-  alignItems: 'center',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  color: 'var(--home-eyebrow-color)',
-  background: 'var(--home-eyebrow-bg)',
-  border: '1px solid var(--home-eyebrow-border)',
-  fontSize: '12px',
-  fontWeight: 900,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-  maxWidth: '100%',
-  overflowWrap: 'anywhere',
-}
-
-const heroHintRow: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '4px',
-  minWidth: 0,
-}
-
 const heroHintPill: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -772,117 +592,13 @@ const heroHintPill: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const coverageCard: CSSProperties = {
-  borderRadius: '24px',
-  padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-blue-2) 12%)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const coverageLabel: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  lineHeight: 1.5,
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  overflowWrap: 'anywhere',
-}
-
-const coverageValue: CSSProperties = {
-  marginTop: '8px',
-  color: 'var(--foreground-strong)',
-  fontSize: '34px',
-  lineHeight: 1,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const coverageText: CSSProperties = {
-  marginTop: '10px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.65,
-  fontWeight: 500,
-  overflowWrap: 'anywhere',
-}
-
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
   maxWidth: '1280px',
-  margin: '0 auto',
+  margin: '12px auto 0',
   padding: '0 24px 0',
   minWidth: 0,
-}
-
-const editorialPanel: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  padding: '24px',
-  borderRadius: '26px',
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
-  marginBottom: '18px',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const editorialText: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '15px',
-  lineHeight: 1.8,
-  maxWidth: '860px',
-  overflowWrap: 'anywhere',
-}
-
-const editorialGrid: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-  minWidth: 0,
-}
-
-const editorialCard: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  padding: '18px',
-  borderRadius: '20px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const editorialCardLabel: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.11em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const editorialCardValue: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '24px',
-  lineHeight: 1.04,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const editorialCardText: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.65,
-  overflowWrap: 'anywhere',
 }
 
 const summaryGrid: CSSProperties = {
@@ -965,6 +681,15 @@ const panelTitle: CSSProperties = {
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const panelIntro: CSSProperties = {
+  margin: '8px 0 0',
+  maxWidth: '720px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
   overflowWrap: 'anywhere',
 }
 
