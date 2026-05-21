@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   cancelInternalScheduleEvent,
   listInternalScheduleEventsForConversation,
@@ -63,28 +62,6 @@ type MessagePrefill = {
   entityId: string
   threadId: string
 }
-
-const MESSAGE_LANES: Array<{
-  title: string
-  text: string
-  icon: TiqFeatureIconName
-}> = [
-  {
-    title: 'Support',
-    text: 'Billing, account, data, and platform help stay in one thread.',
-    icon: 'accountSecurity',
-  },
-  {
-    title: 'Schedule',
-    text: 'RSVPs and match timing can move from conversation to action.',
-    icon: 'schedule',
-  },
-  {
-    title: 'Players',
-    text: 'Reach another TenAceIQ user without leaving the tennis context.',
-    icon: 'playerRatings',
-  },
-]
 
 function formatMessageTime(value: string) {
   if (!value) return ''
@@ -178,7 +155,6 @@ function MessagesLoadingShell() {
     <SiteShell active="/messages">
       <section style={pageStyle}>
         <div style={panelStyle}>
-          <div className="section-kicker">Messages</div>
           <h1 style={titleStyle}>Loading your TenAceIQ inbox...</h1>
         </div>
       </section>
@@ -690,7 +666,6 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     return (
       <section style={pageStyle}>
         <div style={panelStyle}>
-          <div className="section-kicker">Messages</div>
           <h1 style={titleStyle}>Sign in to message players or support.</h1>
           <p style={copyStyle}>
             TenAceIQ Messages keeps account, league, and player conversations inside the platform.
@@ -703,89 +678,6 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
   return (
     <section style={pageStyle}>
-      <section style={heroStyle(isTablet, isMobile)}>
-        <div>
-          <div className="section-kicker">TenAceIQ Messages</div>
-          <h1 style={titleStyle}>One place for support and player communication.</h1>
-          <p style={copyStyle}>
-            Search by player or account name, message another user, or open a support thread without leaving the platform.
-          </p>
-          <div style={messageLaneGridStyle}>
-            {MESSAGE_LANES.map((lane) => (
-              <div key={lane.title} style={messageLaneCardStyle}>
-                <TiqFeatureIcon name={lane.icon} size="sm" variant="ghost" />
-                <span style={messageLaneCopyStyle}>
-                  <strong>{lane.title}</strong>
-                  <small>{lane.text}</small>
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={identityPanelStyle}>
-          <span style={pillStyle}>{identity.role === 'admin' ? 'Admin identity' : 'Messaging identity'}</span>
-          <label style={fieldStyle}>
-            <span style={labelStyle}>Shown as</span>
-            <div style={lookupRowStyle(isMobile)}>
-              <input
-                value={displayNameDraft}
-                onChange={(event) => setDisplayNameDraft(event.target.value)}
-                style={inputStyle}
-              />
-              <button
-                type="button"
-                onClick={() => void saveDisplayName()}
-                disabled={identitySaving || displayNameDraft.trim() === identity.displayName}
-                style={ghostButtonStyle}
-              >
-                {identitySaving ? 'Saving' : 'Save'}
-              </button>
-            </div>
-          </label>
-          <div style={identityRowStyle}>
-            <span>Support reference ID</span>
-            <strong>{identity.tiqPublicId}</strong>
-          </div>
-          {identity.tiqAdminId ? (
-            <div style={identityRowStyle}>
-              <span>Admin support ID</span>
-              <strong>{identity.tiqAdminId}</strong>
-            </div>
-          ) : null}
-          <div style={preferencePanelStyle}>
-            <div style={labelStyle}>Notifications</div>
-            {notificationPreferences ? (
-              <div style={preferenceGridStyle}>
-                {([
-                  ['messageAlertsEnabled', 'Messages'],
-                  ['scheduleAlertsEnabled', 'Schedule'],
-                  ['supportAlertsEnabled', 'Support'],
-                  ['emailFallbackEnabled', 'Email fallback'],
-                ] as Array<[keyof InternalNotificationPreferencePatch, string]>).map(([key, label]) => (
-                  <label key={key} style={preferenceToggleStyle}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(notificationPreferences[key])}
-                      disabled={preferenceSaving === key}
-                      onChange={(event) => void updateNotificationPreference(key, event.target.checked)}
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <p style={hintStyle}>Notification preferences will appear after the latest migration is applied.</p>
-            )}
-            {notificationPreferences?.emailFallbackEnabled ? (
-              <p style={hintStyle}>Email fallback only says you have a new TenAceIQ alert. Message content stays inside the app.</p>
-            ) : null}
-          </div>
-          {!identity.identityColumnsAvailable ? (
-            <p style={warningStyle}>Messaging identity columns are pending migration. IDs are previewed from your account.</p>
-          ) : null}
-        </div>
-      </section>
-
       <section style={workspaceGridStyle(isTablet)}>
         <aside style={panelStyle}>
           <div style={sectionHeaderStyle}>
@@ -1109,6 +1001,66 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
           <div style={dividerStyle} />
 
+          <div className="section-kicker">Account</div>
+          <label style={fieldStyle}>
+            <span style={labelStyle}>Shown as</span>
+            <div style={lookupRowStyle(isMobile)}>
+              <input
+                value={displayNameDraft}
+                onChange={(event) => setDisplayNameDraft(event.target.value)}
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                onClick={() => void saveDisplayName()}
+                disabled={identitySaving || displayNameDraft.trim() === identity.displayName}
+                style={ghostButtonStyle}
+              >
+                {identitySaving ? 'Saving' : 'Save'}
+              </button>
+            </div>
+          </label>
+          <div style={identityRowStyle}>
+            <span>Support ID</span>
+            <strong>{identity.tiqPublicId}</strong>
+          </div>
+          {identity.tiqAdminId ? (
+            <div style={identityRowStyle}>
+              <span>Admin ID</span>
+              <strong>{identity.tiqAdminId}</strong>
+            </div>
+          ) : null}
+          <div style={preferencePanelStyle}>
+            <div style={labelStyle}>Notification settings</div>
+            {notificationPreferences ? (
+              <div style={preferenceGridStyle}>
+                {([
+                  ['messageAlertsEnabled', 'Messages'],
+                  ['scheduleAlertsEnabled', 'Schedule'],
+                  ['supportAlertsEnabled', 'Support'],
+                  ['emailFallbackEnabled', 'Email'],
+                ] as Array<[keyof InternalNotificationPreferencePatch, string]>).map(([key, label]) => (
+                  <label key={key} style={preferenceToggleStyle}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(notificationPreferences[key])}
+                      disabled={preferenceSaving === key}
+                      onChange={(event) => void updateNotificationPreference(key, event.target.checked)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p style={hintStyle}>Notification preferences will appear after the latest migration is applied.</p>
+            )}
+          </div>
+          {!identity.identityColumnsAvailable ? (
+            <p style={warningStyle}>Messaging identity columns are pending migration. IDs are previewed from your account.</p>
+          ) : null}
+
+          <div style={dividerStyle} />
+
           <div className="section-kicker">New message</div>
           <h2 style={sectionTitleStyle}>Start a thread</h2>
           <div style={segmentedStyle}>
@@ -1222,15 +1174,6 @@ const pageStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.2fr) minmax(min(100%, 320px), 0.8fr)',
-  gap: isMobile ? 14 : 18,
-  alignItems: 'stretch',
-  marginBottom: 18,
-  minWidth: 0,
-})
-
 const panelStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
@@ -1248,36 +1191,6 @@ const titleStyle: CSSProperties = {
   fontSize: 'clamp(2rem, 4vw, 3.4rem)',
   lineHeight: 1,
   fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
-const messageLaneGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: 10,
-  marginTop: 18,
-  minWidth: 0,
-}
-
-const messageLaneCardStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr)',
-  gap: 10,
-  alignItems: 'center',
-  minHeight: 72,
-  padding: 11,
-  borderRadius: 16,
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(255,255,255,0.04)',
-  minWidth: 0,
-}
-
-const messageLaneCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 3,
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  lineHeight: 1.2,
   overflowWrap: 'anywhere',
 }
 
@@ -1308,12 +1221,6 @@ const workspaceGridStyle = (isTablet: boolean): CSSProperties => ({
   alignItems: 'start',
   minWidth: 0,
 })
-
-const identityPanelStyle: CSSProperties = {
-  ...panelStyle,
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 14%, transparent) 0%, transparent 42%), var(--shell-panel-bg-strong)',
-}
 
 const identityRowStyle: CSSProperties = {
   display: 'grid',
