@@ -358,12 +358,12 @@ footer {
   position: fixed;
   right: max(-360px, -16vw);
   bottom: max(-340px, -18vw);
-  width: min(70vw, 980px);
+  width: min(88vw, 1180px);
   aspect-ratio: 1;
   pointer-events: none;
   z-index: 0;
   opacity: 0.06;
-  background-image: url("/logo-icon.png");
+  background-image: url("/logo-ball.svg");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
@@ -375,10 +375,10 @@ footer {
 }
 
 .brand-atmosphere-mark--hub {
-  opacity: 0.078;
-  width: min(78vw, 1120px);
-  right: max(-420px, -18vw);
-  bottom: max(-400px, -21vw);
+  opacity: 0.082;
+  width: min(96vw, 1360px);
+  right: max(-500px, -24vw);
+  bottom: max(-500px, -28vw);
   filter:
     drop-shadow(0 0 48px rgba(155, 225, 29, 0.32))
     drop-shadow(0 0 92px rgba(116, 190, 255, 0.18));
@@ -386,7 +386,7 @@ footer {
 
 .brand-atmosphere-mark--quiet {
   opacity: 0.038;
-  width: min(60vw, 820px);
+  width: min(76vw, 1040px);
   right: max(-360px, -20vw);
   bottom: max(-340px, -20vw);
   filter:
@@ -1289,22 +1289,22 @@ hr {
     top: auto;
     right: -132px;
     bottom: -132px;
-    width: 360px;
+    width: 430px;
     opacity: 0.05;
     transform: rotate(-8deg);
   }
 
   .brand-atmosphere-mark--hub {
-    width: 400px;
-    right: -150px;
-    bottom: -150px;
+    width: 500px;
+    right: -190px;
+    bottom: -190px;
     opacity: 0.058;
   }
 
   .brand-atmosphere-mark--quiet {
-    width: 320px;
-    right: -140px;
-    bottom: -136px;
+    width: 380px;
+    right: -170px;
+    bottom: -160px;
     opacity: 0.032;
   }
 
