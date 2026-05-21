@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { ThemeProvider } from '@/app/components/theme-provider'
+import { PRODUCT_MOTTO } from '@/lib/product-story'
 import './globals.css'
 
 export const viewport: Viewport = {
@@ -14,11 +15,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://tenaceiq.com'),
   title: {
-    default: 'TenAceIQ | Premium Tennis Intelligence',
+    default: `TenAceIQ | ${PRODUCT_MOTTO}`,
     template: '%s | TenAceIQ',
   },
   description:
-    'Explore tennis for free, then unlock Player, Captain, or TIQ League Coordinator tools for personalized prep, team decisions, and league operations.',
+    'More Tennis. Less Chaos. Explore tennis for free, then unlock Player, Captain, or TIQ League Coordinator tools for personalized prep, team decisions, and league operations.',
   keywords: [
     'TenAceIQ',
     'tennis analytics',
@@ -63,9 +64,9 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://tenaceiq.com',
     siteName: 'TenAceIQ',
-    title: 'TenAceIQ | Premium Tennis Intelligence',
+    title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description:
-      'Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
+      'More Tennis. Less Chaos. Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
     images: [
       {
         url: '/og-image.png',
@@ -77,9 +78,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TenAceIQ | Premium Tennis Intelligence',
+    title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description:
-      'Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
+      'More Tennis. Less Chaos. Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
     images: ['/og-image.png'],
   },
   manifest: '/manifest.webmanifest',

@@ -1,6 +1,8 @@
 export const PRODUCT_NORTH_STAR =
   'TenAceIQ helps tennis players, captains, and league coordinators spend less time guessing, more time understanding, and more time playing.'
 
+export const PRODUCT_MOTTO = 'More Tennis. Less Chaos.'
+
 export const PRODUCT_UPGRADE_MESSAGE =
   'Upgrade based on what makes your tennis life easier: simple tiers, simple tools, clearer next steps.'
 

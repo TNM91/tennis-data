@@ -118,14 +118,16 @@ export async function saveUserProfileLink(
   userId: string,
   payload: SaveUserProfileLinkPayload,
 ): Promise<SaveUserProfileLinkResult> {
+  const fullPayload = { id: userId, ...payload }
   const fullUpdate = await supabase
     .from('profiles')
-    .update(payload)
-    .eq('id', userId)
+    .upsert(fullPayload, { onConflict: 'id' })
+    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name,linked_flight,profile_photo_url,message_display_name')
+    .maybeSingle()
 
   if (!fullUpdate.error) {
     return {
-      data: payload,
+      data: (fullUpdate.data || payload) as UserProfileLink,
       error: null,
       source: 'cloud',
       cloudSchemaReady: true,
@@ -141,17 +143,18 @@ export async function saveUserProfileLink(
     }
   }
 
-  const fallbackPayload = { ...payload }
+  const fallbackPayload = { ...fullPayload }
   delete fallbackPayload.linked_flight
 
   const fallbackUpdate = await supabase
     .from('profiles')
-    .update(fallbackPayload)
-    .eq('id', userId)
+    .upsert(fallbackPayload, { onConflict: 'id' })
+    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
+    .maybeSingle()
 
   if (!fallbackUpdate.error) {
     return {
-      data: payload,
+      data: (fallbackUpdate.data || payload) as UserProfileLink,
       error: null,
       source: 'cloud',
       cloudSchemaReady: false,

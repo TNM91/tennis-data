@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import SiteHeader from '@/app/components/site-header'
 import SiteFooter from '@/app/components/site-footer'
+import PortalToolBar from '@/app/components/portal-tool-bar'
 import { AuthProvider } from '@/app/components/auth-provider'
 import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/design-system'
 
@@ -33,6 +34,7 @@ function SiteShellContent({ children, active }: { children: ReactNode; active?: 
         <div className={atmosphereClassName} aria-hidden="true" />
 
         <SiteHeader active={active} />
+        <PortalToolBar />
         <div id="main-content" className="page-reveal">{children}</div>
         <SiteFooter />
       </main>

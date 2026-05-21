@@ -1,11 +1,12 @@
 import type { MetadataRoute } from 'next'
+import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'TenAceIQ',
     short_name: 'TenAceIQ',
     description:
-      'Explore tennis for free, then use Player, Captain, and TIQ League Coordinator tools to spend less time guessing and more time playing.',
+      `${PRODUCT_MOTTO} Explore tennis for free, then use Player, Captain, and TIQ League Coordinator tools.`,
     start_url: '/',
     scope: '/',
     display: 'standalone',
