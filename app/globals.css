@@ -356,13 +356,13 @@ footer {
 
 .brand-atmosphere-mark {
   position: fixed;
-  top: clamp(88px, 11vw, 150px);
-  right: max(-260px, -10vw);
-  width: min(58vw, 760px);
+  right: max(-360px, -16vw);
+  bottom: max(-340px, -18vw);
+  width: min(70vw, 980px);
   aspect-ratio: 1;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.065;
+  opacity: 0.06;
   background-image: url("/logo-icon.png");
   background-repeat: no-repeat;
   background-position: center;
@@ -370,14 +370,15 @@ footer {
   filter:
     drop-shadow(0 0 42px rgba(155, 225, 29, 0.28))
     drop-shadow(0 0 78px rgba(116, 190, 255, 0.16));
-  transform: rotate(-9deg);
+  transform: rotate(-8deg);
   mix-blend-mode: screen;
 }
 
 .brand-atmosphere-mark--hub {
-  opacity: 0.082;
-  width: min(62vw, 820px);
-  right: max(-300px, -12vw);
+  opacity: 0.078;
+  width: min(78vw, 1120px);
+  right: max(-420px, -18vw);
+  bottom: max(-400px, -21vw);
   filter:
     drop-shadow(0 0 48px rgba(155, 225, 29, 0.32))
     drop-shadow(0 0 92px rgba(116, 190, 255, 0.18));
@@ -385,8 +386,9 @@ footer {
 
 .brand-atmosphere-mark--quiet {
   opacity: 0.038;
-  width: min(48vw, 620px);
-  right: max(-280px, -16vw);
+  width: min(60vw, 820px);
+  right: max(-360px, -20vw);
+  bottom: max(-340px, -20vw);
   filter:
     drop-shadow(0 0 30px rgba(155, 225, 29, 0.18))
     drop-shadow(0 0 58px rgba(116, 190, 255, 0.10));
@@ -1284,22 +1286,25 @@ hr {
   }
 
   .brand-atmosphere-mark {
-    top: 96px;
-    right: -118px;
-    width: 320px;
-    opacity: 0.052;
+    top: auto;
+    right: -132px;
+    bottom: -132px;
+    width: 360px;
+    opacity: 0.05;
     transform: rotate(-8deg);
   }
 
   .brand-atmosphere-mark--hub {
-    width: 350px;
-    right: -128px;
-    opacity: 0.062;
+    width: 400px;
+    right: -150px;
+    bottom: -150px;
+    opacity: 0.058;
   }
 
   .brand-atmosphere-mark--quiet {
-    width: 280px;
-    right: -118px;
+    width: 320px;
+    right: -140px;
+    bottom: -136px;
     opacity: 0.032;
   }
 
