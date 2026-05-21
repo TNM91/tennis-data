@@ -2371,101 +2371,113 @@ function MyLabPageInner() {
                 )}
               </section>
 
-              <section style={matchPlanPanelStyle}>
-                <div style={sectionHeaderStyle}>
-                  <div style={sectionTitleClusterStyle}>
-                    <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
-                    <div>
-                      <p style={sectionKickerStyle}>Match plan</p>
-                      <h3 style={compactSectionTitleStyle}>Turn the read into a tennis routine</h3>
-                      <p style={sectionTextStyle}>
-                        Player value should show up before, during, and after the next match.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => applyGoalTemplate(focusTemplates[0])}
-                    style={smallGhostButtonStyle}
-                  >
-                    Use suggested focus
-                  </button>
-                </div>
-                <div style={matchPlanGridStyle(isTablet)}>
-                  {matchPlanCards.map((card) => (
-                    <Link
-                      key={card.label}
-                      href={card.href}
-                      style={matchPlanCardStyle}
-                      onClick={() => {
-                        void trackProductUsageEvent({
-                          eventName: 'mylab_match_plan_action',
-                          surface: 'mylab',
-                          planId: 'player_plus',
-                          metadata: {
-                            action: card.label,
-                            href: card.href,
-                            linkedPlayerId: linkedPlayer?.id ?? null,
-                            matchupPlayerId: topMatchupCandidate?.player.id ?? null,
-                          },
-                        })
-                      }}
-                    >
-                      <span style={miniActionPillStyle}>{card.label}</span>
-                      <strong>{card.title}</strong>
-                      <span style={matchPlanTextStyle}>{card.body}</span>
-                      <span style={miniActionLinkStyle}>{card.cta}</span>
-                    </Link>
-                  ))}
-                </div>
-              </section>
+              <details style={labDrawerDetailsStyle}>
+                <summary style={labDrawerSummaryStyle}>
+                  <span style={labDrawerSummaryCopyStyle}>
+                    <strong>More player tools</strong>
+                    <em style={labDrawerSummaryHintStyle}>Open when you want goals, performance detail, and personal records.</em>
+                  </span>
+                  <span style={optionalContextCountStyle}>3 tools</span>
+                </summary>
 
-              <section style={performancePanelStyle}>
-                <div style={sectionHeaderStyle}>
-                  <div style={sectionTitleClusterStyle}>
-                    <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
-                    <div>
-                      <p style={sectionKickerStyle}>Performance mix</p>
-                      <h3 style={compactSectionTitleStyle}>Stats that explain the score</h3>
-                    </div>
-                  </div>
-                </div>
-                <div style={performanceGridStyle(isTablet)}>
-                  {visualStatBars.map((bar) => (
-                    <div key={bar.label} style={performanceCardStyle}>
-                      <div style={statRingStyle(bar.value)}>
-                        <span>{bar.figure}</span>
+                <div style={labDrawerContentStyle}>
+                  <section style={matchPlanPanelStyle}>
+                    <div style={sectionHeaderStyle}>
+                      <div style={sectionTitleClusterStyle}>
+                        <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
+                        <div>
+                          <p style={sectionKickerStyle}>Match plan</p>
+                          <h3 style={compactSectionTitleStyle}>Turn the read into a tennis routine</h3>
+                          <p style={sectionTextStyle}>
+                            Player value should show up before, during, and after the next match.
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <div style={performanceCardTitleStyle}>{bar.label}</div>
-                        <div style={metricNoteStyle}>{bar.text}</div>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => applyGoalTemplate(focusTemplates[0])}
+                        style={smallGhostButtonStyle}
+                      >
+                        Use suggested focus
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </section>
+                    <div style={matchPlanGridStyle(isTablet)}>
+                      {matchPlanCards.map((card) => (
+                        <Link
+                          key={card.label}
+                          href={card.href}
+                          style={matchPlanCardStyle}
+                          onClick={() => {
+                            void trackProductUsageEvent({
+                              eventName: 'mylab_match_plan_action',
+                              surface: 'mylab',
+                              planId: 'player_plus',
+                              metadata: {
+                                action: card.label,
+                                href: card.href,
+                                linkedPlayerId: linkedPlayer?.id ?? null,
+                                matchupPlayerId: topMatchupCandidate?.player.id ?? null,
+                              },
+                            })
+                          }}
+                        >
+                          <span style={miniActionPillStyle}>{card.label}</span>
+                          <strong>{card.title}</strong>
+                          <span style={matchPlanTextStyle}>{card.body}</span>
+                          <span style={miniActionLinkStyle}>{card.cta}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
 
-              <section style={trophyRoomPanelStyle}>
-                <div style={sectionHeaderStyle}>
-                  <div style={sectionTitleClusterStyle}>
-                    <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
-                    <div>
-                      <p style={sectionKickerStyle}>Trophy room</p>
-                      <h3 style={compactSectionTitleStyle}>Personal records</h3>
-                      <p style={sectionTextStyle}>Best marks across the tracked history for this profile.</p>
+                  <section style={performancePanelStyle}>
+                    <div style={sectionHeaderStyle}>
+                      <div style={sectionTitleClusterStyle}>
+                        <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                        <div>
+                          <p style={sectionKickerStyle}>Performance mix</p>
+                          <h3 style={compactSectionTitleStyle}>Stats that explain the score</h3>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div style={trophyRoomGridStyle(isTablet)}>
-                  {trophyRoomCards.map((record) => (
-                    <div key={record.label} style={trophyCardStyle}>
-                      <div style={metricLabelStyle}>{record.label}</div>
-                      <div style={trophyValueStyle}>{record.value}</div>
-                      <div style={metricNoteStyle}>{record.note}</div>
+                    <div style={performanceGridStyle(isTablet)}>
+                      {visualStatBars.map((bar) => (
+                        <div key={bar.label} style={performanceCardStyle}>
+                          <div style={statRingStyle(bar.value)}>
+                            <span>{bar.figure}</span>
+                          </div>
+                          <div>
+                            <div style={performanceCardTitleStyle}>{bar.label}</div>
+                            <div style={metricNoteStyle}>{bar.text}</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </section>
+
+                  <section style={trophyRoomPanelStyle}>
+                    <div style={sectionHeaderStyle}>
+                      <div style={sectionTitleClusterStyle}>
+                        <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
+                        <div>
+                          <p style={sectionKickerStyle}>Trophy room</p>
+                          <h3 style={compactSectionTitleStyle}>Personal records</h3>
+                          <p style={sectionTextStyle}>Best marks across the tracked history for this profile.</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={trophyRoomGridStyle(isTablet)}>
+                      {trophyRoomCards.map((record) => (
+                        <div key={record.label} style={trophyCardStyle}>
+                          <div style={metricLabelStyle}>{record.label}</div>
+                          <div style={trophyValueStyle}>{record.value}</div>
+                          <div style={metricNoteStyle}>{record.note}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 </div>
-              </section>
+              </details>
             </>
           ) : (
             <section style={setupPanelStyle(isTablet)}>
@@ -2516,7 +2528,16 @@ function MyLabPageInner() {
       ) : null}
 
       {linkedPlayer ? (
-        <section id="player-tools" style={profileLinkSectionStyle}>
+        <details id="player-tools" style={labDrawerDetailsStyle}>
+          <summary style={labDrawerSummaryStyle}>
+            <span style={labDrawerSummaryCopyStyle}>
+              <strong>Notebook, matches, and follows</strong>
+              <em style={labDrawerSummaryHintStyle}>Use these when you want deeper tracking without crowding the daily read.</em>
+            </span>
+            <span style={optionalContextCountStyle}>Open</span>
+          </summary>
+
+          <section style={profileLinkSectionStyle}>
           <div style={profileLinkCardStyle}>
             <div style={sectionHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
@@ -2908,7 +2929,8 @@ function MyLabPageInner() {
               </div>
             </div>
           </div>
-        </section>
+          </section>
+        </details>
       ) : null}
 
       <details style={optionalContextDetailsStyle}>
@@ -4772,6 +4794,53 @@ const optionalContextDetailsStyle: CSSProperties = {
   padding: 0,
   overflow: 'hidden',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const labDrawerDetailsStyle: CSSProperties = {
+  marginTop: 14,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 82%, transparent)',
+  padding: 0,
+  overflow: 'hidden',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+
+const labDrawerSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  padding: '14px 16px',
+  cursor: 'pointer',
+  color: 'var(--foreground-strong)',
+  fontWeight: 950,
+  listStyle: 'none',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const labDrawerSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const labDrawerSummaryHintStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontStyle: 'normal',
+  fontWeight: 800,
+  lineHeight: 1.35,
+}
+
+const labDrawerContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: '0 14px 14px',
   minWidth: 0,
 }
 
