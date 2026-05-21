@@ -1856,37 +1856,6 @@ function MyLabPageInner() {
       href: nextMoveHref,
     },
   ]
-  const labPlaybookCards = [
-    {
-      step: '1',
-      label: isProfileConfirmed ? 'Scan your scorecard' : 'Connect profile',
-      value: isProfileConfirmed ? recentRecordLabel : 'Profile needed',
-      note: isProfileConfirmed ? lastMatchSummary : 'Link the player record that should power My Lab.',
-      href: isProfileConfirmed ? '#scorecard-summary' : '/profile',
-      cta: isProfileConfirmed ? 'Review' : 'Connect',
-      complete: isProfileConfirmed,
-    },
-    {
-      step: '2',
-      label: 'Compare next test',
-      value: topMatchupCandidate?.player.name || 'Waiting',
-      note: topMatchupCandidate
-        ? `${topMatchupCandidate.read} with a ${topMatchupCandidate.gap.toFixed(2)} rating gap.`
-        : 'My Lab will suggest close tests once your rating context is ready.',
-      href: matchupHref,
-      cta: 'Compare',
-      complete: Boolean(topMatchupCandidate),
-    },
-    {
-      step: '3',
-      label: 'Log one focus',
-      value: activeGoal.goal.trim() ? goalStatusLabel(activeGoal.progressStatus) : 'Choose one',
-      note: activeGoal.progressUpdate || `Next: add ${nextReadinessStep.toLowerCase()} detail.`,
-      href: '#player-notebook',
-      cta: 'Log',
-      complete: Boolean(activeGoal.goal.trim() && activeGoal.progressUpdate.trim()),
-    },
-  ]
   const focusTemplates: Array<{ label: string } & GoalTemplate> = [
     {
       label: 'Next match plan',
@@ -2212,26 +2181,6 @@ function MyLabPageInner() {
                     <div style={metricNoteStyle}>{card.note}</div>
                   </div>
                 )
-              ))}
-            </div>
-          </section>
-
-          <section style={labPlaybookPanelStyle} aria-label="My Lab playbook">
-            <div style={workshopContextRowStyle}>
-              <span>Lab playbook</span>
-              <strong>{labPlaybookCards.filter((card) => card.complete).length}/3 ready</strong>
-            </div>
-            <div style={labPlaybookGridStyle(isTablet)}>
-              {labPlaybookCards.map((card) => (
-                <Link key={card.step} href={card.href} style={labPlaybookCardStyle(card.complete)}>
-                  <span style={labPlaybookStepStyle(card.complete)}>{card.step}</span>
-                  <div style={labPlaybookCopyStyle}>
-                    <div style={metricLabelStyle}>{card.label}</div>
-                    <div style={labPlaybookValueStyle}>{card.value}</div>
-                    <div style={metricNoteStyle}>{card.note}</div>
-                  </div>
-                  <span style={labPlaybookCtaStyle}>{card.cta}</span>
-                </Link>
               ))}
             </div>
           </section>
@@ -3404,78 +3353,6 @@ const personalReadValueStyle: CSSProperties = {
   fontSize: '1.12rem',
   fontWeight: 950,
   lineHeight: 1.12,
-  overflowWrap: 'anywhere',
-}
-
-const labPlaybookPanelStyle: CSSProperties = {
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: 12,
-  display: 'grid',
-  gap: 10,
-  minWidth: 0,
-}
-
-const labPlaybookGridStyle = (isTablet: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isTablet
-    ? 'minmax(0, 1fr)'
-    : 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-})
-
-const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
-  gap: 12,
-  alignItems: 'start',
-  minHeight: 132,
-  borderRadius: 18,
-  border: complete
-    ? '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)'
-    : '1px solid var(--shell-panel-border)',
-  background: complete
-    ? 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)'
-    : 'var(--shell-chip-bg)',
-  padding: 14,
-  color: 'inherit',
-  textDecoration: 'none',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-})
-
-const labPlaybookStepStyle = (complete: boolean): CSSProperties => ({
-  width: 30,
-  height: 30,
-  borderRadius: 12,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: complete
-    ? 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'
-    : 'var(--shell-panel-bg)',
-  border: complete
-    ? '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)'
-    : '1px solid var(--shell-panel-border)',
-  color: 'var(--foreground-strong)',
-  fontWeight: 950,
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
-})
-
-const labPlaybookCopyStyle: CSSProperties = {
-  minWidth: 0,
-  maxWidth: '100%',
-  overflowWrap: 'anywhere',
-}
-
-const labPlaybookValueStyle: CSSProperties = {
-  marginTop: 6,
-  color: 'var(--foreground-strong)',
-  fontSize: '1rem',
-  lineHeight: 1.18,
-  fontWeight: 950,
   overflowWrap: 'anywhere',
 }
 
@@ -4716,12 +4593,6 @@ const miniActionPillStyle: CSSProperties = {
   textAlign: 'center',
   minWidth: 0,
   overflowWrap: 'anywhere',
-}
-
-const labPlaybookCtaStyle: CSSProperties = {
-  ...miniActionPillStyle,
-  gridColumn: '1 / -1',
-  justifySelf: 'start',
 }
 
 const notebookFooterStyle: CSSProperties = {
