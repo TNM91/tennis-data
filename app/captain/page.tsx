@@ -1084,16 +1084,6 @@ function CaptainHubContent() {
     padding: isSmallMobile ? 18 : isMobile ? 20 : 22,
   }
 
-  const dynamicHeroTitle: CSSProperties = {
-    ...heroTitle,
-    fontSize: isSmallMobile ? '2.35rem' : isMobile ? '2.75rem' : 'clamp(2.6rem, 5vw, 4.7rem)',
-  }
-
-  const dynamicHeroText: CSSProperties = {
-    ...heroText,
-    fontSize: isMobile ? 15 : 16,
-  }
-
   const dynamicHeroControlRow: CSSProperties = {
     ...heroControlRow,
     display: isMobile ? 'grid' : heroControlRow.display,
@@ -1532,18 +1522,17 @@ function CaptainHubContent() {
 
   return (
     <div style={pageWrap}>
-        <section style={dynamicHeroCard}>
+        <section style={dynamicHeroCard} aria-label="Captain team scope">
           <div style={heroLeft}>
-            <div style={captainWorkbenchHeaderStyle(isMobile)}>
-              <TiqFeatureIcon name="captainDashboard" size="lg" variant="surface" />
+            <div style={scopeHeaderStyle}>
               <div>
-                <div style={eyebrow}>Captain workspace</div>
-                <h1 style={dynamicHeroTitle}>Run the team week.</h1>
+                <div style={sectionKicker}>Team scope</div>
+                <h2 style={scopeTitleStyle}>Choose the week.</h2>
               </div>
+              <span style={hasTeamScope ? badgeGreen : badgeBlue}>
+                {hasTeamScope ? 'Ready' : 'Choose team'}
+              </span>
             </div>
-            <p style={dynamicHeroText}>
-              Pick the team, see the blocker, build the lineup, and send the plan.
-            </p>
 
             <div id="captain-team-scope" style={dynamicHeroControlRow}>
               <select
@@ -1649,14 +1638,6 @@ function CaptainHubContent() {
               </div>
             ) : null}
 
-            <div style={heroBadgeRow}>
-              <span style={badgeBlue}>{quickStats.matches} matches</span>
-              <span style={badgeGreen}>
-                {quickStats.wins}-{quickStats.losses} record
-              </span>
-              <span style={badgeSlate}>{quickStats.roster} active players</span>
-              <span style={badgeBlue}>Top pair {quickStats.topPairWinPct}</span>
-            </div>
           </div>
         </section>
 
@@ -2585,43 +2566,21 @@ const heroLeft: CSSProperties = {
   minWidth: 0,
 }
 
-const captainWorkbenchHeaderStyle = (isMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, auto) minmax(0, 1fr)',
-  gap: 14,
+const scopeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
   alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
   minWidth: 0,
-})
-
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  width: 'fit-content',
-  padding: '8px 12px',
-  borderRadius: 999,
-  border: '1px solid var(--card-border-soft)',
-  background: 'var(--surface-soft)',
-  color: 'var(--foreground)',
-  fontSize: 12,
-  fontWeight: 800,
-  letterSpacing: 0,
-  textTransform: 'uppercase',
 }
 
-const heroTitle: CSSProperties = {
-  margin: 0,
-  fontSize: 'clamp(2.2rem, 4vw, 4rem)',
-  lineHeight: 0.98,
-  letterSpacing: 0,
+const scopeTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
   color: 'var(--foreground-strong)',
-  overflowWrap: 'anywhere',
-}
-
-const heroText: CSSProperties = {
-  margin: 0,
-  maxWidth: 760,
-  fontSize: 16,
-  lineHeight: 1.7,
-  color: 'var(--foreground)',
+  fontSize: 'clamp(1.4rem, 2.4vw, 2rem)',
+  lineHeight: 1.08,
+  letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -2716,12 +2675,6 @@ const disabledButton: CSSProperties = {
 const disabledButtonSecondary: CSSProperties = {
   opacity: 0.55,
   cursor: 'not-allowed',
-}
-
-const heroBadgeRow: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 10,
 }
 
 const badgeBase: CSSProperties = {
