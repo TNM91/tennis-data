@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } fro
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqLoader from '@/components/TiqLoader'
-import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   getMyDataAssistContributorStats,
   getDataAssistImportTypeLabel,
@@ -72,52 +71,6 @@ const importTypes: Array<{
   },
 ]
 
-type DataAssistFlowStep = 'choose' | 'upload' | 'scan' | 'review' | 'apply'
-
-const DATA_ASSIST_FLOW: Array<{
-  id: DataAssistFlowStep
-  label: string
-  title: string
-  body: string
-  icon: TiqFeatureIconName
-}> = [
-  {
-    id: 'choose',
-    label: 'Choose',
-    title: 'Pick the tennis export',
-    body: 'Scorecard, schedule, or roster summary.',
-    icon: 'opponentScouting',
-  },
-  {
-    id: 'upload',
-    label: 'Upload',
-    title: 'Drop the Excel file',
-    body: 'Use TennisLink Send To Excel.',
-    icon: 'reports',
-  },
-  {
-    id: 'scan',
-    label: 'Read',
-    title: 'Let TIQ scan it',
-    body: 'Clean exports can import fast.',
-    icon: 'schedule',
-  },
-  {
-    id: 'review',
-    label: 'Review',
-    title: 'Confirm uncertain reads',
-    body: 'Trust stays visible before data moves.',
-    icon: 'accountSecurity',
-  },
-  {
-    id: 'apply',
-    label: 'Apply',
-    title: 'Refresh the workspace',
-    body: 'Players, teams, matches, and standings update.',
-    icon: 'playerRatings',
-  },
-]
-
 type BulkScorecardResult = {
   fileName: string
   status: 'pending' | 'imported' | 'duplicate' | 'review' | 'failed'
@@ -137,7 +90,7 @@ export default function DataAssistPage() {
 
 function DataAssistWorkspace() {
   const { userId, authResolved } = useAuth()
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isTablet, isMobile } = useViewportBreakpoints()
   const [importType, setImportType] = useState<DataAssistImportType>('scorecard')
   const [summary, setSummary] = useState<DataAssistBatchSummary | null>(null)
   const [preparing, setPreparing] = useState(false)
@@ -181,14 +134,6 @@ function DataAssistWorkspace() {
     contributorStats?.uploadSuspensionReason || 'Scorecard uploads are paused while admins review recent match accuracy reports.'
   const scorecardUploadBlocked = importType === 'scorecard' && scorecardUploadsPaused
   const summaryScorecardUploadBlocked = summary?.requestedImportType === 'scorecard' && scorecardUploadsPaused
-  const activeFlowStep: DataAssistFlowStep = showLatestReviewStep
-    ? 'review'
-    : showScanStep || saving
-      ? 'scan'
-      : showOrderStep || hasPreparedScreenshots
-        ? 'upload'
-        : 'choose'
-
   function resetUploadFlow() {
     scanRunRef.current += 1
     setSummary(null)
@@ -676,29 +621,6 @@ function DataAssistWorkspace() {
 
   return (
     <section style={pageStyle(isMobile)}>
-      <section style={heroStyle(isMobile)}>
-        <div style={heroCopyStyle}>
-          <div className="section-kicker">TenAceIQ Data Assist</div>
-          <h1 style={titleStyle(isSmallMobile)}>Upload trusted tennis data.</h1>
-          <p style={heroTextStyle}>
-            Upload scorecards weekly. Add schedule and roster exports once per season so TenAceIQ can review and refresh your workspace.
-          </p>
-          <div style={heroActionRowStyle}>
-            <a href="#upload" style={primaryButtonStyle}>Start upload</a>
-            <Link href="/messages?compose=support&category=data&subject=Data%20Assist%20question" style={secondaryButtonStyle}>
-              Ask support
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <DataAssistCommandPanel
-        activeStep={activeFlowStep}
-        activeImportType={activeImportType}
-        signedIn={Boolean(authResolved && userId)}
-        scorecardUploadsPaused={scorecardUploadsPaused}
-      />
-
       {!showOrderStep && message ? <div style={successStyle}>{message}</div> : null}
       {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
       {showBulkScorecardResults ? (
@@ -1559,61 +1481,6 @@ function filterDataAssistSubmissions(submissions: DataAssistSubmission[], filter
   if (filter === 'imported') return submissions.filter((submission) => submission.status === 'imported')
   if (filter === 'needs_review') return submissions.filter((submission) => submission.status !== 'imported' && submission.status !== 'verified' && submission.status !== 'rejected')
   return submissions.filter((submission) => submission.requestedImportType === filter)
-}
-
-function DataAssistCommandPanel({
-  activeStep,
-  activeImportType,
-  signedIn,
-  scorecardUploadsPaused,
-}: {
-  activeStep: DataAssistFlowStep
-  activeImportType: (typeof importTypes)[number]
-  signedIn: boolean
-  scorecardUploadsPaused: boolean
-}) {
-  const activeConfig = DATA_ASSIST_FLOW.find((step) => step.id === activeStep) || DATA_ASSIST_FLOW[0]
-
-  return (
-    <section style={assistCommandStyle} aria-label="Data Assist workflow">
-      <div style={assistCommandHeaderStyle}>
-        <TiqFeatureIcon name={activeConfig.icon} size="md" variant="surface" />
-        <div style={assistCommandCopyStyle}>
-          <div style={assistCommandEyebrowStyle}>Upload path</div>
-          <h2 style={assistCommandTitleStyle}>{activeConfig.title}</h2>
-          <p style={assistCommandTextStyle}>
-            {activeConfig.body} Current choice: {activeImportType.label}.
-          </p>
-        </div>
-        <div style={assistSignalGridStyle}>
-          <div style={assistSignalStyle}>
-            <span>Account</span>
-            <strong>{signedIn ? 'Ready' : 'Sign in first'}</strong>
-          </div>
-          <div style={assistSignalStyle}>
-            <span>Scorecards</span>
-            <strong>{scorecardUploadsPaused ? 'Paused' : 'Enabled'}</strong>
-          </div>
-        </div>
-      </div>
-
-      <div style={assistFlowGridStyle}>
-        {DATA_ASSIST_FLOW.map((step, index) => {
-          const selected = step.id === activeStep
-          return (
-            <div key={step.id} style={{ ...assistFlowCardStyle, ...(selected ? assistFlowCardActiveStyle : null) }}>
-              <span style={assistFlowNumberStyle}>{index + 1}</span>
-              <TiqFeatureIcon name={step.icon} size="sm" variant={selected ? 'surface' : 'ghost'} />
-              <span style={assistFlowCopyStyle}>
-                <span style={assistFlowLabelStyle}>{step.label}</span>
-                <strong style={assistFlowTitleStyle}>{step.title}</strong>
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    </section>
-  )
 }
 
 function StepBadge({ step, label }: { step: number; label: string }) {
@@ -2577,183 +2444,6 @@ const pageStyle = (isMobile: boolean): CSSProperties => ({
   gap: 18,
   minWidth: 0,
 })
-
-const heroStyle = (isMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr)',
-  gap: isMobile ? 14 : 18,
-  alignItems: 'stretch',
-  minWidth: 0,
-})
-
-const heroCopyStyle: CSSProperties = {
-  borderRadius: 'clamp(18px, 5vw, 28px)',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
-  padding: 'clamp(16px, 4vw, 38px)',
-  display: 'grid',
-  alignContent: 'center',
-  gap: 16,
-  minWidth: 0,
-}
-
-const titleStyle = (isSmallMobile: boolean): CSSProperties => ({
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: isSmallMobile ? 31 : 'clamp(2rem, 5vw, 4.5rem)',
-  lineHeight: 1.04,
-  fontWeight: 950,
-  letterSpacing: 0,
-  maxWidth: 760,
-  overflowWrap: 'anywhere',
-})
-
-const heroTextStyle: CSSProperties = {
-  margin: 0,
-  maxWidth: 700,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 15,
-  lineHeight: 1.55,
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
-
-const heroActionRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 10,
-  minWidth: 0,
-}
-
-const assistCommandStyle: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  padding: 16,
-  borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(13,28,53,0.74) 0%, rgba(9,20,39,0.9) 100%)',
-  boxShadow: '0 18px 46px rgba(2,10,24,0.14), inset 0 1px 0 rgba(255,255,255,0.04)',
-  minWidth: 0,
-}
-
-const assistCommandHeaderStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '48px minmax(0, 1fr)',
-  gap: 12,
-  alignItems: 'center',
-  minWidth: 0,
-}
-
-const assistCommandCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 4,
-  minWidth: 0,
-}
-
-const assistCommandEyebrowStyle: CSSProperties = {
-  color: 'var(--brand-green)',
-  fontSize: 10,
-  fontWeight: 950,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-}
-
-const assistCommandTitleStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(1.2rem, 2vw, 1.6rem)',
-  lineHeight: 1.05,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const assistCommandTextStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.5,
-  fontWeight: 800,
-  overflowWrap: 'anywhere',
-}
-
-const assistSignalGridStyle: CSSProperties = {
-  gridColumn: '1 / -1',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: 8,
-  minWidth: 0,
-}
-
-const assistSignalStyle: CSSProperties = {
-  display: 'grid',
-  gap: 3,
-  padding: '9px 10px',
-  borderRadius: 14,
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(255,255,255,0.04)',
-  color: 'var(--foreground-strong)',
-  minWidth: 0,
-}
-
-const assistFlowGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
-
-const assistFlowCardStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '28px 32px minmax(0, 1fr)',
-  gap: 9,
-  alignItems: 'center',
-  minHeight: 58,
-  padding: '9px 10px',
-  borderRadius: 15,
-  border: '1px solid rgba(116,190,255,0.09)',
-  background: 'rgba(255,255,255,0.035)',
-  color: 'var(--foreground)',
-  minWidth: 0,
-}
-
-const assistFlowCardActiveStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, rgba(116,190,255,0.12) 66%)',
-  background: 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)',
-}
-
-const assistFlowNumberStyle: CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 999,
-  display: 'grid',
-  placeItems: 'center',
-  background: 'rgba(255,255,255,0.06)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
-}
-
-const assistFlowCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 2,
-  minWidth: 0,
-}
-
-const assistFlowLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 900,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-}
-
-const assistFlowTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 12,
-  lineHeight: 1.15,
-  overflowWrap: 'anywhere',
-}
 
 const workspaceStyle = (): CSSProperties => ({
   display: 'grid',
