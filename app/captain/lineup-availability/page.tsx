@@ -4,9 +4,6 @@ export const dynamic = 'force-dynamic'
 
 import Image from 'next/image'
 import Link from 'next/link'
-import CaptainSubnav from '@/app/components/captain-subnav'
-import CaptainSuitePanel from '@/app/components/captain-suite-panel'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
@@ -973,46 +970,29 @@ function LineupAvailabilityContent() {
 
         </div>
 
-        <div style={quickStartCard}>
-          <div style={quickStartLabel}>Workflow</div>
-          <div style={quickStartValue}>Ask, mark, build</div>
-          <div style={quickStartText}>
-            Save one match-day list, then use it in projection and lineup builder.
+        <div style={captainReadCard}>
+          <div style={captainReadTop}>
+            <div>
+              <p style={sectionKicker}>Availability read</p>
+              <h2 style={captainReadTitle}>{viability}</h2>
+              <p style={captainReadText}>
+                {selectedTeam
+                  ? `${availabilityReadiness.playableCount} playable, ${availabilityReadiness.doublesPairs} doubles pair${availabilityReadiness.doublesPairs === 1 ? '' : 's'}, ${availabilityReadiness.limitedCount} restriction${availabilityReadiness.limitedCount === 1 ? '' : 's'}.`
+                  : 'Choose a team to see who can cover this match.'}
+              </p>
+            </div>
+            <span style={summaryPillStyle(viability === 'Strong' ? 'green' : viability === 'Playable' ? 'amber' : 'red')}>
+              {availabilitySummary.available} in
+            </span>
           </div>
 
-          <div style={workflowListStyle}>
-            {[
-              ['1', 'Pick match', 'Choose league, team, and date.'],
-              ['2', 'Mark status', 'Set who is in, out, limited, singles-only, or doubles-only.'],
-              ['3', 'Build lineup', 'Send the saved list into the builder.'],
-            ].map(([step, title, text]) => (
-              <div key={step} style={workflowRowStyle}>
-                <div style={workflowNumberStyle}>{step}</div>
-                <div>
-                  <div style={workflowTitleStyle}>{title}</div>
-                  <div style={workflowTextStyle}>{text}</div>
-                </div>
-              </div>
-            ))}
+          <div style={heroBadgeRowStyleCompact}>
+            <span style={miniPillSlate}>{selectedDate ? formatDate(selectedDate) : 'Pick match date'}</span>
+            <span style={miniPillBlue}>{availabilityReadiness.singlesCount} singles options</span>
+            <span style={miniPillSlate}>{availabilitySummary.unavailable} out</span>
           </div>
         </div>
       </section>
-
-      {!access.canUseCaptainWorkflow ? (
-        <section style={{ padding: '0 24px 24px' }}>
-          <UpgradePrompt
-            planId="captain"
-            compact
-            headline="Need lineup decisions that start from real availability?"
-            body="Unlock Captain to save match-date availability, carry it into the builder, and stop guessing who is actually usable before you set the lineup."
-            ctaLabel="Build Smarter Lineups"
-            ctaHref="/pricing"
-            secondaryLabel="See Captain plan"
-            secondaryHref="/pricing"
-            footnote="Best for captains who want one reliable workflow from roster status to final lineup."
-          />
-        </section>
-      ) : null}
 
       <section style={contentWrap}>
         <section style={surfaceCardStrong}>
@@ -1298,22 +1278,6 @@ function LineupAvailabilityContent() {
             </section>
           </>
         )}
-      </section>
-
-      <section style={{ padding: '0 24px 32px' }}>
-        <CaptainSubnav
-          title="Lineup Availability"
-          description="Start with who can play, then move into projection or the builder."
-          tierLabel={access.captainTierLabel}
-          tierActive={access.captainSubscriptionActive}
-        />
-        <div style={{ marginTop: 14 }}>
-          <CaptainSuitePanel
-            active="availability"
-            teamLabel={[selectedTeam, selectedLeagueLabel].filter(Boolean).join(' - ') || undefined}
-            flow={['availability', 'projection', 'lineup', 'messaging']}
-          />
-        </div>
       </section>
 
       <footer style={footerStyle}>
@@ -1696,7 +1660,7 @@ const metricValueStyleHero: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const quickStartCard: CSSProperties = {
+const captainReadCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid rgba(255,255,255,0.10)',
   background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
@@ -1704,18 +1668,18 @@ const quickStartCard: CSSProperties = {
   minWidth: 0,
 }
 
-const quickStartLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
-  fontSize: '12px',
-  lineHeight: 1.5,
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  overflowWrap: 'anywhere',
+const captainReadTop: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 14,
+  flexWrap: 'wrap',
+  marginBottom: 16,
+  minWidth: 0,
 }
 
-const quickStartValue: CSSProperties = {
-  marginTop: 8,
+const captainReadTitle: CSSProperties = {
+  margin: '6px 0',
   color: '#ffffff',
   fontSize: '30px',
   lineHeight: 1,
@@ -1724,54 +1688,12 @@ const quickStartValue: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const quickStartText: CSSProperties = {
-  marginTop: 10,
+const captainReadText: CSSProperties = {
+  margin: 0,
   color: 'rgba(219, 234, 254, 0.88)',
-  fontSize: '14px',
-  lineHeight: 1.65,
-  fontWeight: 500,
-  overflowWrap: 'anywhere',
-}
-
-const workflowListStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  marginTop: 16,
-  minWidth: 0,
-}
-
-const workflowRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: 12,
-  alignItems: 'flex-start',
-  minWidth: 0,
-}
-
-const workflowNumberStyle: CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 999,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 800,
-  fontSize: '.92rem',
-  color: '#0f1632',
-  background: 'linear-gradient(135deg, #c7ff5e 0%, #7dffb3 100%)',
-  flexShrink: 0,
-}
-
-const workflowTitleStyle: CSSProperties = {
-  fontWeight: 700,
-  color: '#ffffff',
-  marginBottom: 4,
-  overflowWrap: 'anywhere',
-}
-
-const workflowTextStyle: CSSProperties = {
-  color: 'rgba(255,255,255,0.72)',
-  lineHeight: 1.55,
   fontSize: '.95rem',
+  lineHeight: 1.6,
+  fontWeight: 600,
   overflowWrap: 'anywhere',
 }
 
