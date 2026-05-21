@@ -619,8 +619,8 @@ function InfoBlock({ label, value }: { label: string; value: string }) {
 }
 
 const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  background: 'radial-gradient(circle at top, rgba(37,99,235,0.22), transparent 32%), linear-gradient(180deg, #081224 0%, #0b1730 100%)',
+  minHeight: 0,
+  background: 'transparent',
 }
 const contentStyle: CSSProperties = { display: 'grid', gap: 20, minWidth: 0 }
 const heroCard: CSSProperties = {

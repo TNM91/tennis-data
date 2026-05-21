@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import LockedPlanPage from '@/app/components/locked-plan-page'
-import { AuthProvider, useAuth } from '@/app/components/auth-provider'
+import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
@@ -195,9 +196,9 @@ function viabilityLabel(available: number, unavailable: number, limited: number)
 
 export default function LineupAvailabilityPage() {
   return (
-    <AuthProvider>
+    <SiteShell active="/captain">
       <LineupAvailabilityContent />
-    </AuthProvider>
+    </SiteShell>
   )
 }
 
@@ -1476,16 +1477,16 @@ function footerLinksResponsive(isTablet: boolean): CSSProperties {
 }
 
 const pageStyle: CSSProperties = {
-  minHeight: '100vh',
+  minHeight: 0,
   position: 'relative',
-  overflow: 'hidden',
-  background:
-    'radial-gradient(circle at top, rgba(37,91,227,0.20), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
-  padding: '24px 18px 56px',
+  overflow: 'visible',
+  background: 'transparent',
+  padding: '12px 18px 56px',
   minWidth: 0,
 }
 
 const orbOne: CSSProperties = {
+  display: 'none',
   position: 'absolute',
   top: '-100px',
   right: '-60px',
@@ -1498,6 +1499,7 @@ const orbOne: CSSProperties = {
 }
 
 const orbTwo: CSSProperties = {
+  display: 'none',
   position: 'absolute',
   top: '60px',
   left: '-100px',
@@ -1510,6 +1512,7 @@ const orbTwo: CSSProperties = {
 }
 
 const gridGlow: CSSProperties = {
+  display: 'none',
   position: 'absolute',
   inset: 0,
   backgroundImage:
@@ -1520,6 +1523,7 @@ const gridGlow: CSSProperties = {
 }
 
 const headerStyle: CSSProperties = {
+  display: 'none',
   position: 'relative',
   zIndex: 2,
   maxWidth: '1240px',
@@ -1575,9 +1579,9 @@ const heroShell: CSSProperties = {
   margin: '0 auto 18px',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid rgba(107, 162, 255, 0.18)',
-  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
-  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--portal-tool-surface-bg)',
+  boxShadow: '0 34px 80px rgba(2,10,24,0.28)',
   minWidth: 0,
 }
 
