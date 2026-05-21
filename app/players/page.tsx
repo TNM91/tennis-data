@@ -379,11 +379,6 @@ export default function PlayersPage() {
     boxShadow: flightFilter !== 'all' ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
   }
 
-  const dynamicHeroStatsGrid: CSSProperties = {
-    ...heroStatsGrid,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
-  }
-
   const dynamicSectionHeader: CSSProperties = {
     ...sectionHeader,
     alignItems: isMobile ? 'flex-start' : 'flex-end',
@@ -406,151 +401,140 @@ export default function PlayersPage() {
   return (
     <SiteShell active="players">
       <section style={playerToolWrap}>
-        <div style={playerToolGrid(isTablet)}>
-          <div style={dynamicControlsShell}>
-            <div style={dynamicControlsTopRow}>
+        <div style={dynamicControlsShell}>
+          <div style={dynamicControlsTopRow}>
+            <div style={controlsTitleGroup}>
+              <div style={sectionKicker}>Players</div>
               <div style={controlsLabel}>Find a player</div>
-              {!isTablet ? <div style={controlsHint}>Search first, filter if needed</div> : null}
             </div>
-
-            <div style={dynamicControlsRow}>
-              <div style={dynamicSearchInputWrap}>
-                <div style={searchIconWrap}>
-                  <SearchIcon />
-                </div>
-                <input
-                  id="players-directory-search"
-                  aria-label="Search players by name or location"
-                  aria-describedby="players-directory-helper"
-                  ref={searchInputRef}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => setSearchFocused(false)}
-                  placeholder="Search player name or location..."
-                  style={dynamicSearchInput}
-                />
-              </div>
-
-              <select
-                id="players-directory-sort"
-                aria-label="Sort player directory"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortKey)}
-                style={dynamicSortSelect}
-              >
-                <option value="overall">Sort: Overall</option>
-                <option value="singles">Sort: Singles</option>
-                <option value="doubles">Sort: Doubles</option>
-                <option value="name">Sort: Name</option>
-              </select>
-
-              <select
-                id="players-directory-filter"
-                aria-label="Filter player directory"
-                value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value as FilterKey)}
-                style={dynamicFilterSelect}
-              >
-                <option value="all">All players</option>
-                <option value="with-matches">With matches</option>
-                <option value="high-rated">4.0+ overall</option>
-                <option value="trending-up">Trending up</option>
-                <option value="at-risk">At risk</option>
-              </select>
-
-              <select
-                id="players-directory-flight"
-                aria-label="Filter by league flight / NTRP level"
-                value={flightFilter}
-                onChange={(e) => setFlightFilter(e.target.value as FlightFilter)}
-                style={dynamicFlightSelect}
-              >
-                <option value="all">All levels</option>
-                <option value="2.5">2.5</option>
-                <option value="3.0">3.0</option>
-                <option value="3.5">3.5</option>
-                <option value="4.0">4.0</option>
-                <option value="4.5+">4.5+</option>
-              </select>
-            </div>
-
-            <div id="players-directory-helper" style={controlsHelperText}>
-              Start with a name. Use filters only when the list is too wide.
-            </div>
-            <div style={dynamicQuickFilterGrid} aria-label="Quick player filters">
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => setFilterBy('with-matches')}
-                style={{
-                  ...quickFilterButton,
-                  ...(loading ? quickFilterButtonDisabled : null),
-                  ...(filterBy === 'with-matches' ? quickFilterButtonActive : null),
-                }}
-              >
-                <span>Match data</span>
-                <strong>{loading ? '-' : playersWithMatches}</strong>
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => setFilterBy('trending-up')}
-                style={{
-                  ...quickFilterButton,
-                  ...(loading ? quickFilterButtonDisabled : null),
-                  ...(filterBy === 'trending-up' ? quickFilterButtonActive : null),
-                }}
-              >
-                <span>Trending</span>
-                <strong>{loading ? '-' : trendingPlayers}</strong>
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => setFilterBy('high-rated')}
-                style={{
-                  ...quickFilterButton,
-                  ...(loading ? quickFilterButtonDisabled : null),
-                  ...(filterBy === 'high-rated' ? quickFilterButtonActive : null),
-                }}
-              >
-                <span>4.0+</span>
-                <strong>{loading ? '-' : highRatedPlayers}</strong>
-              </button>
-            </div>
-            {hasActiveFilters ? (
-              <div style={controlsActionRow}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch('')
-                    setSortBy('overall')
-                    setFilterBy('all')
-                    setFlightFilter('all')
-                  }}
-                  style={clearFilterButton}
-                >
-                  Reset directory filters
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          <div style={summaryCard}>
-            <div style={summaryTitle}>Directory</div>
-
-            <div style={dynamicHeroStatsGrid}>
+            <div style={inlineStatRow}>
               <StatChip label="Players" value={loading ? '-' : String(players.length)} />
               <StatChip label="Showing" value={loading ? '-' : String(filteredPlayers.length)} accent />
             </div>
-
-            <div style={summaryFooterWrap}>
-              <div style={summaryHint}>
-                Open a profile from here, then use My Lab or Matchup when you need deeper prep.
-              </div>
-            </div>
           </div>
+
+          <div style={dynamicControlsRow}>
+            <div style={dynamicSearchInputWrap}>
+              <div style={searchIconWrap}>
+                <SearchIcon />
+              </div>
+              <input
+                id="players-directory-search"
+                aria-label="Search players by name or location"
+                aria-describedby="players-directory-helper"
+                ref={searchInputRef}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                placeholder="Search player name or location..."
+                style={dynamicSearchInput}
+              />
+            </div>
+
+            <select
+              id="players-directory-sort"
+              aria-label="Sort player directory"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              style={dynamicSortSelect}
+            >
+              <option value="overall">Sort: Overall</option>
+              <option value="singles">Sort: Singles</option>
+              <option value="doubles">Sort: Doubles</option>
+              <option value="name">Sort: Name</option>
+            </select>
+
+            <select
+              id="players-directory-filter"
+              aria-label="Filter player directory"
+              value={filterBy}
+              onChange={(e) => setFilterBy(e.target.value as FilterKey)}
+              style={dynamicFilterSelect}
+            >
+              <option value="all">All players</option>
+              <option value="with-matches">With matches</option>
+              <option value="high-rated">4.0+ overall</option>
+              <option value="trending-up">Trending up</option>
+              <option value="at-risk">At risk</option>
+            </select>
+
+            <select
+              id="players-directory-flight"
+              aria-label="Filter by league flight / NTRP level"
+              value={flightFilter}
+              onChange={(e) => setFlightFilter(e.target.value as FlightFilter)}
+              style={dynamicFlightSelect}
+            >
+              <option value="all">All levels</option>
+              <option value="2.5">2.5</option>
+              <option value="3.0">3.0</option>
+              <option value="3.5">3.5</option>
+              <option value="4.0">4.0</option>
+              <option value="4.5+">4.5+</option>
+            </select>
+          </div>
+
+          <div id="players-directory-helper" style={controlsHelperText}>
+            Open a profile from here, then use My Lab or Matchup when you need deeper prep.
+          </div>
+          <div style={dynamicQuickFilterGrid} aria-label="Quick player filters">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => setFilterBy('with-matches')}
+              style={{
+                ...quickFilterButton,
+                ...(loading ? quickFilterButtonDisabled : null),
+                ...(filterBy === 'with-matches' ? quickFilterButtonActive : null),
+              }}
+            >
+              <span>Match data</span>
+              <strong>{loading ? '-' : playersWithMatches}</strong>
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => setFilterBy('trending-up')}
+              style={{
+                ...quickFilterButton,
+                ...(loading ? quickFilterButtonDisabled : null),
+                ...(filterBy === 'trending-up' ? quickFilterButtonActive : null),
+              }}
+            >
+              <span>Trending</span>
+              <strong>{loading ? '-' : trendingPlayers}</strong>
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => setFilterBy('high-rated')}
+              style={{
+                ...quickFilterButton,
+                ...(loading ? quickFilterButtonDisabled : null),
+                ...(filterBy === 'high-rated' ? quickFilterButtonActive : null),
+              }}
+            >
+              <span>4.0+</span>
+              <strong>{loading ? '-' : highRatedPlayers}</strong>
+            </button>
+          </div>
+          {hasActiveFilters ? (
+            <div style={controlsActionRow}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('')
+                  setSortBy('overall')
+                  setFilterBy('all')
+                  setFlightFilter('all')
+                }}
+                style={clearFilterButton}
+              >
+                Reset directory filters
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -572,17 +556,6 @@ export default function PlayersPage() {
           <div>
             <div style={sectionKicker}>Directory</div>
             <h2 style={sectionTitle}>Open a player profile</h2>
-          </div>
-          <div style={exploreNavLinks}>
-            <Link href="/explore/rankings" style={secondaryLink}>
-              Rankings
-            </Link>
-            <Link href="/explore/leagues" style={secondaryLink}>
-              Leagues
-            </Link>
-            <Link href="/mylab" style={secondaryLink}>
-              My Lab
-            </Link>
           </div>
         </div>
 
@@ -934,22 +907,29 @@ const controlsTopRow: CSSProperties = {
 
 const controlsLabel: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: '15px',
-  fontWeight: 800,
+  fontSize: 'clamp(1.25rem, 2.4vw, 1.9rem)',
+  fontWeight: 950,
+  lineHeight: 1,
   letterSpacing: 0,
 }
 
-const controlsHint: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  fontWeight: 700,
-  whiteSpace: 'normal',
+const controlsTitleGroup: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
 }
 
 const controlsRow: CSSProperties = {
   display: 'flex',
   gap: '12px',
   alignItems: 'center',
+  minWidth: 0,
+}
+
+const inlineStatRow: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(96px, 1fr))',
+  gap: 10,
   minWidth: 0,
 }
 
@@ -1052,28 +1032,6 @@ const clearFilterButton: CSSProperties = {
   cursor: 'pointer',
 }
 
-const summaryCard: CSSProperties = {
-  borderRadius: '24px',
-  padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-}
-
-const summaryTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  fontSize: '24px',
-  letterSpacing: 0,
-  marginBottom: '14px',
-}
-
-const heroStatsGrid: CSSProperties = {
-  display: 'grid',
-  gap: '10px',
-}
-
 const statChip: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
@@ -1101,18 +1059,6 @@ const statChipValue: CSSProperties = {
   fontSize: '20px',
   fontWeight: 900,
   letterSpacing: 0,
-}
-
-const summaryFooterWrap: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  marginTop: '14px',
-}
-
-const summaryHint: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.6,
-  fontSize: '14px',
 }
 
 const errorCard: CSSProperties = {
@@ -1179,13 +1125,6 @@ const secondaryLink: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 900,
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
-}
-
-const exploreNavLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  justifyContent: 'flex-end',
 }
 
 const loadingCard: CSSProperties = {
@@ -1464,14 +1403,6 @@ const playerToolWrap: CSSProperties = {
   margin: '12px auto 18px',
   minWidth: 0,
 }
-
-const playerToolGrid = (isTablet: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(min(100%, 280px), 0.32fr)',
-  gap: 12,
-  alignItems: 'stretch',
-  minWidth: 0,
-})
 
 const followButtonWrap: CSSProperties = {
   position: 'relative',
