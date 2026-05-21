@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
-import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
@@ -1305,42 +1304,6 @@ export default function MatchupPage() {
     ? `Log ${projection.favoriteLabel} vs ${projection.underdogLabel}: ${projection.confidenceLabel.toLowerCase()} confidence, ${projection.matchTier.toLowerCase()}.`
     : 'Compare, then log the one thing you want to test next.'
 
-  const dynamicHeroWrap: CSSProperties = {
-    ...heroWrap,
-    padding: isMobile ? '12px 16px 18px' : '8px 18px 18px',
-  }
-
-  const dynamicHeroShell: CSSProperties = {
-    ...heroShell,
-    padding: isMobile ? '18px 18px 16px' : '24px 28px 20px',
-  }
-
-  const dynamicHeroContent: CSSProperties = {
-    ...heroContent,
-    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.05fr) minmax(min(100%, 280px), 0.8fr)',
-    gap: isMobile ? '14px' : '20px',
-  }
-
-  const dynamicHeroTitle: CSSProperties = {
-    ...heroTitle,
-    fontSize: isSmallMobile ? '32px' : isMobile ? '40px' : '48px',
-    lineHeight: isMobile ? 1.05 : 1,
-    maxWidth: '620px',
-  }
-
-  const dynamicHeroText: CSSProperties = {
-    ...heroText,
-    fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '560px',
-  }
-
-  const dynamicEngineCard: CSSProperties = {
-    ...engineCard,
-    display: isMobile ? 'none' : 'block',
-    position: isTablet ? 'relative' : 'sticky',
-    top: isTablet ? 'auto' : '24px',
-  }
-
   const dynamicToolbarTop: CSSProperties = {
     ...toolbarTop,
     flexDirection: isMobile ? 'column' : 'row',
@@ -1401,59 +1364,6 @@ export default function MatchupPage() {
 
   return (
     <SiteShell active="/matchup">
-      <section style={dynamicHeroWrap}>
-        <div style={dynamicHeroShell}>
-          <div style={heroNoise} />
-
-          <div style={dynamicHeroContent}>
-            <div style={heroLeft}>
-              <TiqFeatureIcon name={matchType === 'doubles' ? 'lineupBuilder' : 'matchupAnalysis'} size="lg" variant="surface" />
-              <div style={eyebrow}>{MATCHUP_STORY.eyebrow}</div>
-              <h1 style={dynamicHeroTitle}>{MATCHUP_STORY.headline}</h1>
-              <p style={dynamicHeroText}>
-                {MATCHUP_STORY.body}
-              </p>
-
-              <div style={heroHintRow}>
-                <span style={heroHintPill}>{capitalize(matchType)} mode</span>
-                <CopyLinkButton />
-              </div>
-              {profilePlayer ? (
-                <div style={profileContextCalloutStyle}>
-                  <strong>{profilePlayer.name} is loaded from your profile.</strong>
-                  <span>Choose an opponent to turn your My Lab read into a matchup.</span>
-                </div>
-              ) : user?.id ? (
-                <div style={profileContextCalloutStyle}>
-                  <strong>Matchup can start with you automatically.</strong>
-                  <span>Set your player identity once in Profile, then this page opens with you in Player A.</span>
-                  <Link href="/profile" style={profileContextLinkStyle}>Manage profile</Link>
-                </div>
-              ) : null}
-
-            </div>
-
-            <div style={dynamicEngineCard}>
-              <TiqFeatureIcon name="matchPrep" size="md" variant="ghost" />
-              <div style={engineLabel}>Projection engine</div>
-              <div style={engineValue}>{capitalize(getEngineRatingView(matchType))}</div>
-              <div style={engineText}>
-                The result starts with the court-specific rating and falls back to overall when
-                doubles history is still thin.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={contentWrap}>
-        <PlayerSuitePanel
-          active="matchup"
-          playerLabel={profilePlayer?.name || undefined}
-          flow={['connect', 'lab', 'matchup', 'refresh']}
-        />
-      </section>
-
       <section style={contentWrap}>
         <article style={controlsCard}>
           <div style={toolHeaderStyle}>
@@ -2154,35 +2064,6 @@ export default function MatchupPage() {
           )}
         </article>
       </section>
-      {!loading && !error ? (
-        <section style={contentWrap}>
-          <article style={editorialPanel}>
-            <div style={sectionKicker}>How to read matchup output</div>
-            <h2 style={sectionTitle}>{MATCHUP_STORY.readoutTitle}</h2>
-            <p style={editorialText}>
-              {MATCHUP_STORY.readoutBody} This page helps you compare options and
-              spot swing courts, but it should still sit inside a wider lineup or scouting conversation.
-            </p>
-            <div style={editorialGrid}>
-              <div style={editorialCard}>
-                <div style={editorialCardLabel}>Best use</div>
-                <div style={editorialCardValue}>Compare options</div>
-                <div style={editorialCardText}>Great for deciding between close lineup alternatives.</div>
-              </div>
-              <div style={editorialCard}>
-                <div style={editorialCardLabel}>Strongest signals</div>
-                <div style={editorialCardValue}>Gap + confidence</div>
-                <div style={editorialCardText}>Those usually matter more than a single flashy percentage alone.</div>
-              </div>
-              <div style={editorialCard}>
-                <div style={editorialCardLabel}>Next move</div>
-                <div style={editorialCardValue}>Apply team context</div>
-                <div style={editorialCardText}>Take the result into captain tools when the decision affects a full lineup.</div>
-              </div>
-            </div>
-          </article>
-        </section>
-      ) : null}
       {shouldShowAds ? (
         <div style={inlineAdWrapStyle}>
           <AdsenseSlot slot={MATCHUP_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
@@ -2317,63 +2198,6 @@ function MetricCard({
       <div style={metricValue}>{value}</div>
       {sub ? <div style={metricSub}>{sub}</div> : null}
     </div>
-  )
-}
-
-function CopyLinkButton() {
-  const [hovered, setHovered] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  function handleCopy() {
-    if (typeof navigator === 'undefined' || !navigator.clipboard) return
-    void navigator.clipboard.writeText(window.location.href).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
-  return (
-    <button
-      type="button"
-      title="Copy a link that reopens this exact matchup setup"
-      aria-label="Copy this matchup setup link"
-      onClick={handleCopy}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: '8px 14px',
-        borderRadius: '999px',
-        border: `1px solid ${
-          copied
-            ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)'
-            : hovered
-              ? 'color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)'
-              : 'var(--shell-panel-border)'
-        }`,
-        background: copied
-          ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)'
-          : hovered
-            ? 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)'
-            : 'var(--shell-chip-bg)',
-        color: copied
-          ? 'color-mix(in srgb, var(--brand-green) 76%, var(--foreground-strong) 24%)'
-          : 'var(--foreground-strong)',
-        fontSize: '13px',
-        fontWeight: 700,
-        cursor: 'pointer',
-        transition: 'all 160ms ease',
-        transform: hovered ? 'translateY(-1px)' : 'none',
-        maxWidth: '100%',
-        minWidth: 0,
-        overflowWrap: 'anywhere',
-        whiteSpace: 'normal' as const,
-      }}
-    >
-      {copied ? 'Copied' : 'Copy matchup'}
-    </button>
   )
 }
 
@@ -2630,140 +2454,6 @@ function formatNullablePercent(value: number | null) {
   return formatPercent(value)
 }
 
-const heroWrap: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  minWidth: 0,
-}
-
-const heroShell: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  minWidth: 0,
-  borderRadius: '30px',
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-card)',
-  overflow: 'hidden',
-  position: 'relative',
-}
-
-const heroNoise: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background:
-    'radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%), radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)',
-  pointerEvents: 'none',
-}
-
-const heroContent: CSSProperties = {
-  display: 'grid',
-  alignItems: 'stretch',
-  position: 'relative',
-  zIndex: 1,
-  minWidth: 0,
-}
-
-const heroLeft: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  gap: '16px',
-  minWidth: 0,
-}
-
-const heroTitle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const heroText: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.65,
-  fontWeight: 500,
-  overflowWrap: 'anywhere',
-}
-
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  width: 'fit-content',
-  maxWidth: '100%',
-  alignItems: 'center',
-  padding: '7px 11px',
-  borderRadius: '999px',
-  color: 'var(--home-eyebrow-color)',
-  background: 'var(--home-eyebrow-bg)',
-  border: '1px solid var(--home-eyebrow-border)',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const heroHintRow: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '4px',
-  minWidth: 0,
-}
-
-const heroHintPill: CSSProperties = {
-  maxWidth: '100%',
-  border: '1px solid rgba(137,182,255,0.14)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  borderRadius: '999px',
-  padding: '10px 14px',
-  fontSize: '13px',
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
-
-const engineCard: CSSProperties = {
-  borderRadius: '24px',
-  padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-blue-2) 12%)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-}
-
-const engineLabel: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  overflowWrap: 'anywhere',
-}
-
-const engineValue: CSSProperties = {
-  marginTop: '8px',
-  color: 'var(--foreground-strong)',
-  fontSize: '32px',
-  lineHeight: 1,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const engineText: CSSProperties = {
-  marginTop: '10px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.65,
-  fontWeight: 500,
-  overflowWrap: 'anywhere',
-}
-
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
@@ -2809,33 +2499,6 @@ const exploreNavLink: CSSProperties = {
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
   textAlign: 'center',
-}
-
-const profileContextCalloutStyle: CSSProperties = {
-  marginTop: '8px',
-  maxWidth: 620,
-  minWidth: 0,
-  display: 'flex',
-  flexWrap: 'wrap',
-  alignItems: 'center',
-  gap: '8px 12px',
-  borderRadius: '16px',
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'rgba(155,225,29,0.08)',
-  color: 'rgba(244,249,255,0.88)',
-  padding: '11px 13px',
-  fontSize: '13px',
-  lineHeight: 1.45,
-  overflowWrap: 'anywhere',
-}
-
-const profileContextLinkStyle: CSSProperties = {
-  color: '#d9f84a',
-  fontWeight: 900,
-  textDecoration: 'none',
-  maxWidth: '100%',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
 }
 
 const controlsCard: CSSProperties = {
@@ -3143,70 +2806,6 @@ const noticeDismissButtonStyle: CSSProperties = {
   cursor: 'pointer',
   maxWidth: '100%',
   whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const editorialPanel: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  padding: '24px',
-  borderRadius: '26px',
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-}
-
-const editorialText: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '15px',
-  lineHeight: 1.8,
-  maxWidth: '860px',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const editorialGrid: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-  minWidth: 0,
-}
-
-const editorialCard: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  padding: '18px',
-  borderRadius: '20px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const editorialCardLabel: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.11em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const editorialCardValue: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '24px',
-  lineHeight: 1.04,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const editorialCardText: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.65,
   overflowWrap: 'anywhere',
 }
 
@@ -4086,15 +3685,6 @@ const sectionTitle: CSSProperties = {
   lineHeight: 1.2,
   fontWeight: 900,
   letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const sectionKicker: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.11em',
-  textTransform: 'uppercase',
   overflowWrap: 'anywhere',
 }
 
