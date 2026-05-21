@@ -1338,8 +1338,8 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const width = compact ? 176 : top ? 276 : footer ? 288 : 236
-  const height = compact ? 30 : top ? 46 : footer ? 48 : 40
+  const width = compact ? 142 : top ? 178 : footer ? 178 : 158
+  const height = compact ? 45 : top ? 56 : footer ? 56 : 50
 
   return (
     <span
@@ -1362,8 +1362,8 @@ function BrandWordmark({
           objectFit: 'contain',
           objectPosition: 'left center',
           filter: footer
-            ? 'drop-shadow(0 6px 14px rgba(5, 14, 30, 0.08))'
-            : 'drop-shadow(0 6px 16px rgba(5, 14, 30, 0.10))',
+            ? 'drop-shadow(0 8px 16px rgba(5, 14, 30, 0.10))'
+            : 'drop-shadow(0 8px 18px rgba(155, 225, 29, 0.10))',
         }}
       />
     </span>

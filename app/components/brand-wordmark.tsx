@@ -13,8 +13,8 @@ export default function BrandWordmark({
   footer = false,
   top = false,
 }: BrandWordmarkProps) {
-  const width = compact ? 208 : top ? 288 : footer ? 288 : 244
-  const height = compact ? 35 : top ? 48 : footer ? 48 : 41
+  const width = compact ? 142 : top ? 178 : footer ? 178 : 158
+  const height = compact ? 45 : top ? 56 : footer ? 56 : 50
   const logoSrc = '/logo-header-dark.svg'
   return (
     <span
@@ -38,8 +38,8 @@ export default function BrandWordmark({
           objectFit: 'contain',
           objectPosition: 'left center',
           filter: footer
-            ? 'drop-shadow(0 6px 14px rgba(5, 14, 30, 0.08))'
-            : 'drop-shadow(0 6px 16px rgba(5, 14, 30, 0.10))',
+            ? 'drop-shadow(0 8px 16px rgba(5, 14, 30, 0.10))'
+            : 'drop-shadow(0 8px 18px rgba(155, 225, 29, 0.10))',
         }}
       />
     </span>
