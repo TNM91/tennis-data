@@ -4,9 +4,7 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
-import FindModeBridge from '@/app/components/find-mode-bridge'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import {
   formatRatingValue,
@@ -87,7 +85,7 @@ export default function RankingsPage() {
   const [hideInactive, setHideInactive] = useState(false)
   const [sortCol, setSortCol] = useState<'tiq' | 'trend' | 'form' | 'winRate' | 'matches'>('tiq')
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
   const ratingViewLabel = getRatingViewLabel(ratingView)
@@ -299,16 +297,6 @@ export default function RankingsPage() {
     return rankedPlayers.reduce((sum, player) => sum + player.matches, 0) / rankedPlayers.length
   }, [rankedPlayers])
 
-  const highConfidenceCount = useMemo(
-    () => rankedPlayers.filter((player) => player.confidence === 'High').length,
-    [rankedPlayers],
-  )
-
-  const movementCount = useMemo(
-    () => rankedPlayers.filter((player) => Math.abs(player.trendDelta) >= 0.03).length,
-    [rankedPlayers],
-  )
-
   const playerMovers = useMemo(() => {
     return rankedPlayers
       .map((player) => {
@@ -414,39 +402,8 @@ export default function RankingsPage() {
     return rows
   }, [rankedPlayers, sortedPlayers, sortCol])
 
-  const dynamicHeroWrap: CSSProperties = {
-    ...heroWrap,
-    padding: isMobile ? '14px 16px 20px' : '10px 18px 24px',
-  }
-
-  const dynamicHeroShell: CSSProperties = {
-    ...heroShell,
-    padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
-  }
-
-  const dynamicHeroContent: CSSProperties = {
-    ...heroContent,
-    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
-    gap: isMobile ? '18px' : '22px',
-  }
-
-  const dynamicHeroTitle: CSSProperties = {
-    ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '60px',
-    lineHeight: isMobile ? 1.04 : 0.98,
-    maxWidth: '540px',
-  }
-
-  const dynamicHeroText: CSSProperties = {
-    ...heroText,
-    fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '540px',
-  }
-
   const dynamicControlsCard: CSSProperties = {
     ...controlsCard,
-    position: isTablet ? 'relative' : 'sticky',
-    top: isTablet ? 'auto' : '24px',
   }
 
   const dynamicControlsTopRow: CSSProperties = {
@@ -475,68 +432,28 @@ export default function RankingsPage() {
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : leaderboardActionGrid.gridTemplateColumns,
   }
 
-  const activeCount = Math.max(rankedPlayers.length - inactiveCount, 0)
   const topPlayer = topThree[0] ?? null
   const topRival = topThree[1] ?? null
-  const topRiser = risers[0] ?? null
 
   return (
     <SiteShell active="rankings">
-      <section style={dynamicHeroWrap}>
-        <div style={dynamicHeroShell}>
-          <div style={heroNoise} />
-
-          <div style={dynamicHeroContent}>
-            <div style={heroLeft}>
-              <div style={eyebrow}>Rankings</div>
-
-              <h1 style={dynamicHeroTitle}>See who rises to the top.</h1>
-
-              <p style={dynamicHeroText}>
-                View player rankings by overall, singles, or doubles dynamic rating, then filter
-                by player name or location to narrow the board and jump straight into full profiles.
+      <section style={contentWrap}>
+        <div style={dynamicControlsCard}>
+          <div style={rankingPanelHeader}>
+            <div>
+              <div style={sectionKicker}>Rankings</div>
+              <h1 style={rankingPanelTitle}>Find the right player, then open the profile.</h1>
+              <p style={rankingPanelIntro}>
+                Search the board, switch rating view, and jump into the player context that matters.
               </p>
-
-              <div style={heroHintRow}>
-                <span style={heroHintPill}>{rankedPlayers.length} shown</span>
-                <span style={heroHintPill}>{locations.length} locations</span>
-                <span style={heroHintPill}>{capitalize(ratingView)} mode</span>
-              </div>
-              <div style={exploreNavRow}>
-                <Link href="#full-rankings" style={exploreNavLink}>Full board</Link>
-                <Link href="/explore/players" style={exploreNavLink}>Players</Link>
-                <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
-                <Link href="/mylab" style={exploreNavLink}>My Lab</Link>
-              </div>
-
-              {authResolved && !access.canUseAdvancedPlayerInsights ? (
-                <div style={{ marginTop: 18, maxWidth: 560 }}>
-                  <UpgradePrompt
-                    planId="player_plus"
-                    compact
-                    headline="Want more than a leaderboard?"
-                    body="Unlock Player to turn rankings into personal guidance with clearer projections, matchup context, and where-you-should-play insight."
-                    ctaLabel="Unlock Player"
-                    secondaryLabel="See Player value"
-                    footnote="Best for players who want rankings to turn into better match decisions, not just browsing."
-                  />
-                </div>
-              ) : null}
             </div>
+            <div style={heroHintRow}>
+              <span style={heroHintPill}>{rankedPlayers.length} shown</span>
+              <span style={heroHintPill}>{locations.length} locations</span>
+              <span style={heroHintPill}>{capitalize(ratingView)} mode</span>
+            </div>
+          </div>
 
-            <div style={heroRightStack}>
-              <RankingPulseCard
-                activeCount={activeCount}
-                highConfidenceCount={highConfidenceCount}
-                movementCount={movementCount}
-                playerCount={rankedPlayers.length}
-                ratingViewLabel={ratingViewLabel}
-                topPlayer={topPlayer}
-                topRival={topRival}
-                topRiser={topRiser}
-              />
-
-              <div style={dynamicControlsCard}>
                 <div style={dynamicControlsTopRow}>
                   <div>
                     <div style={controlsLabel}>Tune the board</div>
@@ -665,23 +582,8 @@ export default function RankingsPage() {
                 <StatChip label="Average TIQ" value={formatRating(avgSelected)} />
                 <StatChip label="Basis" value={ratingViewLabel} />
               </div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
-
-      <FindModeBridge
-        active="Rankings"
-        primary="Scan the field, then drill in"
-        secondary="Use rankings when you need a broad view before opening a profile, team, league, or Matchup prep."
-        links={[
-          { href: '/explore/search?scope=players', label: 'Search', icon: 'opponentScouting' },
-          { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
-          { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
-          { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
-        ]}
-      />
 
       {!loading && !error && topThree.length > 0 ? (
         <section style={contentWrap}>
@@ -1414,100 +1316,6 @@ function SignalList({
   )
 }
 
-function RankingPulseCard({
-  activeCount,
-  highConfidenceCount,
-  movementCount,
-  playerCount,
-  ratingViewLabel,
-  topPlayer,
-  topRival,
-  topRiser,
-}: {
-  activeCount: number
-  highConfidenceCount: number
-  movementCount: number
-  playerCount: number
-  ratingViewLabel: string
-  topPlayer: RankedPlayer | null
-  topRival: RankedPlayer | null
-  topRiser: { player: RankedPlayer; delta: number } | null
-}) {
-  const activeFill = getPercent(activeCount, playerCount)
-  const confidenceFill = getPercent(highConfidenceCount, playerCount)
-  const movementFill = getPercent(movementCount, playerCount)
-  const leaderFill = clampPercent(((topPlayer?.selectedRating ?? 0) - 2.5) / 3 * 100)
-  const compareHref =
-    topPlayer && topRival
-      ? `/matchup?type=singles&playerA=${topPlayer.id}&playerB=${topRival.id}`
-      : '/matchup?type=singles'
-
-  return (
-    <div style={pulseCard}>
-      <div style={pulseTopRow}>
-        <div>
-          <div style={controlsLabel}>Board readout</div>
-          <div style={pulseSubtitle}>What matters right now</div>
-        </div>
-        <div style={pulseModePill}>{ratingViewLabel}</div>
-      </div>
-
-      <div style={pulseLeaderGrid}>
-        <div>
-          <div style={pulseMiniLabel}>Current leader</div>
-          <Link href={topPlayer ? `/players/${topPlayer.id}` : '/players'} style={pulseLeaderName}>
-            {topPlayer?.name || 'Loading board'}
-          </Link>
-          <div style={pulseSubline}>
-            {topPlayer ? `TIQ ${formatRating(topPlayer.selectedRating)} | ${topPlayer.status}` : 'Rankings are loading'}
-          </div>
-        </div>
-        <div style={pulseRatingBadge}>{topPlayer ? formatRating(topPlayer.selectedRating) : '--'}</div>
-      </div>
-
-      <div style={pulseMeterTrack}>
-        <div style={{ ...pulseMeterFill, width: `${leaderFill}%` }} />
-      </div>
-
-      <div style={pulseSignalGrid}>
-        <PulseSignal label="Active board" value={`${activeCount}/${playerCount || 0}`} fill={activeFill} />
-        <PulseSignal label="High confidence" value={String(highConfidenceCount)} fill={confidenceFill} />
-        <PulseSignal label="Moving now" value={String(movementCount)} fill={movementFill} />
-      </div>
-
-      <div style={pulseRiserRow}>
-        <span style={pulseMiniLabel}>Fastest riser</span>
-        <Link href={topRiser ? `/players/${topRiser.player.id}` : '/players'} style={pulseRiserLink}>
-          {topRiser ? `${topRiser.player.name} +${topRiser.delta.toFixed(2)}` : 'Waiting for movement'}
-        </Link>
-      </div>
-
-      <div style={pulseActionRow}>
-        <Link href={compareHref} aria-label="Compare the top two ranked players" style={pulsePrimaryAction}>
-          Compare leaders
-        </Link>
-        <Link href="/players" style={pulseSecondaryAction}>
-          Scout players
-        </Link>
-      </div>
-    </div>
-  )
-}
-
-function PulseSignal({ label, value, fill }: { label: string; value: string; fill: number }) {
-  return (
-    <div style={pulseSignal}>
-      <div style={pulseSignalTop}>
-        <span>{label}</span>
-        <strong>{value}</strong>
-      </div>
-      <div style={pulseTinyTrack}>
-        <div style={{ ...pulseTinyFill, width: `${fill}%` }} />
-      </div>
-    </div>
-  )
-}
-
 function RankingCompactCard({
   player,
   rank,
@@ -1664,15 +1472,6 @@ function toRatingNumber(value: number | null | undefined, fallback = 3.5) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
-function clampPercent(value: number) {
-  return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0))
-}
-
-function getPercent(value: number, total: number) {
-  if (total <= 0) return 0
-  return clampPercent((value / total) * 100)
-}
-
 function buildRankingCompareHref(
   player: RankedPlayer,
   topPlayer: RankedPlayer | null,
@@ -1801,78 +1600,6 @@ function getMeterTheme(status: RatingStatus) {
   }
 }
 
-const heroWrap: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-}
-
-const heroShell: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '30px',
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-card)',
-  overflow: 'hidden',
-  position: 'relative',
-  minWidth: 0,
-}
-
-const heroNoise: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background:
-    'radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--brand-blue-2) 16%, transparent) 0%, transparent 26%), radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand-lime) 8%, transparent) 0%, transparent 30%)',
-  pointerEvents: 'none',
-}
-
-const heroContent: CSSProperties = {
-  display: 'grid',
-  alignItems: 'stretch',
-  position: 'relative',
-  zIndex: 1,
-  minWidth: 0,
-}
-
-const heroLeft: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  gap: '16px',
-  minWidth: 0,
-}
-
-const heroTitle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const heroText: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.65,
-  fontWeight: 500,
-}
-
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  width: 'fit-content',
-  alignItems: 'center',
-  padding: '7px 11px',
-  borderRadius: '999px',
-  color: 'var(--foreground-strong)',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-}
-
 const heroHintRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -1890,26 +1617,33 @@ const heroHintPill: CSSProperties = {
   fontWeight: 700,
 }
 
-const exploreNavRow: CSSProperties = {
+const rankingPanelHeader: CSSProperties = {
   display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '16px',
   flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '2px',
+  minWidth: 0,
+  marginBottom: '16px',
 }
 
-const exploreNavLink: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '36px',
-  padding: '0 13px',
-  borderRadius: '999px',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
-  background: 'var(--shell-chip-bg)',
+const rankingPanelTitle: CSSProperties = {
+  margin: '8px 0 0',
   color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  fontSize: '13px',
-  fontWeight: 800,
+  fontSize: '28px',
+  lineHeight: 1.05,
+  fontWeight: 900,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const rankingPanelIntro: CSSProperties = {
+  margin: '8px 0 0',
+  maxWidth: '720px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const controlsCard: CSSProperties = {
@@ -1918,209 +1652,6 @@ const controlsCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
-}
-
-const heroRightStack: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  alignContent: 'start',
-}
-
-const pulseCard: CSSProperties = {
-  borderRadius: '24px',
-  padding: '18px',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--brand-lime) 10%, var(--shell-panel-bg) 90%), var(--shell-panel-bg))',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 20%, var(--shell-panel-border) 80%)',
-  boxShadow: 'var(--shadow-soft)',
-}
-
-const pulseTopRow: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '14px',
-  flexWrap: 'wrap',
-  minWidth: 0,
-}
-
-const pulseSubtitle: CSSProperties = {
-  marginTop: '3px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  fontWeight: 700,
-}
-
-const pulseModePill: CSSProperties = {
-  borderRadius: 999,
-  padding: '8px 12px',
-  background: 'color-mix(in srgb, var(--brand-lime) 13%, var(--shell-chip-bg) 87%)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
-  color: 'var(--foreground-strong)',
-  fontSize: '12px',
-  fontWeight: 900,
-  whiteSpace: 'normal',
-}
-
-const pulseLeaderGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
-  alignItems: 'end',
-  gap: '16px',
-  marginTop: '18px',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const pulseMiniLabel: CSSProperties = {
-  color: 'var(--home-eyebrow-color)',
-  fontSize: '11px',
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-}
-
-const pulseLeaderName: CSSProperties = {
-  display: 'block',
-  marginTop: '5px',
-  color: 'var(--foreground-strong)',
-  fontSize: '26px',
-  lineHeight: 1.05,
-  fontWeight: 900,
-  textDecoration: 'none',
-  overflowWrap: 'anywhere',
-}
-
-const pulseSubline: CSSProperties = {
-  marginTop: '7px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  fontWeight: 700,
-}
-
-const pulseRatingBadge: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '38px',
-  lineHeight: 1,
-  fontWeight: 900,
-  letterSpacing: 0,
-}
-
-const pulseMeterTrack: CSSProperties = {
-  height: 11,
-  marginTop: '18px',
-  borderRadius: 999,
-  overflow: 'hidden',
-  background: 'color-mix(in srgb, var(--foreground-strong) 7%, transparent)',
-  border: '1px solid color-mix(in srgb, var(--foreground-strong) 8%, transparent)',
-}
-
-const pulseMeterFill: CSSProperties = {
-  height: '100%',
-  borderRadius: 999,
-  background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-lime))',
-  minWidth: 10,
-}
-
-const pulseSignalGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
-  gap: '10px',
-  marginTop: '14px',
-}
-
-const pulseSignal: CSSProperties = {
-  minWidth: 0,
-  borderRadius: '16px',
-  padding: '11px',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 82%, transparent)',
-  border: '1px solid var(--shell-panel-border)',
-}
-
-const pulseSignalTop: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '8px',
-  flexWrap: 'wrap',
-  minWidth: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '11px',
-  fontWeight: 800,
-}
-
-const pulseTinyTrack: CSSProperties = {
-  height: 5,
-  marginTop: '9px',
-  borderRadius: 999,
-  background: 'color-mix(in srgb, var(--foreground-strong) 7%, transparent)',
-  overflow: 'hidden',
-}
-
-const pulseTinyFill: CSSProperties = {
-  height: '100%',
-  minWidth: 4,
-  borderRadius: 999,
-  background: 'var(--brand-lime)',
-}
-
-const pulseRiserRow: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: '12px',
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  marginTop: '14px',
-  paddingTop: '14px',
-  borderTop: '1px solid var(--shell-panel-border)',
-  minWidth: 0,
-}
-
-const pulseRiserLink: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '13px',
-  fontWeight: 900,
-  textDecoration: 'none',
-  textAlign: 'right',
-  overflowWrap: 'anywhere',
-}
-
-const pulseActionRow: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '14px',
-}
-
-const pulsePrimaryAction: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '38px',
-  padding: '0 14px',
-  borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  color: 'var(--foreground-strong)',
-  fontSize: '13px',
-  fontWeight: 950,
-  textDecoration: 'none',
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
-}
-
-const pulseSecondaryAction: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '38px',
-  padding: '0 14px',
-  borderRadius: 999,
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  color: 'var(--foreground-strong)',
-  fontSize: '13px',
-  fontWeight: 850,
-  textDecoration: 'none',
 }
 
 const controlsTopRow: CSSProperties = {
