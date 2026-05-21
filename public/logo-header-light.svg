@@ -1,7 +1,7 @@
 <svg viewBox="0 0 174 56" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TenAceIQ" shape-rendering="geometricPrecision">
   <g stroke-linecap="round" stroke-linejoin="round" fill="none">
     <circle cx="28" cy="28" r="21.3" stroke="#071426" stroke-width="2.25"></circle>
-    <path d="M6.6 28.1 C15.9 19.4, 36.4 36.5, 49.2 27.8" stroke="#78C81F" stroke-width="2.55"></path>
+    <path d="M6.9 29 C14.8 16.5, 25.7 20, 34.6 30.9 C39.5 36.9, 45.4 37.6, 49.2 32.1" stroke="#78C81F" stroke-width="2.85"></path>
   </g>
   <text x="61" y="36" font-family="Aptos Display, Avenir Next, Inter, Arial, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19.4" font-weight="720" letter-spacing="1.15" fill="#071426">
     <tspan>TENACE</tspan><tspan dx="2" font-weight="820" letter-spacing="0.15" fill="#78C81F">IQ</tspan>
