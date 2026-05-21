@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
-import QuickMessageComposer from '@/app/components/quick-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -11,7 +10,6 @@ import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
-import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -347,13 +345,6 @@ function ProfilePageInner() {
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
       .filter(Boolean),
   ).size
-  const roleLabel = prefs.preferredRole === 'both' ? 'Singles and doubles' : prefs.preferredRole === 'singles' ? 'Singles' : 'Doubles'
-  const availabilityLabel =
-    prefs.availabilityDefault === 'usually-available'
-      ? 'Usually available'
-      : prefs.availabilityDefault === 'limited'
-        ? 'Limited'
-        : 'Ask weekly'
   const profileMatchupHref = profile?.linked_player_id || selectedPlayerId
     ? `/matchup?type=singles&playerA=${encodeURIComponent(profile?.linked_player_id || selectedPlayerId)}`
     : '/matchup'
@@ -362,26 +353,6 @@ function ProfilePageInner() {
     (access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow),
   )
   const profileDisplayName = profile?.linked_player_name || selectedPlayer?.name || 'Choose player'
-  const toolFlowCards = [
-    {
-      label: 'Identity',
-      value: profileComplete ? 'Linked' : 'Set once',
-      note: profileDisplayName,
-      icon: 'accountSecurity' as TiqFeatureIconName,
-    },
-    {
-      label: 'My Lab',
-      value: 'Personal',
-      note: 'Stats, goals, next read',
-      icon: 'myLab' as TiqFeatureIconName,
-    },
-    {
-      label: 'Prep',
-      value: profileComplete || selectedPlayerId ? 'Ready' : 'Waiting',
-      note: 'Starts with you',
-      icon: 'matchupAnalysis' as TiqFeatureIconName,
-    },
-  ]
   const ratingTiles = [
     { label: 'TIQ', value: formatRating(getTiqRating(primaryRating, 'overall')) },
     { label: 'USTA', value: formatRating(getUstaRating(primaryRating, 'overall')) },
@@ -399,35 +370,6 @@ function ProfilePageInner() {
     },
     { label: 'Team', value: 'Context', href: '/captain', note: 'Roster and team tools', icon: 'captainDashboard' as TiqFeatureIconName },
   ]
-  const playerTier = MEMBERSHIP_TIERS.player_plus
-  const setupSteps = [
-    {
-      step: '1',
-      label: 'Player identity',
-      value: profileComplete ? 'Linked' : 'Next',
-      text: profileComplete
-        ? `${profileDisplayName} is connected to this account.`
-        : 'Choose the player record that should power your TenAceIQ tools.',
-      complete: profileComplete,
-    },
-    {
-      step: '2',
-      label: 'Play defaults',
-      value: 'Ready',
-      text: `${roleLabel}. Availability starts as ${availabilityLabel.toLowerCase()}.`,
-      complete: true,
-    },
-    {
-      step: '3',
-      label: 'Player tools',
-      value: access.canUseAdvancedPlayerInsights ? 'Active' : 'Unlock',
-      text: access.canUseAdvancedPlayerInsights
-        ? 'My Lab and Matchup can start from your profile context.'
-        : playerTier.upgradeCue,
-      complete: access.canUseAdvancedPlayerInsights,
-    },
-  ]
-  const setupProgress = setupSteps.filter((step) => step.complete).length
   const heroTitle = authPending
     ? 'Checking your account.'
     : profileComplete
@@ -445,136 +387,40 @@ function ProfilePageInner() {
 
   return (
     <section style={pageStyle}>
-        <section style={heroStyle(isTablet, isMobile)}>
-          <div>
+        <section style={profileIntroStyle(isTablet, isMobile)}>
+          <div style={profileIntroCopyStyle}>
             <h1 style={heroTitleStyle}>{heroTitle}</h1>
-            <p style={heroTextStyle}>
-              {heroCopy}
-            </p>
-            {!profileComplete && !authPending ? (
-              <Link href={signedIn ? '#profile-identity' : '/login?next=%2Fprofile'} style={profileSetupNoticeStyle}>
-                <TiqFeatureIcon name="accountSecurity" size="sm" variant="surface" />
-                <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-                  <strong style={profileSetupNoticeTitleStyle}>{signedIn ? 'Start here: choose your player record' : 'Start here: sign in'}</strong>
-                  <span style={profileSetupNoticeTextStyle}>
-                    {signedIn
-                      ? 'This unlocks the personal greeting, ratings, team context, and match prep starting point.'
-                      : 'Your player link belongs to your account, so TenAceIQ needs you signed in first.'}
-                  </span>
-                </span>
-              </Link>
-            ) : null}
-            <div style={toolFlowStyle(isMobile)}>
-              {toolFlowCards.map((card) => (
-                <div key={card.label} style={toolFlowCardStyle(isMobile)}>
-                  <TiqFeatureIcon name={card.icon} size={isMobile ? 'sm' : 'md'} variant="ghost" />
-                  <div>
-                    <div style={toolFlowLabelStyle}>{card.label}</div>
-                    <div style={toolFlowValueStyle}>{card.value}</div>
-                    {!isMobile ? <div style={toolFlowNoteStyle}>{card.note}</div> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={heroButtonRowStyle}>
-              {profileComplete ? (
-                <>
-                  <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
-                  <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
-                </>
-              ) : authPending ? (
-                <span style={secondaryButtonStyle}>Checking access</span>
-              ) : (
-                <>
-                  {signedIn ? (
-                    <a href="#profile-identity" style={primaryButtonStyle}>Choose player record</a>
-                  ) : (
-                    <Link href="/login?next=%2Fprofile" style={primaryButtonStyle}>Sign in</Link>
-                  )}
-                  <Link href="/explore/players" style={secondaryButtonStyle}>Browse players</Link>
-                </>
-              )}
-              {canManageBilling ? (
-                <button
-                  type="button"
-                  onClick={() => void openBillingPortal()}
-                  disabled={billingPortalOpening}
-                  style={{
-                    ...secondaryButtonStyle,
-                    opacity: billingPortalOpening ? 0.72 : 1,
-                    cursor: billingPortalOpening ? 'wait' : 'pointer',
-                  }}
-                >
-                  {billingPortalOpening ? 'Opening billing...' : 'Manage billing'}
-                </button>
-              ) : null}
-              {canManageBilling ? (
-                <QuickMessageComposer
-                  mode="support"
-                  triggerLabel="Ask billing support"
-                  category="billing"
-                  subject="Question about my TenAceIQ billing"
-                  body={[
-                    'I have a question about my TenAceIQ billing.',
-                    '',
-                    'Plan or charge:',
-                    'What I need help with:',
-                  ].join('\n')}
-                  entityType="billing"
-                  entityId={userId || ''}
-                />
-              ) : null}
-            </div>
-            {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
+            <p style={heroTextStyle}>{heroCopy}</p>
           </div>
-
+          <div style={profileIntroActionsStyle}>
+            {profileComplete ? (
+              <>
+                <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
+                <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
+              </>
+            ) : authPending ? (
+              <span style={secondaryButtonStyle}>Checking access</span>
+            ) : signedIn ? (
+              <a href="#profile-identity" style={primaryButtonStyle}>Link player</a>
+            ) : (
+              <Link href="/login?next=%2Fprofile" style={primaryButtonStyle}>Sign in</Link>
+            )}
+          </div>
+          {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
         </section>
-
-        {!profileComplete ? (
-        <section style={setupPathStyle(isMobile)} aria-label="Profile setup path">
-          <div style={setupPathHeaderStyle(isMobile)}>
-            <div>
-              <p style={sectionKickerStyle}>Player setup</p>
-              <h2 style={setupPathTitleStyle}>Finish the path from account to My Lab.</h2>
-              <p style={setupPathTextStyle}>
-                Link the right player, keep your play defaults current, then use the profile as your launch point.
-              </p>
-            </div>
-            <div style={setupProgressStyle}>
-              <strong>{setupProgress}/3</strong>
-              <span>ready</span>
-            </div>
-          </div>
-          <div style={setupStepGridStyle(isMobile)}>
-            {setupSteps.map((step) => (
-              <div key={step.label} style={setupStepCardStyle(step.complete)}>
-                <div style={setupStepTopStyle}>
-                  <span style={setupStepNumberStyle(step.complete)}>{step.step}</span>
-                  <span style={step.complete ? pillGreenStyle : pillSlateStyle}>{step.value}</span>
-                </div>
-                <strong style={setupStepLabelStyle}>{step.label}</strong>
-                <p style={setupStepTextStyle}>{step.text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-        ) : null}
 
           <section style={contentGridStyle(isTablet)}>
             <div id="profile-identity" style={surfaceStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p style={sectionKickerStyle}>Identity</p>
-                  <h2 style={sectionTitleStyle}>{profileComplete ? 'Player linked' : 'Choose the player TenAceIQ should know'}</h2>
+                  <h2 style={sectionTitleStyle}>{profileComplete ? profileDisplayName : 'Choose your player record'}</h2>
                   <p style={sectionTextStyle}>
                     {profileComplete
-                      ? 'Teams and leagues are detected from match history as your tennis footprint grows.'
-                      : 'Select your player record, save it once, and the rest of the platform can start from your tennis identity.'}
+                      ? 'This is the player record TenAceIQ uses for your lab, matchup prep, team context, and league shortcuts.'
+                      : 'Pick your public player record once. After that, the portal can start from your tennis identity.'}
                   </p>
                 </div>
-                <span style={profileComplete ? pillGreenStyle : pillSlateStyle}>
-                  {profileComplete ? 'Linked' : 'Not linked'}
-                </span>
+                <TiqFeatureIcon name={profileComplete ? 'playerRatings' : 'accountSecurity'} size="md" variant={profileComplete ? 'surface' : 'ghost'} />
               </div>
               {loading ? (
                 <div style={profileLoadingNoticeStyle}>
@@ -614,9 +460,9 @@ function ProfilePageInner() {
               <div style={autoContextCalloutStyle(isMobile)}>
                 <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
                 <div>
-                  <strong style={autoContextTitleStyle}>Your tennis context updates automatically.</strong>
+                  <strong style={autoContextTitleStyle}>{profileComplete ? 'Your tennis map is connected.' : 'This becomes your tennis home base.'}</strong>
                   <p style={autoContextTextStyle}>
-                    Link the player record. TenAceIQ uses match history to find teams, leagues, ratings, and matchup starting points.
+                    TenAceIQ uses match history to find teams, leagues, ratings, and matchup starting points without making you rebuild the same context every visit.
                   </p>
                 </div>
               </div>
@@ -657,7 +503,7 @@ function ProfilePageInner() {
 
               <div style={actionRowStyle}>
                 <button type="button" onClick={saveProfile} disabled={saving || loading || !userId} style={primaryButtonStyle}>
-                  {saving ? 'Saving...' : 'Save player identity'}
+                  {saving ? 'Saving...' : profileComplete ? 'Update player link' : 'Save player link'}
                 </button>
                 <Link href="/explore/players" style={secondaryButtonStyle}>Find players</Link>
               </div>
@@ -682,8 +528,12 @@ function ProfilePageInner() {
             </div>
 
             <aside style={surfaceStyle}>
-              <div style={sectionKickerStyle}>Personalized tools</div>
-              <h2 style={sectionTitleStyle}>What this powers</h2>
+              <h2 style={sectionTitleStyle}>{profileComplete ? 'Ready to use' : 'Unlocks when linked'}</h2>
+              <p style={sectionTextStyle}>
+                {profileComplete
+                  ? 'Jump straight into the parts of the portal that depend on knowing your player identity.'
+                  : 'Once the player link is saved, these tools open with your ratings and team context already attached.'}
+              </p>
               <div style={ratingTileGridStyle}>
                 {ratingTiles.map((tile) => (
                   <div key={tile.label} style={ratingTileStyle}>
@@ -707,6 +557,20 @@ function ProfilePageInner() {
               <div style={summaryActionRowStyle}>
                 <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
                 <Link href={profileMatchupHref} style={secondaryButtonStyle}>Compare matchup</Link>
+                {canManageBilling ? (
+                  <button
+                    type="button"
+                    onClick={() => void openBillingPortal()}
+                    disabled={billingPortalOpening}
+                    style={{
+                      ...secondaryButtonStyle,
+                      opacity: billingPortalOpening ? 0.72 : 1,
+                      cursor: billingPortalOpening ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {billingPortalOpening ? 'Opening billing...' : 'Manage billing'}
+                  </button>
+                ) : null}
               </div>
             </aside>
           </section>
@@ -733,18 +597,33 @@ const pageStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
+const profileIntroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr)',
-  gap: isMobile ? 12 : 14,
-  padding: isMobile ? '14px 14px' : '18px 20px',
-  borderRadius: isMobile ? 20 : 22,
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
+  gap: isMobile ? 12 : 18,
+  alignItems: 'end',
+  padding: isMobile ? '16px 14px' : '20px 22px',
+  borderRadius: isMobile ? 22 : 26,
   border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 72%, transparent 28%)',
-  boxShadow: 'none',
+  background:
+    'radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--brand-green) 14%, transparent), transparent 28%), var(--shell-panel-bg)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
-  marginBottom: 14,
+  overflow: 'hidden',
 })
+
+const profileIntroCopyStyle: CSSProperties = {
+  minWidth: 0,
+}
+
+const profileIntroActionsStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
 
 const heroTitleStyle: CSSProperties = {
   margin: 0,
@@ -762,94 +641,6 @@ const heroTextStyle: CSSProperties = {
   fontSize: '0.95rem',
   lineHeight: 1.5,
   overflowWrap: 'anywhere',
-}
-
-const profileSetupNoticeStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
-  gap: 12,
-  alignItems: 'center',
-  width: 'min(100%, 620px)',
-  marginTop: 16,
-  padding: 12,
-  borderRadius: 18,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
-  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 13%, transparent 87%), var(--shell-chip-bg))',
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  boxSizing: 'border-box',
-  minWidth: 0,
-}
-
-const profileSetupNoticeTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  fontWeight: 950,
-  lineHeight: 1.2,
-}
-
-const profileSetupNoticeTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  fontWeight: 750,
-  lineHeight: 1.4,
-  overflowWrap: 'anywhere',
-}
-
-const toolFlowStyle = (isMobile: boolean): CSSProperties => ({
-  display: 'none',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-  gap: 10,
-  marginTop: isMobile ? 16 : 20,
-  minWidth: 0,
-})
-
-const toolFlowCardStyle = (isMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, auto) minmax(0, 1fr)',
-  gap: isMobile ? 7 : 10,
-  alignItems: isMobile ? 'start' : 'center',
-  borderRadius: isMobile ? 16 : 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  padding: isMobile ? '10px 9px' : 12,
-  minHeight: isMobile ? 92 : 92,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-})
-
-const toolFlowLabelStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const toolFlowValueStyle: CSSProperties = {
-  marginTop: 4,
-  color: 'var(--foreground-strong)',
-  fontWeight: 950,
-  lineHeight: 1.1,
-  overflowWrap: 'anywhere',
-}
-
-const toolFlowNoteStyle: CSSProperties = {
-  marginTop: 4,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.35,
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
-
-const heroButtonRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: 10,
-  flexWrap: 'wrap',
-  marginTop: 14,
-  minWidth: 0,
 }
 
 const billingMessageStyle: CSSProperties = {
@@ -931,125 +722,6 @@ const contentGridStyle = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
-const setupPathStyle = (isMobile: boolean): CSSProperties => ({
-  marginTop: 18,
-  borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 8%, transparent), transparent 56%), var(--shell-panel-bg)',
-  padding: isMobile ? '16px 14px' : '18px 20px',
-  display: 'grid',
-  gap: 16,
-  minWidth: 0,
-})
-
-const setupPathHeaderStyle = (isMobile: boolean): CSSProperties => ({
-  display: 'flex',
-  flexDirection: isMobile ? 'column' : 'row',
-  alignItems: isMobile ? 'stretch' : 'flex-start',
-  justifyContent: 'space-between',
-  gap: 14,
-  minWidth: 0,
-})
-
-const setupPathTitleStyle: CSSProperties = {
-  margin: '6px 0 0',
-  color: 'var(--foreground-strong)',
-  fontSize: '1.35rem',
-  fontWeight: 950,
-  lineHeight: 1.15,
-  overflowWrap: 'anywhere',
-}
-
-const setupPathTextStyle: CSSProperties = {
-  margin: '7px 0 0',
-  maxWidth: 720,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  fontWeight: 700,
-  lineHeight: 1.5,
-  overflowWrap: 'anywhere',
-}
-
-const setupProgressStyle: CSSProperties = {
-  minWidth: 0,
-  maxWidth: '100%',
-  borderRadius: 18,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
-  padding: '10px 12px',
-  display: 'grid',
-  justifyItems: 'center',
-  color: 'var(--foreground-strong)',
-  overflowWrap: 'anywhere',
-}
-
-const setupStepGridStyle = (isMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  gap: 10,
-  minWidth: 0,
-})
-
-const setupStepCardStyle = (complete: boolean): CSSProperties => ({
-  minHeight: 146,
-  borderRadius: 18,
-  border: complete
-    ? '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)'
-    : '1px solid var(--shell-panel-border)',
-  background: complete
-    ? 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)'
-    : 'var(--shell-chip-bg)',
-  padding: 14,
-  display: 'grid',
-  alignContent: 'start',
-  gap: 10,
-  minWidth: 0,
-})
-
-const setupStepTopStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 10,
-  flexWrap: 'wrap',
-  minWidth: 0,
-}
-
-const setupStepNumberStyle = (complete: boolean): CSSProperties => ({
-  width: 30,
-  height: 30,
-  borderRadius: 12,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  border: complete
-    ? '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)'
-    : '1px solid var(--shell-panel-border)',
-  background: complete
-    ? 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'
-    : 'var(--shell-panel-bg)',
-  color: 'var(--foreground-strong)',
-  fontWeight: 950,
-})
-
-const setupStepLabelStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '1rem',
-  fontWeight: 950,
-  lineHeight: 1.2,
-  overflowWrap: 'anywhere',
-}
-
-const setupStepTextStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  fontWeight: 700,
-  lineHeight: 1.45,
-  overflowWrap: 'anywhere',
-}
-
 const surfaceStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
@@ -1081,16 +753,6 @@ const sectionHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const sectionKickerStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--brand-blue-2)',
-  fontSize: 12,
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
 const sectionTitleStyle: CSSProperties = {
   margin: '6px 0 0',
   color: 'var(--foreground-strong)',
@@ -1105,25 +767,6 @@ const sectionTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   overflowWrap: 'anywhere',
-}
-
-const pillGreenStyle: CSSProperties = {
-  borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
-  color: 'var(--foreground-strong)',
-  padding: '7px 11px',
-  fontSize: 12,
-  fontWeight: 900,
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const pillSlateStyle: CSSProperties = {
-  ...pillGreenStyle,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
 }
 
 const formGridStyle = (isMobile: boolean): CSSProperties => ({
