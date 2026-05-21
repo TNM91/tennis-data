@@ -356,13 +356,13 @@ footer {
 
 .brand-atmosphere-mark {
   position: fixed;
-  right: max(-360px, -16vw);
-  bottom: max(-340px, -18vw);
-  width: min(88vw, 1180px);
+  right: max(-520px, -26vw);
+  bottom: max(-760px, -44vw);
+  width: min(94vw, 1280px);
   aspect-ratio: 1;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.06;
+  opacity: 0.048;
   background-image: url("/logo-ball.svg");
   background-repeat: no-repeat;
   background-position: center;
@@ -375,20 +375,20 @@ footer {
 }
 
 .brand-atmosphere-mark--hub {
-  opacity: 0.082;
-  width: min(96vw, 1360px);
-  right: max(-500px, -24vw);
-  bottom: max(-500px, -28vw);
+  opacity: 0.064;
+  width: min(104vw, 1460px);
+  right: max(-620px, -30vw);
+  bottom: max(-900px, -50vw);
   filter:
     drop-shadow(0 0 48px rgba(155, 225, 29, 0.32))
     drop-shadow(0 0 92px rgba(116, 190, 255, 0.18));
 }
 
 .brand-atmosphere-mark--quiet {
-  opacity: 0.038;
-  width: min(76vw, 1040px);
-  right: max(-360px, -20vw);
-  bottom: max(-340px, -20vw);
+  opacity: 0.03;
+  width: min(82vw, 1120px);
+  right: max(-520px, -28vw);
+  bottom: max(-760px, -46vw);
   filter:
     drop-shadow(0 0 30px rgba(155, 225, 29, 0.18))
     drop-shadow(0 0 58px rgba(116, 190, 255, 0.10));
@@ -1287,25 +1287,25 @@ hr {
 
   .brand-atmosphere-mark {
     top: auto;
-    right: -132px;
-    bottom: -132px;
-    width: 430px;
-    opacity: 0.05;
+    right: -172px;
+    bottom: -220px;
+    width: 460px;
+    opacity: 0.044;
     transform: rotate(-8deg);
   }
 
   .brand-atmosphere-mark--hub {
-    width: 500px;
-    right: -190px;
-    bottom: -190px;
-    opacity: 0.058;
+    width: 520px;
+    right: -210px;
+    bottom: -260px;
+    opacity: 0.052;
   }
 
   .brand-atmosphere-mark--quiet {
-    width: 380px;
-    right: -170px;
-    bottom: -160px;
-    opacity: 0.032;
+    width: 420px;
+    right: -190px;
+    bottom: -230px;
+    opacity: 0.028;
   }
 
   .hero-panel {
