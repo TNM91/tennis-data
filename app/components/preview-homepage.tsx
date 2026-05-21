@@ -359,8 +359,8 @@ const commandModeDetails: Record<
   }
 > = {
   free: {
-    headline: 'Find tennis intelligence fast.',
-    subhead: 'Search is always the front door. Players, teams, leagues, rankings, and uploads stay easy to reach.',
+    headline: 'More Tennis. Less Chaos.',
+    subhead: 'Start with the tennis map, then unlock the tools that save your week.',
     searchPlaceholder: 'Search players, teams, leagues, ratings...',
     queue: ['Find a player', 'Browse a team', 'Check standings', 'Upload a scorecard'],
     unlockLine: 'Free stays useful. Paid tiers unlock private workflows when the job becomes personal, team-based, or league-wide.',

@@ -5,9 +5,7 @@ import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import FollowButton from '@/app/components/follow-button'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
-import FindModeBridge from '@/app/components/find-mode-bridge'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
@@ -324,45 +322,14 @@ export default function PlayersPage() {
   )
   const highRatedPlayers = useMemo(() => players.filter((player) => getRating(player, 'overall') >= 4).length, [players])
 
-  const dynamicHeroWrap: CSSProperties = {
-    ...heroWrap,
-    padding: isMobile ? '12px 16px 18px' : '8px 18px 18px',
-  }
-
-  const dynamicHeroShell: CSSProperties = {
-    ...heroShell,
-    padding: isMobile ? '24px 18px 20px' : '28px 28px 22px',
-  }
-
-  const dynamicHeroContent: CSSProperties = {
-    ...heroContent,
-    gridTemplateColumns: isTablet
-      ? 'minmax(0, 1fr)'
-      : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
-    gap: isMobile ? '18px' : '22px',
-  }
-
-  const dynamicHeroTitle: CSSProperties = {
-    ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '44px' : '54px',
-    lineHeight: isMobile ? 1.04 : 0.98,
-    maxWidth: '520px',
-  }
-
-  const dynamicHeroText: CSSProperties = {
-    ...heroText,
-    fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '520px',
-  }
-
   const dynamicControlsShell: CSSProperties = {
     ...controlsShell,
     padding: isMobile ? '16px' : '18px',
     boxShadow: searchFocused
       ? '0 20px 44px rgba(7,24,53,0.18), 0 0 0 2px rgba(72,161,255,0.18)'
       : controlsShell.boxShadow,
-    position: isTablet ? 'relative' : 'sticky',
-    top: isTablet ? 'auto' : '24px',
+    position: 'relative',
+    top: 'auto',
   }
 
   const dynamicControlsTopRow: CSSProperties = {
@@ -438,204 +405,154 @@ export default function PlayersPage() {
 
   return (
     <SiteShell active="players">
-      <section style={dynamicHeroWrap}>
-        <div style={dynamicHeroShell}>
-          <div style={heroNoise} />
-
-          <div style={dynamicHeroContent}>
-            <div style={heroLeft}>
-              <div style={eyebrow}>Players</div>
-
-              <h1 style={dynamicHeroTitle}>
-                Find a player fast.
-              </h1>
-
-              <p style={dynamicHeroText}>
-                Search by name or location. Open a profile when you want ratings, teams, history, or matchup prep.
-              </p>
-
-              <div style={heroHintRow}>
-                <span style={heroHintPill}>Search</span>
-                <span style={heroHintPill}>Open profile</span>
-                <span style={heroHintPill}>Prep with Matchup</span>
-              </div>
-
-              {authResolved && !access.canUseAdvancedPlayerInsights ? (
-                <div style={{ marginTop: 18, maxWidth: 560 }}>
-                  <UpgradePrompt
-                    planId="player_plus"
-                    compact
-                    headline="Want smarter match prep?"
-                    body="Unlock Matchup and My Lab with Player so you can compare players before you play and follow the tennis you care about."
-                    ctaLabel="Upgrade to Player"
-                    secondaryLabel="See Player value"
-                    footnote="Best for serious players who want clearer prep before the match starts."
-                  />
-                </div>
-              ) : null}
+      <section style={playerToolWrap}>
+        <div style={playerToolGrid(isTablet)}>
+          <div style={dynamicControlsShell}>
+            <div style={dynamicControlsTopRow}>
+              <div style={controlsLabel}>Find a player</div>
+              {!isTablet ? <div style={controlsHint}>Search first, filter if needed</div> : null}
             </div>
 
-            <div style={heroRight}>
-              <div style={dynamicControlsShell}>
-                <div style={dynamicControlsTopRow}>
-                  <div style={controlsLabel}>Find a player</div>
-                  {!isTablet ? <div style={controlsHint}>Search first, filter if needed</div> : null}
+            <div style={dynamicControlsRow}>
+              <div style={dynamicSearchInputWrap}>
+                <div style={searchIconWrap}>
+                  <SearchIcon />
                 </div>
-
-                <div style={dynamicControlsRow}>
-                  <div style={dynamicSearchInputWrap}>
-                    <div style={searchIconWrap}>
-                      <SearchIcon />
-                    </div>
-                    <input
-                      id="players-directory-search"
-                      aria-label="Search players by name or location"
-                      aria-describedby="players-directory-helper"
-                      ref={searchInputRef}
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      onFocus={() => setSearchFocused(true)}
-                      onBlur={() => setSearchFocused(false)}
-                      placeholder="Search player name or location..."
-                      style={dynamicSearchInput}
-                    />
-                  </div>
-
-                  <select
-                    id="players-directory-sort"
-                    aria-label="Sort player directory"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortKey)}
-                    style={dynamicSortSelect}
-                  >
-                    <option value="overall">Sort: Overall</option>
-                    <option value="singles">Sort: Singles</option>
-                    <option value="doubles">Sort: Doubles</option>
-                    <option value="name">Sort: Name</option>
-                  </select>
-
-                  <select
-                    id="players-directory-filter"
-                    aria-label="Filter player directory"
-                    value={filterBy}
-                    onChange={(e) => setFilterBy(e.target.value as FilterKey)}
-                    style={dynamicFilterSelect}
-                  >
-                    <option value="all">All players</option>
-                    <option value="with-matches">With matches</option>
-                    <option value="high-rated">4.0+ overall</option>
-                    <option value="trending-up">Trending up</option>
-                    <option value="at-risk">At risk</option>
-                  </select>
-
-                  <select
-                    id="players-directory-flight"
-                    aria-label="Filter by league flight / NTRP level"
-                    value={flightFilter}
-                    onChange={(e) => setFlightFilter(e.target.value as FlightFilter)}
-                    style={dynamicFlightSelect}
-                  >
-                    <option value="all">All levels</option>
-                    <option value="2.5">2.5</option>
-                    <option value="3.0">3.0</option>
-                    <option value="3.5">3.5</option>
-                    <option value="4.0">4.0</option>
-                    <option value="4.5+">4.5+</option>
-                  </select>
-                </div>
-
-                <div id="players-directory-helper" style={controlsHelperText}>
-                  Start with a name. Use filters only when the list is too wide.
-                </div>
-                <div style={dynamicQuickFilterGrid} aria-label="Quick player filters">
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() => setFilterBy('with-matches')}
-                    style={{
-                      ...quickFilterButton,
-                      ...(loading ? quickFilterButtonDisabled : null),
-                      ...(filterBy === 'with-matches' ? quickFilterButtonActive : null),
-                    }}
-                  >
-                    <span>Match data</span>
-                    <strong>{loading ? '-' : playersWithMatches}</strong>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() => setFilterBy('trending-up')}
-                    style={{
-                      ...quickFilterButton,
-                      ...(loading ? quickFilterButtonDisabled : null),
-                      ...(filterBy === 'trending-up' ? quickFilterButtonActive : null),
-                    }}
-                  >
-                    <span>Trending</span>
-                    <strong>{loading ? '-' : trendingPlayers}</strong>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={() => setFilterBy('high-rated')}
-                    style={{
-                      ...quickFilterButton,
-                      ...(loading ? quickFilterButtonDisabled : null),
-                      ...(filterBy === 'high-rated' ? quickFilterButtonActive : null),
-                    }}
-                  >
-                    <span>4.0+</span>
-                    <strong>{loading ? '-' : highRatedPlayers}</strong>
-                  </button>
-                </div>
-                {hasActiveFilters ? (
-                  <div style={controlsActionRow}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearch('')
-                        setSortBy('overall')
-                        setFilterBy('all')
-                        setFlightFilter('all')
-                      }}
-                      style={clearFilterButton}
-                    >
-                      Reset directory filters
-                    </button>
-                  </div>
-                ) : null}
+                <input
+                  id="players-directory-search"
+                  aria-label="Search players by name or location"
+                  aria-describedby="players-directory-helper"
+                  ref={searchInputRef}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  placeholder="Search player name or location..."
+                  style={dynamicSearchInput}
+                />
               </div>
 
-              <div style={summaryCard}>
-                <div style={summaryTitle}>Directory</div>
+              <select
+                id="players-directory-sort"
+                aria-label="Sort player directory"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortKey)}
+                style={dynamicSortSelect}
+              >
+                <option value="overall">Sort: Overall</option>
+                <option value="singles">Sort: Singles</option>
+                <option value="doubles">Sort: Doubles</option>
+                <option value="name">Sort: Name</option>
+              </select>
 
-                <div style={dynamicHeroStatsGrid}>
-                  <StatChip label="Players" value={loading ? '-' : String(players.length)} />
-                  <StatChip label="Showing" value={loading ? '-' : String(filteredPlayers.length)} accent />
-                </div>
+              <select
+                id="players-directory-filter"
+                aria-label="Filter player directory"
+                value={filterBy}
+                onChange={(e) => setFilterBy(e.target.value as FilterKey)}
+                style={dynamicFilterSelect}
+              >
+                <option value="all">All players</option>
+                <option value="with-matches">With matches</option>
+                <option value="high-rated">4.0+ overall</option>
+                <option value="trending-up">Trending up</option>
+                <option value="at-risk">At risk</option>
+              </select>
 
-                <div style={summaryFooterWrap}>
-                  <div style={summaryHint}>
-                    Search here, open a profile, then use My Lab or Matchup when you need deeper prep.
-                  </div>
-                </div>
+              <select
+                id="players-directory-flight"
+                aria-label="Filter by league flight / NTRP level"
+                value={flightFilter}
+                onChange={(e) => setFlightFilter(e.target.value as FlightFilter)}
+                style={dynamicFlightSelect}
+              >
+                <option value="all">All levels</option>
+                <option value="2.5">2.5</option>
+                <option value="3.0">3.0</option>
+                <option value="3.5">3.5</option>
+                <option value="4.0">4.0</option>
+                <option value="4.5+">4.5+</option>
+              </select>
+            </div>
+
+            <div id="players-directory-helper" style={controlsHelperText}>
+              Start with a name. Use filters only when the list is too wide.
+            </div>
+            <div style={dynamicQuickFilterGrid} aria-label="Quick player filters">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setFilterBy('with-matches')}
+                style={{
+                  ...quickFilterButton,
+                  ...(loading ? quickFilterButtonDisabled : null),
+                  ...(filterBy === 'with-matches' ? quickFilterButtonActive : null),
+                }}
+              >
+                <span>Match data</span>
+                <strong>{loading ? '-' : playersWithMatches}</strong>
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setFilterBy('trending-up')}
+                style={{
+                  ...quickFilterButton,
+                  ...(loading ? quickFilterButtonDisabled : null),
+                  ...(filterBy === 'trending-up' ? quickFilterButtonActive : null),
+                }}
+              >
+                <span>Trending</span>
+                <strong>{loading ? '-' : trendingPlayers}</strong>
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => setFilterBy('high-rated')}
+                style={{
+                  ...quickFilterButton,
+                  ...(loading ? quickFilterButtonDisabled : null),
+                  ...(filterBy === 'high-rated' ? quickFilterButtonActive : null),
+                }}
+              >
+                <span>4.0+</span>
+                <strong>{loading ? '-' : highRatedPlayers}</strong>
+              </button>
+            </div>
+            {hasActiveFilters ? (
+              <div style={controlsActionRow}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('')
+                    setSortBy('overall')
+                    setFilterBy('all')
+                    setFlightFilter('all')
+                  }}
+                  style={clearFilterButton}
+                >
+                  Reset directory filters
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div style={summaryCard}>
+            <div style={summaryTitle}>Directory</div>
+
+            <div style={dynamicHeroStatsGrid}>
+              <StatChip label="Players" value={loading ? '-' : String(players.length)} />
+              <StatChip label="Showing" value={loading ? '-' : String(filteredPlayers.length)} accent />
+            </div>
+
+            <div style={summaryFooterWrap}>
+              <div style={summaryHint}>
+                Open a profile from here, then use My Lab or Matchup when you need deeper prep.
               </div>
             </div>
           </div>
         </div>
       </section>
-
-      <FindModeBridge
-        active="Players"
-        primary="Open a player profile"
-        secondary="Use this directory when a name, location, or rating clue is your starting point."
-        links={[
-          { href: '/explore/search?scope=players', label: 'Search', icon: 'opponentScouting' },
-          { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
-          { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
-          { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
-        ]}
-      />
 
       {error ? (
       <section style={errorCard}>
@@ -996,102 +913,6 @@ function getMeterTheme(status: RatingStatus) {
         trendBorder: 'color-mix(in srgb, #ef4444 26%, var(--shell-panel-border) 74%)',
       }
   }
-}
-
-const heroWrap: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-}
-
-const heroShell: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '30px',
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-card)',
-  overflow: 'hidden',
-  position: 'relative',
-  minWidth: 0,
-}
-
-const heroNoise: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background:
-    'radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--brand-blue-2) 16%, transparent) 0%, transparent 26%), radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand-lime) 8%, transparent) 0%, transparent 30%)',
-  pointerEvents: 'none',
-}
-
-const heroContent: CSSProperties = {
-  display: 'grid',
-  alignItems: 'stretch',
-  position: 'relative',
-  zIndex: 1,
-  minWidth: 0,
-}
-
-const heroLeft: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  gap: '16px',
-  minWidth: 0,
-}
-
-const heroRight: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  alignContent: 'start',
-  minWidth: 0,
-}
-
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  width: 'fit-content',
-  alignItems: 'center',
-  padding: '7px 11px',
-  borderRadius: '999px',
-  color: 'var(--foreground-strong)',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-}
-
-const heroTitle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const heroText: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.65,
-  fontWeight: 500,
-}
-
-const heroHintRow: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '4px',
-}
-
-const heroHintPill: CSSProperties = {
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
-  borderRadius: '999px',
-  padding: '10px 14px',
-  fontSize: '13px',
-  fontWeight: 700,
 }
 
 const controlsShell: CSSProperties = {
@@ -1635,6 +1456,22 @@ const iconSvgStyle: CSSProperties = {
   width: '22px',
   height: '22px',
 }
+
+const playerToolWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 32px)))',
+  margin: '12px auto 18px',
+  minWidth: 0,
+}
+
+const playerToolGrid = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(min(100%, 280px), 0.32fr)',
+  gap: 12,
+  alignItems: 'stretch',
+  minWidth: 0,
+})
 
 const followButtonWrap: CSSProperties = {
   position: 'relative',
