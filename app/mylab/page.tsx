@@ -3258,7 +3258,7 @@ const pageStyle: CSSProperties = {
   width: '100%',
   maxWidth: '1280px',
   margin: '0 auto',
-  padding: '20px clamp(14px, 4vw, 24px) 0',
+  padding: '8px clamp(14px, 4vw, 24px) 0',
   minWidth: 0,
 }
 
@@ -3300,14 +3300,14 @@ const warningNoteStyle: CSSProperties = {
 }
 
 const profileLinkCardStyle: CSSProperties = {
-  borderRadius: 24,
+  borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
   background:
     'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-blue-2) 8%, transparent) 0%, transparent 34%), var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
-  padding: 'clamp(16px, 3vw, 24px)',
+  boxShadow: '0 18px 44px rgba(2, 10, 24, 0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  padding: 'clamp(14px, 2.4vw, 20px)',
   display: 'grid',
-  gap: 18,
+  gap: 14,
   minWidth: 0,
 }
 
@@ -3320,13 +3320,13 @@ const personalHomeTitleStyle: CSSProperties = {
 }
 
 const personalReadPanelStyle: CSSProperties = {
-  borderRadius: 24,
+  borderRadius: 20,
   border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
   background:
     'linear-gradient(135deg, color-mix(in srgb, var(--brand-lime) 9%, transparent) 0%, var(--shell-panel-bg) 66%)',
-  padding: 18,
+  padding: 14,
   display: 'grid',
-  gap: 14,
+  gap: 12,
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -3362,8 +3362,8 @@ const personalReadCardStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-  padding: 14,
-  minHeight: 128,
+  padding: 12,
+  minHeight: 108,
   display: 'grid',
   gap: 7,
   alignContent: 'start',
@@ -3386,12 +3386,12 @@ const personalReadValueStyle: CSSProperties = {
 }
 
 const labPlaybookPanelStyle: CSSProperties = {
-  borderRadius: 22,
+  borderRadius: 18,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
-  padding: 16,
+  padding: 12,
   display: 'grid',
-  gap: 12,
+  gap: 10,
   minWidth: 0,
 }
 

@@ -41,8 +41,8 @@ export const shadows = {
 export const pageBackground: CSSProperties = {
   position: 'relative',
   minHeight: '100vh',
-  overflow: 'hidden',
   overflowX: 'clip',
+  overflowY: 'visible',
   background: 'var(--page-background)',
   minWidth: 0,
   maxWidth: '100vw',

@@ -729,37 +729,38 @@ const pageStyle: CSSProperties = {
   width: '100%',
   maxWidth: '1280px',
   margin: '0 auto',
-  padding: '14px 24px 26px',
+  padding: '8px clamp(14px, 4vw, 24px) 26px',
   minWidth: 0,
 }
 
 const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr)',
-  gap: isMobile ? 18 : 24,
-  padding: isMobile ? '20px 18px' : '30px 28px',
-  borderRadius: isMobile ? 24 : 30,
+  gap: isMobile ? 12 : 14,
+  padding: isMobile ? '14px 14px' : '18px 20px',
+  borderRadius: isMobile ? 20 : 22,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 72%, transparent 28%)',
+  boxShadow: 'none',
   minWidth: 0,
+  marginBottom: 14,
 })
 
 const heroTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  lineHeight: 1,
-  fontSize: 'clamp(2rem, 4vw, 3.4rem)',
+  lineHeight: 1.08,
+  fontSize: 'clamp(1.45rem, 2.4vw, 2rem)',
   overflowWrap: 'anywhere',
 }
 
 const heroTextStyle: CSSProperties = {
-  margin: '14px 0 0',
-  maxWidth: 620,
+  margin: '8px 0 0',
+  maxWidth: 760,
   color: 'var(--shell-copy-muted)',
-  fontSize: '1.02rem',
-  lineHeight: 1.55,
+  fontSize: '0.95rem',
+  lineHeight: 1.5,
   overflowWrap: 'anywhere',
 }
 
@@ -796,7 +797,7 @@ const profileSetupNoticeTextStyle: CSSProperties = {
 }
 
 const toolFlowStyle = (isMobile: boolean): CSSProperties => ({
-  display: 'grid',
+  display: 'none',
   gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: isMobile ? 16 : 20,
@@ -845,9 +846,9 @@ const toolFlowNoteStyle: CSSProperties = {
 
 const heroButtonRowStyle: CSSProperties = {
   display: 'flex',
-  gap: 12,
+  gap: 10,
   flexWrap: 'wrap',
-  marginTop: 22,
+  marginTop: 14,
   minWidth: 0,
 }
 
