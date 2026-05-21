@@ -101,6 +101,10 @@ const portalLanes: PortalLane[] = [
 ]
 
 const hiddenPrefixes = ['/login', '/join', '/legal', '/reset-password', '/forget-password']
+const portalSurfaceBackground =
+  'radial-gradient(circle at 18% 8%, rgba(155,225,29,0.16), transparent 26%), radial-gradient(circle at 88% 18%, rgba(74,163,255,0.14), transparent 30%), linear-gradient(145deg, rgba(7,18,38,0.96) 0%, rgba(10,25,48,0.98) 52%, rgba(4,13,29,0.98) 100%)'
+const portalActiveCardBackground =
+  'linear-gradient(135deg, rgba(17,36,67,0.86) 0%, rgba(12,26,50,0.92) 100%)'
 
 function isLaneActive(pathname: string, lane: PortalLane) {
   return lane.paths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
@@ -200,8 +204,7 @@ export default function PortalToolBar() {
           padding: isSmallMobile ? 16 : isMobile ? 18 : 20,
           borderRadius: isSmallMobile ? 24 : 28,
           border: '1px solid rgba(116,190,255,0.15)',
-          background:
-            'radial-gradient(circle at 18% 8%, rgba(155,225,29,0.16), transparent 26%), radial-gradient(circle at 88% 18%, rgba(74,163,255,0.14), transparent 30%), linear-gradient(145deg, rgba(7,18,38,0.96) 0%, rgba(10,25,48,0.98) 52%, rgba(4,13,29,0.98) 100%)',
+          background: portalSurfaceBackground,
           color: 'var(--foreground)',
           boxShadow: '0 28px 80px rgba(2, 10, 24, 0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
           minWidth: 0,
@@ -309,9 +312,8 @@ function PortalLaneCard({
       style={{
         ...laneCardStyle,
         borderColor: active ? accent : 'rgba(116,190,255,0.15)',
-        background: active
-          ? `linear-gradient(135deg, color-mix(in srgb, ${accent} 18%, rgba(16,34,60,0.94) 82%) 0%, rgba(13,28,52,0.94) 100%)`
-          : 'rgba(255,255,255,0.045)',
+        background: active ? portalActiveCardBackground : 'rgba(255,255,255,0.045)',
+        boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(116,190,255,0.08)' : undefined,
       }}
     >
       <TiqFeatureIcon name={lane.icon} size="sm" variant={active ? 'surface' : 'ghost'} />

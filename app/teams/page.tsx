@@ -3,9 +3,7 @@
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState, type ReactNode } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
-import FindModeBridge from '@/app/components/find-mode-bridge'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { supabase } from '@/lib/supabase'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
@@ -422,101 +420,15 @@ export default function TeamsPage() {
     }
   }, [filteredRows])
 
-  const avgVisibleMatches = useMemo(() => {
-    if (filteredRows.length === 0) return 0
-    return filteredRows.reduce((sum, row) => sum + row.matchCount, 0) / filteredRows.length
-  }, [filteredRows])
-
   return (
     <SiteShell active="/explore">
       <main style={pageWrap}>
-        <section style={heroSection}>
-          <div style={contentWrap}>
-            <div style={heroCard}>
-              <div style={heroEyebrow}>Teams directory</div>
-              <h1 style={heroTitle}>Teams grouped by league, flight, and schedule context.</h1>
-              <p style={heroText}>
-                Browse real team rows inside their league and flight. The directory stays focused on teams,
-                not player names, line labels, or incomplete rows.
-              </p>
-
-              <div style={exploreNavRow}>
-                <Link href="/explore/players" style={exploreNavLink}>Players</Link>
-                <Link href="/explore/rankings" style={exploreNavLink}>Rankings</Link>
-                <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
-                <Link href="/mylab" style={exploreNavLink}>My Lab</Link>
-              </div>
-
-              <div style={heroStatsGrid(isSmallMobile)}>
-                <StatPill label="Teams" value={String(totals.teams)} />
-                <StatPill label="Leagues" value={String(totals.leagues)} />
-                <StatPill label="Flights" value={String(totals.flights)} />
-                <StatPill label="Players" value={String(totals.players)} />
-              </div>
-
-              {authResolved && (!access.canUseCaptainWorkflow || !access.canUseLeagueTools) ? (
-                <div style={{ marginTop: 18, display: 'grid', gap: 14 }}>
-                  {!access.canUseCaptainWorkflow ? (
-                    <UpgradePrompt
-                      planId="captain"
-                      compact
-                      headline="Need team context to turn into smarter lineups?"
-                      body="Unlock Captain to move from the team directory into availability, lineup building, messaging, and weekly execution without guesswork."
-                      ctaLabel="Unlock Captain Tools"
-                      secondaryLabel="See Captain value"
-                    />
-                  ) : null}
-                  {!access.canUseLeagueTools ? (
-                    <UpgradePrompt
-                      planId="league"
-                      compact
-                      headline="Organizing team seasons outside the app?"
-                      body="League tools give you one place for scheduling, standings, structure, and league-wide coordination instead of spreadsheet cleanup."
-                      ctaLabel="Run Your League on TIQ"
-                      secondaryLabel="See league plan"
-                    />
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <FindModeBridge
-          active="Teams"
-          primary="Open the team context"
-          secondary="Use this directory when roster shape, league, or flight is the clue you have."
-          links={[
-            { href: '/explore/search?scope=teams', label: 'Search', icon: 'opponentScouting' },
-            { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
-            { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
-            { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
-          ]}
-        />
-
         <section style={contentWrap}>
-          {!loading && !error ? (
-            <section style={editorialPanel}>
-              <p style={sectionKicker}>Directory context</p>
-              <h2 style={sectionTitle}>Team cards are best used to understand season shape before you drill in.</h2>
-              <p style={sectionText}>
-                This board is meant to help you see how teams cluster inside leagues and flights, how
-                active they have been, and where to go next for more useful context. It works best as a
-                season discovery layer, not as the final word on a team.
-              </p>
-              <div style={editorialGrid}>
-                <StatPill label="Visible teams" value={String(totals.teams)} />
-                <StatPill label="Avg matches" value={avgVisibleMatches.toFixed(1)} />
-                <StatPill label="Best next step" value="Open team page" />
-              </div>
-            </section>
-          ) : null}
-
           <section style={filtersCard}>
             <div style={sectionHeader}>
               <div>
-                <p style={sectionKicker}>Filters</p>
-                <h2 style={sectionTitle}>Scope the team directory</h2>
+                <p style={sectionKicker}>Teams</p>
+                <h2 style={sectionTitle}>Find a team, then open the season context.</h2>
                 <p style={sectionText}>
                   Search by team name, league, or flight.
                 </p>
@@ -534,6 +446,13 @@ export default function TeamsPage() {
               >
                 Reset
               </button>
+            </div>
+
+            <div style={summaryRow(isSmallMobile)}>
+              <StatPill label="Teams" value={String(totals.teams)} />
+              <StatPill label="Leagues" value={String(totals.leagues)} />
+              <StatPill label="Flights" value={String(totals.flights)} />
+              <StatPill label="Players" value={String(totals.players)} />
             </div>
 
             <div style={filtersGrid(isMobile)}>
@@ -793,98 +712,24 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 const pageWrap: CSSProperties = {
-  minHeight: '100vh',
-  background:
-    'radial-gradient(circle at top, color-mix(in srgb, var(--brand-blue-2) 13%, transparent) 0%, transparent 30%), var(--background)',
   color: 'var(--foreground)',
   paddingBottom: '56px',
+  minWidth: 0,
 }
 
 const contentWrap: CSSProperties = {
   width: '100%',
   maxWidth: '1280px',
-  margin: '0 auto',
+  margin: '12px auto 0',
   padding: '0 clamp(14px, 3vw, 20px)',
   minWidth: 0,
 }
 
-const heroSection: CSSProperties = {
-  padding: '28px 0 18px',
-}
-
-const heroCard: CSSProperties = {
-  position: 'relative',
-  overflow: 'hidden',
-  borderRadius: '28px',
-  border: '1px solid var(--shell-panel-border)',
-  background:
-    'linear-gradient(180deg, color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg-strong) 92%) 0%, var(--shell-panel-bg) 100%)',
-  boxShadow: 'var(--shadow-soft)',
-  padding: '28px',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const heroEyebrow: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const heroTitle: CSSProperties = {
-  margin: '10px 0 0',
-  fontSize: 'clamp(30px, 5vw, 48px)',
-  lineHeight: 1.02,
-  letterSpacing: 0,
-  fontWeight: 900,
-  overflowWrap: 'anywhere',
-}
-
-const heroText: CSSProperties = {
-  margin: '14px 0 0',
-  maxWidth: '760px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '15px',
-  lineHeight: 1.75,
-  overflowWrap: 'anywhere',
-}
-
-const exploreNavRow: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '16px',
-  minWidth: 0,
-}
-
-const exploreNavLink: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '36px',
-  padding: '0 13px',
-  borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  fontSize: '13px',
-  fontWeight: 800,
-  maxWidth: '100%',
-  minWidth: 0,
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-  textAlign: 'center',
-}
-
-const heroStatsGrid = (isSmallMobile: boolean): CSSProperties => ({
+const summaryRow = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
   gap: '12px',
-  marginTop: '22px',
+  marginTop: '18px',
   minWidth: 0,
 })
 
@@ -977,27 +822,6 @@ const resetButton: CSSProperties = {
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   textAlign: 'center',
-}
-
-const editorialPanel: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  marginBottom: '18px',
-  padding: '24px',
-  borderRadius: '26px',
-  background:
-    'linear-gradient(180deg, color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%) 0%, var(--shell-panel-bg) 100%)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const editorialGrid: CSSProperties = {
-  display: 'grid',
-  gap: '12px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-  minWidth: 0,
 }
 
 const filtersActionRow: CSSProperties = {

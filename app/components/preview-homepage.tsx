@@ -387,6 +387,10 @@ const commandModeDetails: Record<
     unlockLine: 'TIQ League Coordinator unlocks league operations, ranking visibility, results, and admin workflows.',
   },
 }
+const commandCenterSurfaceBackground =
+  'radial-gradient(circle at 18% 8%, rgba(155,225,29,0.16), transparent 26%), radial-gradient(circle at 88% 18%, rgba(74,163,255,0.16), transparent 30%), linear-gradient(145deg, rgba(7,18,38,0.96) 0%, rgba(10,25,48,0.98) 52%, rgba(4,13,29,0.98) 100%)'
+const commandActiveCardBackground =
+  'linear-gradient(135deg, rgba(17,36,67,0.86) 0%, rgba(12,26,50,0.92) 100%)'
 
 // Kept temporarily as a fallback while the command-center homepage is reviewed.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -493,7 +497,6 @@ function CommandCenterHome({
   )
   const selectedDetails = commandModeDetails[activeLane]
   const selectedTasks = commandTaskSets[activeLane]
-  const activeAccent = getModeAccent(activeLane)
   const needsProfileLink = authenticated && profileResolved && !profileLinked
   const heroHeadline = authenticated
     ? firstName
@@ -525,8 +528,7 @@ function CommandCenterHome({
         gap: isMobile ? 16 : 18,
         borderRadius: isSmallMobile ? 24 : 30,
         border: '1px solid rgba(116,190,255,0.15)',
-        background:
-          'radial-gradient(circle at 18% 8%, rgba(155,225,29,0.16), transparent 26%), radial-gradient(circle at 88% 18%, rgba(74,163,255,0.16), transparent 30%), linear-gradient(145deg, rgba(7,18,38,0.96) 0%, rgba(10,25,48,0.98) 52%, rgba(4,13,29,0.98) 100%)',
+        background: commandCenterSurfaceBackground,
         color: 'var(--foreground)',
         boxShadow: '0 28px 80px rgba(2, 10, 24, 0.32), inset 0 1px 0 rgba(255,255,255,0.06)',
         overflow: 'hidden',
@@ -627,9 +629,8 @@ function CommandCenterHome({
                     padding: 12,
                     borderRadius: 18,
                     border: active ? `1px solid ${accent}` : '1px solid rgba(116,190,255,0.14)',
-                    background: active
-                      ? `linear-gradient(135deg, color-mix(in srgb, ${accent} 22%, rgba(16,34,60,0.92) 78%) 0%, rgba(13,28,52,0.92) 100%)`
-                      : 'rgba(255,255,255,0.045)',
+                    background: active ? commandActiveCardBackground : 'rgba(255,255,255,0.045)',
+                    boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(116,190,255,0.08)' : undefined,
                     color: 'var(--foreground-strong)',
                     textAlign: 'left',
                     cursor: 'pointer',
@@ -749,7 +750,7 @@ function CommandCenterHome({
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: 10, minWidth: 0 }}>
-                    <span style={{ color: activeAccent, fontSize: 12, fontWeight: 950 }}>{task.metric}</span>
+                    <span style={{ color: 'var(--brand-green)', fontSize: 12, fontWeight: 950 }}>{task.metric}</span>
                     <span style={{ display: 'grid', placeItems: 'center', width: 52, height: 42, minWidth: 0, overflow: 'hidden' }}>
                       <CommandTaskGraphic graphic={task.graphic} />
                     </span>
@@ -757,7 +758,7 @@ function CommandCenterHome({
                   <span style={{ display: 'grid', gap: 8, minWidth: 0 }}>
                     <strong style={{ color: 'var(--foreground-strong)', fontSize: 15, lineHeight: 1.1 }}>{task.title}</strong>
                     <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45 }}>{task.detail}</span>
-                    <span style={{ color: taskAccess.active ? activeAccent : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: taskAccess.active ? 'var(--brand-green)' : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       {taskAccess.active ? 'Open' : <><NavLockIcon size={12} /> Unlock</>}
                     </span>
                   </span>
