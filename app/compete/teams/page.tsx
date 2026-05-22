@@ -39,8 +39,8 @@ export default function CompeteTeamsPage() {
   return (
     <CompetePageFrame
       eyebrow="My Teams"
-      title="Teams should carry their TIQ participation into the weekly workflow."
-      description="This view now treats teams as the participant unit across both team operations and TIQ league entry. It bridges roster context, entered TIQ seasons, and the captain actions that come next."
+      title="Team context, already in motion."
+      description="Entered TIQ seasons, roster links, and captain actions sit together."
     >
       <CompeteTeamsContent />
     </CompetePageFrame>
@@ -124,7 +124,7 @@ function CompeteTeamsContent() {
           href="/teams"
           meta="Roster view"
           title="Team Directory"
-          text="Open current team pages for roster, standings context, and existing team-level analytics."
+          text="Open roster, standings, and team analytics."
           icon="teamRankings"
           action="Find team"
         />
@@ -132,7 +132,7 @@ function CompeteTeamsContent() {
           href="/captain/availability"
           meta="Action surface"
           title="Availability"
-          text="Collect or review availability before you move into lineup construction."
+          text="See who can play before the lineup gets built."
           icon="reliabilityIndex"
           action="Check status"
         />
@@ -140,7 +140,7 @@ function CompeteTeamsContent() {
           href="/captain/lineup-builder"
           meta="Action surface"
           title="Lineup Builder"
-          text="Move from team context into lineup optimization without needing to rediscover the right captain tool."
+          text="Build from the team already in view."
           icon="lineupBuilder"
           action="Build lineup"
         />

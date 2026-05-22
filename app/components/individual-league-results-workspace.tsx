@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import LockedPlanPage from '@/app/components/locked-plan-page'
-import { useAuth } from '@/app/components/auth-provider'
+import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildIndividualResultCue } from '@/lib/league-result-cues'
 import {
@@ -62,6 +62,7 @@ const introCard: CSSProperties = {
   border: '1px solid rgba(124, 167, 255, 0.18)',
   borderRadius: 16,
   padding: 24,
+  marginTop: 18,
   marginBottom: 22,
   minWidth: 0,
 }
@@ -466,15 +467,25 @@ function fallbackEntriesForLeague(league: TiqLeagueRecord | null): TiqPlayerLeag
   }))
 }
 
-export function IndividualLeagueResultsWorkspace({
-  activeRoute = '/league-coordinator',
-  loginNextHref = '/league-coordinator/individual-results',
-  resultsHref = '/league-coordinator/individual-results',
-}: {
+type IndividualLeagueResultsWorkspaceProps = {
   activeRoute?: string
   loginNextHref?: string
   resultsHref?: string
-}) {
+}
+
+export function IndividualLeagueResultsWorkspace(props: IndividualLeagueResultsWorkspaceProps) {
+  return (
+    <AuthProvider>
+      <IndividualLeagueResultsWorkspaceInner {...props} />
+    </AuthProvider>
+  )
+}
+
+function IndividualLeagueResultsWorkspaceInner({
+  activeRoute = '/league-coordinator',
+  loginNextHref = '/league-coordinator/individual-results',
+  resultsHref = '/league-coordinator/individual-results',
+}: IndividualLeagueResultsWorkspaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { role, userId, entitlements, authResolved } = useAuth()

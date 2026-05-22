@@ -49,8 +49,8 @@ export default function CompeteSchedulePage() {
   return (
     <CompetePageFrame
       eyebrow="Schedule"
-      title="Upcoming matches should drive the weekly flow."
-      description="Schedule is the bridge between browseable season data and action-oriented preparation. This route anchors the week around what is next, then routes users into the execution tools that already work."
+      title="Next matches, next actions."
+      description="Dates, opponents, facilities, briefs, availability, lineups, and messages stay connected."
     >
       <CompeteScheduleContent />
     </CompetePageFrame>
@@ -107,7 +107,7 @@ function CompeteScheduleContent() {
           href="/captain"
           meta="Weekly hub"
           title="Captain Week View"
-          text="Use Captain tools as the current working surface for upcoming team matches and preparation status."
+          text="Open the current prep surface for this week."
           icon="captainDashboard"
           action="Open week"
         />
@@ -115,7 +115,7 @@ function CompeteScheduleContent() {
           href="/captain/scenario-builder"
           meta="Scenario prep"
           title="Scenario Builder"
-          text="Test likely opponent outcomes and lineup branches before match day."
+          text="Test opponent outcomes and lineup branches."
           icon="scenarioBuilder"
           action="Test options"
         />
@@ -123,7 +123,7 @@ function CompeteScheduleContent() {
           href="/mylab"
           meta="Player prep"
           title="My Lab"
-          text="Use premium comparison work when schedule context turns into opponent-specific preparation."
+          text="Turn schedule context into opponent prep."
           icon="myLab"
           action="Open lab"
         />

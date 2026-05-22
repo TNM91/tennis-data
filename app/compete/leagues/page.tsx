@@ -68,15 +68,15 @@ export default function CompeteLeaguesPage() {
   return (
     <CompetePageFrame
       eyebrow="My Leagues"
-      title="League participation should stay easy to understand."
-      description="Team leagues and individual leagues can share one workflow layer while staying clearly separated. TenAceIQ keeps structure visible so players, captains, and coordinators know what to do next."
+      title="Leagues with the next move visible."
+      description="Team seasons, individual ladders, public pages, and coordinator tools stay in one dark workflow."
     >
       <CompeteGrid>
         <CompeteCard
           href="/league-coordinator"
           meta="Create TIQ leagues"
           title="TIQ League Coordinator"
-          text={LEAGUE_COORDINATOR_STORY.body}
+          text="Set up seasons, approve entries, publish pages, and record results."
           icon="teamRankings"
           action="Run league"
         />
@@ -84,7 +84,7 @@ export default function CompeteLeaguesPage() {
           href="/explore/leagues"
           meta="Explore"
           title="Browse League Layers"
-          text="Review uploaded USTA-style history, TIQ team leagues, and TIQ individual leagues from one browse surface."
+          text="USTA history, TIQ team leagues, and TIQ individual leagues in one browse surface."
           icon="opponentScouting"
           action="Browse leagues"
         />
@@ -92,7 +92,7 @@ export default function CompeteLeaguesPage() {
           href={DATA_ASSIST_STORY.href}
           meta="Refresh context"
           title="Data Assist Uploads"
-          text={DATA_ASSIST_STORY.shortCue}
+          text="Upload schedules, rosters, and scorecards when league context changes."
           icon="accountSecurity"
           action="Upload data"
         />
@@ -100,7 +100,7 @@ export default function CompeteLeaguesPage() {
           href="/captain"
           meta="Captain workflow"
           title="Captain Command Center"
-          text="Continue into Captain tools when this week requires action instead of season setup."
+          text="Move into lineup, availability, scenario, and message tools."
           icon="captainDashboard"
           action="Open captain"
         />

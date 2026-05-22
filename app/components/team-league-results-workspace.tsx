@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import LockedPlanPage from '@/app/components/locked-plan-page'
-import { useAuth } from '@/app/components/auth-provider'
+import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildTeamResultCue } from '@/lib/league-result-cues'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
@@ -51,6 +51,7 @@ const introCard: CSSProperties = {
   border: '1px solid rgba(124, 167, 255, 0.18)',
   borderRadius: 16,
   padding: '24px',
+  marginTop: 18,
   marginBottom: 22,
   minWidth: 0,
 }
@@ -1008,15 +1009,25 @@ function NewEventForm({
 }
 
 
-export function TeamLeagueResultsWorkspace({
-  activeRoute = '/league-coordinator',
-  loginNextHref = '/league-coordinator/results',
-  resultsHref = '/league-coordinator/results',
-}: {
+type TeamLeagueResultsWorkspaceProps = {
   activeRoute?: string
   loginNextHref?: string
   resultsHref?: string
-}) {
+}
+
+export function TeamLeagueResultsWorkspace(props: TeamLeagueResultsWorkspaceProps) {
+  return (
+    <AuthProvider>
+      <TeamLeagueResultsWorkspaceInner {...props} />
+    </AuthProvider>
+  )
+}
+
+function TeamLeagueResultsWorkspaceInner({
+  activeRoute = '/league-coordinator',
+  loginNextHref = '/league-coordinator/results',
+  resultsHref = '/league-coordinator/results',
+}: TeamLeagueResultsWorkspaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { role, userId, entitlements, authResolved } = useAuth()

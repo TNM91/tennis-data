@@ -41,8 +41,8 @@ export default function CompeteResultsPage() {
   return (
     <CompetePageFrame
       eyebrow="Results"
-      title="Results belong in the weekly loop, not just the archive."
-      description="This route surfaces recent TIQ individual-league outcomes and keeps Data Assist close when scorecards need to be uploaded before they shape standings, player context, and next-match decisions."
+      title="Results that feed the next match."
+      description="Recent outcomes, player impact, matchup links, and scorecard uploads stay close."
     >
       <CompeteResultsContent />
     </CompetePageFrame>
@@ -98,7 +98,7 @@ function CompeteResultsContent() {
           href="/explore/rankings"
           meta="Movement"
           title="Rankings"
-          text="Check leaderboard movement and competitive shifts after recent results settle."
+          text="Check leaderboard movement after results settle."
           icon="teamRankings"
           action="See movement"
         />
@@ -106,7 +106,7 @@ function CompeteResultsContent() {
           href="/mylab"
           meta="Personal insight"
           title="My Lab"
-          text="Review followed entities, trend signals, and personalized feed items after the week closes."
+          text="Review follows, trends, and personal signals."
           icon="myLab"
           action="Open lab"
         />
@@ -114,7 +114,7 @@ function CompeteResultsContent() {
           href="/explore/players"
           meta="Player impact"
           title="Player Profiles"
-          text="Jump into player-level context when a TIQ result changes how you should think about form or future matchups."
+          text="Open player context when form changes."
           icon="playerRatings"
           action="View players"
         />
@@ -122,7 +122,7 @@ function CompeteResultsContent() {
           href={DATA_ASSIST_STORY.href}
           meta="Refresh results"
           title="Upload Scorecards"
-          text={DATA_ASSIST_STORY.shortCue}
+          text="Upload reviewed scorecards before standings move."
           icon="reports"
           action="Upload scores"
         />

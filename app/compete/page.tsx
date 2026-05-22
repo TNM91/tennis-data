@@ -7,15 +7,15 @@ export default function CompetePage() {
   return (
     <CompetePageFrame
       eyebrow="Weekly workflow"
-      title="Compete is the operational hub for this week."
-      description="This is where active play gets organized. Move from league context into teams, schedule, results, and then into captain execution without losing the thread of what needs attention next."
+      title="This week, ready to act."
+      description="Leagues, teams, schedule, results, and data refresh stay one click apart."
     >
       <CompeteGrid>
         <CompeteCard
           href="/compete/leagues"
           meta="Competition context"
           title="My Leagues"
-          text="Separate team-league participation from individual-league participation so weekly decisions start with the right competition model."
+          text="Team leagues and player leagues, split cleanly with the next action visible."
           icon="teamRankings"
           action="Check leagues"
         />
@@ -23,7 +23,7 @@ export default function CompetePage() {
           href="/compete/teams"
           meta="Roster context"
           title="My Teams"
-          text="Open team-level operations, review roster and match context, and bridge straight into availability, lineups, and messaging."
+          text="Open roster context and jump into availability, lineups, and messaging."
           icon="lineupBuilder"
           action="Open teams"
         />
@@ -31,7 +31,7 @@ export default function CompetePage() {
           href="/compete/schedule"
           meta="What is next"
           title="Schedule"
-          text="Use upcoming matches as the weekly decision spine and keep captain work tied to real dates, opponents, and league context."
+          text="Upcoming dates, opponents, and prep links in one surface."
           icon="schedule"
           action="See next"
         />
@@ -39,7 +39,7 @@ export default function CompetePage() {
           href="/compete/results"
           meta="What happened"
           title="Results"
-          text="Review completed match outcomes, recent movement, and the competitive signals that should feed your next lineup or scenario pass."
+          text="Recent outcomes, movement, and matchup handoffs for the next week."
           icon="reports"
           action="Review results"
         />
@@ -47,7 +47,7 @@ export default function CompetePage() {
           href="/data-assist"
           meta="Community assist"
           title="Data Assist"
-          text="Upload TennisLink screenshots as review-first drafts so scorecards, schedules, and roster context can improve the platform safely."
+          text="Upload schedules, scorecards, and roster changes for review."
           icon="accountSecurity"
           action="Refresh data"
         />
