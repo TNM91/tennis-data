@@ -960,23 +960,21 @@ function CaptainAnalyticsContent() {
 
   return (
     <div style={pageWrap}>
-        <section style={heroShellResponsive(isTablet, isMobile)}>
+        <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Analytics controls">
         <div>
-          <div style={eyebrow}>Captain tools</div>
-          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Check the edge.</h1>
-          <p style={heroTextStyle}>
-            See which courts help, which courts are exposed, and whether this lineup is worth saving.
-          </p>
-
-          <div style={heroButtonRowStyle}>
-            <PrimaryLink href={compareHref}>Compare Saved Scenarios</PrimaryLink>
-            <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
+          <div style={toolControlHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Analytics controls</p>
+              <h1 style={toolControlTitleStyle}>Check the edge.</h1>
+            </div>
+            <span style={projectionPercent >= 58 ? goodBadgeStyle : projectionPercent <= 42 ? warnBadgeStyle : badgeSlate}>
+              {projectionPercent}%
+            </span>
           </div>
 
-          <div style={heroMetricGridStyle(isSmallMobile)}>
-            <MetricStat label="Scenario Mode" value={currentScenarioId ? 'Editing saved scenario' : 'New scenario'} />
-            <MetricStat label="Player Pool" value={`${availablePlayerPool.length} available`} />
-            <MetricStat label="Saved Versions" value={`${scenarioOptions.length} scenarios`} />
+          <div style={toolControlButtonRowStyle}>
+            <PrimaryLink href={compareHref}>Compare Saved Scenarios</PrimaryLink>
+            <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
           </div>
 
         </div>
@@ -1012,7 +1010,7 @@ function CaptainAnalyticsContent() {
               {weakestLine?.label ? `Watch: ${weakestLine.label}. ` : ''}
               {selectedLineCount ? `${selectedLineCount} lines have both sides modeled.` : 'Start by selecting your lineup and the likely opponent.'}
             </p>
-            <div style={heroButtonRowStyle}>
+            <div style={toolControlButtonRowStyle}>
               <PrimaryLink href={compareHref}>{captainNextAction}</PrimaryLink>
               <SecondaryLink href={messagingHref}>Move to messaging</SecondaryLink>
             </div>
@@ -1481,36 +1479,12 @@ function SlotEditor({
   )
 }
 
-function MetricStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={heroMetricCardStyle}>
-      <div style={metricLabelStyle}>{label}</div>
-      <div style={metricValueStyle}>{value}</div>
-    </div>
-  )
-}
-
-function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
+function toolControlShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
-    ...heroShell,
+    ...toolControlShell,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.45fr) minmax(min(100%, 300px), 0.95fr)',
     gap: isMobile ? '18px' : '24px',
-    padding: isMobile ? '26px 18px' : '34px 26px',
-    minWidth: 0,
-  }
-}
-
-function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
-  return {
-    ...heroTitleStyle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '50px',
-  }
-}
-
-function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
-  return {
-    ...heroMetricGridBaseStyle,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+    padding: isMobile ? '20px 18px' : '24px 22px',
     minWidth: 0,
   }
 }
@@ -1542,25 +1516,7 @@ const pageWrap: CSSProperties = {
   minWidth: 0,
 }
 
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  alignSelf: 'flex-start',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(130, 244, 118, 0.28)',
-  background: 'rgba(89, 145, 73, 0.14)',
-  color: '#d9e7ef',
-  fontWeight: 800,
-  fontSize: '14px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
-}
-
-
-const heroShell: CSSProperties = {
+const toolControlShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
   maxWidth: '1240px',
@@ -1573,47 +1529,30 @@ const heroShell: CSSProperties = {
   minWidth: 0,
 }
 
-const heroTextStyle: CSSProperties = {
-  marginTop: 16,
-  marginBottom: 0,
-  maxWidth: 820,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '1.02rem',
-  lineHeight: 1.72,
-  overflowWrap: 'anywhere',
+const toolControlHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
 }
 
-const heroTitleStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground)',
+const toolControlTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
-  lineHeight: 0.98,
+  fontSize: 'clamp(1.45rem, 2.5vw, 2.1rem)',
+  lineHeight: 1.08,
   letterSpacing: 0,
-  maxWidth: '760px',
   overflowWrap: 'anywhere',
 }
 
-
-const heroButtonRowStyle: CSSProperties = {
+const toolControlButtonRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 12,
-  marginTop: 22,
-  minWidth: 0,
-}
-
-const heroMetricGridBaseStyle: CSSProperties = {
-  marginTop: 22,
-  display: 'grid',
-  gap: '14px',
-  minWidth: 0,
-}
-
-const heroMetricCardStyle: CSSProperties = {
-  borderRadius: '22px',
-  padding: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  marginTop: 14,
   minWidth: 0,
 }
 
@@ -1630,20 +1569,6 @@ const signalNoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '0.88rem',
   lineHeight: 1.5,
-}
-
-const metricLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '0.82rem',
-  marginBottom: '0.42rem',
-  fontWeight: 700,
-}
-
-const metricValueStyle: CSSProperties = {
-  color: '#f8fbff',
-  fontSize: '1.05rem',
-  fontWeight: 800,
-  lineHeight: 1.4,
 }
 
 const captainReadCard: CSSProperties = {
