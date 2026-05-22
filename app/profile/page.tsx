@@ -362,14 +362,14 @@ function ProfilePageInner() {
   const heroTitle = authPending
     ? 'Checking your account.'
     : profileComplete
-    ? `${profileDisplayName} is linked.`
+    ? `${profileDisplayName} is your player.`
     : signedIn
       ? 'Link your player.'
       : 'Sign in to link your profile.'
   const heroCopy = authPending
     ? 'Give TenAceIQ a moment to confirm your access.'
     : profileComplete
-    ? 'This player now powers My Lab, Matchup, Team, and League context.'
+    ? 'My Lab, Matchup, Team, and League now start from this record.'
     : signedIn
       ? 'Choose the player record that should personalize your tools.'
       : 'Sign in once, then choose the player record that powers your tools.'
@@ -567,9 +567,8 @@ const profileIntroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties 
   padding: isMobile ? '16px 14px' : '20px 22px',
   borderRadius: isMobile ? 22 : 26,
   border: '1px solid var(--shell-panel-border)',
-  background:
-    'radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--brand-green) 14%, transparent), transparent 28%), var(--shell-panel-bg)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
   minWidth: 0,
   overflow: 'hidden',
 })
@@ -679,18 +678,19 @@ const metricValueStyle: CSSProperties = {
 const contentGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr)',
-  marginTop: 18,
+  marginTop: 14,
   minWidth: 0,
 }
 
 const surfaceStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   padding: '18px 20px',
   display: 'grid',
   gap: 16,
   minWidth: 0,
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const profileLoadingNoticeStyle: CSSProperties = {
