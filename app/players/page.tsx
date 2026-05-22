@@ -404,7 +404,7 @@ export default function PlayersPage() {
         <div style={dynamicControlsShell}>
           <div style={dynamicControlsTopRow}>
             <div style={controlsTitleGroup}>
-              <div style={sectionKicker}>Players</div>
+              <div style={sectionKicker}>Player discovery</div>
               <div style={controlsLabel}>Find a player</div>
             </div>
             <div style={inlineStatRow}>
@@ -476,7 +476,7 @@ export default function PlayersPage() {
           </div>
 
           <div id="players-directory-helper" style={controlsHelperText}>
-            Open a profile from here, then use My Lab or Matchup when you need deeper prep.
+            Search by name or location, then open the player record.
           </div>
           <div style={dynamicQuickFilterGrid} aria-label="Quick player filters">
             <button
@@ -889,10 +889,10 @@ function getMeterTheme(status: RatingStatus) {
 }
 
 const controlsShell: CSSProperties = {
-  borderRadius: '24px',
-  background: 'var(--shell-panel-bg)',
+  borderRadius: '26px',
+  background: 'var(--shell-panel-bg-strong)',
   border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: 'var(--shadow-card)',
   minWidth: 0,
   zIndex: 3,
 }
@@ -1128,10 +1128,10 @@ const secondaryLink: CSSProperties = {
 }
 
 const loadingCard: CSSProperties = {
-  padding: '26px',
-  borderRadius: '28px',
+  padding: '22px',
+  borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   color: 'var(--foreground)',
   fontWeight: 700,
 }
@@ -1173,9 +1173,9 @@ const playerCard: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
   textDecoration: 'none',
-  borderRadius: '28px',
+  borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   padding: '20px',
   boxShadow: 'var(--shadow-soft)',
   transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',

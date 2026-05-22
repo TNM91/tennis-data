@@ -427,10 +427,10 @@ export default function TeamsPage() {
           <section style={filtersCard}>
             <div style={sectionHeader}>
               <div>
-                <p style={sectionKicker}>Teams</p>
-                <h2 style={sectionTitle}>Find a team, then open the season context.</h2>
+                <p style={sectionKicker}>Team discovery</p>
+                <h2 style={sectionTitle}>Find a team.</h2>
                 <p style={sectionText}>
-                  Search by team name, league, or flight.
+                  Search by team name, league, or flight, then open the team record.
                 </p>
               </div>
 
@@ -761,11 +761,11 @@ const statLabel: CSSProperties = {
 }
 
 const filtersCard: CSSProperties = {
-  borderRadius: '24px',
+  borderRadius: '26px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
-  padding: '22px',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
+  padding: '20px',
   minWidth: 0,
 }
 
@@ -791,7 +791,7 @@ const sectionKicker: CSSProperties = {
 const sectionTitle: CSSProperties = {
   margin: '8px 0 0',
   color: 'var(--foreground-strong)',
-  fontSize: '28px',
+  fontSize: 'clamp(1.55rem, 3vw, 2.25rem)',
   lineHeight: 1.08,
   letterSpacing: 0,
   fontWeight: 900,
@@ -924,8 +924,9 @@ const surfaceCard: CSSProperties = {
   marginTop: '18px',
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: '28px',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-soft)',
+  padding: '22px',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -980,7 +981,7 @@ const teamCard: CSSProperties = {
   height: '100%',
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   padding: '20px',
   transition: 'transform 140ms ease, border-color 140ms ease',
