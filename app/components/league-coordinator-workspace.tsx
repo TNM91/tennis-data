@@ -1122,10 +1122,10 @@ export function LeagueCoordinatorWorkspace() {
 
         <section style={commandCard}>
           <div>
-            <div style={sectionEyebrow}>League command center</div>
-            <h2 style={sectionTitle}>{records.length ? 'Your season control room is active.' : 'Create the first league workspace.'}</h2>
+            <div style={sectionEyebrow}>League workspace</div>
+            <h2 style={sectionTitle}>{records.length ? 'Your season tools are ready.' : 'Create the first league workspace.'}</h2>
             <p style={sectionText}>
-              The job is simple: approve who belongs, keep the schedule visible, collect scores, review uploads, and let the standings update around the season.
+              Approve players, keep the schedule visible, collect scores, review uploads, and let standings update around the season.
             </p>
           </div>
           <div style={commandGrid}>
@@ -1137,7 +1137,7 @@ export function LeagueCoordinatorWorkspace() {
             <div style={commandTile}>
               <span style={commandLabel}>Requests</span>
               <strong style={commandValue}>{pendingEntryRequestCount}</strong>
-              <span style={commandText}>Waiting for coordinator approval</span>
+              <span style={commandText}>Waiting for review</span>
             </div>
             <div style={commandTile}>
               <span style={commandLabel}>Participants</span>
@@ -1176,9 +1176,9 @@ export function LeagueCoordinatorWorkspace() {
           <div style={leagueOpsHeaderStyle}>
             <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
-              <h2 style={leagueOpsTitleStyle}>Use uploads as the coordinator refresh path.</h2>
+              <h2 style={leagueOpsTitleStyle}>Use uploads to refresh the season.</h2>
               <p style={leagueOpsTextStyle}>
-                {DATA_ASSIST_STORY.shortCue} Coordinator setup stays manual and reviewable; Data Assist is where schedules, rosters, and official scorecards can come in when the season changes.
+                {DATA_ASSIST_STORY.shortCue} Setup stays reviewable; Data Assist brings in schedules, rosters, and official scorecards when the season changes.
               </p>
             </div>
             <GhostLink href="/data-assist">{DATA_ASSIST_STORY.cta}</GhostLink>
@@ -2639,8 +2639,7 @@ const commandCard: CSSProperties = {
   padding: 'clamp(18px, 3vw, 24px)',
   borderRadius: '24px',
   border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%) 0%, color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%) 100%)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2695,7 +2694,7 @@ const leagueOpsPanelStyle: CSSProperties = {
   padding: '20px',
   borderRadius: '24px',
   border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2706,7 +2705,7 @@ const resultBookPanelStyle: CSSProperties = {
   padding: '20px',
   borderRadius: '24px',
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2717,7 +2716,7 @@ const startPanelStyle: CSSProperties = {
   padding: '20px',
   borderRadius: '24px',
   border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
-  background: 'color-mix(in srgb, var(--brand-lime) 7%, var(--shell-panel-bg) 93%)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2728,7 +2727,7 @@ const reviewQueuePanelStyle: CSSProperties = {
   padding: '20px',
   borderRadius: '24px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
-  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2739,7 +2738,7 @@ const publicReadinessPanelStyle: CSSProperties = {
   padding: '20px',
   borderRadius: '24px',
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2750,8 +2749,7 @@ const dataAssistOpsPanelStyle: CSSProperties = {
   padding: '20px',
   borderRadius: '24px',
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-blue-2) 10%, transparent) 0%, transparent 36%), var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -3143,7 +3141,7 @@ const panelCard: CSSProperties = {
   padding: 'clamp(18px, 3vw, 24px)',
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
