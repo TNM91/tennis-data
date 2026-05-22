@@ -19,18 +19,18 @@ type FrameProps = {
 const HERO_SIGNALS = [
   {
     label: 'Mode',
-    value: 'Compete',
-    text: 'This week',
+    value: 'League',
+    text: 'Run the season',
   },
   {
-    label: 'Motto',
-    value: 'Less chaos',
-    text: 'More Tennis',
+    label: 'Focus',
+    value: 'Ready',
+    text: 'Matches and results',
   },
   {
     label: 'Handoff',
-    value: 'Ready',
-    text: 'Captain tools',
+    value: 'Captain',
+    text: 'Team decisions',
   },
 ]
 
@@ -92,18 +92,6 @@ export default function CompetePageFrame({
               boxShadow: 'var(--shadow-card)',
             }}
           >
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundImage:
-                  'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
-                backgroundSize: isSmallMobile ? '26px 26px' : '32px 32px',
-                opacity: 0.22,
-                pointerEvents: 'none',
-              }}
-            />
-
             <div
               style={{
                 display: 'grid',
@@ -281,7 +269,9 @@ export function CompeteCard({
       style={{
         ...cardStyle,
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
-        borderColor: hovered ? 'rgba(74, 163, 255, 0.24)' : 'var(--shell-panel-border)',
+        borderColor: hovered
+          ? 'color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)'
+          : 'var(--shell-panel-border)',
       }}
     >
       <div style={cardTopStyle}>
@@ -337,13 +327,13 @@ function SubnavLink({
         minHeight: '64px',
         borderRadius: '18px',
         border: active
-          ? '1px solid color-mix(in srgb, var(--brand-green) 34%, rgba(116,190,255,0.12) 66%)'
-          : '1px solid rgba(116, 190, 255, 0.16)',
+          ? '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)'
+          : '1px solid var(--shell-panel-border)',
         background: active
-          ? 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)'
+          ? 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)'
           : hovered
             ? 'var(--shell-chip-bg-strong)'
-            : 'rgba(8, 18, 35, 0.42)',
+            : 'var(--shell-chip-bg)',
         display: 'grid',
         gridTemplateColumns: '28px 34px minmax(0, 1fr) minmax(0, auto)',
         alignItems: 'center',
@@ -375,9 +365,9 @@ const eyebrowChipStyle: CSSProperties = {
   minHeight: '40px',
   padding: '0 16px',
   borderRadius: '999px',
-  border: '1px solid rgba(155, 225, 29, 0.28)',
-  background: 'rgba(155, 225, 29, 0.10)',
-  color: 'var(--home-eyebrow-color)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -423,7 +413,7 @@ const cardStyle: CSSProperties = {
   minWidth: 0,
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   padding: '20px 20px 18px',
   display: 'grid',
@@ -481,7 +471,7 @@ const subnavStepStyle: CSSProperties = {
   display: 'grid',
   placeItems: 'center',
   borderRadius: 999,
-  background: 'rgba(255,255,255,0.06)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
   color: 'var(--foreground-strong)',
   fontSize: 11,
   fontWeight: 950,

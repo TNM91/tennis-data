@@ -233,8 +233,8 @@ const sectionStyle = {
   marginTop: '24px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'linear-gradient(180deg, rgba(13,28,54,0.90) 0%, rgba(8,18,36,0.96) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
 } as const
 
 const upgradeGridStyle = {
@@ -251,11 +251,11 @@ const sectionEyebrowStyle = {
   fontWeight: 800,
   letterSpacing: '0.16em',
   textTransform: 'uppercase',
-  color: 'rgba(116,190,255,0.82)',
+  color: 'var(--brand-blue-2)',
 } as const
 
 const sectionTextStyle = {
-  color: 'rgba(214,228,246,0.74)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.72,
 } as const
@@ -263,9 +263,9 @@ const sectionTextStyle = {
 const emptyStyle = {
   padding: '16px',
   borderRadius: '18px',
-  border: '1px dashed rgba(116,190,255,0.18)',
-  color: 'rgba(214,228,246,0.74)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px dashed var(--shell-panel-border)',
+  color: 'var(--shell-copy-muted)',
+  background: 'var(--shell-chip-bg)',
 } as const
 
 const listStyle = {
@@ -280,26 +280,26 @@ const rowStyle = {
   alignItems: 'center',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 } as const
 
 const rowTitleStyle = {
-  color: '#f4f9ff',
+  color: 'var(--foreground-strong)',
   fontSize: '18px',
   fontWeight: 800,
 } as const
 
 const rowMetaStyle = {
   marginTop: '4px',
-  color: 'rgba(214,228,246,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
 } as const
 
 const rowSubtleStyle = {
   marginTop: '6px',
-  color: 'rgba(197,213,234,0.82)',
+  color: 'var(--foreground)',
   fontSize: '12px',
   lineHeight: 1.55,
 } as const
