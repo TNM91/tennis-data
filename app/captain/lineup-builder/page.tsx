@@ -3172,7 +3172,7 @@ const surfaceCard: CSSProperties = {
   borderRadius: 24,
   padding: 20,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 16px 42px rgba(2, 6, 23, 0.12)',
   minWidth: 0,
 }
@@ -3238,7 +3238,7 @@ const inputStyle: CSSProperties = {
 
 const readOnlyInputStyle: CSSProperties = {
   ...inputStyle,
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   cursor: 'default',
 }
@@ -3320,8 +3320,8 @@ const sharedNotesCardStyle: CSSProperties = {
   gap: 14,
   padding: '16px 18px',
   borderRadius: 20,
-  border: '1px solid rgba(74, 222, 128, 0.16)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
@@ -3373,10 +3373,10 @@ const primaryButton: CSSProperties = {
   justifyContent: 'center',
   height: 46,
   padding: '0 18px',
-  borderRadius: 14,
-  border: '1px solid rgba(59, 130, 246, 0.38)',
-  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-  color: '#eff6ff',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   textDecoration: 'none',
   cursor: 'pointer',
@@ -3393,7 +3393,7 @@ const ghostButton: CSSProperties = {
   justifyContent: 'center',
   height: 46,
   padding: '0 18px',
-  borderRadius: 14,
+  borderRadius: 999,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
@@ -3420,7 +3420,7 @@ const ghostButtonSmallButton: CSSProperties = {
   justifyContent: 'center',
   height: 36,
   padding: '0 12px',
-  borderRadius: 12,
+  borderRadius: 999,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
@@ -3601,10 +3601,9 @@ const decisionBoardShellStyle: CSSProperties = {
   gap: 16,
   padding: 22,
   borderRadius: 28,
-  border: '1px solid rgba(155, 225, 29, 0.18)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg-strong) 92%, var(--brand-green) 8%), var(--shell-panel-bg))',
-  boxShadow: '0 20px 52px rgba(2,10,24,0.18)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -3639,8 +3638,8 @@ const decisionHeroCardStyle: CSSProperties = {
   padding: 18,
   display: 'grid',
   gap: 8,
-  background: 'linear-gradient(135deg, rgba(155, 225, 29, 0.16), rgba(59, 130, 246, 0.10))',
-  border: '1px solid rgba(155, 225, 29, 0.24)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
   minWidth: 0,
 }
 
@@ -3668,8 +3667,8 @@ const decisionProgressTrackStyle: CSSProperties = {
   height: 10,
   overflow: 'hidden',
   borderRadius: 999,
-  background: 'rgba(148, 163, 184, 0.18)',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const decisionProgressFillStyle: CSSProperties = {
@@ -3698,19 +3697,19 @@ const decisionCardBaseStyle: CSSProperties = {
 
 const decisionCardGoodStyle: CSSProperties = {
   ...decisionCardBaseStyle,
-  background: 'linear-gradient(180deg, rgba(34, 197, 94, 0.12), rgba(2, 6, 23, 0.72))',
-  border: '1px solid rgba(34, 197, 94, 0.22)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
 }
 
 const decisionCardBlueStyle: CSSProperties = {
   ...decisionCardBaseStyle,
-  background: 'linear-gradient(180deg, rgba(37, 99, 235, 0.14), rgba(2, 6, 23, 0.72))',
-  border: '1px solid rgba(37, 99, 235, 0.22)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
 }
 
 const decisionCardSlateStyle: CSSProperties = {
   ...decisionCardBaseStyle,
-  background: 'linear-gradient(180deg, rgba(148, 163, 184, 0.10), rgba(2, 6, 23, 0.72))',
+  background: 'var(--shell-chip-bg)',
 }
 
 const decisionCardLabelStyle: CSSProperties = {
@@ -3851,8 +3850,8 @@ const scenarioDeckButtonRowStyle: CSSProperties = {
 const projectionHeroStyle: CSSProperties = {
   borderRadius: 22,
   padding: 20,
-  background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(59, 130, 246, 0.08))',
-  border: '1px solid rgba(59, 130, 246, 0.24)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
   marginTop: 14,
   marginBottom: 14,
   minWidth: 0,
@@ -3941,8 +3940,8 @@ const lockPanelStyle: CSSProperties = {
   marginTop: 18,
   padding: 18,
   borderRadius: 20,
-  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.82))',
-  border: '1px solid rgba(148, 163, 184, 0.16)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 14,
   minWidth: 0,
