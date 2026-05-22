@@ -18,6 +18,7 @@ import {
 } from '@/lib/competition-layers'
 import { formatDate, cleanText } from '@/lib/captain-formatters'
 import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type LeagueMatchRow = {
@@ -66,7 +67,7 @@ function buildTeamHref(teamName: string, leagueName: string, flight: string, com
   if (flight) params.set('flight', flight)
 
   const query = params.toString()
-  return `/teams/${encodeURIComponent(teamName)}${query ? `?${query}` : ''}`
+  return `/teams/${encodeTeamRouteSegment(teamName)}${query ? `?${query}` : ''}`
 }
 
 function buildLeagueScopeHref(leagueName: string, flight: string, section: string, district: string) {
@@ -722,8 +723,8 @@ export default function LeagueDetailPage() {
         <article style={leagueDiscoveryPanelStyle}>
           <div style={leagueDiscoveryHeaderStyle}>
             <div>
-              <div style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} league path</div>
-              <h2 style={sectionTitle}>Use this league page in three moves.</h2>
+              <div style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} league</div>
+              <h2 style={sectionTitle}>Open the next useful view.</h2>
             </div>
             <p style={leagueDiscoveryCopyStyle}>
               {MEMBERSHIP_TIERS.free.shortPromise} {MEMBERSHIP_TIERS.captain.upgradeCue} {MEMBERSHIP_TIERS.league.upgradeCue}
@@ -1205,7 +1206,7 @@ const seasonToolsCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
   overflowWrap: 'anywhere',
@@ -1409,7 +1410,7 @@ const panelCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -1588,7 +1589,7 @@ const teamCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -1825,7 +1826,7 @@ const standingsTableScrollStyle: CSSProperties = {
   overscrollBehaviorX: 'contain',
   borderRadius: 20,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   marginTop: 16,
   maxWidth: '100%',
   WebkitOverflowScrolling: 'touch',
@@ -2034,7 +2035,7 @@ const matchCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
