@@ -54,22 +54,23 @@ type PlayerResultStanding = {
 type ResultReviewFilter = 'all' | 'edited' | 'clean'
 type ResultDateFilter = 'all' | 'week' | 'month'
 
-const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px', minWidth: 0 }
-const heading: CSSProperties = { fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
-const subheading: CSSProperties = { color: '#b8c7dc', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 700, overflowWrap: 'anywhere' }
+const pageWrap: CSSProperties = { width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))', margin: '0 auto', padding: '18px 0 30px', minWidth: 0 }
+const heading: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
+const subheading: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 700, overflowWrap: 'anywhere' }
 const introCard: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(13, 31, 55, 0.92), rgba(6, 17, 33, 0.96))',
-  border: '1px solid rgba(124, 167, 255, 0.18)',
-  borderRadius: 16,
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 24,
   padding: 24,
   marginTop: 18,
   marginBottom: 22,
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 const card: CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: 12,
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 18,
   padding: '18px 20px',
   marginBottom: 14,
   minWidth: 0,
@@ -85,25 +86,25 @@ const detailsSummary: CSSProperties = {
   flexWrap: 'wrap',
   minWidth: 0,
 }
-const sectionTitle: CSSProperties = { fontSize: 16, fontWeight: 800, marginBottom: 14, marginTop: 28, overflowWrap: 'anywhere' }
+const sectionTitle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 16, fontWeight: 800, marginBottom: 14, marginTop: 28, overflowWrap: 'anywhere' }
 const row: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10, minWidth: 0 }
 const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 190px', minWidth: 0 }
-const labelStyle: CSSProperties = { fontSize: 11, color: '#94a3b8', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
+const labelStyle: CSSProperties = { fontSize: 11, color: 'var(--shell-copy-muted)', fontWeight: 700, letterSpacing: 0, textTransform: 'uppercase', overflowWrap: 'anywhere' }
 const inputStyle: CSSProperties = {
   width: '100%',
   padding: '9px 11px',
-  borderRadius: 8,
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f1f5f9',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   fontSize: 14,
   minWidth: 0,
 }
-const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600, overflowWrap: 'anywhere' }
+const scoreHelpStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.4, fontWeight: 600, overflowWrap: 'anywhere' }
 const textareaStyle: CSSProperties = { ...inputStyle, minHeight: 82, resize: 'vertical' }
 const btnPrimary: CSSProperties = {
   padding: '9px 18px',
-  borderRadius: 8,
+  borderRadius: 999,
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   color: 'var(--foreground-strong)',
   fontWeight: 800,
@@ -119,12 +120,12 @@ const btnPrimary: CSSProperties = {
 }
 const btnSecondary: CSSProperties = {
   padding: '8px 12px',
-  borderRadius: 8,
-  background: 'rgba(255,255,255,0.06)',
-  color: '#e2e8f0',
+  borderRadius: 999,
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 700,
   fontSize: 13,
-  border: '1px solid rgba(255,255,255,0.10)',
+  border: '1px solid var(--shell-panel-border)',
   cursor: 'pointer',
   textDecoration: 'none',
   minWidth: 0,
@@ -142,15 +143,15 @@ const btnDanger: CSSProperties = {
 const disabledButton: CSSProperties = { opacity: 0.6, cursor: 'not-allowed' }
 const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6 }
 const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6 }
-const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: '#94a3b8', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
+const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: 'var(--shell-chip-bg)', fontSize: 12, color: 'var(--shell-copy-muted)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
 const pillGreen: CSSProperties = { ...pill, background: 'rgba(155,225,29,0.12)', color: '#9be11d' }
 const pillAmber: CSSProperties = { ...pill, background: 'rgba(251,191,36,0.13)', color: '#fbbf24' }
 const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, marginTop: 18, minWidth: 0 }
 const scorekeeperTile: CSSProperties = {
   padding: '14px 16px',
   borderRadius: 14,
-  border: '1px solid rgba(124,167,255,0.14)',
-  background: 'rgba(255,255,255,0.055)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -160,9 +161,9 @@ const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.
 const readinessPanel: CSSProperties = {
   display: 'grid',
   gap: 14,
-  background: 'rgba(255,255,255,0.045)',
-  border: '1px solid rgba(155,225,29,0.14)',
-  borderRadius: 16,
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  borderRadius: 22,
   padding: 18,
   marginBottom: 18,
   minWidth: 0,
@@ -202,8 +203,8 @@ const readinessItem: CSSProperties = {
   minHeight: 86,
   padding: 12,
   borderRadius: 14,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 const readinessItemComplete: CSSProperties = {
@@ -246,8 +247,8 @@ const standingRow: CSSProperties = {
   alignItems: 'center',
   padding: '10px 12px',
   borderRadius: 10,
-  background: 'rgba(255,255,255,0.035)',
-  border: '1px solid rgba(255,255,255,0.07)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -1018,10 +1019,9 @@ function IndividualLeagueResultsWorkspaceInner({
     <SiteShell active={activeRoute}>
       <div style={pageWrap}>
         <div style={introCard}>
-          <div style={heading}>Record player results fast.</div>
+          <div style={heading}>Enter player results.</div>
           <div style={subheading}>
-            Pick the TIQ individual league, choose both players, save the scoreline, and keep standings,
-            prompts, and rating sync current.
+            Pick the league, choose both players, save the scoreline, and keep standings current.
           </div>
           <div style={scorekeeperGrid}>
             <div style={scorekeeperTile}>
