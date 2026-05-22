@@ -421,7 +421,7 @@ export default function TeamsPage() {
   }, [filteredRows])
 
   return (
-    <SiteShell active="/explore">
+    <SiteShell active="teams">
       <main style={pageWrap}>
         <section style={contentWrap}>
           <section style={filtersCard}>
@@ -476,8 +476,8 @@ export default function TeamsPage() {
                   }}
                   style={{
                     ...inputStyle,
-                    borderColor: leagueFilter ? 'rgba(155,225,29,0.42)' : undefined,
-                    boxShadow: leagueFilter ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+                    borderColor: leagueFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
+                    boxShadow: leagueFilter ? 'var(--home-control-shadow)' : undefined,
                   }}
                 >
                   <option value="">All leagues</option>
@@ -496,8 +496,8 @@ export default function TeamsPage() {
                   onChange={(event) => setFlightFilter(event.target.value)}
                   style={{
                     ...inputStyle,
-                    borderColor: flightFilter ? 'rgba(155,225,29,0.42)' : undefined,
-                    boxShadow: flightFilter ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+                    borderColor: flightFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
+                    boxShadow: flightFilter ? 'var(--home-control-shadow)' : undefined,
                   }}
                 >
                   <option value="">All flights</option>
@@ -516,8 +516,8 @@ export default function TeamsPage() {
                   onChange={(event) => setSortBy(event.target.value as SortKey)}
                   style={{
                     ...inputStyle,
-                    borderColor: sortBy !== 'matches' ? 'rgba(155,225,29,0.42)' : undefined,
-                    boxShadow: sortBy !== 'matches' ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+                    borderColor: sortBy !== 'matches' ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
+                    boxShadow: sortBy !== 'matches' ? 'var(--home-control-shadow)' : undefined,
                   }}
                 >
                   <option value="matches">Most matches</option>
@@ -1025,9 +1025,9 @@ const metaPillBlue: CSSProperties = {
   alignItems: 'center',
   padding: '7px 10px',
   borderRadius: '999px',
-  background: 'rgba(37,91,227,0.18)',
-  border: '1px solid rgba(116,190,255,0.16)',
-  color: '#cde1ff',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 700,
   maxWidth: '100%',
@@ -1038,9 +1038,9 @@ const metaPillBlue: CSSProperties = {
 
 const metaPillGreen: CSSProperties = {
   ...metaPillBlue,
-  background: 'rgba(74, 222, 128, 0.12)',
-  border: '1px solid rgba(155,225,29,0.16)',
-  color: '#d8f6c5',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  color: 'var(--foreground-strong)',
 }
 
 const viewPill: CSSProperties = {
@@ -1051,9 +1051,9 @@ const viewPill: CSSProperties = {
   textAlign: 'center',
   padding: '8px 10px',
   borderRadius: '999px',
-  background: 'rgba(8,17,31,0.82)',
-  border: '1px solid rgba(116,190,255,0.14)',
-  color: '#d6e5f5',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.05em',
@@ -1073,7 +1073,7 @@ const teamRecordBar: CSSProperties = {
   borderRadius: 999,
   overflow: 'hidden',
   height: 7,
-  background: 'rgba(255,255,255,0.06)',
+  background: 'color-mix(in srgb, var(--foreground-strong) 6%, transparent)',
   marginBottom: 5,
   minWidth: 0,
 }
@@ -1089,14 +1089,14 @@ const teamRecordLegend: CSSProperties = {
 const teamRecordWinText: CSSProperties = {
   fontSize: 11,
   fontWeight: 800,
-  color: 'rgba(155,225,29,0.8)',
+  color: 'var(--brand-lime)',
   overflowWrap: 'anywhere',
 }
 
 const teamRecordLossText: CSSProperties = {
   fontSize: 11,
   fontWeight: 700,
-  color: 'rgba(239,68,68,0.65)',
+  color: '#fca5a5',
   overflowWrap: 'anywhere',
 }
 
@@ -1110,7 +1110,7 @@ const recentFormRow: CSSProperties = {
 }
 
 const recentFormLabel: CSSProperties = {
-  color: 'rgba(190,210,240,0.45)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 11,
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -1141,14 +1141,14 @@ const metricsGrid: CSSProperties = {
 
 const metricCard: CSSProperties = {
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(6, 13, 25, 0.8)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   padding: '14px 12px',
   minWidth: 0,
 }
 
 const metricValue: CSSProperties = {
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
   fontSize: '18px',
   fontWeight: 900,
   letterSpacing: 0,
@@ -1157,7 +1157,7 @@ const metricValue: CSSProperties = {
 
 const metricLabel: CSSProperties = {
   marginTop: '5px',
-  color: 'rgba(210,225,244,0.7)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '11px',
   fontWeight: 700,
   letterSpacing: '0.06em',

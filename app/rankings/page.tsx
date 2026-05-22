@@ -1846,8 +1846,8 @@ const podiumCard: CSSProperties = {
 }
 
 const podiumFirst: CSSProperties = {
-  border: '1px solid rgba(111, 236, 168, 0.34)',
-  boxShadow: '0 16px 34px rgba(43, 195, 104, 0.14), inset 0 1px 0 rgba(255,255,255,0.08)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const podiumSecond: CSSProperties = {}
@@ -2615,13 +2615,13 @@ const confidencePill: CSSProperties = {
 
 const tierDividerCell: CSSProperties = {
   padding: '10px 16px',
-  background: 'rgba(116,190,255,0.04)',
-  borderTop: '1px solid rgba(116,190,255,0.10)',
-  borderBottom: '1px solid rgba(116,190,255,0.10)',
+  background: 'var(--shell-chip-bg)',
+  borderTop: '1px solid var(--shell-panel-border)',
+  borderBottom: '1px solid var(--shell-panel-border)',
 }
 
 const tierDividerLabel: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'var(--brand-blue-2)',
   fontSize: 11,
   fontWeight: 800,
   textTransform: 'uppercase',

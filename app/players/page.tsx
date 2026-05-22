@@ -1068,8 +1068,9 @@ const errorCard: CSSProperties = {
   margin: '0 auto 18px',
   padding: '22px',
   borderRadius: '28px',
-  border: '1px solid rgba(255,100,100,0.2)',
-  background: 'rgba(62,16,22,0.78)',
+  border: '1px solid color-mix(in srgb, #f87171 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, #7f1d1d 14%, var(--shell-panel-bg-strong) 86%)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const contentWrap: CSSProperties = {
@@ -1366,9 +1367,9 @@ const arrowText: CSSProperties = {
   width: '40px',
   height: '40px',
   borderRadius: '999px',
-  background: 'rgba(91, 233, 146, 0.12)',
-  border: '1px solid rgba(109, 239, 171, 0.18)',
-  color: '#9df0bf',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  color: 'var(--brand-lime)',
   fontWeight: 900,
   fontSize: '18px',
 }
