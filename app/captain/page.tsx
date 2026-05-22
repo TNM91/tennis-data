@@ -2190,7 +2190,7 @@ function CaptainHubContent() {
         </section>
 
         {nextMatch ? (
-          <section style={{ ...sectionCard, borderColor: 'rgba(116,190,255,0.22)', background: 'rgba(116,190,255,0.04)' }}>
+          <section style={{ ...sectionCard, borderColor: 'color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)', background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg-strong) 93%)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' as const }}>
               <div>
                 <div style={{ ...sectionKicker, color: '#93c5fd' }}>Next scheduled match</div>
@@ -2201,11 +2201,11 @@ function CaptainHubContent() {
                   <span>{formatDate(nextMatch.date)}</span>
                   {nextMatch.time ? <span>{nextMatch.time}</span> : null}
                   {nextMatch.facility ? <span>{nextMatch.facility}</span> : null}
-                  <span style={{ padding: '2px 9px', borderRadius: 999, background: nextMatch.home ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)', border: `1px solid ${nextMatch.home ? 'rgba(155,225,29,0.22)' : 'rgba(116,190,255,0.20)'}`, color: nextMatch.home ? '#d9f84a' : '#93c5fd', fontSize: 12, fontWeight: 800 }}>{nextMatch.home ? 'Home' : 'Away'}</span>
+                  <span style={{ padding: '2px 9px', borderRadius: 999, background: nextMatch.home ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)' : 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)', border: `1px solid ${nextMatch.home ? 'color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)' : 'color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)'}`, color: nextMatch.home ? 'var(--brand-lime)' : 'var(--foreground-strong)', fontSize: 12, fontWeight: 800 }}>{nextMatch.home ? 'Home' : 'Away'}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-                <Link href={buildCaptainScopedHref('/captain/lineup-builder', { competitionLayer: selectedCompetitionLayer, team: selectedTeam, league: selectedLeague, flight: selectedFlight, date: nextMatch.date, opponent: nextMatch.opponent })} style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, background: 'rgba(116,190,255,0.12)', border: '1px solid rgba(116,190,255,0.28)', color: '#bfdbfe', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>Build lineup</Link>
+                <Link href={buildCaptainScopedHref('/captain/lineup-builder', { competitionLayer: selectedCompetitionLayer, team: selectedTeam, league: selectedLeague, flight: selectedFlight, date: nextMatch.date, opponent: nextMatch.opponent })} style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)', border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)', color: 'var(--foreground-strong)', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>Build lineup</Link>
               </div>
             </div>
           </section>
@@ -2227,8 +2227,8 @@ function CaptainHubContent() {
                   onClick={() => setRosterSortMode('appearances')}
                   style={{
                     padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                    background: rosterSortMode === 'appearances' ? 'rgba(255,255,255,0.10)' : 'transparent',
-                    border: `1px solid ${rosterSortMode === 'appearances' ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.08)'}`,
+                    background: rosterSortMode === 'appearances' ? 'var(--shell-chip-bg)' : 'transparent',
+                    border: `1px solid ${rosterSortMode === 'appearances' ? 'var(--shell-panel-border)' : 'color-mix(in srgb, var(--foreground-strong) 8%, transparent)'}`,
                     color: rosterSortMode === 'appearances' ? 'var(--foreground)' : 'var(--shell-copy-muted)',
                   }}
                 >
@@ -2239,8 +2239,8 @@ function CaptainHubContent() {
                   onClick={() => setRosterSortMode('signal')}
                   style={{
                     padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                    background: rosterSortMode === 'signal' ? 'rgba(155,225,29,0.12)' : 'transparent',
-                    border: `1px solid ${rosterSortMode === 'signal' ? 'rgba(155,225,29,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                    background: rosterSortMode === 'signal' ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)' : 'transparent',
+                    border: `1px solid ${rosterSortMode === 'signal' ? 'color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)' : 'color-mix(in srgb, var(--foreground-strong) 8%, transparent)'}`,
                     color: rosterSortMode === 'signal' ? '#d9f84a' : 'var(--shell-copy-muted)',
                   }}
                 >
@@ -2662,7 +2662,7 @@ const primaryButtonSmallButton: CSSProperties = {
 
 const secondaryButtonSmallButton: CSSProperties = {
   ...secondaryButtonSmall,
-  border: '1px solid rgba(116,190,255,0.18)',
+  border: '1px solid var(--shell-panel-border)',
   cursor: 'pointer',
 }
 
@@ -2690,15 +2690,15 @@ const badgeBase: CSSProperties = {
 const badgeBlue: CSSProperties = {
   ...badgeBase,
   color: 'var(--foreground-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'rgba(37,91,227,0.12)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
 }
 
 const badgeGreen: CSSProperties = {
   ...badgeBase,
   color: 'var(--foreground-strong)',
-  border: '1px solid rgba(74,222,128,0.2)',
-  background: 'rgba(155,225,29,0.14)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
 }
 
 const badgeSlate: CSSProperties = {
@@ -3475,11 +3475,11 @@ function getCaptainRatingStatus(base: number, dynamic: number): RatingStatus {
 
 function getCaptainStatusStyle(status: RatingStatus): CSSProperties {
   switch (status) {
-    case 'Bump Up Pace': return { background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.24)' }
-    case 'Trending Up':  return { background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)' }
-    case 'Holding':      return { background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)' }
-    case 'At Risk':      return { background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)' }
-    case 'Drop Watch':   return { background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)' }
+    case 'Bump Up Pace': return { background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)', color: 'var(--brand-lime)', border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)' }
+    case 'Trending Up':  return { background: 'color-mix(in srgb, #34d399 12%, var(--shell-chip-bg) 88%)', color: '#a7f3d0', border: '1px solid color-mix(in srgb, #34d399 24%, var(--shell-panel-border) 76%)' }
+    case 'Holding':      return { background: 'color-mix(in srgb, var(--brand-blue-2) 11%, var(--shell-chip-bg) 89%)', color: 'var(--foreground-strong)', border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)' }
+    case 'At Risk':      return { background: 'color-mix(in srgb, #fb923c 12%, var(--shell-chip-bg) 88%)', color: '#fed7aa', border: '1px solid color-mix(in srgb, #fb923c 24%, var(--shell-panel-border) 76%)' }
+    case 'Drop Watch':   return { background: 'color-mix(in srgb, #ef4444 12%, var(--shell-chip-bg) 88%)', color: '#fecaca', border: '1px solid color-mix(in srgb, #ef4444 24%, var(--shell-panel-border) 76%)' }
   }
 }
 
@@ -3489,8 +3489,8 @@ const rosterSignalBar: CSSProperties = {
   gap: 12,
   padding: '10px 14px',
   borderRadius: 14,
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.07)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   marginBottom: 12,
   flexWrap: 'wrap' as const,
 }
@@ -3519,6 +3519,6 @@ const signalPillBase: CSSProperties = {
   fontWeight: 800,
 }
 
-const signalPillGreen: CSSProperties = { ...signalPillBase, background: 'rgba(155,225,29,0.10)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.20)' }
-const signalPillNeutral: CSSProperties = { ...signalPillBase, background: 'rgba(116,190,255,0.08)', color: '#93c5fd', border: '1px solid rgba(116,190,255,0.16)' }
-const signalPillRed: CSSProperties = { ...signalPillBase, background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.20)' }
+const signalPillGreen: CSSProperties = { ...signalPillBase, background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)', color: 'var(--brand-lime)', border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)' }
+const signalPillNeutral: CSSProperties = { ...signalPillBase, background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)', color: 'var(--foreground-strong)', border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)' }
+const signalPillRed: CSSProperties = { ...signalPillBase, background: 'color-mix(in srgb, #ef4444 12%, var(--shell-chip-bg) 88%)', color: '#fca5a5', border: '1px solid color-mix(in srgb, #ef4444 22%, var(--shell-panel-border) 78%)' }
