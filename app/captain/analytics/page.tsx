@@ -1574,7 +1574,7 @@ const signalNoteStyle: CSSProperties = {
 const captainReadCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   padding: '20px',
   minWidth: 0,
 }
@@ -1624,8 +1624,8 @@ const decisionBoardStyle: CSSProperties = {
   padding: '20px',
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'linear-gradient(135deg, rgba(15,35,64,0.88) 0%, rgba(10,24,46,0.94) 58%, rgba(38,70,42,0.28) 100%)',
-  boxShadow: '0 24px 52px rgba(2, 8, 23, 0.16)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -1696,7 +1696,7 @@ const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 40px rgba(0,0,0,0.12)',
   minWidth: 0,
 }
@@ -1921,9 +1921,9 @@ const textareaStyle: CSSProperties = {
   width: '100%',
   minHeight: '118px',
   borderRadius: '14px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f8fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   padding: '12px 14px',
   fontSize: '14px',
   outline: 'none',
@@ -1933,7 +1933,7 @@ const textareaStyle: CSSProperties = {
 const labelStyle: CSSProperties = {
   display: 'block',
   marginBottom: '8px',
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 800,
   letterSpacing: '0.05em',
@@ -1975,8 +1975,8 @@ const slotListStyle: CSSProperties = {
 const slotCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const slotHeaderStyle: CSSProperties = {
@@ -2066,10 +2066,10 @@ const mutedTextStyle: CSSProperties = {
 }
 
 const poolCardStyle: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid var(--shell-panel-border)',
   borderRadius: '18px',
   padding: '14px',
-  background: 'rgba(255,255,255,0.04)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
@@ -2121,7 +2121,7 @@ const miniPillStyle: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
   color: '#dfe8f8',
   fontSize: '12px',
   fontWeight: 800,
@@ -2189,8 +2189,8 @@ const compareGridStyle: CSSProperties = {
 const compareCardStyle: CSSProperties = {
   borderRadius: '16px',
   padding: '12px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
 }
 
@@ -2234,10 +2234,10 @@ const warnBadgeStyle: CSSProperties = {
 }
 
 const savedScenarioCardStyle: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid var(--shell-panel-border)',
   borderRadius: '18px',
   padding: '14px',
-  background: 'rgba(255,255,255,0.04)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const savedScenarioCardActiveStyle: CSSProperties = {
