@@ -177,7 +177,7 @@ function summaryPillStyle(tone: 'green' | 'red' | 'blue' | 'purple' | 'amber' | 
   if (tone === 'blue') return { ...base, background: 'rgba(37, 99, 235, 0.12)', color: '#c7dbff', borderColor: 'rgba(37, 99, 235, 0.18)' }
   if (tone === 'purple') return { ...base, background: 'rgba(109, 40, 217, 0.12)', color: '#ddd6fe', borderColor: 'rgba(109, 40, 217, 0.18)' }
   if (tone === 'amber') return { ...base, background: 'rgba(245, 158, 11, 0.14)', color: '#fde68a', borderColor: 'rgba(245, 158, 11, 0.18)' }
-  return { ...base, background: 'rgba(255,255,255,0.08)', color: '#dfe8f8', borderColor: 'rgba(255,255,255,0.10)' }
+  return { ...base, background: 'var(--shell-chip-bg)', color: '#dfe8f8', borderColor: 'var(--shell-panel-border)' }
 }
 
 function statusPillFor(status: AvailabilityStatus): CSSProperties {
@@ -1489,9 +1489,9 @@ const gridGlow: CSSProperties = {
   position: 'absolute',
   inset: 0,
   backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
   backgroundSize: '64px 64px',
-  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
+  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.16), rgba(0,0,0,0))',
   pointerEvents: 'none',
 }
 
@@ -1526,13 +1526,13 @@ const navStyle: CSSProperties = {
 const navLink: CSSProperties = {
   padding: '13px 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(12, 28, 52, 0.78)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: '#e7eefb',
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
   maxWidth: '100%',
   whiteSpace: 'normal',
@@ -1541,8 +1541,8 @@ const navLink: CSSProperties = {
 }
 
 const activeNavLink: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
-  border: '1px solid rgba(130, 244, 118, 0.22)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
 }
 
 const toolControlShell: CSSProperties = {
@@ -1588,13 +1588,13 @@ const toolControlButtonRowStyle: CSSProperties = {
 const heroMetricCardStyle: CSSProperties = {
   borderRadius: '22px',
   padding: '16px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
 const metricLabelStyle: CSSProperties = {
-  color: 'rgba(255,255,255,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.82rem',
   marginBottom: '0.42rem',
   fontWeight: 700,
@@ -1611,8 +1611,8 @@ const metricValueStyleHero: CSSProperties = {
 
 const captainReadCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
   padding: '20px',
   minWidth: 0,
 }
@@ -1670,7 +1670,7 @@ const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 40px rgba(0,0,0,0.12)',
   minWidth: 0,
 }
@@ -1827,8 +1827,8 @@ const readinessGridStyle: CSSProperties = {
 const readinessCardStyle: CSSProperties = {
   borderRadius: 18,
   padding: 16,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.055)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minHeight: 150,
   minWidth: 0,
 }
@@ -1943,8 +1943,8 @@ const statusGridStyle: CSSProperties = {
 }
 
 const statusButtonStyle: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: '#dbeafe',
   padding: '10px 12px',
   borderRadius: '12px',
@@ -1958,18 +1958,18 @@ const statusButtonStyle: CSSProperties = {
 }
 
 const activeStatusButtonStyle: CSSProperties = {
-  background: 'linear-gradient(135deg, #255BE3 0%, #3d7cff 100%)',
-  color: '#ffffff',
-  border: '1px solid #255BE3',
-  boxShadow: '0 10px 24px rgba(37, 91, 227, 0.22)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 26%, var(--shell-chip-bg) 74%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
 }
 
 const textareaStyle: CSSProperties = {
   width: '100%',
   minHeight: 92,
   borderRadius: '14px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: '#f8fbff',
   padding: '12px 14px',
   fontSize: '14px',
