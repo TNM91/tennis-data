@@ -595,31 +595,22 @@ function ScenarioComparisonContent() {
 
   return (
     <section style={pageContentStyle}>
-         <section style={heroShellResponsive(isTablet, isMobile)}>
+         <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Scenario controls">
             <div>
-              <TiqFeatureIcon name="scenarioBuilder" size="lg" variant="surface" />
-              <div style={eyebrow}>Captain tools</div>
-            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Compare lineup versions.</h1>
-            <p style={heroTextStyle}>
-              Put two saved builds side by side, spot the swing courts, and keep the version you trust.
-            </p>
+            <div style={toolControlHeaderStyle}>
+              <div>
+                <p style={sectionKicker}>Scenario controls</p>
+                <h1 style={toolControlTitleStyle}>Compare lineup versions.</h1>
+              </div>
+              <span style={leftScenario && rightScenario ? miniPillGreen : miniPillSlate}>
+                {leftScenario && rightScenario ? 'Compare ready' : 'Choose versions'}
+              </span>
+            </div>
 
-            <div style={heroButtonRowStyle}>
+            <div style={toolControlButtonRowStyle}>
               <PrimaryLink href="/captain/lineup-builder">Back to builder</PrimaryLink>
               <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Refresh data</GhostSmallBtn>
               <GhostLink href="/captain/messaging">Open messaging</GhostLink>
-            </div>
-
-            <div style={heroMetricGridStyle(isSmallMobile)}>
-              <MetricStat label="Filtered scenarios" value={String(filteredScenarios.length)} />
-              <MetricStat
-                label="Your lineup changes"
-                value={leftScenario && rightScenario ? String(yourComparison.changedCount) : '-'}
-              />
-              <MetricStat
-                label="Opponent changes"
-                value={leftScenario && rightScenario ? String(opponentComparison.changedCount) : '-'}
-              />
             </div>
           </div>
 
@@ -741,7 +732,7 @@ function ScenarioComparisonContent() {
               <p style={mutedTextStyle}>
                 If you already saved one, clear the filters above or reopen the builder with the same team and match context before comparing.
               </p>
-              <div style={heroButtonRowStyle}>
+              <div style={toolControlButtonRowStyle}>
                 <PrimarySmallLink href="/captain/lineup-builder">Start in lineup builder</PrimarySmallLink>
                 <GhostSmallLink href="/captain">Back to Captain</GhostSmallLink>
               </div>
@@ -1606,36 +1597,12 @@ function MetaCard({ label, value }: { label: string; value: string }) {
   )
 }
 
-function MetricStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={heroMetricCardStyle}>
-      <div style={metricLabelStyle}>{label}</div>
-      <div style={metricValueStyleHero}>{value}</div>
-    </div>
-  )
-}
-
-function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
+function toolControlShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
-    ...heroShell,
+    ...toolControlShell,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.45fr) minmax(min(100%, 300px), 0.95fr)',
     gap: isMobile ? '18px' : '24px',
-    padding: isMobile ? '26px 18px' : '34px 26px',
-    minWidth: 0,
-  }
-}
-
-function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
-  return {
-    ...heroTitleStyle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '50px',
-  }
-}
-
-function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
-  return {
-    ...heroMetricGridBaseStyle,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+    padding: isMobile ? '20px 18px' : '24px 22px',
     minWidth: 0,
   }
 }
@@ -1678,7 +1645,7 @@ const pageContentStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const heroShell: CSSProperties = {
+const toolControlShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
   borderRadius: '34px',
@@ -1690,83 +1657,31 @@ const heroShell: CSSProperties = {
   minWidth: 0,
 }
 
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
+const toolControlHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
   alignItems: 'center',
-  alignSelf: 'flex-start',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
-  fontWeight: 800,
-  fontSize: '14px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
 }
 
-const heroTitleStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground)',
+const toolControlTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
-  lineHeight: 0.98,
+  fontSize: 'clamp(1.45rem, 2.5vw, 2.1rem)',
+  lineHeight: 1.08,
   letterSpacing: 0,
-  maxWidth: '760px',
   overflowWrap: 'anywhere',
 }
 
-const heroTextStyle: CSSProperties = {
-  marginTop: 16,
-  marginBottom: 0,
-  maxWidth: 820,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '1.02rem',
-  lineHeight: 1.72,
-  overflowWrap: 'anywhere',
-}
-
-const heroButtonRowStyle: CSSProperties = {
+const toolControlButtonRowStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
-  marginTop: 22,
+  marginTop: 14,
   minWidth: 0,
-}
-
-const heroMetricGridBaseStyle: CSSProperties = {
-  marginTop: 22,
-  display: 'grid',
-  gap: '14px',
-  minWidth: 0,
-}
-
-const heroMetricCardStyle: CSSProperties = {
-  borderRadius: '22px',
-  padding: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  minWidth: 0,
-}
-
-const metricLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '0.82rem',
-  marginBottom: '0.42rem',
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
-
-const metricValueStyleHero: CSSProperties = {
-  color: 'var(--foreground)',
-  fontSize: '1.05rem',
-  fontWeight: 800,
-  lineHeight: 1.4,
-  overflowWrap: 'anywhere',
 }
 
 const compactPillRowStyle: CSSProperties = {

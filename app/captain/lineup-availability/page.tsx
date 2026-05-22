@@ -945,15 +945,19 @@ function LineupAvailabilityContent() {
         </div>
       </header>
 
-      <section style={heroShellResponsive(isTablet, isMobile)}>
+      <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Availability controls">
         <div>
-          <div style={eyebrow}>Captain tools</div>
-          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Who can play?</h1>
-          <p style={heroTextStyle}>
-            Pick the match, mark responses, then build from players who are actually available.
-          </p>
+          <div style={toolControlHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Availability controls</p>
+              <h1 style={toolControlTitleStyle}>Who can play?</h1>
+            </div>
+            <span style={summaryPillStyle(viability === 'Strong' ? 'green' : viability === 'Playable' ? 'amber' : 'red')}>
+              {viability}
+            </span>
+          </div>
 
-          <div style={heroButtonRowStyle}>
+          <div style={toolControlButtonRowStyle}>
             <PrimaryBtn onClick={saveAvailability} disabled={saving || !selectedDate}>
               {saving ? 'Saving...' : 'Save Availability'}
             </PrimaryBtn>
@@ -962,13 +966,6 @@ function LineupAvailabilityContent() {
               {loading || rosterLoading ? 'Refreshing...' : 'Refresh data'}
             </GhostBtn>
           </div>
-
-          <div style={heroMetricGridStyle(isSmallMobile)}>
-            <MetricStat label="League / Flight" value={selectedLeagueLabel || 'Not selected'} />
-            <MetricStat label="Team" value={selectedTeam || 'Not selected'} />
-            <MetricStat label="Viability" value={viability} />
-          </div>
-
         </div>
 
         <div style={captainReadCard}>
@@ -1307,15 +1304,6 @@ function LineupAvailabilityContent() {
   )
 }
 
-function MetricStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={heroMetricCardStyle}>
-      <div style={metricLabelStyle}>{label}</div>
-      <div style={metricValueStyleHero}>{value}</div>
-    </div>
-  )
-}
-
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div style={heroMetricCardStyle}>
@@ -1386,27 +1374,12 @@ function navStyleResponsive(isTablet: boolean): CSSProperties {
   }
 }
 
-function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
+function toolControlShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
-    ...heroShell,
+    ...toolControlShell,
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.45fr) minmax(min(100%, 300px), 0.95fr)',
     gap: isMobile ? '18px' : '24px',
-    padding: isMobile ? '26px 18px' : '34px 26px',
-    minWidth: 0,
-  }
-}
-
-function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
-  return {
-    ...heroTitleStyle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '50px',
-  }
-}
-
-function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
-  return {
-    ...heroMetricGridBaseStyle,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+    padding: isMobile ? '20px 18px' : '24px 22px',
     minWidth: 0,
   }
 }
@@ -1572,7 +1545,7 @@ const activeNavLink: CSSProperties = {
   border: '1px solid rgba(130, 244, 118, 0.22)',
 }
 
-const heroShell: CSSProperties = {
+const toolControlShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
   maxWidth: '1240px',
@@ -1585,58 +1558,30 @@ const heroShell: CSSProperties = {
   minWidth: 0,
 }
 
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  alignSelf: 'flex-start',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(130, 244, 118, 0.28)',
-  background: 'rgba(89, 145, 73, 0.14)',
-  color: '#d9e7ef',
-  fontWeight: 800,
-  fontSize: '14px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const heroTitleStyle: CSSProperties = {
-  margin: 0,
-  color: '#f7fbff',
-  fontWeight: 900,
-  lineHeight: 0.98,
-  letterSpacing: 0,
-  maxWidth: '760px',
-  overflowWrap: 'anywhere',
-}
-
-const heroTextStyle: CSSProperties = {
-  marginTop: 16,
-  marginBottom: 0,
-  maxWidth: 820,
-  color: 'rgba(255,255,255,0.78)',
-  fontSize: '1.02rem',
-  lineHeight: 1.72,
-  overflowWrap: 'anywhere',
-}
-
-const heroButtonRowStyle: CSSProperties = {
+const toolControlHeaderStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
   gap: 12,
-  marginTop: 22,
   minWidth: 0,
 }
 
-const heroMetricGridBaseStyle: CSSProperties = {
-  marginTop: 22,
-  display: 'grid',
-  gap: '14px',
+const toolControlTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  fontSize: 'clamp(1.45rem, 2.5vw, 2.1rem)',
+  lineHeight: 1.08,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const toolControlButtonRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 12,
+  marginTop: 14,
   minWidth: 0,
 }
 
