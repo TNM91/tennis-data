@@ -429,7 +429,7 @@ function ExploreSearchContent() {
                   key={band}
                   type="button"
                   onClick={() => setRatingBand(band)}
-                  style={{ maxWidth: '100%', padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 800, overflowWrap: 'anywhere', cursor: 'pointer', background: ratingBand === band ? 'rgba(116,190,255,0.14)' : 'rgba(255,255,255,0.04)', border: `1px solid ${ratingBand === band ? 'rgba(116,190,255,0.30)' : 'rgba(255,255,255,0.10)'}`, color: ratingBand === band ? '#93c5fd' : 'var(--shell-copy-muted)' }}
+                  style={{ maxWidth: '100%', padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 800, overflowWrap: 'anywhere', cursor: 'pointer', background: ratingBand === band ? 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)' : 'var(--shell-chip-bg)', border: `1px solid ${ratingBand === band ? 'color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border) 70%)' : 'var(--shell-panel-border)'}`, color: ratingBand === band ? 'var(--foreground-strong)' : 'var(--shell-copy-muted)' }}
                 >
                   {band === 'all' ? 'All levels' : band}
                 </button>
@@ -1037,8 +1037,8 @@ const searchCommandCardStyle: CSSProperties = {
 }
 
 const searchCommandCardActiveStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, rgba(116,190,255,0.12) 66%)',
-  background: 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
 }
 
 const searchCommandNumberStyle: CSSProperties = {
@@ -1047,7 +1047,7 @@ const searchCommandNumberStyle: CSSProperties = {
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',
-  background: 'rgba(255,255,255,0.06)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%)',
   color: 'var(--foreground-strong)',
   fontSize: 11,
   fontWeight: 950,
@@ -1095,15 +1095,11 @@ function getSearchSelectStyle(): CSSProperties {
     fontSize: 14,
     fontWeight: 700,
     outline: 'none',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+    boxShadow: 'var(--home-control-shadow)',
     colorScheme: 'dark',
     appearance: 'none',
     WebkitAppearance: 'none',
     MozAppearance: 'none',
-    backgroundImage: 'linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.88) 50%), linear-gradient(135deg, rgba(255,255,255,0.88) 50%, transparent 50%)',
-    backgroundPosition: 'calc(100% - 20px) calc(50% - 2px), calc(100% - 14px) calc(50% - 2px)',
-    backgroundSize: '6px 6px, 6px 6px',
-    backgroundRepeat: 'no-repeat',
     paddingRight: 34,
   }
 }
@@ -1127,7 +1123,7 @@ function getSearchInputWrapStyle(): CSSProperties {
     border: '1px solid var(--home-input-border)',
     background: 'var(--home-input-bg)',
     color: 'var(--muted-strong)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+    boxShadow: 'var(--home-control-shadow)',
   }
 }
 

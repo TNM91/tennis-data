@@ -187,9 +187,6 @@ export default function ExplorePage() {
     <SiteShell active="explore">
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
-          <div style={heroNoise} />
-          <div style={heroMesh} />
-
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
               <div style={eyebrow}>Free exploration</div>
@@ -387,28 +384,6 @@ const heroShell: CSSProperties = {
   minWidth: 0,
 }
 
-const heroNoise: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background: `
-    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--brand-blue-2) 20%, transparent) 0%, transparent 30%),
-    radial-gradient(circle at 72% 8%, color-mix(in srgb, var(--brand-blue-2) 12%, transparent) 0%, transparent 26%),
-    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand-lime) 9%, transparent) 0%, transparent 28%),
-    linear-gradient(180deg, color-mix(in srgb, var(--foreground-strong) 3%, transparent) 0%, transparent 26%)
-  `,
-  pointerEvents: 'none',
-}
-
-const heroMesh: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  pointerEvents: 'none',
-  background: `
-    linear-gradient(135deg, rgba(255,255,255,0.02) 0%, transparent 22%),
-    radial-gradient(circle at 18% 100%, rgba(155,225,29,0.10) 0%, transparent 24%)
-  `,
-}
-
 const heroContent: CSSProperties = {
   display: 'grid',
   alignItems: 'start',
@@ -507,9 +482,9 @@ const findCommandPanel: CSSProperties = {
   marginBottom: '18px',
   padding: '16px',
   borderRadius: '22px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(13,28,53,0.74) 0%, rgba(9,20,39,0.9) 100%)',
-  boxShadow: '0 18px 46px rgba(2,10,24,0.14), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -560,8 +535,8 @@ const findCommandPill: CSSProperties = {
   alignItems: 'center',
   padding: '0 12px',
   borderRadius: 999,
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'rgba(155,225,29,0.08)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 900,
@@ -584,8 +559,8 @@ const findCommandCard: CSSProperties = {
   minHeight: 74,
   padding: '10px',
   borderRadius: '15px',
-  border: '1px solid rgba(116,190,255,0.09)',
-  background: 'rgba(255,255,255,0.035)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   textDecoration: 'none',
   minWidth: 0,
@@ -597,7 +572,7 @@ const findCommandNumber: CSSProperties = {
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',
-  background: 'rgba(255,255,255,0.06)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%)',
   color: 'var(--foreground-strong)',
   fontSize: 11,
   fontWeight: 950,
@@ -697,8 +672,8 @@ const discoveryPathCard: CSSProperties = {
   textDecoration: 'none',
   color: 'var(--foreground)',
   background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--card-border-soft)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'none',
   minWidth: 0,
   boxSizing: 'border-box',
 }
@@ -745,9 +720,9 @@ const actionCard: CSSProperties = {
   padding: '22px',
   textDecoration: 'none',
   color: 'var(--foreground)',
-  background: 'var(--surface-strong)',
-  border: '1px solid var(--card-border-soft)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
   transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
   minWidth: 0,
   overflowWrap: 'anywhere',
@@ -755,8 +730,8 @@ const actionCard: CSSProperties = {
 
 const actionCardHover: CSSProperties = {
   transform: 'translateY(-4px)',
-  border: '1px solid rgba(116,190,255,0.30)',
-  boxShadow: '0 22px 52px rgba(7,18,40,0.26), inset 0 0 32px rgba(116,190,255,0.05)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  boxShadow: 'var(--shadow-card)',
 }
 
 const actionCardTop: CSSProperties = {
@@ -773,7 +748,7 @@ const actionCardIcon: CSSProperties = {
   display: 'grid',
   placeItems: 'center',
   border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), var(--shadow-soft)',
+  boxShadow: 'var(--shadow-soft)',
   flexShrink: 0,
   transition: 'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease',
 }
