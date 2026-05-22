@@ -203,13 +203,13 @@ function ExploreLeaguesContent() {
 
   return (
     <section style={wrapStyle}>
-        <div style={heroStyle}>
+        <div style={heroStyle} aria-label="League discovery controls">
           <div style={panelHeaderStyle}>
             <div>
-              <div style={eyebrowStyle}>Leagues</div>
-              <h1 style={titleStyle}>Find a league, then open the season view.</h1>
+              <div style={eyebrowStyle}>League discovery</div>
+              <h1 style={titleStyle}>Find a league.</h1>
               <p style={descriptionStyle}>
-                Search by league, flight, section, or district.
+                Search by league, flight, section, or district, then open the season view.
               </p>
             </div>
 
@@ -457,12 +457,12 @@ const heroStyle: CSSProperties = {
   position: 'relative',
   maxWidth: '1280px',
   margin: '0 auto',
-  padding: '22px',
-  borderRadius: '28px',
+  padding: '20px',
+  borderRadius: '26px',
   overflow: 'hidden',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
   minWidth: 0,
 }
 
@@ -478,10 +478,10 @@ const eyebrowStyle: CSSProperties = {
 const titleStyle: CSSProperties = {
   margin: '8px 0 0',
   maxWidth: '760px',
-  fontSize: '28px',
-  lineHeight: 1.05,
+  fontSize: 'clamp(1.55rem, 3vw, 2.25rem)',
+  lineHeight: 1.08,
   letterSpacing: 0,
-  color: '#f4f9ff',
+  color: 'var(--foreground-strong)',
   overflowWrap: 'anywhere',
 }
 
@@ -506,8 +506,8 @@ const panelHeaderStyle: CSSProperties = {
 const heroPillRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '18px',
+  gap: '8px',
+  marginTop: '6px',
   minWidth: 0,
 }
 
@@ -516,13 +516,13 @@ const heroPillBlueStyle: CSSProperties = {
   alignItems: 'center',
   maxWidth: '100%',
   minWidth: 0,
-  minHeight: '34px',
-  padding: '0 14px',
+  minHeight: '32px',
+  padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(74,163,255,0.14)',
-  color: '#dfeeff',
-  fontSize: '13px',
-  fontWeight: 700,
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 800,
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
@@ -537,8 +537,8 @@ const filterBarStyle: CSSProperties = {
   zIndex: 1,
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-  gap: '16px',
-  marginTop: '24px',
+  gap: '12px',
+  marginTop: '18px',
   minWidth: 0,
 }
 

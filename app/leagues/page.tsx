@@ -207,10 +207,10 @@ export default function LeaguesPage() {
         <article style={panelCard}>
           <div style={panelHead}>
             <div>
-              <div style={sectionKicker}>Leagues</div>
-              <h2 style={panelTitle}>Find a league, then open the season view.</h2>
+              <div style={sectionKicker}>League discovery</div>
+              <h2 style={panelTitle}>Find a league.</h2>
               <p style={panelIntro}>
-                Search reviewed league groupings by league name, flight, section, or district.
+                Search by league, flight, section, or district, then open the season view.
               </p>
             </div>
             <div style={filterActionRow}>
@@ -609,10 +609,10 @@ const summaryGrid: CSSProperties = {
 }
 
 const metricCard: CSSProperties = {
-  borderRadius: '24px',
-  padding: '18px',
+  borderRadius: '20px',
+  padding: '16px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-blue-2) 10%)',
+  background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
   overflowWrap: 'anywhere',
@@ -644,11 +644,10 @@ const metricValue: CSSProperties = {
 }
 
 const panelCard: CSSProperties = {
-  borderRadius: '28px',
+  borderRadius: '26px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 10%, transparent), transparent 34%), var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
   minWidth: 0,
   marginBottom: '16px',
@@ -679,7 +678,8 @@ const panelTitle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  fontSize: '28px',
+  fontSize: 'clamp(1.55rem, 3vw, 2.25rem)',
+  lineHeight: 1.08,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
 }

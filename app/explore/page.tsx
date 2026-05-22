@@ -49,24 +49,6 @@ const FEATURE_CARDS = [
   },
 ]
 
-const START_STEPS = [
-  {
-    label: 'Start free',
-    title: 'Explore tennis context',
-    text: 'Look up players, teams, leagues, and rankings without setting anything up.',
-  },
-  {
-    label: 'Go deeper',
-    title: 'Open the right page',
-    text: 'Use a profile, team page, league page, or rankings view once you know what you need.',
-  },
-  {
-    label: 'Save effort',
-    title: 'Upgrade when it helps',
-    text: 'Use My Lab and Matchup when you want follows, prep, and a personal tennis home.',
-  },
-]
-
 const DISCOVERY_PATHS = [
   {
     label: 'I know a name',
@@ -168,8 +150,8 @@ export default function ExplorePage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.94fr) minmax(min(100%, 420px), 1fr)',
-    gap: isMobile ? '20px' : '30px',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gap: isMobile ? '18px' : '22px',
   }
 
   const dynamicHeroTitle: CSSProperties = {
@@ -183,42 +165,6 @@ export default function ExplorePage() {
     ...heroText,
     fontSize: isMobile ? '15px' : '18px',
     maxWidth: '640px',
-  }
-
-  const dynamicArtPanelStyle: CSSProperties = {
-    ...featurePanel,
-    position: 'relative',
-    minHeight: isMobile ? 'auto' : isTablet ? '420px' : '342px',
-    padding: 0,
-    overflow: 'hidden',
-    background: 'var(--shell-panel-bg)',
-    border: '1px solid var(--shell-panel-border)',
-    boxShadow: 'var(--shadow-soft)',
-  }
-
-  const dynamicArtMaskStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    background: isTablet
-      ? 'var(--shell-hero-mask-mobile)'
-      : 'var(--shell-hero-mask)',
-    pointerEvents: 'none',
-    zIndex: 1,
-  }
-
-  const dynamicArtOverlayStyle: CSSProperties = {
-    position: isMobile ? 'relative' : 'absolute',
-    top: isMobile ? 'auto' : '16px',
-    left: isMobile ? 'auto' : '20px',
-    right: isMobile ? 'auto' : '20px',
-    bottom: isMobile ? 'auto' : '16px',
-    display: 'grid',
-    gap: '12px',
-    alignContent: 'start',
-    minWidth: 0,
-    zIndex: 2,
-    padding: isMobile ? '16px' : 0,
-    boxSizing: 'border-box',
   }
 
   const dynamicActionGrid: CSSProperties = {
@@ -249,11 +195,11 @@ export default function ExplorePage() {
               <div style={eyebrow}>Free exploration</div>
 
               <h1 style={dynamicHeroTitle}>
-                Find tennis context fast.
+                More Tennis. Less Chaos.
               </h1>
 
               <p style={dynamicHeroText}>
-                Start with a player, team, league, or ranking. Get oriented first, then decide if you need My Lab, Matchup, or Captain tools.
+                Start with a player, team, league, or ranking. Get oriented fast, then open the tool that helps you play, captain, or run the season.
               </p>
 
               <div style={explorePills}>
@@ -264,31 +210,6 @@ export default function ExplorePage() {
               </div>
             </div>
 
-            <div style={dynamicArtPanelStyle}>
-              <div style={discoveryBoardGlow} />
-              <div style={discoveryBoardGrid} />
-              <div style={dynamicArtMaskStyle} />
-
-              <div style={dynamicArtOverlayStyle}>
-                <div style={featurePanelHeader}>
-                  <div style={featurePanelLabel}>Start here</div>
-                  <div style={featurePanelHint}>Free tier</div>
-                </div>
-
-                <div style={startStepStack}>
-                  {START_STEPS.map((item, index) => (
-                    <div key={item.title} style={startStepCard}>
-                      <div style={startStepNumber}>{index + 1}</div>
-                      <div>
-                        <div style={startStepLabel}>{item.label}</div>
-                        <div style={startStepTitle}>{item.title}</div>
-                        <div style={startStepText}>{item.text}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
 
           <FindCommandPanel />
@@ -576,122 +497,6 @@ const pillGreen: CSSProperties = {
   color: 'var(--foreground-strong)',
   background: 'color-mix(in srgb, var(--brand-lime) 11%, var(--shell-chip-bg) 89%)',
   border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
-}
-
-const featurePanel: CSSProperties = {
-  minWidth: 0,
-  borderRadius: '24px',
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
-  padding: '20px',
-  overflowWrap: 'anywhere',
-}
-
-const featurePanelHeader: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '12px',
-  marginBottom: '8px',
-  minWidth: 0,
-  flexWrap: 'wrap',
-}
-
-const featurePanelLabel: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '16px',
-  fontWeight: 800,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const featurePanelHint: CSSProperties = {
-  color: 'var(--foreground)',
-  fontSize: '13px',
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
-
-const startStepStack: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  minWidth: 0,
-}
-
-const startStepCard: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
-  gap: '12px',
-  alignItems: 'start',
-  padding: '12px 16px',
-  borderRadius: '16px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-  boxSizing: 'border-box',
-  overflow: 'hidden',
-  overflowWrap: 'anywhere',
-}
-
-const startStepNumber: CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 999,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: 'var(--foreground-strong)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  fontSize: 13,
-  fontWeight: 900,
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
-}
-
-const startStepLabel: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 900,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const startStepTitle: CSSProperties = {
-  marginTop: '4px',
-  color: 'var(--foreground-strong)',
-  fontSize: '16px',
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const startStepText: CSSProperties = {
-  marginTop: '5px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  lineHeight: 1.35,
-  overflowWrap: 'anywhere',
-}
-
-const discoveryBoardGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background:
-    'radial-gradient(circle at 78% 22%, rgba(155,225,29,0.18) 0%, rgba(155,225,29,0.07) 22%, rgba(155,225,29,0) 52%), radial-gradient(circle at 20% 72%, rgba(116,190,255,0.16) 0%, rgba(116,190,255,0.07) 20%, rgba(116,190,255,0) 48%)',
-  pointerEvents: 'none',
-}
-
-const discoveryBoardGrid: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
-  backgroundSize: '28px 28px',
-  opacity: 0.18,
-  pointerEvents: 'none',
 }
 
 const findCommandPanel: CSSProperties = {
