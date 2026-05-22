@@ -1690,7 +1690,7 @@ function CaptainHubContent() {
         <section style={commandCenterShell}>
           <div style={commandCenterHeader}>
             <div>
-              <div style={sectionKicker}>Weekly command center</div>
+              <div style={sectionKicker}>Captain workspace</div>
               <h2 style={sectionTitle}>Move from replies to a sent lineup.</h2>
             </div>
             <span style={workspaceState.briefReady ? badgeGreen : badgeSlate}>
@@ -1698,7 +1698,7 @@ function CaptainHubContent() {
             </span>
           </div>
           <div style={sectionSub}>
-            A captain flow for the week: confirm who can play, read the matchup, build courts, then send the team note.
+            Confirm who can play, read the matchup, build courts, then send the team note.
           </div>
 
           <div style={dynamicCommandCenterGrid}>
@@ -2786,7 +2786,7 @@ const commandCenterCard: CSSProperties = {
   padding: 16,
   borderRadius: 20,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
 }
 
 const commandCenterCardGood: CSSProperties = {
@@ -2877,7 +2877,7 @@ const nextActionCard: CSSProperties = {
   padding: 18,
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
 }
 
 const nextActionCardAccent: CSSProperties = {
@@ -3016,7 +3016,7 @@ const glanceCard: CSSProperties = {
   padding: 18,
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
 }
 
 const glanceCardAccent: CSSProperties = {
@@ -3061,7 +3061,7 @@ const weekStatusShell: CSSProperties = {
   padding: 18,
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
 }
 
 const weekStatusValue: CSSProperties = {
