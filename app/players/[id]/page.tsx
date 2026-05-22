@@ -1116,7 +1116,7 @@ function PlayerProfileContent() {
                   <span style={heroHintPill}>{ustaTeamMemberships.length} USTA team{ustaTeamMemberships.length === 1 ? '' : 's'}</span>
                 ) : null}
                 {percentile !== null ? (
-                  <span style={{ ...heroHintPill, background: 'rgba(116,190,255,0.08)', border: '1px solid rgba(116,190,255,0.22)', color: '#93c5fd' }}>
+                  <span style={{ ...heroHintPill, background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)', border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)', color: 'var(--foreground-strong)' }}>
                     top {percentile}% of {totalPlayers} players
                   </span>
                 ) : null}
@@ -1127,9 +1127,9 @@ function PlayerProfileContent() {
                   <span
                     style={{
                       ...heroHintPill,
-                      background: winStreak.type === 'W' ? 'rgba(155,225,29,0.10)' : 'rgba(239,68,68,0.10)',
-                      border: `1px solid ${winStreak.type === 'W' ? 'rgba(155,225,29,0.28)' : 'rgba(239,68,68,0.22)'}`,
-                      color: winStreak.type === 'W' ? '#d9f84a' : '#fca5a5',
+                      background: winStreak.type === 'W' ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)' : 'color-mix(in srgb, #ef4444 12%, var(--shell-chip-bg) 88%)',
+                      border: `1px solid ${winStreak.type === 'W' ? 'color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)' : 'color-mix(in srgb, #ef4444 24%, var(--shell-panel-border) 76%)'}`,
+                      color: winStreak.type === 'W' ? 'var(--brand-lime)' : '#fca5a5',
                     }}
                   >
                     {winStreak.count} {winStreak.type === 'W' ? 'win' : 'loss'} streak
@@ -3108,8 +3108,8 @@ const heroScoreGrid: CSSProperties = {
 
 const stalenessPill: CSSProperties = {
   ...heroHintPill,
-  background: 'rgba(251,146,60,0.08)',
-  border: '1px solid rgba(251,146,60,0.22)',
+  background: 'color-mix(in srgb, #fb923c 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid color-mix(in srgb, #fb923c 24%, var(--shell-panel-border) 76%)',
   color: '#fed7aa',
 }
 

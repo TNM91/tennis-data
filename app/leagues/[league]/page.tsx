@@ -1513,8 +1513,8 @@ const stateBox: CSSProperties = {
 const errorBox: CSSProperties = {
   borderRadius: '16px',
   padding: '12px 14px',
-  background: 'rgba(239, 68, 68, 0.08)',
-  border: '1px solid rgba(239, 68, 68, 0.18)',
+  background: 'color-mix(in srgb, #ef4444 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid color-mix(in srgb, #ef4444 22%, var(--shell-panel-border) 78%)',
   color: '#fecaca',
   fontWeight: 700,
   fontSize: '14px',
@@ -1601,7 +1601,7 @@ const cardGlow: CSSProperties = {
   width: 'min(100%, 180px)',
   height: '180px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(78,178,255,0.24), rgba(78,178,255,0) 70%)',
+  background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-blue-2) 18%, transparent), transparent 70%)',
   pointerEvents: 'none',
 }
 
@@ -1651,9 +1651,9 @@ const teamRank: CSSProperties = {
 const teamLeaderPillStyle: CSSProperties = {
   padding: '2px 8px',
   borderRadius: 999,
-  background: 'rgba(155,225,29,0.10)',
-  border: '1px solid rgba(155,225,29,0.20)',
-  color: '#d9f84a',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  color: 'var(--brand-lime)',
   fontSize: 11,
   fontWeight: 800,
   maxWidth: '100%',
@@ -1684,7 +1684,7 @@ const teamWinBarStyle: CSSProperties = {
   borderRadius: 999,
   overflow: 'hidden',
   height: 8,
-  background: 'rgba(255,255,255,0.06)',
+  background: 'color-mix(in srgb, var(--foreground-strong) 6%, transparent)',
   marginBottom: 5,
   minWidth: 0,
 }
