@@ -2141,7 +2141,7 @@ function TiqLeagueDetailContent() {
             <section style={dynamicHeroCard}>
               <div style={dynamicHeroGrid}>
                 <div>
-                  <div style={eyebrow}>TIQ League Detail</div>
+                  <div style={eyebrow}>TIQ League</div>
                   <h1 style={dynamicHeroTitle}>{league.leagueName}</h1>
                   <div style={pillRow}>
                     <span style={pillGreen}>{getCompetitionLayerLabel('tiq')}</span>
@@ -2219,7 +2219,7 @@ function TiqLeagueDetailContent() {
                     </GhostLink>
                     <QuickMessageComposer
                       mode="league"
-                      triggerLabel="League room"
+                      triggerLabel="Message league"
                       subject={`${league.leagueName} league room`}
                       body={[
                         `League: ${league.leagueName}`,
@@ -3611,10 +3611,10 @@ function TiqLeagueDetailContent() {
 
             <section id="league-settings" style={panelCard}>
               <div style={sectionEyebrow}>Coordinator context</div>
-              <h2 style={sectionTitle}>Use TIQ league context without losing the command center.</h2>
+              <h2 style={sectionTitle}>Run the next league action.</h2>
               <p style={sectionText}>
-                Team leagues hand off into result entry and weekly captain tools. Individual leagues keep the
-                organizer loop focused on entry, standings, prompts, and player results.
+                Team leagues hand off into result entry and weekly captain tools. Individual leagues keep entry,
+                standings, prompts, and player results in one clean lane.
               </p>
 
               {captainLinks.length > 0 ? (
@@ -3627,8 +3627,7 @@ function TiqLeagueDetailContent() {
                 </div>
               ) : (
                 <div style={emptyCard}>
-                  Individual TIQ leagues stay in the Coordinator lane: participants, standings, prompts,
-                  and player results without weekly captain workflow.
+                  Individual TIQ leagues stay focused on participants, standings, prompts, and player results.
                 </div>
               )}
             </section>
@@ -3653,7 +3652,7 @@ const heroCard: CSSProperties = {
   padding: '28px',
   borderRadius: '30px',
   border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(16,38,70,0.78) 0%, rgba(8,19,38,0.94) 100%)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 28px 60px rgba(2,10,24,0.22)',
   minWidth: 0,
 }
@@ -3772,7 +3771,7 @@ const sideCard: CSSProperties = {
   padding: '22px',
   borderRadius: '24px',
   border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
+  background: 'var(--shell-panel-bg-strong)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -3920,7 +3919,7 @@ const leagueHubPanelStyle: CSSProperties = {
   padding: '24px',
   borderRadius: '26px',
   border: '1px solid rgba(155,225,29,0.18)',
-  background: 'linear-gradient(135deg, rgba(15,34,62,0.94), rgba(17,42,39,0.86))',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 22px 48px rgba(2,10,24,0.24)',
   minWidth: 0,
 }
@@ -4399,7 +4398,7 @@ const panelCard: CSSProperties = {
   padding: '24px',
   borderRadius: '28px',
   border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
+  background: 'var(--shell-panel-bg-strong)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -4931,7 +4930,7 @@ const stateCard: CSSProperties = {
   padding: '24px',
   borderRadius: '28px',
   border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
+  background: 'var(--shell-panel-bg-strong)',
   color: '#dbeafe',
   minWidth: 0,
   overflowWrap: 'anywhere',
