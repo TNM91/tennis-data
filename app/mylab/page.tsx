@@ -2145,7 +2145,7 @@ function MyLabPageInner() {
                 <p style={sectionKickerStyle}>Player scorecard</p>
                 <h2 style={sectionTitleStyle}>{welcomeLine}</h2>
                 <p style={sectionTextStyle}>
-                  Start with the score: ratings, progress to the next level, records, and the next useful matchup.
+                  Ratings, progress, records, and the next useful matchup in one place.
                 </p>
               </div>
             </div>
@@ -2324,7 +2324,7 @@ function MyLabPageInner() {
                 <summary style={labDrawerSummaryStyle}>
                   <span style={labDrawerSummaryCopyStyle}>
                     <strong>More player tools</strong>
-                    <em style={labDrawerSummaryHintStyle}>Open when you want goals, performance detail, and personal records.</em>
+                    <em style={labDrawerSummaryHintStyle}>Goals, trends, and records when you need a deeper read.</em>
                   </span>
                   <span style={optionalContextCountStyle}>3 tools</span>
                 </summary>
@@ -2336,9 +2336,9 @@ function MyLabPageInner() {
                         <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
                         <div>
                           <p style={sectionKickerStyle}>Match plan</p>
-                          <h3 style={compactSectionTitleStyle}>Turn the read into a tennis routine</h3>
+                          <h3 style={compactSectionTitleStyle}>Turn the read into one action</h3>
                           <p style={sectionTextStyle}>
-                            Player value should show up before, during, and after the next match.
+                            Pick what matters before the next match.
                           </p>
                         </div>
                       </div>
@@ -2480,8 +2480,8 @@ function MyLabPageInner() {
         <details id="player-tools" style={labDrawerDetailsStyle}>
           <summary style={labDrawerSummaryStyle}>
             <span style={labDrawerSummaryCopyStyle}>
-              <strong>Notebook, matches, and follows</strong>
-              <em style={labDrawerSummaryHintStyle}>Use these when you want deeper tracking without crowding the daily read.</em>
+              <strong>Notebook and match history</strong>
+              <em style={labDrawerSummaryHintStyle}>Open for notes, reports, and wider tennis context.</em>
             </span>
             <span style={optionalContextCountStyle}>Open</span>
           </summary>
@@ -2493,7 +2493,7 @@ function MyLabPageInner() {
                 <p style={sectionKickerStyle}>Player workshop</p>
                 <h2 style={sectionTitleStyle}>What should I do next?</h2>
                 <p style={sectionTextStyle}>
-                  Turn the scorecard into action: review, compare, choose one focus, then go play.
+                  Review the scorecard, choose one focus, then go play.
                 </p>
               </div>
               <Link href={matchupHref} style={secondaryButtonStyle}>
@@ -2518,7 +2518,7 @@ function MyLabPageInner() {
                 <div style={sectionHeaderStyle}>
                   <div style={sectionHeaderCopyStyle}>
                     <p style={sectionKickerStyle}>TIQ action rail</p>
-                    <h3 style={compactSectionTitleStyle}>League prompts ready to act on</h3>
+                    <h3 style={compactSectionTitleStyle}>League prompts</h3>
                   </div>
                   <Link href="/compete/leagues" style={smallInlineLinkStyle}>
                     My leagues
@@ -2552,7 +2552,7 @@ function MyLabPageInner() {
                 <div style={sectionHeaderStyle}>
                   <div style={sectionHeaderCopyStyle}>
                     <p style={sectionKickerStyle}>Team prep</p>
-                    <h3 style={compactSectionTitleStyle}>Captain actions from your player context</h3>
+                    <h3 style={compactSectionTitleStyle}>Team tools from your profile</h3>
                   </div>
                   <Link href="/captain" style={smallInlineLinkStyle}>
                     Captain
@@ -2586,7 +2586,7 @@ function MyLabPageInner() {
               <div style={sectionHeaderStyle}>
                 <div style={sectionHeaderCopyStyle}>
                   <p style={sectionKickerStyle}>Optional goals</p>
-                  <h3 style={compactSectionTitleStyle}>Training notes when you need them</h3>
+                  <h3 style={compactSectionTitleStyle}>Training notes</h3>
                 </div>
                 <button type="button" onClick={addGoal} style={smallGhostButtonStyle}>
                   Add goal
@@ -2631,7 +2631,7 @@ function MyLabPageInner() {
               <div style={quickStartPanelStyle}>
                 <div>
                   <div style={metricLabelStyle}>Quick starts</div>
-                  <p style={quickStartTextStyle}>Drop a practical focus into the active goal, then adjust the details.</p>
+                  <p style={quickStartTextStyle}>Start with a practical focus, then adjust it.</p>
                 </div>
                 <div style={quickStartButtonRowStyle}>
                   {focusTemplates.map((template) => (
@@ -2885,8 +2885,8 @@ function MyLabPageInner() {
       <details style={optionalContextDetailsStyle}>
         <summary style={optionalContextSummaryStyle}>
           <span>
-            <strong>More tennis context</strong>
-            <em>Watchlist, follows, and updates when you want the wider picture.</em>
+            <strong>Watchlist</strong>
+            <em>Follows and updates when you want the wider picture.</em>
           </span>
           <span style={optionalContextCountStyle}>
             {follows.length} follows
@@ -3273,9 +3273,8 @@ const warningNoteStyle: CSSProperties = {
 const profileLinkCardStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-blue-2) 8%, transparent) 0%, transparent 34%), var(--shell-panel-bg-strong)',
-  boxShadow: '0 18px 44px rgba(2, 10, 24, 0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
   padding: 'clamp(14px, 2.4vw, 20px)',
   display: 'grid',
   gap: 14,
@@ -3293,8 +3292,7 @@ const personalHomeTitleStyle: CSSProperties = {
 const personalReadPanelStyle: CSSProperties = {
   borderRadius: 20,
   border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--brand-lime) 9%, transparent) 0%, var(--shell-panel-bg) 66%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg-strong) 92%)',
   padding: 14,
   display: 'grid',
   gap: 12,
@@ -3367,8 +3365,7 @@ const levelUpPanelStyle = (isTablet: boolean): CSSProperties => ({
 const levelMeterStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 12%, transparent) 0%, transparent 34%), var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg)',
   padding: 20,
   display: 'grid',
   gap: 16,
@@ -3510,8 +3507,7 @@ const quickProfileValueStyle: CSSProperties = {
 const setupPanelStyle = (isTablet: boolean): CSSProperties => ({
   borderRadius: 24,
   border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 12%, transparent) 0%, transparent 36%), var(--shell-panel-bg)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
   padding: isTablet ? 18 : 22,
   display: 'grid',
   gap: 18,
@@ -3619,8 +3615,7 @@ const todayReadValueStyle: CSSProperties = {
 const matchupSpotlightStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 14%, transparent) 0%, transparent 34%), var(--shell-panel-bg)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
   padding: 18,
   display: 'grid',
   gap: 14,
@@ -3726,8 +3721,7 @@ const matchupQueueCardStyle: CSSProperties = {
   padding: 14,
   borderRadius: 16,
   border: '1px solid color-mix(in srgb, var(--brand-lime) 20%, var(--shell-panel-border) 80%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--brand-lime) 8%, transparent) 0%, var(--shell-panel-bg) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   overflow: 'hidden',
@@ -3906,8 +3900,7 @@ const statRingStyle = (value: number): CSSProperties => ({
 const trophyRoomPanelStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 12%, transparent) 0%, transparent 34%), var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg)',
   padding: 18,
   display: 'grid',
   gap: 14,
@@ -4837,8 +4830,7 @@ const surfaceStrongStyle: CSSProperties = {
   borderRadius: 28,
   padding: 20,
   border: '1px solid var(--shell-panel-border)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 10%, transparent) 0%, transparent 34%), var(--shell-panel-bg-strong)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
   minWidth: 0,
 }
