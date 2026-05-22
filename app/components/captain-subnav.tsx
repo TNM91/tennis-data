@@ -166,18 +166,16 @@ const shellStyle: CSSProperties = {
   gap: 16,
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(12,26,50,0.82) 0%, rgba(9,20,39,0.92) 100%)',
-  boxShadow: '0 22px 54px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
 }
 
 const meshStyle: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  background:
-    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
-  backgroundSize: '28px 28px',
-  opacity: 0.16,
+  background: 'transparent',
+  opacity: 0,
   pointerEvents: 'none',
 }
 
@@ -205,8 +203,8 @@ const headerStatusStyle: CSSProperties = {
   minWidth: 0,
   padding: 12,
   borderRadius: 18,
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const statusCopyStyle: CSSProperties = {
@@ -263,8 +261,8 @@ const linkStyle: CSSProperties = {
   borderRadius: 16,
   textDecoration: 'none',
   color: 'var(--foreground)',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--home-control-shadow)',
   minWidth: 0,
   overflowWrap: 'anywhere',
@@ -284,7 +282,7 @@ const stepStyle: CSSProperties = {
 
 const activeLinkStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, var(--brand-green) 14%)',
+  background: 'var(--shell-chip-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
 }
 
@@ -348,7 +346,7 @@ const tierPillSlate: CSSProperties = {
 const moreToolsStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  borderTop: '1px solid rgba(116,190,255,0.10)',
+  borderTop: '1px solid var(--shell-panel-border)',
   paddingTop: 12,
 }
 

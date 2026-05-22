@@ -165,9 +165,9 @@ const shellStyle: CSSProperties = {
   gap: 14,
   padding: 16,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(13,28,53,0.74) 0%, rgba(9,20,39,0.9) 100%)',
-  boxShadow: '0 18px 46px rgba(2,10,24,0.14), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
   minWidth: 0,
 }
 
@@ -236,16 +236,16 @@ const stepCardStyle: CSSProperties = {
   minHeight: 58,
   padding: '9px 10px',
   borderRadius: 15,
-  border: '1px solid rgba(116,190,255,0.09)',
-  background: 'rgba(255,255,255,0.035)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   textDecoration: 'none',
   minWidth: 0,
 }
 
 const stepCardActiveStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, rgba(116,190,255,0.12) 66%)',
-  background: 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'var(--shell-chip-bg-strong)',
 }
 
 const stepNumberStyle: CSSProperties = {
@@ -254,7 +254,7 @@ const stepNumberStyle: CSSProperties = {
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',
-  background: 'rgba(255,255,255,0.06)',
+  background: 'var(--shell-chip-bg-strong)',
   color: 'var(--foreground-strong)',
   fontSize: 11,
   fontWeight: 950,
@@ -304,9 +304,9 @@ const nextLinkStyle: CSSProperties = {
   alignItems: 'center',
   padding: '0 13px',
   borderRadius: 999,
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'rgba(116,190,255,0.08)',
-  color: '#dbeafe',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontSize: 12,
   fontWeight: 900,
