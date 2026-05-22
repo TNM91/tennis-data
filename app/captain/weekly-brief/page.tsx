@@ -806,8 +806,8 @@ const briefBoardStyle: CSSProperties = {
   alignItems: 'center',
   padding: 20,
   borderRadius: 24,
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(135deg, rgba(18,36,66,0.84) 0%, rgba(10,22,44,0.74) 58%, rgba(38,70,42,0.32) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
   minWidth: 0,
 }
 
@@ -861,15 +861,15 @@ const briefSignalCardStyle: CSSProperties = {
   gap: 10,
   padding: 16,
   borderRadius: 20,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(15,23,42,0.52)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
 const briefSignalCardAccentStyle: CSSProperties = {
   ...briefSignalCardStyle,
   border: '1px solid rgba(155,225,29,0.22)',
-  background: 'linear-gradient(180deg, rgba(23,56,45,0.46) 0%, rgba(15,23,42,0.58) 100%)',
+  background: 'var(--shell-chip-bg-strong)',
 }
 
 const briefSignalTopStyle: CSSProperties = {
@@ -933,8 +933,8 @@ const surfaceCard: CSSProperties = {
   gap: 16,
   padding: 22,
   borderRadius: 28,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }
@@ -1007,8 +1007,8 @@ const noteCard: CSSProperties = {
   gap: 8,
   padding: 16,
   borderRadius: 20,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
@@ -1041,8 +1041,8 @@ const infoBlock: CSSProperties = {
   gap: 8,
   padding: 14,
   borderRadius: 18,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
@@ -1075,8 +1075,8 @@ const lineupCard: CSSProperties = {
   gap: 10,
   padding: 16,
   borderRadius: 20,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
@@ -1189,11 +1189,11 @@ const secondaryButton: CSSProperties = {
   justifyContent: 'center',
   borderRadius: 999,
   padding: '12px 18px',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f8fbff',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   textDecoration: 'none',
-  border: '1px solid rgba(255,255,255,0.1)',
+  border: '1px solid var(--shell-panel-border)',
   cursor: 'pointer',
   minWidth: 0,
   maxWidth: '100%',
@@ -1212,8 +1212,8 @@ const mutedTextStyle: CSSProperties = {
 const mutedCallout: CSSProperties = {
   padding: 16,
   borderRadius: 18,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: 'rgba(229,238,251,0.78)',
   lineHeight: 1.7,
   minWidth: 0,
