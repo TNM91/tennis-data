@@ -1253,7 +1253,7 @@ function PlayerProfileContent() {
               </div>
 
               <div style={summaryCard}>
-                <div style={summaryTitle}>Quick profile view</div>
+                <div style={summaryTitle}>Profile snapshot</div>
 
                 <div style={summaryStatsGrid}>
                   <StatChip label="USTA Base" value={formatRatingValue(player.overall_rating)} />
@@ -1321,8 +1321,8 @@ function PlayerProfileContent() {
         <article style={profileDiscoveryPanelStyle} id="profile-ratings">
           <div style={profileDiscoveryHeaderStyle}>
             <div style={panelHeadCopyStyle}>
-              <div style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} profile path</div>
-              <h2 style={profileDiscoveryTitleStyle}>Use this profile in three moves.</h2>
+              <div style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} profile</div>
+              <h2 style={profileDiscoveryTitleStyle}>Open the next useful view.</h2>
             </div>
             <p style={profileDiscoveryCopyStyle}>
               {MEMBERSHIP_TIERS.free.shortPromise} {MEMBERSHIP_TIERS.player_plus.upgradeCue}
@@ -1344,7 +1344,7 @@ function PlayerProfileContent() {
         {access.canUseAdvancedPlayerInsights ? (
           <details style={profileReadDetailsStyle}>
             <summary style={profileReadSummaryStyle}>
-              <span>How to read this profile</span>
+              <span>Profile signals</span>
               <strong>{playerSignals.length} signals</strong>
             </summary>
             <section style={signalGridStyle(isMobile)}>
@@ -2998,7 +2998,7 @@ const heroShell: CSSProperties = {
   margin: '0 auto',
   minWidth: 0,
   borderRadius: '30px',
-  background: 'var(--portal-tool-surface-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow:
     '0 26px 80px rgba(2,10,24,0.28), inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -3057,7 +3057,7 @@ const eyebrow: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: 0,
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -3091,7 +3091,7 @@ const heroHintPill: CSSProperties = {
   maxWidth: '100%',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   borderRadius: '999px',
   padding: '10px 14px',
   fontSize: '13px',
@@ -3117,7 +3117,7 @@ const meterCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   maxWidth: '560px',
   minWidth: 0,
@@ -3281,7 +3281,7 @@ const focusCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
@@ -3378,7 +3378,7 @@ const summaryCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
@@ -3440,7 +3440,7 @@ const profileReadDetailsStyle: CSSProperties = {
   marginBottom: '18px',
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 16px 36px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
   overflow: 'hidden',
   minWidth: 0,
@@ -3469,7 +3469,7 @@ const profileDiscoveryPanelStyle: CSSProperties = {
   padding: '18px',
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-blue-2) 8%)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 16px 36px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
@@ -3584,7 +3584,7 @@ const statCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
@@ -3606,7 +3606,7 @@ const signalCardStyle: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
   minWidth: 0,
 }
@@ -3683,7 +3683,7 @@ const scorecardPanelStyle: CSSProperties = {
   marginBottom: '18px',
   padding: '18px',
   borderRadius: '28px',
-  background: 'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-blue-2) 12%) 0%, color-mix(in srgb, var(--shell-panel-bg) 86%, var(--brand-green) 14%) 100%)',
+  background: 'var(--shell-panel-bg-strong)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
@@ -3765,7 +3765,7 @@ const scorecardActionRailStyle: CSSProperties = {
   padding: '18px',
   borderRadius: '24px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-green) 12%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
 }
 
 const scorecardRailLabelStyle: CSSProperties = {
@@ -3805,7 +3805,7 @@ const panelCard: CSSProperties = {
   borderRadius: '28px',
   padding: '22px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
@@ -4101,7 +4101,7 @@ const loadingCard: CSSProperties = {
   padding: '26px',
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   color: 'var(--foreground)',
   fontWeight: 700,
   position: 'relative',
@@ -4112,7 +4112,7 @@ const errorCard: CSSProperties = {
   padding: '22px',
   borderRadius: '28px',
   border: '1px solid rgba(255, 60, 40, 0.18)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   position: 'relative',
   zIndex: 1,
   minWidth: 0,
