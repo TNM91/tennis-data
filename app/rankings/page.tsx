@@ -441,10 +441,10 @@ export default function RankingsPage() {
         <div style={dynamicControlsCard}>
           <div style={rankingPanelHeader}>
             <div>
-              <div style={sectionKicker}>Rankings</div>
-              <h1 style={rankingPanelTitle}>Find the right player, then open the profile.</h1>
+              <div style={sectionKicker}>Ranking discovery</div>
+              <h1 style={rankingPanelTitle}>Check the field.</h1>
               <p style={rankingPanelIntro}>
-                Search the board, switch rating view, and jump into the player context that matters.
+                Search players, switch rating view, then open the profile that matters.
               </p>
             </div>
             <div style={heroHintRow}>
@@ -456,8 +456,8 @@ export default function RankingsPage() {
 
                 <div style={dynamicControlsTopRow}>
                   <div>
-                    <div style={controlsLabel}>Tune the board</div>
-                    <div style={controlsHint}>Search, filter, and switch the rating view</div>
+                    <div style={controlsLabel}>Rankings board</div>
+                    <div style={controlsHint}>Search, filter, and choose the rating view.</div>
                   </div>
 
                   <div style={segmentWrap}>
@@ -573,7 +573,7 @@ export default function RankingsPage() {
               </div>
 
               <div id="rankings-filter-helper" style={controlsHelperText}>
-                Search by player or location, then switch the board between overall, singles, and doubles.
+                Open a profile from the board when you find the right player.
               </div>
 
               <div style={summaryStatsGrid}>
@@ -1610,11 +1610,11 @@ const heroHintRow: CSSProperties = {
 const heroHintPill: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   borderRadius: '999px',
   padding: '10px 14px',
   fontSize: '13px',
-  fontWeight: 700,
+  fontWeight: 800,
 }
 
 const rankingPanelHeader: CSSProperties = {
@@ -1630,8 +1630,8 @@ const rankingPanelHeader: CSSProperties = {
 const rankingPanelTitle: CSSProperties = {
   margin: '8px 0 0',
   color: 'var(--foreground-strong)',
-  fontSize: '28px',
-  lineHeight: 1.05,
+  fontSize: 'clamp(1.55rem, 3vw, 2.25rem)',
+  lineHeight: 1.08,
   fontWeight: 900,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -1647,11 +1647,11 @@ const rankingPanelIntro: CSSProperties = {
 }
 
 const controlsCard: CSSProperties = {
-  borderRadius: '24px',
-  padding: '18px',
+  borderRadius: '26px',
+  padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
 }
 
 const controlsTopRow: CSSProperties = {
@@ -1666,7 +1666,7 @@ const controlsTopRow: CSSProperties = {
 const controlsLabel: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  fontSize: '24px',
+  fontSize: 'clamp(1.15rem, 2vw, 1.45rem)',
   letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
@@ -1838,10 +1838,10 @@ const podiumGrid: CSSProperties = {
 
 const podiumCard: CSSProperties = {
   textDecoration: 'none',
-  borderRadius: '28px',
+  borderRadius: '24px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
 }
 
@@ -2114,7 +2114,7 @@ const compactRatingStackStyle: CSSProperties = {
   padding: '10px 12px',
   borderRadius: '14px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 950,
@@ -2206,7 +2206,7 @@ const tableHead: CSSProperties = {
   textTransform: 'uppercase',
   fontWeight: 800,
   borderBottom: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
@@ -2264,7 +2264,7 @@ const insightDetails: CSSProperties = {
   marginBottom: '16px',
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   overflow: 'hidden',
   minWidth: 0,
@@ -2504,9 +2504,9 @@ const iconSvgStyle: CSSProperties = {
 const editorialPanel: CSSProperties = {
   display: 'grid',
   gap: '14px',
-  padding: '24px',
+  padding: '22px',
   borderRadius: '26px',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,

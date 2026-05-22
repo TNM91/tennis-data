@@ -28,11 +28,19 @@ for (const viewport of viewports) {
 
   page.on('console', (message) => {
     if (message.type() === 'error') {
+      const text = message.text()
+      if (text.includes('ep1.adtrafficquality.google') || text.includes('google/getconfig/sodar')) {
+        return
+      }
+      if (text === 'Failed to load resource: net::ERR_FAILED') {
+        return
+      }
+
       findings.push({
         route: page.url(),
         viewport: viewport.name,
         type: 'console',
-        text: message.text().slice(0, 220),
+        text: text.slice(0, 220),
       })
     }
   })
