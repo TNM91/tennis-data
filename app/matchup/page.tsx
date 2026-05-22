@@ -2215,9 +2215,9 @@ function SwapSidesButton({ onClick }: { onClick: () => void }) {
         gap: '7px',
         padding: '10px 20px',
         borderRadius: '999px',
-        border: `1px solid ${hovered ? 'rgba(155,225,29,0.38)' : 'rgba(116,190,255,0.18)'}`,
-        background: hovered ? 'rgba(155,225,29,0.08)' : 'rgba(255,255,255,0.04)',
-        color: hovered ? '#d8ffa8' : 'rgba(214,228,246,0.82)',
+        border: `1px solid ${hovered ? 'color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)' : 'var(--shell-panel-border)'}`,
+        background: hovered ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)' : 'var(--shell-chip-bg)',
+        color: hovered ? 'var(--foreground-strong)' : 'var(--foreground)',
         fontSize: '13px',
         fontWeight: 800,
         cursor: 'pointer',
@@ -2505,8 +2505,7 @@ const controlsCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 12%, transparent), transparent 34%), var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
   minWidth: 0,
   marginBottom: '16px',
@@ -2577,8 +2576,7 @@ const identitySetupStripStyle: CSSProperties = {
   padding: 16,
   borderRadius: 20,
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, transparent), transparent 60%), var(--shell-chip-bg)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
   overflowWrap: 'anywhere',
 }
 
@@ -2699,9 +2697,10 @@ const toggleButtonGreen: CSSProperties = {
 }
 
 const toggleButtonBlue: CSSProperties = {
-  background: 'linear-gradient(135deg, #2f6ff5 0%, #61a6ff 100%)',
-  color: '#ffffff',
-  boxShadow: '0 14px 28px rgba(74,163,255,0.22), inset 0 1px 0 rgba(255,255,255,0.24)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const selectorGrid: CSSProperties = {
@@ -2846,7 +2845,7 @@ const emptyState: CSSProperties = {
   lineHeight: 1.7,
   fontWeight: 600,
   textAlign: 'center',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -2931,10 +2930,9 @@ const handoffCardStyle: CSSProperties = {
   marginBottom: '16px',
   padding: '16px',
   borderRadius: '22px',
-  border: '1px solid rgba(155,225,29,0.22)',
-  background:
-    'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(48,99,180,0.10) 46%, var(--shell-panel-bg) 100%)',
-  boxShadow: '0 18px 42px rgba(0,0,0,0.16)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -2998,14 +2996,14 @@ const handoffSideCardStyle: CSSProperties = {
   padding: '14px',
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'rgba(255,255,255,0.04)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
 const handoffSideCardActiveStyle: CSSProperties = {
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(var(--brand-green-rgb),0.08)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
 }
 
 const handoffSideLabelStyle: CSSProperties = {
@@ -3041,8 +3039,8 @@ const doublesQuickStartStyle: CSSProperties = {
   marginBottom: '14px',
   padding: '14px 16px',
   borderRadius: '18px',
-  border: '1px solid rgba(155,225,29,0.20)',
-  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.08) 0%, rgba(13,27,52,0.82) 100%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -3127,8 +3125,8 @@ const prefillPromptCard: CSSProperties = {
   gap: '16px',
   padding: '18px',
   borderRadius: '22px',
-  border: '1px solid rgba(155,225,29,0.22)',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.10) 0%, rgba(13,27,52,0.86) 100%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -3174,8 +3172,8 @@ const suggestionButton: CSSProperties = {
   justifyItems: 'start',
   padding: '12px 14px',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   cursor: 'pointer',
   textAlign: 'left',
@@ -3206,16 +3204,16 @@ const decisionBanner: CSSProperties = {
   marginBottom: '18px',
   padding: '20px',
   borderRadius: '22px',
-  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(13,27,52,0.88) 100%)',
-  border: '1px solid rgba(155,225,29,0.25)',
-  boxShadow: '0 20px 50px rgba(155,225,29,0.15)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
 const decisionLabel: CSSProperties = {
   fontSize: '12px',
   textTransform: 'uppercase',
-  color: 'rgba(200,220,255,0.7)',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 800,
   letterSpacing: '0.1em',
   overflowWrap: 'anywhere',
@@ -3225,7 +3223,7 @@ const decisionWinner: CSSProperties = {
   marginTop: '6px',
   fontSize: '28px',
   fontWeight: 900,
-  color: '#fff',
+  color: 'var(--foreground-strong)',
   lineHeight: 1.05,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -3234,7 +3232,7 @@ const decisionWinner: CSSProperties = {
 const decisionSub: CSSProperties = {
   marginTop: '6px',
   fontSize: '14px',
-  color: 'rgba(220,235,255,0.8)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontWeight: 600,
   overflowWrap: 'anywhere',
@@ -3251,13 +3249,13 @@ const decisionRight: CSSProperties = {
 }
 
 const decisionPill: CSSProperties = {
-  background: 'rgba(0,0,0,0.3)',
-  border: '1px solid rgba(255,255,255,0.15)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
   padding: '8px 12px',
   borderRadius: '999px',
   fontWeight: 800,
   fontSize: '12px',
-  color: '#eff8ff',
+  color: 'var(--foreground-strong)',
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
   maxWidth: '100%',
@@ -3286,7 +3284,7 @@ const prepReadCard: CSSProperties = {
   minHeight: '150px',
   padding: '18px',
   borderRadius: '20px',
-  border: '1px solid rgba(116,190,255,0.16)',
+  border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
@@ -3294,8 +3292,8 @@ const prepReadCard: CSSProperties = {
 
 const prepReadCardAccent: CSSProperties = {
   ...prepReadCard,
-  border: '1px solid rgba(155,225,29,0.24)',
-  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.09) 0%, rgba(13,27,52,0.88) 72%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
 }
 
 const prepReadCardLink: CSSProperties = {
@@ -3359,11 +3357,11 @@ const ctaSecondary: CSSProperties = {
   minHeight: '42px',
   padding: '0 16px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.18)',
-  color: '#fff',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'rgba(255,255,255,0.04)',
+  background: 'var(--shell-chip-bg)',
   maxWidth: '100%',
   minWidth: 0,
   whiteSpace: 'normal',
@@ -3381,16 +3379,16 @@ const compareGrid: CSSProperties = {
 const compareCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
 const favoredCompareCard: CSSProperties = {
-  borderColor: 'rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  borderColor: 'color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
 }
 
 const compareHead: CSSProperties = {
@@ -3419,7 +3417,7 @@ const compareTitle: CSSProperties = {
 
 const compareSubtitle: CSSProperties = {
   marginTop: '6px',
-  color: 'rgba(224,236,249,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 500,
@@ -3434,9 +3432,9 @@ const miniGhostButton: CSSProperties = {
   minHeight: '40px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.07)',
-  color: '#e7eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
@@ -3474,16 +3472,14 @@ const ratingSignalStyle: CSSProperties = {
 const ratingPill: CSSProperties = {
   borderRadius: '16px',
   padding: '14px 14px',
-  background: 'rgba(18,34,64,0.85)',
-  border: '1px solid rgba(116,190,255,0.18)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
 }
 
 const ratingPillActive: CSSProperties = {
-  background: 'linear-gradient(180deg, rgba(26,56,108,0.92) 0%, rgba(16,31,59,0.92) 100%)',
-  borderColor: 'rgba(74,163,255,0.28)',
-  boxShadow: '0 10px 24px rgba(37,91,227,0.10), inset 0 1px 0 rgba(255,255,255,0.04)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border) 70%)',
 }
 
 const ratingPillLabel: CSSProperties = {
@@ -3496,7 +3492,7 @@ const ratingPillLabel: CSSProperties = {
 
 const ratingPillValue: CSSProperties = {
   marginTop: '4px',
-  color: '#f4f9ff',
+  color: 'var(--foreground-strong)',
   fontSize: '20px',
   lineHeight: 1,
   fontWeight: 900,
@@ -3507,9 +3503,8 @@ const ratingPillValue: CSSProperties = {
 const highlightBox: CSSProperties = {
   borderRadius: '16px',
   padding: '16px',
-  background: 'rgba(18,34,64,0.9)',
-  border: '1px solid rgba(116,190,255,0.18)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
 }
 
@@ -3547,15 +3542,16 @@ const vsBadge: CSSProperties = {
   height: '76px',
   flex: '0 0 auto',
   borderRadius: '999px',
-  background: 'linear-gradient(135deg, #255be3 0%, #3fa7ff 100%)',
-  color: '#ffffff',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-chip-bg) 76%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 36%, var(--shell-panel-border) 64%)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   fontSize: '22px',
   lineHeight: 1,
   fontWeight: 900,
-  boxShadow: '0 14px 30px rgba(37,91,227,0.22)',
+  boxShadow: 'var(--shadow-soft)',
   overflowWrap: 'anywhere',
 }
 
@@ -3565,14 +3561,14 @@ const gapCard: CSSProperties = {
   textAlign: 'center',
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   overflowWrap: 'anywhere',
 }
 
 const gapLabel: CSSProperties = {
-  color: 'rgba(217,231,255,0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 800,
@@ -3583,7 +3579,7 @@ const gapLabel: CSSProperties = {
 
 const gapValue: CSSProperties = {
   marginTop: '6px',
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
@@ -3672,9 +3668,9 @@ const summaryCard: CSSProperties = {
   marginTop: '16px',
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -3697,7 +3693,7 @@ const projectionSectionTitle: CSSProperties = {
 
 const paragraph: CSSProperties = {
   margin: '12px 0 0',
-  color: 'rgba(224,236,249,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 500,
@@ -3714,13 +3710,13 @@ const metricGrid: CSSProperties = {
 const metricCard: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
 }
 
 const metricLabel: CSSProperties = {
-  color: 'rgba(217,231,255,0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   marginBottom: '8px',
   fontWeight: 700,
@@ -3728,7 +3724,7 @@ const metricLabel: CSSProperties = {
 }
 
 const metricValue: CSSProperties = {
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   lineHeight: 1.1,
   fontWeight: 900,
@@ -3738,7 +3734,7 @@ const metricValue: CSSProperties = {
 
 const metricSub: CSSProperties = {
   marginTop: '6px',
-  color: 'rgba(197,213,234,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 600,
@@ -3754,13 +3750,13 @@ const calloutCard: CSSProperties = {
   flexWrap: 'wrap',
   borderRadius: '16px',
   padding: '16px',
-  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.09) 0%, rgba(13,27,52,0.86) 100%)',
-  border: '1px solid rgba(155,225,29,0.25)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
   minWidth: 0,
 }
 
 const calloutTitle: CSSProperties = {
-  color: '#f4f9ff',
+  color: 'var(--foreground-strong)',
   fontSize: '16px',
   lineHeight: 1.45,
   fontWeight: 800,
@@ -3769,7 +3765,7 @@ const calloutTitle: CSSProperties = {
 
 const calloutSub: CSSProperties = {
   marginTop: '4px',
-  color: 'rgba(220,233,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 500,
@@ -3782,9 +3778,9 @@ const upsetPill: CSSProperties = {
   justifyContent: 'center',
   borderRadius: '999px',
   padding: '10px 12px',
-  background: 'rgba(10,20,35,0.42)',
-  border: '1px solid rgba(255,255,255,0.14)',
-  color: '#ecf8ff',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   lineHeight: 1,
   fontWeight: 900,
@@ -3799,15 +3795,14 @@ const recommendationCard: CSSProperties = {
   marginTop: '16px',
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(9,20,39,0.44)',
-  border: '1px solid rgba(116,190,255,0.14)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
 const recommendationTitle: CSSProperties = {
-  color: '#f4f9ff',
+  color: 'var(--foreground-strong)',
   fontSize: '14px',
   lineHeight: 1.2,
   fontWeight: 800,
@@ -3818,7 +3813,7 @@ const recommendationTitle: CSSProperties = {
 
 const recommendationTextStyle: CSSProperties = {
   marginTop: '8px',
-  color: 'rgba(220,233,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.72,
   fontWeight: 500,
@@ -3858,8 +3853,8 @@ const emptyHeadToHeadCard: CSSProperties = {
   marginTop: '12px',
   borderRadius: '18px',
   padding: '18px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -3875,7 +3870,7 @@ const emptyHeadToHeadTitle: CSSProperties = {
 
 const emptyHeadToHeadText: CSSProperties = {
   margin: '10px 0 0',
-  color: 'rgba(220,233,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
@@ -3888,7 +3883,7 @@ const headToHeadDominanceStyle: CSSProperties = {
 }
 
 const headToHeadDominanceKickerStyle: CSSProperties = {
-  color: '#93c5fd',
+  color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: 12,
   textTransform: 'uppercase',
@@ -3902,7 +3897,7 @@ const headToHeadBarStyle: CSSProperties = {
   borderRadius: 999,
   overflow: 'hidden',
   height: 12,
-  background: 'rgba(255,255,255,0.06)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
@@ -3917,7 +3912,7 @@ function headToHeadBarFillStyle(value: number): CSSProperties {
 
 const headToHeadBarRemainderStyle: CSSProperties = {
   flex: 1,
-  background: 'rgba(116,190,255,0.35)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-chip-bg) 72%)',
   minWidth: 0,
 }
 
@@ -3996,8 +3991,8 @@ const headToHeadMatchRowStyle: CSSProperties = {
   gap: 8,
   padding: '10px 12px',
   borderRadius: 14,
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.07)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   marginBottom: 6,
   minWidth: 0,
   overflowWrap: 'anywhere',
@@ -4118,13 +4113,13 @@ const intelligenceHintBox: CSSProperties = {
   marginTop: '12px',
   borderRadius: '14px',
   padding: '12px 14px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
 }
 
 const intelligenceHintLabel: CSSProperties = {
-  color: '#f4f9ff',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   lineHeight: 1.2,
   fontWeight: 800,
@@ -4135,7 +4130,7 @@ const intelligenceHintLabel: CSSProperties = {
 
 const intelligenceHintText: CSSProperties = {
   marginTop: '6px',
-  color: 'rgba(220,233,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
