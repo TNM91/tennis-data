@@ -247,6 +247,14 @@ function escapePostgrestValue(value: string) {
 }
 
 export default function TeamPage() {
+  return (
+    <SiteShell active="/teams">
+      <TeamPageContent />
+    </SiteShell>
+  )
+}
+
+function TeamPageContent() {
   const params = useParams()
   const searchParams = useSearchParams()
 
@@ -1210,38 +1218,35 @@ export default function TeamPage() {
 
   if (loading) {
     return (
-      <SiteShell active="/teams">
-        <section style={pageContent}>
-          <section style={dynamicHeroShell}>
-            <div>
-              <p style={eyebrow}>Team Intelligence</p>
-              <h1 style={dynamicHeroTitle}>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '50%',
-                    border: '2px solid rgba(155,225,29,0.2)',
-                    borderTopColor: '#9be11d',
-                    animation: 'tenaceiq-spin 0.7s linear infinite',
-                    verticalAlign: 'middle',
-                    marginRight: '12px',
-                  }}
-                />
-                Loading team page...
-              </h1>
-              <p style={heroText}>Pulling roster, matches, and lineup options.</p>
-            </div>
-          </section>
+      <section style={pageContent}>
+        <section style={dynamicHeroShell}>
+          <div>
+            <p style={eyebrow}>Team Intelligence</p>
+            <h1 style={dynamicHeroTitle}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '50%',
+                  border: '2px solid rgba(155,225,29,0.2)',
+                  borderTopColor: '#9be11d',
+                  animation: 'tenaceiq-spin 0.7s linear infinite',
+                  verticalAlign: 'middle',
+                  marginRight: '12px',
+                }}
+              />
+              Loading team page...
+            </h1>
+            <p style={heroText}>Pulling roster, matches, and lineup options.</p>
+          </div>
         </section>
-      </SiteShell>
+      </section>
     )
   }
 
   return (
-    <SiteShell active="/teams">
-      <section style={pageContent}>
+    <section style={pageContent}>
         <section style={dynamicHeroShell}>
           <div>
             <p style={eyebrow}>Team Intelligence</p>
@@ -1401,8 +1406,8 @@ export default function TeamPage() {
           <article style={teamDiscoveryPanelStyle}>
             <div style={teamDiscoveryHeaderStyle}>
               <div style={sectionHeadingCopyStyle}>
-                <p style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} team path</p>
-                <h2 style={sectionTitle}>Use this team page in three moves.</h2>
+                <p style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} team</p>
+                <h2 style={sectionTitle}>Open the next useful view.</h2>
               </div>
               <p style={teamDiscoveryCopyStyle}>
                 {MEMBERSHIP_TIERS.free.shortPromise} {MEMBERSHIP_TIERS.captain.description}
@@ -1827,7 +1832,7 @@ export default function TeamPage() {
 
               <div style={rosterCompareTray}>
                 <div style={sectionHeadingCopyStyle}>
-                  <div style={rosterCompareKicker}>Quick Matchup</div>
+                  <div style={rosterCompareKicker}>Matchup</div>
                   <div style={rosterCompareTitle}>
                     {selectedRosterPlayers.length === 0
                       ? 'Select two roster players to compare'
@@ -1951,7 +1956,6 @@ export default function TeamPage() {
           )}
         </section>
       </section>
-    </SiteShell>
   )
 }
 
@@ -2283,7 +2287,7 @@ function getTeamStatusStyle(status: TeamRatingStatus): CSSProperties {
 const summaryCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   padding: '18px',
   display: 'flex',
   flexDirection: 'column',
@@ -2387,7 +2391,7 @@ const signalCardStyle: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2428,7 +2432,7 @@ const metricCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2470,7 +2474,7 @@ const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
@@ -2726,7 +2730,7 @@ const rosterCompareTray: CSSProperties = {
   padding: '14px 16px',
   borderRadius: '18px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
   minWidth: 0,
 }
 
