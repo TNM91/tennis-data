@@ -2456,7 +2456,7 @@ const workspaceStyle = (): CSSProperties => ({
 const panelStyle: CSSProperties = {
   borderRadius: 18,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
   padding: 'clamp(13px, 4vw, 18px)',
   display: 'grid',
@@ -2512,7 +2512,7 @@ const primaryTypeOptionStyle = (selected: boolean): CSSProperties => ({
     ? '1px solid color-mix(in srgb, var(--brand-green) 68%, var(--shell-panel-border) 32%)'
     : '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
   background: selected
-    ? 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 30%, var(--shell-chip-bg) 70%), color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-bg) 82%))'
+    ? 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)'
     : 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
 })
 
@@ -2545,7 +2545,7 @@ const typeOptionStyle = (selected: boolean): CSSProperties => ({
     ? '1px solid color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border) 42%)'
     : '1px solid var(--shell-panel-border)',
   background: selected
-    ? 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg) 80%), color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-panel-bg) 86%))'
+    ? 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)'
     : 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   padding: 13,
@@ -2599,9 +2599,9 @@ const stepBadgeStyle: CSSProperties = {
   width: 'fit-content',
   border: '1px solid color-mix(in srgb, var(--brand-green) 45%, var(--shell-panel-border) 55%)',
   borderRadius: 999,
-  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 34%, #0f2a26 66%), color-mix(in srgb, var(--brand-blue-2) 38%, #10261f 62%))',
-  color: 'white',
-  boxShadow: '0 12px 26px rgba(20, 184, 116, 0.18)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
   padding: '5px 10px 5px 6px',
   display: 'inline-flex',
   alignItems: 'center',
@@ -2618,7 +2618,7 @@ const stepBadgeNumberStyle: CSSProperties = {
   width: 22,
   height: 22,
   borderRadius: 999,
-  background: 'rgba(255,255,255,0.18)',
+  background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-bg) 82%)',
   display: 'grid',
   placeItems: 'center',
   fontSize: 12,
@@ -3130,7 +3130,7 @@ const parsedSideStyle = (won: boolean): CSSProperties => ({
     : '1px solid var(--shell-panel-border)',
   background: won
     ? 'color-mix(in srgb, var(--brand-green) 12%, transparent)'
-    : 'rgba(255,255,255,0.02)',
+    : 'var(--shell-chip-bg)',
   padding: 8,
   display: 'grid',
   gap: 4,
@@ -3596,7 +3596,7 @@ const uploadIssueStyle: CSSProperties = {
   padding: 16,
   borderRadius: 18,
   border: '1px solid rgba(251,191,36,0.38)',
-  background: 'linear-gradient(135deg, rgba(251,191,36,0.14), rgba(15,23,42,0.08))',
+  background: 'color-mix(in srgb, #fbbf24 10%, var(--shell-chip-bg) 90%)',
   color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 900,
@@ -3607,7 +3607,7 @@ const uploadIssueStyle: CSSProperties = {
 const scorecardPausedPanelStyle: CSSProperties = {
   ...uploadIssueStyle,
   border: '1px solid rgba(248,113,113,0.28)',
-  background: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.08))',
+  background: 'color-mix(in srgb, #ef4444 10%, var(--shell-chip-bg) 90%)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
