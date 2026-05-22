@@ -2580,8 +2580,8 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
               {featured ? (
                 <div style={{ ...mostPopularBadgeStyle, width: 'fit-content' }}>Best team value</div>
               ) : null}
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
-                <div style={{ display: 'grid', gap: 7 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)', justifyContent: 'space-between', gap: 10, alignItems: 'start', minWidth: 0 }}>
+                <div style={{ display: 'grid', gap: 7, minWidth: 0 }}>
                   <span style={{ ...theme.tierBadge, width: 'fit-content' }}>{dashboardLane.label}</span>
                   <h3
                     style={{
@@ -2596,7 +2596,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
                     {dashboardLane.title}
                   </h3>
                 </div>
-                <div style={{ color: theme.priceColor, fontSize: 13, fontWeight: 950, whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'right' }}>
+                <div style={{ ...compactPriceLabelStyle, color: theme.priceColor }}>
                   {accessPresentation.priceLabel}
                 </div>
               </div>
@@ -3712,9 +3712,25 @@ const lineupShellStyle: CSSProperties = {
 
 const tierPriceStyle: CSSProperties = {
   color: 'var(--foreground)',
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: 900,
   letterSpacing: '-0.01em',
+  minWidth: 0,
+  whiteSpace: 'nowrap',
+  overflowWrap: 'normal',
+  lineHeight: 1.08,
+  textAlign: 'right',
+}
+
+const compactPriceLabelStyle: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 950,
+  lineHeight: 1.08,
+  textAlign: 'right',
+  whiteSpace: 'nowrap',
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
+  minWidth: 0,
 }
 
 const mostPopularBadgeStyle: CSSProperties = {
