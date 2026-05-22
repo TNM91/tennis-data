@@ -1067,7 +1067,7 @@ const warnBadge: CSSProperties = {
 const captainReadCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-soft)',
   padding: '22px',
   minHeight: '100%',
@@ -1261,12 +1261,12 @@ const metricCard: CSSProperties = {
 }
 
 const metricCardGreen: CSSProperties = {
-  background: 'linear-gradient(180deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(13,27,52,0.86) 100%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
   border: '1px solid rgba(155,225,29,0.20)',
 }
 
 const metricCardBlue: CSSProperties = {
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
 }
 
 const metricCardSlate: CSSProperties = {
@@ -1296,7 +1296,7 @@ const metricValue: CSSProperties = {
 const sectionCard: CSSProperties = {
   borderRadius: '28px',
   padding: '24px',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
@@ -1492,8 +1492,8 @@ const loadingCard: CSSProperties = {
   borderRadius: '22px',
   padding: '18px 20px',
   color: '#eaf4ff',
-  background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)',
-  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
   fontSize: '15px',
   fontWeight: 700,
   overflowWrap: 'anywhere',
