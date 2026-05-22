@@ -1,0 +1,11 @@
+.next
+node_modules
+coverage
+test-results
+backups
+screenshots-*.png
+server-*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env*
