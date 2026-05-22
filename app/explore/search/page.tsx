@@ -345,7 +345,7 @@ function ExploreSearchContent() {
             gap: isMobile ? 14 : 16,
             overflow: 'hidden',
             position: 'relative',
-            background: 'var(--portal-tool-surface-bg)',
+            background: 'var(--shell-panel-bg-strong)',
           }}
         >
           <SearchCommandPanel
@@ -480,10 +480,10 @@ function ExploreSearchContent() {
             <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
               <div style={sectionKicker}>Search results</div>
               <h2 style={sectionTitle}>
-                Grouped results keep discovery clear instead of sending users through four separate guesses.
+                Find the record that matches your clue.
               </h2>
               <p style={{ ...pageSubtitle, marginTop: 0, overflowWrap: 'anywhere' }}>
-                Search by the detail you know, then jump into the right view without losing context.
+                Search once, then open the player, team, league, or flight view.
               </p>
             </div>
 
@@ -495,7 +495,7 @@ function ExploreSearchContent() {
                 minWidth: 0,
                 padding: isSmallMobile ? 14 : 16,
                 alignContent: 'start',
-                background: 'color-mix(in srgb, var(--surface) 92%, var(--brand-blue-2) 8%)',
+                background: 'var(--shell-panel-bg-strong)',
               }}
             >
               <div style={sectionKicker}>Quick context</div>
@@ -840,10 +840,10 @@ function SearchCommandPanel({
       <div style={searchCommandHeaderStyle}>
         <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
         <div style={searchCommandHeaderCopyStyle}>
-          <div style={searchCommandEyebrowStyle}>Find path</div>
-          <h2 style={searchCommandTitleStyle}>Choose the clue you have.</h2>
+          <div style={searchCommandEyebrowStyle}>Search path</div>
+          <h2 style={searchCommandTitleStyle}>Start with what you know.</h2>
           <p style={searchCommandTextStyle}>
-            {query.trim() ? `${totalResults} result${totalResults === 1 ? '' : 's'} in the current view.` : 'Start broad, then switch scope when the clue becomes clearer.'}
+            {query.trim() ? `${totalResults} result${totalResults === 1 ? '' : 's'} in this view.` : 'Pick a scope, enter a clue, open the right record.'}
           </p>
         </div>
       </div>
@@ -966,9 +966,9 @@ const searchCommandPanelStyle: CSSProperties = {
   gap: 14,
   padding: 14,
   borderRadius: 20,
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(13,28,53,0.74) 0%, rgba(9,20,39,0.9) 100%)',
-  boxShadow: '0 18px 46px rgba(2,10,24,0.14), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -1027,8 +1027,8 @@ const searchCommandCardStyle: CSSProperties = {
   minHeight: 62,
   padding: '9px 10px',
   borderRadius: 15,
-  border: '1px solid rgba(116,190,255,0.09)',
-  background: 'rgba(255,255,255,0.035)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   font: 'inherit',
   textAlign: 'left',
@@ -1149,7 +1149,7 @@ const emptyStateStyle: CSSProperties = {
   padding: 22,
   display: 'grid',
   gap: 12,
-  background: 'color-mix(in srgb, var(--surface) 95%, var(--brand-blue-2) 5%)',
+  background: 'var(--shell-panel-bg-strong)',
 }
 
 const emptyTitleStyle: CSSProperties = {
@@ -1248,7 +1248,7 @@ function getResultCardStyle(): CSSProperties {
     display: 'grid',
     gap: 8,
     textDecoration: 'none',
-    background: 'color-mix(in srgb, var(--surface) 94%, var(--brand-blue-2) 6%)',
+    background: 'var(--shell-panel-bg-strong)',
   }
 }
 
