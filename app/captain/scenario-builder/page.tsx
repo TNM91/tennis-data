@@ -1695,7 +1695,7 @@ const compactPillRowStyle: CSSProperties = {
 const captainReadCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   padding: '20px',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
@@ -1751,7 +1751,7 @@ const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
@@ -1775,9 +1775,9 @@ const verdictCardStyle: CSSProperties = {
   gap: '18px',
   padding: '22px',
   borderRadius: '28px',
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'linear-gradient(135deg, rgba(16,35,64,0.88) 0%, rgba(10,22,44,0.94) 58%, rgba(42,76,39,0.26) 100%)',
-  boxShadow: '0 24px 52px rgba(2,8,23,0.16)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -1829,7 +1829,7 @@ const deepDiveShellStyle: CSSProperties = {
   padding: '20px',
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'rgba(255,255,255,0.035)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
@@ -2556,7 +2556,7 @@ function GhostLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link
       href={href}
-      style={{ ...ghostButton, ...(hovered ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(37,91,227,0.22)' } : {}) }}
+      style={{ ...ghostButton, ...(hovered ? { background: 'var(--shell-chip-bg-strong)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(37,91,227,0.16)' } : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -2570,7 +2570,7 @@ function GhostSmallLink({ href, children }: { href: string; children: ReactNode 
   return (
     <Link
       href={href}
-      style={{ ...ghostButtonSmall, ...(hovered ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(37,91,227,0.22)' } : {}) }}
+      style={{ ...ghostButtonSmall, ...(hovered ? { background: 'var(--shell-chip-bg-strong)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(37,91,227,0.16)' } : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -2586,7 +2586,7 @@ function GhostSmallBtn({ onClick, disabled, children }: { onClick: () => void; d
       type="button"
       onClick={onClick}
       disabled={disabled}
-      style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(37,91,227,0.22)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
+      style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'var(--shell-chip-bg-strong)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(37,91,227,0.16)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
