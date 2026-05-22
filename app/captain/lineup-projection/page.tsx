@@ -1553,9 +1553,9 @@ const gridGlow: CSSProperties = {
   position: 'absolute',
   inset: 0,
   backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
   backgroundSize: '64px 64px',
-  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
+  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.16), rgba(0,0,0,0))',
   pointerEvents: 'none',
 }
 
@@ -1590,13 +1590,13 @@ const navStyle: CSSProperties = {
 const navLink: CSSProperties = {
   padding: '13px 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(12, 28, 52, 0.78)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: '#e7eefb',
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
   maxWidth: '100%',
   whiteSpace: 'normal',
@@ -1605,8 +1605,8 @@ const navLink: CSSProperties = {
 }
 
 const activeNavLink: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
-  border: '1px solid rgba(130, 244, 118, 0.22)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
 }
 
 const toolControlShell: CSSProperties = {
@@ -1652,7 +1652,7 @@ const toolControlButtonRowStyle: CSSProperties = {
 const captainReadCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   padding: '20px',
   minWidth: 0,
 }
@@ -1710,7 +1710,7 @@ const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 40px rgba(0,0,0,0.12)',
   minWidth: 0,
 }
@@ -1720,7 +1720,7 @@ const surfaceCardStrongInset: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-chip-bg)',
   boxShadow: '0 18px 40px rgba(2, 8, 23, 0.10)',
   minWidth: 0,
 }
@@ -1777,8 +1777,8 @@ const stateBox: CSSProperties = {
   marginTop: '16px',
   borderRadius: '18px',
   padding: '18px',
-  background: 'linear-gradient(180deg, rgba(38,67,118,0.46) 0%, rgba(22,40,78,0.58) 100%)',
-  border: '1px solid rgba(128,174,255,0.14)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   color: '#dbeafe',
   fontSize: '15px',
   lineHeight: 1.7,
@@ -2097,9 +2097,9 @@ const listCardStyle: CSSProperties = {
   overflow: 'hidden',
   padding: 0,
   borderRadius: '28px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
