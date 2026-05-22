@@ -3799,7 +3799,7 @@ const heroStatusShell: CSSProperties = {
   padding: 18,
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-chip-bg)',
   marginTop: 18,
   minWidth: 0,
 }
@@ -3854,7 +3854,7 @@ const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
@@ -3865,9 +3865,8 @@ const messagePlaybookSurfaceStyle: CSSProperties = {
   ...surfaceCardStrong,
   maxWidth: 1280,
   margin: '0 auto 18px',
-  border: '1px solid rgba(155, 225, 29, 0.18)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg-strong) 92%, var(--brand-green) 8%), var(--shell-panel-bg))',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
   minWidth: 0,
 }
 
@@ -3923,7 +3922,7 @@ const builderHandoffSurfaceStyle: CSSProperties = {
   ...surfaceCardStrong,
   maxWidth: 1280,
   margin: '0 auto 18px',
-  border: '1px solid rgba(111, 236, 168, 0.22)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
 }
 
@@ -4036,8 +4035,8 @@ const composerPreviewStyle: CSSProperties = {
   margin: '16px 0',
   padding: 16,
   borderRadius: 22,
-  border: '1px solid rgba(155, 225, 29, 0.18)',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(59,130,246,0.08))',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
@@ -4824,7 +4823,7 @@ function GhostLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link
       href={href}
-      style={{ ...ghostButton, ...(hovered ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(37,91,227,0.22)' } : {}) }}
+      style={{ ...ghostButton, ...(hovered ? { background: 'var(--shell-chip-bg-strong)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(37,91,227,0.16)' } : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -4840,7 +4839,7 @@ function GhostSmallBtn({ onClick, disabled, children }: { onClick: () => void; d
       type="button"
       onClick={onClick}
       disabled={disabled}
-      style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(37,91,227,0.22)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
+      style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'var(--shell-chip-bg-strong)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(37,91,227,0.16)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
