@@ -17,7 +17,6 @@ import {
 import { supabase } from '@/lib/supabase'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import {
   formatWeekdayDate as formatDate,
   cleanText as safeText,
@@ -380,15 +379,11 @@ function CaptainTeamBriefContent() {
   return (
     <main style={pageStyle}>
       <div style={contentStyle}>
-          <section style={heroCard}>
+          <section style={heroCard} aria-label="Team brief controls">
             <div style={heroTopRow}>
-              <div style={heroIdentityStyle}>
-                <TiqFeatureIcon name="messagingCenter" size="lg" variant="surface" />
-                <div>
-                  <p style={sectionKicker}>Team Brief</p>
-                  <h1 style={heroTitle}>{resolvedOpponent ? `Team update vs ${resolvedOpponent}` : 'Team update'}</h1>
-                  <p style={heroText}>One clean message for match day.</p>
-                </div>
+              <div>
+                <p style={sectionKicker}>Team Brief</p>
+                <h1 style={heroTitle}>{resolvedOpponent ? `Team update vs ${resolvedOpponent}` : 'Team update'}</h1>
               </div>
 
               <div style={heroButtonRow}>
@@ -626,19 +621,11 @@ const contentStyle: CSSProperties = { display: 'grid', gap: 20, minWidth: 0 }
 const heroCard: CSSProperties = {
   display: 'grid',
   gap: 18,
-  padding: 24,
+  padding: 22,
   borderRadius: 28,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, rgba(116,190,255,0.14) 78%)',
-  background:
-    'radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--brand-green) 14%, transparent) 0%, transparent 34%), linear-gradient(135deg, rgba(14,30,58,0.92) 0%, rgba(16,38,70,0.82) 56%, rgba(10,22,44,0.94) 100%)',
-  boxShadow: '0 22px 58px rgba(2,10,24,0.22), inset 0 1px 0 rgba(255,255,255,0.04)',
-  minWidth: 0,
-}
-const heroIdentityStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
-  gap: 14,
-  alignItems: 'center',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
   minWidth: 0,
 }
 const heroTopRow: CSSProperties = {
@@ -651,18 +638,10 @@ const heroTopRow: CSSProperties = {
 }
 const heroTitle: CSSProperties = {
   margin: '6px 0 0',
-  color: '#f8fbff',
-  fontSize: 34,
-  lineHeight: 1.02,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 2.5vw, 2.1rem)',
+  lineHeight: 1.08,
   letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-const heroText: CSSProperties = {
-  marginTop: 12,
-  color: 'rgba(229,238,251,0.8)',
-  fontSize: 15,
-  lineHeight: 1.7,
-  maxWidth: 760,
   overflowWrap: 'anywhere',
 }
 const heroButtonRow: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', minWidth: 0 }
