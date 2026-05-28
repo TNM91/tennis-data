@@ -549,7 +549,7 @@ function CoachContent() {
                 const dueState = getCoachAssignmentDueState(assignment.dueDate)
                 const student = savedStudents.find((candidate) => candidate.id === assignment.studentLinkId)
                 return (
-                  <article key={assignment.id} style={assignmentCardStyle}>
+                  <article key={assignment.id} id={`coach-assignment-${assignment.id}`} style={assignmentCardStyle}>
                     <div style={assignmentTopStyle}>
                       <strong>{assignment.title}</strong>
                       <span style={assignmentStatusStyle(assignment.status)}>{getAssignmentStatusLabel(assignment.status)}</span>

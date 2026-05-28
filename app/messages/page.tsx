@@ -133,7 +133,10 @@ function buildConversationContextHref(conversation: InternalConversation | null,
   if (entityType === 'tiq_schedule_item' || entityType === 'schedule_match') return '/compete/schedule'
   if (entityType === 'coach_player_link') {
     const contact = coachContacts.find((item) => item.linkId === entityId)
-    return contact?.relationship === 'student' ? '/coach' : '/mylab#player-workshop'
+    const assignmentId = conversation.metadata.assignmentId
+    const assignmentAnchor = assignmentId ? `#coach-assignment-${encodeURIComponent(assignmentId)}` : ''
+    if (contact?.relationship === 'student') return `/coach${assignmentAnchor}`
+    return assignmentAnchor ? `/mylab${assignmentAnchor}` : '/mylab#player-workshop'
   }
   if (entityType === 'billing') return '/profile'
   return ''

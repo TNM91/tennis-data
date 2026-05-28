@@ -3628,7 +3628,7 @@ function PlayerCoachAssignmentsPanel({
             const assignmentSummary = getCoachAssignmentSummary(assignment.assignment)
             const dueState = getCoachAssignmentDueState(assignment.dueDate)
             return (
-              <div key={assignment.id} style={coachAssignmentCardStyle}>
+              <div key={assignment.id} id={`coach-assignment-${assignment.id}`} style={coachAssignmentCardStyle}>
                 <div style={metricLabelStyle}>{assignment.status === 'completed' ? 'Completed' : 'Assigned'}</div>
                 <div style={developmentIdentityTitleStyle}>{assignment.title}</div>
                 <div style={metricNoteStyle}>{assignment.focus || 'Coach assignment'}</div>

@@ -25,4 +25,13 @@ describe('coach assignment message context', () => {
     expect(messagesSource).toContain('metadata: {')
     expect(messagesSource).toContain('Assignment follow-up:')
   })
+
+  it('links message context back to the exact assignment card when possible', () => {
+    expect(coachSource).toContain('id={`coach-assignment-${assignment.id}`}')
+    expect(myLabSource).toContain('id={`coach-assignment-${assignment.id}`}')
+    expect(messagesSource).toContain('conversation.metadata.assignmentId')
+    expect(messagesSource).toContain('#coach-assignment-')
+    expect(messagesSource).toContain('return `/coach${assignmentAnchor}`')
+    expect(messagesSource).toContain('return assignmentAnchor ? `/mylab${assignmentAnchor}` :')
+  })
 })
