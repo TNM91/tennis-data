@@ -100,6 +100,8 @@ describe('Messages mobile layout guards', () => {
     expect(source).toContain('No thread selected.')
     expect(source).toContain('Start with the people tied to the work.')
     expect(source).toContain("setComposeContext({ entityType: 'coach_player_link', entityId: contact.linkId })")
+    expect(source).toContain('assignmentTitle: searchParams.get')
+    expect(source).toContain('Assignment follow-up:')
     expect(source).toContain("return contact?.relationship === 'student' ? '/coach' : '/mylab#player-workshop'")
     expect(source).toContain('fetchCoachMessageContacts')
     expect(styleBlock('coachContactsPanelStyle')).toContain("repeat(auto-fit, minmax(min(100%, 320px), 1fr))")

@@ -3642,6 +3642,11 @@ function PlayerCoachAssignmentsPanel({
                       link,
                       assignment.title,
                       `Quick note on ${assignment.title}: `,
+                      {
+                        assignmentId: assignment.id,
+                        assignmentTitle: assignment.title,
+                        assignmentFocus: assignment.focus,
+                      },
                     )}
                     style={miniActionLinkStyle}
                   >
@@ -3736,7 +3741,16 @@ function PlayerCoachAssignmentsPanel({
   )
 }
 
-function buildPlayerCoachMessageHref(coachLink: CoachStudentLink | undefined, subject: string, body: string) {
+function buildPlayerCoachMessageHref(
+  coachLink: CoachStudentLink | undefined,
+  subject: string,
+  body: string,
+  assignmentContext?: {
+    assignmentId: string
+    assignmentTitle: string
+    assignmentFocus: string
+  },
+) {
   if (!coachLink?.coachUserId) return '/messages'
   const params = new URLSearchParams({
     compose: 'direct',
@@ -3747,6 +3761,9 @@ function buildPlayerCoachMessageHref(coachLink: CoachStudentLink | undefined, su
     entityType: 'coach_player_link',
     entityId: coachLink.id,
   })
+  if (assignmentContext?.assignmentId) params.set('assignmentId', assignmentContext.assignmentId)
+  if (assignmentContext?.assignmentTitle) params.set('assignmentTitle', assignmentContext.assignmentTitle)
+  if (assignmentContext?.assignmentFocus) params.set('assignmentFocus', assignmentContext.assignmentFocus)
   return `/messages?${params.toString()}`
 }
 

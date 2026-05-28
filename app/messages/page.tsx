@@ -62,6 +62,9 @@ type MessagePrefill = {
   category: SupportFilter
   entityType: string
   entityId: string
+  assignmentId: string
+  assignmentTitle: string
+  assignmentFocus: string
   threadId: string
 }
 
@@ -209,6 +212,9 @@ function MessagesPageContent() {
     category: normalizeSupportFilter(searchParams.get('category')),
     entityType: searchParams.get('entityType') || '',
     entityId: searchParams.get('entityId') || '',
+    assignmentId: searchParams.get('assignmentId') || '',
+    assignmentTitle: searchParams.get('assignmentTitle') || '',
+    assignmentFocus: searchParams.get('assignmentFocus') || '',
     threadId: searchParams.get('thread') || '',
   }), [searchParams])
 
@@ -593,6 +599,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         conversationId = await createDirectConversation(identity, nextRecipient, subject, body, {
           entityType: composeContext.entityType,
           entityId: composeContext.entityId,
+          metadata: {
+            assignmentId: prefill.assignmentId,
+            assignmentTitle: prefill.assignmentTitle,
+            assignmentFocus: prefill.assignmentFocus,
+          },
         })
       }
 
@@ -926,7 +937,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     : selectedConversation.conversationType === 'support'
                       ? `${supportCategoryLabel(selectedConversation.relatedEntityType)} support`
                       : selectedConversation.metadata.entityType === 'coach_player_link' || selectedConversation.relatedEntityType === 'coach_player_link'
-                        ? 'Coach-player development thread'
+                        ? selectedConversation.metadata.assignmentTitle
+                          ? `Assignment follow-up: ${selectedConversation.metadata.assignmentTitle}${selectedConversation.metadata.assignmentFocus ? ` / ${selectedConversation.metadata.assignmentFocus}` : ''}`
+                          : 'Coach-player development thread'
                         : 'Conversation context'}
                 </p>
               </div>

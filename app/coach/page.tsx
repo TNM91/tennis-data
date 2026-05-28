@@ -562,6 +562,11 @@ function CoachContent() {
                           student,
                           assignment.title,
                           `Quick note on ${assignment.title}: `,
+                          {
+                            assignmentId: assignment.id,
+                            assignmentTitle: assignment.title,
+                            assignmentFocus: assignment.focus,
+                          },
                         )}
                         style={studentActionStyle}
                       >
@@ -726,7 +731,16 @@ function getInviteStatusLabel(status: CoachStudentInvite['status']) {
   return 'Pending invite'
 }
 
-function buildCoachPlayerMessageHref(student: CoachStudentLink, subject: string, body: string) {
+function buildCoachPlayerMessageHref(
+  student: CoachStudentLink,
+  subject: string,
+  body: string,
+  assignmentContext?: {
+    assignmentId: string
+    assignmentTitle: string
+    assignmentFocus: string
+  },
+) {
   const params = new URLSearchParams({
     compose: 'direct',
     recipientProfileId: student.playerUserId ?? '',
@@ -736,6 +750,9 @@ function buildCoachPlayerMessageHref(student: CoachStudentLink, subject: string,
     entityType: 'coach_player_link',
     entityId: student.id,
   })
+  if (assignmentContext?.assignmentId) params.set('assignmentId', assignmentContext.assignmentId)
+  if (assignmentContext?.assignmentTitle) params.set('assignmentTitle', assignmentContext.assignmentTitle)
+  if (assignmentContext?.assignmentFocus) params.set('assignmentFocus', assignmentContext.assignmentFocus)
   return `/messages?${params.toString()}`
 }
 
