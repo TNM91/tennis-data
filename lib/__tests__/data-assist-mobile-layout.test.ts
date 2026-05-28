@@ -15,8 +15,11 @@ describe('Data Assist mobile layout guards', () => {
   it('keeps upload setup panels and import choices from forcing horizontal scroll', () => {
     for (const styleName of [
       'pageStyle',
-      'heroStyle',
-      'heroCopyStyle',
+      'workspaceStyle',
+      'newPlayerActionPanelStyle',
+      'newPlayerActionCopyStyle',
+      'newPlayerActionGridStyle',
+      'newPlayerActionLinkStyle',
       'headerCopyStyle',
       'panelStyle',
       'sectionHeaderStyle',
@@ -33,9 +36,9 @@ describe('Data Assist mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
-    expect(styleBlock('heroStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
-    expect(styleBlock('heroStyle')).not.toContain("gridTemplateColumns: '1fr'")
-    expect(styleBlock('titleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('workspaceStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(styleBlock('workspaceStyle')).not.toContain("gridTemplateColumns: '1fr'")
+    expect(styleBlock('sectionTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('typeOptionStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('stepDividerStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('fileInputStyle')).toContain("overflowWrap: 'anywhere'")
@@ -55,6 +58,9 @@ describe('Data Assist mobile layout guards', () => {
       'badgePanelStyle',
       'badgeListStyle',
       'badgeCardStyle',
+      'emptyHistoryStyle',
+      'emptyHistoryCopyStyle',
+      'emptyHistoryActionRowStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -70,6 +76,11 @@ describe('Data Assist mobile layout guards', () => {
     expect(styleBlock('historyFilterButtonStyle')).not.toContain("minWidth: 'min(100%, 92px)'")
     expect(styleBlock('historyFilterButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('badgeCardStyle')).toContain("flex: '1 1 min(100%, 190px)'")
+    expect(styleBlock('emptyHistoryActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('emptyHistoryActionStyle')).toContain("maxWidth: '100%'")
+    expect(source).toContain('First signal starts here.')
+    expect(source).toContain('Upload first file')
+    expect(source).toContain('Sign in to keep Data Assist uploads tied to your profile across devices.')
   })
 
   it('keeps parsed review rows and screenshot cards wrapped on narrow screens', () => {

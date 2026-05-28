@@ -6,14 +6,16 @@ import { getMembershipTier, PRODUCT_MODE_LANGUAGE } from './product-story'
 export const PRIMARY_NAV_VISUALS: Record<string, { step: string; intent: string; note: string }> = {
   [PRODUCT_MODE_LANGUAGE.find.route]: { step: '1', intent: PRODUCT_MODE_LANGUAGE.find.label, note: 'Players, teams, leagues' },
   [PRODUCT_MODE_LANGUAGE.you.route]: { step: '2', intent: PRODUCT_MODE_LANGUAGE.you.label, note: 'Your scorecard' },
-  [PRODUCT_MODE_LANGUAGE.prep.route]: { step: '3', intent: PRODUCT_MODE_LANGUAGE.prep.label, note: 'Compare the next match' },
-  [PRODUCT_MODE_LANGUAGE.team.route]: { step: '4', intent: PRODUCT_MODE_LANGUAGE.team.label, note: 'Lineups and readiness' },
-  [PRODUCT_MODE_LANGUAGE.league.route]: { step: '5', intent: PRODUCT_MODE_LANGUAGE.league.label, note: 'Run the season' },
+  [PRODUCT_MODE_LANGUAGE.coach.route]: { step: '3', intent: PRODUCT_MODE_LANGUAGE.coach.label, note: 'Lessons and assignments' },
+  [PRODUCT_MODE_LANGUAGE.prep.route]: { step: '4', intent: PRODUCT_MODE_LANGUAGE.prep.label, note: 'Compare the next match' },
+  [PRODUCT_MODE_LANGUAGE.team.route]: { step: '5', intent: PRODUCT_MODE_LANGUAGE.team.label, note: 'Lineups and readiness' },
+  [PRODUCT_MODE_LANGUAGE.league.route]: { step: '6', intent: PRODUCT_MODE_LANGUAGE.league.label, note: 'Run the season' },
   [PRODUCT_MODE_LANGUAGE.plans.route]: { step: '$', intent: PRODUCT_MODE_LANGUAGE.plans.label, note: 'Choose a tier' },
 }
 
 export function getRequiredPlanForPrimaryNav(href: string): PricingPlanId | null {
   if (href === '/mylab' || href === '/matchup') return 'player_plus'
+  if (href === '/coach' || href === '/tactics') return 'coach'
   if (href === '/captain') return 'captain'
   if (href === '/league-coordinator') return 'league'
   return null
@@ -23,6 +25,7 @@ export function canUsePrimaryNavItem(access: ProductAccessState, href: string) {
   const requiredPlan = getRequiredPlanForPrimaryNav(href)
   if (!requiredPlan) return true
   if (requiredPlan === 'player_plus') return access.canUseAdvancedPlayerInsights
+  if (requiredPlan === 'coach') return access.canUseCoachWorkflow
   if (requiredPlan === 'captain') return access.canUseCaptainWorkflow
   if (requiredPlan === 'league') return access.canUseLeagueTools
   return true

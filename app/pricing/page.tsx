@@ -23,15 +23,19 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
   free: 'playerRatings',
   player_plus: 'myLab',
+  coach: 'scenarioBuilder',
   captain: 'lineupBuilder',
   league: 'teamRankings',
+  full_court: 'teamRankings',
 }
 
 const PLAN_VERBS: Record<PricingPlanId, string> = {
   free: 'Find',
   player_plus: 'Personalize',
+  coach: 'Coach',
   captain: 'Lead',
   league: 'Run',
+  full_court: 'Own',
 }
 
 const VALUE_MOMENTS: {
@@ -53,8 +57,14 @@ const VALUE_MOMENTS: {
     href: '#player_plus',
   },
   {
+    title: 'Coaching players?',
+    cue: 'Use Coach when lessons, assignments, scheduling, and student tracking need one workspace.',
+    icon: 'scenarioBuilder',
+    href: '#coach',
+  },
+  {
     title: 'Making decisions?',
-    cue: 'Use Team tools when lineup week needs one cleaner flow.',
+    cue: 'Use Captain when lineup week needs one cleaner flow.',
     icon: 'lineupBuilder',
     href: '#captain',
   },
@@ -79,22 +89,22 @@ const PERSONALIZATION_FLOW: {
 }[] = [
   {
     title: 'Create free account',
-    cue: 'Start Free access. Paid tools unlock only when that plan is active.',
+    cue: 'Start Free access. Paid workspaces open only when that plan is active.',
     icon: 'accountSecurity',
   },
   {
-    title: 'Connect identity',
-    cue: 'Player and higher tiers link your player record once.',
+    title: 'Set profile',
+    cue: 'Players can choose a record or create a self-rated starting point.',
     icon: 'playerRatings',
   },
   {
-    title: 'Open your tools',
+    title: 'Open your workspace',
     cue: 'Open the You, Team, or League workspace that matches your role.',
     icon: 'myLab',
   },
   {
     title: 'Refresh context',
-    cue: 'Upload scorecards, schedules, or team summaries through Data Assist when the site needs new tennis data.',
+    cue: 'Upload scorecards, schedules, or team summaries through Improve data when the site needs new tennis context.',
     icon: 'reports',
   },
 ]
@@ -102,9 +112,14 @@ const PERSONALIZATION_FLOW: {
 const PLAN_DECISION_HINTS: Record<PricingPlanId, string> = {
   free: 'Look around first',
   player_plus: 'Make it yours',
+  coach: 'Develop players',
   captain: 'Run match week',
   league: 'Organize the season',
+  full_court: 'Unlock the suite',
 }
+
+const CORE_PRICING_PLANS = PRICING_PLANS.filter((plan) => plan.id !== 'full_court')
+const FULL_COURT_PLAN = getPricingPlan('full_court')
 
 const UNLOCK_PATHS: Array<{
   planId: PricingPlanId
@@ -121,8 +136,14 @@ const UNLOCK_PATHS: Array<{
   {
     planId: 'player_plus',
     title: 'Make TenAceIQ yours',
-    cue: 'Upgrade when profiles, follows, and Prep reads should revolve around your game.',
-    steps: ['Link your player', 'Follow what matters', 'Prep matches'],
+    cue: 'Upgrade when My Lab, data refreshes, Matchup, and Messages should revolve around your game.',
+    steps: ['Open My Lab', 'Improve data', 'Prep matchup'],
+  },
+  {
+    planId: 'coach',
+    title: 'Develop players',
+    cue: 'Upgrade when lessons, students, drill assignments, and scheduling need one connected flow.',
+    steps: ['Plan lessons', 'Assign drills', 'Track students'],
   },
   {
     planId: 'captain',
@@ -136,6 +157,12 @@ const UNLOCK_PATHS: Array<{
     cue: 'Upgrade when you need league structure, results, and visibility.',
     steps: ['Set structure', 'Track participants', 'Manage results'],
   },
+  {
+    planId: 'full_court',
+    title: 'Run the full court',
+    cue: 'Upgrade when Captain, League, and unlimited tournaments should live together.',
+    steps: ['Open the suite', 'Create tournaments', 'Track teams and results'],
+  },
 ]
 
 const ENTITLEMENT_CLARITY_STEPS: Array<{
@@ -145,17 +172,17 @@ const ENTITLEMENT_CLARITY_STEPS: Array<{
 }> = [
   {
     title: 'Free starts exploration',
-    cue: 'Creating an account opens Free access for public tennis intelligence and Data Assist contributions.',
+    cue: 'Creating an account opens Free access for public tennis intelligence and data contributions.',
     icon: 'opponentScouting',
   },
   {
-    title: 'Paid tools need activation',
-    cue: 'My Lab, Prep insight, Team, and League tools open only after the matching plan is active.',
+    title: 'Paid workspaces need activation',
+    cue: 'My Lab, Prep insight, Team, League, and Full-Court open only after the matching plan is active.',
     icon: 'accountSecurity',
   },
   {
     title: 'Uploads refresh the platform',
-    cue: 'New scorecards, rosters, schedules, and corrections move through Data Assist review before they shape TenAceIQ.',
+    cue: 'New scorecards, rosters, schedules, and corrections move through review before they shape TenAceIQ.',
     icon: 'reports',
   },
 ]
@@ -164,36 +191,64 @@ const PLAN_FIT_ROWS: Array<{
   job: string
   free: string
   player_plus: string
+  coach: string
   captain: string
   league: string
+  full_court: string
 }> = [
   {
     job: 'Find public tennis context',
     free: 'Included',
     player_plus: 'Included',
+    coach: 'Included',
     captain: 'Included',
     league: 'Included',
+    full_court: 'Included',
   },
   {
     job: 'Personalize around your game',
     free: '-',
     player_plus: 'Best fit',
+    coach: 'Included',
     captain: 'Included',
     league: '-',
+    full_court: 'Included',
+  },
+  {
+    job: 'Coach players and assign drills',
+    free: '-',
+    player_plus: '-',
+    coach: 'Best fit',
+    captain: '-',
+    league: '-',
+    full_court: 'Included',
   },
   {
     job: 'Make weekly team decisions',
     free: '-',
     player_plus: '-',
+    coach: '-',
     captain: 'Best fit',
     league: '-',
+    full_court: 'Included',
   },
   {
     job: 'Run organized league play',
     free: '-',
     player_plus: '-',
+    coach: '-',
     captain: '-',
     league: 'Best fit',
+    full_court: 'Included',
+  },
+  {
+    job: 'Run unlimited tournaments',
+    free: '-',
+    player_plus: '-',
+    coach: '-',
+    captain: '-',
+    league: '-',
+    full_court: 'Best fit',
   },
 ]
 
@@ -207,21 +262,21 @@ const TIME_BACK_MOMENTS: Array<{
   {
     planId: 'free',
     before: 'Searching scattered pages just to understand who plays where.',
-    after: 'Open the tennis map and get oriented before you commit to a tool.',
+    after: 'Open the tennis map and get oriented before you commit to a paid workspace.',
     saved: 'Start faster',
     action: 'Search first',
   },
   {
     planId: 'player_plus',
     before: 'Rechecking opponents, old results, and notes before every match.',
-    after: 'My Lab keeps your player context, follows, and match prep together.',
+    after: 'My Lab keeps your player context, data refreshes, match prep, and messages together.',
     saved: 'Prep clearer',
     action: 'Make it yours',
   },
   {
     planId: 'captain',
     before: 'Text threads, availability guesses, lineup drafts, and last-minute changes.',
-    after: 'Team tools turn match week into a clean readiness and lineup flow.',
+    after: 'Captain turns match week into a clean readiness and lineup flow.',
     saved: 'Win back the week',
     action: 'Lead easier',
   },
@@ -231,6 +286,13 @@ const TIME_BACK_MOMENTS: Array<{
     after: 'League keeps structure, results, rankings, and visibility in one place.',
     saved: 'Run cleaner',
     action: 'Operate the season',
+  },
+  {
+    planId: 'full_court',
+    before: 'Captain work, league operations, and tournaments split across different systems.',
+    after: 'Full-Court keeps the full suite in one tennis workspace.',
+    saved: 'Run everything',
+    action: 'Unlock the suite',
   },
 ]
 
@@ -284,16 +346,17 @@ function PricingContent() {
   const recommendationText = accessPending
     ? 'We are matching this page to your account before marking a plan active.'
     : access.currentPlanId === recommendedPlan.id
-      ? 'You already have the right access for this role. Open the tools that match how you play or lead.'
+      ? 'You already have the right access for this role. Open the workspace that matches how you play or lead.'
       : recommendedPlan.outcome
 
   return (
     <section style={pageWrapStyle}>
         <section style={heroStyle}>
+          <span aria-hidden="true" style={watermarkStyle} />
           <div style={eyebrowStyle}>Pricing</div>
-          <h1 style={heroTitleStyle}>Choose the tier that clears the next tennis job.</h1>
+          <h1 style={heroTitleStyle}>Choose your lane.</h1>
           <p style={heroTextStyle}>
-            Search for free. Upgrade when TenAceIQ needs to become your lab, your lineup desk, or your league operations layer.
+            Find is free. Player, Captain, League, and Full-Court unlock the workspace behind the job.
           </p>
 
           <div style={heroActionRowStyle}>
@@ -317,9 +380,9 @@ function PricingContent() {
         <section style={entitlementClarityBandStyle} aria-label="Account and plan access">
           <div style={entitlementClarityIntroStyle}>
             <div style={sectionEyebrowStyle}>Access clarity</div>
-            <h2 style={entitlementClarityTitleStyle}>A free account is the starting line, not a paid unlock.</h2>
+            <h2 style={entitlementClarityTitleStyle}>Find first. Unlock when it matters.</h2>
             <p style={entitlementClarityTextStyle}>
-              Start with Free to find context. Activate Player, Captain, or League when the job needs private tools, role workflows, or league operations.
+              Search the map for free. Upgrade when the work needs your profile, team, league, or full tennis desk.
             </p>
           </div>
           <div style={entitlementClarityGridStyle}>
@@ -370,10 +433,10 @@ function PricingContent() {
           <div style={unlockPathHeaderStyle}>
             <div>
               <div style={sectionEyebrowStyle}>Unlock path</div>
-              <h2 id="unlock-path-title" style={unlockPathTitleStyle}>Move from public context to the right tool.</h2>
+              <h2 id="unlock-path-title" style={unlockPathTitleStyle}>What opens next.</h2>
             </div>
             <Link href="#player_plus" style={ctaStyle}>
-              Start with Player
+              Player lane
             </Link>
           </div>
 
@@ -425,7 +488,7 @@ function PricingContent() {
           <div style={identityBridgeHeaderStyle}>
             <div>
               <div style={sectionEyebrowStyle}>Personalization setup</div>
-              <h2 style={identityBridgeTitleStyle}>Player tools start by knowing who you are.</h2>
+              <h2 style={identityBridgeTitleStyle}>Player workspaces start by knowing who you are.</h2>
             </div>
             <Link href="/profile" style={ctaStyle}>Manage profile</Link>
           </div>
@@ -443,7 +506,7 @@ function PricingContent() {
         </section>
 
         <section id="pricing-plans" style={cardGridStyle}>
-          {PRICING_PLANS.map((plan) => {
+          {CORE_PRICING_PLANS.map((plan) => {
             const active = !accessPending && isPlanActive(plan.id, access)
             const recommended = !accessPending && (access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular')
             const tier = getMembershipTier(plan.id)
@@ -515,12 +578,14 @@ function PricingContent() {
           })}
         </section>
 
+        <FullCourtPricingSuite access={access} accessPending={accessPending} />
+
         <section style={billingPolicyBandStyle} aria-label="Billing policy">
           <div>
             <div style={sectionEyebrowStyle}>Billing clarity</div>
             <h2 style={billingPolicyTitleStyle}>Monthly plans renew until canceled. League covers one season.</h2>
             <p style={billingPolicyTextStyle}>
-              Player and Captain are monthly subscriptions. TIQ League Coordinator is the League season fee with standard season limits.
+              Player, Coach, and Captain are monthly subscriptions. TIQ League Coordinator is the League season fee with standard season limits.
               Refunds are reviewed under the posted billing policy. {SUPPORT_THREAD_ASSURANCE}
             </p>
           </div>
@@ -536,8 +601,8 @@ function PricingContent() {
 
         <section style={supportGridStyle}>
           <article style={supportCardStyle}>
-            <div style={sectionEyebrowStyle}>Pick by need</div>
-            <h2 style={sectionTitleStyle}>Upgrade when the next job is obvious.</h2>
+            <div style={sectionEyebrowStyle}>By job</div>
+            <h2 style={sectionTitleStyle}>Match the plan to the work.</h2>
             <div style={momentGridStyle}>
               {VALUE_MOMENTS.map((moment) => (
                 <Link key={moment.title} href={moment.href} style={momentCardStyle}>
@@ -553,7 +618,7 @@ function PricingContent() {
 
           <article style={supportCardStyle}>
             <div style={sectionEyebrowStyle}>How it works</div>
-            <h2 style={sectionTitleStyle}>Start simple.</h2>
+            <h2 style={sectionTitleStyle}>Open, use, upgrade.</h2>
             <div style={stepsStyle}>
               {PRICING_HOW_IT_WORKS.map((step, index) => (
                 <div key={step} style={stepRowStyle}>
@@ -565,7 +630,7 @@ function PricingContent() {
                         ? 'Create your profile and join your team.'
                         : index === 1
                           ? 'See matches, lineups, and availability.'
-                          : 'Add deeper insight or team tools when you need them.'}
+                          : 'Add deeper insight or team workflows when you need them.'}
                     </div>
                   </div>
                 </div>
@@ -583,8 +648,61 @@ function PricingContent() {
 function isPlanActive(planId: PricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
   if (planId === 'free') return access.currentPlanId === 'free'
   if (planId === 'player_plus') return access.canUseAdvancedPlayerInsights
+  if (planId === 'coach') return access.canUseCoachWorkflow
   if (planId === 'captain') return access.canUseCaptainWorkflow
-  return access.canUseLeagueTools
+  if (planId === 'league') return access.canUseLeagueTools
+  return access.currentPlanId === 'full_court'
+}
+
+function FullCourtPricingSuite({
+  access,
+  accessPending,
+}: {
+  access: ReturnType<typeof buildProductAccessState>
+  accessPending: boolean
+}) {
+  const active = !accessPending && isPlanActive('full_court', access)
+  const tier = getMembershipTier('full_court')
+  const suiteItems = [
+    'Find',
+    'Player',
+    'Coach',
+    'Team',
+    'League',
+    'Unlimited tournaments',
+    'Awards',
+  ]
+
+  return (
+    <section id="full_court" style={fullCourtSuiteStyle}>
+      <div style={fullCourtSuiteHeaderStyle}>
+        <div style={fullCourtSuiteCopyStyle}>
+          <div style={fullCourtBadgeRowStyle}>
+            <span style={fullCourtFeaturedBadgeStyle}>Championship suite</span>
+            <span style={sectionEyebrowStyle}>Full suite</span>
+          </div>
+          <h2 style={fullCourtSuiteTitleStyle}>Run the full tennis operation.</h2>
+          <div style={fullCourtValueStripStyle}>
+            {suiteItems.map((item) => (
+              <span key={item} style={fullCourtValueChipStyle}>{item}</span>
+            ))}
+          </div>
+        </div>
+        <div style={fullCourtSuitePriceStyle}>
+          <span style={cardPlanStyle}>{FULL_COURT_PLAN.name}</span>
+          <strong>{active ? 'Unlocked' : FULL_COURT_PLAN.priceLabel}</strong>
+          {!active ? <em>{getPricingBillingCue('full_court')}</em> : <em>Access active</em>}
+        </div>
+      </div>
+
+      <div style={fullCourtSuiteFooterStyle}>
+        <div style={recommendedHintStyle}>{tier.upgradeCue} Everything above, plus unlimited tournament and league operations.</div>
+        <Link href={getPlanHref('full_court', active)} style={fullCourtPrimaryCtaStyle}>
+          {getPlanCta('full_court', active)}
+        </Link>
+      </div>
+    </section>
+  )
 }
 
 function getPlanHref(planId: PricingPlanId, active: boolean) {
@@ -597,7 +715,9 @@ function getPlanHref(planId: PricingPlanId, active: boolean) {
 
 function getPlanCta(planId: PricingPlanId, active: boolean) {
   if (active) {
-    if (planId === 'captain') return 'Open Team tools'
+    if (planId === 'full_court') return 'Open Full-Court'
+    if (planId === 'coach') return 'Open Coach'
+    if (planId === 'captain') return 'Open Captain'
     if (planId === 'league') return 'Open league desk'
     if (planId === 'player_plus') return 'Personalize My Lab'
     return 'Find players'
@@ -605,7 +725,9 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
 
   if (planId === 'free') return 'Start free'
   if (planId === 'player_plus') return 'Set up My Lab'
-  if (planId === 'captain') return 'Open Team tools'
+  if (planId === 'coach') return 'Unlock Coach'
+  if (planId === 'captain') return 'Unlock Captain'
+  if (planId === 'full_court') return 'Unlock Full-Court'
   return 'Run a league'
 }
 
@@ -644,7 +766,7 @@ function PricingShowcase({
         }}
       >
         <div style={{ display: 'grid', gap: 6, maxWidth: 760, minWidth: 0 }}>
-          <div style={sectionEyebrowStyle}>Show me the tool</div>
+          <div style={sectionEyebrowStyle}>Show me the workspace</div>
           <h2
             style={{
               margin: 0,
@@ -813,8 +935,8 @@ function MiniRow({ title, meta, status }: { title: string; meta: string; status:
         alignItems: 'center',
         padding: 10,
         borderRadius: 14,
-        border: '1px solid var(--shell-panel-border)',
-        background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, var(--surface) 14%)',
+        border: '1px solid rgba(125, 211, 252, 0.16)',
+        background: 'rgba(15, 23, 42, 0.62)',
         minWidth: 0,
       }}
     >
@@ -839,7 +961,7 @@ function PremiumValueBand() {
             Buy back the tennis work that gets in the way of playing.
           </h2>
           <p style={premiumValueTextStyle}>
-            The tiers are not just access levels. They are shortcuts for the jobs that take time away from your game, your team, or your league.
+            The tiers are not just access levels. They are workspaces for the jobs that take time away from your game, your team, or your league.
           </p>
         </div>
         <div style={premiumSignalGridStyle}>
@@ -1013,9 +1135,8 @@ const premiumValueShellStyle: CSSProperties = {
   gap: 16,
   padding: 20,
   borderRadius: 28,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 86%, var(--brand-green) 14%) 0%, color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-blue-2) 6%) 100%)',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(34,211,238,0.08))',
   boxShadow: '0 22px 52px rgba(2, 10, 24, 0.14)',
   minWidth: 0,
   overflow: 'hidden',
@@ -1063,7 +1184,7 @@ const premiumSignalCardStyle: CSSProperties = {
   padding: 11,
   borderRadius: 16,
   border: '1px solid rgba(116,190,255,0.12)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, var(--surface) 12%)',
+  background: 'rgba(15, 23, 42, 0.62)',
   minWidth: 0,
 }
 
@@ -1073,15 +1194,15 @@ const timeBackCardStyle: CSSProperties = {
   minHeight: 360,
   padding: 15,
   borderRadius: 20,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
 
 const timeBackFeaturedCardStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
-  background: 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 76%, var(--brand-green) 24%) 0%, var(--shell-chip-bg) 100%)',
+  border: '1px solid rgba(155,225,29,0.42)',
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.18), rgba(15,23,42,0.66))',
   boxShadow: '0 18px 38px rgba(155,225,29,0.10)',
 }
 
@@ -1115,7 +1236,7 @@ const timeBackBeforeStyle: CSSProperties = {
   padding: 11,
   borderRadius: 15,
   border: '1px solid rgba(116,190,255,0.10)',
-  background: 'color-mix(in srgb, var(--surface) 88%, var(--shell-chip-bg) 12%)',
+  background: 'rgba(8, 13, 28, 0.58)',
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
@@ -1124,8 +1245,8 @@ const timeBackBeforeStyle: CSSProperties = {
 
 const timeBackAfterStyle: CSSProperties = {
   ...timeBackBeforeStyle,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid rgba(155,225,29,0.3)',
+  background: 'rgba(155,225,29,0.1)',
   color: 'var(--foreground)',
 }
 
@@ -1145,7 +1266,7 @@ const premiumFooterStripStyle: CSSProperties = {
   padding: '12px 14px',
   borderRadius: 16,
   border: '1px solid rgba(116,190,255,0.10)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, var(--surface) 14%)',
+  background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
@@ -1157,9 +1278,9 @@ function PricingFinalCta() {
     <section style={pricingFinalCtaStyle}>
       <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
         <div style={sectionEyebrowStyle}>Make the next move</div>
-        <h2 style={pricingFinalTitleStyle}>Start with Free, or activate the tier that saves time.</h2>
+        <h2 style={pricingFinalTitleStyle}>Find free. Unlock the lane.</h2>
         <p style={pricingFinalTextStyle}>
-          Search the landscape first, then choose the plan that should unlock your personal, captain, or league workspace.
+          Player for your game. Captain for the week. League for the season. Full-Court for all of it.
         </p>
       </div>
       <div style={pricingFinalActionStyle}>
@@ -1184,9 +1305,8 @@ const pricingFinalCtaStyle: CSSProperties = {
   alignItems: 'center',
   padding: 22,
   borderRadius: 28,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-green) 10%) 0%, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--brand-blue-2) 4%) 100%)',
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(34,211,238,0.08))',
   boxShadow: '0 18px 44px rgba(2, 10, 24, 0.10)',
 }
 
@@ -1220,9 +1340,8 @@ const fitMatrixShellStyle: CSSProperties = {
   gap: 14,
   padding: 18,
   borderRadius: 26,
-  border: '1px solid var(--shell-panel-border)',
-  background:
-    'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-blue-2) 6%) 0%, var(--shell-panel-bg) 100%)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
   boxShadow: '0 16px 38px rgba(2, 10, 24, 0.10)',
   overflowX: 'auto',
   overscrollBehaviorX: 'contain',
@@ -1285,7 +1404,7 @@ const fitMatrixMobilePlanStyle: CSSProperties = {
   padding: 11,
   borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.10)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 94%, var(--surface) 6%)',
+  background: 'rgba(15, 23, 42, 0.62)',
 }
 
 const fitMatrixMobilePlanNameStyle: CSSProperties = {
@@ -1302,8 +1421,8 @@ const fitMatrixHeadCellStyle: CSSProperties = {
   minHeight: 42,
   padding: '10px 11px',
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground-strong)',
   fontSize: 12,
   fontWeight: 950,
@@ -1313,8 +1432,8 @@ const fitMatrixHeadCellStyle: CSSProperties = {
 }
 
 const fitMatrixCaptainHeadStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid rgba(155,225,29,0.36)',
+  background: 'rgba(155,225,29,0.12)',
 }
 
 const fitMatrixJobCellStyle: CSSProperties = {
@@ -1323,7 +1442,7 @@ const fitMatrixJobCellStyle: CSSProperties = {
   padding: '11px',
   borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.10)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, var(--surface) 12%)',
+  background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground-strong)',
   fontSize: 13,
   lineHeight: 1.35,
@@ -1337,19 +1456,19 @@ const fitMatrixCellStyle: CSSProperties = {
   padding: '11px',
   borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.10)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 94%, var(--surface) 6%)',
+  background: 'rgba(15, 23, 42, 0.62)',
   display: 'flex',
   alignItems: 'center',
   overflowWrap: 'anywhere',
 }
 
 const fitMatrixCaptainCellStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.08)',
 }
 
 const fitMatrixBestCellStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  border: '1px solid rgba(155,225,29,0.42)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
@@ -1379,9 +1498,8 @@ const unlockPathShellStyle: CSSProperties = {
   gap: 14,
   padding: 18,
   borderRadius: 26,
-  border: '1px solid var(--shell-panel-border)',
-  background:
-    'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-green) 8%) 0%, var(--shell-panel-bg) 100%)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
   boxShadow: '0 16px 38px rgba(2, 10, 24, 0.10)',
 }
 
@@ -1416,8 +1534,8 @@ const unlockPathCardStyle: CSSProperties = {
   minHeight: 238,
   padding: 16,
   borderRadius: 20,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
@@ -1471,7 +1589,7 @@ const unlockStepPillStyle: CSSProperties = {
   padding: '5px 9px',
   borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.10)',
-  background: 'color-mix(in srgb, var(--surface) 88%, var(--shell-chip-bg) 12%)',
+  background: 'rgba(8, 13, 28, 0.58)',
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,
@@ -1485,16 +1603,34 @@ const pageWrapStyle: CSSProperties = {
   display: 'grid',
   gap: 20,
   minWidth: 0,
+  boxSizing: 'border-box',
+  overflowX: 'clip',
 }
 
 const heroStyle: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   gap: 14,
   padding: 'clamp(20px, 3vw, 28px)',
   borderRadius: 24,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 24px 56px rgba(2, 10, 24, 0.14)',
+  overflow: 'hidden',
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2, 8, 23, 0.48)',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-110px',
+  top: '-118px',
+  width: 310,
+  height: 310,
+  borderRadius: '50%',
+  pointerEvents: 'none',
+  opacity: 0.16,
+  background:
+    'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.88) 0 7%, transparent 8%), radial-gradient(circle at 50% 50%, rgba(155,225,29,0.96) 0 48%, rgba(155,225,29,0.1) 49%, transparent 58%)',
+  boxShadow: '0 0 80px rgba(155,225,29,0.22)',
 }
 
 const eyebrowStyle: CSSProperties = {
@@ -1550,8 +1686,8 @@ const proofPillStyle: CSSProperties = {
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground)',
   fontSize: 13,
   fontWeight: 800,
@@ -1564,9 +1700,8 @@ const entitlementClarityBandStyle: CSSProperties = {
   alignItems: 'stretch',
   padding: 18,
   borderRadius: 24,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-green) 8%) 0%, color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-blue-2) 6%) 100%)',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(34,211,238,0.08))',
   boxShadow: '0 16px 38px rgba(2, 10, 24, 0.10)',
   minWidth: 0,
 }
@@ -1610,8 +1745,8 @@ const entitlementClarityCardStyle: CSSProperties = {
   alignItems: 'start',
   padding: 13,
   borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
   minWidth: 0,
 }
 
@@ -1631,8 +1766,8 @@ const decisionPathStyle: CSSProperties = {
   gap: 10,
   padding: 12,
   borderRadius: 24,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
   boxShadow: '0 14px 34px rgba(2, 10, 24, 0.08)',
 }
 
@@ -1644,21 +1779,21 @@ const decisionStepStyle: CSSProperties = {
   minHeight: 76,
   padding: '12px',
   borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   minWidth: 0,
 }
 
 const decisionStepActiveStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid rgba(125, 211, 252, 0.34)',
+  background: 'rgba(56,189,248,0.1)',
 }
 
 const decisionStepRecommendedStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid rgba(155,225,29,0.36)',
+  background: 'rgba(155,225,29,0.1)',
 }
 
 const decisionNumberStyle: CSSProperties = {
@@ -1667,7 +1802,7 @@ const decisionNumberStyle: CSSProperties = {
   width: 28,
   height: 28,
   borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 900,
@@ -1689,8 +1824,8 @@ const recommendationStripStyle: CSSProperties = {
   gap: 16,
   padding: 18,
   borderRadius: 24,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-green) 10%) 0%, var(--shell-panel-bg) 100%)',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.08)',
   boxShadow: '0 14px 34px rgba(2, 10, 24, 0.10)',
 }
 
@@ -1722,9 +1857,8 @@ const identityBridgeStyle: CSSProperties = {
   gap: 16,
   padding: 22,
   borderRadius: 28,
-  border: '1px solid var(--shell-panel-border)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-blue-2) 8%) 0%, var(--shell-panel-bg) 100%)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
   boxShadow: '0 18px 44px rgba(2, 10, 24, 0.10)',
 }
 
@@ -1760,8 +1894,8 @@ const identityFlowCardStyle: CSSProperties = {
   minWidth: 0,
   padding: 14,
   borderRadius: 20,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
 }
 
 const identityFlowCopyStyle: CSSProperties = {
@@ -1786,25 +1920,149 @@ const cardGridStyle: CSSProperties = {
   gap: 16,
 }
 
+const fullCourtSuiteStyle: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  scrollMarginTop: 120,
+  overflow: 'hidden',
+  padding: 20,
+  borderRadius: 24,
+  border: '1px solid rgba(155,225,29,0.42)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.16) 0%, rgba(14,35,57,0.94) 34%, rgba(8,13,28,0.98) 100%)',
+  boxShadow: '0 32px 88px rgba(2,8,23,0.44), 0 0 0 1px rgba(116,190,255,0.08) inset',
+}
+
+const fullCourtSuiteHeaderStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+  gap: 16,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const fullCourtSuiteCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const fullCourtBadgeRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 9,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const fullCourtFeaturedBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 30,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.42)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.22), rgba(116,190,255,0.12))',
+  color: 'var(--foreground-strong)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const fullCourtSuiteTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.85rem, 3.4vw, 2.75rem)',
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const fullCourtValueStripStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const fullCourtValueChipStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 28,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(15,23,42,0.45)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+}
+
+const fullCourtSuitePriceStyle: CSSProperties = {
+  justifySelf: 'end',
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: '14px 16px',
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(15,23,42,0.55)',
+  textAlign: 'right',
+  color: 'var(--foreground-strong)',
+}
+
+const fullCourtSuiteFooterStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  minWidth: 0,
+}
+
+const fullCourtPrimaryCtaStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 46,
+  padding: '0 18px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.42)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.32), rgba(116,190,255,0.18))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 14,
+  fontWeight: 950,
+  boxShadow: '0 18px 40px rgba(155,225,29,0.14)',
+}
+
 const planCardStyle: CSSProperties = {
   display: 'grid',
   gap: 15,
   padding: 22,
   scrollMarginTop: 120,
   borderRadius: 28,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
   boxShadow: '0 18px 44px rgba(2, 10, 24, 0.12)',
 }
 
 const recommendedCardStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  border: '1px solid rgba(155,225,29,0.34)',
 }
 
 const featuredCardStyle: CSSProperties = {
   border: '1px solid rgba(155, 225, 29, 0.24)',
-  background:
-    'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 88%, var(--brand-green) 12%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue) 6%) 100%)',
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.12), rgba(34,211,238,0.06))',
   boxShadow: '0 24px 54px rgba(155, 225, 29, 0.08)',
 }
 
@@ -1838,9 +2096,9 @@ const badgeStyle: CSSProperties = {
   minHeight: '26px',
   padding: '0 10px',
   borderRadius: 999,
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  background: 'rgba(155,225,29,0.16)',
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  border: '1px solid rgba(155,225,29,0.38)',
   fontSize: 11,
   fontWeight: 900,
   letterSpacing: '0.1em',
@@ -1868,9 +2126,9 @@ const recommendedBadgeStyle: CSSProperties = {
   minHeight: '26px',
   padding: '0 10px',
   borderRadius: 999,
-  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  background: 'rgba(155,225,29,0.14)',
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  border: '1px solid rgba(155,225,29,0.3)',
   fontSize: 11,
   fontWeight: 900,
   letterSpacing: '0.1em',
@@ -1912,8 +2170,8 @@ const decisionHintStyle: CSSProperties = {
   minHeight: 30,
   padding: '0 11px',
   borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground)',
   fontSize: 13,
   fontWeight: 900,
@@ -1932,8 +2190,8 @@ const solutionCardStyle: CSSProperties = {
   gap: 6,
   padding: 12,
   borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
 }
 
 const solutionTextStyle: CSSProperties = {
@@ -1953,8 +2211,8 @@ const selectionCueCardStyle: CSSProperties = {
   gap: 6,
   padding: 12,
   borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 92%, var(--surface) 8%)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
 }
 
 const selectionCueTextStyle: CSSProperties = {
@@ -1985,7 +2243,7 @@ const featureDotStyle: CSSProperties = {
   height: 8,
   marginTop: 7,
   borderRadius: 999,
-  background: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'rgba(155,225,29,0.34)',
 }
 
 const cardActionRowStyle: CSSProperties = {
@@ -2001,10 +2259,10 @@ const ctaStyle: CSSProperties = {
   minHeight: '46px',
   padding: '0 16px',
   borderRadius: 999,
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
   fontWeight: 900,
 }
 
@@ -2015,9 +2273,9 @@ const featuredCtaStyle: CSSProperties = {
   minHeight: '46px',
   padding: '0 16px',
   borderRadius: 999,
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.32), rgba(34,211,238,0.16))',
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  border: '1px solid rgba(155,225,29,0.38)',
   textDecoration: 'none',
   fontWeight: 900,
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
@@ -2038,8 +2296,8 @@ const billingPolicyBandStyle: CSSProperties = {
   gap: 16,
   padding: 22,
   borderRadius: 24,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.08)',
 }
 
 const billingPolicyTitleStyle: CSSProperties = {
@@ -2077,8 +2335,8 @@ const supportCardStyle: CSSProperties = {
   gap: 16,
   padding: 24,
   borderRadius: 28,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
   boxShadow: '0 18px 44px rgba(2, 10, 24, 0.12)',
 }
 
@@ -2111,8 +2369,8 @@ const momentCardStyle: CSSProperties = {
   minHeight: 92,
   padding: 14,
   borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   minWidth: 0,
@@ -2145,9 +2403,9 @@ const stepNumberStyle: CSSProperties = {
   borderRadius: 999,
   display: 'grid',
   placeItems: 'center',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  background: 'rgba(155,225,29,0.22)',
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  border: '1px solid rgba(155,225,29,0.38)',
   fontWeight: 900,
 }
 

@@ -20,6 +20,7 @@ import {
 } from '@/lib/tiq-league-registry'
 import { listTiqIndividualLeagueResults } from '@/lib/tiq-individual-results-service'
 import { formatDate, cleanText as safeText } from '@/lib/captain-formatters'
+import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import {
   buildTiqIndividualLeagueSummaries,
   type TiqIndividualLeagueSummary,
@@ -67,10 +68,12 @@ function ExploreLeaguesContent() {
   const [individualLeagueSummaries, setIndividualLeagueSummaries] = useState<Map<string, TiqIndividualLeagueSummary>>(
     new Map(),
   )
+  const [awardsByLeagueId, setAwardsByLeagueId] = useState<Record<string, TiqAwardRecord[]>>({})
   useEffect(() => {
     void loadLeagueSummary()
     void loadRegistryLeagues()
     void loadIndividualLeagueResults()
+    void loadLeagueAwards()
   }, [])
 
   useEffect(() => {
@@ -132,6 +135,23 @@ function ExploreLeaguesContent() {
     setIndividualLeagueSummaries(buildTiqIndividualLeagueSummaries(result.results))
     if (result.warning) {
       setRegistryWarning((current) => current || result.warning || '')
+    }
+  }
+
+  async function loadLeagueAwards() {
+    const result = await loadRecentTiqAwards()
+    const nextAwardsByLeagueId: Record<string, TiqAwardRecord[]> = {}
+
+    for (const award of result.data) {
+      if (award.sourceType !== 'league' || !award.sourceId) continue
+      const existing = nextAwardsByLeagueId[award.sourceId] ?? []
+      existing.push(award)
+      nextAwardsByLeagueId[award.sourceId] = existing
+    }
+
+    setAwardsByLeagueId(nextAwardsByLeagueId)
+    if (result.error) {
+      setRegistryWarning((current) => current || result.error?.message || '')
     }
   }
 
@@ -204,6 +224,7 @@ function ExploreLeaguesContent() {
   return (
     <section style={wrapStyle}>
         <div style={heroStyle} aria-label="League discovery controls">
+          <div aria-hidden="true" style={watermarkStyle} />
           <div style={panelHeaderStyle}>
             <div>
               <div style={eyebrowStyle}>League discovery</div>
@@ -289,9 +310,10 @@ function ExploreLeaguesContent() {
               eyebrow="TIQ Team Competition"
               description="Internal team-based leagues for captains, availability, lineups, doubles strategy, and seasonal team operations."
               leagues={tiqTeamLeagues}
+              awardsByLeagueId={awardsByLeagueId}
               emptyKind="tiq-team"
-              emptyTitle="No TIQ team leagues are visible yet."
-              emptyBody="TIQ team leagues are coordinator-created seasons for teams, schedules, standings, and Captain handoffs. Create one in League Coordinator when the season should run inside TenAceIQ."
+              emptyTitle="Create the first team league."
+              emptyBody="Team seasons become schedule, standings, result book, and Captain handoff spaces once a coordinator creates the league."
             />
 
             <LeagueSection
@@ -300,9 +322,10 @@ function ExploreLeaguesContent() {
               description="Internal player-vs-player leagues for ladders, round robins, challenge formats, and standings without team or captain requirements."
               leagues={tiqIndividualLeagues}
               individualSummaries={individualLeagueSummaries}
+              awardsByLeagueId={awardsByLeagueId}
               emptyKind="tiq-individual"
-              emptyTitle="No TIQ individual leagues are visible yet."
-              emptyBody="TIQ individual leagues are coordinator-created player-vs-player seasons for ladders, round robins, challenge formats, standings, and results."
+              emptyTitle="Start a player-vs-player season."
+              emptyBody="Individual leagues power ladders, round robins, challenge formats, standings, result books, and award paths."
             />
           </>
         ) : null}
@@ -350,6 +373,7 @@ function LeagueSection({
   description,
   leagues,
   individualSummaries,
+  awardsByLeagueId,
   emptyKind,
   emptyTitle,
   emptyBody,
@@ -365,6 +389,7 @@ function LeagueSection({
     }
   >
   individualSummaries?: Map<string, TiqIndividualLeagueSummary>
+  awardsByLeagueId?: Record<string, TiqAwardRecord[]>
   emptyKind: 'usta' | 'tiq-team' | 'tiq-individual'
   emptyTitle: string
   emptyBody: string
@@ -397,79 +422,109 @@ function LeagueSection({
             ) : (
               <>
                 <GhostLink href="/league-coordinator">Create individual league</GhostLink>
-                <GhostLink href="/compete/leagues">Open Compete</GhostLink>
+                <GhostLink href="/compete">Open Compete</GhostLink>
               </>
             )}
           </div>
         </div>
       ) : (
         <div style={gridStyle}>
-          {leagues.map((league) => (
-            <Link key={league.key} href={buildExploreLeagueHref(league)} style={cardStyle}>
-              <div style={cardMetaRowStyle}>
-                <span style={league.competitionLayer === 'usta' ? metaBlueStyle : metaGreenStyle}>
-                  {getCompetitionLayerLabel(league.competitionLayer)}
-                </span>
-                <span style={metaSlateStyle}>{getLeagueFormatLabel(league.leagueFormat)}</span>
-              </div>
-              <div style={cardTitleStyle}>{league.leagueName}</div>
-              <div style={cardSubtitleStyle}>{league.subtitle || 'League context not yet labeled'}</div>
-              <div style={miniStatsStyle}>
+          {leagues.map((league) => {
+            const leagueHref = buildExploreLeagueHref(league)
+            const leagueAwards = awardsByLeagueId?.[league.leagueId || ''] || []
+
+            return (
+              <article key={league.key} style={cardStyle}>
+                <div style={cardMetaRowStyle}>
+                  <span style={league.competitionLayer === 'usta' ? metaBlueStyle : metaGreenStyle}>
+                    {getCompetitionLayerLabel(league.competitionLayer)}
+                  </span>
+                  <span style={metaSlateStyle}>{getLeagueFormatLabel(league.leagueFormat)}</span>
+                </div>
+                <Link href={leagueHref} style={cardTitleLinkStyle}>
+                  {league.leagueName}
+                </Link>
+                <div style={cardSubtitleStyle}>{league.subtitle || 'League context not yet labeled'}</div>
+                <LeagueAwardBadges awards={leagueAwards} />
+                <div style={miniStatsStyle}>
+                  {league.competitionLayer === 'tiq' && league.leagueFormat === 'individual' ? (
+                    <span>{getTiqIndividualCompetitionFormatLabel((league as LeagueCard & { individualCompetitionFormat?: string }).individualCompetitionFormat)}</span>
+                  ) : null}
+                  <span>{league.matchCount} matches</span>
+                  <span>{league.teamCount} teams</span>
+                  <span>{formatDate(league.latestMatchDate)}</span>
+                </div>
                 {league.competitionLayer === 'tiq' && league.leagueFormat === 'individual' ? (
-                  <span>{getTiqIndividualCompetitionFormatLabel((league as LeagueCard & { individualCompetitionFormat?: string }).individualCompetitionFormat)}</span>
+                  <div style={formatPreviewStyle}>
+                    {getTiqIndividualCompetitionFormatPreview(
+                      (league as LeagueCard & { individualCompetitionFormat?: string })
+                        .individualCompetitionFormat,
+                    )}
+                  </div>
                 ) : null}
-                <span>{league.matchCount} matches</span>
-                <span>{league.teamCount} teams</span>
-                <span>{formatDate(league.latestMatchDate)}</span>
-              </div>
-              {league.competitionLayer === 'tiq' && league.leagueFormat === 'individual' ? (
-                <div style={formatPreviewStyle}>
-                  {getTiqIndividualCompetitionFormatPreview(
-                    (league as LeagueCard & { individualCompetitionFormat?: string })
-                      .individualCompetitionFormat,
-                  )}
-                </div>
-              ) : null}
-              {league.competitionLayer === 'tiq' && league.leagueFormat === 'individual' ? (
-                <div style={individualSummaryStyle}>
-                  {(() => {
-                    const summary = individualSummaries?.get(league.leagueId || '')
-                    if (!summary) return 'No TIQ results logged yet'
-                    return `Leader: ${summary.leaderName} (${summary.leaderRecord})${summary.leaderRecentForm ? ` • Form ${summary.leaderRecentForm}` : ''} • ${summary.resultCount} results`
-                  })()}
-                </div>
-              ) : null}
-              <div style={cardCtaStyle}>Open league -&gt;</div>
-            </Link>
-          ))}
+                {league.competitionLayer === 'tiq' && league.leagueFormat === 'individual' ? (
+                  <div style={individualSummaryStyle}>
+                    {(() => {
+                      const summary = individualSummaries?.get(league.leagueId || '')
+                      if (!summary) return 'Results start with the first logged match.'
+                      return `Leader: ${summary.leaderName} (${summary.leaderRecord})${summary.leaderRecentForm ? ` - Form ${summary.leaderRecentForm}` : ''} - ${summary.resultCount} results`
+                    })()}
+                  </div>
+                ) : null}
+                <Link href={leagueHref} style={cardCtaStyle}>Open league -&gt;</Link>
+              </article>
+            )
+          })}
         </div>
       )}
     </section>
   )
 }
 
+function LeagueAwardBadges({ awards }: { awards: TiqAwardRecord[] }) {
+  if (!awards.length) return null
+
+  return (
+    <div style={leagueAwardRowStyle} aria-label="League award winners">
+      {awards.slice(0, 3).map((award) => (
+        <Link
+          key={award.id}
+          href={`/awards/${encodeURIComponent(award.id)}`}
+          style={leagueAwardPillStyle}
+          title={`${award.badgeLabel}: ${award.recipientName}`}
+        >
+          <span>{award.badgeCode}</span>
+          <small>{award.recipientName}</small>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
 const wrapStyle: CSSProperties = {
-  padding: '14px clamp(14px, 3vw, 16px) 28px',
+  padding: '16px 0 64px',
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const heroStyle: CSSProperties = {
   position: 'relative',
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
   padding: '20px',
   borderRadius: '26px',
   overflow: 'hidden',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+  boxShadow: '0 30px 86px rgba(2, 8, 23, 0.46), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
 }
 
 const eyebrowStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.18em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   color: 'rgba(155,225,29,0.88)',
   overflowWrap: 'anywhere',
@@ -519,7 +574,8 @@ const heroPillBlueStyle: CSSProperties = {
   minHeight: '32px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 800,
@@ -529,7 +585,8 @@ const heroPillBlueStyle: CSSProperties = {
 
 const heroPillGreenStyle: CSSProperties = {
   ...heroPillBlueStyle,
-  background: 'rgba(155,225,29,0.14)',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.10)',
 }
 
 const filterBarStyle: CSSProperties = {
@@ -560,8 +617,8 @@ const inputStyle: CSSProperties = {
   minHeight: '48px',
   padding: '0 16px',
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   outline: 'none',
   colorScheme: 'dark',
@@ -579,8 +636,8 @@ const toggleStyle: CSSProperties = {
   minHeight: '48px',
   padding: '0 16px',
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   fontWeight: 700,
   cursor: 'pointer',
@@ -604,23 +661,23 @@ const noticeStyle: CSSProperties = {
   marginTop: '18px',
   padding: '14px 16px',
   borderRadius: '18px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   fontSize: '14px',
   lineHeight: 1.7,
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
 const sectionStyle: CSSProperties = {
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '18px auto 0',
   padding: '22px',
   borderRadius: '28px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.74)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 }
 
@@ -635,7 +692,7 @@ const sectionHeaderStyle: CSSProperties = {
 const sectionEyebrowStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.16em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   color: 'rgba(116,190,255,0.82)',
   overflowWrap: 'anywhere',
@@ -672,10 +729,10 @@ const cardStyle: CSSProperties = {
   minHeight: '228px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.66)',
   textDecoration: 'none',
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 }
 
@@ -698,7 +755,7 @@ const metaBlueStyle: CSSProperties = {
   color: '#dfeeff',
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.06em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
@@ -720,6 +777,11 @@ const cardTitleStyle: CSSProperties = {
   fontWeight: 800,
   color: '#f4f9ff',
   overflowWrap: 'anywhere',
+}
+
+const cardTitleLinkStyle: CSSProperties = {
+  ...cardTitleStyle,
+  textDecoration: 'none',
 }
 
 const cardSubtitleStyle: CSSProperties = {
@@ -751,9 +813,34 @@ const cardCtaStyle: CSSProperties = {
   alignSelf: 'end',
   fontSize: '13px',
   fontWeight: 800,
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   color: 'rgba(155,225,29,0.88)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const leagueAwardRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '6px',
+  minWidth: 0,
+}
+
+const leagueAwardPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  maxWidth: '100%',
+  minHeight: '26px',
+  padding: '0 9px',
+  borderRadius: '999px',
+  border: '1px solid rgba(245, 158, 11, 0.32)',
+  background: 'rgba(245, 158, 11, 0.12)',
+  color: '#fff7ed',
+  fontSize: '10px',
+  fontWeight: 900,
+  textDecoration: 'none',
   overflowWrap: 'anywhere',
 }
 
@@ -773,8 +860,8 @@ const emptyCardStyle: CSSProperties = {
   marginTop: '20px',
   padding: '22px',
   borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.08)',
-  background: 'rgba(9,18,35,0.84)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.66)',
   minWidth: 0,
 }
 
@@ -809,8 +896,8 @@ const ghostButtonStyle: CSSProperties = {
   minHeight: '42px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontWeight: 700,
@@ -822,13 +909,13 @@ const ghostButtonStyle: CSSProperties = {
 }
 
 const stateStyle: CSSProperties = {
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '18px auto 0',
   padding: '18px 20px',
   borderRadius: '22px',
-  background: 'var(--shell-panel-bg)',
+  background: 'rgba(8,16,34,0.74)',
   color: 'var(--foreground-strong)',
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -851,4 +938,17 @@ function GhostLink({ href, children }: { href: string; children: ReactNode }) {
       {children}
     </Link>
   )
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-86px',
+  top: '-108px',
+  width: '340px',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '34px solid rgba(155,225,29,0.07)',
+  boxShadow: 'inset 0 0 0 2px rgba(125,211,252,0.05), 0 0 76px rgba(125,211,252,0.08)',
+  opacity: 0.72,
+  pointerEvents: 'none',
 }

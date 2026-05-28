@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildIndividualResultCue } from '@/lib/league-result-cues'
@@ -54,26 +55,55 @@ type PlayerResultStanding = {
 type ResultReviewFilter = 'all' | 'edited' | 'clean'
 type ResultDateFilter = 'all' | 'week' | 'month'
 
-const pageWrap: CSSProperties = { width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))', margin: '0 auto', padding: '18px 0 30px', minWidth: 0 }
+const emptyIndividualResultActions = [
+  { href: '#player-result-entry', label: 'Log player result' },
+  { href: '/league-coordinator#league-setup-form', label: 'Set up league' },
+  { href: '/data-assist', label: 'Upload scorecard' },
+] as const
+
+const pageWrap: CSSProperties = {
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
+  margin: '0 auto',
+  padding: '18px 0 64px',
+  display: 'grid',
+  gap: 18,
+  minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
+}
 const heading: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
 const subheading: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 700, overflowWrap: 'anywhere' }
 const introCard: CSSProperties = {
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  borderRadius: 24,
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+  border: '1px solid rgba(116,190,255,0.15)',
+  borderRadius: 28,
   padding: 24,
-  marginTop: 18,
-  marginBottom: 22,
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: '0 26px 78px rgba(2, 8, 23, 0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
+  position: 'relative',
+  overflow: 'hidden',
 }
+const portalWatermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-72px',
+  top: '-88px',
+  width: 260,
+  aspectRatio: '1 / 1',
+  borderRadius: 999,
+  border: '28px solid rgba(155,225,29,0.07)',
+  boxShadow: 'inset 0 0 0 2px rgba(125,211,252,0.05), 0 0 70px rgba(125,211,252,0.08)',
+  opacity: 0.72,
+  pointerEvents: 'none',
+}
+const portalPanelContentStyle: CSSProperties = { position: 'relative', zIndex: 1, minWidth: 0 }
 const card: CSSProperties = {
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(8, 16, 34, 0.74)',
+  border: '1px solid rgba(125,211,252,0.13)',
   borderRadius: 18,
   padding: '18px 20px',
   marginBottom: 14,
   minWidth: 0,
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 const detailsCard: CSSProperties = { ...card, display: 'grid', gap: 12, minWidth: 0 }
 const detailsSummary: CSSProperties = {
@@ -94,8 +124,8 @@ const inputStyle: CSSProperties = {
   width: '100%',
   padding: '9px 11px',
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8, 16, 34, 0.78)',
   color: 'var(--foreground-strong)',
   fontSize: 14,
   minWidth: 0,
@@ -105,27 +135,27 @@ const textareaStyle: CSSProperties = { ...inputStyle, minHeight: 82, resize: 've
 const btnPrimary: CSSProperties = {
   padding: '9px 18px',
   borderRadius: 999,
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.28), rgba(125,211,252,0.14))',
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: 14,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  border: '1px solid rgba(155,225,29,0.34)',
   cursor: 'pointer',
   whiteSpace: 'normal',
   minWidth: 0,
   maxWidth: '100%',
   overflowWrap: 'anywhere',
   textAlign: 'center',
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 24px rgba(2,10,24,0.2)',
 }
 const btnSecondary: CSSProperties = {
   padding: '8px 12px',
   borderRadius: 999,
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(8, 16, 34, 0.78)',
   color: 'var(--foreground)',
   fontWeight: 700,
   fontSize: 13,
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(125,211,252,0.14)',
   cursor: 'pointer',
   textDecoration: 'none',
   minWidth: 0,
@@ -150,10 +180,11 @@ const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: '
 const scorekeeperTile: CSSProperties = {
   padding: '14px 16px',
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(8, 16, 34, 0.72)',
   minWidth: 0,
   overflowWrap: 'anywhere',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
 const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05, overflowWrap: 'anywhere' }
@@ -161,11 +192,11 @@ const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.
 const readinessPanel: CSSProperties = {
   display: 'grid',
   gap: 14,
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
-  borderRadius: 22,
+  background: 'rgba(8, 16, 34, 0.7)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  borderRadius: 24,
   padding: 18,
-  marginBottom: 18,
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 }
 const readinessKicker: CSSProperties = {
@@ -203,8 +234,8 @@ const readinessItem: CSSProperties = {
   minHeight: 86,
   padding: 12,
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(8, 16, 34, 0.72)',
   minWidth: 0,
 }
 const readinessItemComplete: CSSProperties = {
@@ -221,17 +252,60 @@ const readinessItemText: CSSProperties = {
 const listWrap: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }
 const resultCard: CSSProperties = {
   ...card,
-  display: 'flex',
-  justifyContent: 'space-between',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: 14,
   alignItems: 'flex-start',
-  flexWrap: 'wrap',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
+const resultCopy: CSSProperties = { minWidth: 0 }
 const resultTitle: CSSProperties = { color: '#f8fbff', fontSize: 15, fontWeight: 850, marginBottom: 5, overflowWrap: 'anywhere' }
 const resultMeta: CSSProperties = { color: '#94a3b8', fontSize: 13, lineHeight: 1.5, overflowWrap: 'anywhere' }
 const actionRow: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12, minWidth: 0 }
+const resultFollowThroughGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 112px), 1fr))',
+  gap: 8,
+  marginTop: 10,
+  minWidth: 0,
+}
+const resultFollowThroughItem: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 7,
+  minHeight: 34,
+  minWidth: 0,
+  padding: '7px 9px',
+  borderRadius: 12,
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(255,255,255,0.035)',
+  color: '#dfeeff',
+  fontSize: 12,
+  fontWeight: 850,
+  overflow: 'hidden',
+}
+const resultPrimaryAction: CSSProperties = {
+  ...btnPrimary,
+  minHeight: 34,
+  padding: '7px 12px',
+  fontSize: 12,
+  borderRadius: 12,
+  textDecoration: 'none',
+}
+const readinessDotReady: CSSProperties = {
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+  flex: '0 0 auto',
+}
+const readinessDotWaiting: CSSProperties = {
+  ...readinessDotReady,
+  background: 'rgba(116,190,255,0.46)',
+  boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
+}
 const insightGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
@@ -274,6 +348,35 @@ const emptyCard: CSSProperties = {
   lineHeight: 1.5,
   overflowWrap: 'anywhere',
 }
+const emptyResultPanel: CSSProperties = {
+  ...card,
+  display: 'grid',
+  gap: 14,
+  color: 'var(--shell-copy-muted)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+const emptyResultCopy: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+const emptyResultActions: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+const emptyResultAction: CSSProperties = {
+  ...btnSecondary,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textDecoration: 'none',
+}
 const reviewToolbar: CSSProperties = {
   ...card,
   display: 'grid',
@@ -289,6 +392,24 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
       <span style={labelStyle}>{label}</span>
       {children}
     </label>
+  )
+}
+
+function EmptyIndividualResultsPanel() {
+  return (
+    <div style={emptyResultPanel}>
+      <div style={emptyResultCopy}>
+        <strong>Player results start with one finished match.</strong>
+        <span>Log the first result, make sure the league has players, or upload a reviewed scorecard so standings can start moving.</span>
+      </div>
+      <div style={emptyResultActions}>
+        {emptyIndividualResultActions.map((action) => (
+          <Link key={action.href} href={action.href} style={emptyResultAction}>
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -1018,40 +1139,44 @@ function IndividualLeagueResultsWorkspaceInner({
   return (
     <SiteShell active={activeRoute}>
       <div style={pageWrap}>
+        <LeagueSuitePanel active="player-results" leagueLabel={selectedLeague?.leagueName || 'League season'} />
         <div style={introCard}>
-          <div style={heading}>Enter player results.</div>
-          <div style={subheading}>
-            Pick the league, choose both players, save the scoreline, and keep standings current.
-          </div>
-          <div style={scorekeeperGrid}>
-            <div style={scorekeeperTile}>
-              <div style={tileLabel}>Individual leagues</div>
-              <div style={tileValue}>{leagues.length}</div>
-              <div style={tileText}>Available result groups</div>
+          <span aria-hidden="true" style={portalWatermarkStyle} />
+          <div style={portalPanelContentStyle}>
+            <div style={heading}>Enter player results.</div>
+            <div style={subheading}>
+              Pick the league, choose both players, save the scoreline, and keep standings current.
             </div>
-            <div style={scorekeeperTile}>
-              <div style={tileLabel}>Results</div>
-              <div style={tileValue}>{visibleResults.length}</div>
-              <div style={tileText}>
-                {activeResultFilterCount ? `${results.length} total in scope` : 'All recorded player results'}
+            <div style={scorekeeperGrid}>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Individual leagues</div>
+                <div style={tileValue}>{leagues.length}</div>
+                <div style={tileText}>Available result groups</div>
               </div>
-            </div>
-            <div style={scorekeeperTile}>
-              <div style={tileLabel}>Latest</div>
-              <div style={tileValue}>{latestResult ? formatDate(latestResult.resultDate) : '-'}</div>
-              <div style={tileText}>
-                {latestResult ? `${latestResult.winnerPlayerName} def. ${resultOpponentName(latestResult)}` : 'No result yet'}
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Results</div>
+                <div style={tileValue}>{visibleResults.length}</div>
+                <div style={tileText}>
+                  {activeResultFilterCount ? `${results.length} total in scope` : 'All recorded player results'}
+                </div>
               </div>
-            </div>
-            <div style={scorekeeperTile}>
-              <div style={tileLabel}>Leader</div>
-              <div style={tileValue}>{selectedSummary?.leaderName || '-'}</div>
-              <div style={tileText}>{selectedSummary ? `${selectedSummary.leaderRecord} ${selectedSummary.leaderRecentForm}` : `${activeParticipantCount} players tracked`}</div>
-            </div>
-            <div style={scorekeeperTile}>
-              <div style={tileLabel}>Corrections</div>
-              <div style={tileValue}>{editedResultsCount}</div>
-              <div style={tileText}>{editedResultsCount === 1 ? 'Edited player result' : 'Edited player results'}</div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Latest</div>
+                <div style={tileValue}>{latestResult ? formatDate(latestResult.resultDate) : '-'}</div>
+                <div style={tileText}>
+                  {latestResult ? `${latestResult.winnerPlayerName} def. ${resultOpponentName(latestResult)}` : 'Log the first result'}
+                </div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Leader</div>
+                <div style={tileValue}>{selectedSummary?.leaderName || '-'}</div>
+                <div style={tileText}>{selectedSummary ? `${selectedSummary.leaderRecord} ${selectedSummary.leaderRecentForm}` : `${activeParticipantCount} players tracked`}</div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Corrections</div>
+                <div style={tileValue}>{editedResultsCount}</div>
+                <div style={tileText}>{editedResultsCount === 1 ? 'Edited player result' : 'Edited player results'}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1378,7 +1503,7 @@ function IndividualLeagueResultsWorkspaceInner({
         {loading ? (
           <p style={{ color: '#94a3b8' }}>Loading...</p>
         ) : results.length === 0 ? (
-          <div style={emptyCard}>No individual results yet. Open the form above to log the first player result.</div>
+          <EmptyIndividualResultsPanel />
         ) : visibleResults.length === 0 ? (
           <div style={emptyCard}>No player results match the current review filters.</div>
         ) : (
@@ -1387,6 +1512,14 @@ function IndividualLeagueResultsWorkspaceInner({
               const league = leagues.find((item) => item.id === result.leagueId)
               const edited = isEditedResult(result)
               const editedAt = edited ? formatResultTimestamp(result.updatedAt) : ''
+              const profilesReady = Boolean(result.playerAId && result.playerBId && result.winnerPlayerId)
+              const scoreReady = Boolean(result.score)
+              const dateReady = Boolean(result.resultDate)
+              const resultFollowThroughItems = [
+                { label: 'Profiles', value: profilesReady ? 'Ready' : 'Needed', ready: profilesReady },
+                { label: 'Score', value: scoreReady ? result.score : 'Missing', ready: scoreReady },
+                { label: 'Date', value: dateReady ? formatDate(result.resultDate) : 'Missing', ready: dateReady },
+              ]
               const metaParts = [
                 league?.leagueName,
                 result.score,
@@ -1397,19 +1530,34 @@ function IndividualLeagueResultsWorkspaceInner({
 
               return (
                 <div key={result.id} style={resultCard}>
-                  <div>
+                  <div style={resultCopy}>
                     <div style={resultTitle}>
                       {result.winnerPlayerName} def. {resultOpponentName(result)}
                     </div>
                     <div style={resultMeta}>
                       {metaParts.join(' - ')}
                     </div>
+                    <div style={resultFollowThroughGrid}>
+                      {resultFollowThroughItems.map((item) => (
+                        <div key={item.label} style={resultFollowThroughItem}>
+                          <span style={item.ready ? readinessDotReady : readinessDotWaiting} aria-hidden="true" />
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
+                        </div>
+                      ))}
+                      {profilesReady ? (
+                        <Link href={`/players/${encodeURIComponent(result.winnerPlayerId)}`} style={resultPrimaryAction}>
+                          Open winner
+                        </Link>
+                      ) : canEditResults ? (
+                        <button type="button" onClick={() => void handleEditResult(result)} style={resultPrimaryAction}>
+                          Create profiles
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                   <div style={actionRow}>
                     {edited ? <span style={pillAmber}>Edited</span> : null}
-                    {result.winnerPlayerId ? (
-                      <Link href={`/players/${encodeURIComponent(result.winnerPlayerId)}`} style={btnSecondary}>Winner</Link>
-                    ) : null}
                     {canEditResults ? (
                       <>
                         <button type="button" onClick={() => void handleEditResult(result)} style={btnSecondary}>

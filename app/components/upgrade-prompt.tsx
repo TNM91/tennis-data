@@ -243,16 +243,16 @@ function getUnlockSteps(planId: PricingPlanId) {
 
   if (planId === 'player_plus') {
     return [
-      { title: 'Link your player', body: 'Make TenAceIQ understand which profile is yours.' },
-      { title: 'Follow what matters', body: 'Keep players, teams, leagues, and rankings close.' },
-      { title: 'Prep the matchup', body: 'Turn public discovery into personal match prep.' },
+      { title: 'Open My Lab', body: 'Keep your scorecard, goals, and next tennis read together.' },
+      { title: 'Improve data', body: 'Upload, report, or refresh the context behind your tennis read.' },
+      { title: 'Prep matchup', body: 'Turn public discovery into personal match prep.' },
     ]
   }
 
   return [
     { title: 'Find', body: 'Search public players, teams, leagues, and rankings.' },
     { title: 'Learn', body: 'Use the profile paths to understand the tennis landscape.' },
-    { title: 'Upgrade when useful', body: 'Add personal, team, or league tools only when they help.' },
+    { title: 'Upgrade when useful', body: 'Add personal, team, or league workspaces only when they help.' },
   ]
 }
 

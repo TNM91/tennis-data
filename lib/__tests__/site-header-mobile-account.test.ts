@@ -17,21 +17,27 @@ describe('site header mobile account drawer', () => {
     expect(source).not.toContain("'auto minmax(0, 1fr) auto'")
   })
 
-  it('keeps profile and message labels wrap-safe in the drawer', () => {
-    expect(source).toContain('Manage profile')
+  it('keeps account utility labels wrap-safe in the drawer', () => {
     expect(source).toContain('mobilePlainItemTextStyle')
-    expect(source).toContain('mobileMessageLinkWrapStyle')
-    expect(source).toContain('<span style={mobilePlainItemTextStyle}>{item.label}</span>')
     expect(source).toContain('<span style={mobilePlainItemTextStyle}>Admin dashboard</span>')
+    expect(source).toContain('<span style={mobilePlainItemTextStyle}>Logout</span>')
+    expect(source).toContain('<span style={mobilePlainItemTextStyle}>Sign in</span>')
     expect(source).toContain('<span style={mobilePlainItemTextStyle}>Start Free</span>')
     expect(source).toContain("overflowWrap: 'anywhere'")
-    expect(source).toContain("flexWrap: 'wrap' as const")
+    expect(source).not.toContain('mobileMessageLinkWrapStyle')
+  })
+
+  it('leaves Messages and Alerts to the portal toolbar instead of duplicating them in the header', () => {
+    expect(source).not.toContain('messages#alerts')
+    expect(source).not.toContain('countUnreadInternalNotifications')
+    expect(source).not.toContain('unreadAlerts')
   })
 
   it('keeps desktop header labels bounded and wrap-safe', () => {
-    expect(source).toContain('const navTextWrapStyle')
-    expect(source).toContain('const navLabelStyle')
+    expect(source).toContain('const utilityLinkStyle')
+    expect(source).toContain('const accountPillStyle')
     expect(source).toContain('const utilityButtonStyle')
+    expect(source).toContain('const primaryCtaStyle')
     expect(source).toContain("maxWidth: '100%'")
     expect(source).toContain("overflow: 'hidden'")
     expect(source).toContain("whiteSpace: 'normal' as const")
@@ -45,5 +51,12 @@ describe('site header mobile account drawer', () => {
     expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
     expect(source).toContain("? 'Account'")
     expect(source).toContain('buildProductAccessState(resolvedRole, entitlements)')
+  })
+
+  it('labels Coach and Full-Court accounts distinctly', () => {
+    expect(source).toContain("access.currentPlanId === 'full_court'")
+    expect(source).toContain("'Full-Court'")
+    expect(source).toContain("access.currentPlanId === 'coach'")
+    expect(source).toContain("'Coach'")
   })
 })

@@ -31,6 +31,7 @@ type PlayerRow = {
   overall_rating: number | null
   overall_dynamic_rating: number | null
   overall_usta_dynamic_rating: number | null
+  rating_source?: string | null
 }
 export default function ManagePlayersPage() {
   const [players, setPlayers] = useState<PlayerRow[]>([])
@@ -89,7 +90,8 @@ export default function ManagePlayersPage() {
           doubles_usta_dynamic_rating,
           overall_rating,
           overall_dynamic_rating,
-          overall_usta_dynamic_rating
+          overall_usta_dynamic_rating,
+          rating_source
         `)
         .limit(1200)
 
@@ -175,6 +177,14 @@ export default function ManagePlayersPage() {
             payload[field] = numericValue
           }
         }
+      }
+
+      if (
+        changes.singles_rating !== undefined ||
+        changes.doubles_rating !== undefined ||
+        changes.overall_rating !== undefined
+      ) {
+        payload.rating_source = 'verified'
       }
 
       const { error } = await supabase

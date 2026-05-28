@@ -19,14 +19,16 @@ import {
   type UpgradeRequestRecord,
 } from '@/lib/upgrade-requests'
 
-const PLAN_IDS: PricingPlanId[] = ['free', 'player_plus', 'captain', 'league']
+const PLAN_IDS: PricingPlanId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 const LAST_REMOTE_UPGRADE_REQUEST_KEY = 'tenaceiq-last-remote-upgrade-request-v1'
 
 const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
   free: 'playerRatings',
   player_plus: 'myLab',
+  coach: 'scenarioBuilder',
   captain: 'lineupBuilder',
   league: 'teamRankings',
+  full_court: 'teamRankings',
 }
 
 const UNLOCK_COPY: Record<PricingPlanId, {
@@ -40,7 +42,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   free: {
     eyebrow: 'Free path',
     title: 'Start with the tennis map.',
-    body: 'Search players, teams, leagues, rankings, flights, and areas before you need paid tools.',
+    body: 'Search players, teams, leagues, rankings, flights, and areas before you need a paid workspace.',
     action: 'Open Find',
     checkoutAction: 'Open Find',
     setupAction: 'Open Free',
@@ -48,34 +50,52 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   player_plus: {
     eyebrow: 'Player unlock',
     title: 'Make TenAceIQ personal.',
-    body: 'Continue with Player when you want My Lab, follows, Prep reads, and player-linked context around your game.',
+    body: 'Continue with Player when you want My Lab, Improve data, Prep matchup, and Messages around your game.',
     action: 'Continue with Player',
     checkoutAction: 'Unlock Player',
     setupAction: 'Preview Player setup',
+  },
+  coach: {
+    eyebrow: 'Coach unlock',
+    title: 'Develop players with a connected coaching workspace.',
+    body: 'Continue with Coach when lesson planning, student tracking, assignments, scheduling, and tactical boards need one flow.',
+    action: 'Continue with Coach',
+    checkoutAction: 'Unlock Coach',
+    setupAction: 'Preview Coach',
   },
   captain: {
     eyebrow: 'Captain unlock',
     title: 'Run the team week.',
     body: 'Continue with Captain when lineup decisions, scouting, readiness, and team communication need one cleaner flow.',
     action: 'Continue with Team',
-    checkoutAction: 'Unlock Team Tools',
-    setupAction: 'Preview Team tools',
+    checkoutAction: 'Unlock Captain',
+    setupAction: 'Preview Captain',
   },
   league: {
     eyebrow: 'League unlock',
     title: 'Operate the season.',
     body: 'Continue with League when structure, visibility, standings, schedules, and results need one place.',
     action: 'Continue with League',
-    checkoutAction: 'Run Your League on TIQ',
+    checkoutAction: 'Unlock League',
     setupAction: 'Preview league setup',
+  },
+  full_court: {
+    eyebrow: 'Full-Court unlock',
+    title: 'Run the full court.',
+    body: 'Continue with Full-Court when Player, Coach, Captain, League, and unlimited tournaments should live in one workspace.',
+    action: 'Continue with Full-Court',
+    checkoutAction: 'Unlock Full-Court',
+    setupAction: 'Preview full suite',
   },
 }
 
 const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
-  free: ['Open Find', 'Search public tennis context', 'Upgrade when a tool helps'],
-  player_plus: ['Request Player access', 'Link your player identity', 'Use My Lab and Prep'],
+  free: ['Open Find', 'Search public tennis context', 'Upgrade when a workspace helps'],
+  player_plus: ['Request Player access', 'Open My Lab', 'Prep matchup'],
+  coach: ['Request Coach access', 'Open Tactical Studio', 'Assign drills and lessons'],
   captain: ['Request Captain access', 'Choose the team context', 'Build lineup and weekly flow'],
   league: ['Request League access', 'Structure the season', 'Track participants and results'],
+  full_court: ['Request Full-Court access', 'Open the operations workspace', 'Create unlimited tournaments'],
 }
 
 const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
@@ -88,7 +108,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
 }> = {
   free: {
     title: 'Free is ready.',
-    body: 'Search public tennis context, then upgrade when a paid tool helps.',
+    body: 'Search public tennis context, then upgrade when a paid workspace helps.',
     primaryAction: 'Open Find',
     secondaryAction: 'Compare plans',
     secondaryHref: '/pricing',
@@ -96,11 +116,19 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   player_plus: {
     title: 'Player is active. Start in My Lab.',
-    body: 'Link your player identity, follow the players you care about, and prep your next match.',
+    body: 'Open My Lab, improve the data behind your tennis read, and prep your next match.',
     primaryAction: 'Open My Lab',
     secondaryAction: 'Set profile',
     secondaryHref: '/profile',
-    steps: ['Confirm your player identity', 'Open My Lab', 'Compare your next match'],
+    steps: ['Open My Lab', 'Set profile', 'Compare your next match'],
+  },
+  coach: {
+    title: 'Coach is active. Build the next lesson.',
+    body: 'Open the coaching tools, map court work in Tactical Studio, and turn drills into player assignments.',
+    primaryAction: 'Open Coach',
+    secondaryAction: 'Open workbook',
+    secondaryHref: '/player-development',
+    steps: ['Plan a lesson', 'Build a tactical board', 'Assign the next drill'],
   },
   captain: {
     title: 'Team is active. Build the week.',
@@ -115,8 +143,16 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     body: 'Create the league structure, bring players or teams into scope, and keep standings visible.',
     primaryAction: 'Open League',
     secondaryAction: 'View leagues',
-    secondaryHref: '/compete/leagues',
+    secondaryHref: '/compete',
     steps: ['Create the league shell', 'Add participants', 'Track results and rankings'],
+  },
+  full_court: {
+    title: 'Full-Court is active. Run the full suite.',
+    body: 'Open the operations workspace, then use Player, Coach, Captain, League, and unlimited tournaments together.',
+    primaryAction: 'Open Full-Court',
+    secondaryAction: 'View leagues',
+    secondaryHref: '/compete',
+    steps: ['Open the operations workspace', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
   },
 }
 
@@ -126,6 +162,18 @@ type UpgradePageProps = {
 
 export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const resolvedSearchParams = use(searchParams)
+  return (
+    <SiteShell active="">
+      <UpgradeContent resolvedSearchParams={resolvedSearchParams} />
+    </SiteShell>
+  )
+}
+
+function UpgradeContent({
+  resolvedSearchParams,
+}: {
+  resolvedSearchParams: { [key: string]: string | string[] | undefined }
+}) {
   const { isTablet, isSmallMobile } = useViewportBreakpoints()
   const { role, userId, entitlements, authResolved, session, refreshAuth } = useAuth()
   const requestedPlan = getSearchParamValue(resolvedSearchParams.plan)
@@ -324,10 +372,12 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const hasAccess =
     planId === 'free' ||
     (planId === 'player_plus' && access.canUseAdvancedPlayerInsights) ||
+    (planId === 'coach' && access.canUseCoachWorkflow) ||
     (planId === 'captain' && access.canUseCaptainWorkflow) ||
-    (planId === 'league' && access.canUseLeagueTools)
+    (planId === 'league' && access.canUseLeagueTools) ||
+    (planId === 'full_court' && access.currentPlanId === 'full_court')
   const isPublic = resolvedRole === 'public'
-  const isPaidPlan = planId === 'player_plus' || planId === 'captain' || planId === 'league'
+  const isPaidPlan = planId === 'player_plus' || planId === 'coach' || planId === 'captain' || planId === 'league' || planId === 'full_court'
   const showAccessRequest = isPaidPlan && !hasAccess && (isPublic || !authLoading)
   const planChoiceCards = PLAN_IDS.map((choicePlanId) => {
     const choicePlan = getPricingPlan(choicePlanId)
@@ -526,8 +576,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   }
 
   return (
-    <SiteShell active="">
-      <main style={pageStyle}>
+    <main style={pageStyle}>
         <section
           style={{
             ...heroStyle,
@@ -535,6 +584,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
             padding: isSmallMobile ? 18 : 26,
           }}
         >
+          <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroCopyStyle}>
             <div style={eyebrowStyle}>{copy.eyebrow}</div>
             <h1 style={titleStyle}>{checkoutSuccessMessage ? successHandoff.title : hasAccess ? `${plan.name} is already active.` : copy.title}</h1>
@@ -824,8 +874,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
             )}
           </section>
         ) : null}
-      </main>
-    </SiteShell>
+    </main>
   )
 }
 
@@ -854,16 +903,20 @@ function getSearchParamValue(value: string | string[] | undefined) {
 
 function getPlanDestinationLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'My Lab'
+  if (planId === 'coach') return 'Coach'
   if (planId === 'captain') return 'Team'
   if (planId === 'league') return 'League'
+  if (planId === 'full_court') return 'Full-Court'
   return 'Find'
 }
 
 function isPlanAlreadyActive(planId: PricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
   if (planId === 'free') return access.currentPlanId === 'free'
   if (planId === 'player_plus') return access.canUseAdvancedPlayerInsights
+  if (planId === 'coach') return access.canUseCoachWorkflow
   if (planId === 'captain') return access.canUseCaptainWorkflow
   if (planId === 'league') return access.canUseLeagueTools
+  if (planId === 'full_court') return access.currentPlanId === 'full_court'
   return false
 }
 
@@ -891,18 +944,35 @@ const pageStyle: CSSProperties = {
   padding: '20px 0 36px',
   display: 'grid',
   gap: 16,
+  boxSizing: 'border-box',
+  overflowX: 'clip',
 }
 
 const heroStyle: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   gap: 18,
   minWidth: 0,
   alignItems: 'stretch',
   borderRadius: 30,
-  border: '1px solid var(--shell-panel-border)',
+  overflow: 'hidden',
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2, 8, 23, 0.48)',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-110px',
+  top: '-118px',
+  width: 310,
+  height: 310,
+  borderRadius: '50%',
+  pointerEvents: 'none',
+  opacity: 0.16,
   background:
-    'radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--brand-blue-2) 16%, transparent) 0%, transparent 32%), radial-gradient(circle at 90% 14%, color-mix(in srgb, var(--brand-green) 16%, transparent) 0%, transparent 30%), var(--shell-panel-bg-strong)',
-  boxShadow: '0 24px 56px rgba(2, 10, 24, 0.14)',
+    'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.88) 0 7%, transparent 8%), radial-gradient(circle at 50% 50%, rgba(155,225,29,0.96) 0 48%, rgba(155,225,29,0.1) 49%, transparent 58%)',
+  boxShadow: '0 0 80px rgba(155,225,29,0.22)',
 }
 
 const heroCopyStyle: CSSProperties = {
@@ -920,8 +990,8 @@ const eyebrowStyle: CSSProperties = {
   minHeight: 34,
   padding: '0 12px',
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.12)',
   color: 'var(--foreground-strong)',
   fontSize: 12,
   fontWeight: 950,
@@ -965,8 +1035,8 @@ const primaryButtonStyle: CSSProperties = {
   minHeight: 46,
   padding: '0 16px',
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid rgba(155,225,29,0.38)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.32), rgba(34,211,238,0.16))',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontWeight: 950,
@@ -976,9 +1046,9 @@ const primaryButtonStyle: CSSProperties = {
 
 const secondaryButtonStyle: CSSProperties = {
   ...primaryButtonStyle,
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground-strong)',
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
   boxShadow: 'none',
 }
 
@@ -989,8 +1059,8 @@ const planCardStyle: CSSProperties = {
   minWidth: 0,
   padding: 20,
   borderRadius: 24,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-blue-2) 8%)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.72)',
   boxShadow: 'var(--shadow-soft)',
 }
 
@@ -1136,8 +1206,8 @@ const resultCardStyle: CSSProperties = {
   minWidth: 0,
   padding: 13,
   borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground)',
   lineHeight: 1.55,
   overflowWrap: 'anywhere',
@@ -1177,8 +1247,8 @@ const valuePillStyle: CSSProperties = {
   minHeight: 32,
   padding: '0 11px',
   borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,
@@ -1191,8 +1261,8 @@ const activationPathStyle: CSSProperties = {
   minWidth: 0,
   padding: 12,
   borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
 }
 
 const activationStepGridStyle: CSSProperties = {
@@ -1210,7 +1280,7 @@ const activationStepStyle: CSSProperties = {
   padding: '5px 9px',
   borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.10)',
-  background: 'color-mix(in srgb, var(--surface) 88%, var(--shell-chip-bg) 12%)',
+  background: 'rgba(8, 13, 28, 0.58)',
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,
@@ -1225,8 +1295,8 @@ const activationStyle: CSSProperties = {
   alignItems: 'start',
   padding: 16,
   borderRadius: 20,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
 }
 
 const activationCopyStyle: CSSProperties = {
@@ -1269,8 +1339,8 @@ const requestFormStyle: CSSProperties = {
   minWidth: 0,
   padding: 14,
   borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg-strong) 86%, var(--brand-green) 14%)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.72)',
 }
 
 const selectedPlanStyle: CSSProperties = {
@@ -1282,7 +1352,7 @@ const selectedPlanStyle: CSSProperties = {
   flexWrap: 'wrap',
   padding: '10px 12px',
   borderRadius: 14,
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground-strong)',
 }
 
@@ -1308,9 +1378,9 @@ const inputStyle: CSSProperties = {
   minHeight: 42,
   padding: '0 12px',
   borderRadius: 12,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'rgba(255, 255, 255, 0.92)',
-  color: '#071523',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.76)',
+  color: 'var(--foreground-strong)',
   fontSize: 14,
   fontWeight: 750,
   outline: 'none',
@@ -1354,8 +1424,8 @@ const successCardStyle: CSSProperties = {
   minWidth: 0,
   padding: 16,
   borderRadius: 18,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg-strong) 88%)',
+  border: '1px solid rgba(155,225,29,0.32)',
+  background: 'rgba(155,225,29,0.1)',
 }
 
 const successTitleStyle: CSSProperties = {
@@ -1390,8 +1460,8 @@ const handoffStepStyle: CSSProperties = {
   minHeight: 34,
   padding: '5px 9px',
   borderRadius: 14,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,

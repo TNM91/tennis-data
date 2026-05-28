@@ -7,12 +7,14 @@ import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
-import { getPrimaryNavTarget } from '@/lib/primary-nav-access'
+import { getPortalLaneTarget } from '@/lib/portal-lane-routing'
+import { isPortalTaskActive } from '@/lib/portal-task-active'
+import { getPortalTaskTarget } from '@/lib/portal-task-target'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
-type PortalLaneId = 'find' | 'you' | 'team' | 'league'
+type PortalLaneId = 'find' | 'you' | 'coach' | 'team' | 'league'
 
 type PortalLane = {
   id: PortalLaneId
@@ -20,7 +22,7 @@ type PortalLane = {
   cue: string
   route: string
   icon: TiqFeatureIconName
-  planRoute: '/explore' | '/mylab' | '/captain' | '/league-coordinator'
+  planRoute: '/explore' | '/mylab' | '/coach' | '/captain' | '/league-coordinator'
   paths: string[]
   searchScope: 'players' | 'teams' | 'leagues'
   tasks: Array<{
@@ -29,14 +31,14 @@ type PortalLane = {
     metric: string
     href: string
     icon: TiqFeatureIconName
-    requiredRoute: '/explore' | '/mylab' | '/captain' | '/league-coordinator'
+    requiredRoute: '/explore' | '/mylab' | '/coach' | '/captain' | '/league-coordinator'
   }>
 }
 
 const portalLanes: PortalLane[] = [
   {
     id: 'find',
-    label: 'Find',
+    label: 'Explore',
     cue: 'Search the tennis map',
     route: '/explore',
     planRoute: '/explore',
@@ -47,23 +49,39 @@ const portalLanes: PortalLane[] = [
       { title: 'Find a player', detail: 'Public profiles, rating shape, and team context.', metric: 'Free', href: '/explore/players', icon: 'playerRatings', requiredRoute: '/explore' },
       { title: 'Browse teams', detail: 'Rosters, sections, records, and nearby competition.', metric: 'Free', href: '/explore/teams', icon: 'lineupBuilder', requiredRoute: '/explore' },
       { title: 'Check standings', detail: 'League tables and flight context.', metric: 'Free', href: '/explore/leagues', icon: 'schedule', requiredRoute: '/explore' },
-      { title: 'Upload scorecard', detail: 'Refresh tennis data through review.', metric: 'Free', href: '/data-assist', icon: 'reports', requiredRoute: '/explore' },
+      { title: 'Check rankings', detail: 'Scan the field before opening a player or flight.', metric: 'Free', href: '/explore/rankings', icon: 'reports', requiredRoute: '/explore' },
     ],
   },
   {
     id: 'you',
-    label: 'You',
+    label: 'My Lab',
     cue: 'Open your lab',
     route: '/mylab',
     planRoute: '/mylab',
     icon: 'myLab',
-    paths: ['/mylab', '/profile', '/messages', '/data-assist', '/matchup', '/compete'],
+    paths: ['/mylab', '/profile', '/messages', '/data-assist', '/matchup'],
     searchScope: 'players',
     tasks: [
       { title: 'Open My Lab', detail: 'Your scorecard, goals, follows, and next read.', metric: 'Player', href: '/mylab', icon: 'myLab', requiredRoute: '/mylab' },
-      { title: 'Link profile', detail: 'Choose the player record that powers your tools.', metric: 'Set once', href: '/profile', icon: 'accountSecurity', requiredRoute: '/mylab' },
+      { title: 'Improve data', detail: 'Upload, report, or refresh the tennis context behind your read.', metric: 'Player', href: '/data-assist', icon: 'reports', requiredRoute: '/mylab' },
       { title: 'Prep matchup', detail: 'Compare the court before you play.', metric: 'Player', href: '/matchup', icon: 'matchupAnalysis', requiredRoute: '/mylab' },
       { title: 'Review messages', detail: 'Keep tennis replies and alerts together.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/mylab' },
+    ],
+  },
+  {
+    id: 'coach',
+    label: 'Coach',
+    cue: 'Develop players',
+    route: '/coach',
+    planRoute: '/coach',
+    icon: 'scenarioBuilder',
+    paths: ['/coach', '/player-development', '/tactics'],
+    searchScope: 'players',
+    tasks: [
+      { title: 'Coach workspace', detail: 'Review students, assignments, due work, and coach feedback.', metric: 'Coach', href: '/coach', icon: 'scenarioBuilder', requiredRoute: '/coach' },
+      { title: 'Tactical Studio', detail: 'Map the drill or pattern before assigning it.', metric: 'Coach', href: '/tactics', icon: 'matchPrep', requiredRoute: '/coach' },
+      { title: 'Development paths', detail: 'Open workbook paths and identity-based coach planners.', metric: 'Coach', href: '/player-development', icon: 'reports', requiredRoute: '/coach' },
+      { title: 'Coach-player messages', detail: 'Keep lesson follow-up tied to player goals and assignments.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/coach' },
     ],
   },
   {
@@ -73,29 +91,30 @@ const portalLanes: PortalLane[] = [
     route: '/captain',
     planRoute: '/captain',
     icon: 'lineupBuilder',
-    paths: ['/captain'],
+    paths: ['/captain', '/compete/teams'],
     searchScope: 'teams',
     tasks: [
       { title: 'Who can play', detail: 'Availability and readiness before lineup pressure.', metric: 'Captain', href: '/captain/availability', icon: 'reliabilityIndex', requiredRoute: '/captain' },
+      { title: 'Plan practice', detail: 'Schedule practice, invite the roster, and collect RSVPs.', metric: 'Captain', href: '/captain/practice', icon: 'schedule', requiredRoute: '/captain' },
+      { title: 'Map tactics', detail: 'Build a court picture for the next point, drill, or team pattern.', metric: 'Coach beta', href: '/tactics', icon: 'scenarioBuilder', requiredRoute: '/captain' },
       { title: 'Build lineup', detail: 'Turn the roster into the weekly plan.', metric: 'Captain', href: '/captain/lineup-builder', icon: 'lineupBuilder', requiredRoute: '/captain' },
       { title: 'Send plan', detail: 'Message the team from the same workspace.', metric: 'Captain', href: '/captain/messaging', icon: 'messagingCenter', requiredRoute: '/captain' },
-      { title: 'Read brief', detail: 'See the match-week snapshot.', metric: 'Captain', href: '/captain/weekly-brief', icon: 'reports', requiredRoute: '/captain' },
     ],
   },
   {
     id: 'league',
-    label: 'League',
-    cue: 'Run the season',
-    route: '/league-coordinator',
+    label: 'Leagues',
+    cue: 'See the season',
+    route: '/compete',
     planRoute: '/league-coordinator',
     icon: 'teamRankings',
-    paths: ['/league-coordinator'],
+    paths: ['/league-coordinator', '/tournaments', '/compete', '/compete/leagues', '/compete/schedule', '/compete/results', '/explore/leagues', '/leagues'],
     searchScope: 'leagues',
     tasks: [
-      { title: 'League command', detail: 'Setup, approvals, and operating lane.', metric: 'League', href: '/league-coordinator', icon: 'teamRankings', requiredRoute: '/league-coordinator' },
+      { title: 'Shared calendar', detail: 'Publish, propose, confirm, and track match dates.', metric: 'League', href: '/compete/schedule', icon: 'schedule', requiredRoute: '/explore' },
+      { title: 'Build tournament', detail: 'Create a draw, seed entrants, and preview the path.', metric: 'Full-Court', href: '/league-coordinator/tournaments', icon: 'teamRankings', requiredRoute: '/league-coordinator' },
       { title: 'Team book', detail: 'Enter team results and keep standings moving.', metric: 'League', href: '/league-coordinator/results', icon: 'reports', requiredRoute: '/league-coordinator' },
       { title: 'Player book', detail: 'Run individual leagues with clear records.', metric: 'League', href: '/league-coordinator/individual-results', icon: 'playerRatings', requiredRoute: '/league-coordinator' },
-      { title: 'Public pages', detail: 'See how the league looks to members.', metric: 'View', href: '/explore/leagues', icon: 'opponentScouting', requiredRoute: '/explore' },
     ],
   },
 ]
@@ -113,7 +132,7 @@ function getActiveLane(pathname: string) {
 }
 
 function isPortalHidden(pathname: string) {
-  return pathname === '/' || hiddenPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  return hiddenPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
 
 function getMetadataFirstName(session: ReturnType<typeof useAuth>['session']) {
@@ -136,6 +155,7 @@ export default function PortalToolBar() {
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const [query, setQuery] = useState('')
   const [profileName, setProfileName] = useState('')
+  const [profileLinked, setProfileLinked] = useState(false)
 
   const authenticated = Boolean(userId) || role !== 'public'
   const accessPending = authenticated && (!authResolved || entitlements === null)
@@ -151,12 +171,14 @@ export default function PortalToolBar() {
     async function loadName() {
       if (!authResolved || !userId) {
         setProfileName('')
+        setProfileLinked(false)
         return
       }
 
       const result = await loadUserProfileLink(userId)
       if (!active) return
       setProfileName(result.data?.message_display_name || result.data?.linked_player_name || '')
+      setProfileLinked(Boolean(result.data?.linked_player_id || result.data?.linked_player_name))
     }
 
     void loadName()
@@ -212,17 +234,17 @@ export default function PortalToolBar() {
         }}
       >
         <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
-          <h1 style={portalTitleStyle}>{headline}</h1>
+          <div style={portalTitleStyle}>{headline}</div>
           <p style={portalSubtitleStyle}>
-            {authenticated ? 'What do we want to work on today?' : 'Start with the tennis map, then unlock the tools that save your week.'}
+            {authenticated ? 'What do we want to work on today?' : 'Start with the tennis map, then unlock the workspace that saves your week.'}
           </p>
         </div>
 
         <nav
-          aria-label="Choose a TenAceIQ tool"
+          aria-label="Choose a TenAceIQ workspace"
           style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
+            gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(5, minmax(0, 1fr))',
             gap: 10,
             minWidth: 0,
           }}
@@ -235,6 +257,7 @@ export default function PortalToolBar() {
               access={access}
               authenticated={authenticated}
               accessPending={accessPending}
+              profileLinked={profileLinked}
             />
           ))}
         </nav>
@@ -279,6 +302,8 @@ export default function PortalToolBar() {
               authenticated={authenticated}
               accessPending={accessPending}
               accent={activeAccent}
+              active={isPortalTaskActive(pathname, task.href)}
+              profileLinked={profileLinked}
             />
           ))}
         </div>
@@ -293,16 +318,24 @@ function PortalLaneCard({
   access,
   authenticated,
   accessPending,
+  profileLinked,
 }: {
   lane: PortalLane
   active: boolean
   access: ProductAccessState
   authenticated: boolean
   accessPending: boolean
+  profileLinked: boolean
 }) {
-  const target = accessPending
-    ? { href: lane.route, locked: false, requiredPlan: null }
-    : getPrimaryNavTarget(lane.planRoute, access, authenticated)
+  const target = getPortalLaneTarget({
+    laneId: lane.id,
+    fallbackHref: lane.route,
+    planRoute: lane.planRoute,
+    access,
+    authenticated,
+    accessPending,
+    profileLinked,
+  })
   const accent = getLaneAccent(lane.id)
 
   return (
@@ -324,9 +357,7 @@ function PortalLaneCard({
             <span style={lockBubbleStyle} title={`${lane.label} unlock`}>
               <NavLockIcon size={13} />
             </span>
-          ) : (
-            <em style={{ ...laneStatusStyle, color: accent }}>Open</em>
-          )}
+          ) : null}
         </span>
         <span style={laneCueStyle}>{target.locked ? 'Preview unlock' : lane.cue}</span>
       </span>
@@ -340,31 +371,47 @@ function PortalTaskCard({
   authenticated,
   accessPending,
   accent,
+  active,
+  profileLinked,
 }: {
   task: PortalLane['tasks'][number]
   access: ProductAccessState
   authenticated: boolean
   accessPending: boolean
   accent: string
+  active: boolean
+  profileLinked: boolean
 }) {
-  const target = accessPending
-    ? { href: task.href, locked: false, requiredPlan: null }
-    : getPrimaryNavTarget(task.requiredRoute, access, authenticated)
-  const href = target.locked ? target.href : task.href
+  const target = getPortalTaskTarget({
+    href: task.href,
+    requiredRoute: task.requiredRoute,
+    title: task.title,
+    access,
+    authenticated,
+    accessPending,
+    profileLinked,
+  })
 
   return (
-    <Link href={href} style={taskCardStyle}>
-      <span style={taskTopStyle}>
-        <span style={{ ...taskMetricStyle, color: accent }}>{task.metric}</span>
-        <TiqFeatureIcon name={task.icon} size="sm" variant="ghost" />
+    <Link
+      href={target.href}
+      aria-current={active ? 'page' : undefined}
+      title={task.detail}
+      style={{
+        ...taskCardStyle,
+        ...(active ? getActiveTaskCardStyle(accent) : null),
+      }}
+    >
+      <span style={{ ...taskIconShellStyle, borderColor: active ? accent : 'rgba(116,190,255,0.14)' }}>
+        <TiqFeatureIcon name={task.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
       </span>
       <span style={taskBodyStyle}>
-        <strong style={taskTitleStyle}>{task.title}</strong>
-        <span style={taskDetailStyle}>{task.detail}</span>
-        <span style={{ ...taskOpenStyle, color: target.locked ? 'var(--shell-copy-muted)' : accent }}>
-          {target.locked ? <NavLockIcon size={12} /> : null}
-          {target.locked ? 'Unlock' : 'Open'}
-        </span>
+        <strong style={taskTitleStyle}>{target.title}</strong>
+        {target.locked ? (
+          <span style={taskLockStyle} aria-label={`${target.title} locked`}>
+            <NavLockIcon size={12} />
+          </span>
+        ) : null}
       </span>
     </Link>
   )
@@ -373,8 +420,17 @@ function PortalTaskCard({
 function getLaneAccent(laneId: PortalLaneId) {
   if (laneId === 'find') return '#9be11d'
   if (laneId === 'you') return '#4aa3ff'
+  if (laneId === 'coach') return '#a6ff2e'
   if (laneId === 'team') return '#f3b51b'
   return '#19c8b6'
+}
+
+function getActiveTaskCardStyle(accent: string): CSSProperties {
+  return {
+    border: `1px solid ${accent}`,
+    background: 'var(--portal-active-card-bg)',
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px color-mix(in srgb, ${accent} 18%, transparent)`,
+  }
 }
 
 function SearchIcon() {
@@ -446,13 +502,6 @@ const laneCueStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const laneStatusStyle: CSSProperties = {
-  fontSize: 10,
-  fontStyle: 'normal',
-  fontWeight: 950,
-  textTransform: 'uppercase',
-}
-
 const lockBubbleStyle: CSSProperties = {
   display: 'inline-grid',
   placeItems: 'center',
@@ -502,57 +551,49 @@ const searchButtonStyle: CSSProperties = {
 
 const taskCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateRows: 'minmax(0, auto) minmax(0, 1fr)',
-  gap: 10,
-  minHeight: 128,
-  padding: 13,
-  borderRadius: 18,
+  placeItems: 'center',
+  gap: 8,
+  minHeight: 72,
+  padding: '10px 8px',
+  borderRadius: 16,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(255,255,255,0.055)',
   color: 'var(--foreground)',
   textDecoration: 'none',
   minWidth: 0,
+  textAlign: 'center',
 }
 
-const taskTopStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 10,
-  minWidth: 0,
-}
-
-const taskMetricStyle: CSSProperties = {
-  color: 'var(--brand-green)',
-  fontSize: 12,
-  fontWeight: 950,
+const taskIconShellStyle: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  width: 34,
+  height: 34,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
 }
 
 const taskBodyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
   minWidth: 0,
+  maxWidth: '100%',
 }
 
 const taskTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 15,
-  lineHeight: 1.1,
+  fontSize: 12.5,
+  lineHeight: 1.15,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
-const taskDetailStyle: CSSProperties = {
+const taskLockStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  flex: '0 0 auto',
   color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.45,
-  fontWeight: 700,
-}
-
-const taskOpenStyle: CSSProperties = {
-  color: 'var(--brand-green)',
-  fontSize: 12,
-  fontWeight: 950,
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
 }

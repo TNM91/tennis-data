@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildTeamResultCue } from '@/lib/league-result-cues'
@@ -42,38 +43,67 @@ type MatchLineSummary = {
 type TeamResultCompletionFilter = 'all' | 'complete' | 'incomplete'
 type TeamResultDateFilter = 'all' | 'week' | 'month'
 
+const emptyTeamResultActions = [
+  { href: '#team-match-entry', label: 'Add match' },
+  { href: '/compete/schedule', label: 'Open calendar' },
+  { href: '/data-assist', label: 'Upload scorecard' },
+] as const
 
-const pageWrap: CSSProperties = { width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))', margin: '0 auto', padding: '18px 0 30px', minWidth: 0 }
+
+const pageWrap: CSSProperties = {
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
+  margin: '0 auto',
+  padding: '18px 0 64px',
+  display: 'grid',
+  gap: 18,
+  minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
+}
 const heading: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
 const subheading: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 640, overflowWrap: 'anywhere' }
 const introCard: CSSProperties = {
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  borderRadius: 24,
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+  border: '1px solid rgba(116,190,255,0.15)',
+  borderRadius: 28,
   padding: '24px',
-  marginTop: 18,
-  marginBottom: 22,
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: '0 26px 78px rgba(2, 8, 23, 0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
+  position: 'relative',
+  overflow: 'hidden',
 }
+const portalWatermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-72px',
+  top: '-88px',
+  width: 260,
+  aspectRatio: '1 / 1',
+  borderRadius: 999,
+  border: '28px solid rgba(155,225,29,0.07)',
+  boxShadow: 'inset 0 0 0 2px rgba(125,211,252,0.05), 0 0 70px rgba(125,211,252,0.08)',
+  opacity: 0.72,
+  pointerEvents: 'none',
+}
+const portalPanelContentStyle: CSSProperties = { position: 'relative', zIndex: 1, minWidth: 0 }
 const sectionTitle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 16, fontWeight: 800, marginBottom: 14, marginTop: 28, overflowWrap: 'anywhere' }
 const card: CSSProperties = {
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(8, 16, 34, 0.74)',
+  border: '1px solid rgba(125,211,252,0.13)',
   borderRadius: 18,
   padding: '18px 20px',
   marginBottom: 14,
   minWidth: 0,
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 const row: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10, minWidth: 0 }
 const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 160px', minWidth: 0 }
 const labelStyle: CSSProperties = { fontSize: 11, color: 'var(--shell-copy-muted)', fontWeight: 700, letterSpacing: 0, textTransform: 'uppercase', overflowWrap: 'anywhere' }
-const inputStyle: CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', fontSize: 14, minWidth: 0 }
+const inputStyle: CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 14, border: '1px solid rgba(125,211,252,0.14)', background: 'rgba(8, 16, 34, 0.78)', color: 'var(--foreground-strong)', fontSize: 14, minWidth: 0 }
 const selectStyle: CSSProperties = { ...inputStyle }
 const scoreHelpStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.4, fontWeight: 600, overflowWrap: 'anywhere' }
-const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 999, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', fontWeight: 800, fontSize: 14, border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center', boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)' }
+const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 999, background: 'linear-gradient(135deg, rgba(155,225,29,0.28), rgba(125,211,252,0.14))', color: 'var(--foreground-strong)', fontWeight: 800, fontSize: 14, border: '1px solid rgba(155,225,29,0.34)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 24px rgba(2,10,24,0.2)' }
 const btnDanger: CSSProperties = { padding: '7px 12px', borderRadius: 999, background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 700, fontSize: 13, border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
-const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 999, background: 'var(--shell-chip-bg)', color: 'var(--foreground)', fontWeight: 700, fontSize: 13, border: '1px solid var(--shell-panel-border)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 999, background: 'rgba(8, 16, 34, 0.78)', color: 'var(--foreground)', fontWeight: 700, fontSize: 13, border: '1px solid rgba(125,211,252,0.14)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
 const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6, overflowWrap: 'anywhere' }
 const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6, overflowWrap: 'anywhere' }
 const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: 'var(--shell-chip-bg)', fontSize: 12, color: 'var(--shell-copy-muted)', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
@@ -96,14 +126,30 @@ const lineCard: CSSProperties = {
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
+
+const emptyLinePanel: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  padding: '12px 14px',
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#cbd5e1',
+  fontSize: 13,
+  lineHeight: 1.45,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, marginTop: 18, minWidth: 0 }
 const scorekeeperTile: CSSProperties = {
   padding: '14px 16px',
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(8, 16, 34, 0.72)',
   minWidth: 0,
   overflowWrap: 'anywhere',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
 const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05, overflowWrap: 'anywhere' }
@@ -123,11 +169,11 @@ const detailsSummary: CSSProperties = {
 const readinessPanel: CSSProperties = {
   display: 'grid',
   gap: 14,
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
-  borderRadius: 22,
+  background: 'rgba(8, 16, 34, 0.7)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  borderRadius: 24,
   padding: 18,
-  marginBottom: 18,
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 }
 const readinessKicker: CSSProperties = {
@@ -165,8 +211,8 @@ const readinessItem: CSSProperties = {
   minHeight: 86,
   padding: 12,
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(8, 16, 34, 0.72)',
   minWidth: 0,
 }
 const readinessItemComplete: CSSProperties = {
@@ -179,6 +225,81 @@ const readinessItemText: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.35,
   overflowWrap: 'anywhere',
+}
+const eventFollowThroughGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 112px), 1fr))',
+  gap: 8,
+  marginTop: 10,
+  minWidth: 0,
+}
+const eventFollowThroughItem: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 7,
+  minHeight: 34,
+  minWidth: 0,
+  padding: '7px 9px',
+  borderRadius: 12,
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(255,255,255,0.035)',
+  color: '#dfeeff',
+  fontSize: 12,
+  fontWeight: 850,
+  overflow: 'hidden',
+}
+const eventPrimaryAction: CSSProperties = {
+  ...btnPrimary,
+  minHeight: 34,
+  padding: '7px 12px',
+  fontSize: 12,
+  borderRadius: 12,
+}
+const readinessDotReady: CSSProperties = {
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+  flex: '0 0 auto',
+}
+const readinessDotWaiting: CSSProperties = {
+  ...readinessDotReady,
+  background: 'rgba(116,190,255,0.46)',
+  boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
+}
+
+const emptyResultPanel: CSSProperties = {
+  ...card,
+  display: 'grid',
+  gap: 14,
+  color: 'var(--shell-copy-muted)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyResultCopy: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyResultActions: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const emptyResultAction: CSSProperties = {
+  ...btnSecondary,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textDecoration: 'none',
 }
 
 function Field({ label: lbl, children }: { label: string; children: React.ReactNode }) {
@@ -213,6 +334,24 @@ function PlayerSelect({
         <option key={p.id} value={p.id}>{p.name}</option>
       ))}
     </select>
+  )
+}
+
+function EmptyTeamResultsPanel() {
+  return (
+    <div style={emptyResultPanel}>
+      <div style={emptyResultCopy}>
+        <strong>Team results start with one match event.</strong>
+        <span>Add the match, connect lines, then use the scorebook to move standings and player history forward.</span>
+      </div>
+      <div style={emptyResultActions}>
+        {emptyTeamResultActions.map((action) => (
+          <Link key={action.href} href={action.href} style={emptyResultAction}>
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -564,6 +703,28 @@ function EventCard({
   const displayTeamAPoints = linesLoaded ? dynamicPoints.teamAPoints : lineSummary?.teamAPoints ?? 0
   const displayTeamBPoints = linesLoaded ? dynamicPoints.teamBPoints : lineSummary?.teamBPoints ?? 0
   const defaultLineNumber = nextOpenLineNumber()
+  const eventFollowThroughItems = [
+    {
+      label: 'Lines',
+      value: displayTotalLines > 0 ? `${displayTotalLines}` : 'None yet',
+      ready: displayTotalLines > 0,
+    },
+    {
+      label: 'Complete',
+      value: displayTotalLines > 0 ? `${displayCompletedLines}/${displayTotalLines}` : 'Waiting',
+      ready: displayTotalLines > 0 && displayCompletedLines === displayTotalLines,
+    },
+    {
+      label: 'Review',
+      value: dynamicScoreReviewCount > 0 ? `${dynamicScoreReviewCount}` : 'Clear',
+      ready: dynamicScoreReviewCount === 0,
+    },
+  ]
+  const eventPrimaryLabel = displayTotalLines === 0
+    ? 'Add lines'
+    : displayPendingLines > 0
+      ? 'Finish lines'
+      : 'Review lines'
 
   return (
     <div style={card}>
@@ -605,15 +766,24 @@ function EventCard({
         </div>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-          <button style={btnSecondary} onClick={handleExpand}>
-            {expanded ? 'Collapse' : `Lines${displayTotalLines ? ` (${displayTotalLines})` : ''}`}
-          </button>
           {canEditResults ? (
             <button style={btnDanger} onClick={handleDeleteEvent} disabled={deleting}>
               {deleting ? '...' : 'Delete'}
             </button>
           ) : null}
         </div>
+      </div>
+      <div style={eventFollowThroughGrid}>
+        {eventFollowThroughItems.map((item) => (
+          <div key={item.label} style={eventFollowThroughItem}>
+            <span style={item.ready ? readinessDotReady : readinessDotWaiting} aria-hidden="true" />
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+        <button style={eventPrimaryAction} onClick={handleExpand}>
+          {expanded ? 'Hide lines' : eventPrimaryLabel}
+        </button>
       </div>
 
       {warning ? <p style={msgErr}>{warning}</p> : null}
@@ -628,7 +798,10 @@ function EventCard({
           {!linesLoaded ? (
             <p style={{ color: '#94a3b8', fontSize: 13 }}>Loading...</p>
           ) : lines.length === 0 ? (
-            <p style={{ color: '#94a3b8', fontSize: 13 }}>No lines yet.</p>
+            <div style={emptyLinePanel}>
+              <strong>Start the line card.</strong>
+              <span>Add singles or doubles lines, then record winners and scores as they finish.</span>
+            </div>
           ) : (
             <div style={lineGrid}>
               {lines.map((line) =>
@@ -1359,26 +1532,30 @@ function TeamLeagueResultsWorkspaceInner({
   return (
     <SiteShell active={activeRoute}>
       <div style={pageWrap}>
+        <LeagueSuitePanel active="team-results" leagueLabel={selectedFilterLeague?.leagueName || 'League season'} />
         <div style={introCard}>
-          <div style={heading}>Enter team results.</div>
-          <div style={subheading}>Create the match, add each line, and keep standings current without spreadsheet cleanup.</div>
-          <div style={scorekeeperGrid}>
-            <div style={scorekeeperTile}>
-              <div style={tileLabel}>Leagues</div>
-              <div style={tileValue}>{leagues.length}</div>
-              <div style={tileText}>Available result groups</div>
-            </div>
-            <div style={scorekeeperTile}>
-              <div style={tileLabel}>Matches</div>
-              <div style={tileValue}>{visibleEvents.length}</div>
-              <div style={tileText}>
-                {activeReviewFilterCount ? `${events.length} total in scope` : 'All recorded events'}
+          <span aria-hidden="true" style={portalWatermarkStyle} />
+          <div style={portalPanelContentStyle}>
+            <div style={heading}>Enter team results.</div>
+            <div style={subheading}>Create the match, add each line, and keep standings current without spreadsheet cleanup.</div>
+            <div style={scorekeeperGrid}>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Leagues</div>
+                <div style={tileValue}>{leagues.length}</div>
+                <div style={tileText}>Available result groups</div>
               </div>
-            </div>
-            <div style={scorekeeperTile}>
-              <div style={tileLabel}>Latest</div>
-              <div style={tileValue}>{latestEvent ? formatDate(latestEvent.matchDate) : '-'}</div>
-              <div style={tileText}>{latestEvent ? `${latestEvent.teamAName} vs ${latestEvent.teamBName}` : 'No result yet'}</div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Matches</div>
+                <div style={tileValue}>{visibleEvents.length}</div>
+                <div style={tileText}>
+                  {activeReviewFilterCount ? `${events.length} total in scope` : 'All recorded events'}
+                </div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Latest</div>
+                <div style={tileValue}>{latestEvent ? formatDate(latestEvent.matchDate) : '-'}</div>
+                <div style={tileText}>{latestEvent ? `${latestEvent.teamAName} vs ${latestEvent.teamBName}` : 'Create the first match'}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1516,7 +1693,7 @@ function TeamLeagueResultsWorkspaceInner({
         {loading ? (
           <p style={{ color: '#94a3b8' }}>Loading...</p>
         ) : events.length === 0 ? (
-          <p style={{ color: '#94a3b8' }}>No events yet. Create one above.</p>
+          <EmptyTeamResultsPanel />
         ) : visibleEvents.length === 0 ? (
           <p style={{ color: '#94a3b8' }}>No team matches match the current review filters.</p>
         ) : (

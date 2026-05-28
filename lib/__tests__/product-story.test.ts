@@ -12,16 +12,17 @@ describe('product story guardrails', () => {
   it('keeps Free distinct from paid unlock tiers', () => {
     expect(MEMBERSHIP_TIERS.free.description).toContain('public tennis intelligence')
     expect(MEMBERSHIP_TIERS.player_plus.valueProps).toContain('Unlock My Lab')
-    expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player features plus captain tools')
+    expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player plus the Captain workspace')
     expect(MEMBERSHIP_TIERS.league.valueProps).toContain('Use Data Assist uploads for schedules, rosters, and official scorecards')
   })
 
   it('keeps user-facing mode language mapped to the right formal tiers', () => {
-    expect(PRODUCT_MODE_LANGUAGE.find).toMatchObject({ label: 'Find', route: '/explore', planId: 'free' })
-    expect(PRODUCT_MODE_LANGUAGE.you).toMatchObject({ label: 'You', route: '/mylab', planId: 'player_plus' })
+    expect(PRODUCT_MODE_LANGUAGE.find).toMatchObject({ label: 'Explore', route: '/explore', planId: 'free' })
+    expect(PRODUCT_MODE_LANGUAGE.you).toMatchObject({ label: 'My Lab', route: '/mylab', planId: 'player_plus' })
+    expect(PRODUCT_MODE_LANGUAGE.coach).toMatchObject({ label: 'Coach', route: '/coach', planId: 'coach' })
     expect(PRODUCT_MODE_LANGUAGE.prep).toMatchObject({ label: 'Prep', route: '/matchup', planId: 'player_plus' })
     expect(PRODUCT_MODE_LANGUAGE.team).toMatchObject({ label: 'Team', route: '/captain', planId: 'captain' })
-    expect(PRODUCT_MODE_LANGUAGE.league).toMatchObject({ label: 'League', route: '/league-coordinator', planId: 'league' })
-    expect(PRODUCT_MODE_LANGUAGE.plans).toMatchObject({ label: 'Plans', route: '/pricing', planId: null })
+    expect(PRODUCT_MODE_LANGUAGE.league).toMatchObject({ label: 'Leagues', route: '/league-coordinator', planId: 'league' })
+    expect(PRODUCT_MODE_LANGUAGE.plans).toMatchObject({ label: 'Pricing', route: '/pricing', planId: null })
   })
 })

@@ -4,14 +4,14 @@ export const PRODUCT_NORTH_STAR =
 export const PRODUCT_MOTTO = 'More Tennis. Less Chaos.'
 
 export const PRODUCT_UPGRADE_MESSAGE =
-  'Upgrade based on what makes your tennis life easier: simple tiers, simple tools, clearer next steps.'
+  'Upgrade based on what makes your tennis life easier: simple tiers, clear workspaces, clearer next steps.'
 
 export const PRODUCT_PRINCIPLES = [
   'Simple tiers',
   'Clear upgrade value',
   'Tennis-specific intelligence',
   'User-uploaded Data Assist refreshes',
-  'Practical tools over generic dashboards',
+  'Practical workspaces over generic dashboards',
   'Personalized insight for players',
   'Team decision support for captains',
   'League operations for coordinators and admins',
@@ -43,7 +43,7 @@ export const DATA_ASSIST_STORY = {
   ],
 } as const
 
-export type MembershipTierId = 'free' | 'player_plus' | 'captain' | 'league'
+export type MembershipTierId = 'free' | 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'
 
 export type MembershipTier = {
   id: MembershipTierId
@@ -63,7 +63,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Players, captains, and fans getting oriented',
     upgradeCue: 'Start with public tennis intelligence.',
     description:
-      'Find players, leagues, teams, rankings, and public tennis intelligence before you need personal tools.',
+      'Find players, leagues, teams, rankings, and public tennis intelligence before you need a personal workspace.',
     valueProps: [
       'Search players, teams, leagues, and rankings',
       'View public tennis context',
@@ -76,14 +76,30 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     name: 'Player',
     shortPromise: 'Personalize TenAceIQ around your game.',
     audience: 'Players who want clearer prep and a personalized tennis home',
-    upgradeCue: 'Unlock My Lab, follows, matchups, and player-linked insight.',
+    upgradeCue: 'Unlock My Lab, data refreshes, matchups, and messages.',
     description:
-      'Unlock My Lab, follow the players, teams, and leagues that matter to you, compare matchups, and link your player identity to the site.',
+      'Unlock My Lab, refresh the tennis context behind your read, compare matchups, and keep tennis messages together.',
     valueProps: [
       'Unlock My Lab',
-      'Follow players, teams, leagues, and rankings',
-      'Compare how you and others may fare in matchups',
-      'Connect your player identity to TenAceIQ',
+      'Improve the data behind your tennis read',
+      'Prep matchups before you play',
+      'Review tennis messages in one place',
+    ],
+  },
+  coach: {
+    id: 'coach',
+    name: 'Coach',
+    shortPromise: 'Develop players with a connected coaching workspace.',
+    audience: 'Private coaches, school coaches, and training-group leaders',
+    upgradeCue: 'Unlock lesson planning, drill assignments, student tracking, scheduling, and coach-player communication.',
+    description:
+      'Use Player plus the Coach workspace for lesson planning, student progress tracking, drill assignments, scheduling, tactical boards, and two-way communication with Player students.',
+    valueProps: [
+      'Plan lessons and practice blocks',
+      'Track students and training groups',
+      'Assign drills and homework',
+      'Use TIQ Tactical Studio for drill boards',
+      'Communicate with Player students',
     ],
   },
   captain: {
@@ -91,9 +107,9 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     name: 'Captain',
     shortPromise: 'Make team decisions with more clarity.',
     audience: 'Captains managing lineups, readiness, and weekly decisions',
-    upgradeCue: 'Add captain tools on top of Player features.',
+    upgradeCue: 'Add the Captain workspace on top of Player.',
     description:
-      'Use Player features plus captain tools for lineups, scouting, team decisions, player readiness, and weekly team flow.',
+      'Use Player plus the Captain workspace for lineups, scouting, team decisions, player readiness, and weekly team flow.',
     valueProps: [
       'Build and compare lineups',
       'Scout players and teams',
@@ -104,12 +120,12 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   },
   league: {
     id: 'league',
-    name: 'TIQ League Coordinator',
-    shortPromise: 'Run the season from one place.',
-    audience: 'League coordinators and admins running players or teams',
-    upgradeCue: 'Give league leaders and members one place for requests, schedules, results, and standings.',
+    name: 'League',
+    shortPromise: 'Run a league, ladder, or tournament from one place.',
+    audience: 'League coordinators and organizers running one competition workspace',
+    upgradeCue: 'Give members one place for requests, schedules, results, and standings.',
     description:
-      'Run leagues of players or teams with one home for participation, scheduling, results, standings, visibility, and admin workflows.',
+      'Run one league, ladder, or tournament workspace with participation, scheduling, results, standings, visibility, and admin workflows.',
     valueProps: [
       'Approve teams or players before they enter the season',
       'Keep schedules, sites, and match details in one league home',
@@ -118,9 +134,25 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
       'Give members a clear place to know who, when, where, and what happened',
     ],
   },
+  full_court: {
+    id: 'full_court',
+    name: 'Full-Court',
+    shortPromise: 'Unlock every TenAceIQ workspace.',
+    audience: 'Coaches, captains, clubs, and organizers running the full tennis operation',
+    upgradeCue: 'Unlock Player, Coach, Captain, League, and unlimited tournaments.',
+    description:
+      'Use Player, Coach, Captain, League, ladder, and unlimited tournaments in one workspace for the full tennis operation.',
+    valueProps: [
+      'Everything in Player, Coach, Captain, and League',
+      'Unlimited tournament and event workspaces',
+      'Shared scheduling, results, standings, and rankings',
+      'Team and player books across the full operation',
+      'One workspace for coaches, captains, coordinators, and organizers',
+    ],
+  },
 } as const
 
-export const MEMBERSHIP_TIER_ORDER: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
+export const MEMBERSHIP_TIER_ORDER: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
 export const PRODUCT_PROOF_POINTS = [
   'Less guessing',
@@ -129,7 +161,7 @@ export const PRODUCT_PROOF_POINTS = [
   'Cleaner league operations',
 ] as const
 
-export type ProductModeId = 'find' | 'you' | 'prep' | 'team' | 'league' | 'plans'
+export type ProductModeId = 'find' | 'you' | 'coach' | 'prep' | 'team' | 'league' | 'plans'
 
 export type ProductModeLanguage = {
   id: ProductModeId
@@ -143,19 +175,27 @@ export type ProductModeLanguage = {
 export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> = {
   find: {
     id: 'find',
-    label: 'Find',
+    label: 'Explore',
     route: '/explore',
     planId: 'free',
     job: 'Find public tennis context',
-    cue: 'Search players, teams, leagues, and rankings before you need paid tools.',
+    cue: 'Search players, teams, leagues, and rankings before you need a paid workspace.',
   },
   you: {
     id: 'you',
-    label: 'You',
+    label: 'My Lab',
     route: '/mylab',
     planId: 'player_plus',
     job: 'Make TenAceIQ personal',
-    cue: 'Unlock My Lab, follows, and player-linked context around your game.',
+    cue: 'Unlock My Lab, data refreshes, matchup prep, and tennis messages.',
+  },
+  coach: {
+    id: 'coach',
+    label: 'Coach',
+    route: '/coach',
+    planId: 'coach',
+    job: 'Develop players between lessons',
+    cue: 'Plan lessons, assign drills, review check-ins, and keep coach-player communication tied to goals.',
   },
   prep: {
     id: 'prep',
@@ -171,11 +211,11 @@ export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> =
     route: '/captain',
     planId: 'captain',
     job: 'Lead the team week',
-    cue: 'Use lineup, readiness, scouting, messaging, and brief tools in one flow.',
+    cue: 'Use lineup, readiness, scouting, messaging, and briefs in one flow.',
   },
   league: {
     id: 'league',
-    label: 'League',
+    label: 'Leagues',
     route: '/league-coordinator',
     planId: 'league',
     job: 'Run the season',
@@ -183,11 +223,11 @@ export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> =
   },
   plans: {
     id: 'plans',
-    label: 'Plans',
+    label: 'Pricing',
     route: '/pricing',
     planId: null,
     job: 'Choose the right unlock',
-    cue: 'Start free, then activate Player, Captain, or League when that role saves time.',
+    cue: 'Start free, then activate Player, Coach, Captain, League, or Full-Court when that role saves time.',
   },
 } as const
 
@@ -205,7 +245,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   free: {
     stage: 'Start here',
     headline: 'Start free. Find the tennis landscape.',
-    copy: 'Search players, teams, leagues, rankings, flights, and areas before you need personal tools.',
+    copy: 'Search players, teams, leagues, rankings, flights, and areas before you need a personal workspace.',
     bullets: [
       'Search players, teams, leagues, and rankings',
       'Find public tennis context fast',
@@ -217,39 +257,65 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   player_plus: {
     stage: 'Player unlock',
     headline: 'Make TenAceIQ personal.',
-    copy: 'Unlock My Lab, follow what matters, compare matchups, and link your player identity to the site.',
+    copy: 'Unlock My Lab, improve the data behind your tennis read, prep matchups, and keep messages together.',
     bullets: [
       'Make My Lab your tennis home',
-      'Follow players, teams, leagues, and rankings',
-      'Compare matchups before you play',
+      'Refresh player and match context',
+      'Prep matchups before you play',
     ],
     primaryCta: { label: 'Unlock Player', href: '/pricing#player_plus' },
     secondaryCta: { label: 'Open My Lab', href: '/mylab' },
   },
+  coach: {
+    stage: 'Coach unlock',
+    headline: 'Develop players with a connected coaching workspace.',
+    copy: 'Plan lessons, assign drills, track students, schedule sessions, and turn tactical boards into coach-player follow-through.',
+    bullets: [
+      'Build lesson plans and drill assignments',
+      'Track students and training groups',
+      'Use TIQ Tactical Studio for practical court work',
+    ],
+    primaryCta: { label: 'Unlock Coach', href: '/pricing#coach' },
+    secondaryCta: { label: 'Open Tactical Studio', href: '/tactics' },
+    featuredNote: 'Best for coaches who teach players, groups, clinics, or school practices.',
+  },
   captain: {
     stage: 'Captain unlock',
     headline: 'Run the team week with more clarity.',
-    copy: 'Use Player features plus captain tools for lineups, scouting, readiness, and weekly team decisions.',
+    copy: 'Use Player features plus the Captain workspace for lineups, scouting, readiness, and weekly team decisions.',
     bullets: [
       'Build lineups with less guesswork',
       'Scout players and teams before decisions',
       'Track readiness and keep the week moving',
     ],
-    primaryCta: { label: 'Unlock Team Tools', href: '/pricing#captain' },
-    secondaryCta: { label: 'See Team tools', href: '/captain' },
+    primaryCta: { label: 'Unlock Captain', href: '/pricing#captain' },
+    secondaryCta: { label: 'Open Captain', href: '/captain' },
     featuredNote: 'Best for captains who want fewer scattered texts and clearer weekly decisions.',
   },
   league: {
     stage: 'League unlock',
-    headline: 'Run the season from one place.',
-    copy: 'Manage approvals, schedules, results, standings, and league visibility so league leaders and members spend less time chasing details.',
+    headline: 'Run the competition from one place.',
+    copy: 'Manage approvals, schedules, results, standings, and competition visibility so organizers and members spend less time chasing details.',
     bullets: [
       'Approve players or teams before they enter',
       'Keep schedule and site details visible',
       'Turn match results into standings',
     ],
-    primaryCta: { label: 'Run Your League on TIQ', href: '/pricing#league' },
+    primaryCta: { label: 'Unlock League', href: '/pricing#league' },
     secondaryCta: { label: 'Explore Leagues', href: '/explore/leagues' },
+  },
+  full_court: {
+    stage: 'Full-Court unlock',
+    headline: 'Run the whole tennis operation.',
+    copy: 'Combine Player, Coach, Captain, League, and unlimited tournaments so teams, lessons, leagues, ladders, and events live in one premium workspace.',
+    bullets: [
+      'Unlock Player, Coach, Captain, and League together',
+      'Create unlimited tournament workspaces',
+      'Keep scheduling, results, rankings, and communication connected',
+    ],
+    primaryCta: { label: 'Unlock Full-Court', href: '/pricing#full_court' },
+    secondaryCta: { label: 'Open League', href: '/league-coordinator' },
+    featuredNote: 'Best for organizers who run more than one tennis job at once.',
   },
 }
 
@@ -260,8 +326,8 @@ export const HOME_HERO_STORY = {
   headlineTop: 'Tennis decisions,',
   headlineBottom: 'made clearer.',
   body:
-    'Start free. Upgrade when you need your lab, your lineup, or your league.',
-  proof: ['Free search', 'Player insight', 'Captain decisions', 'League operations'],
+    'Start free. Upgrade when you need your lab, your lineup, your league, or the full court.',
+  proof: ['Free search', 'Player insight', 'Captain decisions', 'Full-Court operations'],
 } as const
 
 export const MY_LAB_STORY = {
@@ -273,7 +339,7 @@ export const MY_LAB_STORY = {
   railTitle: 'Built around you',
   upgradeHeadline: 'Make My Lab yours',
   upgradeBody:
-    'Player unlocks a profile-linked home base with self-analysis, matchup prep, who-to-play-next context, and follows for fun.',
+    'Player unlocks a home base with self-analysis, matchup prep, who-to-play-next context, and cleaner tennis messages.',
   upgradeCta: 'Unlock My Lab with Player',
   upgradeSecondary: 'See Player plan',
   upgradeFootnote: 'Best for players who want smarter match prep and one home for their tennis.',
@@ -281,7 +347,7 @@ export const MY_LAB_STORY = {
     {
       label: 'Identity',
       title: 'Your player record stays connected.',
-      body: 'Ratings, recent decisions, teams, and useful context start from one linked profile.',
+      body: 'Ratings, recent decisions, teams, and useful context start from one set profile.',
     },
     {
       label: 'Prep',
@@ -303,7 +369,7 @@ export const MATCHUP_STORY = {
     'Pick the court, choose the players, and get the read before match time.',
   upgradeHeadline: 'Unlock Matchup with Player',
   upgradeBody:
-    'Player unlocks Matchup, My Lab, follows, and player-linked prep so your tennis context follows you from scouting to match day.',
+    'Player unlocks Matchup, My Lab, data refreshes, and messages so your tennis context follows you from scouting to match day.',
   upgradeCta: 'Unlock Matchup with Player',
   upgradeSecondary: 'See Player plan',
   upgradeFootnote: 'Best for players who want less guessing before the next match.',
@@ -327,7 +393,7 @@ export const CAPTAIN_STORY = {
   upgradeBody:
     'Captain brings availability, lineup building, scenario testing, scouting, readiness, and team messaging into one weekly workflow.',
   upgradeResult: 'Spend less time chasing answers and more time sending a lineup you trust.',
-  upgradeCta: 'Unlock Team Tools',
+  upgradeCta: 'Unlock Captain',
   lockedMessage:
     'Unlock Captain to save time, reduce stress, and build clearer weekly team plans.',
   workspaceProof: [
@@ -339,7 +405,7 @@ export const CAPTAIN_STORY = {
     {
       label: 'Decision',
       title: 'Move from choices to a lineup.',
-      body: 'Projection, builder, and scenario tools help captains compare the team shape before sending it.',
+      body: 'Projection, builder, and scenario views help captains compare the team shape before sending it.',
     },
     {
       label: 'Send',
@@ -362,7 +428,7 @@ export const LEAGUE_COORDINATOR_STORY = {
     'Approve entries, set the schedule shape, collect Data Assist uploads, and keep standings moving so everyone can focus on playing.',
   subnavTitle: 'League Command',
   subnavDescription:
-    'Manage league operations separately from weekly team tools, with Data Assist as the upload path for schedules, rosters, and scorecards.',
+    'Manage league operations separately from the weekly Team workspace, with Data Assist as the upload path for schedules, rosters, and scorecards.',
   newLeagueTitle: 'Create league setup',
   newLeagueBody:
     'Choose team or individual format, name the season, set visibility, then approve participants.',
@@ -378,7 +444,7 @@ export const LEAGUE_COORDINATOR_STORY = {
   finalUpgradeHeadline: 'Ready to run the season without spreadsheet cleanup?',
   finalUpgradeBody:
     'TIQ League Coordinator turns league records into one cleaner system for scheduling, standings, participation, and league-wide clarity.',
-  cta: 'Run Your League on TIQ',
+  cta: 'Unlock League',
 } as const
 
 export function getMembershipTier(tierId: MembershipTierId) {

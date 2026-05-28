@@ -25,6 +25,28 @@ describe('buildProfileActivationPayload', () => {
       tiq_individual_league_creator_enabled: true,
     })
   })
+
+  it('activates Coach with Player access included', () => {
+    expect(buildProfileActivationPayload('coach')).toEqual({
+      player_plus_subscription_active: true,
+      player_plus_subscription_status: 'active',
+      coach_subscription_active: true,
+      coach_subscription_status: 'active',
+    })
+  })
+
+  it('activates Full-Court with Player, Coach, Captain, and League access', () => {
+    expect(buildProfileActivationPayload('full_court')).toEqual({
+      player_plus_subscription_active: true,
+      player_plus_subscription_status: 'active',
+      coach_subscription_active: true,
+      coach_subscription_status: 'active',
+      captain_subscription_active: true,
+      captain_subscription_status: 'active',
+      tiq_team_league_entry_enabled: true,
+      tiq_individual_league_creator_enabled: true,
+    })
+  })
 })
 
 describe('resolveUpgradeActivationTarget', () => {

@@ -24,7 +24,7 @@ describe('auth entry mobile layout guards', () => {
   it('keeps Forgot Password on shared auth without local role polling', () => {
     const source = sources.get('app/forget-password/page.tsx')!
     expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
-    expect(source).toContain('const { role, authResolved } = useAuth()')
+    expect(source).toContain('const { authResolved } = useAuth()')
     expect(source).toContain('const authLoading = !authResolved')
     expect(source).not.toContain('getClientAuthState')
     expect(source).not.toContain('const [role, setRole]')
@@ -38,6 +38,7 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('const authLoading = !authResolved')
     expect(source).toContain("if (!authResolved || role === 'public') return")
     expect(source).toContain('router.replace(getDefaultSignedInRoute(role, entitlements))')
+    expect(source).toContain("if (access.currentPlanId === 'coach') return '/coach'")
     expect(source).not.toContain('getClientAuthState')
     expect(source).not.toContain('const [role, setRole]')
     expect(source).not.toContain('supabase.auth.onAuthStateChange')
@@ -57,18 +58,21 @@ describe('auth entry mobile layout guards', () => {
   it('uses shrink-safe one-column grids on auth entry shells', () => {
     for (const [file, source] of sources) {
       expect(source, file).not.toContain("? '1fr'")
-      expect(source, file).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    }
+
+    for (const file of authEntryFiles) {
+      const source = sources.get(file)!
+      expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+      expect(source).not.toContain(
+        "gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)'",
+      )
     }
 
     expect(sources.get('app/login/page.tsx')).toContain(
       "gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)'",
     )
-    expect(sources.get('app/reset-password/page.tsx')).toContain(
-      "gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))'",
-    )
-    expect(sources.get('app/forget-password/page.tsx')).toContain(
-      "gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))'",
-    )
+    expect(sources.get('app/reset-password/page.tsx')).not.toContain("'repeat(2, minmax(0, 1fr))'")
+    expect(sources.get('app/forget-password/page.tsx')).not.toContain("'repeat(2, minmax(0, 1fr))'")
   })
 
   it('keeps auth shell, panel, and form containers shrinkable', () => {
@@ -81,27 +85,23 @@ describe('auth entry mobile layout guards', () => {
     for (const file of ['app/login/page.tsx', 'app/join/page.tsx']) {
       const source = sources.get(file)!
       expect(styleBlock(source, 'loginPanel')).toContain('minWidth: 0')
-      expect(styleBlock(source, 'loginPanelGlow')).toContain("width: 'min(100%, 250px)'")
       expect(styleBlock(source, 'loginPanelInner')).toContain('minWidth: 0')
-      expect(styleBlock(source, 'selectedPlanCardStyle')).toContain('minWidth: 0')
     }
+
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'loginPanelGlow')).toContain('inset: 0')
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'loginPanelGlow')).toContain(
+      "width: 'min(100%, 250px)'",
+    )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'selectedPlanCardStyle')).toContain('minWidth: 0')
 
     for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
       const source = sources.get(file)!
       expect(styleBlock(source, 'formPanel')).toContain('minWidth: 0')
       expect(styleBlock(source, 'formPanelInner')).toContain('minWidth: 0')
-      expect(styleBlock(source, 'panelCard')).toContain('minWidth: 0')
     }
 
-    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'formPanelGlow')).toContain(
-      "width: 'min(100%, 250px)'",
-    )
-    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'pageGlowOne')).toContain(
-      "width: 'min(100%, 320px)'",
-    )
-    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'pageGlowTwo')).toContain(
-      "width: 'min(100%, 360px)'",
-    )
+    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'formPanelGlow')).toContain('inset: 0')
+    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'formPanelGlow')).toContain('inset: 0')
   })
 
   it('wraps long auth labels, notices, and action text instead of forcing overflow', () => {
@@ -134,18 +134,8 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
       "gridTemplateColumns: 'minmax(0, 36px) minmax(0, 1fr)'",
     )
-    expect(styleBlock(sources.get('app/join/page.tsx')!, 'promiseStep')).toContain(
-      "gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)'",
-    )
-    expect(styleBlock(sources.get('app/join/page.tsx')!, 'selectedPlanStepStyle')).toContain(
-      "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
-    )
-    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'pillBase')).toContain(
+    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'togglePasswordButton')).toContain(
       "overflowWrap: 'anywhere'",
-    )
-    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'pillRow')).toContain('minWidth: 0')
-    expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'pillBase')).toContain(
-      "whiteSpace: 'normal'",
     )
     expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'helperRow')).toContain(
       "maxWidth: '100%'",
@@ -153,14 +143,9 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'inlineLinkMuted')).toContain(
       "overflowWrap: 'anywhere'",
     )
-    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'statusPill')).toContain(
+    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'destinationPillStyle')).toContain(
       "overflowWrap: 'anywhere'",
     )
-    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'pillRow')).toContain('minWidth: 0')
-    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'pillBase')).toContain(
-      "whiteSpace: 'normal'",
-    )
-    expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'panelHeader')).toContain('minWidth: 0')
     expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'helperRow')).toContain(
       "maxWidth: '100%'",
     )

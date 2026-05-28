@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { useRouter } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
@@ -442,7 +443,7 @@ function CaptainWeeklyBriefContent() {
         planId="captain"
         headline="Still piecing together your week from scattered notes?"
         body="Unlock Captain to connect availability, lineups, scenarios, and team communication in one weekly flow."
-        ctaLabel="Unlock Captain Tools"
+        ctaLabel="Unlock Captain"
         secondaryLabel="Back to Captain"
         secondaryHref="/captain"
       />
@@ -452,7 +453,9 @@ function CaptainWeeklyBriefContent() {
   return (
     <main style={pageStyle}>
       <div style={contentStyle}>
+          <CaptainSuitePanel active="brief" teamLabel={team || 'Team week'} />
           <section style={heroCard} aria-label="Weekly brief controls">
+            <span aria-hidden="true" style={watermarkStyle} />
             <div style={heroTopRow}>
               <div>
                 <p style={sectionKicker}>Weekly Brief</p>
@@ -737,8 +740,16 @@ function PrimaryLink({ href, children }: { href: string; children: ReactNode }) 
 }
 
 const pageStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
+  margin: '0 auto',
+  padding: '18px 0 64px',
   minHeight: 0,
   background: 'transparent',
+  minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const contentStyle: CSSProperties = {
@@ -748,17 +759,35 @@ const contentStyle: CSSProperties = {
 }
 
 const heroCard: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   gap: 18,
   padding: 22,
   borderRadius: 28,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
+  overflow: 'hidden',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(-92px, -7vw, -34px)',
+  bottom: 'clamp(-112px, -10vw, -52px)',
+  width: 'clamp(230px, 30vw, 420px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.15) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
+  opacity: 0.74,
+  pointerEvents: 'none',
 }
 
 const heroTopRow: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
@@ -800,14 +829,16 @@ const statusButtonRow: CSSProperties = {
 }
 
 const briefBoardStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: 18,
   alignItems: 'center',
   padding: 20,
   borderRadius: 24,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.60)',
   minWidth: 0,
 }
 
@@ -861,15 +892,15 @@ const briefSignalCardStyle: CSSProperties = {
   gap: 10,
   padding: 16,
   borderRadius: 20,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(255,255,255,0.045)',
   minWidth: 0,
 }
 
 const briefSignalCardAccentStyle: CSSProperties = {
   ...briefSignalCardStyle,
   border: '1px solid rgba(155,225,29,0.22)',
-  background: 'var(--shell-chip-bg-strong)',
+  background: 'rgba(155,225,29,0.10)',
 }
 
 const briefSignalTopStyle: CSSProperties = {

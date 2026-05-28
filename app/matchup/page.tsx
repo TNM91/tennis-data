@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { DATA_ASSIST_STORY, MATCHUP_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -32,6 +33,7 @@ type Player = {
   overall_usta_dynamic_rating?: number | null
   singles_usta_dynamic_rating?: number | null
   doubles_usta_dynamic_rating?: number | null
+  rating_source?: string | null
 }
 
 type MatchRow = {
@@ -106,6 +108,8 @@ type ComparisonState = {
     singles: number | null
     doubles: number | null
   }
+  leftSelfRated: boolean
+  rightSelfRated: boolean
   leftSelected: number
   rightSelected: number
   gap: number
@@ -143,9 +147,41 @@ type AccuracyState = {
 
 const RATING_DIVISOR = 0.45
 const MATCHUP_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE || null
+const MATCHUP_PLAYER_SELECT_BASE = `
+  id,
+  name,
+  location,
+  overall_dynamic_rating,
+  singles_dynamic_rating,
+  doubles_dynamic_rating,
+  overall_usta_dynamic_rating,
+  singles_usta_dynamic_rating,
+  doubles_usta_dynamic_rating
+`
+const MATCHUP_PLAYER_SELECT_WITH_SOURCE = `${MATCHUP_PLAYER_SELECT_BASE},rating_source`
 
 function hasValidRating(value: number | null | undefined): value is number {
   return typeof value === 'number' && !Number.isNaN(value)
+}
+
+function isSelfRatedPlayer(player: Pick<Player, 'rating_source'> | null | undefined) {
+  return player?.rating_source === 'self'
+}
+
+function formatMatchupRating(value: number | null | undefined, player?: Pick<Player, 'rating_source'> | null) {
+  const formatted = formatRating(value)
+  return isSelfRatedPlayer(player) && formatted !== '—' ? `${formatted} S` : formatted
+}
+
+function formatSideRating(value: number | null | undefined, players: Player[]) {
+  if (value === null || value === undefined) return 'Rating pending'
+  const hasSelfRated = players.some(isSelfRatedPlayer)
+  return `TIQ ${formatRating(value)}${hasSelfRated ? ' S' : ''}`
+}
+
+function isMissingRatingSourceError(message: string | null | undefined) {
+  const normalized = (message || '').toLowerCase()
+  return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
 }
 
 export default function MatchupPage() {
@@ -240,7 +276,7 @@ export default function MatchupPage() {
     if (matchType !== 'singles') return
     if (players.length && !players.some((player) => player.id === profileLink.linked_player_id)) {
       profilePrefillAttemptedRef.current = true
-      setSelectionNotice('Your linked player record is no longer in the active Matchup list. Refresh your profile after Data Assist review connects the current record.')
+      setSelectionNotice('Your profile player is not in the active Matchup list yet. Set your profile or refresh data after review connects the current record.')
       return
     }
     if (playerAId) return
@@ -392,24 +428,26 @@ export default function MatchupPage() {
     setError('')
 
     try {
-      const { data, error } = await supabase
+      const withSource = await supabase
         .from('players')
-        .select(`
-          id,
-          name,
-          location,
-          overall_dynamic_rating,
-          singles_dynamic_rating,
-          doubles_dynamic_rating,
-          overall_usta_dynamic_rating,
-          singles_usta_dynamic_rating,
-          doubles_usta_dynamic_rating
-        `)
+        .select(MATCHUP_PLAYER_SELECT_WITH_SOURCE)
         .order('name', { ascending: true })
 
-      if (error) throw new Error(error.message)
+      if (!withSource.error) {
+        setPlayers(normalizeMatchupPlayerOptions((withSource.data || []) as Player[]))
+        return
+      }
 
-      setPlayers(normalizeMatchupPlayerOptions((data || []) as Player[]))
+      if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+
+      const base = await supabase
+        .from('players')
+        .select(MATCHUP_PLAYER_SELECT_BASE)
+        .order('name', { ascending: true })
+
+      if (base.error) throw new Error(base.error.message)
+
+      setPlayers(normalizeMatchupPlayerOptions(((base.data || []) as Player[]).map((player) => ({ ...player, rating_source: null }))))
     } catch {
       setError('Matchup players could not load. Try again, or use Data Assist to refresh player records if the list looks out of date.')
     } finally {
@@ -889,7 +927,7 @@ export default function MatchupPage() {
     () => players.find((player) => player.id === profileLink?.linked_player_id) || null,
     [players, profileLink?.linked_player_id],
   )
-  const needsProfileSetup = Boolean(user?.id) && access.canUseAdvancedPlayerInsights && !profilePlayer
+  const needsProfileSetup = Boolean(user?.id) && access.canUseAdvancedPlayerInsights && !profilePlayer && !profileLink?.linked_player_name
   const playerB = useMemo(
     () => players.find((player) => player.id === playerBId) || null,
     [players, playerBId],
@@ -1019,12 +1057,14 @@ export default function MatchupPage() {
           label: profilePlayer && playerA?.id === profilePlayer.id ? 'You' : 'Player A',
           name: playerA?.name || 'Choose Player A',
           rating: playerA ? getProjectionRating(playerA, getEngineRatingView(matchType)) : null,
+          players: playerA ? [playerA] : [],
           selected: Boolean(playerA),
         },
         {
           label: profilePlayer && playerB?.id === profilePlayer.id ? 'You' : 'Player B',
           name: playerB?.name || 'Choose Player B',
           rating: playerB ? getProjectionRating(playerB, getEngineRatingView(matchType)) : null,
+          players: playerB ? [playerB] : [],
           selected: Boolean(playerB),
         },
       ]
@@ -1038,6 +1078,7 @@ export default function MatchupPage() {
           teamA1 && teamA2
             ? averageAvailable([getProjectionRating(teamA1, 'doubles'), getProjectionRating(teamA2, 'doubles')])
             : null,
+        players: [teamA1, teamA2].filter(Boolean) as Player[],
         selected: Boolean(teamA1 && teamA2),
       },
       {
@@ -1047,6 +1088,7 @@ export default function MatchupPage() {
           teamB1 && teamB2
             ? averageAvailable([getProjectionRating(teamB1, 'doubles'), getProjectionRating(teamB2, 'doubles')])
             : null,
+        players: [teamB1, teamB2].filter(Boolean) as Player[],
         selected: Boolean(teamB1 && teamB2),
       },
     ]
@@ -1113,6 +1155,8 @@ export default function MatchupPage() {
           singles: playerB.singles_usta_dynamic_rating ?? null,
           doubles: playerB.doubles_usta_dynamic_rating ?? null,
         },
+        leftSelfRated: isSelfRatedPlayer(playerA),
+        rightSelfRated: isSelfRatedPlayer(playerB),
         leftSelected: left,
         rightSelected: right,
         gap,
@@ -1185,6 +1229,8 @@ export default function MatchupPage() {
         singles: [teamB1.singles_usta_dynamic_rating ?? null, teamB2.singles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.singles_usta_dynamic_rating!, teamB2.singles_usta_dynamic_rating!]) : null,
         doubles: [teamB1.doubles_usta_dynamic_rating ?? null, teamB2.doubles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.doubles_usta_dynamic_rating!, teamB2.doubles_usta_dynamic_rating!]) : null,
       },
+      leftSelfRated: [teamA1, teamA2].some(isSelfRatedPlayer),
+      rightSelfRated: [teamB1, teamB2].some(isSelfRatedPlayer),
       leftSelected: left,
       rightSelected: right,
       gap,
@@ -1365,6 +1411,7 @@ export default function MatchupPage() {
   return (
     <SiteShell active="/matchup">
       <section style={contentWrap}>
+        <PlayerSuitePanel active="matchup" playerLabel={profileLink?.linked_player_name || 'Player prep'} />
         <article style={controlsCard}>
           <div style={toolHeaderStyle}>
             <div style={toolHeaderTitleClusterStyle}>
@@ -1384,12 +1431,12 @@ export default function MatchupPage() {
               <TiqFeatureIcon name="accountSecurity" size="md" variant="surface" />
               <div style={identitySetupCopyStyle}>
                 <div style={identitySetupKickerStyle}>Finish personalization</div>
-                <h3 style={identitySetupTitleStyle}>Connect your player record before running your own matchups.</h3>
+                <h3 style={identitySetupTitleStyle}>Set your profile before running your own matchups.</h3>
                 <p style={identitySetupTextStyle}>
-                  You can still explore any players here, but linking your identity lets Matchup start with you and lets My Lab save the read back to your game.
+                  You can still explore any players here, but choosing or creating your identity lets Matchup start with you and lets My Lab save the read back to your game.
                 </p>
               </div>
-              <Link href="/profile" style={identitySetupButtonStyle}>Finish profile</Link>
+              <Link href="/profile" style={identitySetupButtonStyle}>Set profile</Link>
             </article>
           ) : null}
 
@@ -1489,7 +1536,7 @@ export default function MatchupPage() {
                     <span style={handoffSideLabelStyle}>{side.label}</span>
                     <strong style={handoffSideNameStyle}>{side.name}</strong>
                     <span style={handoffSideMetaStyle}>
-                      {side.rating === null ? 'Rating pending' : `TIQ ${formatRating(side.rating)}`}
+                      {formatSideRating(side.rating, side.players)}
                     </span>
                   </div>
                 ))}
@@ -1587,7 +1634,9 @@ export default function MatchupPage() {
                   <div key={side.label} style={doublesPreviewCardStyle}>
                     <span style={doublesPreviewLabelStyle}>{side.label}</span>
                     <strong style={doublesPreviewNamesStyle}>{side.players.length ? side.players.map((player) => player.name).join(' / ') : 'Choose 2 players'}</strong>
-                    <em style={doublesPreviewMetaStyle}>{side.rating === null ? 'Rating appears when side is set' : `Projected ${formatRating(side.rating)}`}</em>
+                    <em style={doublesPreviewMetaStyle}>
+                      {side.rating === null ? 'Rating appears when side is set' : `Projected ${formatSideRating(side.rating, side.players).replace('TIQ ', '')}`}
+                    </em>
                   </div>
                 ))}
               </div>
@@ -1629,7 +1678,7 @@ export default function MatchupPage() {
                     >
                       <span style={suggestionName}>{player.name}</span>
                       <span style={suggestionMeta}>
-                        S {formatRating(getSelectedRating(player, 'singles'))} - O {formatRating(getSelectedRating(player, 'overall'))}
+                        S {formatMatchupRating(getSelectedRating(player, 'singles'), player)} - O {formatMatchupRating(getSelectedRating(player, 'overall'), player)}
                       </span>
                     </button>
                   ))}
@@ -1798,6 +1847,7 @@ export default function MatchupPage() {
                   projectionView={comparison.engineRatingView}
                   profileHref={comparison.leftProfileHref}
                   favored={comparison.favoredSide === 'left'}
+                  selfRated={comparison.leftSelfRated}
                   dynamicRatingGrid={dynamicRatingGrid}
                 />
 
@@ -1821,6 +1871,7 @@ export default function MatchupPage() {
                   projectionView={comparison.engineRatingView}
                   profileHref={comparison.rightProfileHref}
                   favored={comparison.favoredSide === 'right'}
+                  selfRated={comparison.rightSelfRated}
                   dynamicRatingGrid={dynamicRatingGrid}
                 />
               </div>
@@ -2090,6 +2141,7 @@ function CompareCard({
   projectionView,
   profileHref,
   favored,
+  selfRated,
   dynamicRatingGrid,
 }: {
   title: string
@@ -2101,6 +2153,7 @@ function CompareCard({
   projectionView: RatingView
   profileHref: string | null
   favored: boolean
+  selfRated: boolean
   dynamicRatingGrid: CSSProperties
 }) {
   return (
@@ -2125,26 +2178,31 @@ function CompareCard({
 
       <div style={ratingSectionLabelStyle}>TIQ DYNAMIC</div>
       <div style={dynamicRatingGrid}>
-        <RatingPill label="Overall" value={ratings.overall} active={ratingView === 'overall'} />
-        <RatingPill label="Singles" value={ratings.singles} active={ratingView === 'singles'} />
-        <RatingPill label="Doubles" value={ratings.doubles} active={ratingView === 'doubles'} />
+        <RatingPill label="Overall" value={ratings.overall} active={ratingView === 'overall'} selfRated={selfRated} />
+        <RatingPill label="Singles" value={ratings.singles} active={ratingView === 'singles'} selfRated={selfRated} />
+        <RatingPill label="Doubles" value={ratings.doubles} active={ratingView === 'doubles'} selfRated={selfRated} />
       </div>
 
       <div style={{ ...ratingSectionLabelStyle, marginTop: 10 }}>USTA DYNAMIC</div>
       <div style={dynamicRatingGrid}>
-        <RatingPill label="Overall" value={ustaRatings.overall} active={ratingView === 'overall'} />
-        <RatingPill label="Singles" value={ustaRatings.singles} active={ratingView === 'singles'} />
-        <RatingPill label="Doubles" value={ustaRatings.doubles} active={ratingView === 'doubles'} />
+        <RatingPill label="Overall" value={selfRated ? null : ustaRatings.overall} active={ratingView === 'overall'} pendingLabel={selfRated ? 'Pending' : undefined} />
+        <RatingPill label="Singles" value={selfRated ? null : ustaRatings.singles} active={ratingView === 'singles'} pendingLabel={selfRated ? 'Pending' : undefined} />
+        <RatingPill label="Doubles" value={selfRated ? null : ustaRatings.doubles} active={ratingView === 'doubles'} pendingLabel={selfRated ? 'Pending' : undefined} />
       </div>
 
       <div style={highlightBox}>
         <div style={highlightLabel}>
           {projectionView === 'singles' ? 'Singles projection rating' : 'Doubles projection rating'}
         </div>
-        <div style={highlightValue}>{formatRating(projectionRating)}</div>
+        <div style={highlightValue}>{formatRating(projectionRating)}{selfRated ? ' S' : ''}</div>
       </div>
 
       {(() => {
+        if (selfRated) return (
+          <div style={{ ...ratingSignalStyle, color: 'var(--brand-lime)' }}>
+            Self-rated - verified results will replace the S signal.
+          </div>
+        )
         const tiqVal = ratingView === 'singles' ? ratings.singles : ratingView === 'doubles' ? ratings.doubles : ratings.overall
         const ustaVal = ratingView === 'singles' ? ustaRatings.singles : ratingView === 'doubles' ? ustaRatings.doubles : ustaRatings.overall
         if (tiqVal == null || ustaVal == null) return null
@@ -2165,10 +2223,14 @@ function RatingPill({
   label,
   value,
   active,
+  selfRated = false,
+  pendingLabel,
 }: {
   label: string
   value: number | null
   active?: boolean
+  selfRated?: boolean
+  pendingLabel?: string
 }) {
   return (
     <div
@@ -2178,7 +2240,7 @@ function RatingPill({
       }}
     >
       <div style={ratingPillLabel}>{label}</div>
-      <div style={ratingPillValue}>{formatRating(value)}</div>
+      <div style={ratingPillValue}>{pendingLabel ?? `${formatRating(value)}${selfRated && value != null ? ' S' : ''}`}</div>
     </div>
   )
 }
@@ -2457,10 +2519,14 @@ function formatNullablePercent(value: number | null) {
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '0 18px 0',
+  padding: '18px 0 64px',
+  display: 'grid',
+  gap: 18,
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const exploreNavRow: CSSProperties = {
@@ -2504,11 +2570,10 @@ const exploreNavLink: CSSProperties = {
 const controlsCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+  boxShadow: '0 30px 86px rgba(2, 8, 23, 0.46), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
-  marginBottom: '16px',
 }
 
 const toolHeaderStyle: CSSProperties = {
@@ -2542,7 +2607,7 @@ const toolHeaderKickerStyle: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 900,
-  letterSpacing: '0.12em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   overflowWrap: 'anywhere',
 }

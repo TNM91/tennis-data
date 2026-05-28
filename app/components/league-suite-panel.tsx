@@ -1,11 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
-type LeagueSuiteStep = 'setup' | 'participants' | 'schedule' | 'team-results' | 'player-results' | 'public-page'
+type LeagueSuiteStep = 'shared-calendar' | 'team-book' | 'player-book' | 'team-results' | 'player-results'
 
 type LeagueSuiteConfig = {
   label: string
@@ -16,56 +15,46 @@ type LeagueSuiteConfig = {
 }
 
 const SUITE_STEPS: Record<LeagueSuiteStep, LeagueSuiteConfig> = {
-  setup: {
-    label: 'Setup',
-    title: 'Structure the season',
-    body: 'Define format, dates, scoring, visibility, limits, and the first participant pool.',
-    href: '/league-coordinator#league-setup-form',
-    icon: 'teamRankings',
-  },
-  participants: {
-    label: 'Approve',
-    title: 'Review entries',
-    body: 'Keep team or player requests organized before they shape the league record.',
-    href: '/league-coordinator#league-registry',
-    icon: 'accountSecurity',
-  },
-  schedule: {
-    label: 'Schedule',
-    title: 'Publish the path',
-    body: 'Use day, time, facility, and season limits so members know when and where to play.',
-    href: '/league-coordinator#league-setup-form',
+  'shared-calendar': {
+    label: 'Shared calendar',
+    title: 'Shared calendar',
+    body: 'Publish, propose, confirm, and track match dates for everyone in the league.',
+    href: '/compete/schedule',
     icon: 'schedule',
+  },
+  'team-book': {
+    label: 'Team book',
+    title: 'Team book',
+    body: 'Enter match events and line scores so standings can move without spreadsheet cleanup.',
+    href: '/league-coordinator/results',
+    icon: 'reports',
+  },
+  'player-book': {
+    label: 'Player book',
+    title: 'Player book',
+    body: 'Capture one-on-one results for ladders, round robins, and challenge leagues.',
+    href: '/league-coordinator/individual-results',
+    icon: 'playerRatings',
   },
   'team-results': {
     label: 'Team book',
-    title: 'Record team results',
+    title: 'Team book',
     body: 'Enter match events and line scores so standings can move without spreadsheet cleanup.',
     href: '/league-coordinator/results',
     icon: 'reports',
   },
   'player-results': {
     label: 'Player book',
-    title: 'Log player results',
+    title: 'Player book',
     body: 'Capture one-on-one results for ladders, round robins, and challenge leagues.',
     href: '/league-coordinator/individual-results',
     icon: 'playerRatings',
   },
-  'public-page': {
-    label: 'Publish',
-    title: 'Make it clear',
-    body: 'Give members a useful league page with participants, schedule context, results, and standings.',
-    href: '/explore/leagues',
-    icon: 'opponentScouting',
-  },
 }
-
-const DEFAULT_FLOW: LeagueSuiteStep[] = ['setup', 'participants', 'schedule', 'team-results', 'public-page']
 
 export default function LeagueSuitePanel({
   active,
   leagueLabel,
-  flow = DEFAULT_FLOW,
 }: {
   active: LeagueSuiteStep
   leagueLabel?: string
@@ -73,8 +62,6 @@ export default function LeagueSuitePanel({
 }) {
   const { isMobile } = useViewportBreakpoints()
   const activeConfig = SUITE_STEPS[active]
-  const nextStep = flow.find((step) => step !== active && flow.indexOf(step) > flow.indexOf(active)) ?? flow.find((step) => step !== active)
-  const nextConfig = nextStep ? SUITE_STEPS[nextStep] : null
 
   return (
     <section style={shellStyle} aria-label="League coordinator suite context">
@@ -99,37 +86,6 @@ export default function LeagueSuitePanel({
         </div>
       </div>
 
-      <div style={stepGridStyle}>
-        {flow.map((step, index) => {
-          const config = SUITE_STEPS[step]
-          const selected = step === active
-          return (
-            <Link
-              key={step}
-              href={config.href}
-              aria-current={selected ? 'step' : undefined}
-              style={{
-                ...stepCardStyle,
-                ...(selected ? stepCardActiveStyle : null),
-              }}
-            >
-              <span style={stepNumberStyle}>{index + 1}</span>
-              <TiqFeatureIcon name={config.icon} size="sm" variant={selected ? 'surface' : 'ghost'} />
-              <span style={stepCopyStyle}>
-                <span style={stepLabelStyle}>{config.label}</span>
-                <strong style={stepTitleStyle}>{config.title}</strong>
-              </span>
-            </Link>
-          )
-        })}
-      </div>
-
-      {nextConfig ? (
-        <div style={nextActionStyle}>
-          <span style={nextLabelStyle}>Suggested next move</span>
-          <Link href={nextConfig.href} style={nextLinkStyle}>{nextConfig.title}</Link>
-        </div>
-      ) : null}
     </section>
   )
 }
@@ -189,95 +145,4 @@ const scopePillStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 850,
   overflowWrap: 'anywhere',
-}
-
-const stepGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
-
-const stepCardStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '28px 32px minmax(0, 1fr)',
-  gap: 9,
-  alignItems: 'center',
-  minHeight: 58,
-  padding: '9px 10px',
-  borderRadius: 15,
-  border: '1px solid rgba(116,190,255,0.09)',
-  background: 'rgba(255,255,255,0.035)',
-  color: 'var(--foreground)',
-  textDecoration: 'none',
-  minWidth: 0,
-}
-
-const stepCardActiveStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, rgba(116,190,255,0.12) 66%)',
-  background: 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)',
-}
-
-const stepNumberStyle: CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 999,
-  display: 'grid',
-  placeItems: 'center',
-  background: 'rgba(255,255,255,0.06)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
-}
-
-const stepCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 2,
-  minWidth: 0,
-}
-
-const stepLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 900,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-}
-
-const stepTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 12,
-  lineHeight: 1.15,
-  overflowWrap: 'anywhere',
-}
-
-const nextActionStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: 10,
-  flexWrap: 'wrap',
-  paddingTop: 2,
-}
-
-const nextLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-}
-
-const nextLinkStyle: CSSProperties = {
-  minHeight: 36,
-  display: 'inline-flex',
-  alignItems: 'center',
-  padding: '0 13px',
-  borderRadius: 999,
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'rgba(116,190,255,0.08)',
-  color: '#dbeafe',
-  textDecoration: 'none',
-  fontSize: 12,
-  fontWeight: 900,
 }

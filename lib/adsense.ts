@@ -20,12 +20,14 @@ export function isAdSafePath(pathname: string): boolean {
 
   if (
     pathname.startsWith('/admin') ||
+    pathname.startsWith('/coach') ||
     pathname.startsWith('/captain') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/join') ||
     pathname.startsWith('/forget-password') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/mylab') ||
+    pathname.startsWith('/tactics') ||
     pathname.startsWith('/api')
   ) {
     return false

@@ -23,7 +23,6 @@ import {
   getTiqIndividualCompetitionFormatNextAction,
   getTiqIndividualCompetitionFormatPreview,
 } from '@/lib/tiq-individual-format'
-import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
@@ -67,42 +66,42 @@ export default function CompeteLeaguesPage() {
 
   return (
     <CompetePageFrame
-      eyebrow="My Leagues"
-      title="Leagues with the next move visible."
-      description="Team seasons, individual ladders, public pages, and coordinator tools stay in one dark workflow."
+      eyebrow="League directory"
+      title="Open the right league room."
+      description="Saved TIQ leagues, public league pages, data refreshes, and team-week handoffs stay under the League lane."
     >
       <CompeteGrid>
         <CompeteCard
           href="/league-coordinator"
-          meta="Create TIQ leagues"
-          title="TIQ League Coordinator"
+          meta="Workspace"
+          title="League workspace"
           text="Set up seasons, approve entries, publish pages, and record results."
           icon="teamRankings"
-          action="Run league"
+          action="Open workspace"
         />
         <CompeteCard
           href="/explore/leagues"
-          meta="Explore"
-          title="Browse League Layers"
-          text="USTA history, TIQ team leagues, and TIQ individual leagues in one browse surface."
+          meta="Public map"
+          title="Browse leagues"
+          text="USTA history, TIQ team leagues, and TIQ individual leagues in one search surface."
           icon="opponentScouting"
           action="Browse leagues"
         />
         <CompeteCard
           href={DATA_ASSIST_STORY.href}
-          meta="Refresh context"
-          title="Data Assist Uploads"
+          meta="Refresh"
+          title="Improve league data"
           text="Upload schedules, rosters, and scorecards when league context changes."
           icon="accountSecurity"
           action="Upload data"
         />
         <CompeteCard
           href="/captain"
-          meta="Captain workflow"
-          title="Captain Command Center"
-          text="Move into lineup, availability, scenario, and message tools."
+          meta="Team handoff"
+          title="Team week"
+          text="Move into lineup, availability, scenario, and team messages."
           icon="captainDashboard"
-          action="Open captain"
+          action="Open week"
         />
       </CompeteGrid>
 
@@ -110,10 +109,10 @@ export default function CompeteLeaguesPage() {
 
       <div style={upgradeWrapStyle}>
         <div style={upgradeIntroStyle}>
-          <div style={sectionEyebrowStyle}>Need more control?</div>
-          <div style={upgradeTitleStyle}>Pick the package that solves the friction you have right now.</div>
+          <div style={sectionEyebrowStyle}>Unlock path</div>
+          <div style={upgradeTitleStyle}>Open the workspace that matches the job.</div>
           <div style={sectionTextStyle}>
-            Keep this simple: Player is for personal prep, Captain is for team decisions, and TIQ League Coordinator is for running the season.
+            Player handles personal prep, Captain handles team week, and League handles seasons, scorebooks, and public league rooms.
           </div>
         </div>
 
@@ -133,7 +132,7 @@ export default function CompeteLeaguesPage() {
             compact
             headline="Still building lineups manually?"
             body="Captain helps you save time, reduce stress, and move from availability to smarter lineups and team communication."
-            ctaLabel="Unlock Captain Tools"
+            ctaLabel="Unlock Captain"
             ctaHref="/pricing"
             secondaryLabel="See plans"
             secondaryHref="/pricing"
@@ -197,16 +196,6 @@ function buildTiqTeamResultsHref(record: TiqLeagueRecord) {
   return `/captain/tiq-team-matches?leagueId=${encodeURIComponent(record.id)}`
 }
 
-function buildTiqLeagueLineupHref(record: TiqLeagueRecord) {
-  const team = record.captainTeamName || record.teams[0] || ''
-  return buildCaptainScopedHref('/captain/lineup-builder', {
-    competitionLayer: 'tiq',
-    team,
-    league: record.leagueName,
-    flight: record.flight || record.seasonLabel,
-  })
-}
-
 function buildTiqIndividualResultHref(record: TiqLeagueRecord) {
   const params = new URLSearchParams({ league_id: record.id })
   const [playerA, playerB] = record.players
@@ -236,7 +225,7 @@ function LeagueListSection({
       <div style={sectionTextStyle}>{body}</div>
 
       {records.length === 0 ? (
-        <div style={emptyStyle}>No leagues in this format yet. Create one from League Coordinator tools.</div>
+        <EmptyLeagueSection title={title} />
       ) : (
         <div style={listStyle}>
           {records.map((record) => {
@@ -246,13 +235,45 @@ function LeagueListSection({
             const primaryActionLabel = record.leagueFormat === 'team' ? 'Record results' : 'Log result'
             const primaryActionHref =
               record.leagueFormat === 'team' ? buildTiqTeamResultsHref(record) : buildTiqIndividualResultHref(record)
-            const secondaryActionLabel = record.leagueFormat === 'team' ? 'Lineup' : 'Results'
-            const secondaryActionHref =
-              record.leagueFormat === 'team' ? buildTiqLeagueLineupHref(record) : '/compete/results'
+            const leagueReadinessItems = record.leagueFormat === 'team'
+              ? [
+                  {
+                    label: 'Teams',
+                    value: record.teams.length > 0 ? `${record.teams.length}` : 'Waiting',
+                    ready: record.teams.length > 0,
+                  },
+                  {
+                    label: 'Schedule',
+                    value: record.defaultMatchDay || record.defaultMatchTime ? 'Set' : 'Needs dates',
+                    ready: Boolean(record.defaultMatchDay || record.defaultMatchTime),
+                  },
+                  {
+                    label: 'Season',
+                    value: record.seasonStatus || 'Draft',
+                    ready: record.seasonStatus === 'active',
+                  },
+                ]
+              : [
+                  {
+                    label: 'Players',
+                    value: record.players.length > 0 ? `${record.players.length}` : 'Waiting',
+                    ready: record.players.length > 0,
+                  },
+                  {
+                    label: 'Results',
+                    value: summary?.resultCount ? `${summary.resultCount}` : 'Waiting',
+                    ready: Boolean(summary?.resultCount),
+                  },
+                  {
+                    label: 'Prompts',
+                    value: suggestionSummary?.openCount ? `${suggestionSummary.openCount} open` : 'Clear',
+                    ready: !suggestionSummary?.openCount,
+                  },
+                ]
 
             return (
               <div key={record.id} style={rowStyle}>
-                <div>
+                <div style={rowCopyStyle}>
                   <div style={rowTitleStyle}>{record.leagueName}</div>
                   <div style={rowMetaStyle}>
                     {[
@@ -268,10 +289,10 @@ function LeagueListSection({
                   </div>
                   <div style={rowPreviewStyle}>
                     {record.leagueFormat === 'team'
-                      ? record.teams.slice(0, 3).join(' • ') || 'No team entries yet'
+                      ? record.teams.slice(0, 3).join(' - ') || 'No team entries yet'
                       : summary
-                        ? `${getTiqIndividualCompetitionFormatPreview(record.individualCompetitionFormat)} Leader ${summary.leaderName} (${summary.leaderRecord})${summary.leaderRecentForm ? ` • Form ${summary.leaderRecentForm}` : ''}`
-                        : record.players.slice(0, 3).join(' • ') ||
+                        ? `${getTiqIndividualCompetitionFormatPreview(record.individualCompetitionFormat)} Leader ${summary.leaderName} (${summary.leaderRecord})${summary.leaderRecentForm ? ` - Form ${summary.leaderRecentForm}` : ''}`
+                        : record.players.slice(0, 3).join(' - ') ||
                           getTiqIndividualCompetitionFormatPreview(record.individualCompetitionFormat)}
                   </div>
                   {record.leagueFormat === 'individual' ? (
@@ -285,10 +306,22 @@ function LeagueListSection({
                   {record.leagueFormat === 'individual' && suggestionSummary ? (
                     <div style={rowSuggestionStyle}>
                       {suggestionSummary.openCount > 0
-                        ? `${suggestionSummary.openCount} open TIQ prompt${suggestionSummary.openCount === 1 ? '' : 's'}${suggestionSummary.claimedOpenCount ? ` • ${suggestionSummary.claimedOpenCount} claimed${suggestionSummary.latestClaimedByLabel ? ` by ${suggestionSummary.latestClaimedByLabel}` : ''}` : ''}${suggestionSummary.latestOpenTitle ? ` • ${suggestionSummary.latestOpenTitle}` : ''}`
+                        ? `${suggestionSummary.openCount} open TIQ prompt${suggestionSummary.openCount === 1 ? '' : 's'}${suggestionSummary.claimedOpenCount ? ` - ${suggestionSummary.claimedOpenCount} claimed${suggestionSummary.latestClaimedByLabel ? ` by ${suggestionSummary.latestClaimedByLabel}` : ''}` : ''}${suggestionSummary.latestOpenTitle ? ` - ${suggestionSummary.latestOpenTitle}` : ''}`
                         : `${suggestionSummary.completedCount} TIQ prompt${suggestionSummary.completedCount === 1 ? '' : 's'} completed`}
                     </div>
                   ) : null}
+                  <div style={leagueReadinessGridStyle}>
+                    {leagueReadinessItems.map((item) => (
+                      <div key={item.label} style={leagueReadinessItemStyle}>
+                        <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                        <span>{item.label}</span>
+                        <strong>{item.value}</strong>
+                      </div>
+                    ))}
+                    <Link href={primaryActionHref} style={leaguePrimaryActionStyle}>
+                      {primaryActionLabel}
+                    </Link>
+                  </div>
                 </div>
                 <div style={rowActionStackStyle}>
                   <div style={rowMetaStrongStyle}>
@@ -299,12 +332,6 @@ function LeagueListSection({
                   <RowLink href={leagueHref}>
                     Open league
                   </RowLink>
-                  <RowLink href={primaryActionHref}>
-                    {primaryActionLabel}
-                  </RowLink>
-                  <RowLink href={secondaryActionHref}>
-                    {secondaryActionLabel}
-                  </RowLink>
                 </div>
               </div>
             )
@@ -312,6 +339,30 @@ function LeagueListSection({
         </div>
       )}
     </section>
+  )
+}
+
+function EmptyLeagueSection({ title }: { title: string }) {
+  const isTeam = title.toLowerCase().includes('team')
+  return (
+    <div style={emptyLeagueStyle}>
+      <div style={emptyLeagueCopyStyle}>
+        <strong>{isTeam ? 'Team seasons start in the league workspace.' : 'Individual play starts with a league room.'}</strong>
+        <span>
+          {isTeam
+            ? 'Create the season, add teams, then schedule and record results from one League lane.'
+            : 'Create a ladder, round robin, or challenge board, then invite players and log the first result.'}
+        </span>
+      </div>
+      <div style={emptyLeagueActionRowStyle}>
+        <Link href="/league-coordinator" style={emptyLeagueActionStyle}>
+          Create league
+        </Link>
+        <Link href="/explore/leagues" style={emptyLeagueActionStyle}>
+          Browse leagues
+        </Link>
+      </div>
+    </div>
   )
 }
 
@@ -367,8 +418,9 @@ const panelStyle = {
   gap: '12px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.74)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 } as const
@@ -376,7 +428,7 @@ const panelStyle = {
 const sectionEyebrowStyle = {
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.16em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   color: 'var(--brand-blue-2)',
 } as const
@@ -387,12 +439,45 @@ const sectionTextStyle = {
   lineHeight: 1.72,
 } as const
 
-const emptyStyle = {
+const emptyLeagueStyle = {
+  display: 'grid',
+  gap: '14px',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px dashed var(--shell-panel-border)',
+  border: '1px dashed rgba(116,190,255,0.18)',
   color: 'var(--shell-copy-muted)',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(8,16,34,0.66)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+} as const
+
+const emptyLeagueCopyStyle = {
+  display: 'grid',
+  gap: '6px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+} as const
+
+const emptyLeagueActionRowStyle = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  minWidth: 0,
+} as const
+
+const emptyLeagueActionStyle = {
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: '10px 13px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 900,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 } as const
 
 const listStyle = {
@@ -407,14 +492,20 @@ const rowStyle = {
   alignItems: 'center',
   padding: '14px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.66)',
+  minWidth: 0,
+} as const
+
+const rowCopyStyle = {
+  minWidth: 0,
 } as const
 
 const rowTitleStyle = {
   color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 } as const
 
 const rowMetaStyle = {
@@ -422,6 +513,7 @@ const rowMetaStyle = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 } as const
 
 const rowPreviewStyle = {
@@ -429,6 +521,7 @@ const rowPreviewStyle = {
   color: 'var(--foreground)',
   fontSize: '13px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 } as const
 
 const rowActionHintStyle = {
@@ -436,6 +529,7 @@ const rowActionHintStyle = {
   color: 'rgba(155,225,29,0.86)',
   fontSize: '12px',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 } as const
 
 const rowSuggestionStyle = {
@@ -443,6 +537,64 @@ const rowSuggestionStyle = {
   color: 'rgba(147,197,253,0.84)',
   fontSize: '12px',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+} as const
+
+const leagueReadinessGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: '8px',
+  marginTop: '12px',
+  minWidth: 0,
+} as const
+
+const leagueReadinessItemStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '7px',
+  minHeight: '34px',
+  minWidth: 0,
+  padding: '7px 9px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'rgba(223,238,255,0.84)',
+  fontSize: '12px',
+  fontWeight: 850,
+  overflow: 'hidden',
+} as const
+
+const leaguePrimaryActionStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '34px',
+  minWidth: 0,
+  padding: '7px 12px',
+  borderRadius: '12px',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.11)',
+  color: '#f5ffe2',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
+} as const
+
+const readinessDotReadyStyle = {
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+  flex: '0 0 auto',
+} as const
+
+const readinessDotWaitingStyle = {
+  ...readinessDotReadyStyle,
+  background: 'rgba(116,190,255,0.46)',
+  boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
 } as const
 
 const rowActionStackStyle = {
@@ -458,6 +610,7 @@ const rowMetaStrongStyle = {
   fontSize: '13px',
   fontWeight: 800,
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 } as const
 
 const rowLinkStyle = {

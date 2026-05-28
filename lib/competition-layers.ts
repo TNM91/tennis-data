@@ -128,5 +128,9 @@ export function buildExploreLeagueHref(league: LeagueProfileSource) {
   params.set('format', leagueFormat)
 
   const query = params.toString()
+  if (competitionLayer === 'tiq' && !leagueId) {
+    return `/leagues/${encodeURIComponent(slugBase)}${query ? `?${query}` : ''}`
+  }
+
   return `/explore/leagues/${competitionLayer}/${encodeURIComponent(slugBase)}${query ? `?${query}` : ''}`
 }

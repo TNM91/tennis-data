@@ -1415,3 +1415,16 @@ hr {
     animation: none !important;
   }
 }
+
+@media print {
+  .player-development-site-shell {
+    background: #ffffff !important;
+  }
+
+  .player-development-site-shell > header,
+  .player-development-site-shell > footer,
+  .player-development-site-shell > [aria-label='TenAceIQ command center'],
+  .player-development-print-controls {
+    display: none !important;
+  }
+}

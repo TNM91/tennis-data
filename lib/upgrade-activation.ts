@@ -14,7 +14,7 @@ export type UpgradeActivationTarget =
   | { ok: true; requestId: string; planId: PricingPlanId; userId: string }
   | { ok: false; status: number; message: string }
 
-const ACTIVATABLE_PLAN_IDS: PricingPlanId[] = ['player_plus', 'captain', 'league']
+const ACTIVATABLE_PLAN_IDS: PricingPlanId[] = ['player_plus', 'coach', 'captain', 'league', 'full_court']
 
 export function resolveUpgradeActivationTarget(
   request: UpgradeActivationRequestSource | null | undefined,
@@ -62,9 +62,19 @@ export function buildProfileActivationPayload(planId: PricingPlanId): UpgradeAct
     player_plus_subscription_status: 'active',
   }
 
-  if (planId === 'captain') {
+  if (planId === 'captain' || planId === 'full_court') {
     payload.captain_subscription_active = true
     payload.captain_subscription_status = 'active'
+  }
+
+  if (planId === 'coach' || planId === 'full_court') {
+    payload.coach_subscription_active = true
+    payload.coach_subscription_status = 'active'
+  }
+
+  if (planId === 'full_court') {
+    payload.tiq_team_league_entry_enabled = true
+    payload.tiq_individual_league_creator_enabled = true
   }
 
   return payload

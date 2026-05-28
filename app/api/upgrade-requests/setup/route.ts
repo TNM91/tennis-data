@@ -48,7 +48,7 @@ export async function GET(request: Request) {
   const profileEntitlements = await supabase
     .from('profiles')
     .select(
-      'player_plus_subscription_active, player_plus_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+      'player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
       { count: 'exact', head: true },
     )
 

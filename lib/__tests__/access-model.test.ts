@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildProductAccessState } from '../access-model'
+import { buildProductAccessState, normalizeSubscriptionStatus } from '../access-model'
 import { MEMBERSHIP_TIERS } from '../product-story'
 
 describe('buildProductAccessState', () => {
+  it('normalizes subscription statuses consistently for all paid workspaces', () => {
+    expect(normalizeSubscriptionStatus('trial')).toBe('trial')
+    expect(normalizeSubscriptionStatus('active')).toBe('active')
+    expect(normalizeSubscriptionStatus('past_due')).toBe('past_due')
+    expect(normalizeSubscriptionStatus('canceled')).toBe('canceled')
+    expect(normalizeSubscriptionStatus('incomplete')).toBe('inactive')
+    expect(normalizeSubscriptionStatus(null)).toBe('inactive')
+  })
+
   it('keeps Coordinator access independent from Player and Captain', () => {
     const access = buildProductAccessState('member', {
       playerPlusSubscriptionActive: false,
@@ -47,7 +56,9 @@ describe('buildProductAccessState', () => {
     expect(freeAccess.playerPlusMessage).toBe(MEMBERSHIP_TIERS.player_plus.description)
     expect(freeAccess.captainTierLabel).toBe(`${MEMBERSHIP_TIERS.captain.name} - $9.99/month`)
     expect(freeAccess.captainTierMessage).toBe(MEMBERSHIP_TIERS.captain.description)
-    expect(freeAccess.leagueTierLabel).toBe(`${MEMBERSHIP_TIERS.league.name} - $25/season per league`)
+    expect(freeAccess.coachTierLabel).toBe(`${MEMBERSHIP_TIERS.coach.name} - $9.99/month`)
+    expect(freeAccess.coachTierMessage).toBe(MEMBERSHIP_TIERS.coach.description)
+    expect(freeAccess.leagueTierLabel).toBe(`${MEMBERSHIP_TIERS.league.name} - $14.99/month`)
     expect(freeAccess.leagueTierMessage).toBe(MEMBERSHIP_TIERS.league.description)
     expect(freeAccess.teamLeagueMessage).toContain(MEMBERSHIP_TIERS.league.upgradeCue)
     expect(freeAccess.individualLeagueMessage).toContain(MEMBERSHIP_TIERS.league.upgradeCue)
@@ -70,8 +81,9 @@ describe('buildProductAccessState', () => {
       tiqIndividualLeagueCreatorEnabled: false,
     })
 
-    expect(access.currentPlanId).toBe('captain')
+    expect(access.currentPlanId).toBe('full_court')
     expect(access.canUseAdvancedPlayerInsights).toBe(true)
+    expect(access.canUseCoachWorkflow).toBe(true)
     expect(access.canUseCaptainWorkflow).toBe(true)
     expect(access.canUseLeagueTools).toBe(true)
   })

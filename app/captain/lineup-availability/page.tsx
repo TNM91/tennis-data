@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
@@ -121,16 +120,6 @@ type AvailabilityReadinessCard = {
   detail: string
   tone: 'green' | 'amber' | 'red' | 'blue'
 }
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore/players', label: 'Players' },
-  { href: '/explore/rankings', label: 'Rankings' },
-  { href: '/mylab', label: 'My Lab' },
-  { href: '/explore/leagues', label: 'Leagues' },
-  { href: '/explore/teams', label: 'Teams' },
-  { href: '/captain', label: 'Team' },
-]
 
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
@@ -912,7 +901,7 @@ function LineupAvailabilityContent() {
         planId="captain"
         headline="Want availability to carry into lineup decisions?"
         body="Unlock Captain to save match-date availability, carry it into the builder, and stop guessing who is actually usable before you set the lineup."
-        ctaLabel="Unlock Captain Tools"
+        ctaLabel="Unlock Captain"
         secondaryLabel="Back to Captain"
         secondaryHref="/captain"
       />
@@ -924,26 +913,6 @@ function LineupAvailabilityContent() {
       <div style={orbOne} />
       <div style={orbTwo} />
       <div style={gridGlow} />
-
-      <header style={headerStyle}>
-        <div style={headerInnerResponsive(isTablet)}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={navStyleResponsive(isTablet)}>
-            {NAV_LINKS.map((link) => {
-              const isActive = link.href === '/captain'
-              return (
-                <Link key={link.href} href={link.href} style={{ ...navLink, ...(isActive ? activeNavLink : {}) }}>
-                  {link.label}
-                </Link>
-              )
-            })}
-            <Link href="/admin" style={navLink}>Admin</Link>
-          </nav>
-        </div>
-      </header>
 
       <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Availability controls">
         <div>
@@ -1278,28 +1247,6 @@ function LineupAvailabilityContent() {
         )}
       </section>
 
-      <footer style={footerStyle}>
-        <div style={footerInnerResponsive(isMobile)}>
-          <div style={footerRowResponsive(isTablet)}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-
-            <div style={footerLinksResponsive(isTablet)}>
-              <Link href="/explore/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/explore/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/mylab" style={footerUtilityLink}>My Lab</Link>
-              <Link href="/explore/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/explore/teams" style={footerUtilityLink}>Teams</Link>
-              <Link href="/captain" style={footerUtilityLink}>Team</Link>
-            </div>
-
-            <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
-              (c) {new Date().getFullYear()} TenAceIQ
-            </div>
-          </div>
-        </div>
-      </footer>
     </main>
   )
 }
@@ -1311,67 +1258,6 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       <div style={metricValueStyleHero}>{value}</div>
     </div>
   )
-}
-
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const width = compact ? 140 : top ? 174 : footer ? 174 : 156
-  const height = compact ? 45 : top ? 56 : footer ? 56 : 50
-
-  return (
-    <span
-      style={{
-        position: 'relative',
-        display: 'inline-flex',
-        width: `${width}px`,
-        height: `${height}px`,
-        flexShrink: 0,
-        minWidth: 0,
-      }}
-    >
-      <Image
-        src="/logo-header-dark.svg"
-        alt="TenAceIQ"
-        fill
-        priority
-        sizes={`${width}px`}
-        style={{
-          objectFit: 'contain',
-          objectPosition: 'left center',
-          filter: footer
-            ? 'drop-shadow(0 8px 16px rgba(5, 14, 30, 0.10))'
-            : 'drop-shadow(0 8px 18px rgba(155, 225, 29, 0.10))',
-        }}
-      />
-    </span>
-  )
-}
-
-function headerInnerResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
-    minWidth: 0,
-  }
-}
-
-function navStyleResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-    minWidth: 0,
-  }
 }
 
 function toolControlShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
@@ -1424,31 +1310,6 @@ function statusGridResponsive(isSmallMobile: boolean): CSSProperties {
   }
 }
 
-function footerInnerResponsive(isMobile: boolean): CSSProperties {
-  return {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-}
-
-function footerRowResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-    minWidth: 0,
-  }
-}
-
-function footerLinksResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-    minWidth: 0,
-  }
-}
-
 const pageStyle: CSSProperties = {
   minHeight: 0,
   position: 'relative',
@@ -1493,56 +1354,6 @@ const gridGlow: CSSProperties = {
   backgroundSize: '64px 64px',
   maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.16), rgba(0,0,0,0))',
   pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  display: 'none',
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
-  minWidth: 0,
-}
-
-const headerInner: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  minWidth: 0,
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-  minWidth: 0,
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-  minWidth: 0,
-}
-
-const navLink: CSSProperties = {
-  padding: '13px 18px',
-  borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: '#e7eefb',
-  textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-  minWidth: 0,
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-  textAlign: 'center',
-}
-
-const activeNavLink: CSSProperties = {
-  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
 }
 
 const toolControlShell: CSSProperties = {
@@ -2065,60 +1876,6 @@ const errorTextStyle: CSSProperties = {
   color: '#fecaca',
   margin: 0,
   lineHeight: 1.65,
-  overflowWrap: 'anywhere',
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '28px 0 0',
-  minWidth: 0,
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1240px',
-  margin: '0 auto',
-  borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-  minWidth: 0,
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  width: '100%',
-  minWidth: 0,
-}
-
-const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
-  textDecoration: 'none',
-  flexShrink: 0,
-  minWidth: 0,
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px 14px',
-  minWidth: 0,
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 

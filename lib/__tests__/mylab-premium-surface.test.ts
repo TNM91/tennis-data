@@ -6,36 +6,40 @@ const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}`)
-  expect(start).toBeGreaterThanOrEqual(0)
+  expect(start, `Missing ${styleName}`).toBeGreaterThanOrEqual(0)
   const nextStyle = source.indexOf('\nconst ', start + 1)
   return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
 }
 
 describe('My Lab premium surface', () => {
-  it('keeps the top routine tennis-specific and Data Assist aware', () => {
-    expect(source).toContain('MY_LAB_PREMIUM_SIGNALS')
-    expect(source).toContain('MY_LAB_READABILITY_CUES')
-    expect(source).toContain('Personal scorecard')
-    expect(source).toContain('Match prep')
-    expect(source).toContain('Reviewed uploads')
-    expect(source).toContain('Use reviewed uploads for scorecards, schedules, and rosters')
-    expect(source).toContain("DATA_ASSIST_STORY.proof.join(' - ')")
-    expect(source).not.toContain("DATA_ASSIST_STORY.proof.join(' · ')")
-    expect(source).toContain('Connect your player record, review what changed, and leave with one action for the next match.')
-    expect(source).toContain('Player identity')
-    expect(source).toContain('Scorecard review')
-    expect(source).toContain('Match-day action')
+  it('keeps the top read tennis-specific and Data Assist aware', () => {
+    expect(source).toContain('scorecardSummaryCards')
+    expect(source).toContain('starterActionCards')
+    expect(source).toContain('Recent record')
+    expect(source).toContain('Matchup read')
+    expect(source).toContain('Upload scores')
+    expect(source).toContain('Use a scorecard or team summary to replace the starter rating with verified match context.')
+    expect(source).toContain('Start your TIQ signal with a scorecard, a local league match, a TIQ league, or a close player to test.')
+    expect(source).toContain('Open Data Assist')
+    expect(source).toContain('My Lab is the home base. Data Assist, Matchup, and Messages stay one move away.')
+    expect(source).toContain("value: 'Home base'")
+    expect(source).toContain('Your self-rated profile is live. Add a scorecard or match signal when ready.')
+    expect(source).toContain("value: isNewSelfRatedProfile ? 'First signal' : 'Refresh'")
+    expect(source).toContain('Find a local player and start your first comparison.')
+    expect(source).toContain('Today&apos;s next move')
+    expect(source).toContain('Level-up meter')
     expect(source).not.toContain('USTA API')
     expect(source).not.toContain('direct USTA feed')
   })
 
-  it('keeps premium signal cards responsive for dark-shell mobile scanning', () => {
-    expect(source).toContain('labPremiumSignalGridStyle(isTablet)')
-    expect(source).toContain('labPremiumSignalCardStyle')
+  it('keeps read and starter cards responsive for dark-shell mobile scanning', () => {
+    expect(source).toContain('personalReadGridStyle(isTablet)')
+    expect(source).toContain('starterGridStyle(isTablet)')
+    expect(source).toContain('todayReadGridStyle(isTablet)')
+    expect(source).toContain('matchupQueueGridStyle(isTablet)')
     expect(source).toContain('gridTemplateColumns: isTablet')
     expect(source).toContain('minmax(0, 1fr)')
-    expect(source).toContain('labReadabilityCueGridStyle(isTablet)')
-    expect(source).toContain('overflowWrap: \'anywhere\'')
+    expect(source).toContain("overflowWrap: 'anywhere'")
   })
 
   it('uses theme-safe setup step number contrast', () => {
@@ -47,15 +51,13 @@ describe('My Lab premium surface', () => {
 
   it('keeps My Lab numbered markers shell-aware instead of dark text on gradients', () => {
     for (const marker of [
-      'labRoutineNumberStyle',
-      'labPlaybookStepStyle',
       'setupStepNumberStyle',
       'matchupQueueRankStyle',
+      'readinessPillStyle',
     ]) {
       expect(source).toContain(marker)
     }
 
-    expect(source).not.toContain("const labRoutineNumberStyle: CSSProperties = {\n  width: 34,\n  height: 34,\n  borderRadius: 14,\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-blue-2), var(--brand-green))',\n  color: 'var(--text-dark)'")
     expect(source).not.toContain("background: complete ? 'var(--brand-green)' : 'var(--shell-panel-bg)',\n  color: complete ? 'var(--text-dark)' : 'var(--foreground-strong)'")
     expect(source).not.toContain("const matchupQueueRankStyle: CSSProperties = {\n  width: 34,\n  height: 34,\n  borderRadius: '50%',\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',\n  color: 'var(--text-dark)'")
   })
@@ -64,41 +66,51 @@ describe('My Lab premium surface', () => {
     expect(source).not.toContain("? '1fr'")
 
     for (const styleName of [
-      'labReadabilityCueGridStyle',
-      'labPremiumSignalGridStyle',
-      'labRoutineGridStyle',
-      'paidWorkspaceProofGridStyle',
-      'labPlaybookGridStyle',
+      'developmentPathGridStyle',
+      'personalReadGridStyle',
       'levelUpPanelStyle',
       'quickProfileGridStyle',
       'setupStepGridStyle',
+      'starterGridStyle',
+      'todayReadGridStyle',
       'matchupSpotlightHeroStyle',
       'matchupPreviewGridStyle',
       'matchupQueueGridStyle',
       'matchPlanGridStyle',
+      'performanceGridStyle',
+      'trophyRoomGridStyle',
+      'trophyProofGridStyle',
       'personalCommandGridStyle',
       'tiqActionGridStyle',
       'teamPrepGridStyle',
+      'goalSummaryGridStyle',
       'workshopGridStyle',
       'goalFieldGridStyle',
       'contentGridStyle',
     ]) {
-      expect(styleBlock(styleName)).toContain("minmax(0, 1fr)")
-      expect(styleBlock(styleName)).toContain('minWidth: 0')
+      const block = styleBlock(styleName)
+      expect(block).toMatch(/minmax\((0|min\(100%, [^)]+\)), 1fr\)/)
+      expect(block).toContain('minWidth: 0')
     }
 
     for (const styleName of [
       'personalReadPanelStyle',
       'profileLinkSectionStyle',
-      'labRoutineStepStyle',
-      'labPlaybookPanelStyle',
-      'labPlaybookCardStyle',
-      'paidWorkspaceIntroStyle',
+      'developmentPathPanelStyle',
+      'developmentPathHeaderStyle',
+      'developmentIdentityCardStyle',
       'quickProfileStyle',
       'setupPanelStyle',
+      'starterPanelStyle',
+      'starterCardStyle',
+      'todayReadPanelStyle',
+      'todayReadCardStyle',
       'matchupSpotlightStyle',
+      'matchupQueueCardStyle',
+      'matchupQueueCopyStyle',
       'performancePanelStyle',
       'matchPlanPanelStyle',
+      'matchPlanCardStyle',
       'tiqActionRailStyle',
       'teamPrepRailStyle',
       'workshopPanelStyle',
@@ -126,6 +138,10 @@ describe('My Lab premium surface', () => {
       'goalFooterActionsStyle',
       'notebookFooterStyle',
       'optionalContextDetailsStyle',
+      'labDrawerDetailsStyle',
+      'labDrawerSummaryStyle',
+      'labDrawerSummaryCopyStyle',
+      'labDrawerContentStyle',
       'optionalContextSummaryStyle',
       'compactSignalsPanelStyle',
       'compactSignalsHeaderStyle',
@@ -172,12 +188,11 @@ describe('My Lab premium surface', () => {
       'metricLabelStyle',
       'metricNoteStyle',
       'secondaryButtonStyle',
-      'labRoutineStepStyle',
-      'labPlaybookCardStyle',
-      'paidWorkspaceProofBodyStyle',
-      'paidWorkspaceProofCardStyle',
-      'dataAssistProofStyle',
-      'dataAssistProofCopyStyle',
+      'starterCardStyle',
+      'todayReadCardStyle',
+      'todayReadValueStyle',
+      'matchPlanTextStyle',
+      'trophyProofItemStyle',
       'warningNoteStyle',
       'matchupSpotlightHeroStyle',
       'optionalContextSummaryStyle',
@@ -205,10 +220,16 @@ describe('My Lab premium surface', () => {
       expect(styleBlock(styleName)).toContain("whiteSpace: 'normal'")
     }
 
-    expect(styleBlock('labRoutineStepStyle')).toContain("'minmax(0, auto) minmax(0, 1fr)'")
-    expect(styleBlock('labPlaybookCardStyle')).toContain("'minmax(0, auto) minmax(0, 1fr)'")
     expect(styleBlock('matchupSpotlightHeroStyle')).toContain("'minmax(0, 1fr) minmax(0, auto)'")
     expect(source).not.toContain("gridTemplateColumns: 'auto minmax(0, 1fr)'")
     expect(source).not.toContain("'minmax(0, 1fr) auto'")
+  })
+
+  it('keeps the optional drawer framed as lab context instead of another tools menu', () => {
+    expect(source).toContain('Deeper lab read')
+    expect(source).toContain('Goals, trends, and records after the quick read.')
+    expect(source).toContain('3 views')
+    expect(source).not.toContain('More player tools')
+    expect(source).not.toContain('3 tools')
   })
 })

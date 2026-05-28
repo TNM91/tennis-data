@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -82,12 +81,9 @@ const SUITE_STEPS: Record<CaptainSuiteStep, SuiteStepConfig> = {
   },
 }
 
-const DEFAULT_FLOW: CaptainSuiteStep[] = ['availability', 'lineup', 'messaging', 'brief']
-
 export default function CaptainSuitePanel({
   active,
   teamLabel,
-  flow = DEFAULT_FLOW,
 }: {
   active: CaptainSuiteStep
   teamLabel?: string
@@ -95,8 +91,6 @@ export default function CaptainSuitePanel({
 }) {
   const { isMobile } = useViewportBreakpoints()
   const activeConfig = SUITE_STEPS[active]
-  const nextStep = flow.find((step) => step !== active && flow.indexOf(step) > flow.indexOf(active)) ?? flow.find((step) => step !== active)
-  const nextConfig = nextStep ? SUITE_STEPS[nextStep] : null
 
   return (
     <section style={shellStyle} aria-label="Captain suite context">
@@ -123,39 +117,6 @@ export default function CaptainSuitePanel({
         </div>
       </div>
 
-      <div style={stepGridStyle}>
-        {flow.map((step, index) => {
-          const config = SUITE_STEPS[step]
-          const selected = step === active
-          return (
-            <Link
-              key={step}
-              href={config.href}
-              aria-current={selected ? 'step' : undefined}
-              style={{
-                ...stepCardStyle,
-                ...(selected ? stepCardActiveStyle : null),
-              }}
-            >
-              <span style={stepNumberStyle}>{index + 1}</span>
-              <TiqFeatureIcon name={config.icon} size="sm" variant={selected ? 'surface' : 'ghost'} />
-              <span style={stepCopyStyle}>
-                <span style={stepLabelStyle}>{config.label}</span>
-                <strong style={stepTitleStyle}>{config.title}</strong>
-              </span>
-            </Link>
-          )
-        })}
-      </div>
-
-      {nextConfig ? (
-        <div style={nextActionStyle}>
-          <span style={nextLabelStyle}>Suggested next move</span>
-          <Link href={nextConfig.href} style={nextLinkStyle}>
-            {nextConfig.title}
-          </Link>
-        </div>
-      ) : null}
     </section>
   )
 }
@@ -219,95 +180,4 @@ const scopePillStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 850,
   overflowWrap: 'anywhere',
-}
-
-const stepGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
-
-const stepCardStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '28px 32px minmax(0, 1fr)',
-  gap: 9,
-  alignItems: 'center',
-  minHeight: 58,
-  padding: '9px 10px',
-  borderRadius: 15,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
-  textDecoration: 'none',
-  minWidth: 0,
-}
-
-const stepCardActiveStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
-  background: 'var(--shell-chip-bg-strong)',
-}
-
-const stepNumberStyle: CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 999,
-  display: 'grid',
-  placeItems: 'center',
-  background: 'var(--shell-chip-bg-strong)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
-}
-
-const stepCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 2,
-  minWidth: 0,
-}
-
-const stepLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 900,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-}
-
-const stepTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 12,
-  lineHeight: 1.15,
-  overflowWrap: 'anywhere',
-}
-
-const nextActionStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: 10,
-  flexWrap: 'wrap',
-  paddingTop: 2,
-}
-
-const nextLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-}
-
-const nextLinkStyle: CSSProperties = {
-  minHeight: 36,
-  display: 'inline-flex',
-  alignItems: 'center',
-  padding: '0 13px',
-  borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  fontSize: 12,
-  fontWeight: 900,
 }

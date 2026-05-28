@@ -71,7 +71,7 @@ export const STRIPE_SUBSCRIPTION_LIFECYCLE_EVENTS = [
   'invoice.payment_failed',
 ] as const
 
-type SubscriptionPricingPlanId = Extract<PaidPricingPlanId, 'player_plus' | 'captain'>
+type SubscriptionPricingPlanId = Extract<PaidPricingPlanId, 'player_plus' | 'coach' | 'captain' | 'full_court'>
 type SubscriptionEntitlementStatus = 'inactive' | 'trial' | 'active' | 'past_due' | 'canceled'
 
 export function getStripeObjectId(value: StripeObjectReference) {
@@ -180,9 +180,11 @@ export function buildStripeBillingEventAuditPayload({
 
 export function getStripeSubscriptionResultingStatus(update: StripeSubscriptionProfileUpdate) {
   const key =
-    update.planId === 'captain'
+    update.planId === 'captain' || update.planId === 'full_court'
       ? 'captain_subscription_status'
-      : 'player_plus_subscription_status'
+      : update.planId === 'coach'
+        ? 'coach_subscription_status'
+        : 'player_plus_subscription_status'
   const value = update.payload[key]
   return typeof value === 'string' ? value : ''
 }
@@ -237,7 +239,7 @@ function getStripeSubscriptionMetadata(object: StripeSubscriptionLifecycleObject
 }
 
 function normalizeSubscriptionPricingPlanId(value: string | undefined) {
-  return value === 'player_plus' || value === 'captain' ? value : null
+  return value === 'player_plus' || value === 'coach' || value === 'captain' || value === 'full_court' ? value : null
 }
 
 function cleanAuditValue(value: string | null | undefined) {
@@ -267,9 +269,19 @@ function buildSubscriptionEntitlementPayload(
     player_plus_subscription_status: status,
   }
 
-  if (planId === 'captain') {
+  if (planId === 'coach' || planId === 'full_court') {
+    payload.coach_subscription_active = active
+    payload.coach_subscription_status = status
+  }
+
+  if (planId === 'captain' || planId === 'full_court') {
     payload.captain_subscription_active = active
     payload.captain_subscription_status = status
+  }
+
+  if (planId === 'full_court') {
+    payload.tiq_team_league_entry_enabled = active
+    payload.tiq_individual_league_creator_enabled = active
   }
 
   return payload

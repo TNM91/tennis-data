@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/app/components/auth-provider'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { formatDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -960,6 +961,7 @@ function CaptainAnalyticsContent() {
 
   return (
     <div style={pageWrap}>
+        <CaptainSuitePanel active="analytics" teamLabel={teamName || 'Team week'} />
         <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Analytics controls">
         <div>
           <div style={toolControlHeaderStyle}>
@@ -1506,26 +1508,26 @@ function toggleGridResponsive(isSmallMobile: boolean): CSSProperties {
 }
 
 const pageWrap: CSSProperties = {
-  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
   display: 'grid',
   gap: '18px',
-  padding: '14px 0 28px',
+  padding: '18px 0 64px',
   position: 'relative',
   zIndex: 2,
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const toolControlShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
   display: 'grid',
-  borderRadius: '34px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 34px 80px rgba(0,0,0,0.16)',
+  borderRadius: '28px',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 28px 80px rgba(2, 10, 24, 0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
 }
 

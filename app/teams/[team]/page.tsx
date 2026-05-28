@@ -22,7 +22,6 @@ import {
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
-import FindModeBridge from '@/app/components/find-mode-bridge'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import {
@@ -30,9 +29,10 @@ import {
   listMyMatchAccuracyReports,
   type MatchAccuracyReport,
 } from '@/lib/match-accuracy-reports'
-import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
+import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 
 type TeamMatch = {
   id: string
@@ -279,6 +279,7 @@ function TeamPageContent() {
   const [tiqParticipations, setTiqParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
   const [tiqParticipationWarning, setTiqParticipationWarning] = useState('')
+  const [teamAwards, setTeamAwards] = useState<TiqAwardRecord[]>([])
   const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
@@ -633,6 +634,35 @@ function TeamPageContent() {
   useEffect(() => {
     void loadTeamPage()
   }, [loadTeamPage])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadTeamAwards() {
+      if (!team) {
+        setTeamAwards([])
+        return
+      }
+
+      const result = await loadRecentTiqAwards()
+      if (!active) return
+
+      const normalizedTeam = normalizeTeamName(team)
+      const awards = result.data.filter(
+        (award) =>
+          award.sourceType === 'league' &&
+          !award.recipientPlayerId &&
+          normalizeTeamName(award.recipientName) === normalizedTeam,
+      )
+      setTeamAwards(awards)
+    }
+
+    void loadTeamAwards()
+
+    return () => {
+      active = false
+    }
+  }, [team])
 
   useEffect(() => {
     let active = true
@@ -1187,39 +1217,11 @@ function TeamPageContent() {
       note: 'Use TIQ leagues when you want to run teams, schedules, rosters, and results in TenAceIQ.',
     },
   ]
-  const leagueContextHref = teamMeta.league
-    ? `/explore/search?scope=leagues&q=${encodeURIComponent([teamMeta.league, teamMeta.flight].filter(Boolean).join(' '))}`
-    : '/explore/search?scope=leagues'
-  const teamDiscoveryActions = [
-    {
-      label: 'Read',
-      title: 'Check roster and form',
-      text: `${roster.length} roster players, ${matches.length} reviewed scorecards, and ${record.wins}-${record.losses} tracked record give the public team read.`,
-      href: '#team-roster',
-      cta: 'View roster',
-    },
-    {
-      label: 'Trace',
-      title: teamMeta.league ? 'Open league context' : 'Find league context',
-      text: teamMeta.league
-        ? `${teamMeta.league}${teamMeta.flight ? ` - ${teamMeta.flight}` : ''} connects this team to its wider competition layer.`
-        : 'Use league search when you need the season, flight, or area around this team.',
-      href: leagueContextHref,
-      cta: teamMeta.league ? 'Search league' : 'Find leagues',
-    },
-    {
-      label: 'Plan',
-      title: 'Move into captain tools',
-      text: 'Captain unlock turns the team page into availability, lineup building, and weekly decision support.',
-      href: captainLinks[1].href,
-      cta: 'Open lineup builder',
-    },
-  ]
-
   if (loading) {
     return (
       <section style={pageContent}>
         <section style={dynamicHeroShell}>
+          <span aria-hidden="true" style={watermarkStyle} />
           <div>
             <p style={eyebrow}>Team Intelligence</p>
             <h1 style={dynamicHeroTitle}>
@@ -1248,11 +1250,12 @@ function TeamPageContent() {
   return (
     <section style={pageContent}>
         <section style={dynamicHeroShell}>
+          <span aria-hidden="true" style={watermarkStyle} />
           <div>
             <p style={eyebrow}>Team Intelligence</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
             <p style={heroText}>
-              See the roster, recent form, singles strength, doubles options, and the captain tools that help you plan the week.
+              See the roster, recent form, singles strength, doubles options, and the Captain context that helps you plan the week.
             </p>
 
             <div style={heroBadgeRow}>
@@ -1270,6 +1273,7 @@ function TeamPageContent() {
                 <span style={badgeGreen}>{hotPlayers.length} hot player{hotPlayers.length > 1 ? 's' : ''}</span>
               ) : null}
               {tiqParticipations.length > 0 ? <span style={badgeGreen}>{tiqParticipations.length} TIQ leagues entered</span> : null}
+              {teamAwards.length > 0 ? <span style={badgeGreen}>{teamAwards.length} team award{teamAwards.length > 1 ? 's' : ''}</span> : null}
             </div>
 
             <div style={dynamicHeroActions}>
@@ -1365,18 +1369,6 @@ function TeamPageContent() {
           </div>
         </section>
 
-        <FindModeBridge
-          active="Team Detail"
-          primary="Turn this team page into context"
-          secondary="Move from roster and match history into players, leagues, rankings, or a broader search."
-          links={[
-            { href: '/explore/search?scope=teams', label: 'Search', icon: 'opponentScouting' },
-            { href: '/explore/players', label: 'Players', icon: 'playerRatings' },
-            { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
-            { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
-          ]}
-        />
-
         {error ? (
           <section style={surfaceCard}>
             <h2 style={sectionTitle}>Team page unavailable</h2>
@@ -1391,7 +1383,7 @@ function TeamPageContent() {
           <section style={surfaceCard}>
             <h2 style={sectionTitle}>No reviewed scorecards yet</h2>
             <p style={bodyText}>
-              This team can exist from a reviewed team summary before results arrive. Use the roster and captain tools now,
+              This team can exist from a reviewed team summary before results arrive. Use the roster and Captain workspace now,
               then reviewed Data Assist scorecards will enrich match history, records, and player usage.
             </p>
             <div style={dynamicHeroActions}>
@@ -1403,29 +1395,6 @@ function TeamPageContent() {
         ) : null}
 
         <section style={dynamicMetricGrid}>
-          <article style={teamDiscoveryPanelStyle}>
-            <div style={teamDiscoveryHeaderStyle}>
-              <div style={sectionHeadingCopyStyle}>
-                <p style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} team</p>
-                <h2 style={sectionTitle}>Open the next useful view.</h2>
-              </div>
-              <p style={teamDiscoveryCopyStyle}>
-                {MEMBERSHIP_TIERS.free.shortPromise} {MEMBERSHIP_TIERS.captain.description}
-              </p>
-            </div>
-
-            <div style={teamDiscoveryGridStyle(isMobile)}>
-              {teamDiscoveryActions.map((item) => (
-                <Link key={item.title} href={item.href} style={teamDiscoveryCardStyle}>
-                  <span style={teamDiscoveryLabelStyle}>{item.label}</span>
-                  <strong style={teamDiscoveryCardTitleStyle}>{item.title}</strong>
-                  <span style={teamDiscoveryCardTextStyle}>{item.text}</span>
-                  <span style={teamDiscoveryCtaStyle}>{item.cta} {'->'}</span>
-                </Link>
-              ))}
-            </div>
-          </article>
-
           <section style={signalGridStyle(isSmallMobile)}>
             {teamSignals.map((signal) => (
               <article key={signal.label} style={signalCardStyle}>
@@ -1462,6 +1431,28 @@ function TeamPageContent() {
             </span>
           </article>
         </section>
+
+        {teamAwards.length > 0 ? (
+          <section style={surfaceCard} id="team-awards">
+            <div style={sectionHeadingRow}>
+              <div style={sectionHeadingCopyStyle}>
+                <p style={sectionKicker}>Team Awards</p>
+                <h2 style={sectionTitle}>Trophy case</h2>
+              </div>
+              <span style={panelCountPill}>{teamAwards.length} earned</span>
+            </div>
+
+            <div style={teamAwardGridStyle}>
+              {teamAwards.slice(0, 6).map((award) => (
+                <Link key={award.id} href={`/awards/${encodeURIComponent(award.id)}`} style={teamAwardCardStyle}>
+                  <span style={teamAwardCodeStyle}>{award.badgeCode}</span>
+                  <span style={teamAwardTitleStyle}>{award.title}</span>
+                  <span style={teamAwardMetaStyle}>{award.sourceName}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section style={surfaceCard}>
           <div style={sectionHeadingRow}>
@@ -1594,7 +1585,7 @@ function TeamPageContent() {
           <article style={surfaceCard}>
             <div style={sectionHeadingRow}>
               <div style={sectionHeadingCopyStyle}>
-                <p style={sectionKicker}>Captain Tools</p>
+                <p style={sectionKicker}>Captain Workspace</p>
                 <h2 style={sectionTitle}>Next Best Actions</h2>
               </div>
             </div>
@@ -1660,7 +1651,7 @@ function TeamPageContent() {
                   <div style={sectionKicker}>Opponent breakdown</div>
                   <h2 style={sectionTitle}>Record vs. opponents</h2>
                 </div>
-                <span style={{ padding: '4px 12px', borderRadius: 999, background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>{opponentAnalysis.length} opponent{opponentAnalysis.length !== 1 ? 's' : ''}</span>
+                <span style={{ padding: '4px 12px', borderRadius: 999, background: 'rgba(15, 23, 42, 0.68)', border: '1px solid rgba(125, 211, 252, 0.18)', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>{opponentAnalysis.length} opponent{opponentAnalysis.length !== 1 ? 's' : ''}</span>
               </div>
               <div style={tableWrap}>
                 <table style={{ ...dataTable, minWidth: 0 }}>
@@ -1781,7 +1772,7 @@ function TeamPageContent() {
           })() : (
             <div style={emptyStateBlock}>
               <p style={emptyState}>Team match history is not available yet.</p>
-              <p style={mutedText}>Return to the team directory or use the captain tools above while the season history catches up.</p>
+              <p style={mutedText}>Return to the team directory or use the Captain actions above while the season history catches up.</p>
             </div>
           )}
         </section>
@@ -2088,13 +2079,14 @@ function MetricCard({
 const pageContent: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  width: '100%',
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   minWidth: 0,
   margin: '0 auto',
-  padding: '18px 24px 0',
+  padding: '18px 0 0',
   display: 'grid',
   gap: '18px',
+  boxSizing: 'border-box',
+  overflowX: 'clip',
 }
 
 const heroShell: CSSProperties = {
@@ -2102,11 +2094,26 @@ const heroShell: CSSProperties = {
   display: 'grid',
   minWidth: 0,
   borderRadius: '34px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  overflow: 'hidden',
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2, 8, 23, 0.48)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-110px',
+  top: '-118px',
+  width: '310px',
+  height: '310px',
+  borderRadius: '50%',
+  pointerEvents: 'none',
+  opacity: 0.16,
+  background:
+    'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.88) 0 7%, transparent 8%), radial-gradient(circle at 50% 50%, rgba(155,225,29,0.96) 0 48%, rgba(155,225,29,0.1) 49%, transparent 58%)',
+  boxShadow: '0 0 80px rgba(155,225,29,0.22)',
 }
 
 const eyebrow: CSSProperties = {
@@ -2116,8 +2123,8 @@ const eyebrow: CSSProperties = {
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.24)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: '14px',
@@ -2173,9 +2180,9 @@ const buttonPrimary: CSSProperties = {
   borderRadius: '999px',
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.32), rgba(34,211,238,0.16))',
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  border: '1px solid rgba(155,225,29,0.38)',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
@@ -2192,9 +2199,9 @@ const buttonSecondary: CSSProperties = {
   borderRadius: '999px',
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'var(--shell-chip-bg-strong)',
+  background: 'rgba(15, 23, 42, 0.74)',
   color: 'var(--foreground-strong)',
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(125, 211, 252, 0.22)',
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   textAlign: 'center',
@@ -2202,7 +2209,7 @@ const buttonSecondary: CSSProperties = {
 
 const buttonGhost: CSSProperties = {
   ...buttonSecondary,
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(8, 13, 28, 0.62)',
 }
 
 const followButtonWrap: CSSProperties = {
@@ -2226,25 +2233,25 @@ const badgeBase: CSSProperties = {
 
 const badgeBlue: CSSProperties = {
   ...badgeBase,
-  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
+  background: 'rgba(56,189,248,0.14)',
   color: 'var(--foreground-strong)',
 }
 
 const badgeGreen: CSSProperties = {
   ...badgeBase,
-  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  background: 'rgba(155,225,29,0.14)',
   color: 'var(--foreground-strong)',
 }
 
 const badgeSlate: CSSProperties = {
   ...badgeBase,
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(15, 23, 42, 0.7)',
   color: 'var(--shell-copy-muted)',
 }
 
 const badgeRed: CSSProperties = {
   ...badgeBase,
-  background: 'color-mix(in srgb, #ef4444 12%, var(--shell-chip-bg) 88%)',
+  background: 'rgba(239,68,68,0.12)',
   color: '#fca5a5',
   border: '1px solid color-mix(in srgb, #ef4444 24%, var(--shell-panel-border) 76%)',
 }
@@ -2286,8 +2293,8 @@ function getTeamStatusStyle(status: TeamRatingStatus): CSSProperties {
 
 const summaryCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(125, 211, 252, 0.2)',
+  background: 'rgba(8, 13, 28, 0.72)',
   padding: '18px',
   display: 'flex',
   flexDirection: 'column',
@@ -2316,8 +2323,8 @@ const summaryMetricGrid: CSSProperties = {
 const summaryMetricCard: CSSProperties = {
   borderRadius: '20px',
   padding: '14px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(15, 23, 42, 0.72)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
   minWidth: 0,
 }
 
@@ -2390,8 +2397,8 @@ const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
 const signalCardStyle: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.68)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2431,8 +2438,8 @@ const metricGridStyle: CSSProperties = {
 const metricCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.68)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
@@ -2473,8 +2480,8 @@ const cardGridStyle: CSSProperties = {
 const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
   boxShadow: 'var(--shadow-soft)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
@@ -2483,87 +2490,7 @@ const surfaceCard: CSSProperties = {
 
 const surfaceCardStrong: CSSProperties = {
   ...surfaceCard,
-  background: 'var(--shell-panel-bg-strong)',
-}
-
-const teamDiscoveryPanelStyle: CSSProperties = {
-  ...surfaceCardStrong,
-  gridColumn: '1 / -1',
-  display: 'grid',
-  gap: '16px',
-  minWidth: 0,
-}
-
-const teamDiscoveryHeaderStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-  gap: '14px',
-  alignItems: 'end',
-  minWidth: 0,
-}
-
-const teamDiscoveryCopyStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.65,
-  fontWeight: 600,
-  overflowWrap: 'anywhere',
-}
-
-const teamDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  gap: '12px',
-  minWidth: 0,
-})
-
-const teamDiscoveryCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  minHeight: '160px',
-  padding: '16px',
-  borderRadius: '18px',
-  textDecoration: 'none',
-  color: 'var(--foreground)',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--card-border-soft)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-  minWidth: 0,
-}
-
-const teamDiscoveryLabelStyle: CSSProperties = {
-  color: 'var(--brand-green)',
-  fontSize: '12px',
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const teamDiscoveryCardTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '18px',
-  lineHeight: 1.14,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const teamDiscoveryCardTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.6,
-  fontWeight: 600,
-  overflowWrap: 'anywhere',
-}
-
-const teamDiscoveryCtaStyle: CSSProperties = {
-  alignSelf: 'end',
-  color: 'var(--foreground-strong)',
-  fontSize: '13px',
-  fontWeight: 900,
-  overflowWrap: 'anywhere',
+  background: 'rgba(8, 13, 28, 0.76)',
 }
 
 const sectionHeadingRow: CSSProperties = {
@@ -2609,13 +2536,60 @@ const panelCountPill: CSSProperties = {
   minHeight: '32px',
   padding: '0 12px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.2)',
+  background: 'rgba(15, 23, 42, 0.68)',
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 900,
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
+}
+
+const teamAwardGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: '12px',
+  minWidth: 0,
+}
+
+const teamAwardCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(116,190,255,0.06))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const teamAwardCodeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '42px',
+  minHeight: '30px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.13)',
+  color: 'var(--brand-lime)',
+  fontSize: '12px',
+  fontWeight: 900,
+}
+
+const teamAwardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  fontWeight: 900,
+  lineHeight: 1.25,
+}
+
+const teamAwardMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.45,
 }
 
 const bodyText: CSSProperties = {
@@ -2639,8 +2613,8 @@ const listRow: CSSProperties = {
   gap: '14px',
   padding: '14px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   minWidth: 0,
 }
 
@@ -2683,8 +2657,8 @@ const rosterFilterButton: CSSProperties = {
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 900,
@@ -2695,8 +2669,8 @@ const rosterFilterButton: CSSProperties = {
 
 const rosterFilterButtonActive: CSSProperties = {
   ...rosterFilterButton,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
-  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
   color: 'var(--foreground-strong)',
 }
 
@@ -2707,7 +2681,7 @@ const rosterFilterCount: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg-strong)',
+  background: 'rgba(8, 13, 28, 0.72)',
   color: 'inherit',
   fontSize: '11px',
 }
@@ -2730,7 +2704,7 @@ const rosterCompareTray: CSSProperties = {
   padding: '14px 16px',
   borderRadius: '18px',
   border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  background: 'rgba(155,225,29,0.1)',
   minWidth: 0,
 }
 
@@ -2844,8 +2818,8 @@ const helperCallout: CSSProperties = {
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(15, 23, 42, 0.68)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
   color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 700,
@@ -2891,8 +2865,8 @@ const listLinkCard: CSSProperties = {
   color: 'var(--foreground)',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -2906,8 +2880,8 @@ const tableWrap: CSSProperties = {
   minWidth: 0,
   maxWidth: '100%',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
 }
 
 const dataTable: CSSProperties = {
@@ -2919,7 +2893,7 @@ const dataTable: CSSProperties = {
 const tableHeaderCell: CSSProperties = {
   textAlign: 'left',
   padding: '14px',
-  background: 'var(--shell-chip-bg-strong)',
+  background: 'rgba(8, 13, 28, 0.78)',
   color: '#c7dbff',
   fontSize: '12px',
   textTransform: 'uppercase',
@@ -2930,7 +2904,7 @@ const tableHeaderCell: CSSProperties = {
 
 const tableCell: CSSProperties = {
   padding: '14px',
-  borderTop: '1px solid var(--shell-panel-border)',
+  borderTop: '1px solid rgba(125, 211, 252, 0.14)',
   color: 'var(--foreground)',
   verticalAlign: 'top',
   overflowWrap: 'anywhere',

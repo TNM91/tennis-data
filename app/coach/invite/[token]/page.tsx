@@ -1,0 +1,344 @@
+'use client'
+
+export const dynamic = 'force-dynamic'
+
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import { buildProductAccessState } from '@/lib/access-model'
+import type { CoachStudentInvite } from '@/lib/coach-invites'
+
+type InviteStudentPreview = {
+  playerName: string
+  identitySlug: string
+  levelLabel: string
+}
+
+type InviteResponse = {
+  ok?: boolean
+  invite?: CoachStudentInvite
+  student?: InviteStudentPreview
+  message?: string
+}
+
+const pageStyles = {
+  shell: {
+    minHeight: '100vh',
+    background:
+      'radial-gradient(circle at 12% 0%, rgba(164, 255, 46, 0.14), transparent 32%), linear-gradient(135deg, #f7fbff 0%, #eef5ec 100%)',
+    color: '#0b1730',
+    padding: 'clamp(24px, 5vw, 56px)',
+  },
+  panel: {
+    maxWidth: 1040,
+    margin: '0 auto',
+    border: '1px solid rgba(121, 184, 47, 0.24)',
+    borderRadius: 28,
+    overflow: 'hidden',
+    background: '#ffffff',
+    boxShadow: '0 28px 80px rgba(5, 18, 40, 0.16)',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 18,
+    padding: '20px clamp(22px, 4vw, 40px)',
+    background: 'linear-gradient(110deg, #071226 0%, #102a21 100%)',
+    color: '#fff',
+  },
+  brand: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    fontWeight: 900,
+    letterSpacing: '.08em',
+    textTransform: 'uppercase',
+  },
+  body: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1.15fr) minmax(280px, .85fr)',
+    gap: 0,
+  },
+  main: {
+    padding: 'clamp(28px, 5vw, 54px)',
+  },
+  rail: {
+    padding: 'clamp(24px, 4vw, 42px)',
+    background: 'linear-gradient(180deg, #f5faed 0%, #ffffff 100%)',
+    borderLeft: '1px solid rgba(121, 184, 47, 0.22)',
+  },
+  eyebrow: {
+    color: '#5d8f12',
+    fontSize: 12,
+    fontWeight: 900,
+    letterSpacing: '.12em',
+    textTransform: 'uppercase',
+  },
+  title: {
+    margin: '12px 0 14px',
+    fontSize: 'clamp(34px, 6vw, 64px)',
+    lineHeight: .94,
+    fontWeight: 950,
+    letterSpacing: 0,
+  },
+  copy: {
+    margin: 0,
+    color: '#435775',
+    fontSize: 17,
+    lineHeight: 1.7,
+  },
+  actions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 28,
+  },
+  primaryButton: {
+    border: 0,
+    borderRadius: 999,
+    background: '#a6ff2e',
+    color: '#071226',
+    padding: '13px 20px',
+    fontWeight: 900,
+    boxShadow: '0 14px 26px rgba(121, 184, 47, 0.28)',
+    cursor: 'pointer',
+    textDecoration: 'none',
+  },
+  secondaryButton: {
+    border: '1px solid rgba(15, 37, 67, 0.18)',
+    borderRadius: 999,
+    background: '#fff',
+    color: '#0b1730',
+    padding: '12px 18px',
+    fontWeight: 900,
+    cursor: 'pointer',
+    textDecoration: 'none',
+  },
+  card: {
+    border: '1px solid rgba(15, 37, 67, 0.12)',
+    borderRadius: 20,
+    background: '#fff',
+    padding: 18,
+    boxShadow: '0 18px 40px rgba(5, 18, 40, 0.08)',
+  },
+  stat: {
+    display: 'grid',
+    gap: 6,
+    padding: '14px 0',
+    borderBottom: '1px solid rgba(15, 37, 67, 0.1)',
+  },
+  label: {
+    color: '#71809b',
+    fontSize: 11,
+    fontWeight: 900,
+    letterSpacing: '.12em',
+    textTransform: 'uppercase',
+  },
+  value: {
+    color: '#0b1730',
+    fontSize: 16,
+    fontWeight: 900,
+  },
+  note: {
+    marginTop: 18,
+    borderRadius: 18,
+    background: '#071226',
+    color: '#dce8f9',
+    padding: 18,
+    fontSize: 14,
+    lineHeight: 1.55,
+  },
+} satisfies Record<string, CSSProperties>
+
+export default function CoachInvitePage() {
+  return (
+    <SiteShell active="/coach">
+      <CoachInviteContent />
+    </SiteShell>
+  )
+}
+
+function CoachInviteContent() {
+  const params = useParams<{ token?: string | string[] }>()
+  const token = useMemo(() => {
+    const rawToken = params.token
+    return Array.isArray(rawToken) ? rawToken[0] ?? '' : rawToken ?? ''
+  }, [params.token])
+  const { authResolved, entitlements, role, session, userId } = useAuth()
+  const access = useMemo(() => buildProductAccessState(userId ? role : 'public', entitlements), [entitlements, role, userId])
+  const [invite, setInvite] = useState<CoachStudentInvite | null>(null)
+  const [student, setStudent] = useState<InviteStudentPreview | null>(null)
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [accepting, setAccepting] = useState(false)
+
+  const nextHref = `/coach/invite/${encodeURIComponent(token)}`
+  const playerPlusHref = `/join?plan=player_plus&next=${encodeURIComponent(nextHref)}`
+  const loginHref = `/login?next=${encodeURIComponent(nextHref)}`
+
+  const loadInvite = useCallback(async () => {
+    if (!token) return
+    setLoading(true)
+    setMessage('')
+    try {
+      const response = await fetch(`/api/coach/invites/${encodeURIComponent(token)}`)
+      const json = (await response.json()) as InviteResponse
+      if (!response.ok || !json.ok || !json.invite) {
+        throw new Error(json.message || 'This coach invite could not be loaded.')
+      }
+      setInvite(json.invite)
+      setStudent(json.student ?? null)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'This coach invite could not be loaded.')
+    } finally {
+      setLoading(false)
+    }
+  }, [token])
+
+  useEffect(() => {
+    void loadInvite()
+  }, [loadInvite])
+
+  const acceptInvite = async () => {
+    if (!session?.access_token || !token) {
+      setMessage('Sign in to accept this coach invite.')
+      return
+    }
+
+    setAccepting(true)
+    setMessage('')
+    try {
+      const response = await fetch(`/api/coach/invites/${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const json = (await response.json()) as InviteResponse
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message || 'This coach invite could not be accepted.')
+      }
+      setInvite((current) => (current ? { ...current, status: 'accepted' } : current))
+      setMessage('Coach connected. Your guide is still useful on paper, and Player+ turns it into live assignments, recaps, and check-ins.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'This coach invite could not be accepted.')
+    } finally {
+      setAccepting(false)
+    }
+  }
+
+  const studentName = student?.playerName || 'Player'
+  const statusLabel = invite?.status ? invite.status.replace('-', ' ') : 'loading'
+
+  return (
+    <main style={pageStyles.shell}>
+      <section style={pageStyles.panel}>
+        <div style={pageStyles.header}>
+          <div style={pageStyles.brand}>
+            <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
+            <span>TenAceIQ Coach Connect</span>
+          </div>
+          <span style={{ color: '#a6ff2e', fontSize: 12, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>
+            Player+ linked workflow
+          </span>
+        </div>
+
+        <div style={pageStyles.body} className="coach-invite-grid">
+          <div style={pageStyles.main}>
+            <span style={pageStyles.eyebrow}>Coach invite</span>
+            <h1 style={pageStyles.title}>Connect your coach workspace.</h1>
+            <p style={pageStyles.copy}>
+              This link connects a coach planner to a player account so development work can move from the printed guide into
+              TenAceIQ assignments, recaps, match reflections, and accountability tracking.
+            </p>
+
+            {message ? (
+              <p style={{ ...pageStyles.note, background: message.includes('connected') || message.includes('Coach connected') ? '#102a21' : '#071226' }}>
+                {message}
+              </p>
+            ) : null}
+
+            <div style={pageStyles.actions}>
+              {!authResolved || loading ? (
+                <span style={pageStyles.secondaryButton}>Loading invite</span>
+              ) : !userId ? (
+                <>
+                  <Link href={loginHref} style={pageStyles.primaryButton}>
+                    Sign in to accept
+                  </Link>
+                  <Link href={playerPlusHref} style={pageStyles.secondaryButton}>
+                    Join Player+
+                  </Link>
+                </>
+              ) : invite?.status === 'accepted' ? (
+                <>
+                  <Link href="/mylab" style={pageStyles.primaryButton}>
+                    Open My Lab
+                  </Link>
+                  <Link href="/player-development" style={pageStyles.secondaryButton}>
+                    Open development paths
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={acceptInvite} disabled={accepting} style={pageStyles.primaryButton}>
+                    {accepting ? 'Connecting' : 'Accept coach invite'}
+                  </button>
+                  {!access.canUseAdvancedPlayerInsights ? (
+                    <Link href={playerPlusHref} style={pageStyles.secondaryButton}>
+                      Upgrade to Player+
+                    </Link>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </div>
+
+          <aside style={pageStyles.rail}>
+            <div style={pageStyles.card}>
+              <div style={pageStyles.stat}>
+                <span style={pageStyles.label}>Player</span>
+                <span style={pageStyles.value}>{loading ? 'Loading' : studentName}</span>
+              </div>
+              <div style={pageStyles.stat}>
+                <span style={pageStyles.label}>Invite status</span>
+                <span style={pageStyles.value}>{statusLabel}</span>
+              </div>
+              <div style={pageStyles.stat}>
+                <span style={pageStyles.label}>Invited email</span>
+                <span style={pageStyles.value}>{invite?.inviteEmail || 'Open invite'}</span>
+              </div>
+              <div style={{ ...pageStyles.stat, borderBottom: 0 }}>
+                <span style={pageStyles.label}>Development lane</span>
+                <span style={pageStyles.value}>{student?.levelLabel || 'Player development'}</span>
+              </div>
+            </div>
+
+            {invite?.message ? (
+              <div style={pageStyles.note}>
+                <strong style={{ color: '#a6ff2e' }}>Coach note</strong>
+                <br />
+                {invite.message}
+              </div>
+            ) : null}
+
+            <p style={{ ...pageStyles.copy, marginTop: 18, fontSize: 14 }}>
+              The printed workbook remains a standalone development tool. Player+ unlocks the connected layer: coach assignments,
+              digital check-ins, progress history, and bring-this-to-your-coach follow-through.
+            </p>
+          </aside>
+        </div>
+      </section>
+
+      <style jsx>{`
+        @media (max-width: 820px) {
+          .coach-invite-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+    </main>
+  )
+}

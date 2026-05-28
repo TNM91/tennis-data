@@ -18,6 +18,12 @@ import {
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
 
+const emptyResultActions = [
+  { href: '/league-coordinator/individual-results', label: 'Log player result' },
+  { href: '/league-coordinator/results', label: 'Open team book' },
+  { href: DATA_ASSIST_STORY.href, label: 'Improve data' },
+] as const
+
 function RowLink({ href, children }: { href: string; children: ReactNode }) {
   const [hovered, setHovered] = useState(false)
   return (
@@ -95,6 +101,22 @@ function CompeteResultsContent() {
     <>
       <CompeteGrid>
         <CompeteCard
+          href="/league-coordinator/results"
+          meta="Team results"
+          title="Team book"
+          text="Record team match events, line scores, and standings-moving outcomes."
+          icon="reports"
+          action="Open team book"
+        />
+        <CompeteCard
+          href="/league-coordinator/individual-results"
+          meta="Player results"
+          title="Player book"
+          text="Log one-on-one results for ladders, round robins, and challenge leagues."
+          icon="playerRatings"
+          action="Open player book"
+        />
+        <CompeteCard
           href="/explore/rankings"
           meta="Movement"
           title="Rankings"
@@ -103,28 +125,12 @@ function CompeteResultsContent() {
           action="See movement"
         />
         <CompeteCard
-          href="/mylab"
-          meta="Personal insight"
-          title="My Lab"
-          text="Review follows, trends, and personal signals."
-          icon="myLab"
-          action="Open lab"
-        />
-        <CompeteCard
-          href="/explore/players"
-          meta="Player impact"
-          title="Player Profiles"
-          text="Open player context when form changes."
-          icon="playerRatings"
-          action="View players"
-        />
-        <CompeteCard
           href={DATA_ASSIST_STORY.href}
-          meta="Refresh results"
-          title="Upload Scorecards"
+          meta="Refresh"
+          title="Improve results data"
           text="Upload reviewed scorecards before standings move."
           icon="reports"
-          action="Upload scores"
+          action="Upload data"
         />
       </CompeteGrid>
 
@@ -135,11 +141,11 @@ function CompeteResultsContent() {
             compact
             headline="Want results to turn into smarter next-week decisions?"
             body="Unlock Captain to connect outcomes, availability, lineup planning, and team communication instead of reviewing results in isolation."
-            ctaLabel="Unlock Captain Tools"
+            ctaLabel="Unlock Captain"
             ctaHref="/pricing"
             secondaryLabel="See Captain value"
             secondaryHref="/pricing"
-            footnote="Best for captains who want each week’s results to feed the next lineup instead of starting over."
+            footnote="Best for captains who want each week's results to feed the next lineup instead of starting over."
           />
         </div>
       ) : null}
@@ -152,9 +158,7 @@ function CompeteResultsContent() {
         </div>
 
         {results.length === 0 ? (
-          <div style={emptyStyle}>
-            No TIQ individual results have been logged yet. Upload reviewed scorecards through Data Assist when match play is ready to refresh this view.
-          </div>
+          <EmptyResultsState />
         ) : (
           <>
             <div style={statGridStyle}>
@@ -194,6 +198,24 @@ function CompeteResultsContent() {
   )
 }
 
+function EmptyResultsState() {
+  return (
+    <div style={emptyResultsStyle}>
+      <div style={emptyResultsCopyStyle}>
+        <strong>Results start with one finished match.</strong>
+        <span>Log a player result, record a team match, or upload a reviewed scorecard so rankings and matchup prep have something real to use.</span>
+      </div>
+      <div style={emptyResultsActionRowStyle}>
+        {emptyResultActions.map((action) => (
+          <Link key={action.href} href={action.href} style={emptyResultsActionStyle}>
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ResultRow({
   result,
   leagueName,
@@ -204,6 +226,16 @@ function ResultRow({
   const loserName = result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
   const loserId = result.winnerPlayerId === result.playerAId ? result.playerBId : result.playerAId
   const matchupHref = buildResultMatchupHref(result)
+  const profilesReady = Boolean(result.playerAId && result.playerBId)
+  const scoreReady = Boolean(result.score)
+  const resultDateReady = Boolean(result.resultDate)
+  const resultFollowThroughItems = [
+    { label: 'Score', value: scoreReady ? result.score : 'Missing', ready: scoreReady },
+    { label: 'Profiles', value: profilesReady ? 'Ready' : 'Needed', ready: profilesReady },
+    { label: 'Date', value: resultDateReady ? formatDate(result.resultDate, 'Set') : 'Missing', ready: resultDateReady },
+  ]
+  const nextHref = profilesReady ? matchupHref : DATA_ASSIST_STORY.href
+  const nextLabel = profilesReady ? 'Compare rematch' : 'Create profiles'
   const supportSubject = `Question about result: ${result.winnerPlayerName} def. ${loserName}`
   const supportBody = [
     `League: ${leagueName}`,
@@ -225,16 +257,27 @@ function ResultRow({
             .filter(Boolean)
             .join(' | ')}
         </div>
+        <div style={resultFollowThroughGridStyle}>
+          {resultFollowThroughItems.map((item) => (
+            <div key={item.label} style={resultFollowThroughItemStyle}>
+              <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+          <Link href={nextHref} style={resultNextActionStyle}>
+            {nextLabel}
+          </Link>
+        </div>
         <div style={rowHintStyle}>
-          Review the profiles, then rerun the matchup before the next round.
+          {profilesReady
+            ? 'Profiles are connected. Rerun the matchup before the next round.'
+            : 'Create both player profiles so this result can feed TIQ history and awards.'}
         </div>
       </div>
       <div style={rowActionStackStyle}>
         <RowLink href={`/explore/leagues/tiq/${encodeURIComponent(result.leagueId)}?league_id=${encodeURIComponent(result.leagueId)}`}>
           Open league
-        </RowLink>
-        <RowLink href={matchupHref}>
-          Compare rematch
         </RowLink>
         <QuickMessageComposer
           mode="direct"
@@ -289,8 +332,10 @@ const panelStyle = {
   marginTop: '24px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.74)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
 } as const
 
 const upgradeWrapStyle = {
@@ -304,7 +349,7 @@ const upgradeWrapStyle = {
 const sectionEyebrowStyle = {
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.16em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   color: 'var(--brand-blue-2)',
 } as const
@@ -315,12 +360,45 @@ const sectionTextStyle = {
   lineHeight: 1.72,
 } as const
 
-const emptyStyle = {
+const emptyResultsStyle = {
+  display: 'grid',
+  gap: '14px',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px dashed var(--shell-panel-border)',
+  border: '1px dashed rgba(116,190,255,0.18)',
   color: 'var(--shell-copy-muted)',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(8,16,34,0.66)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+} as const
+
+const emptyResultsCopyStyle = {
+  display: 'grid',
+  gap: '6px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+} as const
+
+const emptyResultsActionRowStyle = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  minWidth: 0,
+} as const
+
+const emptyResultsActionStyle = {
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: '10px 13px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 900,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 } as const
 
 const listStyle = {
@@ -335,8 +413,9 @@ const rowStyle = {
   alignItems: 'center',
   padding: '14px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.66)',
+  minWidth: 0,
 } as const
 
 const rowTitleStyle = {
@@ -358,6 +437,63 @@ const rowHintStyle = {
   fontSize: '12px',
   fontWeight: 750,
   lineHeight: 1.5,
+} as const
+
+const resultFollowThroughGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: '8px',
+  marginTop: '12px',
+  minWidth: 0,
+} as const
+
+const resultFollowThroughItemStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '7px',
+  minHeight: '34px',
+  minWidth: 0,
+  padding: '7px 9px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'rgba(223,238,255,0.84)',
+  fontSize: '12px',
+  fontWeight: 850,
+  overflow: 'hidden',
+} as const
+
+const resultNextActionStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '34px',
+  minWidth: 0,
+  padding: '7px 12px',
+  borderRadius: '12px',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.11)',
+  color: '#f5ffe2',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
+} as const
+
+const readinessDotReadyStyle = {
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+  flex: '0 0 auto',
+} as const
+
+const readinessDotWaitingStyle = {
+  ...readinessDotReadyStyle,
+  background: 'rgba(116,190,255,0.46)',
+  boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
 } as const
 
 const rowActionStackStyle = {
@@ -387,8 +523,8 @@ const statGridStyle = {
 const statCardStyle = {
   padding: '12px',
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.66)',
 } as const
 
 const statValueStyle = {
@@ -403,7 +539,7 @@ const statLabelStyle = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 } as const
 

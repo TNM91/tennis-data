@@ -30,9 +30,14 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
-import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
+import {
+  loadTiqAwardsForPlayer,
+  readTiqAwardsForPlayerId,
+  readTiqAwardsForRecipient,
+  type TiqAwardRecord,
+} from '@/lib/tiq-awards-registry'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -59,6 +64,7 @@ type Player = {
   doubles_rating?: number | string | null
   doubles_dynamic_rating?: number | null
   doubles_usta_dynamic_rating?: number | null
+  rating_source?: string | null
 }
 
 type MatchRecord = {
@@ -144,6 +150,59 @@ type UstaTeamMembership = {
   latest: string | null
 }
 
+const PLAYER_PROFILE_SELECT_BASE = `
+  id,
+  name,
+  location,
+  overall_rating,
+  overall_dynamic_rating,
+  overall_usta_dynamic_rating,
+  singles_rating,
+  singles_dynamic_rating,
+  singles_usta_dynamic_rating,
+  doubles_rating,
+  doubles_dynamic_rating,
+  doubles_usta_dynamic_rating
+`
+const PLAYER_PROFILE_SELECT_WITH_SOURCE = `
+  ${PLAYER_PROFILE_SELECT_BASE},
+  rating_source
+`
+
+function isMissingRatingSourceError(message: string) {
+  const normalized = message.toLowerCase()
+  return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
+}
+
+async function loadPlayerProfileRow(playerId: string): Promise<Player | null> {
+  const withSource = await supabase
+    .from('players')
+    .select(PLAYER_PROFILE_SELECT_WITH_SOURCE)
+    .eq('id', playerId)
+    .single()
+
+  if (!withSource.error) return withSource.data as Player
+  if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+
+  const base = await supabase
+    .from('players')
+    .select(PLAYER_PROFILE_SELECT_BASE)
+    .eq('id', playerId)
+    .single()
+
+  if (base.error) throw new Error(base.error.message)
+  return base.data ? ({ ...(base.data as Player), rating_source: null }) : null
+}
+
+function isSelfRatedPlayer(player: Pick<Player, 'rating_source'> | null | undefined) {
+  return player?.rating_source === 'self'
+}
+
+function formatPublicRating(value: number | string | null | undefined, player: Pick<Player, 'rating_source'> | null | undefined) {
+  const formatted = formatRatingValue(value)
+  return isSelfRatedPlayer(player) && value != null ? `${formatted} S` : formatted
+}
+
 export default function PlayerProfilePage() {
   return (
     <SiteShell active="/players">
@@ -174,6 +233,7 @@ function PlayerProfileContent() {
   const [totalPlayers, setTotalPlayers] = useState<number | null>(null)
   const [nearbyPlayers, setNearbyPlayers] = useState<Array<{ id: string; name: string; location: string | null; overall_dynamic_rating: number }>>([])
   const [fieldAvgRating, setFieldAvgRating] = useState<number | null>(null)
+  const [playerAwards, setPlayerAwards] = useState<TiqAwardRecord[]>([])
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, userId: currentUserId, entitlements, authResolved } = useAuth()
@@ -262,30 +322,13 @@ function PlayerProfileContent() {
 
     try {
       const [
-        { data: playerData, error: playerError },
+        playerData,
         { data: playerMatchRefs, error: playerMatchRefsError },
         { data: snapshotsData, error: snapshotsError },
         { data: rosterMembershipData, error: rosterMembershipError },
         { data: summaryTeamData, error: summaryTeamError },
       ] = await Promise.all([
-        supabase
-          .from('players')
-          .select(`
-            id,
-            name,
-            location,
-            overall_rating,
-            overall_dynamic_rating,
-            overall_usta_dynamic_rating,
-            singles_rating,
-            singles_dynamic_rating,
-            singles_usta_dynamic_rating,
-            doubles_rating,
-            doubles_dynamic_rating,
-            doubles_usta_dynamic_rating
-          `)
-          .eq('id', playerId)
-          .single(),
+        loadPlayerProfileRow(playerId),
         supabase.from('match_players').select('match_id').eq('player_id', playerId),
         supabase
           .from('rating_snapshots')
@@ -304,7 +347,7 @@ function PlayerProfileContent() {
           .limit(500),
       ])
 
-      if (playerError) throw new Error(playerError.message)
+      if (!playerData) throw new Error('Player not found')
       if (playerMatchRefsError) throw new Error(playerMatchRefsError.message)
       if (snapshotsError) throw new Error(snapshotsError.message)
       if (rosterMembershipError) {
@@ -447,6 +490,33 @@ function PlayerProfileContent() {
 
   useEffect(() => {
     if (!player?.name) {
+      setPlayerAwards([])
+      return
+    }
+
+    let active = true
+
+    void (async () => {
+      const result = await loadTiqAwardsForPlayer(playerId, player.name)
+      if (!active) return
+      const deduped = new Map<string, TiqAwardRecord>()
+      for (const award of [
+        ...result.data,
+        ...readTiqAwardsForPlayerId(playerId),
+        ...readTiqAwardsForRecipient(player.name),
+      ]) {
+        deduped.set(award.id, award)
+      }
+      setPlayerAwards([...deduped.values()])
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [player?.name, playerId])
+
+  useEffect(() => {
+    if (!player?.name) {
       setTiqParticipations([])
       setTiqParticipationSource('local')
       setTiqParticipationWarning(null)
@@ -531,6 +601,7 @@ function PlayerProfileContent() {
 
   const selectedDynamicRating = useMemo(() => getTiqRating(player, ratingView), [player, ratingView])
   const ustaDynamicRating = useMemo(() => getUstaDynamicRating(player, ratingView), [player, ratingView])
+  const isSelfRatedProfile = isSelfRatedPlayer(player)
 
   const staticOverall = useMemo(() => getUstaRating(player, 'overall'), [player])
   const staticSingles = useMemo(() => getUstaRating(player, 'singles'), [player])
@@ -997,15 +1068,18 @@ function PlayerProfileContent() {
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const ratingViewLabel = getRatingViewLabel(ratingView)
   const tiqParticipationCount = tiqParticipations.length
+  const featuredPlayerAwards = playerAwards.slice(0, 3)
   const playerSignals = [
     {
       label: 'Official baseline',
-      value: `USTA ${baseRating.toFixed(2)}`,
-      note: 'Use USTA to understand official standing, bump pressure, and baseline comparison.',
+      value: isSelfRatedProfile ? 'USTA Pending' : `USTA ${baseRating.toFixed(2)}`,
+      note: isSelfRatedProfile
+        ? 'This profile is self-rated until verified match or TennisLink data replaces the S signal.'
+        : 'Use USTA to understand official standing, bump pressure, and baseline comparison.',
     },
     {
       label: 'Strategy signal',
-      value: `TIQ ${selectedDynamicRating.toFixed(2)}`,
+      value: `TIQ ${formatPublicRating(selectedDynamicRating, player)}`,
       note: `Use the ${ratingViewLabel.toLowerCase()} TIQ read to understand current form and decision support.`,
     },
     {
@@ -1014,39 +1088,12 @@ function PlayerProfileContent() {
       note: 'TIQ individual leagues show where this player is actively competing inside TenAceIQ.',
     },
   ]
-  const profileDiscoveryActions = [
-    {
-      label: 'Read',
-      title: 'Start with the rating read',
-      text: `Check USTA baseline, TIQ ${ratingViewLabel.toLowerCase()}, record, and trend before opening deeper tools.`,
-      href: '#profile-scorecard',
-      cta: 'View rating read',
-    },
-    {
-      label: 'Trace',
-      title: primaryUstaMembership ? 'Open team context' : 'Find team context',
-      text: primaryUstaMembership
-        ? `${primaryUstaMembership.teamName} gives this profile roster, league, and flight context.`
-        : 'Use team search when you need roster or league context around this player.',
-      href: primaryTeamHref ?? '/explore/search?scope=teams',
-      cta: primaryUstaMembership ? 'Open team' : 'Search teams',
-    },
-    {
-      label: 'Compare',
-      title: linkedPlayerId && !isOwnProfile ? 'Compare against you' : 'Start a matchup',
-      text: linkedPlayerId && !isOwnProfile
-        ? 'Your linked profile is ready, so compare this player directly against your game.'
-        : 'Use Matchup when you want to turn this profile into a player-to-player prep read.',
-      href: matchupHref,
-      cta: linkedPlayerId && !isOwnProfile ? 'Compare now' : 'Open Matchup',
-    },
-  ]
-
   if (loading) {
     return (
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
+          <div aria-hidden="true" style={watermarkStyle} />
           <div style={loadingCard}>Loading player profile...</div>
         </div>
       </section>
@@ -1090,7 +1137,7 @@ function PlayerProfileContent() {
               <p style={dynamicHeroText}>{player.location || 'Location not set'}</p>
 
               <div style={dynamicHeroScoreGrid} aria-label="Player score summary">
-                <StatChip label={`TIQ ${ratingViewLabel}`} value={selectedDynamicRating.toFixed(2)} accent />
+                <StatChip label={`TIQ ${ratingViewLabel}`} value={formatPublicRating(selectedDynamicRating, player)} accent />
                 <StatChip label="Record" value={`${wins}-${losses}`} />
                 <StatChip label="Win rate" value={`${winPct}%`} />
                 <StatChip label="Trend" value={getTrendShortLabel(trendDirection)} />
@@ -1123,6 +1170,16 @@ function PlayerProfileContent() {
                 {tiqParticipationCount > 0 ? (
                   <span style={heroHintPill}>{tiqParticipationCount} TIQ individual leagues</span>
                 ) : null}
+                {featuredPlayerAwards.map((award) => (
+                  <Link
+                    key={award.id}
+                    href={award.sourceType === 'tournament' ? `/tournaments/${encodeURIComponent(award.sourceId)}` : '#profile-trophy-case'}
+                    style={heroAwardPill}
+                  >
+                    <span>{award.badgeCode}</span>
+                    <strong>{award.badgeLabel}</strong>
+                  </Link>
+                ))}
                 {winStreak.count >= 2 ? (
                   <span
                     style={{
@@ -1157,8 +1214,8 @@ function PlayerProfileContent() {
                     </div>
 
                     <div style={meterSubtext}>
-                      USTA {formatRatingValue(baseRating)} - TIQ {ratingViewLabel.toLowerCase()} rating{' '}
-                      {formatRatingValue(selectedDynamicRating)}
+                      USTA {isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(baseRating)} - TIQ {ratingViewLabel.toLowerCase()} rating{' '}
+                      {formatPublicRating(selectedDynamicRating, player)}
                     </div>
 
                     <div style={dynamicTrendPill}>
@@ -1172,11 +1229,12 @@ function PlayerProfileContent() {
                   </div>
 
                   <div style={meterValueGroup}>
-                    <div style={meterCurrent}>{selectedDynamicRating.toFixed(2)}</div>
-                    <div style={meterTarget}>USTA {baseRating.toFixed(2)} - Next {nextThreshold.toFixed(1)}</div>
+                    <div style={meterCurrent}>{formatPublicRating(selectedDynamicRating, player)}</div>
+                    <div style={meterTarget}>USTA {isSelfRatedPlayer(player) ? 'Pending' : baseRating.toFixed(2)} - Next {nextThreshold.toFixed(1)}</div>
                     <div style={meterDelta}>
-                      TIQ vs USTA {ratingDiff >= 0 ? '+' : ''}
-                      {ratingDiff.toFixed(2)}
+                      {isSelfRatedProfile
+                        ? 'TIQ vs USTA Pending'
+                        : `TIQ vs USTA ${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}`}
                     </div>
                   </div>
                 </div>
@@ -1240,9 +1298,9 @@ function PlayerProfileContent() {
                 </div>
 
                 <div style={dynamicFocusMetrics}>
-                  <StatChip label="TIQ" value={selectedDynamicRating.toFixed(2)} accent />
-                  <StatChip label="USTA Dynamic" value={ustaDynamicRating.toFixed(2)} />
-                  <StatChip label="USTA Base" value={baseRating.toFixed(2)} />
+                  <StatChip label="TIQ" value={formatPublicRating(selectedDynamicRating, player)} accent />
+                  <StatChip label="USTA Dynamic" value={isSelfRatedProfile ? 'Pending' : ustaDynamicRating.toFixed(2)} />
+                  <StatChip label="USTA Base" value={isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)} />
                   <StatChip label="Trend" value={getTrendShortLabel(trendDirection)} />
                   <StatChip label="Confidence" value={confidence} />
                   <StatChip
@@ -1256,11 +1314,11 @@ function PlayerProfileContent() {
                 <div style={summaryTitle}>Profile snapshot</div>
 
                 <div style={summaryStatsGrid}>
-                  <StatChip label="USTA Base" value={formatRatingValue(player.overall_rating)} />
-                  <StatChip label="USTA Dynamic" value={formatRatingValue(player.overall_usta_dynamic_rating ?? player.overall_rating)} />
-                  <StatChip label="TIQ Overall" value={formatRatingValue(player.overall_dynamic_rating)} />
-                  <StatChip label="TIQ Singles" value={formatRatingValue(player.singles_dynamic_rating ?? player.overall_dynamic_rating)} />
-                  <StatChip label="TIQ Doubles" value={formatRatingValue(player.doubles_dynamic_rating ?? player.overall_dynamic_rating)} />
+                  <StatChip label="USTA Base" value={isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(player.overall_rating)} />
+                  <StatChip label="USTA Dynamic" value={isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(player.overall_usta_dynamic_rating ?? player.overall_rating)} />
+                  <StatChip label="TIQ Overall" value={formatPublicRating(player.overall_dynamic_rating, player)} />
+                  <StatChip label="TIQ Singles" value={formatPublicRating(player.singles_dynamic_rating ?? player.overall_dynamic_rating, player)} />
+                  <StatChip label="TIQ Doubles" value={formatPublicRating(player.doubles_dynamic_rating ?? player.overall_dynamic_rating, player)} />
                 </div>
               </div>
             </div>
@@ -1284,7 +1342,7 @@ function PlayerProfileContent() {
             <div style={scorecardMetricGridStyle}>
               <div style={scorecardMetricStyle}>
                 <span style={scorecardMetricLabelStyle}>TIQ {ratingViewLabel}</span>
-                <strong style={scorecardMetricValueStyle}>{selectedDynamicRating.toFixed(2)}</strong>
+                <strong style={scorecardMetricValueStyle}>{formatPublicRating(selectedDynamicRating, player)}</strong>
               </div>
               <div style={scorecardMetricStyle}>
                 <span style={scorecardMetricLabelStyle}>Record</span>
@@ -1318,27 +1376,62 @@ function PlayerProfileContent() {
           </div>
         </article>
 
-        <article style={profileDiscoveryPanelStyle} id="profile-ratings">
-          <div style={profileDiscoveryHeaderStyle}>
+        <article id="profile-trophy-case" style={trophyCasePanelStyle}>
+          <div style={scorecardHeaderStyle}>
+            <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
             <div style={panelHeadCopyStyle}>
-              <div style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} profile</div>
-              <h2 style={profileDiscoveryTitleStyle}>Open the next useful view.</h2>
+              <div style={sectionKicker}>Trophy case</div>
+              <h2 style={scorecardTitleStyle}>{playerAwards.length ? `${playerAwards.length} honor${playerAwards.length === 1 ? '' : 's'} earned.` : 'Honors will land here.'}</h2>
             </div>
-            <p style={profileDiscoveryCopyStyle}>
-              {MEMBERSHIP_TIERS.free.shortPromise} {MEMBERSHIP_TIERS.player_plus.upgradeCue}
-            </p>
           </div>
 
-          <div style={profileDiscoveryGridStyle(isMobile)}>
-            {profileDiscoveryActions.map((item) => (
-              <Link key={item.title} href={item.href} style={profileDiscoveryCardStyle}>
-                <span style={profileDiscoveryLabelStyle}>{item.label}</span>
-                <strong style={profileDiscoveryCardTitleStyle}>{item.title}</strong>
-                <span style={profileDiscoveryCardTextStyle}>{item.text}</span>
-                <span style={profileDiscoveryCtaStyle}>{item.cta} {'->'}</span>
-              </Link>
-            ))}
-          </div>
+          {playerAwards.length ? (
+            <>
+              <div style={trophyProofGridStyle} aria-label="Trophy case proof">
+                <div style={trophyProofItemStyle}>
+                  <span style={readinessDotReadyStyle} />
+                  <strong>Honors</strong>
+                  <em>{playerAwards.length}</em>
+                </div>
+                <div style={trophyProofItemStyle}>
+                  <span style={readinessDotReadyStyle} />
+                  <strong>Tournaments</strong>
+                  <em>{playerAwards.filter((award) => award.sourceType === 'tournament').length}</em>
+                </div>
+                <div style={trophyProofItemStyle}>
+                  <span style={readinessDotReadyStyle} />
+                  <strong>Certificates</strong>
+                  <em>Ready</em>
+                </div>
+              </div>
+              <div style={trophyGridStyle}>
+                {playerAwards.map((award) => (
+                  <article key={award.id} style={trophyCardStyle}>
+                    <div style={trophyBadgeStyle}>{award.badgeCode}</div>
+                    <div style={trophyCopyStyle}>
+                      <strong>{award.badgeLabel}</strong>
+                      <span>{award.title} - {award.sourceName}</span>
+                      <small>{award.subtitle || 'More Tennis. Less Chaos.'}</small>
+                    </div>
+                    <div style={trophyActionRowStyle}>
+                      <MiniLink href={`/awards/${encodeURIComponent(award.id)}`}>Certificate</MiniLink>
+                      {award.sourceType === 'tournament' ? (
+                        <MiniLink href={`/tournaments/${encodeURIComponent(award.sourceId)}`}>Open event</MiniLink>
+                      ) : (
+                        <MiniLink href={`/explore/leagues/tiq/${encodeURIComponent(award.sourceId)}?league_id=${encodeURIComponent(award.sourceId)}`}>
+                          Open league
+                        </MiniLink>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p style={scorecardRailTextStyle}>
+              Tournament awards attach here when a director creates TIQ profiles for entrants and issues branded awards.
+            </p>
+          )}
         </article>
 
         {access.canUseAdvancedPlayerInsights ? (
@@ -1388,8 +1481,8 @@ function PlayerProfileContent() {
             </div>
             <div style={rosterReadyStats}>
               <StatChip label="Roster status" value="Rostered" accent />
-              <StatChip label="USTA Base" value={formatRatingValue(player.overall_rating)} />
-              <StatChip label="TIQ Overall" value={formatRatingValue(player.overall_dynamic_rating)} />
+              <StatChip label="USTA Base" value={isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(player.overall_rating)} />
+              <StatChip label="TIQ Overall" value={formatPublicRating(player.overall_dynamic_rating, player)} />
               <StatChip label="Matches" value="0" />
             </div>
           </article>
@@ -1403,17 +1496,17 @@ function PlayerProfileContent() {
           <div style={dynamicStatsGrid}>
           <article style={{ ...statCard, ...statCardAccentGreen }}>
             <div style={statLabel}>TIQ {ratingViewLabel}</div>
-            <div style={statValue}>{selectedDynamicRating.toFixed(2)}</div>
+            <div style={statValue}>{formatPublicRating(selectedDynamicRating, player)}</div>
           </article>
 
           <article style={statCard}>
             <div style={statLabel}>USTA Dynamic {ratingViewLabel}</div>
-            <div style={statValue}>{ustaDynamicRating.toFixed(2)}</div>
+            <div style={statValue}>{isSelfRatedPlayer(player) ? 'Pending' : ustaDynamicRating.toFixed(2)}</div>
           </article>
 
           <article style={statCard}>
             <div style={statLabel}>USTA Base {ratingViewLabel}</div>
-            <div style={statValue}>{baseRating.toFixed(2)}</div>
+            <div style={statValue}>{isSelfRatedPlayer(player) ? 'Pending' : baseRating.toFixed(2)}</div>
           </article>
 
           <article style={statCard}>
@@ -1479,8 +1572,7 @@ function PlayerProfileContent() {
           <article style={statCard}>
             <div style={statLabel}>TIQ vs USTA</div>
             <div style={statValue}>
-              {ratingDiff >= 0 ? '+' : ''}
-              {ratingDiff.toFixed(2)}
+              {isSelfRatedProfile ? 'Pending' : `${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}`}
             </div>
           </article>
 
@@ -1823,7 +1915,7 @@ function PlayerProfileContent() {
               </p>
               <div style={dynamicFollowRow}>
                 <MiniLink href="/explore/leagues">Browse TIQ leagues</MiniLink>
-                <MiniLink href="/compete/leagues">Open compete hub</MiniLink>
+                <MiniLink href="/compete">Open compete hub</MiniLink>
               </div>
             </div>
           ) : (
@@ -1855,7 +1947,7 @@ function PlayerProfileContent() {
                     <MiniLink href={`/explore/leagues/tiq/${encodeURIComponent(entry.leagueId)}?league_id=${encodeURIComponent(entry.leagueId)}`}>
                       Open league
                     </MiniLink>
-                    <MiniLink href="/compete/leagues">Compete</MiniLink>
+                    <MiniLink href="/compete">Compete</MiniLink>
                   </div>
                 </div>
               ))}
@@ -2990,16 +3082,17 @@ const heroWrap: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const heroShell: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
   minWidth: 0,
   borderRadius: '30px',
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--portal-surface-bg)',
+  border: '1px solid rgba(116,190,255,0.15)',
   boxShadow:
     '0 26px 80px rgba(2,10,24,0.28), inset 0 1px 0 rgba(255,255,255,0.05)',
   overflow: 'hidden',
@@ -3045,8 +3138,8 @@ const eyebrow: CSSProperties = {
   padding: '7px 11px',
   borderRadius: '999px',
   color: 'var(--foreground)',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -3089,8 +3182,8 @@ const heroHintRow: CSSProperties = {
 
 const heroHintPill: CSSProperties = {
   maxWidth: '100%',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   borderRadius: '999px',
   padding: '10px 14px',
@@ -3116,9 +3209,9 @@ const stalenessPill: CSSProperties = {
 const meterCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(6,16,32,0.58)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   maxWidth: '560px',
   minWidth: 0,
 }
@@ -3179,9 +3272,9 @@ const confidencePill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.03em',
@@ -3254,8 +3347,8 @@ const meterTrack: CSSProperties = {
   width: '100%',
   height: '14px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
   overflow: 'hidden',
 }
 
@@ -3280,9 +3373,9 @@ const meterFooter: CSSProperties = {
 const focusCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(6,16,32,0.58)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }
 
@@ -3320,8 +3413,8 @@ const secondaryMiniLink: CSSProperties = {
   minHeight: '40px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   textDecoration: 'none',
   fontWeight: 800,
@@ -3347,9 +3440,9 @@ const segmentWrap: CSSProperties = {
 }
 
 const segmentButton: CSSProperties = {
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
   borderRadius: '16px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   minHeight: '52px',
   padding: '0 14px',
@@ -3377,9 +3470,9 @@ const focusMetrics: CSSProperties = {
 const summaryCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(6,16,32,0.58)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }
 
@@ -3402,8 +3495,8 @@ const summaryStatsGrid: CSSProperties = {
 const chipStat: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(6,16,32,0.58)',
+  border: '1px solid rgba(116,190,255,0.13)',
   minWidth: 0,
 }
 
@@ -3439,9 +3532,9 @@ const statsGrid: CSSProperties = {
 const profileReadDetailsStyle: CSSProperties = {
   marginBottom: '18px',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 16px 36px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   overflow: 'hidden',
   minWidth: 0,
 }
@@ -3462,100 +3555,6 @@ const profileReadSummaryStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const profileDiscoveryPanelStyle: CSSProperties = {
-  display: 'grid',
-  gap: '16px',
-  marginBottom: '18px',
-  padding: '18px',
-  borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 16px 36px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
-  minWidth: 0,
-}
-
-const profileDiscoveryHeaderStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-  gap: '14px',
-  alignItems: 'end',
-  minWidth: 0,
-}
-
-const profileDiscoveryTitleStyle: CSSProperties = {
-  margin: '6px 0 0',
-  color: 'var(--foreground-strong)',
-  fontSize: '26px',
-  lineHeight: 1.08,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const profileDiscoveryCopyStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.65,
-  fontWeight: 600,
-  overflowWrap: 'anywhere',
-}
-
-const profileDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  gap: '12px',
-  minWidth: 0,
-})
-
-const profileDiscoveryCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  minHeight: '160px',
-  padding: '16px',
-  borderRadius: '18px',
-  textDecoration: 'none',
-  color: 'var(--foreground)',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--card-border-soft)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-  minWidth: 0,
-}
-
-const profileDiscoveryLabelStyle: CSSProperties = {
-  color: 'var(--brand-green)',
-  fontSize: '12px',
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const profileDiscoveryCardTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '18px',
-  lineHeight: 1.14,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const profileDiscoveryCardTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.6,
-  fontWeight: 600,
-  overflowWrap: 'anywhere',
-}
-
-const profileDiscoveryCtaStyle: CSSProperties = {
-  alignSelf: 'end',
-  color: 'var(--foreground-strong)',
-  fontSize: '13px',
-  fontWeight: 900,
-  overflowWrap: 'anywhere',
-}
-
 const advancedStatsDetailsStyle: CSSProperties = {
   marginBottom: '18px',
   minWidth: 0,
@@ -3571,8 +3570,8 @@ const advancedStatsSummaryStyle: CSSProperties = {
   padding: '0 18px',
   marginBottom: '14px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   cursor: 'pointer',
@@ -3583,9 +3582,9 @@ const advancedStatsSummaryStyle: CSSProperties = {
 const statCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }
 
@@ -3605,9 +3604,9 @@ const signalGridStyle = (isMobile: boolean): CSSProperties => ({
 const signalCardStyle: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }
 
@@ -3670,9 +3669,9 @@ const statValueSmall: CSSProperties = {
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
+  width: 'min(1240px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '32px 18px 10px',
+  padding: '32px 0 10px',
   minWidth: 0,
 }
 
@@ -3683,15 +3682,126 @@ const scorecardPanelStyle: CSSProperties = {
   marginBottom: '18px',
   padding: '18px',
   borderRadius: '28px',
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
+  background: 'var(--portal-surface-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }
 
 const scorecardMainStyle: CSSProperties = {
   display: 'grid',
   gap: '16px',
+  minWidth: 0,
+}
+
+const trophyCasePanelStyle: CSSProperties = {
+  ...scorecardPanelStyle,
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.05)), var(--portal-surface-bg)',
+}
+
+const heroAwardPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  maxWidth: '100%',
+  minHeight: 32,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 12,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
+}
+
+const trophyGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const trophyProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const trophyProofItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gap: 8,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(15,23,42,0.46)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const readinessDotReadyStyle: CSSProperties = {
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+}
+
+const trophyCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '52px minmax(0, 1fr)',
+  gap: 12,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const trophyBadgeStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  width: 52,
+  height: 52,
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.36)',
+  background: 'rgba(155,225,29,0.12)',
+  color: 'var(--brand-lime)',
+  fontSize: 13,
+  fontWeight: 950,
+}
+
+const trophyCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 800,
+}
+
+const trophyActionRowStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
   minWidth: 0,
 }
 
@@ -3726,8 +3836,8 @@ const scorecardMetricStyle: CSSProperties = {
   minHeight: '92px',
   padding: '14px 16px',
   borderRadius: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(6,16,32,0.58)',
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 900,
@@ -3804,9 +3914,9 @@ const contentGrid: CSSProperties = {
 const panelCard: CSSProperties = {
   borderRadius: '28px',
   padding: '22px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }
 
@@ -3969,7 +4079,7 @@ const panelChip: CSSProperties = {
   minHeight: '38px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: '#d9f84a',
   border: '1px solid rgba(155,225,29,0.25)',
   fontWeight: 800,
@@ -3999,8 +4109,8 @@ const tableWrap: CSSProperties = {
   WebkitOverflowScrolling: 'touch',
   minWidth: 0,
   borderRadius: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   maxWidth: '100%',
 }
 
@@ -4023,8 +4133,8 @@ const tableHead: CSSProperties = {
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
   fontWeight: 800,
-  borderBottom: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg-strong)',
+  borderBottom: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(6,16,32,0.78)',
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
@@ -4100,8 +4210,8 @@ const resultLoss: CSSProperties = {
 const loadingCard: CSSProperties = {
   padding: '26px',
   borderRadius: '28px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'var(--portal-surface-bg)',
   color: 'var(--foreground)',
   fontWeight: 700,
   position: 'relative',
@@ -4112,7 +4222,7 @@ const errorCard: CSSProperties = {
   padding: '22px',
   borderRadius: '28px',
   border: '1px solid rgba(255, 60, 40, 0.18)',
-  background: 'var(--shell-panel-bg-strong)',
+  background: 'var(--portal-surface-bg)',
   position: 'relative',
   zIndex: 1,
   minWidth: 0,
@@ -4373,5 +4483,19 @@ const nearbySecondaryActionStyle: CSSProperties = {
   background: 'rgba(116,190,255,0.07)',
   color: '#93c5fd',
   fontWeight: 700,
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-92px',
+  top: '-118px',
+  width: '360px',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'radial-gradient(circle at 38% 34%, rgba(155,225,29,0.2), rgba(155,225,29,0.07) 42%, rgba(116,190,255,0.04) 66%, transparent 70%)',
+  opacity: 0.58,
+  pointerEvents: 'none',
 }
 

@@ -17,7 +17,9 @@ export function isMissingProfileLinkSchemaError(message: string | null | undefin
     normalized.includes('linked_team_name') ||
     normalized.includes('linked_league_name') ||
     normalized.includes('linked_flight') ||
-    normalized.includes('linked_team_at')
+    normalized.includes('linked_team_at') ||
+    normalized.includes('profile_photo_url') ||
+    normalized.includes('message_display_name')
   )
 }
 

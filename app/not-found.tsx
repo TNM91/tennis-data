@@ -15,7 +15,7 @@ const recoveryLinks: Array<{
 }> = [
   { href: '/explore', label: 'Find', text: 'Search tennis context', icon: 'opponentScouting' },
   { href: '/mylab', label: 'You', text: 'Open My Lab', icon: 'myLab' },
-  { href: '/captain', label: 'Team', text: 'Open Captain tools', icon: 'lineupBuilder' },
+  { href: '/captain', label: 'Team', text: 'Open Captain', icon: 'lineupBuilder' },
 ]
 
 export default function NotFound() {

@@ -24,7 +24,7 @@ export type ProductUsageEventSurface = (typeof PRODUCT_USAGE_EVENT_SURFACES)[num
 export type ProductUsageEventInput = {
   eventName: ProductUsageEventName
   surface: ProductUsageEventSurface
-  planId?: Extract<PricingPlanId, 'player_plus' | 'captain' | 'league'> | null
+  planId?: Extract<PricingPlanId, 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'> | null
   metadata?: Record<string, unknown>
 }
 
@@ -50,7 +50,7 @@ export function normalizeProductUsageEventInput(input: RawProductUsageEventInput
   const surface = PRODUCT_USAGE_EVENT_SURFACES.includes(input.surface as ProductUsageEventSurface)
     ? input.surface as ProductUsageEventSurface
     : null
-  const planId = input.planId === 'player_plus' || input.planId === 'captain' || input.planId === 'league'
+  const planId = input.planId === 'player_plus' || input.planId === 'coach' || input.planId === 'captain' || input.planId === 'league' || input.planId === 'full_court'
     ? input.planId
     : null
   const metadata = sanitizeUsageMetadata(input.metadata)

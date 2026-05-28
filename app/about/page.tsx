@@ -15,21 +15,21 @@ export const metadata: Metadata = {
 const aboutActions: InfoActionCard[] = [
   {
     title: 'Find context',
-    text: 'Search players, teams, leagues, rankings, flights, and areas before you need paid tools.',
+    text: 'Search players, teams, leagues, rankings, flights, and areas before you need a paid workspace.',
     href: '/explore',
     cta: 'Open Explore',
     icon: 'opponentScouting',
   },
   {
     title: 'Make it personal',
-    text: 'Player turns broad discovery into My Lab, follows, matchups, and a linked tennis identity.',
+    text: 'Player turns broad discovery into My Lab, data refreshes, matchup prep, and messages.',
     href: '/mylab',
     cta: 'Open My Lab',
     icon: 'myLab',
   },
   {
     title: 'Run the week',
-    text: 'Captain and Coordinator tools reduce scattered work for teams and seasons.',
+    text: 'Captain and League workspaces reduce scattered work for match weeks and seasons.',
     href: '/pricing',
     cta: 'Compare tiers',
     icon: 'lineupBuilder',
@@ -51,8 +51,8 @@ export default function AboutPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>What TenAceIQ does</h2>
           <p>
-            TenAceIQ brings player profiles, rankings, teams, leagues, matchup context, Captain
-            tools, and League Coordinator tools into one place so each user can move from search
+            TenAceIQ brings player profiles, rankings, teams, leagues, matchup context, Captain,
+            and League workspaces into one place so each user can move from search
             to the next useful decision. {DATA_ASSIST_STORY.shortCue}
           </p>
         </div>
@@ -61,8 +61,8 @@ export default function AboutPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Who it is for</h2>
           <p>
             Free users explore the tennis landscape. Player users personalize it with My Lab,
-            follows, Matchup, and player-linked context. Captains lead teams. TIQ League
-            Coordinators run leagues of players or teams.
+            data refreshes, Matchup, and messages. Captains lead teams. League coordinators
+            run leagues of players or teams.
           </p>
         </div>
 

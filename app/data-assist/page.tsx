@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqLoader from '@/components/TiqLoader'
 import {
@@ -34,6 +35,18 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
 const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
+const newPlayerActions = [
+  { href: '/data-assist#upload', label: 'Upload scores', detail: 'Scorecard or team summary' },
+  { href: '/explore/leagues', label: 'Local leagues', detail: 'Find a first match lane' },
+  { href: '/league-coordinator', label: 'Create TIQ league', detail: 'Start your own group' },
+  { href: '/explore/players', label: 'Find players', detail: 'Build your tennis map' },
+]
+
+const emptyHistoryActions = [
+  { href: '/data-assist#upload', label: 'Upload first file' },
+  { href: '/mylab', label: 'Open My Lab' },
+  { href: '/profile', label: 'Check profile' },
+] as const
 
 const importTypes: Array<{
   id: DataAssistImportType
@@ -621,6 +634,21 @@ function DataAssistWorkspace() {
 
   return (
     <section style={pageStyle(isMobile)}>
+      <PlayerSuitePanel active="refresh" playerLabel="Data refresh" />
+      <section style={newPlayerActionPanelStyle} aria-label="New player next steps">
+        <div style={newPlayerActionCopyStyle}>
+          <strong>New player path</strong>
+          <span>Get enough verified tennis context for a useful TIQ read.</span>
+        </div>
+        <div style={newPlayerActionGridStyle}>
+          {newPlayerActions.map((action) => (
+            <Link key={action.href} href={action.href} style={newPlayerActionLinkStyle}>
+              <strong>{action.label}</strong>
+              <span>{action.detail}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
       {!showOrderStep && message ? <div style={successStyle}>{message}</div> : null}
       {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
       {showBulkScorecardResults ? (
@@ -1363,7 +1391,10 @@ function MySubmissionsPanel({
       </div>
 
       {!authResolved || !userId ? (
-        <div style={noticeStyle}>Sign in to track your Data Assist submissions and review status.</div>
+        <div style={noticeStyle}>
+          Sign in to keep Data Assist uploads tied to your profile across devices.{' '}
+          <Link href="/login?redirect=/data-assist" style={noticeLinkStyle}>Sign in</Link>
+        </div>
       ) : !historyOpen ? (
         <div style={historyCollapsedStyle}>
           {submissions.length
@@ -1428,11 +1459,29 @@ function MySubmissionsPanel({
       ) : loading ? (
         <div style={emptyStateStyle}>Loading your submissions...</div>
       ) : (
-        <div style={emptyStateStyle}>Your saved Data Assist uploads will appear here after import.</div>
+        <EmptyDataAssistHistory />
       )}
 
       {error ? <div style={errorStyle}>{error}</div> : null}
     </section>
+  )
+}
+
+function EmptyDataAssistHistory() {
+  return (
+    <div style={emptyHistoryStyle}>
+      <div style={emptyHistoryCopyStyle}>
+        <strong>First signal starts here.</strong>
+        <span>Upload a scorecard, schedule, or team summary. After review, it feeds your profile, teams, and league tools.</span>
+      </div>
+      <div style={emptyHistoryActionRowStyle}>
+        {emptyHistoryActions.map((action) => (
+          <Link key={action.href} href={action.href} style={emptyHistoryActionStyle}>
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -1906,7 +1955,7 @@ function TeamSummaryImportedPanel({
         <div style={headerCopyStyle}>
           <strong>Roster imported</strong>
           <p style={copyStyle}>
-            Team roster records and starting ratings are now available for player, team, and captain tools.
+            Team roster records and starting ratings are now available for player, team, and Captain workspaces.
           </p>
         </div>
         <span style={pillGreenStyle}>Done</span>
@@ -2436,13 +2485,14 @@ function formatDate(value: string) {
 const pageStyle = (isMobile: boolean): CSSProperties => ({
   position: 'relative',
   zIndex: 2,
-  width: '100%',
-  maxWidth: 1280,
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: isMobile ? '14px 12px 28px' : '20px 24px 38px',
+  padding: isMobile ? '14px 0 48px' : '18px 0 64px',
   display: 'grid',
   gap: 18,
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 })
 
 const workspaceStyle = (): CSSProperties => ({
@@ -2454,14 +2504,59 @@ const workspaceStyle = (): CSSProperties => ({
 })
 
 const panelStyle: CSSProperties = {
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 24,
+  border: '1px solid rgba(116,190,255,0.13)',
   background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   padding: 'clamp(13px, 4vw, 18px)',
   display: 'grid',
   gap: 14,
   minWidth: 0,
+}
+
+const newPlayerActionPanelStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  gap: 12,
+  alignItems: 'center',
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(8,13,28,0.58))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.05)',
+  padding: '14px',
+  minWidth: 0,
+}
+
+const newPlayerActionCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const newPlayerActionGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const newPlayerActionLinkStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minHeight: 66,
+  alignContent: 'center',
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  padding: '10px 12px',
+  textDecoration: 'none',
+  fontWeight: 900,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -3587,6 +3682,13 @@ const noticeStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
 }
 
+const noticeLinkStyle: CSSProperties = {
+  color: 'var(--portal-you)',
+  fontWeight: 950,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
 const uploadIssueStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -3630,6 +3732,48 @@ const emptyStateStyle: CSSProperties = {
   textAlign: 'center',
   fontWeight: 800,
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyHistoryStyle: CSSProperties = {
+  minHeight: 160,
+  borderRadius: 18,
+  border: '1px dashed color-mix(in srgb, var(--portal-you) 42%, var(--shell-panel-border) 58%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--portal-you) 12%, var(--shell-chip-bg) 88%), var(--shell-chip-bg))',
+  color: 'var(--shell-copy-muted)',
+  display: 'grid',
+  gap: 16,
+  alignContent: 'center',
+  padding: 18,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyHistoryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyHistoryActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const emptyHistoryActionStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: '10px 13px',
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 12,
+  fontWeight: 950,
   overflowWrap: 'anywhere',
 }
 

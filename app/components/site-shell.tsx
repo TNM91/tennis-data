@@ -22,6 +22,7 @@ function SiteShellContent({ children, active }: { children: ReactNode; active?: 
 
   return (
       <main
+        className={pathname.startsWith('/player-development') ? 'player-development-site-shell' : undefined}
         style={{
           ...pageBackground,
           paddingBottom: 'max(0px, env(safe-area-inset-bottom))',

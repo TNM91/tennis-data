@@ -89,10 +89,6 @@ describe('upgrade and compete mobile layout guards', () => {
 
     for (const styleName of [
       'eyebrowChipStyle',
-      'workflowPulseCard',
-      'workflowPulseLabel',
-      'workflowPulseTitle',
-      'workflowPulseText',
       'cardStyle',
       'cardMetaStyle',
       'cardTitleStyle',
@@ -103,8 +99,8 @@ describe('upgrade and compete mobile layout guards', () => {
       expect(block, styleName).toMatch(/minWidth: 0|overflowWrap: 'anywhere'/)
     }
 
-    expect(styleBlock(competeFrameSource, 'subnavLabelStyle')).toContain('minWidth: 0')
-    expect(styleBlock(competeFrameSource, 'subnavLabelStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(competeFrameSource).not.toContain('aria-label="Compete tools"')
+    expect(competeFrameSource).not.toContain('function SubnavLink')
     expect(competeFrameSource).toContain("flexWrap: 'wrap'")
     expect(styleBlock(competeFrameSource, 'cardCtaStyle')).toContain("whiteSpace: 'normal'")
   })
@@ -120,6 +116,10 @@ describe('upgrade and compete mobile layout guards', () => {
     expect(styleBlock(competeLeaguesSource, 'sectionWrap')).toContain('repeat(auto-fit, minmax(min(100%, 280px), 1fr))')
     expect(styleBlock(competeLeaguesSource, 'sectionWrap')).toContain('minWidth: 0')
     expect(styleBlock(competeLeaguesSource, 'panelStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(competeLeaguesSource, 'emptyLeagueStyle')).toContain('minWidth: 0')
+    expect(styleBlock(competeLeaguesSource, 'emptyLeagueActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(competeLeaguesSource, 'emptyLeagueActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(competeLeaguesSource, 'emptyLeagueActionStyle')).toContain("whiteSpace: 'normal'")
 
     expect(styleBlock(competeScheduleSource, 'supportActionRowStyle')).toContain('minWidth: 0')
     expect(styleBlock(competeScheduleSource, 'prepActionRowStyle')).toContain('minWidth: 0')

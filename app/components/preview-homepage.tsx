@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import NavLockIcon from '@/app/components/nav-lock-icon'
@@ -30,7 +30,6 @@ import {
   TIER_HOMEPAGE_STORY,
   type MembershipTierId,
 } from '@/lib/product-story'
-import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TierTheme = {
@@ -80,9 +79,9 @@ const heroSearchFilters: Array<{
     hint: 'Results focus on player profiles, ratings, and Player prep.',
     placeholder: 'Search a player name...',
     links: [
-      { href: '/explore/players', label: 'Player directory' },
+      { href: '/explore/players', label: 'Find a player' },
       { href: '/explore/rankings', label: 'Rankings' },
-      { href: '/mylab', label: 'My Lab' },
+      { href: '/mylab', label: 'Open My Lab' },
     ],
   },
   {
@@ -92,19 +91,19 @@ const heroSearchFilters: Array<{
     placeholder: 'Search a team name...',
     links: [
       { href: '/explore/teams', label: 'Teams' },
-      { href: '/captain', label: 'Captain hub' },
-      { href: '/compete/teams', label: 'My teams' },
+      { href: '/captain', label: 'Team' },
+      { href: '/captain/availability', label: 'Who can play' },
     ],
   },
   {
     value: 'leagues',
-    label: 'League',
+    label: 'Leagues',
     hint: 'Results focus on USTA and TIQ league containers.',
     placeholder: 'Search a league name...',
     links: [
       { href: '/explore/leagues', label: 'Leagues' },
-      { href: '/compete/leagues', label: 'My leagues' },
-      { href: '/pricing', label: 'League tools' },
+      { href: '/compete/leagues', label: 'League directory' },
+      { href: '/pricing', label: 'League workspace' },
     ],
   },
   {
@@ -131,7 +130,7 @@ const heroSearchFilters: Array<{
   },
 ]
 
-const conversionTierIds: PricingPlanId[] = ['free', 'player_plus', 'captain', 'league']
+const coreConversionTierIds: PricingPlanId[] = ['free', 'player_plus', 'captain', 'league']
 const commandModes: Array<{
   planId: PricingPlanId
   lane: string
@@ -156,7 +155,7 @@ const commandModes: Array<{
     planId: 'player_plus',
     lane: 'You',
     action: 'Open your lab',
-    label: 'Your profile, follows, matchup prep',
+    label: 'My Lab, data, matchups, messages',
     href: '/pricing#player_plus',
     cta: 'Unlock Player',
     icon: 'myLab',
@@ -178,9 +177,19 @@ const commandModes: Array<{
     action: 'Run the season',
     label: 'Entries, schedule, standings, results',
     href: '/pricing#league',
-    cta: 'Open Coordinator',
+    cta: 'Open Leagues',
     icon: 'teamRankings',
     proof: ['Approvals', 'Schedule', 'Standings'],
+  },
+  {
+    planId: 'full_court',
+    lane: 'Full-Court',
+    action: 'Run the full suite',
+    label: 'Captain, league, and unlimited tournaments',
+    href: '/pricing#full_court',
+    cta: 'Unlock Full-Court',
+    icon: 'teamRankings',
+    proof: ['Captain', 'League', 'Tournaments'],
   },
 ]
 type CommandTask = {
@@ -191,6 +200,7 @@ type CommandTask = {
   requiredPlan: PricingPlanId
   tint: 'green' | 'blue' | 'amber' | 'teal'
   graphic: 'court' | 'lineup' | 'calendar' | 'clipboard'
+  icon: TiqFeatureIconName
 }
 
 const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
@@ -203,6 +213,7 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
       requiredPlan: 'free',
       tint: 'green',
       graphic: 'court',
+      icon: 'playerRatings',
     },
     {
       title: 'Browse teams',
@@ -212,6 +223,7 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
       requiredPlan: 'free',
       tint: 'blue',
       graphic: 'lineup',
+      icon: 'lineupBuilder',
     },
     {
       title: 'Check standings',
@@ -221,15 +233,17 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
       requiredPlan: 'free',
       tint: 'amber',
       graphic: 'calendar',
+      icon: 'schedule',
     },
     {
-      title: 'Upload scorecard',
-      detail: 'Refresh public tennis data through review.',
+      title: 'Check rankings',
+      detail: 'Scan the field before opening a player or flight.',
       metric: 'Free',
-      href: '/data-assist',
+      href: '/explore/rankings',
       requiredPlan: 'free',
       tint: 'teal',
       graphic: 'clipboard',
+      icon: 'reports',
     },
   ],
   player_plus: [
@@ -241,15 +255,17 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
       requiredPlan: 'player_plus',
       tint: 'green',
       graphic: 'court',
+      icon: 'matchupAnalysis',
     },
     {
       title: 'Open My Lab',
-      detail: 'Track follows, notes, goals, and next opponents.',
+      detail: 'Track notes, goals, messages, and next opponents.',
       metric: 'Player',
       href: '/mylab',
       requiredPlan: 'player_plus',
       tint: 'blue',
       graphic: 'lineup',
+      icon: 'myLab',
     },
     {
       title: 'Plan next match',
@@ -259,6 +275,7 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
       requiredPlan: 'player_plus',
       tint: 'amber',
       graphic: 'calendar',
+      icon: 'schedule',
     },
     {
       title: 'Save insight',
@@ -268,9 +285,72 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
       requiredPlan: 'player_plus',
       tint: 'teal',
       graphic: 'clipboard',
+      icon: 'reports',
+    },
+  ],
+  coach: [
+    {
+      title: 'Map a drill',
+      detail: 'Use TIQ Tactical Studio to build the court picture before practice.',
+      metric: 'Coach',
+      href: '/tactics',
+      requiredPlan: 'coach',
+      tint: 'green',
+      graphic: 'court',
+      icon: 'scenarioBuilder',
+    },
+    {
+      title: 'Plan lesson',
+      detail: 'Turn a player focus into blocks, cues, and homework.',
+      metric: 'Coach',
+      href: '/player-development/coach-planner',
+      requiredPlan: 'coach',
+      tint: 'blue',
+      graphic: 'clipboard',
+      icon: 'schedule',
+    },
+    {
+      title: 'Assign work',
+      detail: 'Connect the next drill to a player development path.',
+      metric: 'Coach',
+      href: '/player-development',
+      requiredPlan: 'coach',
+      tint: 'amber',
+      graphic: 'lineup',
+      icon: 'reports',
+    },
+    {
+      title: 'Message player',
+      detail: 'Keep coach-player follow-up tied to the tennis work.',
+      metric: 'Coach',
+      href: '/messages',
+      requiredPlan: 'coach',
+      tint: 'teal',
+      graphic: 'calendar',
+      icon: 'messagingCenter',
     },
   ],
   captain: [
+    {
+      title: 'Who can play',
+      detail: 'Turn roster replies into a clean weekly player pool.',
+      metric: 'Captain',
+      href: '/captain/availability',
+      requiredPlan: 'captain',
+      tint: 'amber',
+      graphic: 'calendar',
+      icon: 'reliabilityIndex',
+    },
+    {
+      title: 'Plan practice',
+      detail: 'Schedule practice, invite the roster, and collect RSVPs.',
+      metric: 'Captain',
+      href: '/captain/practice',
+      requiredPlan: 'captain',
+      tint: 'green',
+      graphic: 'calendar',
+      icon: 'schedule',
+    },
     {
       title: 'Build lineup',
       detail: 'Availability, pairings, and court-by-court confidence.',
@@ -279,71 +359,101 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
       requiredPlan: 'captain',
       tint: 'blue',
       graphic: 'lineup',
+      icon: 'lineupBuilder',
     },
     {
-      title: 'Scout opponent',
-      detail: 'See weak spots and likely matchups before the week.',
+      title: 'Send plan',
+      detail: 'Message the team from the same workspace.',
       metric: 'Captain',
-      href: '/captain/scenario-builder',
-      requiredPlan: 'captain',
-      tint: 'green',
-      graphic: 'court',
-    },
-    {
-      title: 'Check readiness',
-      detail: 'Spot missing availability and message the team.',
-      metric: 'Captain',
-      href: '/captain/availability',
-      requiredPlan: 'captain',
-      tint: 'amber',
-      graphic: 'calendar',
-    },
-    {
-      title: 'Send team brief',
-      detail: 'Package the plan so every player knows the job.',
-      metric: 'Captain',
-      href: '/captain/team-brief',
+      href: '/captain/messaging',
       requiredPlan: 'captain',
       tint: 'teal',
       graphic: 'clipboard',
+      icon: 'messagingCenter',
     },
   ],
   league: [
     {
-      title: 'Run season',
-      detail: 'Structure entries, rounds, results, and rankings.',
-      metric: 'Coordinator',
-      href: '/league-coordinator',
+      title: 'Shared calendar',
+      detail: 'Publish, propose, confirm, and track match dates.',
+      metric: 'League',
+      href: '/compete/schedule',
       requiredPlan: 'league',
       tint: 'amber',
       graphic: 'calendar',
+      icon: 'schedule',
     },
     {
-      title: 'Review results',
-      detail: 'Confirm scorecards and keep standings trustworthy.',
-      metric: 'Coordinator',
+      title: 'Build tournament',
+      detail: 'Create a draw, seed entrants, and preview the path.',
+      metric: 'Full-Court',
+      href: '/league-coordinator/tournaments',
+      requiredPlan: 'full_court',
+      tint: 'blue',
+      graphic: 'lineup',
+      icon: 'teamRankings',
+    },
+    {
+      title: 'Team book',
+      detail: 'Enter team results and keep standings moving.',
+      metric: 'League',
       href: '/league-coordinator/results',
       requiredPlan: 'league',
       tint: 'teal',
       graphic: 'clipboard',
+      icon: 'reports',
     },
     {
-      title: 'Rank players',
-      detail: 'Make sections easier to seed, compare, and explain.',
-      metric: 'Coordinator',
-      href: '/explore/rankings',
+      title: 'Player book',
+      detail: 'Run individual leagues with clear records.',
+      metric: 'League',
+      href: '/league-coordinator/individual-results',
       requiredPlan: 'league',
       tint: 'green',
       graphic: 'court',
+      icon: 'playerRatings',
+    },
+  ],
+  full_court: [
+    {
+      title: 'Build tournament',
+      detail: 'Create a draw, seed entrants, and preview the path.',
+      metric: 'Full-Court',
+      href: '/league-coordinator/tournaments',
+      requiredPlan: 'full_court',
+      tint: 'teal',
+      graphic: 'calendar',
+      icon: 'teamRankings',
     },
     {
-      title: 'Organize teams',
-      detail: 'Keep rosters, flights, and league views aligned.',
-      metric: 'Coordinator',
-      href: '/compete/teams',
+      title: 'Run team week',
+      detail: 'Use Captain actions alongside league operations.',
+      metric: 'Full-Court',
+      href: '/captain',
+      requiredPlan: 'captain',
+      tint: 'amber',
+      graphic: 'lineup',
+      icon: 'lineupBuilder',
+    },
+    {
+      title: 'Track results',
+      detail: 'Keep standings, scorecards, and rankings moving.',
+      metric: 'Full-Court',
+      href: '/league-coordinator/results',
+      requiredPlan: 'league',
+      tint: 'green',
+      graphic: 'clipboard',
+      icon: 'reports',
+    },
+    {
+      title: 'Open player book',
+      detail: 'See player context across the full operation.',
+      metric: 'Full-Court',
+      href: '/league-coordinator/individual-results',
       requiredPlan: 'league',
       tint: 'blue',
-      graphic: 'lineup',
+      graphic: 'court',
+      icon: 'playerRatings',
     },
   ],
 }
@@ -360,36 +470,106 @@ const commandModeDetails: Record<
 > = {
   free: {
     headline: 'More Tennis. Less Chaos.',
-    subhead: 'Start with the tennis map, then unlock the tools that save your week.',
+    subhead: 'Start with the tennis map, then unlock the workspace that saves your week.',
     searchPlaceholder: 'Search players, teams, leagues, ratings...',
-    queue: ['Find a player', 'Browse a team', 'Check standings', 'Upload a scorecard'],
+    queue: ['Find a player', 'Browse teams', 'Check standings', 'Check rankings'],
     unlockLine: 'Free stays useful. Paid tiers unlock private workflows when the job becomes personal, team-based, or league-wide.',
   },
   player_plus: {
     headline: 'Turn public data into your personal lab.',
-    subhead: 'Player adds follows, matchup prep, and a linked player experience around your next match.',
+    subhead: 'Player adds My Lab, data refreshes, matchup prep, and messages around your next match.',
     searchPlaceholder: 'Search an opponent, partner, or player...',
-    queue: ['Prep matchup', 'Check rating trend', 'Follow opponents', 'Save notes'],
-    unlockLine: 'Player unlocks My Lab, follows, saved insight, and deeper matchup tools.',
+    queue: ['Open My Lab', 'Improve data', 'Prep matchup', 'Review messages'],
+    unlockLine: 'Player unlocks My Lab, data refreshes, matchup prep, and messages.',
+  },
+  coach: {
+    headline: 'Develop players with a clearer plan.',
+    subhead: 'Coach turns lessons, tactical boards, assignments, scheduling, and student tracking into one workspace.',
+    searchPlaceholder: 'Search player, drill, lesson, or assignment...',
+    queue: ['Map a drill', 'Plan lesson', 'Assign work', 'Message player'],
+    unlockLine: 'Coach unlocks lessons, student tracking, assignments, tactical boards, and coach-player communication.',
   },
   captain: {
     headline: 'Make the weekly team decision simpler.',
-    subhead: 'Captain turns availability, scouting, readiness, and messaging into one practical match-week desk.',
+    subhead: 'Captain turns availability, practice, lineup building, and team messages into one practical match-week desk.',
     searchPlaceholder: 'Search player, opponent team, or lineup...',
-    queue: ['Build lineup', 'Scout opponent', 'Check readiness', 'Send team brief'],
-    unlockLine: 'Captain includes Player tools plus lineup, scouting, readiness, and team decision workflows.',
+    queue: ['Who can play', 'Plan practice', 'Build lineup', 'Send plan'],
+    unlockLine: 'Captain includes Player plus availability, practice scheduling, lineup, and team message workflows.',
   },
   league: {
     headline: 'Run the season with structure.',
-    subhead: 'Coordinator tools keep leagues visible, organized, and easier to explain from entries through results.',
+    subhead: 'League keeps seasons visible, organized, and easier to explain from calendar through results.',
     searchPlaceholder: 'Search league, flight, team, or result...',
-    queue: ['Run season', 'Review results', 'Update standings', 'Organize teams'],
-    unlockLine: 'TIQ League Coordinator unlocks league operations, ranking visibility, results, and admin workflows.',
+    queue: ['Shared calendar', 'Build tournament', 'Team book', 'Player book'],
+    unlockLine: 'League unlocks shared calendar, league spaces, team books, and player books.',
+  },
+  full_court: {
+    headline: 'Run the full court from one workspace.',
+    subhead: 'Full-Court combines Player, Coach, Captain, League, and unlimited tournaments.',
+    searchPlaceholder: 'Search player, team, league, or tournament...',
+    queue: ['Build tournament', 'Run team week', 'Track results', 'Open player book'],
+    unlockLine: 'Full-Court unlocks the full suite plus unlimited tournament workspaces.',
   },
 }
 const commandCenterSurfaceBackground =
   'var(--portal-surface-bg)'
 const commandActiveCardBackground = 'var(--portal-active-card-bg)'
+
+const homeCommandTaskCardStyle: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  gap: 8,
+  minHeight: 80,
+  padding: '10px 8px',
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--foreground)',
+  minWidth: 0,
+  textAlign: 'center',
+}
+
+const homeCommandTaskIconShellStyle: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  width: 38,
+  height: 38,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+}
+
+const homeCommandTaskBodyStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  minWidth: 0,
+  maxWidth: '100%',
+}
+
+const homeCommandTaskTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12.5,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const homeCommandTaskLockStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  flex: '0 0 auto',
+  color: 'var(--shell-copy-muted)',
+}
+
+function getHomeCommandActiveTaskStyle(accent: string): CSSProperties {
+  return {
+    border: `1px solid ${accent}`,
+    background: commandActiveCardBackground,
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px color-mix(in srgb, ${accent} 18%, transparent)`,
+  }
+}
 
 // Kept temporarily as a fallback while the command-center homepage is reviewed.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -413,23 +593,29 @@ function buildTierSection(planId: MembershipTierId, snapshot: ReactNode, feature
 
 function getPlanIcon(planId: PricingPlanId): TiqFeatureIconName {
   if (planId === 'player_plus') return 'myLab'
+  if (planId === 'coach') return 'scenarioBuilder'
   if (planId === 'captain') return 'captainDashboard'
   if (planId === 'league') return 'teamRankings'
+  if (planId === 'full_court') return 'teamRankings'
   return 'playerRatings'
 }
 
 function canUseTier(access: ProductAccessState, planId: PricingPlanId) {
   if (planId === 'free') return true
   if (planId === 'player_plus') return access.canUseAdvancedPlayerInsights
+  if (planId === 'coach') return access.canUseCoachWorkflow
   if (planId === 'captain') return access.canUseCaptainWorkflow
   if (planId === 'league') return access.canUseLeagueTools
+  if (planId === 'full_court') return access.currentPlanId === 'full_court'
   return false
 }
 
 function getTierOpenLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'Open My Lab'
-  if (planId === 'captain') return 'Open Captain'
-  if (planId === 'league') return 'Open Coordinator'
+  if (planId === 'coach') return 'Open Coach'
+  if (planId === 'captain') return 'Open Team'
+  if (planId === 'league') return 'Open Leagues'
+  if (planId === 'full_court') return 'Open Full-Court'
   return 'Explore Free'
 }
 
@@ -473,6 +659,8 @@ function getTierAccessPresentation(planId: PricingPlanId, access: ProductAccessS
   }
 }
 
+// Kept temporarily as a fallback while the shared PortalToolBar becomes the single command-center source.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CommandCenterHome({
   access,
   authenticated,
@@ -502,11 +690,11 @@ function CommandCenterHome({
     ? firstName
       ? `Hi ${firstName}, welcome back!`
       : needsProfileLink
-        ? 'Welcome back. Link your profile.'
+        ? 'Welcome back. Set your profile.'
         : 'Welcome back.'
     : selectedDetails.headline
   const heroSubhead = needsProfileLink
-    ? 'TenAceIQ knows your account is signed in, but it does not know which player record should power your tools yet.'
+    ? 'TenAceIQ knows your account is signed in, but it does not know which player record should power your workspace yet.'
     : authenticated
       ? 'What do we want to work on today?'
     : selectedDetails.subhead
@@ -591,10 +779,10 @@ function CommandCenterHome({
                     <NavLockIcon size={14} />
                   </span>
                   <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-                    <strong style={profileLinkNoticeTitleStyle}>Profile not linked yet</strong>
-                    <span style={profileLinkNoticeTextStyle}>Choose your player once. Then My Lab, Matchup, Team, and League can start from you.</span>
+                    <strong style={profileLinkNoticeTitleStyle}>Profile needs one more step</strong>
+                    <span style={profileLinkNoticeTextStyle}>Choose or create your player. Then My Lab, Matchup, Team, and League can start from you.</span>
                   </span>
-                  <span style={profileLinkNoticeCtaStyle}>Link profile</span>
+                  <span style={profileLinkNoticeCtaStyle}>Set profile</span>
                 </Link>
               ) : null}
             </div>
@@ -641,23 +829,11 @@ function CommandCenterHome({
                   <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
                     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0 }}>
                       <strong style={{ fontSize: 15, lineHeight: 1.05 }}>{mode.lane}</strong>
-                      {accessState.active ? (
-                        <em
-                          style={{
-                            color: accent,
-                            fontSize: 10,
-                            fontStyle: 'normal',
-                            fontWeight: 950,
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          Open
-                        </em>
-                      ) : isMobile ? null : (
+                      {!accessState.active && !isMobile ? (
                         <span title={`${mode.lane} unlocks with ${getPricingPlan(mode.planId).name}`} style={homeLockChipStyle}>
                           <NavLockIcon size={13} />
                         </span>
-                      )}
+                      ) : null}
                     </span>
                     <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
                       {accessState.active ? mode.action : 'Preview unlock'}
@@ -732,35 +908,28 @@ function CommandCenterHome({
             {selectedTasks.map((task) => {
               const taskAccess = getTierAccessPresentation(task.requiredPlan, access, authenticated, accessPending)
               const href = taskAccess.active ? task.href : getPlanUnlockHref(task.requiredPlan, task.href)
+              const active = false
               return (
                 <Link
                   key={task.title}
                   href={href}
+                  title={task.detail}
                   style={{
-                    display: 'grid',
-                    gridTemplateRows: 'minmax(0, auto) minmax(0, 1fr)',
-                    gap: 10,
-                    minHeight: 128,
-                    padding: 13,
-                    borderRadius: 18,
-                    border: '1px solid rgba(116,190,255,0.13)',
-                    background: 'rgba(255,255,255,0.055)',
+                    ...homeCommandTaskCardStyle,
+                    ...(active ? getHomeCommandActiveTaskStyle(activeAccent) : null),
                     textDecoration: 'none',
-                    minWidth: 0,
                   }}
                 >
-                  <span style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: 10, minWidth: 0 }}>
-                    <span style={{ color: activeAccent, fontSize: 12, fontWeight: 950 }}>{task.metric}</span>
-                    <span style={{ display: 'grid', placeItems: 'center', width: 52, height: 42, minWidth: 0, overflow: 'hidden' }}>
-                      <CommandTaskGraphic graphic={task.graphic} />
-                    </span>
+                  <span style={{ ...homeCommandTaskIconShellStyle, borderColor: active ? activeAccent : 'rgba(116,190,255,0.14)' }}>
+                    <TiqFeatureIcon name={task.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
                   </span>
-                  <span style={{ display: 'grid', gap: 8, minWidth: 0 }}>
-                    <strong style={{ color: 'var(--foreground-strong)', fontSize: 15, lineHeight: 1.1 }}>{task.title}</strong>
-                    <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45 }}>{task.detail}</span>
-                    <span style={{ color: taskAccess.active ? activeAccent : 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      {taskAccess.active ? 'Open' : <><NavLockIcon size={12} /> Unlock</>}
-                    </span>
+                  <span style={homeCommandTaskBodyStyle}>
+                    <strong style={homeCommandTaskTitleStyle}>{task.title}</strong>
+                    {!taskAccess.active ? (
+                      <span style={homeCommandTaskLockStyle} aria-label={`${task.title} locked`}>
+                        <NavLockIcon size={12} />
+                      </span>
+                    ) : null}
                   </span>
                 </Link>
               )
@@ -776,11 +945,14 @@ function CommandCenterHome({
 function getModeAccent(planId: PricingPlanId) {
   if (planId === 'free') return '#9be11d'
   if (planId === 'player_plus') return '#4aa3ff'
+  if (planId === 'coach') return '#a6ff2e'
   if (planId === 'captain') return '#f3b51b'
   return '#19c8b6'
 }
 
 function getPreferredPortalLane(access: ProductAccessState): PricingPlanId {
+  if (access.currentPlanId === 'full_court') return 'full_court'
+  if (access.canUseCoachWorkflow) return 'coach'
   if (access.canUseCaptainWorkflow) return 'captain'
   if (access.canUseLeagueTools) return 'league'
   if (access.canUseAdvancedPlayerInsights) return 'player_plus'
@@ -790,11 +962,21 @@ function getPreferredPortalLane(access: ProductAccessState): PricingPlanId {
 function getDashboardLane(planId: PricingPlanId) {
   if (planId === 'player_plus') {
     return {
-      label: 'You',
+      label: 'My Lab',
       title: 'Your game in one place.',
-      show: 'My Lab, follows, matchup prep, and the player context that matters to you.',
+      show: 'My Lab, data refreshes, matchup prep, and messages that matter to you.',
       removes: 'Re-checking scattered profiles before every match.',
       next: 'Unlock Player when you want TenAceIQ to revolve around your game.',
+    }
+  }
+
+  if (planId === 'coach') {
+    return {
+      label: 'Coach',
+      title: 'Player development, connected.',
+      show: 'Lesson planning, students, assignments, Tactical Studio, and coach-player follow-through.',
+      removes: 'Losing the thread between lessons, notes, drills, and player check-ins.',
+      next: 'Unlock Coach when development work needs a real home.',
     }
   }
 
@@ -810,7 +992,7 @@ function getDashboardLane(planId: PricingPlanId) {
 
   if (planId === 'league') {
     return {
-      label: 'League',
+      label: 'Leagues',
       title: 'The season, in motion.',
       show: 'Entries, schedules, results, standings, and league visibility in one operating lane.',
       removes: 'Spreadsheet cleanup, unclear schedules, and result chasing.',
@@ -818,8 +1000,18 @@ function getDashboardLane(planId: PricingPlanId) {
     }
   }
 
+  if (planId === 'full_court') {
+    return {
+      label: 'Full-Court',
+      title: 'The full tennis operation.',
+      show: 'Player, Coach, Captain, League, ladder, and unlimited tournaments in one operating lane.',
+      removes: 'Splitting team, league, and tournament work across separate systems.',
+      next: 'Unlock Full-Court when you need the full suite.',
+    }
+  }
+
   return {
-    label: 'Find',
+    label: 'Explore',
     title: 'The public tennis map.',
     show: 'Players, teams, leagues, rankings, and public context stay searchable for free.',
     removes: 'Hunting through scattered tennis pages just to get oriented.',
@@ -1380,7 +1572,7 @@ function CaptainDecisionPreview() {
     <section style={commandPanelStyle}>
       <div style={commandPanelHeaderStyle}>
         <h2 style={commandPanelTitleStyle}>Captain Decision Desk</h2>
-        <Link href="/captain" style={plainBlueLinkStyle}>Open Captain</Link>
+        <Link href="/captain" style={plainBlueLinkStyle}>Open Team</Link>
       </div>
       <div style={{ display: 'grid', gap: 10 }}>
         <DecisionRow title="Lineup confidence" meta="3 courts favored, 1 court close" trailing="72%" tone="green" />
@@ -1396,7 +1588,7 @@ function LeagueOpsPreview() {
     <section style={commandPanelStyle}>
       <div style={commandPanelHeaderStyle}>
         <h2 style={commandPanelTitleStyle}>League Operations</h2>
-        <Link href="/league-coordinator" style={plainBlueLinkStyle}>Open Coordinator</Link>
+        <Link href="/compete" style={plainBlueLinkStyle}>Open Leagues</Link>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
         <StatBox value="24" label="Teams Active" tone="green" />
@@ -1911,56 +2103,10 @@ export default function PreviewHomepage() {
 
 function PreviewHomepageContent() {
   const { isMobile } = useViewportBreakpoints()
-  const { role, entitlements, session, userId, authResolved } = useAuth()
+  const { role, entitlements, userId, authResolved } = useAuth()
   const authenticated = Boolean(userId) || role !== 'public'
-  const accessPending = authenticated && (!authResolved || entitlements === null)
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
-  const [linkedPlayerName, setLinkedPlayerName] = useState('')
-  const [profileDisplayName, setProfileDisplayName] = useState('')
-  const [profileLinked, setProfileLinked] = useState(false)
-  const [profileResolved, setProfileResolved] = useState(!authenticated)
-  const metadataName = useMemo(() => {
-    const metadata = session?.user?.user_metadata || {}
-    const raw =
-      typeof metadata.name === 'string'
-        ? metadata.name
-        : typeof metadata.full_name === 'string'
-          ? metadata.full_name
-          : typeof metadata.display_name === 'string'
-            ? metadata.display_name
-            : ''
-    return raw.trim()
-  }, [session?.user?.user_metadata])
-  const firstName = (metadataName || (profileLinked ? profileDisplayName || linkedPlayerName : '')).split(' ')[0] || ''
-
-  useEffect(() => {
-    let active = true
-
-    async function loadProfileName() {
-      if (!userId) {
-        setLinkedPlayerName('')
-        setProfileDisplayName('')
-        setProfileLinked(false)
-        setProfileResolved(true)
-        return
-      }
-
-      setProfileResolved(false)
-      const result = await loadUserProfileLink(userId)
-      if (!active) return
-      setLinkedPlayerName(result.data?.linked_player_name || '')
-      setProfileDisplayName(result.data?.message_display_name || '')
-      setProfileLinked(Boolean(result.data?.linked_player_id || result.data?.linked_player_name))
-      setProfileResolved(true)
-    }
-
-    void loadProfileName()
-
-    return () => {
-      active = false
-    }
-  }, [userId])
 
   return (
     <div
@@ -1971,15 +2117,6 @@ function PreviewHomepageContent() {
           paddingTop: isMobile ? 10 : 14,
         }}
       >
-        <CommandCenterHome
-          key={`${authenticated ? 'signed-in' : 'public'}-${getPreferredPortalLane(access)}`}
-          access={access}
-          authenticated={authenticated}
-          firstName={firstName}
-          profileLinked={profileLinked}
-          profileResolved={profileResolved}
-          accessPending={accessPending}
-        />
         {!authenticated ? <TierChoiceGrid access={access} authenticated={authenticated} /> : null}
       </div>
   )
@@ -2201,7 +2338,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
             ? 'Find a player, team, league, flight, or area, then choose the tier that helps next.'
             : compact
               ? 'Search a player, team, league, flight, or area before choosing a tier.'
-              : 'Start with a targeted search by player, team, league, flight, or area, then unlock the tools that solve the next problem in your week.'}
+              : 'Start with a targeted search by player, team, league, flight, or area, then unlock the workspace that solves the next problem in your week.'}
         </div>
       </div>
 
@@ -2445,7 +2582,7 @@ function AppCommandDeck({ access, authenticated }: { access: ProductAccessState;
             </Link>
             {selectedMode.planId === 'free' ? (
               <Link href="/pricing" style={buttonGhost}>
-                See paid tools
+                See paid workspaces
               </Link>
             ) : (
               <Link href={selectedMode.href} style={buttonGhost}>
@@ -2550,7 +2687,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
           minWidth: 0,
         }}
       >
-        {conversionTierIds.map((planId) => {
+        {coreConversionTierIds.map((planId) => {
           const story = TIER_HOMEPAGE_STORY[planId]
           const theme = getTierTheme(planId)
           const accessPresentation = getTierAccessPresentation(planId, access, authenticated)
@@ -2660,7 +2797,83 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
           )
         })}
       </div>
+
+      <FullCourtSuiteBanner access={access} authenticated={authenticated} />
     </section>
+  )
+}
+
+function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccessState; authenticated: boolean }) {
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const theme = getTierTheme('full_court')
+  const accessPresentation = getTierAccessPresentation('full_court', access, authenticated)
+  const suiteItems = [
+    'Find',
+    'Player',
+    'Team',
+    'League',
+    'Unlimited tournaments',
+    'Awards',
+  ]
+
+  return (
+    <article
+      style={{
+        position: 'relative',
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
+        gap: isSmallMobile ? 13 : 18,
+        alignItems: 'center',
+        minWidth: 0,
+        overflow: 'hidden',
+        padding: isSmallMobile ? 16 : '18px 20px',
+        borderRadius: 22,
+        border: '1px solid rgba(155,225,29,0.42)',
+        background:
+          'linear-gradient(135deg, rgba(155,225,29,0.12) 0%, rgba(14,35,57,0.94) 40%, rgba(8,13,28,0.98) 100%)',
+        boxShadow: '0 22px 58px rgba(2,8,23,0.34), 0 0 0 1px rgba(116,190,255,0.08) inset',
+      }}
+    >
+      <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 10, alignContent: 'center', minWidth: 0 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, alignItems: 'center' }}>
+          <span style={fullCourtFeaturedBadgeStyle}>Championship suite</span>
+          <span style={{ ...theme.tierBadge, width: 'fit-content' }}>Full-Court</span>
+          <span style={{ ...compactPriceLabelStyle, color: theme.priceColor }}>{accessPresentation.priceLabel}</span>
+        </div>
+        <h3
+          style={{
+            margin: 0,
+            color: 'var(--foreground-strong)',
+            fontSize: 'clamp(1.65rem, 3vw, 2.45rem)',
+            lineHeight: 1,
+            letterSpacing: 0,
+            fontWeight: 950,
+            overflowWrap: 'anywhere',
+          }}
+        >
+          Run the full tennis operation.
+        </h3>
+        <div style={fullCourtValueStripStyle}>
+          {suiteItems.map((item) => (
+            <span key={item} style={fullCourtValueChipStyle}>{item}</span>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 8, justifyItems: isMobile ? 'start' : 'end', minWidth: 0 }}>
+        <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.45, fontWeight: 800, maxWidth: 360, textAlign: isMobile ? 'left' : 'right' }}>
+          Everything in the tiers above, plus unlimited tournament and league operations.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
+          <Link href={accessPresentation.primaryCta.href} style={fullCourtPrimaryCtaStyle}>
+            {accessPresentation.primaryCta.label}
+          </Link>
+          <Link href="/pricing#full_court" style={getTierSecondaryButton(theme)}>
+            Compare suite
+          </Link>
+        </div>
+      </div>
+    </article>
   )
 }
 
@@ -2688,7 +2901,7 @@ function RoleChooserPreview() {
       planId: 'player_plus',
       label: 'Improve my game',
       title: 'Make TenAceIQ personal',
-      text: 'My Lab, follows, matchup reads, and player-linked prep.',
+      text: 'My Lab, data refreshes, matchup prep, and messages.',
       href: '/pricing#player_plus',
       cta: 'Player',
     },
@@ -2706,7 +2919,7 @@ function RoleChooserPreview() {
       title: 'Operate the season',
       text: 'Structure, visibility, standings, schedules, and results.',
       href: '/pricing#league',
-      cta: 'Coordinator',
+      cta: 'League',
     },
   ]
 
@@ -3092,7 +3305,7 @@ function CaptainSnapshot() {
   return (
     <SnapshotShell
       planId="captain"
-      title="Captain tools"
+      title="Captain workspace"
       subtitle="Availability, lineup builder, scenarios, projections, and team messaging"
       featured
     >
@@ -3716,8 +3929,8 @@ const tierPriceStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '-0.01em',
   minWidth: 0,
-  whiteSpace: 'nowrap',
-  overflowWrap: 'normal',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
   lineHeight: 1.08,
   textAlign: 'right',
 }
@@ -3727,10 +3940,53 @@ const compactPriceLabelStyle: CSSProperties = {
   fontWeight: 950,
   lineHeight: 1.08,
   textAlign: 'right',
-  whiteSpace: 'nowrap',
-  overflowWrap: 'normal',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
   wordBreak: 'normal',
   minWidth: 0,
+}
+
+const fullCourtFeaturedBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 30,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.42)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.22), rgba(116,190,255,0.12))',
+  color: 'var(--foreground-strong)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const fullCourtValueStripStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const fullCourtValueChipStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 30,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(15,23,42,0.45)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 900,
+}
+
+const fullCourtPrimaryCtaStyle: CSSProperties = {
+  ...buttonPrimary,
+  border: '1px solid rgba(155,225,29,0.42)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.32), rgba(116,190,255,0.18))',
+  boxShadow: '0 18px 40px rgba(155,225,29,0.14)',
 }
 
 const mostPopularBadgeStyle: CSSProperties = {
@@ -3802,7 +4058,8 @@ const profileLinkNoticeCtaStyle: CSSProperties = {
   color: '#061226',
   fontSize: 12,
   fontWeight: 950,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const homeLockChipStyle: CSSProperties = {

@@ -25,6 +25,13 @@ type ScheduleMatch = {
   away_team: string | null
 }
 
+const emptyScheduleActions = [
+  { href: '/league-coordinator#league-setup-form', label: 'League setup' },
+  { href: '/data-assist', label: 'Upload schedule' },
+  { href: '/messages', label: 'Coordinate dates' },
+  { href: '/league-coordinator/results', label: 'Team results' },
+] as const
+
 function PrepLink({ href, children }: { href: string; children: ReactNode }) {
   const [hovered, setHovered] = useState(false)
 
@@ -64,6 +71,26 @@ function CompeteScheduleContent() {
   const [error, setError] = useState('')
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
+  const postedDateCount = matches.filter((match) => match.match_date).length
+  const facilityCount = matches.filter((match) => cleanText(match.facility)).length
+  const teamContextCount = matches.filter((match) => cleanText(match.home_team) || cleanText(match.away_team)).length
+  const schedulerStatusItems = [
+    {
+      label: 'Dates',
+      value: matches.length ? `${postedDateCount}/${matches.length}` : 'Waiting',
+      ready: matches.length > 0 && postedDateCount === matches.length,
+    },
+    {
+      label: 'Sites',
+      value: matches.length ? `${facilityCount}/${matches.length}` : 'Waiting',
+      ready: matches.length > 0 && facilityCount === matches.length,
+    },
+    {
+      label: 'Teams',
+      value: matches.length ? `${teamContextCount}/${matches.length}` : 'Waiting',
+      ready: matches.length > 0 && teamContextCount === matches.length,
+    },
+  ]
 
   useEffect(() => {
     let active = true
@@ -104,28 +131,28 @@ function CompeteScheduleContent() {
     <>
       <CompeteGrid>
         <CompeteCard
+          href="/league-coordinator#league-setup-form"
+          meta="League setup"
+          title="Publish dates"
+          text="Structure the season calendar before players and captains start chasing times."
+          icon="schedule"
+          action="Set schedule"
+        />
+        <CompeteCard
+          href="/league-coordinator/results"
+          meta="Scorebook"
+          title="Team book"
+          text="Move confirmed matches into score entry when results are ready."
+          icon="reports"
+          action="Open book"
+        />
+        <CompeteCard
           href="/captain"
-          meta="Weekly hub"
-          title="Captain Week View"
-          text="Open the current prep surface for this week."
+          meta="Team handoff"
+          title="Team week"
+          text="Use the schedule as the handoff into availability, lineups, and messages."
           icon="captainDashboard"
           action="Open week"
-        />
-        <CompeteCard
-          href="/captain/scenario-builder"
-          meta="Scenario prep"
-          title="Scenario Builder"
-          text="Test opponent outcomes and lineup branches."
-          icon="scenarioBuilder"
-          action="Test options"
-        />
-        <CompeteCard
-          href="/mylab"
-          meta="Player prep"
-          title="My Lab"
-          text="Turn schedule context into opponent prep."
-          icon="myLab"
-          action="Open lab"
         />
       </CompeteGrid>
 
@@ -134,13 +161,13 @@ function CompeteScheduleContent() {
           <UpgradePrompt
             planId="captain"
             compact
-            headline="Need your schedule to lead straight into lineup prep?"
-            body="Unlock Captain to move from what is next on the calendar into availability, scenarios, lineups, and team messaging without losing context."
-            ctaLabel="Build Smarter Lineups"
+            headline="Turn the calendar into the team week."
+            body="Captain connects confirmed dates to availability, lineup planning, and team messages."
+            ctaLabel="Unlock Captain"
             ctaHref="/pricing"
             secondaryLabel="See Captain plan"
             secondaryHref="/pricing"
-            footnote="Best for captains who want schedule context to become action instead of another page to check."
+            footnote="Best when schedule context needs to become team action."
           />
         </div>
       ) : null}
@@ -148,7 +175,22 @@ function CompeteScheduleContent() {
       <section style={panelStyle}>
         <div style={sectionEyebrowStyle}>Up Next</div>
         <div style={sectionTextStyle}>
-          Upcoming parent matches now carry team context directly into captain prep tools.
+          Confirmed matches stay visible before they become team prep or scorebook work.
+        </div>
+        <div style={schedulerStripStyle} aria-label="League scheduler status">
+          <div style={schedulerStripCopyStyle}>
+            <strong>Shared scheduler</strong>
+            <span>Confirmed dates become prep, messages, and result entry.</span>
+          </div>
+          <div style={schedulerStatusGridStyle}>
+            {schedulerStatusItems.map((item) => (
+              <div key={item.label} style={schedulerStatusItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} />
+                <strong>{item.label}</strong>
+                <em>{item.value}</em>
+              </div>
+            ))}
+          </div>
         </div>
 
         {loading ? (
@@ -156,9 +198,7 @@ function CompeteScheduleContent() {
         ) : error ? (
           <div style={warningStyle}>{error}</div>
         ) : matches.length === 0 ? (
-          <div style={emptyStyle}>
-            No upcoming team matches are visible yet. When schedule data lands, this page will route each team into weekly prep.
-          </div>
+          <EmptyScheduleState />
         ) : (
           <div style={listStyle}>
             {matches.map((match) => (
@@ -171,19 +211,56 @@ function CompeteScheduleContent() {
   )
 }
 
+function EmptyScheduleState() {
+  return (
+    <div style={emptySchedulerStyle}>
+      <strong>Start the shared calendar.</strong>
+      <span>Build the league schedule, upload reviewed dates, or coordinate match times before results are ready.</span>
+      <div style={emptyActionGridStyle}>
+        {emptyScheduleActions.map((action) => (
+          <Link key={action.href} href={action.href} style={emptyActionStyle}>
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
   const homeTeam = cleanText(match.home_team)
   const awayTeam = cleanText(match.away_team)
   const league = cleanText(match.league_name)
   const flight = cleanText(match.flight)
+  const facility = cleanText(match.facility)
   const teams = [homeTeam, awayTeam].filter(Boolean)
+  const rowReadinessItems = [
+    { label: 'Date', value: match.match_date ? 'Set' : 'Missing', ready: Boolean(match.match_date) },
+    { label: 'Site', value: facility || 'Missing', ready: Boolean(facility) },
+    { label: 'Teams', value: teams.length >= 2 ? 'Ready' : 'Needs team', ready: teams.length >= 2 },
+  ]
+  const primaryTeam = homeTeam || awayTeam
+  const primaryOpponent = primaryTeam === homeTeam ? awayTeam : homeTeam
+  const rowScope = {
+    competitionLayer: 'usta',
+    team: primaryTeam,
+    league,
+    flight,
+    date: match.match_date || '',
+    opponent: primaryOpponent,
+  }
+  const scheduleIsReady = rowReadinessItems.every((item) => item.ready)
+  const rowNextHref = scheduleIsReady && primaryTeam
+    ? buildCaptainScopedHref('/captain/weekly-brief', rowScope)
+    : '/data-assist'
+  const rowNextLabel = scheduleIsReady ? 'Open prep' : 'Fill schedule'
   const supportSubject = `Question about ${homeTeam || 'home team'} vs ${awayTeam || 'away team'}`
   const supportBody = [
     `Match: ${homeTeam || 'Home team TBD'} vs ${awayTeam || 'Away team TBD'}`,
     league ? `League: ${league}` : '',
     flight ? `Flight: ${flight}` : '',
     match.match_date ? `Date: ${match.match_date}` : '',
-    cleanText(match.facility) ? `Facility: ${cleanText(match.facility)}` : '',
+    facility ? `Facility: ${facility}` : '',
     '',
     'What I need help with:',
   ].filter(Boolean).join('\n')
@@ -199,7 +276,19 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
           {homeTeam || 'Home team TBD'} vs {awayTeam || 'Away team TBD'}
         </div>
         <div style={rowMetaStyle}>
-          {[league, flight, cleanText(match.facility)].filter(Boolean).join(' | ') || 'League context pending'}
+          {[league, flight, facility].filter(Boolean).join(' | ') || 'League context pending'}
+        </div>
+        <div style={rowReadinessGridStyle}>
+          {rowReadinessItems.map((item) => (
+            <div key={item.label} style={rowReadinessItemStyle}>
+              <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+          <Link href={rowNextHref} style={rowNextActionStyle}>
+            {rowNextLabel}
+          </Link>
         </div>
         <div style={supportActionRowStyle}>
           <QuickMessageComposer
@@ -277,14 +366,16 @@ const panelStyle = {
   marginTop: '24px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.74)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
 } as const
 
 const sectionEyebrowStyle = {
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.16em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   color: 'var(--brand-blue-2)',
 } as const
@@ -295,12 +386,104 @@ const sectionTextStyle = {
   lineHeight: 1.72,
 } as const
 
+const schedulerStripStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: '12px',
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '14px',
+  borderRadius: '20px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055))',
+} as const
+
+const schedulerStripCopyStyle = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+} as const
+
+const schedulerStatusGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 110px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+} as const
+
+const schedulerStatusItemStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: '2px 7px',
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '9px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.42)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+} as const
+
+const readinessDotReadyStyle = {
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+} as const
+
+const readinessDotWaitingStyle = {
+  ...readinessDotReadyStyle,
+  background: 'rgba(116,190,255,0.46)',
+  boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
+} as const
+
 const emptyStyle = {
   padding: '16px',
   borderRadius: '18px',
-  border: '1px dashed var(--shell-panel-border)',
+  border: '1px dashed rgba(116,190,255,0.18)',
   color: 'var(--shell-copy-muted)',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(8,16,34,0.66)',
+} as const
+
+const emptySchedulerStyle = {
+  ...emptyStyle,
+  display: 'grid',
+  gap: '10px',
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+} as const
+
+const emptyActionGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+} as const
+
+const emptyActionStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '36px',
+  maxWidth: '100%',
+  padding: '0 11px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 } as const
 
 const warningStyle = {
@@ -325,8 +508,9 @@ const rowStyle = {
   alignItems: 'center',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.66)',
+  minWidth: 0,
 } as const
 
 const matchInfoStyle = {
@@ -337,7 +521,7 @@ const rowDateStyle = {
   color: '#9be11d',
   fontSize: '12px',
   fontWeight: 900,
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 } as const
 
@@ -354,6 +538,48 @@ const rowMetaStyle = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
+} as const
+
+const rowReadinessGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: '8px',
+  marginTop: '12px',
+  minWidth: 0,
+} as const
+
+const rowReadinessItemStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '7px',
+  minHeight: '34px',
+  minWidth: 0,
+  padding: '7px 9px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'rgba(223,238,255,0.84)',
+  fontSize: '12px',
+  fontWeight: 850,
+  overflow: 'hidden',
+} as const
+
+const rowNextActionStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '34px',
+  minWidth: 0,
+  padding: '7px 12px',
+  borderRadius: '12px',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.11)',
+  color: '#f5ffe2',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 } as const
 
 const supportActionRowStyle = {

@@ -15,7 +15,7 @@ type ClaimRequestBody = {
   requestId?: unknown
 }
 
-const PAID_PLAN_IDS: PricingPlanId[] = ['player_plus', 'captain', 'league']
+const PAID_PLAN_IDS: PricingPlanId[] = ['player_plus', 'coach', 'captain', 'league', 'full_court']
 const UPGRADE_REQUEST_SELECT =
   'id, plan_id, plan_name, price_label, billing_amount_cents, billing_currency, billing_interval, checkout_mode, quantity_mode, entitlement_grant, discount_rules, requester_name, requester_email, requester_user_id, organization, goal, next_href, status, source, created_at, updated_at'
 

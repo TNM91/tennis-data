@@ -13,9 +13,9 @@ export const BILLING_SUPPORT_PATH = buildSupportMessageHref({
 })
 
 export const MONTHLY_SUBSCRIPTION_POLICY = {
-  title: 'Player and Captain monthly subscriptions',
+  title: 'Player, Coach, and Captain monthly subscriptions',
   summary:
-    'Player and Captain plans renew monthly until canceled. Cancel anytime from Profile billing management or by opening a support thread.',
+    'Player, Coach, and Captain plans renew monthly until canceled. Cancel anytime from Profile billing management or by opening a support thread.',
   bullets: [
     'Cancellation stops future monthly renewals. Access normally continues through the period already paid for.',
     'Monthly subscription charges are generally non-refundable after the billing period begins.',

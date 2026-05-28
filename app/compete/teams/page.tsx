@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import CompetePageFrame, {
   CompeteCard,
@@ -15,25 +15,11 @@ import {
   type TiqTeamParticipationRecord,
 } from '@/lib/tiq-league-service'
 
-function GhostSmallLink({ href, children }: { href: string; children: ReactNode }) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <Link
-      href={href}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        ...buttonStyle,
-        transform: hovered ? 'translateY(-2px)' : 'none',
-        borderColor: hovered ? 'rgba(155,225,29,0.28)' : buttonStyle.border,
-        boxShadow: hovered ? '0 6px 18px rgba(2,8,18,0.28)' : 'none',
-        transition: 'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
-      }}
-    >
-      {children}
-    </Link>
-  )
-}
+const emptyTeamActions = [
+  { href: '/league-coordinator', label: 'Create team league' },
+  { href: '/data-assist', label: 'Refresh team data' },
+  { href: '/teams', label: 'Browse teams' },
+] as const
 
 export default function CompeteTeamsPage() {
   return (
@@ -122,27 +108,35 @@ function CompeteTeamsContent() {
       <CompeteGrid>
         <CompeteCard
           href="/teams"
-          meta="Roster view"
-          title="Team Directory"
+          meta="Public map"
+          title="Team directory"
           text="Open roster, standings, and team analytics."
           icon="teamRankings"
           action="Find team"
         />
         <CompeteCard
-          href="/captain/availability"
-          meta="Action surface"
-          title="Availability"
-          text="See who can play before the lineup gets built."
-          icon="reliabilityIndex"
-          action="Check status"
+          href="/league-coordinator/results"
+          meta="Scorebook"
+          title="Team book"
+          text="Record team match events, line scores, and standings-moving outcomes."
+          icon="reports"
+          action="Open book"
         />
         <CompeteCard
           href="/captain/lineup-builder"
-          meta="Action surface"
-          title="Lineup Builder"
+          meta="Team handoff"
+          title="Build lineup"
           text="Build from the team already in view."
           icon="lineupBuilder"
           action="Build lineup"
+        />
+        <CompeteCard
+          href="/compete/schedule"
+          meta="Shared calendar"
+          title="Match dates"
+          text="Keep team matches connected to the league calendar."
+          icon="schedule"
+          action="Open calendar"
         />
       </CompeteGrid>
 
@@ -153,8 +147,8 @@ function CompeteTeamsContent() {
               planId="captain"
               compact
               headline="Still moving from team context to lineups by hand?"
-              body="Unlock Captain to connect team workflow, availability, lineup building, and messaging without hunting across tools."
-              ctaLabel="Unlock Captain Tools"
+              body="Unlock Captain to connect team workflow, availability, lineup building, and messaging in one workspace."
+              ctaLabel="Unlock Captain"
               ctaHref="/pricing"
               secondaryLabel="See Captain plan"
               secondaryHref="/pricing"
@@ -165,8 +159,8 @@ function CompeteTeamsContent() {
               planId="league"
               compact
               headline="Running TIQ team seasons without a real organizer layer?"
-              body="League tools give you one place for season structure, standings, scheduling, and team-level coordination instead of spreadsheet cleanup."
-              ctaLabel="Run Your League on TIQ"
+              body="League gives you one place for season structure, standings, scheduling, and team-level coordination instead of spreadsheet cleanup."
+              ctaLabel="Unlock League"
               ctaHref="/pricing"
               secondaryLabel="See league plan"
               secondaryHref="/pricing"
@@ -182,46 +176,94 @@ function CompeteTeamsContent() {
             ? 'Loading TIQ team participation...'
             : groupedTeams.length > 0
               ? 'These teams are already entered in TIQ competition and should act like living workflow objects, not isolated league labels.'
-              : 'No TIQ team entries are visible yet. As teams enter TIQ leagues, they will appear here with direct links into team pages and captain actions.'}
+              : 'Start with a team league, roster refresh, or public team lookup.'}
         </div>
 
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
         {groupedTeams.length === 0 ? (
-          <div style={emptyStyle}>
-            Start from a TIQ team league detail page to enter a team, then return here to manage that team in the weekly workflow.
-          </div>
+          <EmptyTeamsState />
         ) : (
           <div style={listStyle}>
-            {groupedTeams.map((group) => (
-              <div key={`${group.teamName}-${group.sourceLeagueName}-${group.sourceFlight}`} style={rowStyle}>
-                <div>
-                  <div style={rowTitleStyle}>{group.teamName}</div>
-                  <div style={rowMetaStyle}>
-                    {[group.sourceLeagueName, group.sourceFlight, `${group.tiqLeagues.length} TIQ leagues`]
-                      .filter(Boolean)
-                      .join(' | ')}
-                  </div>
-                  <div style={rowSubtleStyle}>
-                    {group.tiqLeagues
-                      .map((entry) => [entry.leagueName, entry.seasonLabel].filter(Boolean).join(' - '))
-                      .join(' | ')}
-                  </div>
-                </div>
+            {groupedTeams.map((group) => {
+              const teamPageHref = `/team/${encodeURIComponent(group.teamName)}?layer=tiq${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`
+              const lineupHref = `/captain/lineup-builder?layer=tiq&team=${encodeURIComponent(group.teamName)}${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`
+              const teamReadinessItems = [
+                {
+                  label: 'Leagues',
+                  value: group.tiqLeagues.length > 0 ? `${group.tiqLeagues.length}` : 'Waiting',
+                  ready: group.tiqLeagues.length > 0,
+                },
+                {
+                  label: 'History',
+                  value: group.directoryOption ? `${group.directoryOption.matchCount} matches` : 'No matches',
+                  ready: Boolean(group.directoryOption),
+                },
+                {
+                  label: 'Captain',
+                  value: access.canUseCaptainWorkflow ? 'Ready' : 'Locked',
+                  ready: access.canUseCaptainWorkflow,
+                },
+              ]
+              const primaryHref = access.canUseCaptainWorkflow ? lineupHref : teamPageHref
+              const primaryLabel = access.canUseCaptainWorkflow ? 'Build lineup' : 'Open team'
 
-                <div style={buttonWrapStyle}>
-                  <GhostSmallLink href={`/team/${encodeURIComponent(group.teamName)}?layer=tiq${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`}>
-                    Team Page
-                  </GhostSmallLink>
-                  <GhostSmallLink href={`/captain/lineup-builder?layer=tiq&team=${encodeURIComponent(group.teamName)}${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`}>
-                    Lineup Builder
-                  </GhostSmallLink>
+              return (
+                <div key={`${group.teamName}-${group.sourceLeagueName}-${group.sourceFlight}`} style={rowStyle}>
+                  <div style={teamCopyStyle}>
+                    <div style={rowTitleStyle}>{group.teamName}</div>
+                    <div style={rowMetaStyle}>
+                      {[group.sourceLeagueName, group.sourceFlight, `${group.tiqLeagues.length} TIQ leagues`]
+                        .filter(Boolean)
+                        .join(' | ')}
+                    </div>
+                    <div style={rowSubtleStyle}>
+                      {group.tiqLeagues
+                        .map((entry) => [entry.leagueName, entry.seasonLabel].filter(Boolean).join(' - '))
+                        .join(' | ')}
+                    </div>
+                    <div style={teamReadinessGridStyle}>
+                      {teamReadinessItems.map((item) => (
+                        <div key={item.label} style={teamReadinessItemStyle}>
+                          <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
+                        </div>
+                      ))}
+                      <Link href={primaryHref} style={teamPrimaryActionStyle}>
+                        {primaryLabel}
+                      </Link>
+                    </div>
+                  </div>
+                  {access.canUseCaptainWorkflow ? (
+                    <Link href={teamPageHref} style={teamSecondaryLinkStyle}>
+                      Team page
+                    </Link>
+                  ) : null}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>
     </>
+  )
+}
+
+function EmptyTeamsState() {
+  return (
+    <div style={emptyTeamsStyle}>
+      <div style={emptyTeamsCopyStyle}>
+        <strong>Team workflow starts with one real team signal.</strong>
+        <span>Create a TIQ team league, upload a roster or scorecard through Data Assist, or find the team already in the public map.</span>
+      </div>
+      <div style={emptyTeamsActionRowStyle}>
+        {emptyTeamActions.map((action) => (
+          <Link key={action.href} href={action.href} style={emptyTeamsActionStyle}>
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -233,8 +275,10 @@ const sectionStyle = {
   marginTop: '24px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.74)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
 } as const
 
 const upgradeGridStyle = {
@@ -249,7 +293,7 @@ const upgradeGridStyle = {
 const sectionEyebrowStyle = {
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.16em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   color: 'var(--brand-blue-2)',
 } as const
@@ -260,12 +304,45 @@ const sectionTextStyle = {
   lineHeight: 1.72,
 } as const
 
-const emptyStyle = {
+const emptyTeamsStyle = {
+  display: 'grid',
+  gap: '14px',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px dashed var(--shell-panel-border)',
+  border: '1px dashed rgba(116,190,255,0.18)',
   color: 'var(--shell-copy-muted)',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(8,16,34,0.66)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+} as const
+
+const emptyTeamsCopyStyle = {
+  display: 'grid',
+  gap: '6px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+} as const
+
+const emptyTeamsActionRowStyle = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  minWidth: 0,
+} as const
+
+const emptyTeamsActionStyle = {
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: '10px 13px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 900,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 } as const
 
 const listStyle = {
@@ -274,20 +351,26 @@ const listStyle = {
 } as const
 
 const rowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: '12px',
   alignItems: 'center',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.66)',
+  minWidth: 0,
+} as const
+
+const teamCopyStyle = {
+  minWidth: 0,
 } as const
 
 const rowTitleStyle = {
   color: 'var(--foreground-strong)',
   fontSize: '18px',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 } as const
 
 const rowMetaStyle = {
@@ -295,6 +378,7 @@ const rowMetaStyle = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 } as const
 
 const rowSubtleStyle = {
@@ -302,12 +386,82 @@ const rowSubtleStyle = {
   color: 'var(--foreground)',
   fontSize: '12px',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 } as const
 
-const buttonWrapStyle = {
+const teamReadinessGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: '8px',
+  marginTop: '12px',
+  minWidth: 0,
+} as const
+
+const teamReadinessItemStyle = {
   display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: '7px',
+  minHeight: '34px',
+  minWidth: 0,
+  padding: '7px 9px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'rgba(223,238,255,0.84)',
+  fontSize: '12px',
+  fontWeight: 850,
+  overflow: 'hidden',
+} as const
+
+const teamPrimaryActionStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '34px',
+  minWidth: 0,
+  padding: '7px 12px',
+  borderRadius: '12px',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.11)',
+  color: '#f5ffe2',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
+} as const
+
+const teamSecondaryLinkStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  minHeight: '34px',
+  padding: '7px 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(7,17,33,0.72)',
+  color: '#eef5ff',
+  fontSize: '12px',
+  fontWeight: 850,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
+} as const
+
+const readinessDotReadyStyle = {
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+  flex: '0 0 auto',
+} as const
+
+const readinessDotWaitingStyle = {
+  ...readinessDotReadyStyle,
+  background: 'rgba(116,190,255,0.46)',
+  boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
 } as const
 
 const warningStyle = {
@@ -318,19 +472,4 @@ const warningStyle = {
   color: 'rgba(253,230,138,0.88)',
   fontSize: '13px',
   lineHeight: 1.55,
-} as const
-
-const buttonStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '40px',
-  padding: '0 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(7,17,33,0.72)',
-  color: '#eef5ff',
-  textDecoration: 'none',
-  fontWeight: 700,
-  fontSize: '13px',
 } as const

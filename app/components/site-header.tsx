@@ -4,18 +4,9 @@ import Link from 'next/link'
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
-import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
-import { countUnreadInternalNotifications } from '@/lib/internal-notifications'
-import { countUnreadInternalConversations, getInternalIdentity } from '@/lib/internal-messages'
-import {
-  getPrimaryNavLockedLabel,
-  getPrimaryNavLockedTitle,
-  getPrimaryNavTarget,
-  PRIMARY_NAV_VISUALS,
-} from '@/lib/primary-nav-access'
-import { ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
+import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
@@ -34,93 +25,6 @@ function CloseIcon() {
     <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
       <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
-  )
-}
-
-function normalizeRouteKey(value: string | undefined) {
-  if (!value) return ''
-  if (value === '/') return value
-  return value.startsWith('/') ? value : `/${value}`
-}
-
-function isActiveLink(active: string | undefined, pathname: string, href: string) {
-  const normalizedActive = normalizeRouteKey(active)
-  const currentRoute = normalizedActive || pathname
-
-  if (
-    href === '/explore' &&
-    ['/players', '/teams', '/rankings', '/leagues', '/explore'].some((route) => currentRoute === route || currentRoute.startsWith(`${route}/`))
-  ) {
-    return true
-  }
-
-  if (normalizedActive) {
-    if (normalizedActive === href) return true
-    if (href !== '/' && normalizedActive.startsWith(href)) return true
-  }
-
-  if (pathname === href) return true
-  if (href !== '/' && pathname.startsWith(href)) return true
-  return false
-}
-
-function HeaderNavLink({
-  href,
-  visualHref,
-  label,
-  activeNow,
-  locked = false,
-  lockedLabel,
-  lockedTitle,
-}: {
-  href: string
-  visualHref: string
-  label: string
-  activeNow: boolean
-  locked?: boolean
-  lockedLabel?: string
-  lockedTitle?: string
-}) {
-  const [hovered, setHovered] = useState(false)
-  const visual = PRIMARY_NAV_VISUALS[visualHref]
-
-  return (
-    <Link
-      href={href}
-      aria-current={activeNow ? 'page' : undefined}
-      aria-label={locked ? lockedLabel || label : label}
-      title={locked ? lockedTitle : undefined}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        ...navLinkStyle,
-        border: activeNow
-          ? '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)'
-          : hovered
-            ? '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)'
-            : '1px solid transparent',
-        color: activeNow || hovered || locked ? 'var(--foreground-strong)' : 'var(--header-link)',
-        background: activeNow
-          ? 'color-mix(in srgb, var(--brand-green) 12%, transparent 88%)'
-          : hovered
-            ? 'color-mix(in srgb, var(--brand-blue-2) 10%, transparent 90%)'
-            : locked
-              ? 'color-mix(in srgb, var(--surface-soft) 48%, transparent 52%)'
-              : 'transparent',
-        boxShadow: hovered
-          ? '0 8px 20px rgba(37, 91, 227, 0.12), inset 0 1px 0 rgba(255,255,255,0.04)'
-          : 'none',
-      }}
-    >
-      <span style={locked ? navLockStyle : navStepStyle}>
-        {locked ? <NavLockIcon /> : visual?.step || '*'}
-      </span>
-      <span style={navTextWrapStyle}>
-        <strong style={navLabelStyle}>{label}</strong>
-        {visual ? <small style={navIntentStyle}>{visual.intent}</small> : null}
-      </span>
-      {activeNow ? <span aria-hidden="true" style={activeDotStyle} /> : null}
-    </Link>
   )
 }
 
@@ -150,6 +54,7 @@ function UtilityLink({
 }
 
 export default function SiteHeader({ active }: { active?: string }) {
+  void active
   const pathname = usePathname()
   const router = useRouter()
   const { role, userId, entitlements, authResolved } = useAuth()
@@ -157,8 +62,6 @@ export default function SiteHeader({ active }: { active?: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
-  const [unreadMessages, setUnreadMessages] = useState(0)
-  const [unreadAlerts, setUnreadAlerts] = useState(0)
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setMenuOpen(false), 0)
@@ -188,42 +91,6 @@ export default function SiteHeader({ active }: { active?: string }) {
     }
   }, [authResolved, userId])
 
-  useEffect(() => {
-    let active = true
-
-    async function loadUnreadMessages() {
-      if (!authResolved || !userId) {
-        setUnreadMessages(0)
-        setUnreadAlerts(0)
-        return
-      }
-
-      try {
-        const identity = await getInternalIdentity()
-        if (!active || !identity) return
-        const [messages, alerts] = await Promise.all([
-          countUnreadInternalConversations(identity),
-          countUnreadInternalNotifications(identity.userId),
-        ])
-        setUnreadMessages(messages)
-        setUnreadAlerts(alerts)
-      } catch {
-        if (active) setUnreadMessages(0)
-        if (active) setUnreadAlerts(0)
-      }
-    }
-
-    void loadUnreadMessages()
-    const intervalId = window.setInterval(() => {
-      void loadUnreadMessages()
-    }, 60000)
-
-    return () => {
-      active = false
-      window.clearInterval(intervalId)
-    }
-  }, [authResolved, userId])
-
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/')
@@ -245,15 +112,18 @@ export default function SiteHeader({ active }: { active?: string }) {
       : authenticated
         ? access.currentPlanId === 'league'
           ? 'Coordinator'
-          : access.currentPlanId === 'captain'
-            ? 'Captain'
-            : access.currentPlanId === 'player_plus'
-              ? 'Player'
-              : 'Free'
+          : access.currentPlanId === 'full_court'
+            ? 'Full-Court'
+            : access.currentPlanId === 'captain'
+              ? 'Captain'
+              : access.currentPlanId === 'coach'
+                ? 'Coach'
+                : access.currentPlanId === 'player_plus'
+                  ? 'Player'
+                  : 'Free'
         : ''
   const firstName = linkedPlayerName.split(' ')[0] || ''
   const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
-  const canUseCaptainTools = access.canUseCaptainWorkflow
   const signInHref = `/login?next=${encodeURIComponent(pathname || '/')}`
 
   return (
@@ -306,7 +176,7 @@ export default function SiteHeader({ active }: { active?: string }) {
             display: 'grid',
             gridTemplateColumns: useCompactHeader
               ? 'minmax(0, 1fr) minmax(0, auto)'
-              : 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
+              : 'minmax(0, auto) minmax(0, 1fr)',
             alignItems: 'center',
             gap: isMobile ? '10px' : useCompactHeader ? '12px' : '16px',
             padding: isMobile ? '7px 7px' : useCompactHeader ? '8px 9px' : '10px 12px',
@@ -333,43 +203,6 @@ export default function SiteHeader({ active }: { active?: string }) {
             <BrandWordmark top={!useCompactBrand} compact={useCompactBrand} />
           </Link>
 
-          {useCompactHeader ? null : authPending ? (
-            <div aria-live="polite" style={navPendingStyle}>
-              Checking access
-            </div>
-          ) : (
-            <nav
-              aria-label="Primary"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                minWidth: 0,
-                paddingInline: '4px',
-              }}
-            >
-              {PRIMARY_NAV_ITEMS.map((item) => {
-                const activeNow = isActiveLink(active, pathname, item.href)
-                const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
-                const lockedLabel = getPrimaryNavLockedLabel(item.label, navTarget.requiredPlan)
-                const lockedTitle = getPrimaryNavLockedTitle(item.label, navTarget.requiredPlan)
-                return (
-                  <HeaderNavLink
-                    key={item.href}
-                    href={navTarget.href}
-                    visualHref={item.href}
-                    label={item.label}
-                    activeNow={activeNow}
-                    locked={navTarget.locked}
-                    lockedLabel={lockedLabel}
-                    lockedTitle={lockedTitle}
-                  />
-                )
-              })}
-            </nav>
-          )}
-
           <div
             style={{
               display: 'inline-flex',
@@ -384,6 +217,9 @@ export default function SiteHeader({ active }: { active?: string }) {
               <span aria-live="polite" style={accountPillStyle}>Checking access</span>
             ) : authenticated ? (
               <>
+                {PRIMARY_NAV_ITEMS.map((item) => (
+                  <UtilityLink key={item.href} href={item.href}>{item.label}</UtilityLink>
+                ))}
                 {accountLabel ? (
                   <span style={accountPillStyle}>
                     {profilePhotoUrl ? (
@@ -393,19 +229,6 @@ export default function SiteHeader({ active }: { active?: string }) {
                     {accountLabel}
                   </span>
                 ) : null}
-                <UtilityLink href={ACCOUNT_NAV_ITEMS[0].href}>{ACCOUNT_NAV_ITEMS[0].label}</UtilityLink>
-                <UtilityLink href="/messages">
-                  <span style={messageLinkWrapStyle}>
-                    Messages
-                    {unreadMessages ? <span style={messageBadgeStyle}>{unreadMessages > 9 ? '9+' : unreadMessages}</span> : null}
-                  </span>
-                </UtilityLink>
-                <UtilityLink href="/messages#alerts">
-                  <span style={messageLinkWrapStyle}>
-                    Alerts
-                    {unreadAlerts ? <span style={messageBadgeStyle}>{unreadAlerts > 9 ? '9+' : unreadAlerts}</span> : null}
-                  </span>
-                </UtilityLink>
                 {role === 'admin' ? (
                   <UtilityLink href="/admin">Admin dashboard</UtilityLink>
                 ) : null}
@@ -415,6 +238,9 @@ export default function SiteHeader({ active }: { active?: string }) {
               </>
             ) : (
               <>
+                {PRIMARY_NAV_ITEMS.map((item) => (
+                  <UtilityLink key={item.href} href={item.href}>{item.label}</UtilityLink>
+                ))}
                 <UtilityLink href="/login">Sign in</UtilityLink>
                 <Link href="/join" style={primaryCtaStyle}>
                   Start Free
@@ -460,7 +286,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               }}
             >
               <div style={mobilePanelTopStyle}>
-                <div style={mobileSectionLabelStyle}>{accessPending ? 'Account navigation' : roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
+                <div style={mobileSectionLabelStyle}>{accessPending ? 'Account' : roleLabel || 'Account'}</div>
                 <div style={mobileAccountToolsStyle}>
                   {accountLabel ? (
                     <span style={mobileAccountPillStyle}>
@@ -474,89 +300,14 @@ export default function SiteHeader({ active }: { active?: string }) {
                 </div>
               </div>
 
-              {PRIMARY_NAV_ITEMS.map((item) => {
-                const activeNow = isActiveLink(active, pathname, item.href)
-                const visual = PRIMARY_NAV_VISUALS[item.href]
-                const navTarget = accessPending
-                  ? { href: item.href, locked: false, requiredPlan: null }
-                  : getPrimaryNavTarget(item.href, access, authenticated)
-                const lockedLabel = getPrimaryNavLockedLabel(item.label, navTarget.requiredPlan)
-                return (
-                  <Link
-                    key={item.href}
-                    href={navTarget.href}
-                    aria-current={activeNow ? 'page' : undefined}
-                    aria-label={navTarget.locked ? lockedLabel : item.label}
-                    onClick={() => setMenuOpen(false)}
-                    style={{
-                      ...mobileItemStyle,
-                      borderColor: activeNow ? 'rgba(155, 225, 29, 0.30)' : 'var(--shell-panel-border)',
-                      background: activeNow
-                        ? 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg-strong) 72%, var(--surface) 28%) 0%, var(--shell-chip-bg-strong) 100%)'
-                        : 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 90%, var(--surface) 10%) 0%, var(--shell-chip-bg) 100%)',
-                    }}
-                  >
-                    <span style={mobileItemMainStyle}>
-                      <span style={navTarget.locked ? mobileLockStyle : mobileStepStyle}>
-                        {navTarget.locked ? <NavLockIcon size={14} /> : visual?.step || '*'}
-                      </span>
-                      <span style={mobileItemTextStyle}>
-                        <strong style={mobileItemLabelStyle}>{item.label}</strong>
-                        {visual ? <small style={mobileItemIntentStyle}>{visual.intent}</small> : null}
-                      </span>
-                    </span>
-                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                  </Link>
-                )
-              })}
-
-              {canUseCaptainTools ? (
-                <>
-                  <div style={mobileSectionLabelStyle}>Captain tools</div>
-                  {CAPTAIN_QUICK_NAV_ITEMS.map((item) => {
-                    const activeNow = isActiveLink(active, pathname, item.href)
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={activeNow ? 'page' : undefined}
-                        onClick={() => setMenuOpen(false)}
-                        style={{
-                          ...mobileItemStyle,
-                          borderColor: activeNow ? 'rgba(155, 225, 29, 0.30)' : 'var(--shell-panel-border)',
-                          background: activeNow
-                            ? 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg-strong) 72%, var(--surface) 28%) 0%, var(--shell-chip-bg-strong) 100%)'
-                            : 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 90%, var(--surface) 10%) 0%, var(--shell-chip-bg) 100%)',
-                        }}
-                      >
-                        <span style={mobilePlainItemTextStyle}>{item.label}</span>
-                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                      </Link>
-                    )
-                  })}
-                </>
-              ) : null}
-
               {authPending ? null : authenticated ? (
                 <>
-                  <Link href={ACCOUNT_NAV_ITEMS[0].href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <span style={mobilePlainItemTextStyle}>Manage profile</span>
-                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                  </Link>
-                  <Link href="/messages" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <span style={mobileMessageLinkWrapStyle}>
-                      Messages
-                      {unreadMessages ? <span style={messageBadgeStyle}>{unreadMessages > 9 ? '9+' : unreadMessages}</span> : null}
-                    </span>
-                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                  </Link>
-                  <Link href="/messages#alerts" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <span style={mobileMessageLinkWrapStyle}>
-                      Alerts
-                      {unreadAlerts ? <span style={messageBadgeStyle}>{unreadAlerts > 9 ? '9+' : unreadAlerts}</span> : null}
-                    </span>
-                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                  </Link>
+                  {PRIMARY_NAV_ITEMS.map((item) => (
+                    <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                      <span style={mobilePlainItemTextStyle}>{item.label}</span>
+                      <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                    </Link>
+                  ))}
                   {role === 'admin' ? (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                       <span style={mobilePlainItemTextStyle}>Admin dashboard</span>
@@ -577,6 +328,12 @@ export default function SiteHeader({ active }: { active?: string }) {
                 </>
               ) : (
                 <>
+                  {PRIMARY_NAV_ITEMS.map((item) => (
+                    <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                      <span style={mobilePlainItemTextStyle}>{item.label}</span>
+                      <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                    </Link>
+                  ))}
                   <Link href={signInHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                     <span style={mobilePlainItemTextStyle}>Sign in</span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
@@ -626,91 +383,6 @@ const utilityLinkStyle = {
   textOverflow: 'ellipsis',
 } as const
 
-const navLinkStyle = {
-  position: 'relative',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '7px',
-  minHeight: '42px',
-  padding: '0 10px',
-  borderRadius: '999px',
-  fontWeight: 750,
-  letterSpacing: '0',
-  textDecoration: 'none',
-  whiteSpace: 'normal' as const,
-  transition: 'border-color 160ms ease, color 160ms ease, background 160ms ease',
-  minWidth: 0,
-  maxWidth: '100%',
-  overflow: 'hidden',
-  overflowWrap: 'anywhere',
-} as const
-
-const navPendingStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '42px',
-  padding: '0 14px',
-  borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase' as const,
-} as const
-
-const navStepStyle = {
-  width: '20px',
-  height: '20px',
-  borderRadius: '999px',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
-  color: 'var(--foreground-strong)',
-  fontSize: '10.5px',
-  fontWeight: 950,
-  lineHeight: 1,
-} as const
-
-const navLockStyle = {
-  ...navStepStyle,
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
-  color: 'var(--foreground-strong)',
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
-} as const
-
-const navTextWrapStyle = {
-  display: 'grid',
-  gap: '0',
-  lineHeight: 1.08,
-  minWidth: 0,
-  overflow: 'hidden',
-} as const
-
-const navLabelStyle = {
-  color: 'inherit',
-  fontSize: '12.5px',
-  fontWeight: 900,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-} as const
-
-const navIntentStyle = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '9.5px',
-  fontWeight: 800,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase' as const,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-} as const
-
 const accountPillStyle = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -742,37 +414,6 @@ const mobileAccountPillStyle = {
   width: '100%',
 } as const
 
-const messageLinkWrapStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  minWidth: 0,
-} as const
-
-const mobileMessageLinkWrapStyle = {
-  ...messageLinkWrapStyle,
-  minWidth: 0,
-  maxWidth: '100%',
-  overflowWrap: 'anywhere',
-  flexWrap: 'wrap' as const,
-} as const
-
-const messageBadgeStyle = {
-  minWidth: '18px',
-  height: '18px',
-  padding: '0 5px',
-  borderRadius: '999px',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'color-mix(in srgb, var(--brand-green) 26%, var(--shell-chip-bg) 74%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 40%, var(--shell-panel-border) 60%)',
-  color: 'var(--foreground-strong)',
-  fontSize: '10px',
-  fontWeight: 950,
-  lineHeight: 1,
-} as const
-
 const accountPhotoStyle = {
   width: '20px',
   height: '20px',
@@ -780,18 +421,6 @@ const accountPhotoStyle = {
   objectFit: 'cover' as const,
   display: 'block',
 }
-
-const activeDotStyle = {
-  position: 'absolute',
-  left: '50%',
-  bottom: '4px',
-  width: '4px',
-  height: '4px',
-  borderRadius: '999px',
-  transform: 'translateX(-50%)',
-  background: 'var(--brand-green)',
-  boxShadow: '0 0 10px rgba(155, 225, 29, 0.55)',
-} as const
 
 const utilityButtonStyle = {
   appearance: 'none',
@@ -874,59 +503,6 @@ const mobilePlainItemTextStyle = {
   overflowWrap: 'anywhere',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-} as const
-
-const mobileItemMainStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '10px',
-  minWidth: 0,
-  flex: '1 1 auto',
-} as const
-
-const mobileItemTextStyle = {
-  display: 'grid',
-  gap: '3px',
-  lineHeight: 1,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-} as const
-
-const mobileItemLabelStyle = {
-  color: 'var(--foreground-strong)',
-  fontSize: '14px',
-  fontWeight: 900,
-  overflowWrap: 'anywhere',
-} as const
-
-const mobileItemIntentStyle = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '11px',
-  fontWeight: 800,
-  letterSpacing: '0.04em',
-  textTransform: 'uppercase' as const,
-  overflowWrap: 'anywhere',
-} as const
-
-const mobileStepStyle = {
-  width: '28px',
-  height: '28px',
-  borderRadius: '999px',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg) 80%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
-  color: 'var(--foreground-strong)',
-  fontSize: '12px',
-  fontWeight: 950,
-} as const
-
-const mobileLockStyle = {
-  ...mobileStepStyle,
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
-  color: 'var(--foreground-strong)',
 } as const
 
 const mobileSectionLabelStyle = {

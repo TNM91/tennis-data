@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import {
@@ -369,7 +370,7 @@ function CaptainTeamBriefContent() {
         planId="captain"
         headline="Need one place to prep your team for the week?"
         body="Unlock Captain to connect team brief context, availability, lineup planning, and match-day communication instead of managing each step separately."
-        ctaLabel="Unlock Captain Tools"
+        ctaLabel="Unlock Captain"
         secondaryLabel="Back to Captain"
         secondaryHref="/captain"
       />
@@ -379,7 +380,9 @@ function CaptainTeamBriefContent() {
   return (
     <main style={pageStyle}>
       <div style={contentStyle}>
+          <CaptainSuitePanel active="team-brief" teamLabel={team || 'Team week'} />
           <section style={heroCard} aria-label="Team brief controls">
+            <span aria-hidden="true" style={watermarkStyle} />
             <div style={heroTopRow}>
               <div>
                 <p style={sectionKicker}>Team Brief</p>
@@ -614,21 +617,47 @@ function InfoBlock({ label, value }: { label: string; value: string }) {
 }
 
 const pageStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
+  margin: '0 auto',
+  padding: '18px 0 64px',
   minHeight: 0,
   background: 'transparent',
+  minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 const contentStyle: CSSProperties = { display: 'grid', gap: 20, minWidth: 0 }
 const heroCard: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   gap: 18,
   padding: 22,
   borderRadius: 28,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
+  overflow: 'hidden',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(-92px, -7vw, -34px)',
+  bottom: 'clamp(-112px, -10vw, -52px)',
+  width: 'clamp(230px, 30vw, 420px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.15) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
+  opacity: 0.74,
+  pointerEvents: 'none',
 }
 const heroTopRow: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
@@ -672,7 +701,7 @@ const detailsSummaryStyle: CSSProperties = { cursor: 'pointer', listStyle: 'none
 const sectionKicker: CSSProperties = { fontSize: 12, color: 'rgba(197,213,234,0.86)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, overflowWrap: 'anywhere' }
 const sectionTitle: CSSProperties = { margin: '6px 0 0', color: '#f8fbff', fontSize: 24, lineHeight: 1.08, letterSpacing: 0, overflowWrap: 'anywhere' }
 const pillStyle: CSSProperties = { borderRadius: 999, padding: '8px 12px', background: 'rgba(37,91,227,0.16)', color: '#c7dbff', fontSize: 12, fontWeight: 800, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
-const statusShell: CSSProperties = { display: 'grid', gap: 14, padding: 18, borderRadius: 22, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', marginTop: 18, minWidth: 0 }
+const statusShell: CSSProperties = { position: 'relative', zIndex: 1, display: 'grid', gap: 14, padding: 18, borderRadius: 22, border: '1px solid rgba(125,211,252,0.14)', background: 'rgba(8,13,28,0.60)', marginTop: 18, minWidth: 0 }
 const statusValue: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 26, fontWeight: 900, lineHeight: 1.08, letterSpacing: 0, marginTop: 6, overflowWrap: 'anywhere' }
 const statusButtonRow: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10, minWidth: 0 }
 const twoColumnGrid = (isTablet: boolean): CSSProperties => ({ display: 'grid', gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: 20, minWidth: 0 })

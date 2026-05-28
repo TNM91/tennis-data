@@ -27,7 +27,7 @@ describe('captain team scope helpers', () => {
     ).toEqual(options[0])
   })
 
-  it('prefers the linked profile team before match-count ordering', () => {
+  it('prefers the profile team before match-count ordering', () => {
     expect(
       chooseCaptainTeamOption({
         options,
@@ -53,6 +53,6 @@ describe('captain team scope helpers', () => {
     const team = options[1]
     expect(buildCaptainTeamScopeKey(team)).toBe('Profile Team__Dallas__4.0')
     expect(getCaptainTeamScopeSource(team, [...map.values()])).toBe('profile')
-    expect(getCaptainTeamScopeSourceLabel('profile')).toBe('your linked profile')
+    expect(getCaptainTeamScopeSourceLabel('profile')).toBe('your profile team')
   })
 })

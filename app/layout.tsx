@@ -19,17 +19,17 @@ export const metadata: Metadata = {
     template: '%s | TenAceIQ',
   },
   description:
-    'More Tennis. Less Chaos. Explore tennis for free, then unlock Player, Captain, or TIQ League Coordinator tools for personalized prep, team decisions, and league operations.',
+    'More Tennis. Less Chaos. Explore tennis for free, then unlock Player, Captain, League, or Full-Court workspaces for prep, team decisions, tournaments, and league operations.',
   keywords: [
     'TenAceIQ',
     'tennis analytics',
     'tennis ratings',
     'My Lab tennis',
     'tennis lineup builder',
-    'captain tools',
+    'captain workspace',
     'tennis matchup analysis',
     'league tennis',
-    'USTA lineup tools',
+    'USTA lineup planning',
     'tennis team management',
     'tennis league coordinator',
     'tennis predictions',
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     siteName: 'TenAceIQ',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description:
-      'More Tennis. Less Chaos. Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
+      'More Tennis. Less Chaos. Choose the right TenAceIQ tier for free discovery, Player insight, Captain decisions, League operations, or the Full-Court suite.',
     images: [
       {
         url: '/og-image.png',
@@ -80,18 +80,18 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description:
-      'More Tennis. Less Chaos. Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
+      'More Tennis. Less Chaos. Choose the right TenAceIQ tier for free discovery, Player insight, Captain decisions, League operations, or the Full-Court suite.',
     images: ['/og-image.png'],
   },
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
-      { url: '/favicon.ico?v=20260522', sizes: 'any', type: 'image/x-icon' },
-      { url: '/favicon-32x32.png?v=20260522', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-16x16.png?v=20260522', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon.ico?v=20260524', sizes: 'any', type: 'image/x-icon' },
+      { url: '/favicon-32x32.png?v=20260524', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16x16.png?v=20260524', sizes: '16x16', type: 'image/png' },
     ],
-    shortcut: '/favicon.ico?v=20260522',
-    apple: '/apple-touch-icon.png?v=20260522',
+    shortcut: '/favicon.ico?v=20260524',
+    apple: '/apple-touch-icon.png?v=20260524',
   },
 }
 

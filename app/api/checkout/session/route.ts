@@ -24,7 +24,7 @@ type UpgradeRequestCheckoutRow = {
   status: string | null
 }
 
-const PAID_PLAN_IDS: PaidPricingPlanId[] = ['player_plus', 'captain', 'league']
+const PAID_PLAN_IDS: PaidPricingPlanId[] = ['player_plus', 'coach', 'captain', 'league', 'full_court']
 const STRIPE_API_VERSION = '2026-04-22.dahlia'
 
 export async function POST(request: Request) {

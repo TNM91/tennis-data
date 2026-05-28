@@ -86,7 +86,7 @@ export default function TermsPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>8. Paid plans, billing, and refunds</h2>
           <p>
-            Paid Player and Captain plans are monthly subscriptions that renew until canceled.
+            Paid Player, Coach, and Captain plans are monthly subscriptions that renew until canceled.
             TIQ League Coordinator season fees cover one bounded league season.
           </p>
           <p>

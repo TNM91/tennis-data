@@ -9,21 +9,21 @@ import { DATA_ASSIST_STORY } from '@/lib/product-story'
 export const metadata: Metadata = {
   title: 'FAQ',
   description:
-    'Frequently asked questions about TenAceIQ, including Free, Player, Captain, and TIQ League Coordinator tools.',
+    'Frequently asked questions about TenAceIQ, including Free, Player, Captain, League, and Full-Court workspaces.',
 }
 
 const faqActions: InfoActionCard[] = [
   {
     title: 'Which tier?',
-    text: 'Free explores, Player personalizes, Captain leads, Coordinator operates.',
+    text: 'Free explores, Player personalizes, Captain leads, League operates.',
     href: '/pricing',
     cta: 'Compare tiers',
     icon: 'accountSecurity',
   },
   {
     title: 'Need data fixed?',
-    text: 'Use Data Assist or open a support thread with the affected tennis record.',
-    href: '/data-assist',
+    text: DATA_ASSIST_STORY.shortCue,
+    href: DATA_ASSIST_STORY.href,
     cta: DATA_ASSIST_STORY.cta,
     icon: 'reports',
   },
@@ -42,7 +42,7 @@ export default function FaqPage() {
       <InfoPage
         kicker="FAQ"
         title="Common questions about the platform."
-        intro="These answers explain what TenAceIQ is built to do and how the Free, Player, Captain, and TIQ League Coordinator layers fit together."
+        intro="These answers explain what TenAceIQ is built to do and how the Free, Player, Captain, League, and Full-Court layers fit together."
       >
         <InfoActionGrid cards={faqActions} />
 
@@ -50,15 +50,15 @@ export default function FaqPage() {
           compact
           framed={false}
           title="The simple version"
-          intro="Free explores, Player personalizes, Captain leads teams, and TIQ League Coordinator runs league operations."
+          intro="Free explores, Player personalizes, Captain leads teams, League runs seasons, and Full-Court brings it together."
         />
 
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Is TenAceIQ only for captains?</h2>
           <p>
             No. Free pages help anyone explore players, teams, leagues, and rankings. Player adds
-            My Lab, follows, Matchup, and player-linked context. Captain adds team workflow. TIQ
-            League Coordinator adds tools for running leagues of players or teams.
+            My Lab, data refreshes, Matchup, and Messages. Captain adds weekly team decisions.
+            League adds the workspace for leagues of players or teams.
           </p>
         </div>
 
@@ -75,7 +75,7 @@ export default function FaqPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>What is Free versus upgraded?</h2>
           <p>
             Free centers on discovery and exploration. Player makes the site personal. Captain adds
-            weekly team decisions. TIQ League Coordinator adds season operations for leagues. The
+            weekly team decisions. League adds season operations. The
             upgrade path is meant to make life easier only when your needs grow.
           </p>
         </div>
@@ -85,7 +85,7 @@ export default function FaqPage() {
           <p>
             Open a <Link href="/messages?compose=support&category=data">TenAceIQ support thread</Link>{' '}
             and include the affected league, team, date, player, or match reference. If you have the
-            source record, start with <Link href="/data-assist">{DATA_ASSIST_STORY.cta}</Link> so the
+            source record, start with <Link href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</Link> so the
             fix can be reviewed before it changes platform data.
           </p>
         </div>

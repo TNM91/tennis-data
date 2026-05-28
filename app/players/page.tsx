@@ -14,6 +14,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated' | 'trending-up' | 'at-risk'
@@ -41,6 +42,7 @@ type PlayerRow = {
   overall_usta_dynamic_rating?: number | null
   singles_usta_dynamic_rating?: number | null
   doubles_usta_dynamic_rating?: number | null
+  rating_source?: string | null
 }
 
 type SnapshotRow = {
@@ -70,9 +72,60 @@ type PlayerCard = PlayerRow & {
   overallTrendDelta: number
   confidence: ConfidenceLevel
   overallDiff: number
+  awards: TiqAwardRecord[]
 }
 
 const PLAYERS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLINE || null
+const PLAYER_DIRECTORY_SELECT_BASE = `
+  id,
+  name,
+  location,
+  overall_rating,
+  singles_rating,
+  doubles_rating,
+  overall_dynamic_rating,
+  singles_dynamic_rating,
+  doubles_dynamic_rating,
+  overall_usta_dynamic_rating,
+  singles_usta_dynamic_rating,
+  doubles_usta_dynamic_rating
+`
+const PLAYER_DIRECTORY_SELECT_WITH_SOURCE = `
+  ${PLAYER_DIRECTORY_SELECT_BASE},
+  rating_source
+`
+
+function isMissingRatingSourceError(message: string) {
+  const normalized = message.toLowerCase()
+  return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
+}
+
+async function loadPlayerDirectoryRows(): Promise<PlayerRow[]> {
+  const withSource = await supabase
+    .from('players')
+    .select(PLAYER_DIRECTORY_SELECT_WITH_SOURCE)
+    .order('name', { ascending: true })
+
+  if (!withSource.error) return (withSource.data || []) as PlayerRow[]
+  if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+
+  const base = await supabase
+    .from('players')
+    .select(PLAYER_DIRECTORY_SELECT_BASE)
+    .order('name', { ascending: true })
+
+  if (base.error) throw new Error(base.error.message)
+  return ((base.data || []) as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
+}
+
+function isSelfRatedPlayer(player: Pick<PlayerRow, 'rating_source'>) {
+  return player.rating_source === 'self'
+}
+
+function formatPublicRating(value: number | null | undefined, player: Pick<PlayerRow, 'rating_source'>) {
+  const formatted = formatRating(value)
+  return isSelfRatedPlayer(player) && value != null ? `${formatted} S` : formatted
+}
 
 export default function PlayersPage() {
   const [linkedPlayerId, setLinkedPlayerId] = useState('')
@@ -85,6 +138,7 @@ export default function PlayersPage() {
   const [flightFilter, setFlightFilter] = useState<FlightFilter>('all')
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const [searchFocused, setSearchFocused] = useState(false)
+  const [browseAll, setBrowseAll] = useState(false)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { access, user, authResolved } = useProductAccess()
@@ -133,7 +187,9 @@ export default function PlayersPage() {
       } else if (event.key === 'Escape') {
         setSearch('')
         setSortBy('overall')
+        setFilterBy('all')
         setFlightFilter('all')
+        setBrowseAll(false)
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -156,6 +212,7 @@ export default function PlayersPage() {
         ? nextFlight
         : 'all',
     )
+    setBrowseAll(Boolean(nextSearch || (nextFlight && nextFlight !== 'all')))
   }, [])
 
   async function loadPlayers() {
@@ -163,30 +220,11 @@ export default function PlayersPage() {
     setError('')
 
     try {
-      const { data: playerRows, error: playersError } = await supabase
-        .from('players')
-        .select(`
-          id,
-          name,
-          location,
-          overall_rating,
-          singles_rating,
-          doubles_rating,
-          overall_dynamic_rating,
-          singles_dynamic_rating,
-          doubles_dynamic_rating,
-          overall_usta_dynamic_rating,
-          singles_usta_dynamic_rating,
-          doubles_usta_dynamic_rating
-        `)
-        .order('name', { ascending: true })
-
-      if (playersError) throw new Error(playersError.message)
-
-      const typedPlayers = (playerRows || []) as PlayerRow[]
+      const typedPlayers = await loadPlayerDirectoryRows()
       const playerIds = typedPlayers.map((player) => player.id)
       const matchCounts = new Map<string, number>()
       const snapshotsByPlayer = new Map<string, SnapshotRow[]>()
+      const awardsByPlayerId = new Map<string, TiqAwardRecord[]>()
 
       if (playerIds.length > 0) {
         const { data: matchPlayerRows, error: matchPlayersError } = await supabase
@@ -243,6 +281,14 @@ export default function PlayersPage() {
         }
       }
 
+      const awardsResult = await loadRecentTiqAwards()
+      for (const award of awardsResult.data) {
+        if (!award.recipientPlayerId) continue
+        const existing = awardsByPlayerId.get(award.recipientPlayerId) ?? []
+        existing.push(award)
+        awardsByPlayerId.set(award.recipientPlayerId, existing)
+      }
+
       setPlayers(
         typedPlayers.map((player) => {
           const matches = matchCounts.get(player.id) || 0
@@ -269,6 +315,7 @@ export default function PlayersPage() {
             overallTrendDelta,
             confidence,
             overallDiff,
+            awards: (awardsByPlayerId.get(player.id) || []).slice(0, 3),
           }
         }),
       )
@@ -315,6 +362,8 @@ export default function PlayersPage() {
     return next
   }, [filterBy, flightFilter, players, search, sortBy])
   const hasActiveFilters = search.trim().length > 0 || filterBy !== 'all' || sortBy !== 'overall' || flightFilter !== 'all'
+  const shouldShowPlayerResults = hasActiveFilters || browseAll
+  const visiblePlayers = shouldShowPlayerResults ? filteredPlayers : []
   const playersWithMatches = useMemo(() => players.filter((player) => player.matches > 0).length, [players])
   const trendingPlayers = useMemo(
     () => players.filter((player) => player.overallStatus === 'Trending Up' || player.overallStatus === 'Bump Up Pace').length,
@@ -402,6 +451,7 @@ export default function PlayersPage() {
     <SiteShell active="players">
       <section style={playerToolWrap}>
         <div style={dynamicControlsShell}>
+          <div aria-hidden="true" style={watermarkStyle} />
           <div style={dynamicControlsTopRow}>
             <div style={controlsTitleGroup}>
               <div style={sectionKicker}>Player discovery</div>
@@ -409,7 +459,7 @@ export default function PlayersPage() {
             </div>
             <div style={inlineStatRow}>
               <StatChip label="Players" value={loading ? '-' : String(players.length)} />
-              <StatChip label="Showing" value={loading ? '-' : String(filteredPlayers.length)} accent />
+              <StatChip label="Shown" value={loading ? '-' : shouldShowPlayerResults ? String(filteredPlayers.length) : '0'} accent />
             </div>
           </div>
 
@@ -424,10 +474,10 @@ export default function PlayersPage() {
                 aria-describedby="players-directory-helper"
                 ref={searchInputRef}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
-                placeholder="Search player name or location..."
+              placeholder="Search player name or location..."
                 style={dynamicSearchInput}
               />
             </div>
@@ -476,13 +526,16 @@ export default function PlayersPage() {
           </div>
 
           <div id="players-directory-helper" style={controlsHelperText}>
-            Search by name or location, then open the player record.
+            Type a name or location.
           </div>
           <div style={dynamicQuickFilterGrid} aria-label="Quick player filters">
             <button
               type="button"
               disabled={loading}
-              onClick={() => setFilterBy('with-matches')}
+              onClick={() => {
+                setBrowseAll(false)
+                setFilterBy('with-matches')
+              }}
               style={{
                 ...quickFilterButton,
                 ...(loading ? quickFilterButtonDisabled : null),
@@ -495,7 +548,10 @@ export default function PlayersPage() {
             <button
               type="button"
               disabled={loading}
-              onClick={() => setFilterBy('trending-up')}
+              onClick={() => {
+                setBrowseAll(false)
+                setFilterBy('trending-up')
+              }}
               style={{
                 ...quickFilterButton,
                 ...(loading ? quickFilterButtonDisabled : null),
@@ -508,7 +564,10 @@ export default function PlayersPage() {
             <button
               type="button"
               disabled={loading}
-              onClick={() => setFilterBy('high-rated')}
+              onClick={() => {
+                setBrowseAll(false)
+                setFilterBy('high-rated')
+              }}
               style={{
                 ...quickFilterButton,
                 ...(loading ? quickFilterButtonDisabled : null),
@@ -519,8 +578,23 @@ export default function PlayersPage() {
               <strong>{loading ? '-' : highRatedPlayers}</strong>
             </button>
           </div>
-          {hasActiveFilters ? (
-            <div style={controlsActionRow}>
+          <div style={controlsActionRow}>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                setBrowseAll(true)
+                setSortBy('overall')
+              }}
+              style={{
+                ...clearFilterButton,
+                ...(browseAll ? browseAllButtonActiveStyle : null),
+                ...(loading ? quickFilterButtonDisabled : null),
+              }}
+            >
+              Browse directory
+            </button>
+            {hasActiveFilters || browseAll ? (
               <button
                 type="button"
                 onClick={() => {
@@ -528,13 +602,14 @@ export default function PlayersPage() {
                   setSortBy('overall')
                   setFilterBy('all')
                   setFlightFilter('all')
+                  setBrowseAll(false)
                 }}
                 style={clearFilterButton}
               >
                 Reset directory filters
               </button>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -554,8 +629,8 @@ export default function PlayersPage() {
       <section style={contentWrap}>
         <div style={dynamicSectionHeader}>
           <div>
-            <div style={sectionKicker}>Directory</div>
-            <h2 style={sectionTitle}>Open a player profile</h2>
+            <div style={sectionKicker}>{shouldShowPlayerResults ? 'Directory' : 'Find'}</div>
+            <h2 style={sectionTitle}>{shouldShowPlayerResults ? 'Open a player profile' : 'Choose a path.'}</h2>
           </div>
         </div>
 
@@ -580,7 +655,44 @@ export default function PlayersPage() {
               Building a cleaner scouting board from current player, rating, and match data.
             </p>
           </div>
-        ) : filteredPlayers.length === 0 ? (
+        ) : !shouldShowPlayerResults ? (
+          <div style={findStartPanelStyle}>
+            <div style={findStartGridStyle}>
+              <button
+                type="button"
+                onClick={() => searchInputRef.current?.focus()}
+                style={findStartActionStyle}
+              >
+                <strong>Name or city</strong>
+                <span>Jump to search.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterBy('trending-up')}
+                style={findStartActionStyle}
+              >
+                <strong>Trending</strong>
+                <span>Players moving up.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterBy('high-rated')}
+                style={findStartActionStyle}
+              >
+                <strong>4.0+</strong>
+                <span>Stronger ratings.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setBrowseAll(true)}
+                style={findStartActionStyle}
+              >
+                <strong>Browse</strong>
+                <span>Full board.</span>
+              </button>
+            </div>
+          </div>
+        ) : visiblePlayers.length === 0 ? (
           <div style={loadingCard}>
             <div style={sectionKicker}>Directory reset</div>
             <div style={emptyStateTitle}>No players matched the current directory view.</div>
@@ -595,6 +707,7 @@ export default function PlayersPage() {
                   setSortBy('overall')
                   setFilterBy('all')
                   setFlightFilter('all')
+                  setBrowseAll(false)
                 }}
                 style={emptyStateButton}
               >
@@ -607,7 +720,7 @@ export default function PlayersPage() {
           </div>
         ) : (
           <div style={dynamicCardGrid}>
-            {filteredPlayers.map((player) => {
+            {visiblePlayers.map((player) => {
               const isHovered = hoveredCard === player.id
               const theme = getMeterTheme(player.overallStatus)
               const compareHref = buildCompareHref(linkedPlayerId, player.id)
@@ -636,17 +749,35 @@ export default function PlayersPage() {
                   <Link href={`/players/${player.id}`} style={playerNameLink}>
                     {player.name}
                   </Link>
+                  {player.awards.length ? (
+                    <div style={playerAwardRowStyle} aria-label={`${player.name} award badges`}>
+                      {player.awards.slice(0, 2).map((award) => (
+                        <Link
+                          key={award.id}
+                          href={`/awards/${encodeURIComponent(award.id)}`}
+                          style={playerAwardPillStyle}
+                          title={`${award.badgeLabel}: ${award.title}`}
+                        >
+                          <span>{award.badgeCode}</span>
+                          <small>{award.sourceType === 'league' ? 'League' : 'Tournament'}</small>
+                        </Link>
+                      ))}
+                      <Link href={`/players/${player.id}#profile-trophy-case`} style={playerAwardCaseLinkStyle}>
+                        Trophy case
+                      </Link>
+                    </div>
+                  ) : null}
                   <div style={playerLocation}>{player.location || 'Location not set'}</div>
 
                   <div style={playerScorecard}>
                     <div style={playerScorePrimary}>
                       <span style={scoreLabel}>TIQ overall</span>
-                      <strong style={scoreValue}>{formatRating(getRating(player, 'overall'))}</strong>
+                      <strong style={scoreValue}>{formatPublicRating(getRating(player, 'overall'), player)}</strong>
                     </div>
                     <div style={playerScoreMiniGrid}>
                       <div style={scoreMini}>
                         <span style={scoreMiniLabel}>USTA</span>
-                        <strong style={scoreMiniValue}>{player.baseOverall.toFixed(2)}</strong>
+                        <strong style={scoreMiniValue}>{isSelfRatedPlayer(player) ? 'Pending' : player.baseOverall.toFixed(2)}</strong>
                       </div>
                       <div style={scoreMini}>
                         <span style={scoreMiniLabel}>Confidence</span>
@@ -695,13 +826,14 @@ export default function PlayersPage() {
                   <div style={deltaRow}>
                     <div style={deltaStat}>
                       <span style={deltaLabel}>USTA</span>
-                      <span style={deltaValue}>{player.baseOverall.toFixed(2)}</span>
+                      <span style={deltaValue}>{isSelfRatedPlayer(player) ? 'Pending' : player.baseOverall.toFixed(2)}</span>
                     </div>
                     <div style={deltaStat}>
                       <span style={deltaLabel}>TIQ vs USTA</span>
                       <span style={deltaValue}>
-                        {player.overallDiff >= 0 ? '+' : ''}
-                        {player.overallDiff.toFixed(2)}
+                        {isSelfRatedPlayer(player)
+                          ? 'Pending'
+                          : `${player.overallDiff >= 0 ? '+' : ''}${player.overallDiff.toFixed(2)}`}
                       </span>
                     </div>
                   </div>
@@ -890,11 +1022,13 @@ function getMeterTheme(status: RatingStatus) {
 
 const controlsShell: CSSProperties = {
   borderRadius: '26px',
-  background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-card)',
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+  border: '1px solid rgba(116,190,255,0.15)',
+  boxShadow: '0 30px 86px rgba(2, 8, 23, 0.46), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
   zIndex: 3,
+  position: 'relative',
+  overflow: 'hidden',
 }
 
 const controlsTopRow: CSSProperties = {
@@ -950,8 +1084,8 @@ const searchIconWrap: CSSProperties = {
 const searchInput: CSSProperties = {
   width: '100%',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
@@ -962,8 +1096,8 @@ const searchInput: CSSProperties = {
 const selectStyle: CSSProperties = {
   height: '52px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
@@ -1000,8 +1134,8 @@ const quickFilterButton: CSSProperties = {
   minHeight: '48px',
   padding: '0 12px',
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   fontWeight: 900,
   cursor: 'pointer',
@@ -1025,18 +1159,24 @@ const clearFilterButton: CSSProperties = {
   minHeight: '38px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   fontWeight: 800,
   cursor: 'pointer',
 }
 
+const browseAllButtonActiveStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
+}
+
 const statChip: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(8,16,34,0.7)',
+  border: '1px solid rgba(116,190,255,0.13)',
   minWidth: 0,
 }
 
@@ -1050,7 +1190,7 @@ const statChipLabel: CSSProperties = {
   fontSize: '12px',
   fontWeight: 700,
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   marginBottom: '6px',
 }
 
@@ -1064,7 +1204,7 @@ const statChipValue: CSSProperties = {
 const errorCard: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto 18px',
   padding: '22px',
   borderRadius: '28px',
@@ -1076,9 +1216,8 @@ const errorCard: CSSProperties = {
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '0 clamp(14px, 3vw, 18px) 0',
   minWidth: 0,
 }
 
@@ -1095,7 +1234,7 @@ const sectionKicker: CSSProperties = {
   fontWeight: 800,
   fontSize: '13px',
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   marginBottom: '8px',
 }
 
@@ -1131,10 +1270,46 @@ const secondaryLink: CSSProperties = {
 const loadingCard: CSSProperties = {
   padding: '22px',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.74)',
   color: 'var(--foreground)',
   fontWeight: 700,
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+
+const findStartPanelStyle: CSSProperties = {
+  ...loadingCard,
+  position: 'relative',
+  overflow: 'hidden',
+  padding: '24px',
+  border: '1px solid rgba(155,225,29,0.20)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(8,16,34,0.78) 42%, rgba(8,16,34,0.86))',
+}
+
+const findStartGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+  marginTop: 16,
+}
+
+const findStartActionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minHeight: 112,
+  padding: 15,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  cursor: 'pointer',
+  font: 'inherit',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const emptyStateTitle: CSSProperties = {
@@ -1175,10 +1350,10 @@ const playerCard: CSSProperties = {
   overflow: 'hidden',
   textDecoration: 'none',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.74)',
   padding: '20px',
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
   minWidth: 0,
 }
@@ -1218,7 +1393,7 @@ const miniKicker: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
 }
 
 const matchCountPill: CSSProperties = {
@@ -1227,11 +1402,11 @@ const matchCountPill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 800,
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
 }
 
 const playerName: CSSProperties = {
@@ -1259,6 +1434,40 @@ const playerLocation: CSSProperties = {
   marginBottom: '16px',
 }
 
+const playerAwardRowStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '7px',
+  minWidth: 0,
+  margin: '-2px 0 10px',
+}
+
+const playerAwardPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  minHeight: '28px',
+  maxWidth: '100%',
+  padding: '0 9px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: '11px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const playerAwardCaseLinkStyle: CSSProperties = {
+  ...playerAwardPillStyle,
+  border: '1px solid rgba(116,190,255,0.20)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--brand-blue-2)',
+}
+
 const playerScorecard: CSSProperties = {
   position: 'relative',
   zIndex: 2,
@@ -1284,7 +1493,7 @@ const scoreLabel: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '11px',
   fontWeight: 900,
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -1310,8 +1519,8 @@ const scoreMini: CSSProperties = {
   minHeight: '43px',
   borderRadius: '16px',
   padding: '0 12px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
 }
 
 const scoreMiniLabel: CSSProperties = {
@@ -1319,7 +1528,7 @@ const scoreMiniLabel: CSSProperties = {
   fontSize: '11px',
   fontWeight: 800,
   textTransform: 'uppercase',
-  letterSpacing: '0.06em',
+  letterSpacing: 0,
 }
 
 const scoreMiniValue: CSSProperties = {
@@ -1352,7 +1561,7 @@ const profileLinkText: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   fontWeight: 900,
   fontSize: '13px',
-  letterSpacing: '0.01em',
+  letterSpacing: 0,
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
   textAlign: 'center',
   textDecoration: 'none',
@@ -1381,9 +1590,9 @@ const compareLinkText: CSSProperties = {
   minHeight: '40px',
   padding: '0 14px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
   fontWeight: 900,
   fontSize: '13px',
   textDecoration: 'none',
@@ -1400,7 +1609,7 @@ const iconSvgStyle: CSSProperties = {
 const playerToolWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 32px)))',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '12px auto 18px',
   minWidth: 0,
 }
@@ -1434,7 +1643,7 @@ const signalStatusPill: CSSProperties = {
   borderRadius: '999px',
   fontSize: '11px',
   fontWeight: 900,
-  letterSpacing: '0.04em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -1457,9 +1666,9 @@ const signalConfidencePill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
   fontSize: '11px',
   fontWeight: 800,
 }
@@ -1476,8 +1685,8 @@ const deltaRow: CSSProperties = {
 const deltaStat: CSSProperties = {
   borderRadius: '16px',
   padding: '10px 12px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   minWidth: 0,
 }
 
@@ -1487,7 +1696,7 @@ const deltaLabel: CSSProperties = {
   fontSize: '11px',
   fontWeight: 700,
   marginBottom: '6px',
-  letterSpacing: '0.04em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -1497,4 +1706,17 @@ const deltaValue: CSSProperties = {
   fontSize: '18px',
   fontWeight: 900,
   letterSpacing: 0,
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-86px',
+  top: '-108px',
+  width: '340px',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '34px solid rgba(155,225,29,0.07)',
+  boxShadow: 'inset 0 0 0 2px rgba(125,211,252,0.05), 0 0 76px rgba(125,211,252,0.08)',
+  opacity: 0.72,
+  pointerEvents: 'none',
 }

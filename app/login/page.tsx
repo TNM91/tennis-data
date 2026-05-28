@@ -5,64 +5,45 @@ import { CSSProperties, FormEvent, useCallback, useEffect, useRef, useState } fr
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { loadUserProfileLink } from '@/lib/user-profile'
+import { FREE_POST_LOGIN_ROUTE, getDefaultProductHomeRoute } from '@/lib/post-login-route'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import BrandWordmark from '@/app/components/brand-wordmark'
-import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
+import { type MembershipTierId } from '@/lib/product-story'
 
-const DEFAULT_POST_LOGIN_ROUTE = '/'
-const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
+const DEFAULT_POST_LOGIN_ROUTE = FREE_POST_LOGIN_ROUTE
+const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 const LOGIN_AUTH_TIMEOUT_MS = 8000
-const LOGIN_PLAN_ICON_BY_ID: Record<MembershipTierId, TiqFeatureIconName> = {
-  free: 'opponentScouting',
-  player_plus: 'myLab',
-  captain: 'lineupBuilder',
-  league: 'teamRankings',
-}
 
 const LOGIN_INTENT_COPY: Record<MembershipTierId, {
   eyebrow: string
-  mobileTitle: string
-  desktopTitle: string
-  mobileText: string
-  desktopText: string
   destination: string
 }> = {
   free: {
     eyebrow: 'TenAceIQ access',
-    mobileTitle: 'Sign in.',
-    desktopTitle: 'Sign in. Start exploring.',
-    mobileText: 'Open your free tennis workspace.',
-    desktopText: 'Open TenAceIQ and start with the public tennis map before adding deeper tools.',
     destination: 'Free tennis map',
   },
   player_plus: {
     eyebrow: 'Player path',
-    mobileTitle: 'Open your lab.',
-    desktopTitle: 'Sign in. Connect your player path.',
-    mobileText: 'Sign in, then activate Player if it is not active yet.',
-    desktopText: 'Sign in to continue toward Player access. My Lab, follows, matchup reads, and player-linked prep open after the plan is active.',
     destination: 'My Lab setup',
   },
+  coach: {
+    eyebrow: 'Coach path',
+    destination: 'Coach workspace',
+  },
   captain: {
-    eyebrow: 'Captain path',
-    mobileTitle: 'Open Captain.',
-    desktopTitle: 'Sign in. Run the team week.',
-    mobileText: 'Sign in, then activate Captain if it is not active yet.',
-    desktopText: 'Sign in to continue toward Captain access. Lineups, scouting, readiness, and the weekly captain flow open after the plan is active.',
-    destination: 'Captain tools',
+    eyebrow: 'Team path',
+    destination: 'Captain workspace',
   },
   league: {
-    eyebrow: 'Coordinator path',
-    mobileTitle: 'Open league tools.',
-    desktopTitle: 'Sign in. Operate the season.',
-    mobileText: 'Sign in, then activate Coordinator access if it is not active yet.',
-    desktopText: 'Sign in to continue toward Coordinator access. League structure, visibility, rankings, schedules, and results open after access is active.',
+    eyebrow: 'League path',
     destination: 'League desk',
+  },
+  full_court: {
+    eyebrow: 'Full-Court path',
+    destination: 'Full-Court workspace',
   },
 }
 
@@ -77,17 +58,13 @@ async function getDefaultPostLoginRoute(
   entitlements?: ProductEntitlementSnapshot | null,
   userId?: string | null,
 ) {
-  const access = buildProductAccessState(role, entitlements)
-  if (access.canUseAdvancedPlayerInsights) {
-    const profileRes = await withLoginTimeout(
-      loadUserProfileLink(userId),
-      LOGIN_AUTH_TIMEOUT_MS,
-      { data: null, error: null, source: 'none', cloudSchemaReady: false },
-    )
-    const hasLinkedPlayer = Boolean(profileRes.data?.linked_player_id || profileRes.data?.linked_player_name)
-    if (!hasLinkedPlayer) return '/profile'
-  }
-  return DEFAULT_POST_LOGIN_ROUTE
+  const profileRes = await withLoginTimeout(
+    loadUserProfileLink(userId),
+    LOGIN_AUTH_TIMEOUT_MS,
+    { data: null, error: null, source: 'none', cloudSchemaReady: false },
+  )
+  const hasLinkedPlayer = Boolean(profileRes.data?.linked_player_id || profileRes.data?.linked_player_name)
+  return getDefaultProductHomeRoute(role, entitlements, hasLinkedPlayer)
 }
 
 async function withLoginTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
@@ -158,16 +135,9 @@ function LoginContent() {
     )
   }, [role])
 
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const selectedPlanId = getLoginPlanIntent()
   const selectedIntent = LOGIN_INTENT_COPY[selectedPlanId]
-  const selectedTier = getMembershipTier(selectedPlanId)
-  const loginPlanChoices = LOGIN_PLAN_IDS.map((planId) => ({
-    id: planId,
-    tier: getMembershipTier(planId),
-    selected: planId === selectedPlanId,
-    href: planId === 'free' ? '/login' : `/login?plan=${planId}`,
-  }))
 
   useEffect(() => {
     router.prefetch(DEFAULT_POST_LOGIN_ROUTE)
@@ -247,10 +217,6 @@ function LoginContent() {
         throw new Error('Sign in did not return an active session. Please check the account credentials and try again.')
       }
 
-      await supabase.auth.setSession({
-        access_token: signInData.session.access_token,
-        refresh_token: signInData.session.refresh_token,
-      })
       setAuthNote(canUseBrowserStorage() ? 'Session accepted. Opening TenAceIQ...' : 'Session accepted for this tab. Browser storage looks blocked on this device.')
 
       const authState = await withLoginTimeout(
@@ -293,9 +259,10 @@ function canUseBrowserStorage() {
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
-    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
-    padding: isMobile ? '22px 18px' : '34px 26px',
-    gap: isMobile ? '14px' : '24px',
+    width: isMobile ? 'min(100% - 20px, 620px)' : 'min(620px, calc(100% - clamp(24px, 5vw, 40px)))',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    padding: isMobile ? '18px' : '24px',
+    gap: isMobile ? '12px' : '14px',
   }
 
   const loginPanelResponsive: CSSProperties = {
@@ -328,90 +295,25 @@ function canUseBrowserStorage() {
 
   return (
     <section style={heroShellResponsive}>
-        <div>
+        <span aria-hidden="true" style={watermarkStyle} />
+        <div style={loginCopyRailStyle}>
           <div style={eyebrow}>{selectedIntent.eyebrow}</div>
-          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '32px' : isMobile ? '36px' : '58px' }}>
-            {isMobile ? selectedIntent.mobileTitle : selectedIntent.desktopTitle}
+          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
+            Welcome back.
           </h1>
-          <p style={{ ...heroText, fontSize: isSmallMobile ? '16px' : '18px' }}>
-            {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
+          <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
+            Open TenAceIQ.
           </p>
 
-          <div style={selectedPlanCardStyle}>
-            <div style={selectedPlanLabelStyle}>After sign in</div>
-            <div style={selectedPlanTitleStyle}>{selectedIntent.destination}</div>
-            <div style={selectedPlanTextStyle}>{selectedTier.upgradeCue}</div>
-            {selectedPlanId !== 'free' ? (
-              <div style={entitlementNoticeStyle}>
-                Sign-in restores your account. {selectedTier.name} opens only when that plan or access is active.
-              </div>
-            ) : null}
-          </div>
-
-          <div style={pathPickerStyle} aria-label="Choose sign-in path">
-            {loginPlanChoices.map((choice) => (
-              <Link
-                key={choice.id}
-                href={choice.href}
-                aria-current={choice.selected ? 'page' : undefined}
-                style={{
-                  ...pathPickerCardStyle,
-                  ...(choice.selected ? pathPickerCardActiveStyle : null),
-                }}
-              >
-                <TiqFeatureIcon name={LOGIN_PLAN_ICON_BY_ID[choice.id]} size="sm" variant={choice.selected ? 'surface' : 'ghost'} />
-                <span style={pathPickerCopyStyle}>
-                  <strong>{choice.tier.name}</strong>
-                  <small>{choice.tier.shortPromise}</small>
-                </span>
-              </Link>
-            ))}
-          </div>
-
-          {isMobile ? (
-            <div style={mobilePromiseBar}>
-              <span style={mobilePromiseChip}>My Lab</span>
-              <span style={mobilePromiseChip}>Team week</span>
-              <span style={mobilePromiseChip}>League desk</span>
-            </div>
-          ) : (
-            <>
-              <div style={accessPanel}>
-                <div style={featureLabel}>After sign in</div>
-                <div style={accessPathGrid}>
-                  <AccessPath label="Player" title="My Lab" text="Scorecard, matchups, goals, notes, and follows." />
-                  <AccessPath label="Captain" title="Team week" text="Availability, lineup, team update, and weekly brief." />
-                  <AccessPath label="Coordinator" title="League desk" text="League setup, schedules, standings, and results." />
-                </div>
-              </div>
-
-              <div style={teamFlowPanel}>
-                <div style={featureLabel}>Team communication</div>
-                <div style={teamFlowGrid}>
-                  <TeamStep number="1" title="Ask" text="Who can play?" />
-                  <TeamStep number="2" title="Build" text="Set the lineup." />
-                  <TeamStep number="3" title="Send" text="One clear update." />
-                  <TeamStep number="4" title="Track" text="Replies and changes." />
-                </div>
-              </div>
-            </>
-          )}
+          <div style={destinationPillStyle}>Next: {selectedIntent.destination}</div>
         </div>
 
         <div style={loginPanelResponsive}>
           <div style={loginPanelGlow} />
           <div style={loginPanelInnerResponsive}>
-            {!isMobile ? (
-              <div style={loginBrandWrap}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-                  <BrandWordmark compact={isSmallMobile} top={!isSmallMobile} />
-                </div>
-              </div>
-            ) : null}
-
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
-              <div style={formLabel}>Account sign in</div>
-              <h2 style={isMobile ? formTitleMobile : formTitle}>Welcome back</h2>
+              <div style={formLabel}>More Tennis. Less Chaos.</div>
+              <h2 style={isMobile ? formTitleMobile : formTitle}>Sign in</h2>
 
               <label htmlFor="email" style={inputLabel}>
                 Email
@@ -477,7 +379,7 @@ function canUseBrowserStorage() {
                   transition: 'transform 140ms ease, box-shadow 140ms ease',
                 }}
               >
-                {submitting ? 'Signing in...' : 'Open TenAceIQ'}
+                {submitting ? 'Signing in...' : 'Sign in'}
               </button>
 
               {error ? <div id="login-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
@@ -508,28 +410,6 @@ function canUseBrowserStorage() {
   )
 }
 
-function AccessPath({ label, title, text }: { label: string; title: string; text: string }) {
-  return (
-    <div style={accessPathCard}>
-      <div style={accessPathLabel}>{label}</div>
-      <div style={featureTitle}>{title}</div>
-      <div style={featureText}>{text}</div>
-    </div>
-  )
-}
-
-function TeamStep({ number, title, text }: { number: string; title: string; text: string }) {
-  return (
-    <div style={teamStepCard}>
-      <span style={teamStepNumber}>{number}</span>
-      <div>
-        <div style={teamStepTitle}>{title}</div>
-        <div style={teamStepText}>{text}</div>
-      </div>
-    </div>
-  )
-}
-
 function passwordWrapResponsive(isSmallMobile: boolean): CSSProperties {
   return {
     ...passwordWrap,
@@ -541,14 +421,30 @@ function passwordWrapResponsive(isSmallMobile: boolean): CSSProperties {
 const heroShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   minWidth: 0,
   margin: '14px auto 24px',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.48)',
+  overflow: 'hidden',
+  boxSizing: 'border-box',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(-90px, -7vw, -34px)',
+  bottom: 'clamp(-120px, -10vw, -46px)',
+  width: 'clamp(220px, 31vw, 430px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.16) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
+  opacity: 0.8,
+  pointerEvents: 'none',
 }
 
 const eyebrow: CSSProperties = {
@@ -591,225 +487,27 @@ const heroText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const selectedPlanCardStyle: CSSProperties = {
+const loginCopyRailStyle: CSSProperties = {
   display: 'grid',
-  gap: '7px',
-  width: 'min(100%, 560px)',
-  minWidth: 0,
-  margin: '18px 0 0',
-  padding: '16px',
-  borderRadius: '22px',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-green) 10%) 0%, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--brand-blue-2) 4%) 100%)',
-}
-
-const selectedPlanLabelStyle: CSSProperties = {
-  color: 'var(--home-eyebrow-color)',
-  fontSize: '12px',
-  fontWeight: 900,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const selectedPlanTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '22px',
-  lineHeight: 1,
-  fontWeight: 900,
-}
-
-const selectedPlanTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.55,
-  fontWeight: 750,
-  overflowWrap: 'anywhere',
-}
-
-const entitlementNoticeStyle: CSSProperties = {
-  padding: '10px 12px',
-  borderRadius: '14px',
-  border: '1px solid rgba(251,191,36,0.24)',
-  background: 'rgba(251,191,36,0.08)',
-  color: 'var(--foreground-strong)',
-  fontSize: '13px',
-  lineHeight: 1.5,
-  fontWeight: 800,
-}
-
-const pathPickerStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-  gap: '9px',
-  width: 'min(100%, 760px)',
-  minWidth: 0,
-  marginTop: '14px',
-}
-
-const pathPickerCardStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr)',
-  gap: '9px',
-  alignItems: 'center',
-  minHeight: '70px',
-  padding: '10px',
-  borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(255,255,255,0.035)',
-  color: 'var(--foreground)',
-  textDecoration: 'none',
+  gap: 8,
   minWidth: 0,
 }
 
-const pathPickerCardActiveStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
-  background: 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)',
-}
-
-const pathPickerCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: '3px',
-  minWidth: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: '13px',
-  lineHeight: 1.2,
-  overflowWrap: 'anywhere',
-}
-
-const accessPanel: CSSProperties = {
-  marginTop: '24px',
-  minWidth: 0,
-  borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: '18px',
-  maxWidth: '900px',
-}
-
-const mobilePromiseBar: CSSProperties = {
-  display: 'flex',
-  gap: '8px',
-  flexWrap: 'wrap',
-  marginTop: '10px',
-}
-
-const mobilePromiseChip: CSSProperties = {
+const destinationPillStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  minHeight: '32px',
-  padding: '0 11px',
+  alignSelf: 'flex-start',
+  maxWidth: '100%',
+  minHeight: '36px',
+  padding: '0 13px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.10)',
   color: 'var(--foreground)',
-  fontSize: '13px',
-  fontWeight: 800,
-}
-
-const teamFlowPanel: CSSProperties = {
-  marginTop: '14px',
-  minWidth: 0,
-  borderRadius: '22px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 78%, var(--brand-blue-2) 8%)',
-  padding: '16px',
-  maxWidth: '900px',
-}
-
-const featureLabel: CSSProperties = {
-  color: 'var(--home-eyebrow-color)',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: '14px',
-}
-
-const accessPathGrid: CSSProperties = {
-  display: 'grid',
-  gap: '10px',
-}
-
-const teamFlowGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
-  gap: '10px',
-}
-
-const accessPathCard: CSSProperties = {
-  display: 'grid',
-  gap: '6px',
-  minWidth: 0,
-  borderRadius: '18px',
-  padding: '14px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-}
-
-const accessPathLabel: CSSProperties = {
-  color: 'var(--home-eyebrow-color)',
-  fontSize: '12px',
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-}
-
-const featureTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '16px',
-  fontWeight: 800,
-  lineHeight: 1.35,
-  overflowWrap: 'anywhere',
-}
-
-const featureText: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.6,
-  overflowWrap: 'anywhere',
-}
-
-const teamStepCard: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-  minWidth: 0,
-  minHeight: '72px',
-  borderRadius: '16px',
-  padding: '10px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-}
-
-const teamStepNumber: CSSProperties = {
-  width: '30px',
-  height: '30px',
-  borderRadius: '999px',
-  display: 'grid',
-  placeItems: 'center',
-  flexShrink: 0,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  fontSize: '13px',
-}
-
-const teamStepTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
   fontSize: '14px',
   fontWeight: 900,
-  lineHeight: 1.2,
   overflowWrap: 'anywhere',
-}
-
-const teamStepText: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  lineHeight: 1.35,
-  marginTop: '2px',
-  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }
 
 const loginPanel: CSSProperties = {
@@ -817,20 +515,16 @@ const loginPanel: CSSProperties = {
   minWidth: 0,
   borderRadius: '30px',
   overflow: 'hidden',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(8,13,28,0.62)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.38)',
 }
 
 const loginPanelGlow: CSSProperties = {
   position: 'absolute',
-  inset: 'auto auto 8px 50%',
-  width: 'min(100%, 250px)',
-  height: '250px',
-  transform: 'translateX(-50%)',
-  borderRadius: '999px',
+  inset: 0,
   background:
-    'radial-gradient(circle, rgba(116,190,255,0.18) 0%, rgba(155,225,29,0.08) 34%, rgba(116,190,255,0) 72%)',
+    'linear-gradient(180deg, rgba(125,211,252,0.08), transparent 42%), linear-gradient(135deg, transparent 58%, rgba(155,225,29,0.08))',
   pointerEvents: 'none',
 }
 
@@ -844,21 +538,13 @@ const loginPanelInner: CSSProperties = {
   flexDirection: 'column',
 }
 
-const loginBrandWrap: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  textAlign: 'center',
-  marginBottom: '18px',
-}
-
 const formCard: CSSProperties = {
   display: 'grid',
   gap: '12px',
   minWidth: 0,
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--foreground) 10%)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(15,23,42,0.66)',
   padding: '18px',
 }
 
@@ -904,8 +590,8 @@ const inputStyle: CSSProperties = {
   minWidth: 0,
   minHeight: '50px',
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   padding: '0 16px',
   fontSize: '15px',
@@ -930,8 +616,8 @@ const togglePasswordButton: CSSProperties = {
   maxWidth: '100%',
   padding: '0 16px',
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 84%, var(--brand-blue-2) 16%)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.08)',
   color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '13px',
@@ -943,8 +629,8 @@ const submitButton: CSSProperties = {
   minHeight: '50px',
   maxWidth: '100%',
   borderRadius: '16px',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.26), rgba(34,211,238,0.13))',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '15px',
@@ -972,8 +658,8 @@ const errorBanner: CSSProperties = {
 
 const successBanner: CSSProperties = {
   ...errorBanner,
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'rgba(155,225,29,0.11)',
+  border: '1px solid rgba(155,225,29,0.30)',
   color: 'var(--foreground-strong)',
   overflowWrap: 'anywhere',
 }
@@ -1012,17 +698,17 @@ const inlineLinkMuted: CSSProperties = {
 const loadingShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '40px auto',
-  padding: '0 24px',
+  boxSizing: 'border-box',
 }
 
 const loadingCard: CSSProperties = {
   borderRadius: '22px',
   padding: '18px 20px',
   color: 'var(--foreground-strong)',
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(8,13,28,0.66)',
+  border: '1px solid rgba(125,211,252,0.16)',
   fontSize: '15px',
   fontWeight: 700,
   display: 'flex',

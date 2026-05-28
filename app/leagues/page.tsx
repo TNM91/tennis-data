@@ -450,7 +450,7 @@ function LeagueCardItem({
       onMouseLeave={() => setHovered(false)}
       style={{
         ...leagueCard,
-        borderColor: hovered ? 'var(--brand-blue-2)' : 'var(--shell-panel-border)',
+        borderColor: hovered ? 'rgba(125, 211, 252, 0.44)' : 'rgba(125, 211, 252, 0.18)',
         transform: hovered ? 'translateY(-3px)' : 'none',
         boxShadow: 'var(--shadow-soft)',
         transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
@@ -578,8 +578,8 @@ function SearchIcon() {
 }
 
 const heroHintPill: CSSProperties = {
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.68)',
   color: 'var(--foreground-strong)',
   borderRadius: '999px',
   padding: '11px 16px',
@@ -595,10 +595,12 @@ const heroHintPill: CSSProperties = {
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '12px auto 0',
-  padding: '0 24px 0',
+  padding: 0,
   minWidth: 0,
+  boxSizing: 'border-box',
+  overflowX: 'clip',
 }
 
 const summaryGrid: CSSProperties = {
@@ -611,15 +613,15 @@ const summaryGrid: CSSProperties = {
 const metricCard: CSSProperties = {
   borderRadius: '20px',
   padding: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
 const metricCardAccent: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  border: '1px solid rgba(155,225,29,0.34)',
   boxShadow: 'var(--shadow-soft)',
 }
 
@@ -644,11 +646,13 @@ const metricValue: CSSProperties = {
 }
 
 const panelCard: CSSProperties = {
+  position: 'relative',
   borderRadius: '26px',
   padding: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  overflow: 'hidden',
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2, 8, 23, 0.48)',
   minWidth: 0,
   marginBottom: '16px',
   overflowWrap: 'anywhere',
@@ -728,8 +732,8 @@ const searchIconWrap: CSSProperties = {
 const searchInput: CSSProperties = {
   width: '100%',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground-strong)',
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
@@ -745,8 +749,8 @@ const clearFilterButton: CSSProperties = {
   minHeight: '38px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   cursor: 'pointer',
@@ -770,8 +774,8 @@ const selectStyle: CSSProperties = {
   width: '100%',
   height: '52px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
@@ -784,8 +788,8 @@ const stateBox: CSSProperties = {
   marginTop: '8px',
   borderRadius: '18px',
   padding: '18px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(15, 23, 42, 0.68)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
   color: 'var(--foreground-strong)',
   fontSize: '15px',
   lineHeight: 1.7,
@@ -814,8 +818,8 @@ const noticeBox: CSSProperties = {
   marginBottom: '14px',
   borderRadius: '16px',
   padding: '12px 14px',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-panel-bg) 88%)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(56,189,248,0.12)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
   color: 'var(--foreground-strong)',
   fontWeight: 600,
   fontSize: '14px',
@@ -836,7 +840,7 @@ const stateHelperTextStyle: CSSProperties = {
 const diagnosticWrap: CSSProperties = {
   marginTop: '16px',
   paddingTop: '16px',
-  borderTop: '1px solid var(--shell-panel-border)',
+  borderTop: '1px solid rgba(125, 211, 252, 0.14)',
   display: 'grid',
   gap: '10px',
   textAlign: 'left',
@@ -870,8 +874,8 @@ const diagnosticChipRow: CSSProperties = {
 const diagnosticChip: CSSProperties = {
   borderRadius: '999px',
   padding: '8px 12px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 700,
@@ -890,8 +894,8 @@ const diagnosticSampleList: CSSProperties = {
 const diagnosticSampleCard: CSSProperties = {
   borderRadius: '16px',
   padding: '12px 14px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -941,8 +945,8 @@ const leagueCard: CSSProperties = {
   overflow: 'hidden',
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-blue-2) 10%)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
   overflowWrap: 'anywhere',
@@ -1001,19 +1005,19 @@ const leagueMetaPillBase: CSSProperties = {
 
 const leagueMetaBluePill: CSSProperties = {
   ...leagueMetaPillBase,
-  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
+  background: 'rgba(56,189,248,0.14)',
   color: 'var(--foreground-strong)',
 }
 
 const leagueMetaGreenPill: CSSProperties = {
   ...leagueMetaPillBase,
-  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  background: 'rgba(155,225,29,0.14)',
   color: 'var(--foreground-strong)',
 }
 
 const leagueMetaSlatePill: CSSProperties = {
   ...leagueMetaPillBase,
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(15, 23, 42, 0.68)',
   color: 'var(--shell-copy-muted)',
 }
 
@@ -1058,9 +1062,9 @@ const primaryButton: CSSProperties = {
   minHeight: '44px',
   padding: '0 16px',
   borderRadius: '999px',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.32), rgba(34,211,238,0.16))',
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  border: '1px solid rgba(155,225,29,0.38)',
   fontWeight: 900,
   fontSize: '13px',
   letterSpacing: '0.01em',
@@ -1082,8 +1086,8 @@ const leagueDetailGrid: CSSProperties = {
 const detailCard: CSSProperties = {
   borderRadius: '18px',
   padding: '14px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -1107,7 +1111,7 @@ const detailValue: CSSProperties = {
 const leagueBottom: CSSProperties = {
   marginTop: '16px',
   paddingTop: '16px',
-  borderTop: '1px solid var(--shell-panel-border)',
+  borderTop: '1px solid rgba(125, 211, 252, 0.14)',
 }
 
 const leagueBottomMeta: CSSProperties = {

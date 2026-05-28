@@ -558,10 +558,23 @@ export async function createDirectConversation(
   recipient: InternalRecipient,
   subject: string,
   body: string,
+  options?: {
+    entityType?: string
+    entityId?: string
+    metadata?: Record<string, string>
+  },
 ) {
   const cleanBody = body.trim()
   if (!cleanBody) throw new Error('Add a message before starting the conversation.')
   if (recipient.id === identity.userId) throw new Error('Choose another TenAceIQ user to message.')
+
+  const entityType = options?.entityType?.trim() ?? ''
+  const entityId = options?.entityId?.trim() ?? ''
+  const metadata = normalizeMetadata({
+    ...(options?.metadata ?? {}),
+    entityType,
+    entityId,
+  })
 
   const { data, error } = await supabase
     .from('internal_conversations')
@@ -570,6 +583,9 @@ export async function createDirectConversation(
       subject: subject.trim() || `Message with ${recipient.displayName}`,
       status: 'open',
       created_by_user_id: identity.userId,
+      related_entity_type: entityType || null,
+      related_entity_id: entityId || null,
+      metadata,
     })
     .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, metadata, created_at, updated_at')
     .single()

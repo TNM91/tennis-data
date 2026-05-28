@@ -75,6 +75,32 @@ import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labe
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
 import { buildTiqLeagueSchedulingPlanRows, getTiqLeagueSchedulingHandoffSummary } from '@/lib/tiq-league-calendar'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import {
+  buildTiqAwardCertificateText,
+  buildTiqLeagueAwardCandidates,
+  readTiqAwardsForSource,
+  saveTiqAwardRecordForUser,
+  type TiqAwardRecord,
+  type TiqLeagueAwardCandidate,
+} from '@/lib/tiq-awards-registry'
+
+const emptyLeagueRegistryActions = [
+  { href: '#league-setup-form', label: 'Create league' },
+  { href: DATA_ASSIST_STORY.href, label: 'Upload season data' },
+  { href: '/compete/leagues', label: 'League directory' },
+] as const
+
+const emptyPublicReadinessActions = [
+  { href: '#league-setup-form', label: 'Create league' },
+  { href: DATA_ASSIST_STORY.href, label: 'Add data' },
+  { href: '/compete/leagues', label: 'Preview league lane' },
+] as const
+
+const emptyJoinRequestActions = [
+  { href: '#league-public-pages', label: 'Check public pages' },
+  { href: '/compete/leagues', label: 'Share league lane' },
+  { href: '#league-setup-form', label: 'Review setup' },
+] as const
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
   leagueFormat: 'team',
@@ -262,6 +288,7 @@ export function LeagueCoordinatorWorkspace() {
   const [entryRequestStatus, setEntryRequestStatus] = useState('')
   const [publicPageFilter, setPublicPageFilter] = useState<PublicPageReadinessFilter>('all')
   const [customSeasonLabelOpen, setCustomSeasonLabelOpen] = useState(false)
+  const [leagueAwardRefresh, setLeagueAwardRefresh] = useState(0)
 
   const refreshRegistry = useCallback(async () => {
     try {
@@ -572,6 +599,41 @@ export function LeagueCoordinatorWorkspace() {
       }),
     [individualLeagues, individualResults, individualSummaryByLeague],
   )
+  const leagueAwardRows = useMemo(() => {
+    void leagueAwardRefresh
+    const teamAwardRows = teamResultBookRows.map((row) => {
+      const candidates = buildTiqLeagueAwardCandidates(
+        row.standings.slice(0, 3).map((standing) => ({
+          recipientName: standing.teamName,
+          detail: `${standing.wins}-${standing.losses}-${standing.ties}`,
+        })),
+      )
+      return {
+        league: row.league,
+        mode: 'Team' as const,
+        candidates,
+        issuedAwards: readTiqAwardsForSource('league', row.league.id),
+        ready: candidates.some((candidate) => candidate.recipientName),
+      }
+    })
+
+    const individualAwardRows = individualResultBookRows.map((row) => {
+      const candidates = buildTiqLeagueAwardCandidates(
+        buildIndividualLeagueAwardFinishers(row.league, individualResults.filter((result) => result.leagueId === row.league.id)),
+      )
+      return {
+        league: row.league,
+        mode: 'Player' as const,
+        candidates,
+        issuedAwards: readTiqAwardsForSource('league', row.league.id),
+        ready: candidates.some((candidate) => candidate.recipientName),
+      }
+    })
+
+    return [...teamAwardRows, ...individualAwardRows]
+      .filter((row) => row.ready || row.issuedAwards.length > 0)
+      .sort((left, right) => Number(right.ready) - Number(left.ready) || new Date(right.league.updatedAt).getTime() - new Date(left.league.updatedAt).getTime())
+  }, [individualResultBookRows, individualResults, leagueAwardRefresh, teamResultBookRows])
   const resultBookNeedsAttention = individualResultBookRows.filter(
     (row) => row.league.players.length > 1 && (row.resultCount === 0 || row.recentCount === 0),
   ).length
@@ -679,7 +741,7 @@ export function LeagueCoordinatorWorkspace() {
     {
       label: 'Access',
       complete: access.canUseLeagueTools,
-      detail: access.canUseLeagueTools ? 'League tools are active.' : 'League access is not active yet.',
+      detail: access.canUseLeagueTools ? 'League workspace is active.' : 'League access is not active yet.',
       href: '/pricing#league',
       cta: 'See plan',
     },
@@ -698,11 +760,11 @@ export function LeagueCoordinatorWorkspace() {
       cta: 'Add participants',
     },
     {
-      label: 'Schedule',
+      label: 'Season window',
       complete: records.length > 0 && scheduleReadyLeagueCount === records.length && scheduleCapacityIssueCount === 0,
       detail: scheduleReadinessDetail,
       href: '#league-setup-form',
-      cta: scheduleCapacityIssueCount > 0 ? 'Fix cap' : 'Review schedule',
+      cta: scheduleCapacityIssueCount > 0 ? 'Fix cap' : 'Review setup',
     },
     {
       label: 'Sync',
@@ -746,11 +808,11 @@ export function LeagueCoordinatorWorkspace() {
       complete: activeParticipantCount > 0,
     },
     {
-      label: 'Schedule',
-      title: records.length > 0 && scheduleCapacityIssueCount === 0 ? 'Schedule capacity is clear' : 'Check schedule capacity',
+      label: 'Season window',
+      title: records.length > 0 && scheduleCapacityIssueCount === 0 ? 'Season capacity is clear' : 'Check season capacity',
       detail: scheduleReadinessDetail,
       href: '#league-setup-form',
-      cta: scheduleCapacityIssueCount > 0 ? 'Fix cap' : 'Review schedule',
+      cta: scheduleCapacityIssueCount > 0 ? 'Fix cap' : 'Review setup',
       complete: records.length > 0 && scheduleReadyLeagueCount === records.length && scheduleCapacityIssueCount === 0,
     },
     {
@@ -1039,6 +1101,33 @@ export function LeagueCoordinatorWorkspace() {
     }
   }
 
+  async function issueLeagueAward(league: TiqLeagueRecord, candidate: TiqLeagueAwardCandidate) {
+    if (!candidate.recipientName) {
+      setStatus('Add league results before creating this award.')
+      return
+    }
+
+    const result = await saveTiqAwardRecordForUser({
+      sourceType: 'league',
+      sourceId: league.id,
+      sourceName: league.leagueName,
+      recipientName: candidate.recipientName,
+      recipientPlayerId: candidate.recipientPlayerId,
+      placement: candidate.placement,
+      title: candidate.label,
+      subtitle: [league.seasonLabel, league.flight, league.locationLabel].filter(Boolean).join(' | ') || 'League season finish',
+      coordinatorName: '',
+      notes: league.notes,
+    }, userId)
+
+    setLeagueAwardRefresh((current) => current + 1)
+    setStatus(
+      result.data
+        ? `${candidate.label} award created for ${candidate.recipientName}.`
+        : 'That league award could not be created yet.',
+    )
+  }
+
   const responsivePageWrap = isMobile ? { ...pageWrap, ...mobilePageWrap } : pageWrap
   const responsivePanelCard = isMobile ? { ...panelCard, ...mobilePanelCard } : panelCard
   const responsiveLayoutGrid = singleColumnGrid
@@ -1068,6 +1157,65 @@ export function LeagueCoordinatorWorkspace() {
   const pendingTeamEntryRequests = teamEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
+  const sharedSchedulerItems = [
+    {
+      label: 'Schedule',
+      value: records.length ? `${scheduleReadyLeagueCount}/${records.length}` : 'Setup first',
+      ready: records.length > 0 && scheduleCapacityIssueCount === 0 && scheduleReadyLeagueCount === records.length,
+    },
+    {
+      label: 'Requests',
+      value: pendingEntryRequestCount ? `${pendingEntryRequestCount} pending` : 'Clear',
+      ready: pendingEntryRequestCount === 0,
+    },
+    {
+      label: 'Results',
+      value: hasResultReadyLeague ? `${resultQueueItemCount} cues` : 'After setup',
+      ready: hasResultReadyLeague && resultQueueItemCount === 0,
+    },
+  ]
+  const sharedSchedulerNextMove =
+    records.length === 0
+      ? {
+          label: 'Create the season shell',
+          detail: 'Add the first league before dates or scores can land on the shared calendar.',
+          href: '#league-setup-form',
+          cta: 'Add league',
+        }
+      : scheduleCapacityIssueCount > 0
+        ? {
+            label: 'Fix the season capacity',
+            detail: `${scheduleCapacityIssueCount} league${scheduleCapacityIssueCount === 1 ? '' : 's'} need a larger match-event cap before scheduling is clean.`,
+            href: '#league-setup-form',
+            cta: 'Fix cap',
+          }
+        : pendingEntryRequestCount > 0
+          ? {
+              label: 'Approve waiting participants',
+              detail: `${pendingEntryRequestCount} request${pendingEntryRequestCount === 1 ? '' : 's'} should be handled before the schedule is trusted.`,
+              href: '#league-registry',
+              cta: 'Review requests',
+            }
+          : !hasResultReadyLeague
+            ? {
+                label: 'Finish setup for results',
+                detail: 'A saved league with participants opens the result books and shared season path.',
+                href: '#league-setup-form',
+                cta: 'Finish setup',
+              }
+            : resultQueueItemCount > 0
+              ? {
+                  label: 'Clear result review cues',
+                  detail: resultQueueHeadline,
+                  href: resultEntryHref,
+                  cta: 'Review results',
+                }
+              : {
+                  label: 'Scheduler is current',
+                  detail: 'Schedule, approvals, and result books are ready for season review.',
+                  href: '/compete/schedule',
+                  cta: 'Open calendar',
+                }
   const schedulingPlanRows = buildTiqLeagueSchedulingPlanRows(draft)
   const schedulingHandoffSummary = getTiqLeagueSchedulingHandoffSummary(draft)
   const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
@@ -1078,89 +1226,111 @@ export function LeagueCoordinatorWorkspace() {
         {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
 
         <section style={startPanelStyle}>
-          <div style={leagueOpsHeaderStyle}>
-            <div style={leagueOpsHeaderCopyStyle}>
-              <div style={sectionEyebrow}>Start here</div>
-              <h2 style={leagueOpsTitleStyle}>
-                {access.canUseLeagueTools
-                  ? records.length > 0
-                    ? 'Your next Coordinator move is ready.'
-                    : 'Set up the first league workspace.'
-                  : 'Unlock League access to save league workspaces.'}
-              </h2>
-              <p style={leagueOpsTextStyle}>
-                {nextLeagueOpsStep.detail}
-              </p>
+          <span aria-hidden="true" style={portalWatermarkStyle} />
+          <div style={portalPanelContentStyle}>
+            <div style={leagueOpsHeaderStyle}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <div style={sectionEyebrow}>Start here</div>
+                <h1 style={leagueOpsTitleStyle}>
+                  {access.canUseLeagueTools
+                    ? records.length > 0
+                      ? 'Your next Coordinator move is ready.'
+                      : 'Set up the first league workspace.'
+                    : 'Unlock League access to save league workspaces.'}
+                </h1>
+                <p style={leagueOpsTextStyle}>
+                  {nextLeagueOpsStep.detail}
+                </p>
+              </div>
+              <div style={responsiveStartScoreStyle}>
+                <span>{leagueOpsReadinessScore}% ready</span>
+                <span style={leagueOpsTrackStyle}>
+                  <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
+                </span>
+              </div>
             </div>
-            <div style={responsiveStartScoreStyle}>
-              <span>{leagueOpsReadinessScore}% ready</span>
-              <span style={leagueOpsTrackStyle}>
-                <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
-              </span>
-            </div>
-          </div>
 
-          <div style={responsiveStartActionRowStyle}>
-            <div style={leagueOpsHeaderCopyStyle}>
-              <span style={startActionLabelStyle}>Next action</span>
-              <strong style={startActionTitleStyle}>{nextLeagueOpsStep.label}</strong>
+            <div style={responsiveStartActionRowStyle}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <span style={startActionLabelStyle}>Next action</span>
+                <strong style={startActionTitleStyle}>{nextLeagueOpsStep.label}</strong>
+              </div>
+              <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
             </div>
-            <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
-          </div>
 
-          <div style={startCardGridStyle}>
-            {coordinatorStartCards.map((item) => (
-              <Link key={item.label} href={item.href} style={item.complete ? startCardCompleteStyle : startCardStyle}>
-                <span style={item.complete ? pillGreen : pillSlate}>{item.label}</span>
-                <strong style={startCardTitleStyle}>{item.title}</strong>
-                <span style={startCardTextStyle}>{item.detail}</span>
-                <span style={startCardCtaStyle}>{item.cta}</span>
-              </Link>
-            ))}
+            <div style={startCardGridStyle}>
+              {coordinatorStartCards.map((item) => (
+                <Link key={item.label} href={item.href} style={item.complete ? startCardCompleteStyle : startCardStyle}>
+                  <span style={item.complete ? pillGreen : pillSlate}>{item.label}</span>
+                  <strong style={startCardTitleStyle}>{item.title}</strong>
+                  <span style={startCardTextStyle}>{item.detail}</span>
+                  <span style={startCardCtaStyle}>{item.cta}</span>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section style={commandCard}>
-          <div>
-            <div style={sectionEyebrow}>League workspace</div>
-            <h2 style={sectionTitle}>{records.length ? 'Your season tools are ready.' : 'Create the first league workspace.'}</h2>
-            <p style={sectionText}>
-              Approve players, keep the schedule visible, collect scores, review uploads, and let standings update around the season.
-            </p>
-          </div>
-          <div style={commandGrid}>
-            <div style={commandTile}>
-              <span style={commandLabel}>Leagues</span>
-              <strong style={commandValue}>{records.length}</strong>
-              <span style={commandText}>{teamLeagues.length} team - {individualLeagues.length} individual</span>
+        <section id="shared-calendar" style={commandCard}>
+          <span aria-hidden="true" style={portalWatermarkStyle} />
+          <div style={portalPanelContentStyle}>
+            <div>
+              <div style={sectionEyebrow}>League workspace</div>
+              <h2 style={sectionTitle}>{records.length ? 'Your season workspace is ready.' : 'Create the first league workspace.'}</h2>
+              <p style={sectionText}>
+                Approve players, keep the schedule visible, collect scores, review uploads, and let standings update around the season.
+              </p>
             </div>
-            <div style={commandTile}>
-              <span style={commandLabel}>Requests</span>
-              <strong style={commandValue}>{pendingEntryRequestCount}</strong>
-              <span style={commandText}>Waiting for review</span>
+            <div style={commandGrid}>
+              <div style={commandTile}>
+                <span style={commandLabel}>Leagues</span>
+                <strong style={commandValue}>{records.length}</strong>
+                <span style={commandText}>{teamLeagues.length} team - {individualLeagues.length} individual</span>
+              </div>
+              <div style={commandTile}>
+                <span style={commandLabel}>Requests</span>
+                <strong style={commandValue}>{pendingEntryRequestCount}</strong>
+                <span style={commandText}>Waiting for review</span>
+              </div>
+              <div style={commandTile}>
+                <span style={commandLabel}>Participants</span>
+                <strong style={commandValue}>{activeParticipantCount}</strong>
+                <span style={commandText}>Teams and players tracked</span>
+              </div>
+              <div style={commandTile}>
+                <span style={commandLabel}>Latest</span>
+                <strong style={commandValue}>{latestRecord?.leagueName || 'None yet'}</strong>
+                <span style={commandText}>{latestRecord ? formatDateTime(latestRecord.updatedAt) : 'Start with setup'}</span>
+              </div>
             </div>
-            <div style={commandTile}>
-              <span style={commandLabel}>Participants</span>
-              <strong style={commandValue}>{activeParticipantCount}</strong>
-              <span style={commandText}>Teams and players tracked</span>
+            <div style={sharedCalendarStripStyle} aria-label="Shared league scheduler">
+              <div style={sharedCalendarStripCopyStyle}>
+                <div style={sectionEyebrow}>Shared scheduler</div>
+                <strong>Dates, confirmations, and scores stay in one lane.</strong>
+              </div>
+              <div style={sharedCalendarReadinessGridStyle}>
+                {sharedSchedulerItems.map((item) => (
+                  <div key={item.label} style={sharedCalendarReadinessItemStyle}>
+                    <span style={item.ready ? readinessDotStyle : readinessDotMutedStyle} />
+                    <strong>{item.label}</strong>
+                    <em>{item.value}</em>
+                  </div>
+                ))}
+              </div>
+              <Link href={sharedSchedulerNextMove.href} style={sharedCalendarNextMoveStyle}>
+                <span style={sharedCalendarNextLabelStyle}>Next</span>
+                <span style={sharedCalendarNextCopyStyle}>
+                  <strong>{sharedSchedulerNextMove.label}</strong>
+                  <small>{sharedSchedulerNextMove.detail}</small>
+                </span>
+                <em>{sharedSchedulerNextMove.cta}</em>
+              </Link>
+              <div style={sharedCalendarStepGridStyle}>
+                <GhostLink href="#league-setup-form">Pending dates</GhostLink>
+                <GhostLink href="/compete/schedule">Confirmed calendar</GhostLink>
+                <GhostLink href={resultEntryHref}>Post results</GhostLink>
+              </div>
             </div>
-            <div style={commandTile}>
-              <span style={commandLabel}>Latest</span>
-              <strong style={commandValue}>{latestRecord?.leagueName || 'None yet'}</strong>
-              <span style={commandText}>{latestRecord ? formatDateTime(latestRecord.updatedAt) : 'Start with setup'}</span>
-            </div>
-          </div>
-          <div style={responsiveHeroActionRowStyle}>
-            {hasResultReadyLeague ? (
-              <>
-                {latestTeamLeague ? <GhostLink href={teamResultEntryHref}>Team results</GhostLink> : null}
-                {latestIndividualLeague ? <GhostLink href={individualResultEntryHref}>Individual results</GhostLink> : null}
-              </>
-            ) : (
-              <GhostLink href={resultEntryHref}>Record results</GhostLink>
-            )}
-            <GhostLink href="/compete/leagues">View leagues</GhostLink>
-            <GhostLink href="/explore/rankings">View rankings</GhostLink>
           </div>
         </section>
 
@@ -1202,7 +1372,7 @@ export function LeagueCoordinatorWorkspace() {
           </div>
         </details>
 
-        <details style={publicReadinessPanelStyle}>
+        <details id="league-public-pages" style={publicReadinessPanelStyle}>
           <summary style={responsiveDetailsSummary}>
             <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>Public page readiness</div>
@@ -1280,11 +1450,7 @@ export function LeagueCoordinatorWorkspace() {
               ))}
             </div>
           ) : (
-            <div style={emptyCard}>
-              {publicPageReadinessRows.length === 0
-                ? 'No TIQ league pages are ready yet. Save a team or individual league to start.'
-                : 'No public league pages match this filter.'}
-            </div>
+            <EmptyPublicReadinessPanel hasLeagueRows={publicPageReadinessRows.length > 0} />
           )}
         </details>
 
@@ -1458,7 +1624,7 @@ export function LeagueCoordinatorWorkspace() {
                       <small>
                         {row.leader
                           ? `${row.leader.wins}-${row.leader.losses}-${row.leader.ties}`
-                          : 'No standings yet'}
+                          : 'Standings start after results'}
                       </small>
                     </div>
                     <div style={resultBookMetricStyle}>
@@ -1558,6 +1724,66 @@ export function LeagueCoordinatorWorkspace() {
           </section>
         ) : null}
 
+        {leagueAwardRows.length > 0 ? (
+          <section style={leagueAwardPanelStyle}>
+            <div style={leagueOpsHeaderStyle}>
+              <div style={leagueOpsHeaderCopyStyle}>
+                <div style={sectionEyebrow}>League award studio</div>
+                <h2 style={leagueOpsTitleStyle}>Turn standings into certificates.</h2>
+                <p style={leagueOpsTextStyle}>
+                  Issue 1st, 2nd, and 3rd place league honors from team standings or individual results, then share the certificate or send players into their trophy case.
+                </p>
+              </div>
+              <span style={pillGreen}>Awards</span>
+            </div>
+            <div style={leagueAwardGridStyle}>
+              {leagueAwardRows.slice(0, 4).map((row) => (
+                <div key={row.league.id} style={leagueAwardCardStyle}>
+                  <div style={registryMetaRow}>
+                    <span style={row.mode === 'Team' ? pillGreen : pillBlue}>{row.mode} league</span>
+                    <span style={row.issuedAwards.length ? pillGreen : pillSlate}>
+                      {row.issuedAwards.length ? `${row.issuedAwards.length} issued` : 'Ready'}
+                    </span>
+                  </div>
+                  <div style={registryTitle}>{row.league.leagueName}</div>
+                  <div style={registryText}>
+                    {[row.league.seasonLabel, row.league.flight, row.league.locationLabel].filter(Boolean).join(' | ') || 'League season'}
+                  </div>
+                  <div style={leagueAwardCandidateGridStyle}>
+                    {row.candidates.map((candidate) => {
+                      const issuedAward = row.issuedAwards.find((award) => award.placement === candidate.placement)
+                      return (
+                        <div key={`${row.league.id}-${candidate.placement}`} style={leagueAwardCandidateStyle}>
+                          <div style={leagueAwardCandidateCopyStyle}>
+                            <span style={pillSlate}>{candidate.label}</span>
+                            <strong>{candidate.recipientName || 'Needs results'}</strong>
+                            <small>{candidate.helperText}</small>
+                          </div>
+                          {issuedAward ? (
+                            <div style={responsiveButtonRowStyle}>
+                              <GhostLink href={`/awards/${encodeURIComponent(issuedAward.id)}`}>Certificate</GhostLink>
+                              <GhostLink href={buildLeagueAwardMailto(issuedAward)}>Email</GhostLink>
+                              {issuedAward.recipientPlayerId ? (
+                                <GhostLink href={`/players/${encodeURIComponent(issuedAward.recipientPlayerId)}#profile-trophy-case`}>
+                                  Trophy case
+                                </GhostLink>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <GhostBtn onClick={() => void issueLeagueAward(row.league, candidate)}>
+                              Create award
+                            </GhostBtn>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         <section style={leagueOpsPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
             <div style={leagueOpsHeaderCopyStyle}>
@@ -1590,12 +1816,6 @@ export function LeagueCoordinatorWorkspace() {
                 <small>{item.detail}</small>
               </Link>
             ))}
-          </div>
-          <div style={responsiveHeroActionRowStyle}>
-            <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
-            {latestTeamLeague ? <GhostLink href={teamResultEntryHref}>Team results</GhostLink> : null}
-            {latestIndividualLeague ? <GhostLink href={individualResultEntryHref}>Individual results</GhostLink> : null}
-            {!hasResultReadyLeague ? <GhostLink href={resultEntryHref}>Record results</GhostLink> : null}
           </div>
         </section>
 
@@ -2303,7 +2523,7 @@ export function LeagueCoordinatorWorkspace() {
               </div>
               {entryRequestStatus ? <div style={statusBanner}>{entryRequestStatus}</div> : null}
               {pendingEntryRequestCount === 0 ? (
-                <div style={emptyCard}>No join requests are waiting right now.</div>
+                <EmptyJoinRequestPanel />
               ) : (
                 <div style={stackList}>
                   {[...pendingTeamEntryRequests, ...pendingPlayerEntryRequests].map((entry) => {
@@ -2341,10 +2561,7 @@ export function LeagueCoordinatorWorkspace() {
             </div>
 
             {records.length === 0 ? (
-              <div style={emptyCard}>
-                No TIQ leagues have been created yet. Start with a team league or an individual league to
-                create structure for participants, schedules, and results.
-              </div>
+              <EmptyLeagueRegistryPanel />
             ) : (
               <div style={stackList}>
                 {records.map((record) => {
@@ -2447,6 +2664,66 @@ export function LeagueCoordinatorWorkspace() {
   )
 }
 
+function buildIndividualLeagueAwardFinishers(
+  league: TiqLeagueRecord,
+  results: TiqIndividualLeagueResultRecord[],
+) {
+  const records = new Map<string, { name: string; playerId: string; wins: number; losses: number }>()
+
+  for (const playerName of league.players) {
+    if (!records.has(playerName.toLowerCase())) {
+      records.set(playerName.toLowerCase(), { name: playerName, playerId: '', wins: 0, losses: 0 })
+    }
+  }
+
+  for (const result of results) {
+    const players = [
+      { name: result.playerAName, id: result.playerAId },
+      { name: result.playerBName, id: result.playerBId },
+    ]
+
+    for (const player of players) {
+      const key = player.name.toLowerCase()
+      if (!records.has(key)) {
+        records.set(key, { name: player.name, playerId: player.id, wins: 0, losses: 0 })
+      } else if (player.id) {
+        records.get(key)!.playerId = player.id
+      }
+    }
+
+    const winnerKey = result.winnerPlayerName.toLowerCase()
+    const loserName = result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
+    const loserKey = loserName.toLowerCase()
+    if (records.has(winnerKey)) records.get(winnerKey)!.wins += 1
+    if (records.has(loserKey)) records.get(loserKey)!.losses += 1
+  }
+
+  return [...records.values()]
+    .filter((record) => record.wins > 0 || record.losses > 0)
+    .sort((left, right) => {
+      if (right.wins !== left.wins) return right.wins - left.wins
+      if (left.losses !== right.losses) return left.losses - right.losses
+      return left.name.localeCompare(right.name)
+    })
+    .slice(0, 3)
+    .map((record) => ({
+      recipientName: record.name,
+      recipientPlayerId: record.playerId,
+      detail: `${record.wins}-${record.losses}`,
+    }))
+}
+
+function buildLeagueAwardMailto(award: TiqAwardRecord) {
+  const certificateUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/awards/${encodeURIComponent(award.id)}`
+      : `/awards/${encodeURIComponent(award.id)}`
+  const subject = encodeURIComponent(`TenAceIQ ${award.badgeLabel}: ${award.recipientName}`)
+  const body = encodeURIComponent(`${buildTiqAwardCertificateText(award)}\n\nCertificate: ${certificateUrl}`)
+
+  return `mailto:?subject=${subject}&body=${body}`
+}
+
 function LeagueActionRow({
   league,
   resultHref = buildLeagueResultEntryHref(league),
@@ -2474,6 +2751,64 @@ function LeagueActionRow({
       <GhostLink href={resultHref}>{resultLabel}</GhostLink>
       {includeManage ? <GhostLink href={buildLeagueSetupHref(league)}>Manage</GhostLink> : null}
       {children}
+    </div>
+  )
+}
+
+function EmptyLeagueRegistryPanel() {
+  return (
+    <div style={emptyRegistryPanelStyle}>
+      <div style={emptyRegistryCopyStyle}>
+        <strong>League operations start with one season shell.</strong>
+        <span>Create a team or individual league, then bring in schedules, rosters, scorecards, and public pages from the same League lane.</span>
+      </div>
+      <div style={emptyRegistryActionRowStyle}>
+        {emptyLeagueRegistryActions.map((action) => (
+          <Link key={action.href} href={action.href} style={emptyRegistryActionStyle}>
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function EmptyPublicReadinessPanel({ hasLeagueRows }: { hasLeagueRows: boolean }) {
+  return (
+    <div style={emptyPublicReadinessPanelStyle}>
+      <div style={emptyPublicReadinessCopyStyle}>
+        <strong>{hasLeagueRows ? 'No pages match this view.' : 'Public pages start after one league is saved.'}</strong>
+        <span>
+          {hasLeagueRows
+            ? 'Switch the readiness filter or add the missing participants and results before sharing the league room.'
+            : 'Create the league shell, add participants, then use Data Assist or the result books to make the public page useful.'}
+        </span>
+      </div>
+      <div style={emptyPublicReadinessActionRowStyle}>
+        {(hasLeagueRows ? [{ href: '#league-public-pages', label: 'Show all pages' }, ...emptyPublicReadinessActions.slice(1)] : emptyPublicReadinessActions).map((action) => (
+          <Link key={action.href} href={action.href} style={emptyPublicReadinessActionStyle}>
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function EmptyJoinRequestPanel() {
+  return (
+    <div style={emptyJoinRequestPanelStyle}>
+      <div style={emptyJoinRequestCopyStyle}>
+        <strong>No join requests are waiting.</strong>
+        <span>Keep the league room shareable, confirm the setup is clear, then approve teams or players as requests arrive.</span>
+      </div>
+      <div style={emptyJoinRequestActionRowStyle}>
+        {emptyJoinRequestActions.map((action) => (
+          <Link key={action.href} href={action.href} style={emptyJoinRequestActionStyle}>
+            {action.label}
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }
@@ -2566,15 +2901,17 @@ function DangerBtn({ onClick, children }: { onClick: () => void; children: React
 const pageWrap: CSSProperties = {
   width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '18px 0 30px',
+  padding: '18px 0 64px',
   display: 'grid',
   gap: '18px',
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const mobilePageWrap: CSSProperties = {
   width: 'calc(100% - clamp(20px, 5vw, 28px))',
-  padding: '14px 0 24px',
+  padding: '14px 0 48px',
   gap: '14px',
 }
 
@@ -2637,11 +2974,13 @@ const commandCard: CSSProperties = {
   display: 'grid',
   gap: '18px',
   padding: 'clamp(18px, 3vw, 24px)',
-  borderRadius: '24px',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-soft)',
+  borderRadius: '26px',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+  boxShadow: '0 26px 78px rgba(2, 8, 23, 0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
+  position: 'relative',
+  overflow: 'hidden',
 }
 
 const commandGrid: CSSProperties = {
@@ -2656,9 +2995,10 @@ const commandTile: CSSProperties = {
   gap: '8px',
   padding: '16px',
   borderRadius: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(8, 16, 34, 0.72)',
   minWidth: 0,
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const commandLabel: CSSProperties = {
@@ -2688,6 +3028,111 @@ const commandText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const sharedCalendarStripStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: '12px',
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '14px',
+  borderRadius: '20px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const sharedCalendarStripCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const sharedCalendarReadinessGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const sharedCalendarReadinessItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: '2px 7px',
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '9px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.38)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const readinessDotStyle: CSSProperties = {
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+}
+
+const readinessDotMutedStyle: CSSProperties = {
+  ...readinessDotStyle,
+  background: 'rgba(116,190,255,0.46)',
+  boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
+}
+
+const sharedCalendarNextMoveStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gap: '10px',
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '11px',
+  borderRadius: '16px',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const sharedCalendarNextLabelStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 28,
+  padding: '0 9px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const sharedCalendarNextCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '3px',
+  minWidth: 0,
+  fontSize: '13px',
+  lineHeight: 1.35,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const sharedCalendarStepGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 135px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
 const leagueOpsPanelStyle: CSSProperties = {
   display: 'grid',
   gap: '14px',
@@ -2710,14 +3155,95 @@ const resultBookPanelStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const startPanelStyle: CSSProperties = {
+const leagueAwardPanelStyle: CSSProperties = {
   display: 'grid',
   gap: '14px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(8,18,36,0.92) 46%, rgba(116,190,255,0.07))',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const leagueAwardGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  gap: '12px',
+  minWidth: 0,
+}
+
+const leagueAwardCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  alignContent: 'start',
+  minWidth: 0,
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(8,16,34,0.72)',
+  overflowWrap: 'anywhere',
+}
+
+const leagueAwardCandidateGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const leagueAwardCandidateStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  alignItems: 'center',
+  gap: '10px',
+  minWidth: 0,
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const leagueAwardCandidateCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const startPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '20px',
+  borderRadius: '26px',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+  boxShadow: '0 26px 78px rgba(2, 8, 23, 0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+  position: 'relative',
+  overflow: 'hidden',
+}
+
+const portalWatermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-72px',
+  top: '-88px',
+  width: '260px',
+  aspectRatio: '1 / 1',
+  borderRadius: '999px',
+  border: '28px solid rgba(155,225,29,0.07)',
+  boxShadow: 'inset 0 0 0 2px rgba(125,211,252,0.05), 0 0 70px rgba(125,211,252,0.08)',
+  opacity: 0.72,
+  pointerEvents: 'none',
+}
+
+const portalPanelContentStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: '14px',
   minWidth: 0,
 }
 
@@ -3560,6 +4086,99 @@ const emptyCard: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   lineHeight: 1.7,
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyRegistryPanelStyle: CSSProperties = {
+  ...emptyCard,
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const emptyRegistryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyRegistryActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const emptyRegistryActionStyle: CSSProperties = {
+  ...ghostButton,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const emptyPublicReadinessPanelStyle: CSSProperties = {
+  ...emptyCard,
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const emptyPublicReadinessCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyPublicReadinessActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const emptyPublicReadinessActionStyle: CSSProperties = {
+  ...ghostButton,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const emptyJoinRequestPanelStyle: CSSProperties = {
+  ...emptyCard,
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const emptyJoinRequestCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyJoinRequestActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const emptyJoinRequestActionStyle: CSSProperties = {
+  ...ghostButton,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 

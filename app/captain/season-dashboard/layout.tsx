@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     absolute: 'League Coordinator | TenAceIQ',
   },
   description:
-    'Use TIQ League Coordinator tools to run leagues of players or teams with scheduling, standings, participation, and communication.',
+    'Use TIQ League Coordinator to run leagues of players or teams with scheduling, standings, participation, and communication.',
 }
 
 export default function LeagueCoordinatorLayout({ children }: { children: ReactNode }) {

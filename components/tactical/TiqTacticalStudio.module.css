@@ -1,0 +1,561 @@
+.studio {
+  color: #f8fbff;
+  margin: 0 auto;
+  max-width: 1540px;
+  padding: 30px 18px 44px;
+}
+
+.topbar,
+.hero,
+.panel,
+.scenarioBar,
+.boardFrame {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(145deg, rgba(7, 17, 31, 0.92), rgba(5, 11, 20, 0.84));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.topbar {
+  align-items: center;
+  border-radius: 22px;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.brand,
+.heroStats,
+.metaGrid,
+.actions,
+.controlRow,
+.timeline,
+.briefTypes {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.brand img {
+  height: 34px;
+  object-fit: contain;
+  width: 34px;
+}
+
+.brandWord,
+.scenarioTitle {
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+
+.brandWord span,
+.green {
+  color: #9be11d;
+}
+
+.navPills,
+.segment,
+.toolGrid,
+.modeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hero {
+  border-radius: 26px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 16px;
+  padding: 22px;
+}
+
+.gateHero {
+  align-items: stretch;
+  background:
+    radial-gradient(circle at 76% 16%, rgba(155, 225, 29, 0.13), transparent 34%),
+    linear-gradient(145deg, rgba(7, 17, 31, 0.95), rgba(5, 11, 20, 0.9));
+  gap: 28px;
+  grid-template-columns: minmax(520px, 1fr) minmax(320px, 0.55fr);
+  min-height: 420px;
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 44px);
+  position: relative;
+}
+
+.gateHero::after {
+  background:
+    linear-gradient(90deg, rgba(155, 225, 29, 0.44), transparent 28%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 19px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 19px);
+  content: "";
+  inset: auto -10% -26% 44%;
+  opacity: 0.34;
+  pointer-events: none;
+  position: absolute;
+  transform: skewY(-10deg);
+}
+
+.gateCopy,
+.gateStats {
+  position: relative;
+  z-index: 1;
+}
+
+.gateCopy {
+  align-self: center;
+  max-width: 820px;
+}
+
+.gateCopy h1 {
+  font-size: clamp(3rem, 7vw, 6.8rem);
+  line-height: 0.9;
+  max-width: 780px;
+}
+
+.gateCopy p {
+  font-size: clamp(1rem, 1.4vw, 1.24rem);
+  line-height: 1.55;
+  max-width: 760px;
+}
+
+.gateStats {
+  align-content: center;
+  display: grid;
+  gap: 12px;
+}
+
+.gateStats .stat {
+  backdrop-filter: blur(12px);
+  border-color: rgba(223, 248, 194, 0.14);
+  min-width: 0;
+}
+
+.eyebrow,
+.panelTitle,
+.statLabel,
+.scenarioTitleLabel,
+.field label,
+.metaPill small {
+  color: rgba(223, 248, 194, 0.78);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  font-size: clamp(2.1rem, 5vw, 4.8rem);
+  letter-spacing: -0.05em;
+  line-height: 0.92;
+  margin: 10px 0;
+  max-width: 850px;
+}
+
+.hero p,
+.template span,
+.scenarioNote,
+.briefing,
+.suggestions li,
+.field small {
+  color: rgba(248, 251, 255, 0.68);
+}
+
+.stat,
+.metaPill,
+.template,
+.controlCheck,
+.suggestions,
+.briefing,
+.jsonPreview {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 16px;
+}
+
+.stat {
+  min-width: 132px;
+  padding: 13px 15px;
+}
+
+.statValue {
+  font-size: 1.2rem;
+  font-weight: 950;
+}
+
+.workspace {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 280px minmax(0, 1fr) 330px;
+  margin-top: 14px;
+}
+
+.panel {
+  border-radius: 24px;
+  padding: 16px;
+}
+
+.panelTitle {
+  margin: 16px 0 9px;
+}
+
+.panelTitle:first-child {
+  margin-top: 0;
+}
+
+.template,
+.toolButton,
+.modeButton,
+.button,
+.importButton {
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.button,
+.toolButton,
+.modeButton,
+.importButton {
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.055);
+  border-radius: 14px;
+  color: rgba(248, 251, 255, 0.78);
+  font-size: 0.82rem;
+  font-weight: 900;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.button:hover,
+.toolButton:hover,
+.modeButton:hover,
+.template:hover,
+.importButton:hover {
+  border-color: rgba(155, 225, 29, 0.42);
+  color: #fff;
+}
+
+.importButton input {
+  display: none;
+}
+
+.primary,
+.active {
+  background: #9be11d;
+  border-color: transparent;
+  color: #07111f;
+}
+
+.template {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.template strong {
+  font-weight: 950;
+}
+
+.template + .template {
+  margin-top: 8px;
+}
+
+.toolGrid,
+.modeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scenarioBar {
+  border-radius: 24px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 12px;
+  padding: 14px;
+}
+
+.scenarioTitle {
+  font-size: 1.35rem;
+}
+
+.metaPill {
+  padding: 8px 11px;
+}
+
+.metaPill b {
+  display: block;
+  font-size: 0.84rem;
+  margin-top: 2px;
+}
+
+.boardFrame {
+  border-radius: 24px;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.board {
+  aspect-ratio: 3 / 2;
+  background: #020814;
+  border-radius: 18px;
+  isolation: isolate;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  width: 100%;
+}
+
+.courtImage {
+  height: 100%;
+  inset: 0;
+  object-fit: contain;
+  position: absolute;
+  user-select: none;
+  width: 100%;
+  z-index: 0;
+}
+
+.overlay {
+  inset: 0;
+  position: absolute;
+  z-index: 2;
+}
+
+.pathHandle {
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.pathHandle:active {
+  cursor: grabbing;
+}
+
+.token {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  display: grid;
+  height: 42px;
+  justify-items: center;
+  margin: -21px 0 0 -21px;
+  padding: 0;
+  position: absolute;
+  width: 42px;
+  z-index: 5;
+}
+
+.token svg {
+  filter: drop-shadow(0 0 7px rgba(155, 225, 29, 0.68));
+  height: 38px;
+  width: 38px;
+}
+
+.tokenLabel {
+  color: #f8fbff;
+  font-size: 0.7rem;
+  font-weight: 950;
+  margin-top: -6px;
+  text-shadow: 0 2px 6px rgba(2, 8, 18, 0.9);
+}
+
+.selected {
+  outline: 2px solid #9be11d;
+  outline-offset: 3px;
+}
+
+.zoneHandle {
+  background: rgba(155, 225, 29, 0.16);
+  border: 1px solid rgba(155, 225, 29, 0.72);
+  border-radius: 10px;
+  color: #dff8c2;
+  font-size: 0.68rem;
+  font-weight: 900;
+  position: absolute;
+  text-align: center;
+  z-index: 3;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 11px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  background: rgba(2, 8, 18, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 12px;
+  color: #f8fbff;
+  font: inherit;
+  min-width: 0;
+  padding: 10px 11px;
+}
+
+.field textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.twoCol {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.controlCheck {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+  padding: 8px 10px;
+}
+
+.meterTrack {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.meterFill {
+  background: linear-gradient(90deg, #9be11d, #20b7ff);
+  height: 100%;
+}
+
+.suggestions {
+  margin: 10px 0 0;
+  padding: 12px 12px 12px 26px;
+}
+
+.libraryList {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.libraryItem {
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 14px;
+  color: #f8fbff;
+  display: flex;
+  font: inherit;
+  justify-content: space-between;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.libraryRow {
+  align-items: stretch;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.libraryDelete {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 14px;
+  color: rgba(248, 251, 255, 0.66);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
+.libraryDelete:hover {
+  border-color: rgba(255, 194, 87, 0.42);
+  color: #ffc257;
+}
+
+.libraryItem strong {
+  font-size: 0.82rem;
+}
+
+.libraryItem span {
+  color: rgba(248, 251, 255, 0.58);
+  font-size: 0.72rem;
+}
+
+.toast {
+  background: rgba(155, 225, 29, 0.13);
+  border: 1px solid rgba(155, 225, 29, 0.42);
+  border-radius: 999px;
+  color: #dff8c2;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 8px 12px;
+}
+
+.timeline {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.briefing,
+.jsonPreview {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  max-height: 250px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+.jsonPreview {
+  color: rgba(223, 248, 194, 0.82);
+}
+
+@media (max-width: 1180px) {
+  .gateHero {
+    grid-template-columns: 1fr;
+  }
+
+  .gateStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .workspace {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .workspace > .panel:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 820px) {
+  .hero,
+  .scenarioBar,
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .gateHero {
+    min-height: 0;
+    padding: 24px;
+  }
+
+  .gateStats {
+    grid-template-columns: 1fr;
+  }
+
+  .gateCopy h1 {
+    font-size: clamp(2.4rem, 14vw, 4.2rem);
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

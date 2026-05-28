@@ -14,7 +14,7 @@ function styleBlock(source: string, styleName: string) {
 
 describe('League result workspace mobile layout guards', () => {
   it('keeps team result entry forms and scorekeeper cards mobile-safe', () => {
-    expect(teamSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(teamSource).toContain("import { AuthProvider, useAuth } from '@/app/components/auth-provider'")
     expect(teamSource).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
     expect(teamSource).toContain('if (!authResolved)')
     expect(teamSource).toContain('buildProductAccessState(role, entitlements)')
@@ -33,19 +33,19 @@ describe('League result workspace mobile layout guards', () => {
       'lineTypeRow',
       'scorekeeperGrid',
       'scorekeeperTile',
-      'flowStrip',
-      'flowStep',
       'actionRow',
       'detailsCard',
       'detailsSummary',
       'readinessPanel',
       'readinessGrid',
       'readinessItem',
+      'emptyResultPanel',
+      'emptyResultCopy',
+      'emptyResultActions',
     ]) {
       expect(styleBlock(teamSource, styleName)).toContain('minWidth: 0')
     }
 
-    expect(styleBlock(teamSource, 'flowStep')).toContain("gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)'")
     expect(teamSource).toContain('<div style={eventHeaderCopy}>')
     expect(teamSource).toContain('<div style={eventTitleText}>')
     expect(teamSource).toContain('<div style={eventMetaText}>')
@@ -59,16 +59,19 @@ describe('League result workspace mobile layout guards', () => {
     expect(styleBlock(teamSource, 'lineScoreText')).toContain("maxWidth: '100%'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain("color: 'var(--foreground-strong)'")
-    expect(styleBlock(teamSource, 'btnPrimary')).toContain('color-mix(in srgb, var(--brand-green)')
+    expect(styleBlock(teamSource, 'btnPrimary')).toContain('rgba(155,225,29,0.28)')
     expect(styleBlock(teamSource, 'lineCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'scorekeeperTile')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'pill')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(teamSource, 'emptyResultActions')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(teamSource, 'emptyResultAction')).toContain("maxWidth: '100%'")
+    expect(styleBlock(teamSource, 'emptyResultAction')).toContain("whiteSpace: 'normal'")
     expect(teamSource).toContain("gap: 8, marginTop: 8, flexWrap: 'wrap', minWidth: 0")
     expect(teamSource).not.toContain("color: '#0a0a0a'")
   })
 
   it('keeps individual result forms, standings, and review cards mobile-safe', () => {
-    expect(individualSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(individualSource).toContain("import { AuthProvider, useAuth } from '@/app/components/auth-provider'")
     expect(individualSource).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
     expect(individualSource).toContain('if (!authResolved)')
     expect(individualSource).toContain('buildProductAccessState(role, entitlements)')
@@ -84,8 +87,6 @@ describe('League result workspace mobile layout guards', () => {
       'inputStyle',
       'scorekeeperGrid',
       'scorekeeperTile',
-      'flowStrip',
-      'flowStep',
       'readinessPanel',
       'readinessGrid',
       'readinessItem',
@@ -97,12 +98,14 @@ describe('League result workspace mobile layout guards', () => {
       'standingRow',
       'standingCopy',
       'metricStack',
+      'emptyResultPanel',
+      'emptyResultCopy',
+      'emptyResultActions',
       'reviewToolbar',
     ]) {
       expect(styleBlock(individualSource, styleName)).toContain('minWidth: 0')
     }
 
-    expect(styleBlock(individualSource, 'flowStep')).toContain("gridTemplateColumns: 'minmax(0, 32px) minmax(0, 1fr)'")
     expect(styleBlock(individualSource, 'standingRow')).toContain("'minmax(0, 32px) minmax(0, 1fr) minmax(0, auto)'")
     expect(styleBlock(individualSource, 'standingRow')).toContain("overflowWrap: 'anywhere'")
     expect(individualSource).toContain('<div style={standingCopy}>')
@@ -114,6 +117,9 @@ describe('League result workspace mobile layout guards', () => {
     expect(styleBlock(individualSource, 'resultCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'resultTitle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'metricStack')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(individualSource, 'emptyResultActions')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(individualSource, 'emptyResultAction')).toContain("maxWidth: '100%'")
+    expect(styleBlock(individualSource, 'emptyResultAction')).toContain("whiteSpace: 'normal'")
     expect(individualSource).not.toContain("'32px minmax(0, 1fr) auto'")
     expect(individualSource).not.toContain("gridTemplateColumns: '32px minmax(0, 1fr)'")
     expect(individualSource).not.toContain("color: '#0a0a0a'")

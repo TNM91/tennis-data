@@ -4,18 +4,18 @@ import type { ReactNode } from 'react'
 export const metadata: Metadata = {
   title: 'Pricing and Tiers',
   description:
-    'Compare TenAceIQ Free, Player, Captain, and TIQ League Coordinator tiers for tennis discovery, personal prep, team decisions, and league operations.',
+    'Compare TenAceIQ Free, Player, Captain, League, and Full-Court tiers for tennis discovery, prep, team decisions, tournaments, and league operations.',
   openGraph: {
     title: 'TenAceIQ Pricing and Tiers',
     description:
-      'Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
+      'Choose the right TenAceIQ tier for free discovery, Player insight, Captain decisions, League operations, or Full-Court.',
     url: '/pricing',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TenAceIQ Pricing and Tiers',
     description:
-      'Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
+      'Choose the right TenAceIQ tier for free discovery, Player insight, Captain decisions, League operations, or Full-Court.',
   },
 }
 

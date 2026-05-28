@@ -13,20 +13,12 @@ import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import BrandWordmark from '@/app/components/brand-wordmark'
-import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 
-const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
-
-const JOIN_PLAN_ICON_BY_ID: Record<MembershipTierId, TiqFeatureIconName> = {
-  free: 'opponentScouting',
-  player_plus: 'myLab',
-  captain: 'lineupBuilder',
-  league: 'teamRankings',
-}
+const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
 const JOIN_INTENT_COPY: Record<MembershipTierId, {
   eyebrow: string
@@ -40,9 +32,9 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
   free: {
     eyebrow: 'Create your account',
     mobileTitle: 'Start free.',
-    desktopTitle: 'Start free. Add tools when you need them.',
+    desktopTitle: 'Start free. Add workspaces when you need them.',
     mobileText: 'Create an account and explore tennis context.',
-    desktopText: 'Explore tennis context first. Upgrade when you want My Lab, team-week tools, or league operations.',
+    desktopText: 'Explore tennis context first. Upgrade when you want My Lab, Captain, or League operations.',
     formCue: 'Create the free account first. Your tier path stays simple from there.',
     success: 'Account created. Sign in, then explore the tennis map.',
   },
@@ -51,70 +43,61 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
     mobileTitle: 'Set up your lab.',
     desktopTitle: 'Create your account. Make TenAceIQ personal.',
     mobileText: 'Create the free account first. Player unlocks after the plan is active.',
-    desktopText: 'Player starts with a free account, then unlocks My Lab, follows, matchup reads, and player-linked prep after the plan is active.',
-    formCue: 'Signup creates Free access. Activate Player next, then connect your player record so My Lab can revolve around your tennis.',
-    success: 'Free account created. Sign in, then activate Player and connect your player identity for My Lab.',
+    desktopText: 'Player starts with a free account, then unlocks My Lab, Improve data, Prep matchup, and Messages after the plan is active.',
+    formCue: 'Signup creates Free access. Activate Player next, then open My Lab so TenAceIQ can revolve around your tennis.',
+    success: 'Free account created. Sign in, then activate Player and open My Lab.',
+  },
+  coach: {
+    eyebrow: 'Coach path',
+    mobileTitle: 'Set up Coach.',
+    desktopTitle: 'Create your account. Develop players with a connected workspace.',
+    mobileText: 'Create the free account first. Coach unlocks after the plan is active.',
+    desktopText: 'Coach starts with a free account, then unlocks lesson planning, student tracking, assignments, scheduling, and tactical boards after the plan is active.',
+    formCue: 'Signup creates Free access. Activate Coach next, then open Tactical Studio and your coaching workflow.',
+    success: 'Free account created. Sign in, then activate Coach to open the coaching workspace.',
   },
   captain: {
-    eyebrow: 'Captain path',
+    eyebrow: 'Team path',
     mobileTitle: 'Set up Captain.',
     desktopTitle: 'Create your account. Run the team week.',
     mobileText: 'Create the free account first. Captain unlocks after the plan is active.',
     desktopText: 'Captain starts with a free account, then unlocks lineups, scouting, readiness, and weekly team decisions after the plan is active.',
     formCue: 'Signup creates Free access. Activate Captain next, then open the team-week workflow.',
-    success: 'Free account created. Sign in, then activate Captain to open team-week tools.',
+    success: 'Free account created. Sign in, then activate Captain to open the team-week workspace.',
   },
   league: {
-    eyebrow: 'Coordinator path',
-    mobileTitle: 'Set up league tools.',
+    eyebrow: 'League path',
+    mobileTitle: 'Set up League.',
     desktopTitle: 'Create your account. Operate the season.',
-    mobileText: 'Create the free account first. Coordinator tools unlock after access is active.',
-    desktopText: 'Coordinator starts with a free account, then unlocks league structure, visibility, rankings, schedules, results, and admin workflows after access is active.',
-    formCue: 'Signup creates Free access. Activate Coordinator access next, then move into league setup.',
-    success: 'Free account created. Sign in, then activate Coordinator access to continue league setup.',
+    mobileText: 'Create the free account first. League unlocks after access is active.',
+    desktopText: 'League starts with a free account, then unlocks shared calendar, league spaces, team books, and player books after access is active.',
+    formCue: 'Signup creates Free access. Activate League access next, then move into the season workspace.',
+    success: 'Free account created. Sign in, then activate League access to continue season setup.',
   },
-}
-
-const JOIN_UNLOCK_STEPS: Record<MembershipTierId, string[]> = {
-  free: ['Create free account', 'Explore public tennis context', 'Upgrade only when a tool helps'],
-  player_plus: ['Create free account', 'Activate Player plan', 'Connect identity and open My Lab'],
-  captain: ['Create free account', 'Activate Captain plan', 'Start lineup and readiness work'],
-  league: ['Create free account', 'Activate Coordinator access', 'Structure teams, players, and results'],
+  full_court: {
+    eyebrow: 'Full-Court path',
+    mobileTitle: 'Set up the full suite.',
+    desktopTitle: 'Create your account. Run the full court.',
+    mobileText: 'Create the free account first. Full-Court unlocks after the plan is active.',
+    desktopText: 'Full-Court starts with a free account, then unlocks Player, Coach, Captain, League, and unlimited tournaments after the plan is active.',
+    formCue: 'Signup creates Free access. Activate Full-Court next, then open the full tennis operations workspace.',
+    success: 'Free account created. Sign in, then activate Full-Court to open the full suite.',
+  },
 }
 
 function getJoinNextRoute(planId: MembershipTierId) {
   return getPlanUnlockHref(planId, getPlanDestinationHref(planId))
 }
 
-const SETUP_STEPS: {
-  title: string
-  text: string
-  icon: TiqFeatureIconName
-}[] = [
-  {
-    title: 'Explore free',
-    text: 'Search players, teams, leagues, and rankings first.',
-    icon: 'opponentScouting',
-  },
-  {
-    title: 'Connect your player',
-    text: 'Player and higher tiers set identity once.',
-    icon: 'accountSecurity',
-  },
-  {
-    title: 'Open your lab',
-    text: 'My Lab and Matchup start around your game.',
-    icon: 'myLab',
-  },
-]
-
 function getDefaultSignedInRoute(
   role: UserRole,
   entitlements?: ProductEntitlementSnapshot | null,
 ) {
   const access = buildProductAccessState(role, entitlements)
+  if (access.currentPlanId === 'full_court') return '/league-coordinator'
   if (access.currentPlanId === 'league') return '/league-coordinator'
   if (access.currentPlanId === 'captain') return '/captain'
+  if (access.currentPlanId === 'coach') return '/coach'
   if (access.canUseAdvancedPlayerInsights) return '/profile'
   return '/mylab'
 }
@@ -141,7 +124,7 @@ function JoinContent() {
   const [submitHovered, setSubmitHovered] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const requestedPlan = searchParams.get('plan')
   const selectedPlanId: MembershipTierId = JOIN_PLAN_IDS.includes(requestedPlan as MembershipTierId)
     ? (requestedPlan as MembershipTierId)
@@ -150,12 +133,6 @@ function JoinContent() {
   const selectedTier = getMembershipTier(selectedPlanId)
   const selectedNextRoute = isSafeLocalNextHref(searchParams.get('next'), getJoinNextRoute(selectedPlanId))
   const authLoading = !authResolved
-  const joinPlanChoices = JOIN_PLAN_IDS.map((planId) => ({
-    id: planId,
-    tier: getMembershipTier(planId),
-    selected: planId === selectedPlanId,
-    href: planId === 'free' ? '/join' : `/join?plan=${planId}`,
-  }))
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
@@ -217,9 +194,10 @@ function JoinContent() {
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
-    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
-    padding: isMobile ? '22px 18px' : '34px 26px',
-    gap: isMobile ? '14px' : '24px',
+    width: isMobile ? 'min(100% - 20px, 680px)' : 'min(720px, calc(100% - clamp(24px, 5vw, 40px)))',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    padding: isMobile ? '18px' : '24px',
+    gap: isMobile ? '12px' : '14px',
   }
 
   const loginPanelResponsive: CSSProperties = {
@@ -251,32 +229,29 @@ function JoinContent() {
 
   return (
     <section style={heroShellResponsive}>
-        <div>
+        <span aria-hidden="true" style={watermarkStyle} />
+        <div style={joinCopyRailStyle}>
           <div style={eyebrow}>{selectedIntent.eyebrow}</div>
-          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '32px' : isMobile ? '36px' : '58px' }}>
-            {isMobile ? selectedIntent.mobileTitle : selectedIntent.desktopTitle}
+          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
+            Create your account.
           </h1>
-          <p style={{ ...heroText, fontSize: isSmallMobile ? '16px' : '18px' }}>
-            {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
+          <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
+            Start free. TenAceIQ will point you to the right next step after signup.
           </p>
 
           <div style={selectedPlanCardStyle}>
-            <div style={selectedPlanLabelStyle}>Selected path</div>
+            <div style={selectedPlanLabelStyle}>Selected start</div>
             <div style={selectedPlanTitleStyle}>{selectedTier.name}</div>
-            <div style={selectedPlanTextStyle}>{selectedTier.upgradeCue}</div>
+            <div style={selectedPlanTextStyle}>
+              {selectedPlanId === 'free'
+                ? 'Explore the tennis map first. Upgrade only when a workspace saves you time.'
+                : `${selectedTier.name} opens after account creation and plan activation.`}
+            </div>
             {selectedPlanId !== 'free' ? (
               <div style={entitlementNoticeStyle}>
-                Account creation starts Free access. {selectedTier.name} opens after the plan is active.
+                Account creation starts Free access first.
               </div>
             ) : null}
-            <div style={selectedPlanStepGridStyle}>
-              {JOIN_UNLOCK_STEPS[selectedPlanId].map((step, index) => (
-                <span key={step} style={selectedPlanStepStyle}>
-                  <strong>{index + 1}</strong>
-                  {step}
-                </span>
-              ))}
-            </div>
             <div style={selectedPlanActionRowStyle}>
               <Link href="/pricing" style={selectedPlanLinkStyle}>
                 Compare tiers
@@ -286,58 +261,13 @@ function JoinContent() {
               </Link>
             </div>
           </div>
-
-          <div style={pathPickerStyle} aria-label="Choose signup path">
-            {joinPlanChoices.map((choice) => (
-              <Link
-                key={choice.id}
-                href={choice.href}
-                aria-current={choice.selected ? 'page' : undefined}
-                style={{
-                  ...pathPickerCardStyle,
-                  ...(choice.selected ? pathPickerCardActiveStyle : null),
-                }}
-              >
-                <TiqFeatureIcon name={JOIN_PLAN_ICON_BY_ID[choice.id]} size="sm" variant={choice.selected ? 'surface' : 'ghost'} />
-                <span style={pathPickerCopyStyle}>
-                  <strong>{choice.tier.name}</strong>
-                  <small>{choice.tier.shortPromise}</small>
-                </span>
-              </Link>
-            ))}
-          </div>
-
-          {isMobile ? (
-            <div style={mobilePromiseBar}>
-              <span style={mobilePromiseChip}>Explore</span>
-              <span style={mobilePromiseChip}>Connect</span>
-              <span style={mobilePromiseChip}>Play smarter</span>
-            </div>
-          ) : (
-            <div style={joinPromisePanel}>
-              <div style={promiseLabel}>Simple setup</div>
-              <div style={promiseStack}>
-                {SETUP_STEPS.map((step) => (
-                  <JoinPromiseStep key={step.title} icon={step.icon} title={step.title} text={step.text} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div style={loginPanelResponsive}>
           <div style={loginPanelGlow} />
           <div style={loginPanelInnerResponsive}>
-            {!isMobile ? (
-              <div style={loginBrandWrap}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-                  <BrandWordmark compact={isSmallMobile} top={!isSmallMobile} />
-                </div>
-              </div>
-            ) : null}
-
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
-              <div style={formLabel}>New member setup</div>
+              <div style={formLabel}>More Tennis. Less Chaos.</div>
               <h2 style={isMobile ? formTitleMobile : formTitle}>Create your account</h2>
               <div style={identityCueStyle}>
                 <TiqFeatureIcon name="accountSecurity" size="sm" variant="ghost" />
@@ -472,29 +402,33 @@ function JoinContent() {
   )
 }
 
-function JoinPromiseStep({ icon, title, text }: { icon: TiqFeatureIconName; title: string; text: string }) {
-  return (
-    <div style={promiseStep}>
-      <TiqFeatureIcon name={icon} size="sm" variant="ghost" />
-      <div>
-        <div style={promiseTitle}>{title}</div>
-        <div style={promiseText}>{text}</div>
-      </div>
-    </div>
-  )
-}
-
 const heroShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   minWidth: 0,
   margin: '14px auto 24px',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  overflow: 'hidden',
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2, 8, 23, 0.48)',
+  boxSizing: 'border-box',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-110px',
+  top: '-118px',
+  width: 'clamp(220px, 24vw, 310px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  pointerEvents: 'none',
+  opacity: 0.16,
+  background:
+    'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.88) 0 7%, transparent 8%), radial-gradient(circle at 50% 50%, rgba(155,225,29,0.96) 0 48%, rgba(155,225,29,0.1) 49%, transparent 58%)',
+  boxShadow: '0 0 80px rgba(155,225,29,0.22)',
 }
 
 const eyebrow: CSSProperties = {
@@ -505,8 +439,8 @@ const eyebrow: CSSProperties = {
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
-  border: '1px solid var(--home-eyebrow-border)',
-  background: 'var(--home-eyebrow-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.24)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--home-eyebrow-color)',
   fontWeight: 800,
   fontSize: '15px',
@@ -537,17 +471,22 @@ const heroText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const joinCopyRailStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
 const selectedPlanCardStyle: CSSProperties = {
   display: 'grid',
-  gap: '7px',
-  width: 'min(100%, 560px)',
+  gap: '6px',
+  width: '100%',
   minWidth: 0,
-  margin: '18px 0 0',
-  padding: '16px',
-  borderRadius: '22px',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-green) 10%) 0%, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--brand-blue-2) 4%) 100%)',
+  margin: '2px 0 0',
+  padding: '12px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(34,211,238,0.08))',
 }
 
 const selectedPlanLabelStyle: CSSProperties = {
@@ -560,7 +499,7 @@ const selectedPlanLabelStyle: CSSProperties = {
 
 const selectedPlanTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: '22px',
+  fontSize: '19px',
   lineHeight: 1,
   fontWeight: 900,
 }
@@ -574,37 +513,14 @@ const selectedPlanTextStyle: CSSProperties = {
 }
 
 const entitlementNoticeStyle: CSSProperties = {
-  padding: '10px 12px',
-  borderRadius: '14px',
+  padding: '8px 10px',
+  borderRadius: '12px',
   border: '1px solid rgba(251,191,36,0.24)',
   background: 'rgba(251,191,36,0.08)',
   color: 'var(--foreground-strong)',
-  fontSize: '13px',
+  fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 800,
-}
-
-const selectedPlanStepGridStyle: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  marginTop: '4px',
-}
-
-const selectedPlanStepStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
-  gap: '8px',
-  minWidth: 0,
-  alignItems: 'center',
-  minHeight: '34px',
-  padding: '5px 9px',
-  borderRadius: '14px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
-  fontSize: '12px',
-  fontWeight: 850,
-  overflowWrap: 'anywhere',
 }
 
 const selectedPlanActionRowStyle: CSSProperties = {
@@ -622,123 +538,12 @@ const selectedPlanLinkStyle: CSSProperties = {
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontSize: '13px',
   fontWeight: 900,
-  overflowWrap: 'anywhere',
-}
-
-const pathPickerStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-  gap: '9px',
-  width: 'min(100%, 760px)',
-  minWidth: 0,
-  marginTop: '14px',
-}
-
-const pathPickerCardStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '34px minmax(0, 1fr)',
-  gap: '9px',
-  alignItems: 'center',
-  minHeight: '70px',
-  padding: '10px',
-  borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(255,255,255,0.035)',
-  color: 'var(--foreground)',
-  textDecoration: 'none',
-  minWidth: 0,
-}
-
-const pathPickerCardActiveStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
-  background: 'color-mix(in srgb, rgba(255,255,255,0.045) 82%, var(--brand-green) 18%)',
-}
-
-const pathPickerCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: '3px',
-  minWidth: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: '13px',
-  lineHeight: 1.2,
-  overflowWrap: 'anywhere',
-}
-
-const joinPromisePanel: CSSProperties = {
-  marginTop: '24px',
-  minWidth: 0,
-  borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: '18px',
-  maxWidth: '900px',
-}
-
-const mobilePromiseBar: CSSProperties = {
-  display: 'flex',
-  gap: '8px',
-  flexWrap: 'wrap',
-  marginTop: '10px',
-}
-
-const mobilePromiseChip: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: '32px',
-  padding: '0 11px',
-  borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
-  fontSize: '13px',
-  fontWeight: 800,
-}
-
-const promiseLabel: CSSProperties = {
-  color: 'var(--home-eyebrow-color)',
-  fontSize: '12px',
-  fontWeight: 900,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: '14px',
-}
-
-const promiseStack: CSSProperties = {
-  display: 'grid',
-  gap: '10px',
-}
-
-const promiseStep: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)',
-  gap: '12px',
-  minWidth: 0,
-  alignItems: 'center',
-  borderRadius: '18px',
-  padding: '14px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-}
-
-const promiseTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '16px',
-  lineHeight: 1.35,
-  fontWeight: 900,
-  overflowWrap: 'anywhere',
-}
-
-const promiseText: CSSProperties = {
-  marginTop: '4px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.6,
   overflowWrap: 'anywhere',
 }
 
@@ -747,8 +552,8 @@ const loginPanel: CSSProperties = {
   minWidth: 0,
   borderRadius: '30px',
   overflow: 'hidden',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
   boxShadow: 'var(--shadow-soft)',
 }
 
@@ -774,21 +579,13 @@ const loginPanelInner: CSSProperties = {
   flexDirection: 'column',
 }
 
-const loginBrandWrap: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  textAlign: 'center',
-  marginBottom: '18px',
-}
-
 const formCard: CSSProperties = {
   display: 'grid',
   gap: '12px',
   minWidth: 0,
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--foreground) 10%)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.62)',
   padding: '18px',
 }
 
@@ -829,8 +626,8 @@ const identityCueStyle: CSSProperties = {
   alignItems: 'center',
   padding: '10px 12px',
   borderRadius: '16px',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  border: '1px solid rgba(155,225,29,0.2)',
+  background: 'rgba(155,225,29,0.08)',
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 800,
@@ -851,8 +648,8 @@ const inputStyle: CSSProperties = {
   minWidth: 0,
   minHeight: '50px',
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
   color: 'var(--foreground-strong)',
   padding: '0 16px',
   fontSize: '15px',
@@ -890,8 +687,8 @@ const togglePasswordButton: CSSProperties = {
   maxWidth: '100%',
   padding: '0 16px',
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 84%, var(--brand-blue-2) 16%)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(56,189,248,0.12)',
   color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '13px',
@@ -903,8 +700,8 @@ const submitButton: CSSProperties = {
   minHeight: '50px',
   maxWidth: '100%',
   borderRadius: '16px',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid rgba(155,225,29,0.38)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.32), rgba(34,211,238,0.16))',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '15px',
@@ -961,17 +758,19 @@ const inlineLink: CSSProperties = {
 const loadingShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '40px auto',
-  padding: '0 24px',
+  padding: 0,
+  boxSizing: 'border-box',
+  overflowX: 'clip',
 }
 
 const loadingCard: CSSProperties = {
   borderRadius: '22px',
   padding: '18px 20px',
   color: 'var(--foreground-strong)',
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--portal-surface-bg)',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
   fontSize: '15px',
   fontWeight: 700,
 }

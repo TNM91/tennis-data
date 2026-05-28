@@ -6,50 +6,42 @@ import CompetePageFrame, {
 export default function CompetePage() {
   return (
     <CompetePageFrame
-      eyebrow="Weekly workflow"
-      title="This week, ready to act."
-      description="Leagues, teams, schedule, results, and data refresh stay one click apart."
+      eyebrow="League hub"
+      title="Run the season."
+      description="Shared calendar, tournaments, team results, and player results stay in one operating lane."
     >
       <CompeteGrid>
         <CompeteCard
-          href="/compete/leagues"
-          meta="Competition context"
-          title="My Leagues"
-          text="Team leagues and player leagues, split cleanly with the next action visible."
-          icon="teamRankings"
-          action="Check leagues"
-        />
-        <CompeteCard
-          href="/compete/teams"
-          meta="Roster context"
-          title="My Teams"
-          text="Open roster context and jump into availability, lineups, and messaging."
-          icon="lineupBuilder"
-          action="Open teams"
-        />
-        <CompeteCard
           href="/compete/schedule"
-          meta="What is next"
-          title="Schedule"
-          text="Upcoming dates, opponents, and prep links in one surface."
+          meta="Shared scheduling"
+          title="Shared calendar"
+          text="Publish, propose, confirm, and track match dates for everyone in the league."
           icon="schedule"
-          action="See next"
+          action="Open calendar"
         />
         <CompeteCard
-          href="/compete/results"
-          meta="What happened"
-          title="Results"
-          text="Recent outcomes, movement, and matchup handoffs for the next week."
+          href="/league-coordinator/tournaments"
+          meta="Full-Court"
+          title="Build tournament"
+          text="Create a draw, seed entrants, schedule courts, and finish with awards from one room."
+          icon="teamRankings"
+          action="Build tournament"
+        />
+        <CompeteCard
+          href="/league-coordinator/results"
+          meta="Team results"
+          title="Team book"
+          text="Record team match events, line scores, and the results that move standings."
           icon="reports"
-          action="Review results"
+          action="Open team book"
         />
         <CompeteCard
-          href="/data-assist"
-          meta="Community assist"
-          title="Data Assist"
-          text="Upload schedules, scorecards, and roster changes for review."
-          icon="accountSecurity"
-          action="Refresh data"
+          href="/league-coordinator/individual-results"
+          meta="Player results"
+          title="Player book"
+          text="Log one-on-one results for ladders, round robins, and challenge leagues."
+          icon="playerRatings"
+          action="Open player book"
         />
       </CompeteGrid>
 

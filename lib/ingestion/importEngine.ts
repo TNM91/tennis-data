@@ -435,6 +435,11 @@ function isMissingSchemaRelationError(message: string): boolean {
   return /could not find the table|relation .* does not exist|schema cache/i.test(message)
 }
 
+function isMissingRatingSourceError(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
+}
+
 function dedupeStrings(values: string[]): string[] {
   const seen = new Set<string>()
   const result: string[] = []
@@ -1919,7 +1924,26 @@ export class ImportEngine {
       }
     }
 
+    await this.markPlayersVerified([...map.values()].map((player) => player.id))
+
     return { map, created }
+  }
+
+  private async markPlayersVerified(playerIds: string[]) {
+    const ids = Array.from(new Set(playerIds.filter(Boolean)))
+    if (!ids.length) return
+
+    const { error } = await this.supabase
+      .from('players')
+      .update({ rating_source: 'verified' })
+      .in('id', ids)
+
+    if (error && !isMissingRatingSourceError(error.message)) {
+      this.options.log('player rating_source verification failed', {
+        count: ids.length,
+        error: error.message,
+      })
+    }
   }
 
   private async resolvePlayerByName(name: string): Promise<PlayerResolution | null> {
@@ -2240,10 +2264,21 @@ export class ImportEngine {
           singles_dynamic_rating: roundedNtrp,
           doubles_dynamic_rating: roundedNtrp,
           overall_dynamic_rating: roundedNtrp,
+          rating_source: 'verified',
         }
       })
 
-      const { error: insertError } = await this.supabase.from('players').insert(insertPayload)
+      let { error: insertError } = await this.supabase.from('players').insert(insertPayload)
+
+      if (insertError && isMissingRatingSourceError(insertError.message)) {
+        const fallbackPayload = insertPayload.map((payload) => {
+          const next: Record<string, unknown> = { ...payload }
+          delete next.rating_source
+          return next
+        })
+        const fallback = await this.supabase.from('players').insert(fallbackPayload)
+        insertError = fallback.error
+      }
 
       if (insertError) {
         for (const { name, ntrp } of toInsert) {
@@ -2300,19 +2335,30 @@ export class ImportEngine {
         const doublesWasDefault = (existing.doubles_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
         const overallWasDefault = (existing.overall_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
 
-        const update: Record<string, number> = {
+        const update: Record<string, number | string> = {
           singles_rating: roundedNtrp,
           doubles_rating: roundedNtrp,
           overall_rating: roundedNtrp,
+          rating_source: 'verified',
         }
         if (singlesWasDefault) update.singles_dynamic_rating = roundedNtrp
         if (doublesWasDefault) update.doubles_dynamic_rating = roundedNtrp
         if (overallWasDefault) update.overall_dynamic_rating = roundedNtrp
 
-        const { error: updateError } = await this.supabase
+        let { error: updateError } = await this.supabase
           .from('players')
           .update(update)
           .eq('id', existing.id)
+
+        if (updateError && isMissingRatingSourceError(updateError.message)) {
+          const fallbackUpdate: Record<string, unknown> = { ...update }
+          delete fallbackUpdate.rating_source
+          const fallback = await this.supabase
+            .from('players')
+            .update(fallbackUpdate)
+            .eq('id', existing.id)
+          updateError = fallback.error
+        }
 
         if (updateError) {
           result.failedCount += 1

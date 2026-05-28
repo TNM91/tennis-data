@@ -15,8 +15,8 @@ import {
 } from '@/lib/player-rating-display'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type TrendDirection = 'up' | 'down' | 'flat'
@@ -41,6 +41,7 @@ type Player = {
   overall_usta_dynamic_rating?: number | null
   singles_usta_dynamic_rating?: number | null
   doubles_usta_dynamic_rating?: number | null
+  rating_source?: string | null
 }
 
 type SnapshotRow = {
@@ -67,12 +68,62 @@ type RankedPlayer = Player & {
   wins: number
   losses: number
   winRate: number | null
+  awards: TiqAwardRecord[]
 }
 
 const RANKINGS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RANKINGS_INLINE || null
+const RANKING_PLAYER_SELECT_BASE = `
+  id,
+  name,
+  location,
+  overall_rating,
+  singles_rating,
+  doubles_rating,
+  overall_dynamic_rating,
+  singles_dynamic_rating,
+  doubles_dynamic_rating,
+  overall_usta_dynamic_rating,
+  singles_usta_dynamic_rating,
+  doubles_usta_dynamic_rating
+`
+const RANKING_PLAYER_SELECT_WITH_SOURCE = `
+  ${RANKING_PLAYER_SELECT_BASE},
+  rating_source
+`
+
+function isMissingRatingSourceError(message: string) {
+  const normalized = message.toLowerCase()
+  return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
+}
+
+async function loadRankingPlayerRows(): Promise<Player[]> {
+  const withSource = await supabase
+    .from('players')
+    .select(RANKING_PLAYER_SELECT_WITH_SOURCE)
+
+  if (!withSource.error) return (withSource.data || []) as Player[]
+  if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+
+  const base = await supabase
+    .from('players')
+    .select(RANKING_PLAYER_SELECT_BASE)
+
+  if (base.error) throw new Error(base.error.message)
+  return ((base.data || []) as Player[]).map((player) => ({ ...player, rating_source: null }))
+}
+
+function isSelfRatedPlayer(player: Pick<Player, 'rating_source'>) {
+  return player.rating_source === 'self'
+}
+
+function formatPublicRating(value: number | null | undefined, player: Pick<Player, 'rating_source'>) {
+  const formatted = formatRating(value)
+  return isSelfRatedPlayer(player) && value != null ? `${formatted} S` : formatted
+}
 
 export default function RankingsPage() {
   const [players, setPlayers] = useState<Player[]>([])
+  const [awardsByPlayerId, setAwardsByPlayerId] = useState<Record<string, TiqAwardRecord[]>>({})
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([])
   const [matchCounts, setMatchCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
@@ -110,26 +161,7 @@ export default function RankingsPage() {
     setError('')
 
     try {
-      const { data, error } = await supabase
-        .from('players')
-        .select(`
-          id,
-          name,
-          location,
-          overall_rating,
-          singles_rating,
-          doubles_rating,
-          overall_dynamic_rating,
-          singles_dynamic_rating,
-          doubles_dynamic_rating,
-          overall_usta_dynamic_rating,
-          singles_usta_dynamic_rating,
-          doubles_usta_dynamic_rating
-        `)
-
-      if (error) throw new Error(error.message)
-
-      const typedPlayers = (data || []) as Player[]
+      const typedPlayers = await loadRankingPlayerRows()
       setPlayers(typedPlayers)
 
       const playerIds = typedPlayers.map((player) => player.id)
@@ -137,6 +169,7 @@ export default function RankingsPage() {
       if (playerIds.length === 0) {
         setSnapshots([])
         setMatchCounts({})
+        setAwardsByPlayerId({})
         return
       }
 
@@ -162,8 +195,18 @@ export default function RankingsPage() {
         counts[playerId] = (counts[playerId] || 0) + 1
       }
 
+      const awardResult = await loadRecentTiqAwards()
+      const nextAwardsByPlayerId: Record<string, TiqAwardRecord[]> = {}
+      for (const award of awardResult.data) {
+        if (!award.recipientPlayerId) continue
+        const existing = nextAwardsByPlayerId[award.recipientPlayerId] ?? []
+        existing.push(award)
+        nextAwardsByPlayerId[award.recipientPlayerId] = existing
+      }
+
       setSnapshots((snapshotData || []) as SnapshotRow[])
       setMatchCounts(counts)
+      setAwardsByPlayerId(nextAwardsByPlayerId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load rankings')
     } finally {
@@ -243,6 +286,7 @@ export default function RankingsPage() {
           wins,
           losses,
           winRate,
+          awards: (awardsByPlayerId[player.id] || []).slice(0, 2),
         }
       })
       .sort((a, b) => b.selectedRating - a.selectedRating)
@@ -257,7 +301,7 @@ export default function RankingsPage() {
         ...player,
         percentile: Math.ceil(((idx + 1) / arr.length) * 100),
       }))
-  }, [filteredPlayers, ratingView, snapshotMap, matchCounts, hideInactive])
+  }, [awardsByPlayerId, filteredPlayers, ratingView, snapshotMap, matchCounts, hideInactive])
 
   const topThree = rankedPlayers.slice(0, 3)
 
@@ -427,11 +471,6 @@ export default function RankingsPage() {
     padding: isSmallMobile ? 14 : isMobile ? 16 : 20,
   }
 
-  const dynamicLeaderboardActionGrid: CSSProperties = {
-    ...leaderboardActionGrid,
-    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : leaderboardActionGrid.gridTemplateColumns,
-  }
-
   const topPlayer = topThree[0] ?? null
   const topRival = topThree[1] ?? null
 
@@ -439,13 +478,11 @@ export default function RankingsPage() {
     <SiteShell active="rankings">
       <section style={contentWrap}>
         <div style={dynamicControlsCard}>
+          <div aria-hidden="true" style={watermarkStyle} />
           <div style={rankingPanelHeader}>
             <div>
               <div style={sectionKicker}>Ranking discovery</div>
               <h1 style={rankingPanelTitle}>Check the field.</h1>
-              <p style={rankingPanelIntro}>
-                Search players, switch rating view, then open the profile that matters.
-              </p>
             </div>
             <div style={heroHintRow}>
               <span style={heroHintPill}>{rankedPlayers.length} shown</span>
@@ -457,7 +494,6 @@ export default function RankingsPage() {
                 <div style={dynamicControlsTopRow}>
                   <div>
                     <div style={controlsLabel}>Rankings board</div>
-                    <div style={controlsHint}>Search, filter, and choose the rating view.</div>
                   </div>
 
                   <div style={segmentWrap}>
@@ -572,10 +608,6 @@ export default function RankingsPage() {
                 ) : null}
               </div>
 
-              <div id="rankings-filter-helper" style={controlsHelperText}>
-                Open a profile from the board when you find the right player.
-              </div>
-
               <div style={summaryStatsGrid}>
                 <StatChip label="Players shown" value={String(rankedPlayers.length)} />
                 <StatChip label="Top TIQ" value={formatRating(topThree[0]?.selectedRating)} accent />
@@ -611,7 +643,7 @@ export default function RankingsPage() {
                   <div style={podiumRank}>#{index + 1}</div>
                   <div style={podiumName}>{player.name}</div>
                   <div style={podiumLocation}>{player.location || 'No location'}</div>
-                  <div style={podiumRating}>{formatRating(player.selectedRating)}</div>
+                  <div style={podiumRating}>{formatPublicRating(player.selectedRating, player)}</div>
                   <div style={podiumSubtext}>TIQ {ratingViewLabel.toLowerCase()} rating</div>
 
                   <div
@@ -848,33 +880,6 @@ export default function RankingsPage() {
             </div>
           </div>
 
-          <div style={dynamicLeaderboardActionGrid}>
-            <Link href="/explore/players" style={leaderboardActionCard}>
-              <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
-              <div style={leaderboardActionBody}>
-                <div style={leaderboardActionLabel}>1. Scout</div>
-                <div style={leaderboardActionTitle}>Open a player</div>
-                <div style={leaderboardActionText}>Check stats, history, and trend before you decide what the rank means.</div>
-              </div>
-            </Link>
-            <Link href="/matchup?type=singles" style={leaderboardActionCard}>
-              <TiqFeatureIcon name="matchupAnalysis" size="md" variant="surface" />
-              <div style={leaderboardActionBody}>
-                <div style={leaderboardActionLabel}>2. Compare</div>
-                <div style={leaderboardActionTitle}>Run Matchup</div>
-                <div style={leaderboardActionText}>Turn a ranking difference into a practical read on who has the edge.</div>
-              </div>
-            </Link>
-            <Link href="/mylab" style={leaderboardActionCard}>
-              <TiqFeatureIcon name="myLab" size="md" variant="surface" />
-              <div style={leaderboardActionBody}>
-                <div style={leaderboardActionLabel}>3. Personalize</div>
-                <div style={leaderboardActionTitle}>Bring it to My Lab</div>
-                <div style={leaderboardActionText}>Player members can connect the board back to their own game and next match.</div>
-              </div>
-            </Link>
-          </div>
-
           {isMobile ? (
             <div style={compactLeaderboardStyle}>
               {loading ? (
@@ -978,9 +983,12 @@ export default function RankingsPage() {
                           </td>
 
                           <td style={tableCell}>
-                            <Link href={`/players/${player.id}`} style={playerLink}>
-                              {player.name}
-                            </Link>
+                            <div style={rankingPlayerIdentityStyle}>
+                              <Link href={`/players/${player.id}`} style={playerLink}>
+                                {player.name}
+                              </Link>
+                              <RankingAwardBadges player={player} />
+                            </div>
                           </td>
 
                           <td style={tableCell}>{player.location || '--'}</td>
@@ -1054,23 +1062,23 @@ export default function RankingsPage() {
                           </td>
 
                           <td style={tableCell}>
-                            {formatRatingValue(player.overall_rating)}
+                            {isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(player.overall_rating)}
                           </td>
 
                           <td style={{ ...tableCell, ...(ratingView === 'overall' ? activeRatingCell : {}) }}>
-                            {formatRating(player.ustaSelectedRating)}
+                            {isSelfRatedPlayer(player) ? 'Pending' : formatRating(player.ustaSelectedRating)}
                           </td>
 
                           <td style={{ ...tableCell, ...(ratingView === 'overall' ? activeRatingCell : {}) }}>
-                            {formatRating(player.overall_dynamic_rating)}
+                            {formatPublicRating(player.overall_dynamic_rating, player)}
                           </td>
 
                           <td style={{ ...tableCell, ...(ratingView === 'singles' ? activeRatingCell : {}) }}>
-                            {formatRating(player.singles_dynamic_rating)}
+                            {formatPublicRating(player.singles_dynamic_rating, player)}
                           </td>
 
                           <td style={{ ...tableCell, ...(ratingView === 'doubles' ? activeRatingCell : {}) }}>
-                            {formatRating(player.doubles_dynamic_rating)}
+                            {formatPublicRating(player.doubles_dynamic_rating, player)}
                           </td>
 
                           <td style={tableCell}>
@@ -1316,6 +1324,29 @@ function SignalList({
   )
 }
 
+function RankingAwardBadges({ player, compact = false }: { player: RankedPlayer; compact?: boolean }) {
+  if (!player.awards.length) return null
+
+  return (
+    <div style={compact ? compactAwardBadgeRowStyle : rankingAwardBadgeRowStyle} aria-label={`${player.name} award badges`}>
+      {player.awards.map((award) => (
+        <Link
+          key={award.id}
+          href={`/awards/${encodeURIComponent(award.id)}`}
+          style={rankingAwardBadgeStyle}
+          title={`${award.badgeLabel}: ${award.title}`}
+        >
+          <span>{award.badgeCode}</span>
+          <small>{award.sourceType === 'league' ? 'League' : 'Tournament'}</small>
+        </Link>
+      ))}
+      <Link href={`/players/${player.id}#profile-trophy-case`} style={rankingAwardCaseLinkStyle}>
+        Trophy case
+      </Link>
+    </div>
+  )
+}
+
 function RankingCompactCard({
   player,
   rank,
@@ -1347,10 +1378,11 @@ function RankingCompactCard({
           <Link href={`/players/${player.id}`} aria-label={`View ${player.name} profile`} style={compactPlayerNameStyle}>
             {player.name}
           </Link>
+          <RankingAwardBadges player={player} compact />
           <span style={compactPlayerMetaStyle}>{player.location || 'No location'} | top {player.percentile}%</span>
         </div>
         <div style={compactRatingStackStyle}>
-          <strong>{formatRating(selectedRating)}</strong>
+          <strong>{formatPublicRating(selectedRating, player)}</strong>
           <span>{ratingViewLabel}</span>
         </div>
       </div>
@@ -1608,8 +1640,8 @@ const heroHintRow: CSSProperties = {
 }
 
 const heroHintPill: CSSProperties = {
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   borderRadius: '999px',
   padding: '10px 14px',
@@ -1637,21 +1669,14 @@ const rankingPanelTitle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const rankingPanelIntro: CSSProperties = {
-  margin: '8px 0 0',
-  maxWidth: '720px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.6,
-  overflowWrap: 'anywhere',
-}
-
 const controlsCard: CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
   borderRadius: '26px',
   padding: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+  boxShadow: '0 30px 86px rgba(2, 8, 23, 0.46), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
 const controlsTopRow: CSSProperties = {
@@ -1671,15 +1696,6 @@ const controlsLabel: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const controlsHint: CSSProperties = {
-  marginTop: '4px',
-  color: 'var(--shell-copy-muted)',
-  fontWeight: 600,
-  fontSize: '14px',
-  lineHeight: 1.6,
-  overflowWrap: 'anywhere',
-}
-
 const segmentWrap: CSSProperties = {
   display: 'flex',
   gap: '10px',
@@ -1687,9 +1703,9 @@ const segmentWrap: CSSProperties = {
 }
 
 const segmentButton: CSSProperties = {
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
   borderRadius: '16px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   minHeight: '48px',
   padding: '0 14px',
@@ -1718,16 +1734,8 @@ const inputLabel: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontSize: '13px',
   fontWeight: 800,
-  letterSpacing: '0.05em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
-}
-
-const controlsHelperText: CSSProperties = {
-  marginTop: '14px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.6,
-  fontWeight: 500,
 }
 
 const searchWrap: CSSProperties = {
@@ -1746,8 +1754,8 @@ const searchIconWrap: CSSProperties = {
 const searchInput: CSSProperties = {
   width: '100%',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
@@ -1760,8 +1768,8 @@ const selectStyle: CSSProperties = {
   width: '100%',
   height: '52px',
   borderRadius: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
@@ -1792,8 +1800,8 @@ const summaryStatsGrid: CSSProperties = {
 const chipStat: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(8,16,34,0.7)',
+  border: '1px solid rgba(116,190,255,0.13)',
   minWidth: 0,
 }
 
@@ -1807,7 +1815,7 @@ const chipStatLabel: CSSProperties = {
   fontSize: '12px',
   fontWeight: 700,
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   marginBottom: '6px',
   overflowWrap: 'anywhere',
 }
@@ -1823,9 +1831,8 @@ const chipStatValue: CSSProperties = {
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '0 clamp(14px, 3vw, 18px) 0',
   minWidth: 0,
 }
 
@@ -1840,9 +1847,9 @@ const podiumCard: CSSProperties = {
   textDecoration: 'none',
   borderRadius: '24px',
   padding: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-soft)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.74)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const podiumFirst: CSSProperties = {
@@ -1905,9 +1912,9 @@ const podiumMetaRow: CSSProperties = {
 const tableCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 10%, transparent) 0%, transparent 34%), var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
   marginBottom: '16px',
   scrollMarginTop: '96px',
@@ -1952,66 +1959,11 @@ const panelChip: CSSProperties = {
   minHeight: '38px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
   fontWeight: 800,
   fontSize: '13px',
-}
-
-const leaderboardActionGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: '10px',
-  marginBottom: '16px',
-}
-
-const leaderboardActionCard: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
-  alignItems: 'center',
-  gap: '12px',
-  minWidth: 0,
-  borderRadius: '20px',
-  padding: '14px',
-  background: 'radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--brand-lime) 12%, transparent), transparent 34%), var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  color: 'inherit',
-  textDecoration: 'none',
-  cursor: 'pointer',
-  transition: 'transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
-  overflow: 'hidden',
-  overflowWrap: 'anywhere',
-}
-
-const leaderboardActionBody: CSSProperties = {
-  display: 'grid',
-  gap: '4px',
-  minWidth: 0,
-}
-
-const leaderboardActionLabel: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '11px',
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-}
-
-const leaderboardActionTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '16px',
-  fontWeight: 900,
-  lineHeight: 1.15,
-  overflowWrap: 'anywhere',
-}
-
-const leaderboardActionText: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  lineHeight: 1.45,
-  fontWeight: 650,
-  overflowWrap: 'anywhere',
 }
 
 const clearFilterButton: CSSProperties = {
@@ -2022,8 +1974,8 @@ const clearFilterButton: CSSProperties = {
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   fontWeight: 800,
   cursor: 'pointer',
@@ -2036,8 +1988,8 @@ const clearFilterButton: CSSProperties = {
 const tableWrap: CSSProperties = {
   overflowX: 'auto',
   borderRadius: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   maxWidth: '100%',
   minWidth: 0,
   WebkitOverflowScrolling: 'touch',
@@ -2066,9 +2018,8 @@ const compactRankingCardStyle: CSSProperties = {
   gap: '14px',
   padding: '15px',
   borderRadius: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background:
-    'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 7%, transparent), transparent 62%), var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(6,16,32,0.58)',
   textDecoration: 'none',
   color: 'inherit',
   minWidth: 0,
@@ -2113,8 +2064,8 @@ const compactRatingStackStyle: CSSProperties = {
   gap: '3px',
   padding: '10px 12px',
   borderRadius: '14px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 950,
@@ -2169,8 +2120,8 @@ const compactActionPrimaryStyle: CSSProperties = {
 
 const compactActionSecondaryStyle: CSSProperties = {
   ...compactActionPrimaryStyle,
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
 }
 
 const compactMiniLabelStyle: CSSProperties = {
@@ -2205,8 +2156,8 @@ const tableHead: CSSProperties = {
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
   fontWeight: 800,
-  borderBottom: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  borderBottom: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(6,16,32,0.78)',
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
@@ -2256,16 +2207,16 @@ const rowActionPrimaryStyle: CSSProperties = {
 
 const rowActionSecondaryStyle: CSSProperties = {
   ...rowActionPrimaryStyle,
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
 }
 
 const insightDetails: CSSProperties = {
   marginBottom: '16px',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-soft)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   overflow: 'hidden',
   minWidth: 0,
 }
@@ -2323,8 +2274,8 @@ const signalPanel: CSSProperties = {
   gap: '14px',
   padding: '18px',
   borderRadius: '20px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(6,16,32,0.58)',
+  border: '1px solid rgba(116,190,255,0.13)',
   minWidth: 0,
 }
 
@@ -2403,8 +2354,8 @@ const signalListCard: CSSProperties = {
   minWidth: 0,
   padding: '16px',
   borderRadius: '20px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
 }
 
 const signalListTitle: CSSProperties = {
@@ -2489,6 +2440,48 @@ const playerLink: CSSProperties = {
   fontWeight: 800,
   textDecoration: 'none',
   overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdentityStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  minWidth: 0,
+}
+
+const rankingAwardBadgeRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '6px',
+  minWidth: 0,
+}
+
+const compactAwardBadgeRowStyle: CSSProperties = {
+  ...rankingAwardBadgeRowStyle,
+  gap: '5px',
+}
+
+const rankingAwardBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '5px',
+  minHeight: '24px',
+  maxWidth: '100%',
+  padding: '0 8px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: '10px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const rankingAwardCaseLinkStyle: CSSProperties = {
+  ...rankingAwardBadgeStyle,
+  border: '1px solid rgba(116,190,255,0.20)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--brand-blue-2)',
 }
 
 const activeRatingCell: CSSProperties = {
@@ -2602,9 +2595,9 @@ const confidencePill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(116,190,255,0.13)',
   fontSize: '12px',
   fontWeight: 800,
   whiteSpace: 'normal',
@@ -2625,5 +2618,18 @@ const tierDividerLabel: CSSProperties = {
   fontSize: 11,
   fontWeight: 800,
   textTransform: 'uppercase',
-  letterSpacing: '0.10em',
+  letterSpacing: 0,
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-86px',
+  top: '-108px',
+  width: '340px',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '34px solid rgba(155,225,29,0.07)',
+  boxShadow: 'inset 0 0 0 2px rgba(125,211,252,0.05), 0 0 76px rgba(125,211,252,0.08)',
+  opacity: 0.72,
+  pointerEvents: 'none',
 }

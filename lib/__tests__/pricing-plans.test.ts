@@ -35,19 +35,40 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('league')).toMatchObject({
-      priceLabel: '$25/season per league',
+      priceLabel: '$14.99/month',
       billing: {
-        amountCents: 2500,
-        interval: 'season',
-        checkoutMode: 'one_time',
-        quantityMode: 'league',
+        amountCents: 1499,
+        interval: 'month',
+        checkoutMode: 'subscription',
+        quantityMode: 'account',
+      },
+    })
+
+    expect(getPricingPlan('coach')).toMatchObject({
+      priceLabel: '$9.99/month',
+      billing: {
+        amountCents: 999,
+        interval: 'month',
+        checkoutMode: 'subscription',
+        quantityMode: 'account',
+      },
+    })
+
+    expect(getPricingPlan('full_court')).toMatchObject({
+      priceLabel: '$19.99/month',
+      billing: {
+        amountCents: 1999,
+        interval: 'month',
+        checkoutMode: 'subscription',
+        quantityMode: 'account',
       },
     })
   })
 
-  it('keeps Captain and Coordinator entitlement grants separate', () => {
+  it('keeps Captain, League, and Full-Court entitlement grants clear', () => {
     expect(getPricingPlan('captain').entitlementGrant).toEqual({
       playerPlus: true,
+      coach: false,
       captain: true,
       leagueCoordinator: false,
       tiqTeamLeagueEntry: false,
@@ -56,32 +77,29 @@ describe('pricing plans', () => {
 
     expect(getPricingPlan('league').entitlementGrant).toEqual({
       playerPlus: false,
+      coach: false,
       captain: false,
+      leagueCoordinator: true,
+      tiqTeamLeagueEntry: true,
+      tiqIndividualLeagueCreator: true,
+    })
+
+    expect(getPricingPlan('full_court').entitlementGrant).toEqual({
+      playerPlus: true,
+      coach: true,
+      captain: true,
       leagueCoordinator: true,
       tiqTeamLeagueEntry: true,
       tiqIndividualLeagueCreator: true,
     })
   })
 
-  it('models the Coordinator captain discount without changing base price', () => {
-    const leaguePlan = getPricingPlan('league')
-
-    expect(leaguePlan.alternatePriceNote).toBe('Captains get 1/2 off their first league')
-    expect(leaguePlan.discountRules).toEqual([
-      {
-        id: 'captain_first_league_half_off',
-        label: 'Captains get 1/2 off their first league',
-        percentOff: 50,
-        appliesToPlanId: 'league',
-        eligibility: 'active_captain_first_league',
-      },
-    ])
-  })
-
   it('exposes checkout-facing billing cues', () => {
     expect(getPricingBillingCue('free')).toBe('Free account')
     expect(getPricingBillingCue('player_plus')).toBe('Monthly subscription')
+    expect(getPricingBillingCue('coach')).toBe('Monthly subscription')
     expect(getPricingBillingCue('captain')).toBe('Monthly subscription')
-    expect(getPricingBillingCue('league')).toBe('Season fee')
+    expect(getPricingBillingCue('league')).toBe('Monthly subscription')
+    expect(getPricingBillingCue('full_court')).toBe('Monthly subscription')
   })
 })

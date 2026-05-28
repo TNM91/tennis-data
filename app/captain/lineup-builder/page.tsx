@@ -16,6 +16,7 @@ import CaptainFormField from '@/app/components/captain-form-field'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useAuth } from '@/app/components/auth-provider'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
@@ -2076,7 +2077,9 @@ function sendCurrentScenarioToMessaging() {
 
   return (
     <div style={pageWrap}>
+         <CaptainSuitePanel active="lineup" teamLabel={teamName || 'Team week'} />
          <section style={builderControlShellStyle(isMobile)} aria-label="Lineup controls">
+          <span aria-hidden="true" style={watermarkStyle} />
           <div style={builderControlHeaderStyle}>
             <div>
               <p style={sectionKicker}>Lineup controls</p>
@@ -2284,7 +2287,7 @@ function sendCurrentScenarioToMessaging() {
           <div style={actionPlanInsightStyle}>
             {readinessCompleteCount === builderReadiness.length
               ? 'This build has enough structure to save, compare, and push forward into weekly messaging with confidence.'
-              : 'Finish the setup items above first, then use save and compare as decision tools instead of placeholders.'}
+              : 'Finish the setup items above first, then save and compare real lineup decisions instead of placeholders.'}
           </div>
         </details>
 
@@ -2391,7 +2394,7 @@ function sendCurrentScenarioToMessaging() {
                   compact
                   headline="Need to save versions and track lineup decisions?"
                   body="Captain turns this from a draft board into a real weekly workflow with saved scenarios, prediction tracking, and a cleaner path into comparison and messaging."
-                  ctaLabel="Unlock Captain Tools"
+                  ctaLabel="Unlock Captain"
                   ctaHref="/pricing"
                   secondaryLabel="See Captain plan"
                   secondaryHref="/pricing"
@@ -3100,24 +3103,46 @@ function SlotEditor({
 }
 
 const pageWrap: CSSProperties = {
-  padding: '24px 24px 56px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
+  margin: '0 auto',
+  padding: '18px 0 64px',
   display: 'grid',
-  gap: 24,
+  gap: 18,
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const builderControlShellStyle = (isMobile: boolean): CSSProperties => ({
+  position: 'relative',
   display: 'grid',
   gap: isMobile ? 14 : 16,
   padding: isMobile ? 18 : 22,
   borderRadius: 28,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 30px 70px rgba(2, 6, 23, 0.18)',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
+  overflow: 'hidden',
 })
 
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(-92px, -7vw, -34px)',
+  bottom: 'clamp(-112px, -10vw, -52px)',
+  width: 'clamp(230px, 30vw, 420px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.15) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
+  opacity: 0.74,
+  pointerEvents: 'none',
+}
+
 const builderControlHeaderStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'flex',
   flexWrap: 'wrap',
   alignItems: 'center',
@@ -3137,6 +3162,8 @@ const builderControlTitleStyle: CSSProperties = {
 }
 
 const builderControlRowStyle = (isSmallMobile: boolean): CSSProperties => ({
+  position: 'relative',
+  zIndex: 1,
   display: 'grid',
   gridTemplateColumns: isSmallMobile
     ? 'minmax(0, 1fr)'
@@ -3162,18 +3189,18 @@ const columnStyle: CSSProperties = {
 const surfaceCardStrong: CSSProperties = {
   borderRadius: 26,
   padding: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 18px 50px rgba(2, 6, 23, 0.14)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.64)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.30)',
   minWidth: 0,
 }
 
 const surfaceCard: CSSProperties = {
   borderRadius: 24,
   padding: 20,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 16px 42px rgba(2, 6, 23, 0.12)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.60)',
+  boxShadow: '0 16px 42px rgba(2,8,23,0.26)',
   minWidth: 0,
 }
 
@@ -3600,10 +3627,10 @@ const decisionBoardShellStyle: CSSProperties = {
   display: 'grid',
   gap: 16,
   padding: 22,
-  borderRadius: 28,
-  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 26,
+  border: '1px solid rgba(116,190,255,0.13)',
   background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }
 

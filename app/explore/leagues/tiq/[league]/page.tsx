@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import FollowButton from '@/app/components/follow-button'
-import FindModeBridge from '@/app/components/find-mode-bridge'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import SiteShell from '@/app/components/site-shell'
@@ -57,6 +56,7 @@ import {
   type TiqLeagueRecord,
 } from '@/lib/tiq-league-registry'
 import { buildScheduleCalendarDays } from '@/lib/tiq-league-schedule-calendar'
+import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { buildIndividualResultCue, buildTeamResultCue } from '@/lib/league-result-cues'
 import {
   addTiqPlayerLeagueEntry,
@@ -414,6 +414,7 @@ function TiqLeagueDetailContent() {
   const [playerEntries, setPlayerEntries] = useState<TiqPlayerLeagueEntryRecord[]>([])
   const [individualStandings, setIndividualStandings] = useState<IndividualStanding[]>([])
   const [individualResults, setIndividualResults] = useState<TiqIndividualLeagueResultRecord[]>([])
+  const [leagueAwardsByPlayerKey, setLeagueAwardsByPlayerKey] = useState<Record<string, TiqAwardRecord[]>>({})
   const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
   const [savedSuggestions, setSavedSuggestions] = useState<TiqIndividualSuggestionRecord[]>([])
   const [suggestionStorageSource, setSuggestionStorageSource] = useState<TiqSuggestionStorageSource>('local')
@@ -1280,6 +1281,44 @@ function TiqLeagueDetailContent() {
   useEffect(() => {
     let active = true
 
+    async function loadLeagueAwards() {
+      if (!league) {
+        if (active) setLeagueAwardsByPlayerKey({})
+        return
+      }
+
+      const awardResult = await loadRecentTiqAwards()
+      if (!active) return
+
+      const nextAwardsByPlayerKey: Record<string, TiqAwardRecord[]> = {}
+      for (const award of awardResult.data) {
+        if (award.sourceType !== 'league' || award.sourceId !== league.id) continue
+
+        const keys = [
+          award.recipientPlayerId ? `id:${award.recipientPlayerId}` : '',
+          award.recipientName ? `name:${award.recipientName.toLowerCase()}` : '',
+        ].filter(Boolean)
+
+        for (const key of keys) {
+          const existing = nextAwardsByPlayerKey[key] ?? []
+          existing.push(award)
+          nextAwardsByPlayerKey[key] = existing
+        }
+      }
+
+      setLeagueAwardsByPlayerKey(nextAwardsByPlayerKey)
+    }
+
+    void loadLeagueAwards()
+
+    return () => {
+      active = false
+    }
+  }, [league])
+
+  useEffect(() => {
+    let active = true
+
     async function loadIndividualStandings() {
       if (!league || league.leagueFormat !== 'individual') {
         if (active) setIndividualStandings([])
@@ -2126,9 +2165,13 @@ function TiqLeagueDetailContent() {
   return (
     <section style={pageWrap}>
         {loading ? (
-          <div style={stateCard}>Loading TIQ league detail...</div>
+          <div style={stateCard}>
+            <span aria-hidden="true" style={watermarkStyle} />
+            Loading TIQ league detail...
+          </div>
         ) : error || !league ? (
           <div style={stateCard}>
+            <span aria-hidden="true" style={watermarkStyle} />
             <div style={stateTitle}>TIQ league unavailable</div>
             <div style={stateText}>{error || 'This TIQ league could not be loaded right now.'}</div>
             <div style={actionRow}>
@@ -2139,6 +2182,7 @@ function TiqLeagueDetailContent() {
         ) : (
           <>
             <section style={dynamicHeroCard}>
+              <span aria-hidden="true" style={watermarkStyle} />
               <div style={dynamicHeroGrid}>
                 <div>
                   <div style={eyebrow}>TIQ League</div>
@@ -2179,7 +2223,7 @@ function TiqLeagueDetailContent() {
                       subtitle={[league.seasonLabel, league.flight].filter(Boolean).join(' | ')}
                     />
                     <GhostLink href="/explore/leagues">Back to Explore</GhostLink>
-                    <GhostLink href="/compete/leagues">Open Compete</GhostLink>
+                    <GhostLink href="/compete">Open Compete</GhostLink>
                   </div>
                 </div>
 
@@ -2263,25 +2307,13 @@ function TiqLeagueDetailContent() {
               {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
             </section>
 
-            <FindModeBridge
-              active="TIQ League"
-              primary="Keep the league page connected"
-              secondary="Move from this season into public discovery, team context, rankings, or the broader league directory."
-              links={[
-                { href: '/explore/search?scope=leagues', label: 'Search', icon: 'opponentScouting' },
-                { href: '/explore/teams', label: 'Teams', icon: 'teamRankings' },
-                { href: '/explore/rankings', label: 'Rankings', icon: 'matchupAnalysis' },
-                { href: '/explore/leagues', label: 'Leagues', icon: 'reports' },
-              ]}
-            />
-
             <section id="league-overview" style={leagueHubPanelStyle}>
               <div style={leagueHubHeaderStyle}>
                 <div style={leagueHubHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Season pulse</div>
                   <h2 style={sectionTitle}>Check the table. See what changed. Know what to play next.</h2>
                   <p style={sectionText}>
-                    This page should feel like the league scoreboard first. Admin tools stay nearby, but results,
+                    This page should feel like the league scoreboard first. Admin controls stay nearby, but results,
                     standings, schedule, and the next useful tennis move lead the experience.
                   </p>
                 </div>
@@ -2727,8 +2759,8 @@ function TiqLeagueDetailContent() {
                     planId="league"
                     compact
                     headline="Ready to run this team season without spreadsheets?"
-                    body="League tools unlock organized TIQ team entry, season structure, standings, and league-wide coordination without making every player manage the admin work."
-                    ctaLabel="Run Your League on TIQ"
+                    body="League unlocks organized TIQ team entry, season structure, standings, and league-wide coordination without making every player manage the admin work."
+                    ctaLabel="Unlock League"
                     ctaHref="/pricing"
                     secondaryLabel="See league plan"
                     secondaryHref="/pricing"
@@ -2860,6 +2892,10 @@ function TiqLeagueDetailContent() {
                   <div style={listWrap}>
                     {individualStandings.map((entry) => {
                       const metricConfig = getStandingMetricConfig(entry, individualCompetitionFormat)
+                      const leagueAwards =
+                        leagueAwardsByPlayerKey[entry.playerId ? `id:${entry.playerId}` : ''] ||
+                        leagueAwardsByPlayerKey[`name:${entry.playerName.toLowerCase()}`] ||
+                        []
 
                       return (
                         <div key={`${entry.playerName}-${entry.playerId || entry.rank}`} style={dynamicStandingCard}>
@@ -2879,6 +2915,11 @@ function TiqLeagueDetailContent() {
                                     )
                                   })()}
                                 </div>
+                                <LeagueStandingAwardBadges
+                                  awards={leagueAwards}
+                                  playerId={entry.playerId}
+                                  playerName={entry.playerName}
+                                />
                                 <div style={listMeta}>
                                   {[
                                     entry.location,
@@ -2938,7 +2979,7 @@ function TiqLeagueDetailContent() {
                                   <GhostLink href="/mylab">My Lab</GhostLink>
                                 </>
                               ) : (
-                                <span style={metaPill}>Needs linked player record</span>
+                                <span style={metaPill}>Player profile needed</span>
                               )}
                             </div>
                           </div>
@@ -3214,7 +3255,7 @@ function TiqLeagueDetailContent() {
                     compact
                     headline="Coordinator access records player results"
                     body={access.individualLeagueMessage}
-                    ctaLabel="Run Your League on TIQ"
+                    ctaLabel="Unlock League"
                     ctaHref="/pricing"
                     secondaryLabel="Open Player Results"
                     secondaryHref={`/league-coordinator/individual-results?leagueId=${encodeURIComponent(league.id)}`}
@@ -3514,7 +3555,20 @@ function TiqLeagueDetailContent() {
                 {teamMatchEventsLoading ? (
                   <div style={emptyCard}>Loading match events...</div>
                 ) : teamMatchEvents.length === 0 ? (
-                  <div style={emptyCard}>No team match events have been logged for this league yet.</div>
+                  <div style={emptyActionCardStyle}>
+                    <div style={resultCueKickerStyle}>Team result book</div>
+                    <div style={emptyActionTitleStyle}>Start with the first match.</div>
+                    <div style={emptyActionTextStyle}>
+                      Create a team match, publish the date, then add line scores when play is complete.
+                    </div>
+                    <div style={resultCueActionRowStyle}>
+                      <GhostLink href={teamCuePrimaryHref}>Create match</GhostLink>
+                      <GhostLink href="#league-schedule">Shared calendar</GhostLink>
+                      <GhostLink href={`/league-coordinator?leagueId=${encodeURIComponent(league.id)}#league-setup-form`}>
+                        Manage league
+                      </GhostLink>
+                    </div>
+                  </div>
                 ) : (
                   <div style={listWrap}>
                     {teamMatchEvents.map((event) => {
@@ -3613,7 +3667,7 @@ function TiqLeagueDetailContent() {
               <div style={sectionEyebrow}>Coordinator context</div>
               <h2 style={sectionTitle}>Run the next league action.</h2>
               <p style={sectionText}>
-                Team leagues hand off into result entry and weekly captain tools. Individual leagues keep entry,
+                Team leagues hand off into result entry and weekly Captain actions. Individual leagues keep entry,
                 standings, prompts, and player results in one clean lane.
               </p>
 
@@ -3638,23 +3692,43 @@ function TiqLeagueDetailContent() {
 }
 
 const pageWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
   width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
   padding: '18px 0 30px',
   display: 'grid',
   gap: '18px',
   minWidth: 0,
+  boxSizing: 'border-box',
+  overflowX: 'clip',
 }
 
 const heroCard: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   gap: '16px',
   padding: '28px',
   borderRadius: '30px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 28px 60px rgba(2,10,24,0.22)',
+  overflow: 'hidden',
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2, 8, 23, 0.48)',
   minWidth: 0,
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-110px',
+  top: '-118px',
+  width: '310px',
+  height: '310px',
+  borderRadius: '50%',
+  pointerEvents: 'none',
+  opacity: 0.16,
+  background:
+    'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.88) 0 7%, transparent 8%), radial-gradient(circle at 50% 50%, rgba(155,225,29,0.96) 0 48%, rgba(155,225,29,0.1) 49%, transparent 58%)',
+  boxShadow: '0 0 80px rgba(155,225,29,0.22)',
 }
 
 const heroGrid: CSSProperties = {
@@ -3771,7 +3845,7 @@ const sideCard: CSSProperties = {
   padding: '22px',
   borderRadius: '24px',
   border: '1px solid rgba(116,190,255,0.12)',
-  background: 'var(--shell-panel-bg-strong)',
+  background: 'rgba(8, 13, 28, 0.72)',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -3919,7 +3993,7 @@ const leagueHubPanelStyle: CSSProperties = {
   padding: '24px',
   borderRadius: '26px',
   border: '1px solid rgba(155,225,29,0.18)',
-  background: 'var(--shell-panel-bg-strong)',
+  background: 'rgba(8, 13, 28, 0.72)',
   boxShadow: '0 22px 48px rgba(2,10,24,0.24)',
   minWidth: 0,
 }
@@ -4527,6 +4601,29 @@ const emptyCard: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const emptyActionCardStyle: CSSProperties = {
+  ...emptyCard,
+  display: 'grid',
+  gap: '8px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(135deg, rgba(116,190,255,0.08) 0%, rgba(255,255,255,0.035) 100%)',
+}
+
+const emptyActionTitleStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '20px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const emptyActionTextStyle: CSSProperties = {
+  color: 'rgba(214,228,246,0.76)',
+  fontSize: '14px',
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
 const listWrap: CSSProperties = {
   display: 'grid',
   gap: '12px',
@@ -4927,10 +5024,12 @@ const quickButton: CSSProperties = {
 }
 
 const stateCard: CSSProperties = {
+  position: 'relative',
   padding: '24px',
   borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'var(--shell-panel-bg-strong)',
+  overflow: 'hidden',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'var(--portal-surface-bg)',
   color: '#dbeafe',
   minWidth: 0,
   overflowWrap: 'anywhere',
@@ -4949,6 +5048,71 @@ const stateText: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: '14px',
   lineHeight: 1.72,
+}
+
+const leagueAwardBadgeRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '6px',
+  marginTop: '7px',
+  minWidth: 0,
+}
+
+const leagueAwardBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '5px',
+  minHeight: '24px',
+  maxWidth: '100%',
+  padding: '0 8px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.10)',
+  color: '#f8fbff',
+  fontSize: '10px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const leagueAwardCaseLinkStyle: CSSProperties = {
+  ...leagueAwardBadgeStyle,
+  border: '1px solid rgba(116,190,255,0.20)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--brand-blue-2)',
+}
+
+function LeagueStandingAwardBadges({
+  awards,
+  playerId,
+  playerName,
+}: {
+  awards: TiqAwardRecord[]
+  playerId: string
+  playerName: string
+}) {
+  if (!awards.length) return null
+
+  return (
+    <div style={leagueAwardBadgeRowStyle} aria-label={`${playerName} league awards`}>
+      {awards.slice(0, 2).map((award) => (
+        <Link
+          key={award.id}
+          href={`/awards/${encodeURIComponent(award.id)}`}
+          style={leagueAwardBadgeStyle}
+          title={`${award.badgeLabel}: ${award.title}`}
+        >
+          <span>{award.badgeCode}</span>
+          <small>{award.badgeLabel}</small>
+        </Link>
+      ))}
+      {playerId ? (
+        <Link href={`/players/${encodeURIComponent(playerId)}#profile-trophy-case`} style={leagueAwardCaseLinkStyle}>
+          Trophy case
+        </Link>
+      ) : null}
+    </div>
+  )
 }
 
 function GhostLink({ href, children }: { href: string; children: ReactNode }) {

@@ -9,14 +9,18 @@ import {
 describe('stripe checkout helpers', () => {
   it('maps paid plans to Stripe checkout modes', () => {
     expect(getStripeCheckoutMode('player_plus')).toBe('subscription')
+    expect(getStripeCheckoutMode('coach')).toBe('subscription')
     expect(getStripeCheckoutMode('captain')).toBe('subscription')
-    expect(getStripeCheckoutMode('league')).toBe('payment')
+    expect(getStripeCheckoutMode('league')).toBe('subscription')
+    expect(getStripeCheckoutMode('full_court')).toBe('subscription')
   })
 
   it('resolves configured Stripe price ids by plan', () => {
     expect(getStripePriceId('player_plus', { STRIPE_PLAYER_PRICE_ID: 'price_player' })).toBe('price_player')
+    expect(getStripePriceId('coach', { STRIPE_COACH_PRICE_ID: 'price_coach' })).toBe('price_coach')
     expect(getStripePriceId('captain', { STRIPE_CAPTAIN_PRICE_ID: 'price_captain' })).toBe('price_captain')
     expect(getStripePriceId('league', { STRIPE_LEAGUE_PRICE_ID: 'price_league' })).toBe('price_league')
+    expect(getStripePriceId('full_court', { STRIPE_FULL_COURT_PRICE_ID: 'price_full_court' })).toBe('price_full_court')
   })
 
   it('builds subscription Checkout Session params with request metadata', () => {
@@ -40,7 +44,7 @@ describe('stripe checkout helpers', () => {
     )
   })
 
-  it('builds one-time Checkout Session params with payment metadata', () => {
+  it('builds League subscription Checkout Session params with subscription metadata', () => {
     const params = buildStripeCheckoutSessionParams({
       planId: 'league',
       priceId: 'price_league',
@@ -50,12 +54,33 @@ describe('stripe checkout helpers', () => {
       nextHref: '/league-coordinator',
     })
 
-    expect(params.get('mode')).toBe('payment')
+    expect(params.get('mode')).toBe('subscription')
     expect(params.get('line_items[0][price]')).toBe('price_league')
     expect(params.get('allow_promotion_codes')).toBe('true')
-    expect(params.get('payment_intent_data[metadata][plan_id]')).toBe('league')
+    expect(params.get('subscription_data[metadata][plan_id]')).toBe('league')
     expect(params.get('cancel_url')).toBe(
       'https://tenaceiq.test/upgrade?plan=league&next=%2Fleague-coordinator&checkout=cancel&request=request-2',
+    )
+  })
+
+  it('builds Coach subscription Checkout Session params with subscription metadata', () => {
+    const params = buildStripeCheckoutSessionParams({
+      planId: 'coach',
+      priceId: 'price_coach',
+      requestId: 'request-coach',
+      userId: 'user-coach',
+      customerEmail: 'coach@example.com',
+      origin: 'https://tenaceiq.test',
+      nextHref: '/coach',
+    })
+
+    expect(params.get('mode')).toBe('subscription')
+    expect(params.get('line_items[0][price]')).toBe('price_coach')
+    expect(params.get('customer_email')).toBe('coach@example.com')
+    expect(params.get('metadata[plan_id]')).toBe('coach')
+    expect(params.get('subscription_data[metadata][plan_id]')).toBe('coach')
+    expect(params.get('success_url')).toBe(
+      'https://tenaceiq.test/upgrade?plan=coach&next=%2Fcoach&checkout=success&request=request-coach&session_id=%7BCHECKOUT_SESSION_ID%7D',
     )
   })
 })

@@ -14,8 +14,10 @@ export type StripeCheckoutSessionInput = {
 
 export const STRIPE_PRICE_ENV_BY_PLAN: Record<PaidPricingPlanId, string> = {
   player_plus: 'STRIPE_PLAYER_PRICE_ID',
+  coach: 'STRIPE_COACH_PRICE_ID',
   captain: 'STRIPE_CAPTAIN_PRICE_ID',
   league: 'STRIPE_LEAGUE_PRICE_ID',
+  full_court: 'STRIPE_FULL_COURT_PRICE_ID',
 }
 
 export function getStripePriceId(planId: PaidPricingPlanId, env: Record<string, string | undefined> = process.env) {

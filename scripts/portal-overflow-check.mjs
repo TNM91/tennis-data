@@ -9,8 +9,10 @@ const routes = [
   '/compete/schedule',
   '/compete/results',
   '/league-coordinator',
+  '/league-coordinator/tournaments',
   '/league-coordinator/results',
   '/league-coordinator/individual-results',
+  '/captain/practice',
 ]
 
 const viewports = [
@@ -30,6 +32,12 @@ for (const viewport of viewports) {
     if (message.type() === 'error') {
       const text = message.text()
       if (text.includes('ep1.adtrafficquality.google') || text.includes('google/getconfig/sodar')) {
+        return
+      }
+      if (text.includes('/_next/webpack-hmr') && text.includes('ERR_INVALID_HTTP_RESPONSE')) {
+        return
+      }
+      if (text.includes("Framing 'https://www.google.com/' violates") && text.includes('Content Security Policy')) {
         return
       }
       if (text === 'Failed to load resource: net::ERR_FAILED') {

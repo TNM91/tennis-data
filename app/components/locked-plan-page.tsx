@@ -101,11 +101,39 @@ function getLockedPreview(planId: PricingPlanId): {
     }
   }
 
+  if (planId === 'coach') {
+    return {
+      eyebrow: 'Coach unlock preview',
+      title: 'Develop players with a connected coaching workspace.',
+      body: 'Coach turns lesson plans, tactical boards, drill assignments, student tracking, and scheduling into one practical workflow.',
+      cards: [
+        {
+          label: 'Plan',
+          title: 'Build the lesson',
+          text: 'Use drill blocks, tactical boards, and homework assignments.',
+          icon: 'scenarioBuilder',
+        },
+        {
+          label: 'Track',
+          title: 'Follow student progress',
+          text: 'Keep player development paths and coach notes together.',
+          icon: 'reports',
+        },
+        {
+          label: 'Assign',
+          title: 'Send the next step',
+          text: 'Turn a lesson into clear player follow-through.',
+          icon: 'messagingCenter',
+        },
+      ],
+    }
+  }
+
   if (planId === 'league') {
     return {
       eyebrow: 'League unlock preview',
       title: 'Run the season from one place.',
-      body: 'League tools keep entries, schedules, results, standings, and league visibility organized.',
+      body: 'League keeps entries, schedules, results, standings, and league visibility organized.',
       cards: [
         {
           label: 'Setup',
@@ -132,25 +160,25 @@ function getLockedPreview(planId: PricingPlanId): {
   return {
     eyebrow: 'Player unlock preview',
     title: 'Make TenAceIQ personal.',
-    body: 'Player unlocks My Lab, follows, matchup prep, and a profile-linked tennis home.',
+    body: 'Player unlocks My Lab, data refreshes, matchup prep, and tennis messages.',
     cards: [
       {
         label: 'You',
-        title: 'Link your player',
-        text: 'Keep ratings, teams, results, and follows around one profile.',
+        title: 'Open My Lab',
+        text: 'Keep your scorecard, goals, and next tennis read together.',
         icon: 'myLab',
       },
       {
-        label: 'Prep',
-        title: 'Compare matchups',
-        text: 'Turn public discovery into a clear read before you play.',
-        icon: 'matchupAnalysis',
+        label: 'Improve data',
+        title: 'Refresh tennis context',
+        text: 'Upload, report, or refresh the records behind your read.',
+        icon: 'reports',
       },
       {
-        label: 'Follow',
-        title: 'Keep context close',
-        text: 'Track players, teams, leagues, and rankings that matter.',
-        icon: 'opponentScouting',
+        label: 'Prep matchup',
+        title: 'Compare before you play',
+        text: 'Turn public discovery into a clear read before you play.',
+        icon: 'matchupAnalysis',
       },
     ],
   }

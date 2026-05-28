@@ -81,7 +81,7 @@ export function getCaptainTeamScopeSource(
 }
 
 export function getCaptainTeamScopeSourceLabel(source: CaptainTeamScopeSource | null) {
-  if (source === 'profile') return 'your linked profile'
+  if (source === 'profile') return 'your profile team'
   if (source === 'roster') return 'your roster history'
   if (source === 'tiq') return 'your TIQ team entries'
   return 'your team history'

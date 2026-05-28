@@ -1,12 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
-import { COMPETE_NAV_ITEMS } from '@/lib/site-navigation'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type FrameProps = {
@@ -34,29 +32,6 @@ const HERO_SIGNALS = [
   },
 ]
 
-const COMPETE_NAV_META: Record<string, { icon: TiqFeatureIconName; short: string }> = {
-  '/compete/leagues': {
-    icon: 'teamRankings',
-    short: 'Know the competition layer',
-  },
-  '/compete/teams': {
-    icon: 'lineupBuilder',
-    short: 'Find the team context',
-  },
-  '/compete/schedule': {
-    icon: 'schedule',
-    short: 'See what is next',
-  },
-  '/compete/results': {
-    icon: 'reports',
-    short: 'Review what changed',
-  },
-  '/data-assist': {
-    icon: 'accountSecurity',
-    short: 'Refresh trusted data',
-  },
-}
-
 export default function CompetePageFrame({
   title,
   eyebrow,
@@ -64,22 +39,23 @@ export default function CompetePageFrame({
   children,
 }: FrameProps) {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const pathname = usePathname()
 
   return (
     <SiteShell active="/compete">
       <section
         style={{
-          padding: isMobile ? '16px 12px 28px' : '20px 16px 34px',
+          padding: isMobile ? '16px 0 48px' : '20px 0 64px',
+          overflowX: 'clip',
+          boxSizing: 'border-box',
         }}
       >
         <div
           style={{
-            width: '100%',
-            maxWidth: '1280px',
+            width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
             margin: '0 auto',
             display: 'grid',
             gap: isMobile ? '14px' : '18px',
+            minWidth: 0,
           }}
         >
           <div
@@ -87,11 +63,13 @@ export default function CompetePageFrame({
               position: 'relative',
               overflow: 'hidden',
               borderRadius: isMobile ? '24px' : '30px',
-              border: '1px solid var(--shell-panel-border)',
-              background: 'var(--shell-panel-bg-strong)',
-              boxShadow: 'var(--shadow-card)',
+              border: '1px solid rgba(116,190,255,0.15)',
+              background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+              boxShadow: '0 30px 86px rgba(2, 8, 23, 0.46), inset 0 1px 0 rgba(255,255,255,0.05)',
+              minWidth: 0,
             }}
           >
+            <div aria-hidden="true" style={watermarkStyle} />
             <div
               style={{
                 display: 'grid',
@@ -162,27 +140,6 @@ export default function CompetePageFrame({
                   </div>
                 </div>
 
-                <nav
-                  aria-label="Compete tools"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-                    gap: '10px',
-                    minWidth: 0,
-                  }}
-                >
-                  {COMPETE_NAV_ITEMS.map((item, index) => (
-                    <SubnavLink
-                      key={item.href}
-                      href={item.href}
-                      label={item.label}
-                      index={index + 1}
-                      active={pathname === item.href}
-                      meta={COMPETE_NAV_META[item.href]?.short ?? 'Open competition tool'}
-                      icon={COMPETE_NAV_META[item.href]?.icon ?? 'teamRankings'}
-                    />
-                  ))}
-                </nav>
               </div>
             </div>
           </div>
@@ -210,7 +167,7 @@ function HeroSignal({
           color: 'var(--muted)',
           fontSize: '10px',
           fontWeight: 800,
-          letterSpacing: '0.1em',
+          letterSpacing: 0,
           textTransform: 'uppercase',
         }}
       >
@@ -300,63 +257,6 @@ export function CompeteGrid({ children }: { children: ReactNode }) {
   )
 }
 
-function SubnavLink({
-  href,
-  label,
-  index,
-  active,
-  meta,
-  icon,
-}: {
-  href: string
-  label: string
-  index: number
-  active: boolean
-  meta: string
-  icon: TiqFeatureIconName
-}) {
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <Link
-      href={href}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      aria-current={active ? 'page' : undefined}
-      style={{
-        minHeight: '64px',
-        borderRadius: '18px',
-        border: active
-          ? '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)'
-          : '1px solid var(--shell-panel-border)',
-        background: active
-          ? 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)'
-          : hovered
-            ? 'var(--shell-chip-bg-strong)'
-            : 'var(--shell-chip-bg)',
-        display: 'grid',
-        gridTemplateColumns: '28px 34px minmax(0, 1fr) minmax(0, auto)',
-        alignItems: 'center',
-        gap: '10px',
-        minWidth: 0,
-        padding: '9px 12px',
-        color: 'var(--foreground-strong)',
-        letterSpacing: 0,
-        textDecoration: 'none',
-        boxShadow: 'var(--shadow-soft)',
-      }}
-    >
-      <span style={subnavStepStyle}>{index}</span>
-      <TiqFeatureIcon name={icon} size="sm" variant={active ? 'surface' : 'ghost'} />
-      <span style={subnavCopyStyle}>
-        <span style={subnavLabelStyle}>{label}</span>
-        <span style={subnavMetaStyle}>{meta}</span>
-      </span>
-      <span style={subnavStateStyle}>{active ? 'Here' : 'Open'}</span>
-    </Link>
-  )
-}
-
 const eyebrowChipStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -370,7 +270,7 @@ const eyebrowChipStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.12em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   overflowWrap: 'anywhere',
 }
@@ -401,10 +301,10 @@ const signalGridStyle: CSSProperties = {
 const signalCardStyle: CSSProperties = {
   minWidth: 0,
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.72)',
   padding: '12px',
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   display: 'grid',
   alignContent: 'start',
 }
@@ -412,9 +312,9 @@ const signalCardStyle: CSSProperties = {
 const cardStyle: CSSProperties = {
   minWidth: 0,
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-soft)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.74)',
+  boxShadow: '0 18px 48px rgba(2, 10, 24, 0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   padding: '20px 20px 18px',
   display: 'grid',
   gap: '10px',
@@ -434,7 +334,7 @@ const cardMetaStyle: CSSProperties = {
   color: 'var(--muted)',
   fontSize: '11px',
   fontWeight: 800,
-  letterSpacing: '0.12em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   overflowWrap: 'anywhere',
 }
@@ -459,52 +359,21 @@ const cardCtaStyle: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: '13px',
   fontWeight: 800,
-  letterSpacing: '0.02em',
+  letterSpacing: 0,
   maxWidth: '100%',
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
 }
 
-const subnavStepStyle: CSSProperties = {
-  width: 26,
-  height: 26,
-  display: 'grid',
-  placeItems: 'center',
-  borderRadius: 999,
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
-}
-
-const subnavCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 3,
-  minWidth: 0,
-}
-
-const subnavLabelStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  lineHeight: 1.1,
-  fontWeight: 900,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const subnavMetaStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 11,
-  lineHeight: 1.25,
-  fontWeight: 750,
-  overflowWrap: 'anywhere',
-}
-
-const subnavStateStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  minWidth: 0,
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-86px',
+  top: '-108px',
+  width: '340px',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '34px solid rgba(155,225,29,0.07)',
+  boxShadow: 'inset 0 0 0 2px rgba(125,211,252,0.05), 0 0 76px rgba(125,211,252,0.08)',
+  opacity: 0.72,
+  pointerEvents: 'none',
 }

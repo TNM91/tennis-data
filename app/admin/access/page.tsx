@@ -32,6 +32,8 @@ type ProfileAccessRow = {
   stripe_subscription_id?: string | null
   player_plus_subscription_active: boolean | null
   player_plus_subscription_status: CaptainSubscriptionStatus | null
+  coach_subscription_active: boolean | null
+  coach_subscription_status: CaptainSubscriptionStatus | null
   captain_subscription_active: boolean | null
   captain_subscription_status: CaptainSubscriptionStatus | null
   tiq_team_league_entry_enabled: boolean | null
@@ -41,13 +43,15 @@ type ProfileAccessRow = {
 type EditableProfileAccess = {
   player_plus_subscription_active: boolean
   player_plus_subscription_status: CaptainSubscriptionStatus
+  coach_subscription_active: boolean
+  coach_subscription_status: CaptainSubscriptionStatus
   captain_subscription_active: boolean
   captain_subscription_status: CaptainSubscriptionStatus
   tiq_team_league_entry_enabled: boolean
   tiq_individual_league_creator_enabled: boolean
 }
 
-type AccessPreset = 'player_plus' | 'captain' | 'league'
+type AccessPreset = 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'
 type RoleFilter = 'all' | 'admin' | 'captain' | 'member' | 'public'
 type BillingFilter = 'all' | 'stripe' | 'past_due' | 'canceled' | 'webhook_error' | 'webhook_ignored' | 'manual'
 
@@ -114,6 +118,12 @@ function normalizeEditable(row: ProfileAccessRow): EditableProfileAccess {
     )
       ? (row.player_plus_subscription_status ?? 'inactive')
       : 'inactive',
+    coach_subscription_active: Boolean(row.coach_subscription_active),
+    coach_subscription_status: STATUS_OPTIONS.includes(
+      row.coach_subscription_status ?? 'inactive',
+    )
+      ? (row.coach_subscription_status ?? 'inactive')
+      : 'inactive',
     captain_subscription_active: Boolean(row.captain_subscription_active),
     captain_subscription_status: STATUS_OPTIONS.includes(
       row.captain_subscription_status ?? 'inactive',
@@ -148,7 +158,9 @@ function roleLabel(value: string | null | undefined) {
 
 function formatAccessPreset(value: AccessPreset) {
   if (value === 'player_plus') return 'Player'
+  if (value === 'coach') return 'Coach'
   if (value === 'captain') return 'Captain'
+  if (value === 'full_court') return 'Full-Court'
   return 'Coordinator'
 }
 
@@ -257,7 +269,7 @@ export default function AdminAccessPage() {
       const result = await supabase
         .from('profiles')
         .select(
-          'id, role, stripe_customer_id, stripe_subscription_id, player_plus_subscription_active, player_plus_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+          'id, role, stripe_customer_id, stripe_subscription_id, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
         )
         .limit(500)
 
@@ -266,7 +278,7 @@ export default function AdminAccessPage() {
         const preBillingResult = await supabase
           .from('profiles')
           .select(
-            'id, role, player_plus_subscription_active, player_plus_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+            'id, role, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
           )
           .limit(500)
 
@@ -284,6 +296,8 @@ export default function AdminAccessPage() {
             ...row,
             stripe_customer_id: null,
             stripe_subscription_id: null,
+            coach_subscription_active: false,
+            coach_subscription_status: 'inactive' as CaptainSubscriptionStatus,
             player_plus_subscription_active: false,
             player_plus_subscription_status: 'inactive' as CaptainSubscriptionStatus,
           })) as ProfileAccessRow[]
@@ -348,6 +362,8 @@ export default function AdminAccessPage() {
         ...(current[profileId] || {
           captain_subscription_active: false,
           captain_subscription_status: 'inactive',
+          coach_subscription_active: false,
+          coach_subscription_status: 'inactive',
           player_plus_subscription_active: false,
           player_plus_subscription_status: 'inactive',
           tiq_team_league_entry_enabled: false,
@@ -371,7 +387,10 @@ export default function AdminAccessPage() {
 
     setEditedProfiles((current) => {
       const base = current[profileId] ?? normalizeEditable(profile)
-      const grantsPlayerAccess = preset === 'player_plus' || preset === 'captain'
+      const grantsPlayerAccess = preset === 'player_plus' || preset === 'captain' || preset === 'full_court'
+      const grantsCoachAccess = preset === 'coach' || preset === 'full_court'
+      const grantsCaptainAccess = preset === 'captain' || preset === 'full_court'
+      const grantsLeagueAccess = preset === 'league' || preset === 'full_court'
 
       return {
         ...current,
@@ -379,11 +398,13 @@ export default function AdminAccessPage() {
           ...base,
           player_plus_subscription_active: grantsPlayerAccess ? true : base.player_plus_subscription_active,
           player_plus_subscription_status: grantsPlayerAccess ? 'active' : base.player_plus_subscription_status,
-          captain_subscription_active: preset === 'captain' ? true : base.captain_subscription_active,
-          captain_subscription_status: preset === 'captain' ? 'active' : base.captain_subscription_status,
-          tiq_team_league_entry_enabled: preset === 'league' ? true : base.tiq_team_league_entry_enabled,
+          coach_subscription_active: grantsCoachAccess ? true : base.coach_subscription_active,
+          coach_subscription_status: grantsCoachAccess ? 'active' : base.coach_subscription_status,
+          captain_subscription_active: grantsCaptainAccess ? true : base.captain_subscription_active,
+          captain_subscription_status: grantsCaptainAccess ? 'active' : base.captain_subscription_status,
+          tiq_team_league_entry_enabled: grantsLeagueAccess ? true : base.tiq_team_league_entry_enabled,
           tiq_individual_league_creator_enabled:
-            preset === 'league' ? true : base.tiq_individual_league_creator_enabled,
+            grantsLeagueAccess ? true : base.tiq_individual_league_creator_enabled,
         },
       }
     })
@@ -401,6 +422,8 @@ export default function AdminAccessPage() {
 
     try {
       const payload: Record<string, boolean | CaptainSubscriptionStatus> = {
+        coach_subscription_active: draft.coach_subscription_active,
+        coach_subscription_status: draft.coach_subscription_status,
         captain_subscription_active: draft.captain_subscription_active,
         captain_subscription_status: draft.captain_subscription_status,
         tiq_team_league_entry_enabled: draft.tiq_team_league_entry_enabled,
@@ -475,8 +498,15 @@ export default function AdminAccessPage() {
   const activeCaptainCount = profiles.filter((profile) =>
     Boolean(profile.captain_subscription_active),
   ).length
+  const activeCoachCount = profiles.filter((profile) =>
+    Boolean(profile.coach_subscription_active),
+  ).length
   const activePlayerCount = profiles.filter((profile) =>
-    Boolean(profile.player_plus_subscription_active || profile.captain_subscription_active),
+    Boolean(
+      profile.player_plus_subscription_active ||
+      profile.coach_subscription_active ||
+      profile.captain_subscription_active,
+    ),
   ).length
   const teamEntryCount = profiles.filter((profile) =>
     Boolean(profile.tiq_team_league_entry_enabled),
@@ -513,18 +543,18 @@ export default function AdminAccessPage() {
         <AdminReviewFrame>
           <AdminReviewHero
             kicker="Admin Access"
-            title="Player, Captain, and Coordinator entitlements"
+            title="Player, Coach, Captain, and Coordinator entitlements"
             actions={
               <>
+                <span className="badge badge-green">Coach subscription control</span>
                 <span className="badge badge-green">Captain subscription control</span>
                 <span className="badge badge-blue">Team coordinator access</span>
                 <span className="badge badge-slate">Individual coordinator access</span>
               </>
             }
           >
-            Control who has the {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain workflow and who
-            can run TIQ team or individual leagues at {TIQ_SEASON_FEE_PRICE_LABEL} without
-            forcing Player or Captain access.
+            Control who has Player+, Coach, and {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain
+            workflows, plus who can run TIQ team or individual leagues at {TIQ_SEASON_FEE_PRICE_LABEL}.
           </AdminReviewHero>
 
           <AdminReviewPanel compact style={{ marginTop: 18 }}>
@@ -537,6 +567,7 @@ export default function AdminAccessPage() {
             >
               <MetricCard label="Profiles Loaded" value={profiles.length} />
               <MetricCard label="Player Active" value={activePlayerCount} />
+              <MetricCard label="Coach Active" value={activeCoachCount} />
               <MetricCard label="Captain Active" value={activeCaptainCount} />
               <MetricCard label="Team Coordinator" value={teamEntryCount} />
               <MetricCard label="Individual Coordinator" value={individualCreatorCount} />
@@ -658,6 +689,13 @@ export default function AdminAccessPage() {
                     <button
                       type="button"
                       className="button-secondary"
+                      onClick={() => applyAccessPreset(handoffProfile.id, 'coach')}
+                    >
+                      Draft Coach
+                    </button>
+                    <button
+                      type="button"
+                      className="button-secondary"
                       onClick={() => applyAccessPreset(handoffProfile.id, 'captain')}
                     >
                       Draft Captain
@@ -668,6 +706,13 @@ export default function AdminAccessPage() {
                       onClick={() => applyAccessPreset(handoffProfile.id, 'league')}
                     >
                       Draft Coordinator
+                    </button>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => applyAccessPreset(handoffProfile.id, 'full_court')}
+                    >
+                      Draft Full-Court
                     </button>
                   </div>
                 ) : (
@@ -700,6 +745,8 @@ export default function AdminAccessPage() {
                       <th>Why</th>
                       <th>Player Active</th>
                       <th>Player Status</th>
+                      <th>Coach Active</th>
+                      <th>Coach Status</th>
                       <th>Captain Active</th>
                       <th>Captain Status</th>
                       <th>Team Coordinator</th>
@@ -793,6 +840,44 @@ export default function AdminAccessPage() {
                               className="select"
                               style={{ width: '100%', maxWidth: 140, minWidth: 0 }}
                               disabled={savingId === profile.id || !playerEntitlementsAvailable}
+                            >
+                              {STATUS_OPTIONS.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <label style={toggleWrap}>
+                              <input
+                                type="checkbox"
+                                checked={draft.coach_subscription_active}
+                                onChange={(event) =>
+                                  updateProfileField(
+                                    profile.id,
+                                    'coach_subscription_active',
+                                    event.target.checked,
+                                  )
+                                }
+                                disabled={savingId === profile.id}
+                              />
+                              <span>{draft.coach_subscription_active ? 'Active' : 'Inactive'}</span>
+                            </label>
+                          </td>
+                          <td>
+                            <select
+                              value={draft.coach_subscription_status}
+                              onChange={(event) =>
+                                updateProfileField(
+                                  profile.id,
+                                  'coach_subscription_status',
+                                  event.target.value as CaptainSubscriptionStatus,
+                                )
+                              }
+                              className="select"
+                              style={{ width: '100%', maxWidth: 140, minWidth: 0 }}
+                              disabled={savingId === profile.id}
                             >
                               {STATUS_OPTIONS.map((status) => (
                                 <option key={status} value={status}>
@@ -956,7 +1041,14 @@ export default function AdminAccessPage() {
 }
 
 function normalizePricingPlanId(value: string | null | undefined): PricingPlanId | null {
-  if (value === 'free' || value === 'player_plus' || value === 'captain' || value === 'league') {
+  if (
+    value === 'free' ||
+    value === 'player_plus' ||
+    value === 'coach' ||
+    value === 'captain' ||
+    value === 'league' ||
+    value === 'full_court'
+  ) {
     return value
   }
 
@@ -975,7 +1067,11 @@ function normalizeStripeBillingEventOutcome(value: string | null | undefined) {
 }
 
 function hasSubscriptionStatus(profile: ProfileAccessRow, status: CaptainSubscriptionStatus) {
-  return profile.player_plus_subscription_status === status || profile.captain_subscription_status === status
+  return (
+    profile.player_plus_subscription_status === status ||
+    profile.coach_subscription_status === status ||
+    profile.captain_subscription_status === status
+  )
 }
 
 function matchesBillingFilter(
@@ -1017,6 +1113,8 @@ function toEntitlementSnapshot(draft: EditableProfileAccess): ProductEntitlement
   return {
     playerPlusSubscriptionActive: draft.player_plus_subscription_active,
     playerPlusSubscriptionStatus: draft.player_plus_subscription_status,
+    coachSubscriptionActive: draft.coach_subscription_active,
+    coachSubscriptionStatus: draft.coach_subscription_status,
     captainSubscriptionActive: draft.captain_subscription_active,
     captainSubscriptionStatus: draft.captain_subscription_status,
     tiqTeamLeagueEntryEnabled: draft.tiq_team_league_entry_enabled,
@@ -1044,6 +1142,10 @@ function buildAccessAudit(
     sources.push(`Player flag is ${draft.player_plus_subscription_status}.`)
   }
 
+  if (draft.coach_subscription_active) {
+    sources.push(`Coach flag is ${draft.coach_subscription_status}.`)
+  }
+
   if (draft.captain_subscription_active) {
     sources.push(`Captain flag is ${draft.captain_subscription_status}.`)
   }
@@ -1064,8 +1166,20 @@ function buildAccessAudit(
     warnings.push('Review: Player checkout currently has Captain access.')
   }
 
+  if (lastConvertedRequest?.planId === 'player_plus' && access.canUseCoachWorkflow) {
+    warnings.push('Review: Player checkout currently has Coach access.')
+  }
+
   if (lastConvertedRequest?.planId === 'player_plus' && access.canUseLeagueTools) {
     warnings.push('Review: Player checkout currently has Coordinator access.')
+  }
+
+  if (lastConvertedRequest?.planId === 'coach' && access.canUseCaptainWorkflow) {
+    warnings.push('Review: Coach checkout currently has Captain access.')
+  }
+
+  if (lastConvertedRequest?.planId === 'coach' && access.canUseLeagueTools) {
+    warnings.push('Review: Coach checkout currently has Coordinator access.')
   }
 
   if (lastConvertedRequest?.planId === 'captain' && access.canUseLeagueTools) {
@@ -1089,8 +1203,10 @@ function buildAccessAudit(
 
 function formatPlanLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'Player'
+  if (planId === 'coach') return 'Coach'
   if (planId === 'captain') return 'Captain'
   if (planId === 'league') return 'Coordinator'
+  if (planId === 'full_court') return 'Full-Court'
   return 'Free'
 }
 
@@ -1135,6 +1251,7 @@ function SupportBillingDetails({
 }) {
   const billingStatus =
     latestEvent?.resultingStatus ||
+    profile.coach_subscription_status ||
     profile.captain_subscription_status ||
     profile.player_plus_subscription_status ||
     'inactive'
@@ -1153,6 +1270,7 @@ function SupportBillingDetails({
         <SupportDetailItem label="Stripe customer" value={profile.stripe_customer_id || 'Not linked'} />
         <SupportDetailItem label="Stripe subscription" value={profile.stripe_subscription_id || 'Not linked'} />
         <SupportDetailItem label="Player status" value={`${profile.player_plus_subscription_active ? 'active' : 'inactive'} / ${profile.player_plus_subscription_status || 'inactive'}`} />
+        <SupportDetailItem label="Coach status" value={`${profile.coach_subscription_active ? 'active' : 'inactive'} / ${profile.coach_subscription_status || 'inactive'}`} />
         <SupportDetailItem label="Captain status" value={`${profile.captain_subscription_active ? 'active' : 'inactive'} / ${profile.captain_subscription_status || 'inactive'}`} />
         <SupportDetailItem label="Converted checkout" value={convertedRequest ? `${formatPlanLabel(convertedRequest.planId)} / ${formatEventTime(convertedRequest.changedAt)}` : 'None found'} />
       </div>

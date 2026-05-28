@@ -104,8 +104,8 @@ export async function getTeamMetadataByName(team: string): Promise<Metadata> {
   const title = `${team} Team Intelligence`
   const context = joinParts([preview.secondary, preview.tertiary], ' | ')
   const description = context
-    ? `${team} on TenAceIQ. Review roster depth, recent form, and captain tools for ${context}.`
-    : `${team} on TenAceIQ. Review roster depth, recent form, and captain workflow tools in one place.`
+    ? `${team} on TenAceIQ. Review roster depth, recent form, and Captain context for ${context}.`
+    : `${team} on TenAceIQ. Review roster depth, recent form, and Captain workflow in one place.`
 
   return buildRouteMetadata({
     title,
@@ -128,6 +128,44 @@ export async function getLeagueMetadataByName(league: string): Promise<Metadata>
     description,
     path: `/leagues/${encodeURIComponent(league)}`,
   })
+}
+
+export async function getAwardMetadataById(id: string): Promise<Metadata> {
+  const preview = await getAwardSharePreview(id)
+  const title = preview.recipientName
+    ? `${preview.recipientName} ${preview.title}`
+    : 'TenAceIQ Award Certificate'
+  const description = preview.recipientName
+    ? `${preview.recipientName} earned ${preview.title} at ${preview.sourceName}. More Tennis. Less Chaos.`
+    : 'Open a TenAceIQ award certificate. More Tennis. Less Chaos.'
+  const path = `/awards/${encodeURIComponent(id)}`
+
+  return {
+    ...buildRouteMetadata({
+      title,
+      description,
+      path,
+    }),
+    openGraph: {
+      title,
+      description,
+      url: path,
+      images: [
+        {
+          url: `${path}/opengraph-image`,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${path}/opengraph-image`],
+    },
+  }
 }
 
 export async function getPlayerSharePreview(id: string) {
@@ -172,5 +210,22 @@ export async function getLeagueSharePreview(league: string) {
     primary: data?.league_name?.trim() || league,
     secondary: data?.flight?.trim() || 'League season',
     tertiary: joinParts([data?.usta_section?.trim(), data?.district_area?.trim()], ' | '),
+  }
+}
+
+export async function getAwardSharePreview(id: string) {
+  const { data } = await supabase
+    .from('tiq_awards')
+    .select('recipient_name,source_name,title,badge_label,badge_code,subtitle')
+    .eq('id', id)
+    .maybeSingle()
+
+  return {
+    recipientName: data?.recipient_name?.trim() || '',
+    sourceName: data?.source_name?.trim() || 'TenAceIQ',
+    title: data?.title?.trim() || 'Award Certificate',
+    badgeLabel: data?.badge_label?.trim() || 'Award',
+    badgeCode: data?.badge_code?.trim() || 'TIQ',
+    subtitle: data?.subtitle?.trim() || 'More Tennis. Less Chaos.',
   }
 }

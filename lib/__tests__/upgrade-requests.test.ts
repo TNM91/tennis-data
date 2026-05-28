@@ -12,7 +12,7 @@ describe('upgrade request pricing snapshots', () => {
     expect(mapUpgradeRequestRecordToInsert({
       id: '',
       planId: 'league',
-      planName: 'TIQ League Coordinator',
+      planName: 'League',
       name: 'Organizer',
       email: 'organizer@example.com',
       organization: 'Tuesday Ladder',
@@ -21,13 +21,13 @@ describe('upgrade request pricing snapshots', () => {
       createdAt: '',
     })).toMatchObject({
       plan_id: 'league',
-      plan_name: 'TIQ League Coordinator',
-      price_label: '$25/season per league',
-      billing_amount_cents: 2500,
+      plan_name: 'League',
+      price_label: '$14.99/month',
+      billing_amount_cents: 1499,
       billing_currency: 'usd',
-      billing_interval: 'season',
-      checkout_mode: 'one_time',
-      quantity_mode: 'league',
+      billing_interval: 'month',
+      checkout_mode: 'subscription',
+      quantity_mode: 'account',
       entitlement_grant: {
         playerPlus: false,
         captain: false,
@@ -35,12 +35,7 @@ describe('upgrade request pricing snapshots', () => {
         tiqTeamLeagueEntry: true,
         tiqIndividualLeagueCreator: true,
       },
-      discount_rules: [
-        {
-          id: 'captain_first_league_half_off',
-          percentOff: 50,
-        },
-      ],
+      discount_rules: [],
     })
   })
 
@@ -85,6 +80,42 @@ describe('upgrade request pricing snapshots', () => {
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',
+    })
+  })
+
+  it('captures Coach as a Player+ plus coaching workflow snapshot', () => {
+    expect(buildUpgradePricingSnapshot('coach')).toMatchObject({
+      planName: 'Coach',
+      priceLabel: '$9.99/month',
+      billingAmountCents: 999,
+      billingInterval: 'month',
+      checkoutMode: 'subscription',
+      quantityMode: 'account',
+      entitlementGrant: {
+        playerPlus: true,
+        coach: true,
+        captain: false,
+        leagueCoordinator: false,
+      },
+    })
+  })
+
+  it('captures Full-Court as the full-suite pricing snapshot', () => {
+    expect(buildUpgradePricingSnapshot('full_court')).toMatchObject({
+      planName: 'Full-Court',
+      priceLabel: '$19.99/month',
+      billingAmountCents: 1999,
+      billingInterval: 'month',
+      checkoutMode: 'subscription',
+      quantityMode: 'account',
+      entitlementGrant: {
+        playerPlus: true,
+        coach: true,
+        captain: true,
+        leagueCoordinator: true,
+        tiqTeamLeagueEntry: true,
+        tiqIndividualLeagueCreator: true,
+      },
     })
   })
 })

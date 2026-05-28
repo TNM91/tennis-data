@@ -109,6 +109,39 @@ describe('Stripe billing helpers', () => {
     expect(update ? getStripeSubscriptionResultingStatus(update) : '').toBe('active')
   })
 
+  it('activates coach entitlements with Player access from subscription lifecycle metadata', () => {
+    const update = buildStripeSubscriptionProfileUpdate({
+      type: 'customer.subscription.updated',
+      data: {
+        object: {
+          id: 'sub_coach',
+          status: 'active',
+          customer: 'cus_coach',
+          metadata: {
+            user_id: 'user-coach',
+            plan_id: 'coach',
+          },
+        },
+      },
+    })
+
+    expect(update).toEqual({
+      userId: 'user-coach',
+      subscriptionId: 'sub_coach',
+      customerId: 'cus_coach',
+      planId: 'coach',
+      payload: {
+        player_plus_subscription_active: true,
+        player_plus_subscription_status: 'active',
+        coach_subscription_active: true,
+        coach_subscription_status: 'active',
+        stripe_customer_id: 'cus_coach',
+        stripe_subscription_id: 'sub_coach',
+      },
+    })
+    expect(update ? getStripeSubscriptionResultingStatus(update) : '').toBe('active')
+  })
+
   it('downgrades player subscriptions when Stripe reports cancellation', () => {
     expect(buildStripeSubscriptionProfileUpdate({
       type: 'customer.subscription.deleted',
@@ -156,6 +189,34 @@ describe('Stripe billing helpers', () => {
       captain_subscription_status: 'past_due',
       stripe_customer_id: 'cus_123',
       stripe_subscription_id: 'sub_captain',
+    })
+  })
+
+  it('revokes coach and Player access on failed coach invoice payments', () => {
+    expect(buildStripeSubscriptionProfileUpdate({
+      type: 'invoice.payment_failed',
+      data: {
+        object: {
+          id: 'in_coach',
+          customer: 'cus_coach',
+          subscription: 'sub_coach',
+          parent: {
+            subscription_details: {
+              metadata: {
+                user_id: 'user-coach',
+                plan_id: 'coach',
+              },
+            },
+          },
+        },
+      },
+    })?.payload).toEqual({
+      player_plus_subscription_active: false,
+      player_plus_subscription_status: 'past_due',
+      coach_subscription_active: false,
+      coach_subscription_status: 'past_due',
+      stripe_customer_id: 'cus_coach',
+      stripe_subscription_id: 'sub_coach',
     })
   })
 

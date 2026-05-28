@@ -9,6 +9,7 @@ import CaptainFormField from '@/app/components/captain-form-field'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
@@ -2023,7 +2024,7 @@ function importScenarioToLineup() {
         planId="captain"
         headline="Need one place to send the team plan?"
         body="Unlock Captain to keep availability, lineup context, reminders, and match-day messaging in one place instead of piecing it together manually."
-        ctaLabel="Unlock Captain Tools"
+        ctaLabel="Unlock Captain"
         secondaryLabel="Back to Captain"
         secondaryHref="/captain"
       />
@@ -2032,6 +2033,7 @@ function importScenarioToLineup() {
 
   return (
     <section style={pageContentStyle}>
+         <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} />
          <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
             <div>
               <div style={messageControlHeaderStyle}>
@@ -2157,7 +2159,7 @@ function importScenarioToLineup() {
             compact
             headline="Still chasing confirmations in group texts?"
             body="Unlock Captain to keep availability, lineup context, reminders, and match-day messaging in one place instead of piecing it together manually."
-            ctaLabel="Unlock Captain Tools"
+            ctaLabel="Unlock Captain"
             ctaHref="/pricing"
             secondaryLabel="See messaging value"
             secondaryHref="/pricing"
@@ -2235,7 +2237,7 @@ function importScenarioToLineup() {
           </details>
 
           {loading ? (
-            <section style={surfaceCard}><p style={mutedTextStyle}>Loading captain tools...</p></section>
+            <section style={surfaceCard}><p style={mutedTextStyle}>Loading Captain workspace...</p></section>
           ) : (
             <>
               {error ? (
@@ -2454,7 +2456,7 @@ function importScenarioToLineup() {
                               compact
                               headline="Want the winning lineup to move straight into captain communication?"
                               body="Captain connects saved scenarios, lineup sync, and message prep so you are not copying the plan across tabs before match day."
-                              ctaLabel="Unlock Captain Tools"
+                              ctaLabel="Unlock Captain"
                               ctaHref="/pricing"
                               secondaryLabel="See messaging value"
                               secondaryHref="/pricing"
@@ -2684,7 +2686,7 @@ function importScenarioToLineup() {
                         <div style={intelligenceTextStyle}>
                           {finalizationReadiness.ready
                             ? 'The workflow is stable enough to move from planning into communication.'
-                            : 'Use the follow-up tools and blocker list to remove uncertainty before messaging the full team.'}
+                            : 'Use the follow-up queue and blocker list to remove uncertainty before messaging the full team.'}
                         </div>
                       </div>
                     </div>
@@ -2906,7 +2908,7 @@ function importScenarioToLineup() {
                       compact
                       headline="Still deciding the next message manually every week?"
                       body="Captain turns follow-up pressure, lineup readiness, and audience selection into one cleaner send strategy instead of guesswork and group-text cleanup."
-                      ctaLabel="Unlock Captain Tools"
+                      ctaLabel="Unlock Captain"
                       ctaHref="/pricing"
                       secondaryLabel="See Captain plan"
                       secondaryHref="/pricing"
@@ -3225,7 +3227,7 @@ function importScenarioToLineup() {
                         </div>
                         <div style={sendGateTextStyle}>
                           {followUpTargets.length > 0
-                            ? 'Use the smart follow-up tools to clear blockers before the final send.'
+                            ? 'Use smart follow-ups to clear blockers before the final send.'
                             : lineupRows.length === 0
                               ? 'Pull the winning scenario into the weekly lineup so communication stays anchored to the actual plan.'
                               : !messageBody.trim()
@@ -3747,20 +3749,23 @@ function responseButtonActive(status: WeeklyResponse['status']): CSSProperties {
 const pageContentStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  width: '100%',
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '18px 24px 0',
+  padding: '18px 0 64px',
+  display: 'grid',
+  gap: 18,
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const messageControlShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  borderRadius: '34px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 28px 80px rgba(3, 10, 24, 0.16)',
+  borderRadius: '28px',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 28px 80px rgba(2, 10, 24, 0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
   minWidth: 0,

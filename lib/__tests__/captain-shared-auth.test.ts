@@ -41,8 +41,8 @@ describe('Captain shared auth access', () => {
   })
 
   it('keeps projection and scenario tools on shared auth without local role polling', () => {
-    expect(lineupProjectionSource).toContain("import { AuthProvider, useAuth } from '@/app/components/auth-provider'")
-    expect(lineupProjectionSource).toContain('<AuthProvider>')
+    expect(lineupProjectionSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(lineupProjectionSource).toContain('<SiteShell active="/captain">')
     expect(lineupProjectionSource).toContain('const { role, entitlements, authResolved } = useAuth()')
     expect(lineupProjectionSource).toContain('if (!authResolved || role === \'public\') return')
 
@@ -73,8 +73,8 @@ describe('Captain shared auth access', () => {
   })
 
   it('keeps custom captain availability tooling on shared auth without local role polling', () => {
-    expect(lineupAvailabilitySource).toContain("import { AuthProvider, useAuth } from '@/app/components/auth-provider'")
-    expect(lineupAvailabilitySource).toContain('<AuthProvider>')
+    expect(lineupAvailabilitySource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(lineupAvailabilitySource).toContain('<SiteShell active="/captain">')
     expect(lineupAvailabilitySource).toContain('const { role, entitlements, authResolved } = useAuth()')
     expect(lineupAvailabilitySource).toContain("if (!authResolved || role === 'public') return")
     expect(lineupAvailabilitySource).not.toContain("import { getClientAuthState } from '@/lib/auth'")

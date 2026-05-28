@@ -98,7 +98,7 @@ export default async function Image({
             }}
           >
             <div style={{ fontSize: '26px', color: '#d9f84a', fontWeight: 800 }}>
-              Roster depth, form, and captain tools
+              Roster depth, form, and Captain context
             </div>
             <div style={{ fontSize: '24px', color: 'rgba(224,236,249,0.72)' }}>
               TenAceIQ

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   cancelInternalScheduleEvent,
@@ -45,6 +46,7 @@ import {
   type InternalNotificationPreferences,
   type InternalNotificationPreferencePatch,
 } from '@/lib/internal-notification-preferences'
+import type { CoachStudentLink } from '@/lib/coach-storage'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ComposeMode = 'support' | 'direct'
@@ -61,6 +63,16 @@ type MessagePrefill = {
   entityType: string
   entityId: string
   threadId: string
+}
+
+type CoachMessageContact = {
+  linkId: string
+  relationship: 'coach' | 'student'
+  profileId: string
+  name: string
+  identitySlug: string
+  levelLabel: string
+  status: CoachStudentLink['status']
 }
 
 function formatMessageTime(value: string) {
@@ -105,7 +117,7 @@ function statusLabel(status: InternalConversation['status']) {
   return 'Open'
 }
 
-function buildConversationContextHref(conversation: InternalConversation | null) {
+function buildConversationContextHref(conversation: InternalConversation | null, coachContacts: CoachMessageContact[]) {
   if (!conversation) return ''
   const entityType = conversation.metadata.entityType || conversation.relatedEntityType
   const entityId = conversation.metadata.entityId || conversation.relatedEntityId
@@ -116,8 +128,65 @@ function buildConversationContextHref(conversation: InternalConversation | null)
   }
   if (entityType === 'tiq_individual_result') return '/compete/results'
   if (entityType === 'tiq_schedule_item' || entityType === 'schedule_match') return '/compete/schedule'
+  if (entityType === 'coach_player_link') {
+    const contact = coachContacts.find((item) => item.linkId === entityId)
+    return contact?.relationship === 'student' ? '/coach' : '/mylab#player-workshop'
+  }
   if (entityType === 'billing') return '/profile'
   return ''
+}
+
+function normalizeCoachMessageContacts(items: CoachMessageContact[]) {
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const key = `${item.relationship}:${item.linkId}:${item.profileId}`
+    if (!item.linkId || !item.profileId || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+async function fetchCoachMessageContacts(): Promise<CoachMessageContact[]> {
+  const [coachResponse, playerResponse] = await Promise.allSettled([
+    fetch('/api/coach/students', { cache: 'no-store' }),
+    fetch('/api/player/coach-assignments', { cache: 'no-store' }),
+  ])
+
+  const contacts: CoachMessageContact[] = []
+
+  if (coachResponse.status === 'fulfilled' && coachResponse.value.ok) {
+    const json = (await coachResponse.value.json()) as { students?: CoachStudentLink[] }
+    for (const student of json.students ?? []) {
+      if (!student.playerUserId) continue
+      contacts.push({
+        linkId: student.id,
+        relationship: 'student',
+        profileId: student.playerUserId,
+        name: student.playerName,
+        identitySlug: student.identitySlug,
+        levelLabel: student.levelLabel,
+        status: student.status,
+      })
+    }
+  }
+
+  if (playerResponse.status === 'fulfilled' && playerResponse.value.ok) {
+    const json = (await playerResponse.value.json()) as { coachLinks?: CoachStudentLink[] }
+    for (const link of json.coachLinks ?? []) {
+      if (!link.coachUserId) continue
+      contacts.push({
+        linkId: link.id,
+        relationship: 'coach',
+        profileId: link.coachUserId,
+        name: 'Coach',
+        identitySlug: link.identitySlug,
+        levelLabel: link.levelLabel,
+        status: link.status,
+      })
+    }
+  }
+
+  return normalizeCoachMessageContacts(contacts)
 }
 
 export default function MessagesPage() {
@@ -173,6 +242,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [scheduleResponses, setScheduleResponses] = useState<InternalScheduleResponse[]>([])
   const [notifications, setNotifications] = useState<InternalNotification[]>([])
   const [notificationPreferences, setNotificationPreferences] = useState<InternalNotificationPreferences | null>(null)
+  const [coachContacts, setCoachContacts] = useState<CoachMessageContact[]>([])
   const [composeMode, setComposeMode] = useState<ComposeMode>(prefill.mode)
   const [supportCategory, setSupportCategory] = useState<SupportFilter>(prefill.category)
   const [supportFilter, setSupportFilter] = useState<SupportFilter>('all')
@@ -180,6 +250,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [recipient, setRecipient] = useState<InternalRecipient | null>(null)
   const [recipientSearchResults, setRecipientSearchResults] = useState<InternalRecipient[]>([])
   const [recipientSearching, setRecipientSearching] = useState(false)
+  const [composeContext, setComposeContext] = useState<{ entityType: string; entityId: string }>({
+    entityType: prefill.entityType,
+    entityId: prefill.entityId,
+  })
   const [displayNameDraft, setDisplayNameDraft] = useState('')
   const [identitySaving, setIdentitySaving] = useState(false)
   const [subject, setSubject] = useState(prefill.subject || (prefill.mode === 'support' ? 'Support request' : ''))
@@ -213,7 +287,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       selectedScheduleEvent &&
       (identity.role === 'admin' || selectedScheduleEvent.createdByUserId === identity.userId),
   )
-  const selectedContextHref = useMemo(() => buildConversationContextHref(selectedConversation), [selectedConversation])
+  const selectedContextHref = useMemo(
+    () => buildConversationContextHref(selectedConversation, coachContacts),
+    [coachContacts, selectedConversation],
+  )
   const unreadNotificationCount = useMemo(
     () => notifications.filter((notification) => !notification.readAt).length,
     [notifications],
@@ -228,6 +305,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     () => conversations.filter((conversation) => conversation.isUnread).length,
     [conversations],
   )
+  const emptyInboxActions = [
+    { title: 'Open My Lab', href: '/mylab' },
+    { title: 'Improve data', href: '/data-assist' },
+    { title: 'Prep matchup', href: '/matchup' },
+  ] as const
 
   useEffect(() => {
     setComposeMode(prefill.mode)
@@ -237,6 +319,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     setBody(prefill.body)
     setRecipient(null)
     setRecipientSearchResults([])
+    setComposeContext({ entityType: prefill.entityType, entityId: prefill.entityId })
   }, [prefill])
 
   useEffect(() => {
@@ -282,11 +365,15 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         setConversations([])
         setSelectedId('')
         setNotificationPreferences(null)
+        setCoachContacts([])
         return
       }
 
       const nextConversations = await listInternalConversations(nextIdentity)
       setConversations(nextConversations)
+      fetchCoachMessageContacts()
+        .then(setCoachContacts)
+        .catch(() => setCoachContacts([]))
       getInternalNotificationPreferences(nextIdentity.userId)
         .then(setNotificationPreferences)
         .catch(() => setNotificationPreferences(null))
@@ -404,6 +491,45 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     return found
   }
 
+  async function chooseCoachContact(contact: CoachMessageContact) {
+    if (!identity) return
+
+    setComposeMode('direct')
+    setSupportCategory('general')
+    setSelectedId('')
+    setError('')
+    setMessage('')
+    setRecipientSearching(true)
+    try {
+      const found = await resolveInternalRecipient({
+        profileId: contact.profileId,
+        nameOrId: contact.name,
+      })
+      if (!found || found.id === identity.userId) {
+        setError('This linked contact is not ready for direct Messages yet.')
+        return
+      }
+      const isStudent = contact.relationship === 'student'
+      const nextSubject = isStudent
+        ? `${contact.name} development check-in`
+        : 'Player+ coach check-in'
+      const nextBody = isStudent
+        ? `Quick coach note for ${contact.name}: `
+        : 'Quick player note: '
+
+      setRecipient(found)
+      setRecipientInput(found.displayName)
+      setSubject(nextSubject)
+      setBody(nextBody)
+      setComposeContext({ entityType: 'coach_player_link', entityId: contact.linkId })
+      setMessage(`Ready to message ${found.displayName}.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Linked contact could not be opened.')
+    } finally {
+      setRecipientSearching(false)
+    }
+  }
+
   async function searchRecipients() {
     if (!identity) return
     const query = recipientInput.trim()
@@ -464,13 +590,17 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       } else {
         const nextRecipient = recipient ?? (await resolveRecipient())
         if (!nextRecipient) return
-        conversationId = await createDirectConversation(identity, nextRecipient, subject, body)
+        conversationId = await createDirectConversation(identity, nextRecipient, subject, body, {
+          entityType: composeContext.entityType,
+          entityId: composeContext.entityId,
+        })
       }
 
       setBody('')
       setSubject(composeMode === 'support' ? 'Support request' : '')
       setRecipient(null)
       setRecipientInput('')
+      setComposeContext({ entityType: '', entityId: '' })
       setSelectedId(conversationId)
       await loadInbox()
       setSelectedId(conversationId)
@@ -655,6 +785,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     return (
       <section style={pageStyle}>
         <div style={panelStyle}>
+          <span aria-hidden="true" style={watermarkStyle} />
           <div className="section-kicker">Messages</div>
           <h1 style={titleStyle}>Loading your TenAceIQ inbox...</h1>
         </div>
@@ -666,6 +797,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     return (
       <section style={pageStyle}>
         <div style={panelStyle}>
+          <span aria-hidden="true" style={watermarkStyle} />
           <h1 style={titleStyle}>Sign in to message players or support.</h1>
           <p style={copyStyle}>
             TenAceIQ Messages keeps account, league, and player conversations inside the platform.
@@ -678,8 +810,37 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
   return (
     <section style={pageStyle}>
+      <PlayerSuitePanel active="messages" playerLabel="Inbox" />
+      {coachContacts.length ? (
+        <section style={coachContactsPanelStyle}>
+          <div>
+            <div className="section-kicker">Coach-player links</div>
+            <h2 style={coachContactsTitleStyle}>Start with the people tied to the work.</h2>
+            <p style={coachContactsCopyStyle}>
+              Use these links for assignment follow-up, stat notes, lesson goals, and quick Player+ check-ins.
+            </p>
+          </div>
+          <div style={coachContactsGridStyle}>
+            {coachContacts.slice(0, 4).map((contact) => (
+              <button
+                key={`${contact.relationship}-${contact.linkId}`}
+                type="button"
+                onClick={() => void chooseCoachContact(contact)}
+                style={coachContactButtonStyle}
+              >
+                <span style={coachContactLabelStyle}>
+                  {contact.relationship === 'student' ? 'Student' : 'Coach'}
+                </span>
+                <strong>{contact.name}</strong>
+                <small>{contact.levelLabel || 'Development path'}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <section style={workspaceGridStyle(isTablet)}>
         <aside style={panelStyle}>
+          <span aria-hidden="true" style={watermarkStyle} />
           <div style={sectionHeaderStyle}>
             <div>
               <div className="section-kicker">Inbox</div>
@@ -732,7 +893,17 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               ))}
             </div>
           ) : (
-            <p style={copyStyle}>No messages yet. Start with support or search for another player by name.</p>
+            <div style={emptyInboxStyle}>
+              <strong>Inbox starts when tennis needs a reply.</strong>
+              <p style={copyStyle}>Support, player notes, scheduling threads, and RSVP alerts will land here.</p>
+              <div style={emptyInboxActionRowStyle}>
+                {emptyInboxActions.map((action) => (
+                  <Link key={action.href} href={action.href} style={emptyInboxActionStyle}>
+                    {action.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
           )}
         </aside>
 
@@ -745,14 +916,18 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             {selectedConversation ? <span style={pillStyle}>{statusLabel(selectedConversation.status)}</span> : null}
           </div>
 
-          {selectedConversation?.conversationType === 'support' || selectedConversation?.conversationType === 'league' ? (
+          {selectedConversation && (selectedConversation.conversationType === 'support' || selectedConversation.conversationType === 'league' || selectedContextHref) ? (
             <div style={contextPanelStyle}>
               <div>
                 <div style={labelStyle}>Context</div>
                 <p style={copyStyle}>
                   {selectedConversation.conversationType === 'league'
                     ? selectedConversation.metadata.leagueName || selectedConversation.relatedEntityId || 'League conversation'
-                    : `${supportCategoryLabel(selectedConversation.relatedEntityType)} support`}
+                    : selectedConversation.conversationType === 'support'
+                      ? `${supportCategoryLabel(selectedConversation.relatedEntityType)} support`
+                      : selectedConversation.metadata.entityType === 'coach_player_link' || selectedConversation.relatedEntityType === 'coach_player_link'
+                        ? 'Coach-player development thread'
+                        : 'Conversation context'}
                 </p>
               </div>
               {selectedContextHref ? (
@@ -943,7 +1118,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                 )
               })
             ) : (
-              <p style={copyStyle}>Messages will appear here after you select or create a thread.</p>
+              <div style={emptyThreadStyle}>
+                <strong>No thread selected.</strong>
+                <p style={copyStyle}>Start a support thread, message a player, or come back from My Lab when a tennis note needs follow-up.</p>
+              </div>
             )}
           </div>
 
@@ -1167,22 +1345,39 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 const pageStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  width: '100%',
-  maxWidth: 1280,
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '18px 24px 30px',
+  padding: '18px 0 64px',
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const panelStyle: CSSProperties = {
-  borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  position: 'relative',
+  borderRadius: 24,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.36), inset 0 1px 0 rgba(255,255,255,0.05)',
   padding: 18,
   display: 'grid',
   gap: 14,
   minWidth: 0,
+  overflow: 'hidden',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-92px',
+  top: '-108px',
+  width: 'clamp(230px, 28vw, 380px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.15)',
+  background:
+    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.12) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.08), rgba(125,211,252,0.04) 42%, transparent 68%)',
+  opacity: 0.72,
+  pointerEvents: 'none',
 }
 
 const titleStyle: CSSProperties = {
@@ -1222,13 +1417,77 @@ const workspaceGridStyle = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
+const coachContactsPanelStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+  gap: 16,
+  alignItems: 'center',
+  margin: '0 0 16px',
+  padding: 16,
+  borderRadius: 24,
+  border: '1px solid rgba(155,225,29,0.20)',
+  background:
+    'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(10,35,29,0.84)), radial-gradient(circle at 12% 10%, rgba(155,225,29,0.16), transparent 36%)',
+  boxShadow: '0 20px 60px rgba(2,8,23,0.28)',
+  minWidth: 0,
+}
+
+const coachContactsTitleStyle: CSSProperties = {
+  margin: '5px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.25rem, 2.6vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const coachContactsCopyStyle: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.5,
+  fontWeight: 750,
+}
+
+const coachContactsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const coachContactButtonStyle: CSSProperties = {
+  appearance: 'none',
+  display: 'grid',
+  gap: 5,
+  minHeight: 96,
+  padding: 13,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--foreground-strong)',
+  textAlign: 'left',
+  cursor: 'pointer',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const coachContactLabelStyle: CSSProperties = {
+  color: 'var(--accent-green)',
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
 const identityRowStyle: CSSProperties = {
   display: 'grid',
   gap: 5,
   padding: 12,
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(255,255,255,0.045)',
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 850,
@@ -1241,8 +1500,8 @@ const preferencePanelStyle: CSSProperties = {
   gap: 9,
   padding: 12,
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(255,255,255,0.045)',
 }
 
 const preferenceGridStyle: CSSProperties = {
@@ -1276,13 +1535,13 @@ const pillStyle: CSSProperties = {
   width: 'fit-content',
   maxWidth: '100%',
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.10)',
   color: 'var(--foreground-strong)',
   padding: '7px 10px',
   fontSize: 11,
   fontWeight: 950,
-  letterSpacing: '0.06em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
@@ -1297,13 +1556,13 @@ const threadListStyle: CSSProperties = {
 const threadButtonStyle = (active: boolean, unread = false): CSSProperties => ({
   appearance: 'none',
   border: active || unread
-    ? '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)'
-    : '1px solid var(--shell-panel-border)',
+    ? '1px solid rgba(155,225,29,0.30)'
+    : '1px solid rgba(125,211,252,0.13)',
   background: active
-    ? 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)'
+    ? 'rgba(155,225,29,0.10)'
     : unread
-      ? 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)'
-    : 'var(--shell-chip-bg)',
+      ? 'rgba(155,225,29,0.07)'
+    : 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   borderRadius: 16,
   padding: 12,
@@ -1316,8 +1575,8 @@ const threadButtonStyle = (active: boolean, unread = false): CSSProperties => ({
 
 const unreadPillStyle: CSSProperties = {
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.18)',
   color: 'var(--foreground-strong)',
   padding: '3px 7px',
   fontWeight: 950,
@@ -1339,11 +1598,11 @@ const notificationButtonStyle = (unread: boolean): CSSProperties => ({
   width: '100%',
   borderRadius: 16,
   border: unread
-    ? '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)'
-    : '1px solid var(--shell-panel-border)',
+    ? '1px solid rgba(155,225,29,0.30)'
+    : '1px solid rgba(125,211,252,0.13)',
   background: unread
-    ? 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)'
-    : 'var(--shell-chip-bg)',
+    ? 'rgba(155,225,29,0.08)'
+    : 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   padding: 12,
   textAlign: 'left',
@@ -1362,7 +1621,7 @@ const notificationTopStyle: CSSProperties = {
 
 const dividerStyle: CSSProperties = {
   height: 1,
-  background: 'var(--shell-panel-border)',
+  background: 'rgba(125,211,252,0.13)',
   margin: '2px 0',
 }
 
@@ -1394,13 +1653,50 @@ const threadMetaStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const emptyInboxStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  color: 'var(--foreground-strong)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const emptyInboxActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const emptyInboxActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 34,
+  maxWidth: '100%',
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'rgba(7,18,34,0.52)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  textDecoration: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
 const messageListStyle: CSSProperties = {
   minHeight: 360,
   maxHeight: 560,
   overflowY: 'auto',
   borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(2,8,23,0.38)',
   padding: 14,
   display: 'grid',
   alignContent: 'start',
@@ -1416,8 +1712,8 @@ const contextPanelStyle: CSSProperties = {
   flexWrap: 'wrap',
   padding: 12,
   borderRadius: 16,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
-  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
   minWidth: 0,
 }
 
@@ -1426,8 +1722,8 @@ const opsPanelStyle: CSSProperties = {
   gap: 12,
   padding: 12,
   borderRadius: 16,
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-chip-bg) 94%)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.06)',
   minWidth: 0,
 }
 
@@ -1436,8 +1732,8 @@ const schedulePanelStyle: CSSProperties = {
   gap: 12,
   padding: 14,
   borderRadius: 18,
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
   minWidth: 0,
 }
 
@@ -1486,8 +1782,8 @@ const rsvpStatStyle: CSSProperties = {
   gap: 2,
   padding: 10,
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(255,255,255,0.045)',
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   fontWeight: 850,
@@ -1533,15 +1829,15 @@ const rsvpButtonStyle = (active: boolean, status: InternalScheduleResponseStatus
   padding: '0 12px',
   borderRadius: 999,
   border: active
-    ? '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)'
-    : '1px solid var(--shell-panel-border)',
+    ? '1px solid rgba(155,225,29,0.34)'
+    : '1px solid rgba(125,211,252,0.13)',
   background: active
     ? status === 'out'
       ? 'rgba(248,113,113,0.16)'
       : status === 'maybe'
         ? 'rgba(251,191,36,0.16)'
-        : 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)'
-    : 'var(--shell-chip-bg)',
+        : 'rgba(155,225,29,0.14)'
+    : 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   cursor: 'pointer',
@@ -1562,11 +1858,11 @@ const messageBubbleStyle = (mine: boolean): CSSProperties => ({
   maxWidth: '82%',
   borderRadius: 16,
   border: mine
-    ? '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)'
-    : '1px solid var(--shell-panel-border)',
+    ? '1px solid rgba(155,225,29,0.30)'
+    : '1px solid rgba(125,211,252,0.13)',
   background: mine
-    ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%)'
-    : 'var(--shell-panel-bg)',
+    ? 'rgba(155,225,29,0.11)'
+    : 'rgba(255,255,255,0.045)',
   color: 'var(--foreground)',
   padding: '10px 12px',
   display: 'grid',
@@ -1574,6 +1870,19 @@ const messageBubbleStyle = (mine: boolean): CSSProperties => ({
   minWidth: 0,
   overflowWrap: 'anywhere',
 })
+
+const emptyThreadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  alignSelf: 'start',
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
 
 const replyBoxStyle: CSSProperties = {
   display: 'grid',
@@ -1587,8 +1896,8 @@ const segmentedStyle: CSSProperties = {
   gap: 8,
   padding: 4,
   borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(255,255,255,0.045)',
   minWidth: 0,
 }
 
@@ -1604,11 +1913,11 @@ const filterButtonStyle = (active: boolean): CSSProperties => ({
   padding: '0 10px',
   borderRadius: 999,
   border: active
-    ? '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)'
-    : '1px solid var(--shell-panel-border)',
+    ? '1px solid rgba(155,225,29,0.34)'
+    : '1px solid rgba(125,211,252,0.13)',
   background: active
-    ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)'
-    : 'var(--shell-chip-bg)',
+    ? 'rgba(155,225,29,0.12)'
+    : 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   fontSize: 12,
   fontWeight: 900,
@@ -1624,10 +1933,10 @@ const segmentStyle = (active: boolean): CSSProperties => ({
   minHeight: 40,
   borderRadius: 12,
   border: active
-    ? '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)'
+    ? '1px solid rgba(155,225,29,0.34)'
     : '1px solid transparent',
   background: active
-    ? 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'
+    ? 'rgba(155,225,29,0.18)'
     : 'transparent',
   color: 'var(--foreground-strong)',
   fontWeight: 950,
@@ -1648,7 +1957,7 @@ const labelStyle: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontSize: 12,
   fontWeight: 900,
-  letterSpacing: '0.06em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   overflowWrap: 'anywhere',
 }
@@ -1658,8 +1967,8 @@ const inputStyle: CSSProperties = {
   minWidth: 0,
   minHeight: 44,
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(2,8,23,0.38)',
   color: 'var(--foreground-strong)',
   padding: '0 12px',
   fontWeight: 800,
@@ -1698,8 +2007,8 @@ const recipientResultButtonStyle: CSSProperties = {
   width: '100%',
   minHeight: 54,
   borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   padding: '9px 11px',
   textAlign: 'left',
@@ -1716,13 +2025,13 @@ const primaryButtonStyle: CSSProperties = {
   minHeight: 44,
   padding: '0 16px',
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.26), rgba(34,211,238,0.13))',
   color: 'var(--foreground-strong)',
   fontWeight: 950,
   textDecoration: 'none',
   cursor: 'pointer',
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
   maxWidth: '100%',
   minWidth: 0,
   whiteSpace: 'normal',
@@ -1737,8 +2046,8 @@ const ghostButtonStyle: CSSProperties = {
   minHeight: 38,
   padding: '0 12px',
   borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   cursor: 'pointer',

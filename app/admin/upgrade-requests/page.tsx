@@ -22,7 +22,7 @@ import {
   type UpgradeRequestStatus,
 } from '@/lib/upgrade-requests'
 
-type StatusFilter = 'all' | 'captain' | 'league' | 'player_plus'
+type StatusFilter = 'all' | 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'
 type SetupStatus = {
   upgradeRequestsTable: boolean
   playerPlusEntitlements: boolean
@@ -71,6 +71,8 @@ export default function AdminUpgradeRequestsPage() {
     return requests.filter((request) => request.planId === filter)
   }, [filter, requests])
 
+  const fullCourtCount = requests.filter((request) => request.planId === 'full_court').length
+  const coachCount = requests.filter((request) => request.planId === 'coach').length
   const captainCount = requests.filter((request) => request.planId === 'captain').length
   const leagueCount = requests.filter((request) => request.planId === 'league').length
   const playerCount = requests.filter((request) => request.planId === 'player_plus').length
@@ -217,6 +219,8 @@ export default function AdminUpgradeRequestsPage() {
           <AdminReviewPanel compact style={{ marginTop: 18 }}>
             <div style={metricGridStyle}>
               <Metric label="Total requests" value={String(requests.length)} />
+              <Metric label="Full-Court" value={String(fullCourtCount)} />
+              <Metric label="Coach" value={String(coachCount)} />
               <Metric label="Captain" value={String(captainCount)} />
               <Metric label="League" value={String(leagueCount)} />
               <Metric label="Player" value={String(playerCount)} />
@@ -275,6 +279,8 @@ export default function AdminUpgradeRequestsPage() {
               <div style={filterWrapStyle}>
                 {[
                   ['all', 'All'],
+                  ['full_court', 'Full-Court'],
+                  ['coach', 'Coach'],
                   ['captain', 'Captain'],
                   ['league', 'League'],
                   ['player_plus', 'Player'],
@@ -423,6 +429,26 @@ function getActivationCue(request: UpgradeRequestRecord) {
       grants: ['Team league entry', 'Individual league creator'],
       excludes: ['Player Lab', 'Captain workflow'],
       note: 'Coordinator activation stays independent from Player and Captain access.',
+    }
+  }
+
+  if (request.planId === 'full_court') {
+    return {
+      title: tier.name,
+      summary: tier.shortPromise,
+      grants: ['Player tools', 'Coach workspace', 'Captain workflow', 'League coordinator'],
+      excludes: ['Nothing in the current paid suite'],
+      note: 'Full-Court activation unlocks every current paid workspace for the account.',
+    }
+  }
+
+  if (request.planId === 'coach') {
+    return {
+      title: tier.name,
+      summary: tier.shortPromise,
+      grants: ['Player tools', 'Coach workspace', 'Student assignments'],
+      excludes: ['Captain workflow', 'Coordinator tools'],
+      note: 'Coach activation includes Player+ access plus coach-player planning and follow-through.',
     }
   }
 

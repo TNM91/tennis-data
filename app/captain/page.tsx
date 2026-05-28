@@ -183,7 +183,7 @@ type CaptainCommandStep = {
 }
 
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
-  'Link your player identity in My Lab so Captain can find your profile team.',
+  'Set your player identity in My Lab so Captain can find your profile team.',
   'Upload a reviewed team summary or schedule through Data Assist when roster or match history is missing.',
   'Refresh Captain after the upload review connects teams, schedules, and scorecards.',
 ] as const
@@ -226,6 +226,52 @@ export default function CaptainHubPage() {
     <SiteShell active="/captain">
       <CaptainHubContent />
     </SiteShell>
+  )
+}
+
+function CaptainLockedSurface({
+  secondaryLabel,
+  secondaryHref,
+}: {
+  secondaryLabel: string
+  secondaryHref: string
+}) {
+  return (
+    <div style={pageWrap}>
+      <section style={heroCard} aria-label="Captain workspace preview">
+        <span aria-hidden="true" style={watermarkStyle} />
+        <div style={heroLeft}>
+          <div>
+            <div style={sectionKicker}>Captain preview</div>
+            <h1 style={scopeTitleStyle}>Run the team week with more clarity.</h1>
+          </div>
+          <p style={captainPreviewTextStyle}>
+            Availability, lineup building, scouting, readiness, and team messages stay together before match day.
+          </p>
+          <div style={captainPreviewGridStyle}>
+            {CAPTAIN_STORY.workflow.map(([step, title, body]) => (
+              <div key={step} style={captainPreviewStepStyle}>
+                <span style={captainPreviewStepNumberStyle}>{step}</span>
+                <span style={captainPreviewStepCopyStyle}>
+                  <strong>{title}</strong>
+                  <span>{body}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <UpgradePrompt
+          planId="captain"
+          headline={CAPTAIN_STORY.upgradeHeadline}
+          body={CAPTAIN_STORY.upgradeBody}
+          result={CAPTAIN_STORY.upgradeResult}
+          ctaLabel={CAPTAIN_STORY.upgradeCta}
+          secondaryLabel={secondaryLabel}
+          secondaryHref={secondaryHref}
+          compact
+        />
+      </section>
+    </div>
   )
 }
 
@@ -535,7 +581,7 @@ function CaptainHubContent() {
       const typedScenarios = (scenarioData || []) as Array<{ id: string; scenario_name: string; match_date: string | null }>
       setScenarioCount(typedScenarios.length)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load captain tools')
+      setError(err instanceof Error ? err.message : 'Failed to load Captain workspace')
     } finally {
       setLoadingTeam(false)
     }
@@ -551,7 +597,7 @@ function CaptainHubContent() {
   }, [])
 
   useEffect(() => {
-    if (!authResolved || isMember(role)) {
+    if (!authResolved || role === 'public' || isMember(role)) {
       return
     }
 
@@ -954,6 +1000,13 @@ function CaptainHubContent() {
     flight: selectedFlight,
   })
 
+  const practiceHref = buildCaptainScopedHref('/captain/practice', {
+    competitionLayer: selectedCompetitionLayer,
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+  })
+
   const scenarioHref = buildCaptainScopedHref('/captain/scenario-builder', {
     competitionLayer: selectedCompetitionLayer,
     team: selectedTeam,
@@ -1068,7 +1121,7 @@ function CaptainHubContent() {
   const scopeStatusText = loadingOptions
     ? 'Loading your team options and recent match context.'
     : captainScopeRestricted && teamScopeResolved && !captainTeamScopes.length
-      ? 'Link your player profile or refresh team data to load your captain scope.'
+      ? 'Set your player profile or refresh team data to load your captain scope.'
     : !filteredTeamOptions.length
       ? 'No active team history matches your linked player, team, TIQ captain entries, or reviewed Data Assist uploads yet.'
     : selectedFromCaptainScope
@@ -1152,7 +1205,7 @@ function CaptainHubContent() {
     if (!matches.length) {
       return {
         title: 'Open your team page',
-        detail: 'This team needs more match context before lineup tools can help.',
+        detail: 'This team needs more match context before lineup actions can help.',
         href: currentTeamHref,
         cta: 'Open Team Page',
         tone: 'warn' as const,
@@ -1194,7 +1247,7 @@ function CaptainHubContent() {
 
     return [
       {
-        label: '1. Availability',
+        label: 'Who can play',
         title: pendingCount > 0 ? 'Close the reply gap' : 'Availability is clean',
         detail:
           pendingCount > 0
@@ -1202,28 +1255,13 @@ function CaptainHubContent() {
             : 'No saved response blockers are holding up this week.',
         href: availabilityHref,
         stage: 'availability',
-        icon: 'schedule',
+        icon: 'reliabilityIndex',
         stateLabel: pendingCount > 0 ? `${pendingCount} waiting` : 'Clear',
         tone: pendingCount > 0 ? 'warn' : 'good',
-        cta: pendingCount > 0 ? 'Follow Up' : 'Review',
+        cta: pendingCount > 0 ? 'Follow up' : 'Review',
       },
       {
-        label: '2. Projection',
-        title: matches.length > 0 ? 'Check the court shape' : 'Load match context',
-        detail:
-          matches.length > 0
-            ? 'Compare court strength and opponent pressure before you pick the final lineup.'
-            : 'Team match history unlocks a more useful projection read.',
-        href: lineupProjectionHref,
-        stage: 'projection',
-        icon: 'matchPrep',
-        stateLabel: matches.length > 0 ? 'Ready' : 'Needs data',
-        tone: matches.length > 0 ? 'info' : 'warn',
-        cta: 'Project',
-        premium: true,
-      },
-      {
-        label: '3. Builder',
+        label: 'Build lineup',
         title: workspaceState.lineupReady ? 'Lineup is drafted' : 'Build the courts',
         detail: workspaceState.lineupReady
           ? `${lineupCount} lineup slot${lineupCount === 1 ? '' : 's'} saved for the week.`
@@ -1237,7 +1275,7 @@ function CaptainHubContent() {
         premium: true,
       },
       {
-        label: '4. Messaging',
+        label: 'Send plan',
         title: workspaceState.messagingReady ? 'Team note is ready' : 'Prep the send',
         detail: workspaceState.messagingReady
           ? 'Lineup and event context are ready for a clean player update.'
@@ -1250,13 +1288,24 @@ function CaptainHubContent() {
         cta: 'Message',
         premium: true,
       },
+      {
+        label: 'Plan practice',
+        title: 'Coordinate the next hit',
+        detail: 'Schedule practice, invite the roster, and collect In, Out, or Maybe responses in Messages.',
+        href: practiceHref,
+        stage: 'messaging',
+        icon: 'schedule',
+        stateLabel: 'Optional',
+        tone: 'info',
+        cta: 'Schedule',
+        premium: true,
+      },
     ]
   }, [
     availabilityHref,
     lineupBuilderHref,
-    lineupProjectionHref,
-    matches.length,
     messagingHref,
+    practiceHref,
     workspaceState.lineupCount,
     workspaceState.lineupReady,
     workspaceState.messagingReady,
@@ -1494,7 +1543,7 @@ function CaptainHubContent() {
         <div style={loadingStateCardStyle}>
           <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
           <div>
-            <div style={loadingStateTitleStyle}>Loading Captain tools</div>
+            <div style={loadingStateTitleStyle}>Loading Captain workspace</div>
             <div style={loadingStateTextStyle}>Checking your role, team profile, and match-week context.</div>
           </div>
         </div>
@@ -1502,32 +1551,23 @@ function CaptainHubContent() {
     )
   }
 
-  if (role === 'public') return null
+  if (role === 'public') {
+    return <CaptainLockedSurface secondaryLabel="Compare plans" secondaryHref="/pricing" />
+  }
 
   if (!premiumEnabled) {
-    return (
-      <div style={pageWrap}>
-        <UpgradePrompt
-          planId="captain"
-          headline={CAPTAIN_STORY.upgradeHeadline}
-          body={CAPTAIN_STORY.upgradeBody}
-          result={CAPTAIN_STORY.upgradeResult}
-          ctaLabel={CAPTAIN_STORY.upgradeCta}
-          secondaryLabel="Back to My Lab"
-          secondaryHref="/mylab"
-        />
-      </div>
-    )
+    return <CaptainLockedSurface secondaryLabel="Back to My Lab" secondaryHref="/mylab" />
   }
 
   return (
     <div style={pageWrap}>
         <section style={dynamicHeroCard} aria-label="Captain team scope">
+          <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroLeft}>
             <div style={scopeHeaderStyle}>
               <div>
                 <div style={sectionKicker}>Team scope</div>
-                <h2 style={scopeTitleStyle}>Choose the week.</h2>
+                <h1 style={scopeTitleStyle}>Choose the week.</h1>
               </div>
               <span style={hasTeamScope ? badgeGreen : badgeBlue}>
                 {hasTeamScope ? 'Ready' : 'Choose team'}
@@ -1608,7 +1648,7 @@ function CaptainHubContent() {
               <div style={captainDataAssistCueStyle}>
                 <div>
                   <strong>Need team history here?</strong>
-                  <span>Captain needs a linked profile team, roster history, or reviewed Data Assist upload before it can load a team scope.</span>
+                  <span>Captain needs a profile team, roster history, or reviewed Data Assist upload before it can load a team scope.</span>
                   <ul style={captainEmptyActionListStyle}>
                     {CAPTAIN_EMPTY_STATE_ACTIONS.map((action) => (
                       <li key={action}>{action}</li>
@@ -1617,7 +1657,7 @@ function CaptainHubContent() {
                 </div>
                 <div style={captainEmptyActionRowStyle}>
                   <Link href="/mylab#player-workshop" style={captainDataAssistLinkStyle}>
-                    Link in My Lab
+                    Set in My Lab
                   </Link>
                   <Link href="/data-assist" style={captainDataAssistLinkStyle}>
                     {DATA_ASSIST_STORY.cta}
@@ -1690,15 +1730,15 @@ function CaptainHubContent() {
         <section style={commandCenterShell}>
           <div style={commandCenterHeader}>
             <div>
-              <div style={sectionKicker}>Captain workspace</div>
-              <h2 style={sectionTitle}>Move from replies to a sent lineup.</h2>
+              <div style={sectionKicker}>Team hub</div>
+              <h2 style={sectionTitle}>Run the week from four moves.</h2>
             </div>
             <span style={workspaceState.briefReady ? badgeGreen : badgeSlate}>
               {workspaceState.lastUpdatedLabel}
             </span>
           </div>
           <div style={sectionSub}>
-            Confirm who can play, read the matchup, build courts, then send the team note.
+            Confirm availability, plan practice, build the lineup, and send the team plan from one lane.
           </div>
 
           <div style={dynamicCommandCenterGrid}>
@@ -2006,18 +2046,18 @@ function CaptainHubContent() {
         <details style={sectionCard}>
           <summary style={optionalSummaryStyle}>
             <span>
-              <span style={sectionKicker}>More captain tools</span>
-              <span style={optionalSummaryTitle}>Availability, lineups, messaging, league work</span>
+              <span style={sectionKicker}>Team workspace actions</span>
+              <span style={optionalSummaryTitle}>Availability, lineups, messaging, season work</span>
             </span>
-            <span style={badgeSlate}>Open tools</span>
+            <span style={badgeSlate}>Show paths</span>
           </summary>
 
           <div style={sectionHead}>
             <div>
-              <div style={sectionKicker}>Choose by job</div>
-              <h2 style={sectionTitle}>What are you trying to do?</h2>
+              <div style={sectionKicker}>In-workspace actions</div>
+              <h2 style={sectionTitle}>Keep the team week moving.</h2>
               <div style={sectionSub}>
-                Every captain and coordinator tool is still here, grouped by the work users are actually trying to finish.
+                Use the portal for the main Team lane. These actions keep captain and season work close when you are already in the workspace.
               </div>
             </div>
           </div>
@@ -2278,16 +2318,16 @@ function CaptainHubContent() {
             {!hasTeamScope ? (
               <div style={emptyLine}>
                 <strong>Choose or connect a team scope.</strong>
-                <span>Captain shows roster usage and match mix after My Lab links your profile team or Data Assist review connects roster history.</span>
+                <span>Captain shows roster usage and match mix after My Lab sets your profile team or Data Assist review connects roster history.</span>
                 <div style={captainEmptyActionRowStyle}>
-                  <Link href="/mylab#player-workshop" style={inlineEmptyLinkStyle}>Link profile</Link>
+                  <Link href="/profile" style={inlineEmptyLinkStyle}>Set profile</Link>
                   <Link href="/data-assist" style={inlineEmptyLinkStyle}>Upload team data</Link>
                 </div>
               </div>
             ) : roster.length === 0 ? (
               <div style={emptyLine}>
                 <strong>No roster players are available yet.</strong>
-                <span>Refresh rosters through Data Assist, then review the imported names before using lineup tools.</span>
+                <span>Refresh rosters through Data Assist, then review the imported names before using lineup actions.</span>
                 <div style={captainEmptyActionRowStyle}>
                   <Link href="/data-assist" style={inlineEmptyLinkStyle}>Open Data Assist</Link>
                   <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={inlineEmptyButtonStyle}>
@@ -2506,9 +2546,11 @@ const pageWrap: CSSProperties = {
   width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))',
   margin: '0 auto',
   display: 'grid',
-  gap: 24,
-  padding: '32px 0 72px',
+  gap: 18,
+  padding: '18px 0 72px',
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const loadingWrap: CSSProperties = {
@@ -2527,9 +2569,9 @@ const loadingStateCardStyle: CSSProperties = {
   flexWrap: 'wrap',
   padding: 18,
   borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-soft)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(8,13,28,0.66)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.30)',
   color: 'var(--foreground)',
 }
 
@@ -2548,18 +2590,36 @@ const loadingStateTextStyle: CSSProperties = {
 }
 
 const heroCard: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1.2fr) minmax(min(100%, 320px), 0.8fr)',
   gap: 22,
   padding: 24,
-  borderRadius: 32,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  borderRadius: 28,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
+  overflow: 'hidden',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(-92px, -7vw, -34px)',
+  bottom: 'clamp(-112px, -10vw, -52px)',
+  width: 'clamp(230px, 30vw, 420px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.15) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
+  opacity: 0.74,
+  pointerEvents: 'none',
 }
 
 const heroLeft: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'grid',
   gap: 16,
   alignContent: 'start',
@@ -2581,6 +2641,58 @@ const scopeTitleStyle: CSSProperties = {
   fontSize: 'clamp(1.4rem, 2.4vw, 2rem)',
   lineHeight: 1.08,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreviewTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 15,
+  lineHeight: 1.7,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const captainPreviewGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainPreviewStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPreviewStepNumberStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg) 80%)',
+  border: '1px solid rgba(155,225,29,0.22)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+}
+
+const captainPreviewStepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  color: 'var(--foreground)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -2617,9 +2729,9 @@ const primaryButton: CSSProperties = {
   fontWeight: 800,
   fontSize: 14,
   color: 'var(--foreground-strong)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.26), rgba(34,211,238,0.13))',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
@@ -2641,8 +2753,8 @@ const secondaryButtonSmall: CSSProperties = {
   fontWeight: 800,
   fontSize: 13,
   color: 'var(--foreground-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(255,255,255,0.045)',
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
@@ -2662,7 +2774,7 @@ const primaryButtonSmallButton: CSSProperties = {
 
 const secondaryButtonSmallButton: CSSProperties = {
   ...secondaryButtonSmall,
-  border: '1px solid var(--shell-panel-border)',
+  border: '1px solid rgba(125,211,252,0.16)',
   cursor: 'pointer',
 }
 
@@ -2690,22 +2802,22 @@ const badgeBase: CSSProperties = {
 const badgeBlue: CSSProperties = {
   ...badgeBase,
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'rgba(125,211,252,0.08)',
 }
 
 const badgeGreen: CSSProperties = {
   ...badgeBase,
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
-  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.11)',
 }
 
 const badgeSlate: CSSProperties = {
   ...badgeBase,
   color: 'var(--foreground)',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(255,255,255,0.045)',
 }
 
 const errorCard: CSSProperties = {
@@ -2727,8 +2839,8 @@ const statusStrip: CSSProperties = {
 const statusCard: CSSProperties = {
   padding: 16,
   borderRadius: 20,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(255,255,255,0.045)',
   display: 'grid',
   gap: 10,
 }
@@ -2758,10 +2870,10 @@ const commandCenterShell: CSSProperties = {
   display: 'grid',
   gap: 16,
   padding: 22,
-  borderRadius: 28,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 18px 48px rgba(2,10,24,0.12)',
+  borderRadius: 26,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,13,28,0.64)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.30)',
 }
 
 const commandCenterHeader: CSSProperties = {
@@ -2785,8 +2897,8 @@ const commandCenterCard: CSSProperties = {
   minHeight: 230,
   padding: 16,
   borderRadius: 20,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(255,255,255,0.045)',
 }
 
 const commandCenterCardGood: CSSProperties = {

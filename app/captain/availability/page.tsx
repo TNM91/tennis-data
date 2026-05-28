@@ -15,6 +15,7 @@ import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import { useAuth } from '@/app/components/auth-provider'
 import SiteShell from '@/app/components/site-shell'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
@@ -513,7 +514,7 @@ function CaptainAvailabilityContent() {
         planId="captain"
         headline="Still chasing availability one player at a time?"
         body="Unlock Captain to keep roster status, reminders, lineup prep, and match-week communication in one workflow instead of rebuilding the process every week."
-        ctaLabel="Unlock Captain Tools"
+        ctaLabel="Unlock Captain"
         secondaryLabel="Back to Captain"
         secondaryHref="/captain"
       />
@@ -522,7 +523,9 @@ function CaptainAvailabilityContent() {
 
   return (
     <div style={pageWrap}>
+        <CaptainSuitePanel active="availability" teamLabel={selectedTeam || 'Team week'} />
         <section style={availabilityControlShellResponsive(isTablet, isMobile)} aria-label="Availability controls">
+          <span aria-hidden="true" style={watermarkStyle} />
           <div>
             <div style={availabilityControlHeader}>
               <div>
@@ -755,7 +758,7 @@ function CaptainAvailabilityContent() {
                 {selectedTeam ? (
                   <ScheduleMessageComposer
                     mode="captain-practice"
-                    triggerLabel="Schedule Practice"
+                    triggerLabel="Schedule practice"
                     teamName={selectedTeam}
                     leagueName={selectedLeague}
                     flight={selectedFlight}
@@ -920,24 +923,41 @@ function statusButtonRowResponsive(isSmallMobile: boolean): CSSProperties {
 }
 
 const pageWrap: CSSProperties = {
-  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
   display: 'grid',
   gap: '18px',
-  padding: '14px 0 28px',
+  padding: '18px 0 64px',
   position: 'relative',
   zIndex: 2,
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const availabilityControlShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  borderRadius: '34px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  borderRadius: '28px',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
+  overflow: 'hidden',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(-92px, -7vw, -34px)',
+  bottom: 'clamp(-112px, -10vw, -52px)',
+  width: 'clamp(230px, 30vw, 420px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.15) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
+  opacity: 0.74,
+  pointerEvents: 'none',
 }
 
 const availabilityControlHeader: CSSProperties = {
@@ -965,8 +985,8 @@ const selectorPanel: CSSProperties = {
   gap: '12px',
   padding: '14px',
   borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(255,255,255,0.045)',
   maxWidth: '940px',
   flexWrap: 'wrap',
   minWidth: 0,
@@ -977,8 +997,8 @@ const selectStyle: CSSProperties = {
   minWidth: 0,
   height: '52px',
   borderRadius: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   padding: '0 16px',
   fontSize: '15px',
@@ -1001,9 +1021,9 @@ const primaryButton: CSSProperties = {
   fontWeight: 800,
   fontSize: '14px',
   color: 'var(--foreground-strong)',
-  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.26), rgba(34,211,238,0.13))',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
   cursor: 'pointer',
   minWidth: 0,
   maxWidth: '100%',
@@ -1052,9 +1072,9 @@ const badgeGreen: CSSProperties = {
 
 const badgeSlate: CSSProperties = {
   ...badgeBase,
-  background: 'var(--shell-chip-bg)',
+  background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground)',
-  borderColor: 'var(--shell-panel-border)',
+  borderColor: 'rgba(125,211,252,0.14)',
 }
 
 const warnBadge: CSSProperties = {
@@ -1066,9 +1086,9 @@ const warnBadge: CSSProperties = {
 
 const captainReadCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-soft)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.60)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.28)',
   padding: '22px',
   minHeight: '100%',
   minWidth: 0,
@@ -1172,11 +1192,11 @@ const metricGrid: CSSProperties = {
 const decisionPanel: CSSProperties = {
   display: 'grid',
   gap: 18,
-  borderRadius: '28px',
+  borderRadius: '26px',
   padding: '24px',
   background: 'var(--shell-panel-bg-strong)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
   minWidth: 0,
 }
 

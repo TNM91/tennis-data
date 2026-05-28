@@ -11,7 +11,6 @@ import {
   buttonPrimary,
   colors,
   pageShell,
-  pageSubtitle,
   sectionKicker,
   sectionStack,
   sectionTitle,
@@ -75,50 +74,38 @@ const scopeGuides: Record<
   {
     eyebrow: string
     placeholder: string
-    quickContext: string
     emptyTitle: string
-    emptyBody: string
     examples: string[]
   }
 > = {
   players: {
     eyebrow: 'Player lookup',
     placeholder: 'Search a player name...',
-    quickContext: 'Player search is best when you know a name and want the profile, rating context, or My Lab prep path.',
-    emptyTitle: 'Start with a player name.',
-    emptyBody: 'Use a full name or partial name. Once results appear, you can open the profile or build quick My Lab comparison actions.',
+    emptyTitle: 'Try a name.',
     examples: ['Johnson', 'Smith', 'Garcia'],
   },
   teams: {
     eyebrow: 'Team lookup',
     placeholder: 'Search a team name, league, or flight...',
-    quickContext: 'Team search is best when you know the roster or league context and want the right team page faster.',
-    emptyTitle: 'Start with a team clue.',
-    emptyBody: 'Use a team name, captain name fragment, league name, or flight. Results stay focused on team context.',
+    emptyTitle: 'Try a team clue.',
     examples: ['3.5', '40 & Over', 'Dallas'],
   },
   leagues: {
     eyebrow: 'League lookup',
     placeholder: 'Search a league, section, area, or flight...',
-    quickContext: 'League search is best when you want the season layer before choosing a team or player.',
-    emptyTitle: 'Start with a league detail.',
-    emptyBody: 'Use a league name, section, district, area, season, or rating level to find the right competition layer.',
+    emptyTitle: 'Try a league detail.',
     examples: ['Adult 18 & Over', 'Texas', 'Tri-Level'],
   },
   flight: {
     eyebrow: 'Flight lookup',
     placeholder: 'Search a flight like 3.5 or 4.0...',
-    quickContext: 'Flight search narrows league results to the rating level you care about.',
-    emptyTitle: 'Start with a flight.',
-    emptyBody: 'Use a level like 3.0, 3.5, 4.0, or 4.5 to find league records tied to that flight.',
+    emptyTitle: 'Try a flight.',
     examples: ['3.0', '3.5', '4.0'],
   },
   area: {
     eyebrow: 'Area lookup',
     placeholder: 'Search an area, district, or section...',
-    quickContext: 'Area search is best when geography is the strongest clue you have.',
-    emptyTitle: 'Start with an area.',
-    emptyBody: 'Use a city, district, area, or section to find nearby league context before opening teams or players.',
+    emptyTitle: 'Try an area.',
     examples: ['Dallas', 'Texas', 'Southern'],
   },
 }
@@ -345,9 +332,12 @@ function ExploreSearchContent() {
             gap: isMobile ? 14 : 16,
             overflow: 'hidden',
             position: 'relative',
-            background: 'var(--shell-panel-bg-strong)',
+            border: '1px solid rgba(116,190,255,0.15)',
+            background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
+            boxShadow: '0 30px 86px rgba(2, 8, 23, 0.46), inset 0 1px 0 rgba(255,255,255,0.05)',
           }}
         >
+          <div aria-hidden="true" style={watermarkStyle} />
           <SearchCommandPanel
             activeScope={scope}
             query={query}
@@ -462,60 +452,27 @@ function ExploreSearchContent() {
             {showLeagueResults ? <span style={badgeGreen}>{filteredLeagues.length} leagues</span> : null}
             {showPlayerResults ? <span style={badgeGreen}>{matchupSuggestions.length} My Lab actions</span> : null}
             <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700, overflowWrap: 'anywhere' }}>
-              {query.trim() ? `${totalResults} results for "${query.trim()}"` : 'Start with a search to see grouped results.'}
+              {query.trim() ? `${totalResults} results for "${query.trim()}"` : 'Ready'}
             </span>
           </div>
         </section>
 
         <section style={sectionStack}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.16fr) minmax(min(100%, 280px), 0.84fr)',
-              gap: 16,
-              minWidth: 0,
-              alignItems: 'stretch',
-            }}
-          >
-            <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
-              <div style={sectionKicker}>Search results</div>
-              <h2 style={sectionTitle}>
-                Find the record that matches your clue.
-              </h2>
-              <p style={{ ...pageSubtitle, marginTop: 0, overflowWrap: 'anywhere' }}>
-                Search once, then open the player, team, league, or flight view.
-              </p>
-            </div>
-
-            <div
-              style={{
-                ...surfaceCard,
-                display: 'grid',
-                gap: 10,
-                minWidth: 0,
-                padding: isSmallMobile ? 14 : 16,
-                alignContent: 'start',
-                background: 'var(--shell-panel-bg-strong)',
-              }}
-            >
-              <div style={sectionKicker}>Quick context</div>
-              <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, lineHeight: 1.08, overflowWrap: 'anywhere' }}>
-                {selectedScopeGuide.eyebrow}
-              </div>
-              <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.68, overflowWrap: 'anywhere' }}>
-                {selectedScopeGuide.quickContext}
-              </div>
-            </div>
+          <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+            <div style={sectionKicker}>Search results</div>
+            <h2 style={sectionTitle}>
+              {query.trim() ? 'Open the match.' : selectedScopeGuide.eyebrow}
+            </h2>
           </div>
 
           {error ? (
-            <section style={{ ...surfaceCard, minWidth: 0, padding: 18, color: '#fecaca', borderColor: 'rgba(248,113,113,0.3)', overflowWrap: 'anywhere' }}>
+            <section style={{ ...portalInsetCardStyle, padding: 18, color: '#fecaca', borderColor: 'rgba(248,113,113,0.3)', overflowWrap: 'anywhere' }}>
               {error}
             </section>
           ) : null}
 
           {loading ? (
-            <section style={{ ...surfaceCard, minWidth: 0, padding: 18 }}>
+            <section style={{ ...portalInsetCardStyle, padding: 18 }}>
               <div style={sectionKicker}>Searching</div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, overflowWrap: 'anywhere' }}>
                 Pulling players, teams, leagues, and My Lab prep paths together...
@@ -527,7 +484,6 @@ function ExploreSearchContent() {
             <section style={emptyStateStyle}>
               <div style={sectionKicker}>{selectedScopeGuide.eyebrow}</div>
               <div style={emptyTitleStyle}>{selectedScopeGuide.emptyTitle}</div>
-              <div style={emptyBodyStyle}>{selectedScopeGuide.emptyBody}</div>
               <div style={exampleSearchGridStyle}>
                 {selectedScopeGuide.examples.map((example) => (
                   <button
@@ -643,7 +599,7 @@ function ExploreSearchContent() {
                         <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{team.team}</div>
                           <div style={resultMetaStyle}>
-                            {[team.league, team.flight, `${team.matchCount} matches`].filter(Boolean).join(' • ')}
+                            {[team.league, team.flight, `${team.matchCount} matches`].filter(Boolean).join(' - ')}
                           </div>
                         </div>
                         <span style={miniBadgeBlue}>{formatCompactDate(team.latestMatchDate)}</span>
@@ -665,7 +621,7 @@ function ExploreSearchContent() {
                         <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{league.leagueName}</div>
                           <div style={resultMetaStyle}>
-                            {[league.flight, league.ustaSection, league.districtArea].filter(Boolean).join(' • ') || 'League context'}
+                            {[league.flight, league.ustaSection, league.districtArea].filter(Boolean).join(' - ') || 'League context'}
                           </div>
                         </div>
                         <div style={resultBadgeWrapStyle}>
@@ -680,7 +636,7 @@ function ExploreSearchContent() {
               ) : null}
 
               {(matchedFlights.length > 0 || matchedAreas.length > 0) ? (
-                <section style={{ ...surfaceCard, minWidth: 0, padding: isSmallMobile ? 16 : 18, display: 'grid', gap: 14 }}>
+                <section style={{ ...portalInsetCardStyle, padding: isSmallMobile ? 16 : 18, display: 'grid', gap: 14 }}>
                   <div style={sectionKicker}>Matched filters</div>
                   <div style={{ color: 'var(--foreground-strong)', fontSize: 22, fontWeight: 900, lineHeight: 1.04, overflowWrap: 'anywhere' }}>
                     Jump straight into the exact flight or area that matched.
@@ -841,10 +797,12 @@ function SearchCommandPanel({
         <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
         <div style={searchCommandHeaderCopyStyle}>
           <div style={searchCommandEyebrowStyle}>Search path</div>
-          <h2 style={searchCommandTitleStyle}>Start with what you know.</h2>
-          <p style={searchCommandTextStyle}>
-            {query.trim() ? `${totalResults} result${totalResults === 1 ? '' : 's'} in this view.` : 'Pick a scope, enter a clue, open the right record.'}
-          </p>
+          <h2 style={searchCommandTitleStyle}>Choose a scope.</h2>
+          {query.trim() ? (
+            <p style={searchCommandTextStyle}>
+              {totalResults} result{totalResults === 1 ? '' : 's'}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -966,9 +924,9 @@ const searchCommandPanelStyle: CSSProperties = {
   gap: 14,
   padding: 14,
   borderRadius: 20,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-soft)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.7)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 }
 
@@ -990,7 +948,7 @@ const searchCommandEyebrowStyle: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: 10,
   fontWeight: 950,
-  letterSpacing: '0.12em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -1012,6 +970,14 @@ const searchCommandTextStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const portalInsetCardStyle: CSSProperties = {
+  ...surfaceCard,
+  minWidth: 0,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.7)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
 const searchCommandGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
@@ -1027,8 +993,8 @@ const searchCommandCardStyle: CSSProperties = {
   minHeight: 62,
   padding: '9px 10px',
   borderRadius: 15,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   font: 'inherit',
   textAlign: 'left',
@@ -1038,7 +1004,7 @@ const searchCommandCardStyle: CSSProperties = {
 
 const searchCommandCardActiveStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.18), rgba(125,211,252,0.08))',
 }
 
 const searchCommandNumberStyle: CSSProperties = {
@@ -1063,7 +1029,7 @@ const searchCommandLabelStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 10,
   fontWeight: 900,
-  letterSpacing: '0.1em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -1078,7 +1044,7 @@ const searchLabelStyle: CSSProperties = {
   color: 'var(--muted-strong)',
   fontSize: 11,
   fontWeight: 800,
-  letterSpacing: '0.1em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   overflowWrap: 'anywhere',
 }
@@ -1140,12 +1106,11 @@ function getSearchInputStyle(): CSSProperties {
 }
 
 const emptyStateStyle: CSSProperties = {
-  ...surfaceCard,
-  minWidth: 0,
+  ...portalInsetCardStyle,
   padding: 22,
   display: 'grid',
   gap: 12,
-  background: 'var(--shell-panel-bg-strong)',
+  minWidth: 0,
 }
 
 const emptyTitleStyle: CSSProperties = {
@@ -1153,14 +1118,6 @@ const emptyTitleStyle: CSSProperties = {
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.05,
-  overflowWrap: 'anywhere',
-}
-
-const emptyBodyStyle: CSSProperties = {
-  color: 'var(--muted-strong)',
-  fontSize: 14,
-  lineHeight: 1.7,
-  maxWidth: 760,
   overflowWrap: 'anywhere',
 }
 
@@ -1182,11 +1139,11 @@ const exampleSearchButtonStyle: CSSProperties = {
 }
 
 const resultGroupStyle: CSSProperties = {
-  ...surfaceCard,
-  minWidth: 0,
+  ...portalInsetCardStyle,
   padding: 18,
   display: 'grid',
   gap: 14,
+  minWidth: 0,
 }
 
 const resultGroupHeaderStyle: CSSProperties = {
@@ -1237,14 +1194,14 @@ const resultGroupListStyle: CSSProperties = {
 
 function getResultCardStyle(): CSSProperties {
   return {
-    ...surfaceCard,
+    ...portalInsetCardStyle,
     minWidth: 0,
     maxWidth: '100%',
     padding: '14px 16px',
     display: 'grid',
     gap: 8,
     textDecoration: 'none',
-    background: 'var(--shell-panel-bg-strong)',
+    background: 'rgba(7,17,33,0.72)',
   }
 }
 
@@ -1308,7 +1265,7 @@ const matchedLabelStyle: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontSize: 11,
   fontWeight: 900,
-  letterSpacing: '0.12em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   overflowWrap: 'anywhere',
 }
@@ -1338,4 +1295,17 @@ const filterJumpStyle: CSSProperties = {
   minHeight: 38,
   paddingInline: 14,
   overflowWrap: 'anywhere',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: '-86px',
+  top: '-108px',
+  width: '340px',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '34px solid rgba(155,225,29,0.07)',
+  boxShadow: 'inset 0 0 0 2px rgba(125,211,252,0.05), 0 0 76px rgba(125,211,252,0.08)',
+  opacity: 0.72,
+  pointerEvents: 'none',
 }

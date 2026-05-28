@@ -7,11 +7,6 @@ const source = readFileSync(
   'utf8',
 )
 
-const subnavSource = readFileSync(
-  join(process.cwd(), 'app/components/coordinator-subnav.tsx'),
-  'utf8',
-)
-
 function styleBlock(sourceText: string, styleName: string) {
   const start = sourceText.indexOf(`const ${styleName}: CSSProperties = {`)
   expect(start).toBeGreaterThanOrEqual(0)
@@ -38,28 +33,27 @@ describe('League Coordinator mobile layout guards', () => {
   })
 
   it('keeps the setup form Data Assist upload workflow visible', () => {
-    expect(source).toContain('Upload data')
-    expect(source).toContain('Use uploads as the coordinator refresh path.')
+    expect(source).toContain('Use uploads to refresh the season.')
+    expect(source).toContain('Data Assist brings in schedules, rosters, and official scorecards when the season changes.')
     expect(source).toContain('paste reviewed roster names from Data Assist')
     expect(source).not.toContain('USTA API')
   })
 
   it('keeps first-screen workflow guidance progressive and mobile-safe', () => {
-    expect(source).toContain('COORDINATOR_OPERATING_FLOW')
-    expect(source).toContain('Set structure')
-    expect(source).toContain('Approve participants')
-    expect(source).toContain('Publish schedule')
-    expect(source).toContain('Review uploads and results')
-    expect(source).toContain('operatingFlowGridStyle')
-    expect(source).toContain("gridTemplateColumns: 'minmax(0, 34px) minmax(0, 1fr)'")
-    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(source).toContain('sharedCalendarStripStyle')
+    expect(source).toContain('sharedCalendarReadinessGridStyle')
+    expect(source).toContain('sharedCalendarStepGridStyle')
+    expect(source).toContain('Player-arranged scheduling preview')
+    expect(source).toContain('Coordinator-published schedule preview')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
     expect(source).toContain("overflowWrap: 'anywhere'")
     expect(source).not.toContain("gridTemplateColumns: '34px minmax(0, 1fr)'")
   })
 
-  it('keeps operating flow numbers readable in the dark shell', () => {
-    expect(source).toContain('const operatingFlowNumberStyle: CSSProperties')
-    expect(source).toContain("background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'")
+  it('keeps shared calendar readiness markers readable in the dark shell', () => {
+    expect(source).toContain('const readinessDotStyle: CSSProperties')
+    expect(source).toContain("background: 'var(--brand-lime)'")
     expect(source).toContain("color: 'var(--foreground-strong)'")
     expect(source).not.toContain("background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',\n  color: 'var(--text-dark)'")
   })
@@ -110,13 +104,10 @@ describe('League Coordinator mobile layout guards', () => {
     }
   })
 
-  it('keeps the shared coordinator subnav from forcing horizontal scroll', () => {
-    expect(subnavSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'")
-    expect(styleBlock(subnavSource, 'linkStyle')).toContain('minWidth: 0')
-    expect(styleBlock(subnavSource, 'linkLabelStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(subnavSource).toContain("gridTemplateColumns: 'minmax(0, 28px) minmax(0, 34px) minmax(0, 1fr) minmax(0, auto)'")
-    expect(styleBlock(subnavSource, 'linkStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(styleBlock(subnavSource, 'gridStyle')).toContain('minWidth: 0')
+  it('keeps old coordinator subnav out of the league workspace', () => {
+    expect(source).not.toContain('CoordinatorSubnav')
+    expect(source).not.toContain('League command path')
+    expect(source).not.toContain('More league tools')
   })
 
   it('keeps coordinator shells, grids, and action rows min-width safe', () => {
@@ -127,7 +118,6 @@ describe('League Coordinator mobile layout guards', () => {
 
     for (const styleName of [
       'pageWrap',
-      'heroPillRow',
       'heroActionRow',
       'commandGrid',
       'dataAssistOpsGridStyle',
@@ -153,6 +143,15 @@ describe('League Coordinator mobile layout guards', () => {
       'statusBanner',
       'nextActionButtonRowStyle',
       'emptyCard',
+      'emptyRegistryPanelStyle',
+      'emptyRegistryCopyStyle',
+      'emptyRegistryActionRowStyle',
+      'emptyPublicReadinessPanelStyle',
+      'emptyPublicReadinessCopyStyle',
+      'emptyPublicReadinessActionRowStyle',
+      'emptyJoinRequestPanelStyle',
+      'emptyJoinRequestCopyStyle',
+      'emptyJoinRequestActionRowStyle',
       'registryCard',
       'noteCard',
     ]) {
@@ -162,7 +161,6 @@ describe('League Coordinator mobile layout guards', () => {
 
   it('keeps coordinator labels, pills, controls, and dense copy wrap-safe', () => {
     for (const styleName of [
-      'heroEyebrow',
       'pillBase',
       'commandLabel',
       'commandValue',
@@ -188,6 +186,12 @@ describe('League Coordinator mobile layout guards', () => {
       'textareaStyle',
       'statusBanner',
       'emptyCard',
+      'emptyRegistryCopyStyle',
+      'emptyRegistryActionStyle',
+      'emptyPublicReadinessCopyStyle',
+      'emptyPublicReadinessActionStyle',
+      'emptyJoinRequestCopyStyle',
+      'emptyJoinRequestActionStyle',
       'registryCard',
       'noteCard',
     ]) {
@@ -200,6 +204,15 @@ describe('League Coordinator mobile layout guards', () => {
     expect(styleBlock(source, 'calendarActionStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(source, 'calendarActionStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock(source, 'leagueOpsTrackStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(source, 'emptyRegistryActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(source, 'emptyRegistryActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(source, 'emptyRegistryActionStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(source, 'emptyPublicReadinessActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(source, 'emptyPublicReadinessActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(source, 'emptyPublicReadinessActionStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(source, 'emptyJoinRequestActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(source, 'emptyJoinRequestActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(source, 'emptyJoinRequestActionStyle')).toContain("whiteSpace: 'normal'")
   })
 
   it('uses responsive grid tracks for coordinator-heavy surfaces', () => {

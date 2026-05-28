@@ -34,6 +34,7 @@ server-*.log
 # local rollout artifacts
 /backups/
 /screenshots-*.png
+/tmp-screenshots/
 
 # env files (can opt-in for committing if needed)
 .env*

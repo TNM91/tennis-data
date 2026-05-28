@@ -15,7 +15,7 @@ export default function AdvertisingDisclosurePage() {
       <InfoPage
         kicker="Advertising"
         title="How advertising is handled on TenAceIQ."
-        intro="TenAceIQ is built to keep product usefulness ahead of monetization. Advertising, where enabled, is limited to public content-rich pages and is intended to stay separate from navigation, operational tools, and private user workflows."
+        intro="TenAceIQ is built to keep product usefulness ahead of monetization. Advertising, where enabled, is limited to public content-rich pages and is intended to stay separate from navigation, workspaces, and private user workflows."
       >
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Where ads may appear</h2>
@@ -29,7 +29,7 @@ export default function AdvertisingDisclosurePage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Where ads do not belong</h2>
           <p>
-            Ads are not intended for admin tools, captain workflow screens, account/auth pages,
+            Ads are not intended for admin workspaces, captain workflow screens, account/auth pages,
             personalized private areas, API routes, or thin utility surfaces where ads could confuse
             the user or interfere with the purpose of the screen.
           </p>

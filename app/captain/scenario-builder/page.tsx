@@ -11,6 +11,7 @@ import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-m
 import { buildProductAccessState } from '@/lib/access-model'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
+import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -586,7 +587,7 @@ function ScenarioComparisonContent() {
         planId="captain"
         headline="Need to compare lineup versions before match day?"
         body="Unlock Captain to compare saved builds, spot swing courts, and keep the lineup version you trust."
-        ctaLabel="Unlock Captain Tools"
+        ctaLabel="Unlock Captain"
         secondaryLabel="Back to Captain"
         secondaryHref="/captain"
       />
@@ -595,7 +596,9 @@ function ScenarioComparisonContent() {
 
   return (
     <section style={pageContentStyle}>
+         <CaptainSuitePanel active="scenario" teamLabel={teamFilter || 'Team week'} />
          <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Scenario controls">
+            <span aria-hidden="true" style={watermarkStyle} />
             <div>
             <div style={toolControlHeaderStyle}>
               <div>
@@ -1638,23 +1641,41 @@ function notesGridResponsive(isTablet: boolean): CSSProperties {
 const pageContentStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  width: '100%',
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '18px 24px 0',
+  padding: '18px 0 64px',
+  display: 'grid',
+  gap: 18,
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
 }
 
 const toolControlShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  borderRadius: '34px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 28px 80px rgba(3, 10, 24, 0.16)',
+  borderRadius: '28px',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
   minWidth: 0,
+  overflow: 'hidden',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(-92px, -7vw, -34px)',
+  bottom: 'clamp(-112px, -10vw, -52px)',
+  width: 'clamp(230px, 30vw, 420px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.15) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
+  opacity: 0.74,
+  pointerEvents: 'none',
 }
 
 const toolControlHeaderStyle: CSSProperties = {
@@ -1694,8 +1715,8 @@ const compactPillRowStyle: CSSProperties = {
 
 const captainReadCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.60)',
   padding: '20px',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
@@ -1739,9 +1760,9 @@ const contentWrap: CSSProperties = {
 const surfaceCardStrong: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 24px 60px rgba(2, 8, 23, 0.14)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.64)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.30)',
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
   minWidth: 0,
@@ -1750,9 +1771,9 @@ const surfaceCardStrong: CSSProperties = {
 const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.60)',
+  boxShadow: '0 16px 42px rgba(2,8,23,0.26)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
   minWidth: 0,

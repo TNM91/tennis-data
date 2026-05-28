@@ -22,12 +22,11 @@ function functionBlock(functionName: string) {
 describe('Messages mobile layout guards', () => {
   it('keeps hero and workspace grids from forcing tablet overflow', () => {
     expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
-    expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(functionBlock('workspaceGridStyle')).toContain("gridTemplateColumns: isTablet")
     expect(functionBlock('workspaceGridStyle')).toContain("? 'minmax(0, 1fr)'")
 
     expect(styleBlock('pageStyle')).toContain('minWidth: 0')
     expect(styleBlock('panelStyle')).toContain('minWidth: 0')
-    expect(functionBlock('heroStyle')).toContain('minWidth: 0')
     expect(functionBlock('workspaceGridStyle')).toContain('minWidth: 0')
   })
 
@@ -37,6 +36,9 @@ describe('Messages mobile layout guards', () => {
       'identityRowStyle',
       'threadListStyle',
       'threadTopStyle',
+      'emptyInboxStyle',
+      'emptyInboxActionRowStyle',
+      'emptyThreadStyle',
       'notificationListStyle',
       'notificationTopStyle',
       'messageListStyle',
@@ -53,6 +55,9 @@ describe('Messages mobile layout guards', () => {
       'recipientResultsStyle',
       'primaryButtonStyle',
       'ghostButtonStyle',
+      'coachContactsPanelStyle',
+      'coachContactsGridStyle',
+      'coachContactButtonStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -66,11 +71,16 @@ describe('Messages mobile layout guards', () => {
       'unreadPillStyle',
       'threadPreviewStyle',
       'threadMetaStyle',
+      'emptyInboxStyle',
+      'emptyInboxActionStyle',
+      'emptyThreadStyle',
       'labelStyle',
       'textareaStyle',
       'hintStyle',
       'successStyle',
       'errorStyle',
+      'coachContactsTitleStyle',
+      'coachContactButtonStyle',
     ]) {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     }
@@ -82,6 +92,18 @@ describe('Messages mobile layout guards', () => {
     expect(styleBlock('pillStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('pillStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('unreadPillStyle')).toContain("whiteSpace: 'normal'")
+    expect(source).toContain('Inbox starts when tennis needs a reply.')
+    expect(source).toContain('Support, player notes, scheduling threads, and RSVP alerts will land here.')
+    expect(source).toContain("title: 'Open My Lab'")
+    expect(source).toContain("title: 'Improve data'")
+    expect(source).toContain("title: 'Prep matchup'")
+    expect(source).toContain('No thread selected.')
+    expect(source).toContain('Start with the people tied to the work.')
+    expect(source).toContain("setComposeContext({ entityType: 'coach_player_link', entityId: contact.linkId })")
+    expect(source).toContain("return contact?.relationship === 'student' ? '/coach' : '/mylab#player-workshop'")
+    expect(source).toContain('fetchCoachMessageContacts')
+    expect(styleBlock('coachContactsPanelStyle')).toContain("repeat(auto-fit, minmax(min(100%, 320px), 1fr))")
+    expect(styleBlock('coachContactsGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 160px), 1fr))")
     expect(functionBlock('messageBubbleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('primaryButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('ghostButtonStyle')).toContain("whiteSpace: 'normal'")

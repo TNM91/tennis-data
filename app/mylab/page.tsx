@@ -44,10 +44,20 @@ import {
 import { buildProductAccessState } from '@/lib/access-model'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
+import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
+import { PLAYER_DEVELOPMENT_IDENTITIES } from '@/lib/player-development'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import {
+  getCoachAssignmentDueState,
+  getCoachAssignmentReview,
+  getCoachAssignmentSummary,
+  sortPlayerAssignmentsForAction,
+  type CoachAssignment,
+  type CoachStudentLink,
+} from '@/lib/coach-storage'
 
 type EntityType = 'player' | 'team' | 'league'
 type FeedType = 'match' | 'rating' | 'achievement' | 'community' | 'team' | 'league'
@@ -86,6 +96,7 @@ type PlayerRow = {
   singles_usta_dynamic_rating: number | null
   doubles_usta_dynamic_rating: number | null
   overall_usta_dynamic_rating: number | null
+  rating_source?: string | null
 }
 
 type MatchRow = {
@@ -140,6 +151,11 @@ type TeamSummary = {
   flight: string | null
   playerCount: number
 }
+
+const MY_LAB_PLAYER_SELECT_BASE =
+  'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,overall_usta_dynamic_rating'
+
+const MY_LAB_PLAYER_SELECT_WITH_SOURCE = `${MY_LAB_PLAYER_SELECT_BASE},rating_source`
 
 type ProfileLinkRow = UserProfileLink
 
@@ -240,6 +256,29 @@ function readLocalFollows(): FollowItem[] {
 function writeLocalFollows(items: FollowItem[]) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(LOCAL_FOLLOW_KEY, JSON.stringify(items))
+}
+
+function isMissingRatingSourceError(message: string | null | undefined) {
+  const normalized = (message || '').toLowerCase()
+  return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
+}
+
+async function loadMyLabPlayers(): Promise<PlayerRow[]> {
+  const withSource = await supabase
+    .from('players')
+    .select(MY_LAB_PLAYER_SELECT_WITH_SOURCE)
+    .order('name', { ascending: true })
+
+  if (!withSource.error) return (withSource.data ?? []) as PlayerRow[]
+  if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+
+  const base = await supabase
+    .from('players')
+    .select(MY_LAB_PLAYER_SELECT_BASE)
+    .order('name', { ascending: true })
+
+  if (base.error) throw new Error(base.error.message)
+  return ((base.data ?? []) as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
 }
 
 function scopedLabStorageKey(baseKey: string, userId: string | null, playerId: string | null | undefined) {
@@ -538,7 +577,7 @@ export default function MyLabPage() {
 }
 
 function MyLabPageInner() {
-  const { userId, authResolved, role, entitlements } = useAuth()
+  const { userId, authResolved, role, entitlements, session } = useAuth()
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -555,6 +594,10 @@ function MyLabPageInner() {
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const [myMatchReportsLoading, setMyMatchReportsLoading] = useState(false)
   const [myMatchReportsError, setMyMatchReportsError] = useState('')
+  const [coachLinks, setCoachLinks] = useState<CoachStudentLink[]>([])
+  const [coachAssignments, setCoachAssignments] = useState<CoachAssignment[]>([])
+  const [coachAssignmentsLoading, setCoachAssignmentsLoading] = useState(false)
+  const [coachAssignmentsMessage, setCoachAssignmentsMessage] = useState('')
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
@@ -568,6 +611,7 @@ function MyLabPageInner() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
+  const [tiqAwards, setTiqAwards] = useState<TiqAwardRecord[]>([])
   const { isTablet } = useViewportBreakpoints()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
@@ -586,6 +630,39 @@ function MyLabPageInner() {
     const timeout = window.setTimeout(() => setNotebookSavedLabel('All changes saved'), 1800)
     return () => window.clearTimeout(timeout)
   }, [notebookSavedLabel])
+
+  useEffect(() => {
+    setTiqAwards(readTiqAwardsRegistry())
+
+    function handleStorage() {
+      setTiqAwards(readTiqAwardsRegistry())
+    }
+
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  useEffect(() => {
+    const linkedPlayerId = profileLink?.linked_player_id || ''
+    const linkedPlayerName = profileLink?.linked_player_name || ''
+    if (!linkedPlayerId && !linkedPlayerName) return
+
+    let active = true
+
+    void (async () => {
+      const result = await loadTiqAwardsForPlayer(linkedPlayerId, linkedPlayerName)
+      if (!active) return
+      const byId = new Map<string, TiqAwardRecord>()
+      for (const award of [...result.data, ...readTiqAwardsRegistry()]) {
+        byId.set(award.id, award)
+      }
+      setTiqAwards([...byId.values()])
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [profileLink?.linked_player_id, profileLink?.linked_player_name])
 
   const refreshMyLab = useCallback(async () => {
     setLoading(true)
@@ -606,12 +683,7 @@ function MyLabPageInner() {
       tiqResultsRes,
       tiqSuggestionsRes,
     ] = await Promise.all([
-      supabase
-        .from('players')
-        .select(
-          'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,overall_usta_dynamic_rating',
-        )
-        .order('name', { ascending: true }),
+      loadMyLabPlayers(),
       supabase
         .from('matches')
         .select('id,match_date,score,flight,league_name,usta_section,district_area,home_team,away_team,winner_side,line_number')
@@ -654,7 +726,6 @@ function MyLabPageInner() {
         : { data: [], error: null }
 
     const firstHardError = [
-      playersRes.error,
       matchesRes.error,
       matchPlayersRes.error,
       scenariosRes.error,
@@ -665,7 +736,7 @@ function MyLabPageInner() {
       setError(firstHardError.message)
     }
 
-    setPlayers((playersRes.data ?? []) as PlayerRow[])
+    setPlayers(playersRes)
     setMatches(
       ((matchesRes.data ?? []) as MatchRow[]).filter(
         (row) => cleanText(row.home_team) && cleanText(row.away_team),
@@ -681,7 +752,7 @@ function MyLabPageInner() {
     setTiqPlayerParticipationWarning(tiqParticipationRes.warning)
     let linkedPlayerIdForWorkshop = ''
 
-    if (!profileLinkRes.error && profileLinkRes.data) {
+    if (profileLinkRes.data) {
       const nextProfileLink = profileLinkRes.data as ProfileLinkRow
       linkedPlayerIdForWorkshop = nextProfileLink.linked_player_id || ''
       setProfileLink(nextProfileLink)
@@ -803,6 +874,79 @@ function MyLabPageInner() {
     if (!authResolved) return
     void refreshMyMatchReports()
   }, [authResolved, refreshMyMatchReports])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    if (!session?.access_token || !access.canUseAdvancedPlayerInsights) {
+      setCoachLinks([])
+      setCoachAssignments([])
+      setCoachAssignmentsMessage('')
+      setCoachAssignmentsLoading(false)
+      return
+    }
+
+    let active = true
+    setCoachAssignmentsLoading(true)
+    setCoachAssignmentsMessage('')
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/player/coach-assignments', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        const json = (await response.json()) as {
+          ok?: boolean
+          coachLinks?: CoachStudentLink[]
+          assignments?: CoachAssignment[]
+          message?: string
+        }
+
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Could not load coach assignments.')
+        }
+
+        if (!active) return
+        setCoachLinks(json.coachLinks ?? [])
+        setCoachAssignments(json.assignments ?? [])
+      } catch (err) {
+        if (!active) return
+        setCoachAssignmentsMessage(err instanceof Error ? err.message : 'Could not load coach assignments.')
+      } finally {
+        if (active) setCoachAssignmentsLoading(false)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [access.canUseAdvancedPlayerInsights, authResolved, session?.access_token])
+
+  const completeCoachAssignment = useCallback(
+    async (assignmentId: string, recap: string, evidence: string) => {
+      if (!session?.access_token) {
+        throw new Error('Sign in to complete coach assignments.')
+      }
+
+      const response = await fetch('/api/player/coach-assignments', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ assignmentId, recap, evidence }),
+      })
+      const json = (await response.json()) as { ok?: boolean; assignment?: CoachAssignment; message?: string }
+      if (!response.ok || !json.ok || !json.assignment) {
+        throw new Error(json.message || 'Could not complete coach assignment.')
+      }
+
+      setCoachAssignments((current) =>
+        current.map((assignment) => (assignment.id === json.assignment?.id ? json.assignment : assignment)),
+      )
+    },
+    [session?.access_token],
+  )
 
   const myMatchReportByMatchId = useMemo(() => {
     const map = new Map<string, MatchAccuracyReport>()
@@ -1650,6 +1794,27 @@ function MyLabPageInner() {
   const followedLeagues = follows.filter((item) => item.entity_type === 'league')
   const isProfileConfirmed = Boolean(profileLink?.linked_player_id || profileLink?.linked_player_name)
   const linkedPlayer = profileLink?.linked_player_id ? playerMap.get(profileLink.linked_player_id) || null : null
+  const isSelfRatedProfile = linkedPlayer?.rating_source === 'self'
+  const isNewSelfRatedProfile = Boolean(isSelfRatedProfile && !personalMatches.length)
+  const earnedAwardCards = useMemo(() => {
+    const profileNames = new Set(
+      [profileLink?.linked_player_name, linkedPlayer?.name]
+        .map((name) => cleanText(name || '').toLowerCase())
+        .filter(Boolean),
+    )
+    if (!profileNames.size) return []
+
+    return tiqAwards
+      .filter((award) => profileNames.has(cleanText(award.recipientName).toLowerCase()))
+      .slice(0, 4)
+      .map((award) => ({
+        label: award.badgeLabel,
+        value: award.badgeCode,
+        note: `${award.title} - ${award.sourceName}`,
+        href: `/awards/${encodeURIComponent(award.id)}`,
+        cta: 'Certificate',
+      }))
+  }, [linkedPlayer?.name, profileLink?.linked_player_name, tiqAwards])
   const firstName = (profileLink?.linked_player_name || linkedPlayer?.name || '').split(' ')[0] || ''
   const welcomeLine = firstName ? `Welcome back, ${firstName}.` : 'Welcome to your lab.'
   const recentDecisionMatches = personalMatches.filter((match) => match.result === 'W' || match.result === 'L')
@@ -1662,7 +1827,7 @@ function MyLabPageInner() {
   const personalSinglesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('singles')).length
   const personalDoublesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('doubles')).length
   const currentTiq = linkedPlayer?.overall_dynamic_rating ?? null
-  const ustaDynamic = linkedPlayer?.overall_usta_dynamic_rating ?? null
+  const ustaDynamic = isSelfRatedProfile ? null : linkedPlayer?.overall_usta_dynamic_rating ?? null
   const ustaBase =
     typeof ustaDynamic === 'number'
       ? Math.max(2.5, Math.floor(ustaDynamic * 2) / 2)
@@ -1768,16 +1933,20 @@ function MyLabPageInner() {
   const matchupQueue = matchupCandidates.slice(0, 3)
   const matchupHref = linkedPlayer ? buildSinglesMatchupHref(linkedPlayer.id, topMatchupCandidate?.player.id) : '/matchup'
   const matchupGapScore = topMatchupCandidate ? topMatchupCandidate.fitScore : 0
-  const matchupReadLabel = topMatchupCandidate?.read || 'Build player link'
+  const matchupReadLabel = topMatchupCandidate?.read || (isNewSelfRatedProfile ? 'Start the signal' : 'Set profile')
   const matchupPreviewCards = [
     {
       label: 'Match quality',
       value: topMatchupCandidate ? matchupReadLabel : 'Waiting',
-      note: topMatchupCandidate ? `${topMatchupCandidate.gap.toFixed(2)} rating gap` : 'Link your profile to find close tests',
+      note: topMatchupCandidate
+        ? `${topMatchupCandidate.gap.toFixed(2)} rating gap`
+        : isNewSelfRatedProfile
+          ? 'Add a first result or find a local test.'
+          : 'Set your profile to find close tests',
     },
     {
       label: 'Your singles',
-      value: formatRating(linkedPlayer?.singles_dynamic_rating ?? linkedPlayer?.overall_dynamic_rating ?? null),
+      value: `${formatRating(linkedPlayer?.singles_dynamic_rating ?? linkedPlayer?.overall_dynamic_rating ?? null)}${isSelfRatedProfile ? ' S' : ''}`,
       note: linkedPlayer ? linkedPlayer.name : 'Player profile needed',
     },
     {
@@ -1815,16 +1984,18 @@ function MyLabPageInner() {
       ? 'Your recent record suggests choosing one repeat pattern from losses and tracking it for the next two matches.'
       : topMatchupCandidate
         ? `A close next test is ${topMatchupCandidate.player.name}. Use Matchup, then log what actually happened.`
-        : linkedPlayer
+        : isNewSelfRatedProfile
+          ? 'Start your TIQ signal with a scorecard, a local league match, a TIQ league, or a close player to test.'
+          : linkedPlayer
           ? 'Pick one measurable goal and update it after your next match so My Lab can start showing progress.'
-          : 'Link your player record to unlock recommendations from ratings, match history, and matchup context.'
+          : 'Set your profile to unlock recommendations from ratings, match history, and matchup context.'
   const nextMoveHref = !isProfileConfirmed
     ? '/profile'
     : topMatchupCandidate
       ? matchupHref
       : '#player-notebook'
   const nextMoveCta = !isProfileConfirmed
-    ? 'Connect profile'
+    ? 'Set profile'
     : topMatchupCandidate
       ? 'Open matchup'
       : 'Set focus'
@@ -1842,7 +2013,11 @@ function MyLabPageInner() {
     {
       label: 'Best test',
       value: topMatchupCandidate?.player.name || 'Waiting',
-      note: topMatchupCandidate ? `${topMatchupCandidate.read} - ${topMatchupCandidate.gap.toFixed(2)} rating gap` : 'Link your profile to build a matchup queue.',
+      note: topMatchupCandidate
+        ? `${topMatchupCandidate.read} - ${topMatchupCandidate.gap.toFixed(2)} rating gap`
+        : isNewSelfRatedProfile
+          ? 'Find a local player or add a first result.'
+          : 'Set your profile to build a matchup queue.',
     },
     {
       label: 'Focus',
@@ -1946,7 +2121,7 @@ function MyLabPageInner() {
     {
       label: 'Where am I?',
       value: formatRating(linkedPlayer?.overall_dynamic_rating ?? null),
-      note: linkedPlayer ? `${linkedPlayer.name} - ${linkedPlayer.location || 'player profile'}` : 'Link your player record in Profile.',
+      note: linkedPlayer ? `${linkedPlayer.name} - ${linkedPlayer.location || 'player profile'}` : 'Set your profile to start this read.',
       href: '/profile',
       cta: 'Manage profile',
       icon: 'playerRatings' as TiqFeatureIconName,
@@ -1966,6 +2141,48 @@ function MyLabPageInner() {
       href: '#player-notebook',
       cta: 'Open notebook',
       icon: 'myLab' as TiqFeatureIconName,
+    },
+  ]
+  const youHubCards = [
+    {
+      label: 'Open My Lab',
+      value: 'Home base',
+      note: isNewSelfRatedProfile
+        ? 'Your self-rated profile is live. Add a scorecard or match signal when ready.'
+        : 'Ratings, recent matches, goals, follows, and the next useful read.',
+      href: '#scorecard-summary',
+      cta: 'Stay here',
+      icon: 'myLab' as TiqFeatureIconName,
+    },
+    {
+      label: 'Improve data',
+      value: isNewSelfRatedProfile ? 'First signal' : 'Refresh',
+      note: isNewSelfRatedProfile
+        ? 'Upload a scorecard or team summary to replace the starter signal.'
+        : 'Upload, report, or correct the tennis context behind your read.',
+      href: '/data-assist',
+      cta: 'Open Data Assist',
+      icon: 'reports' as TiqFeatureIconName,
+    },
+    {
+      label: 'Prep matchup',
+      value: topMatchupCandidate ? topMatchupCandidate.player.name : 'Compare',
+      note: topMatchupCandidate
+        ? `${topMatchupCandidate.read} - gap ${topMatchupCandidate.gap.toFixed(2)}`
+        : isNewSelfRatedProfile
+          ? 'Find a local player and start your first comparison.'
+          : 'Compare a player or court before you play.',
+      href: matchupHref,
+      cta: 'Open Matchup',
+      icon: 'matchupAnalysis' as TiqFeatureIconName,
+    },
+    {
+      label: 'Review messages',
+      value: 'Inbox',
+      note: 'Keep tennis replies, scheduling threads, and alerts together.',
+      href: '/messages',
+      cta: 'Open Messages',
+      icon: 'messagingCenter' as TiqFeatureIconName,
     },
   ]
   const tiqActionCards = [
@@ -2063,27 +2280,27 @@ function MyLabPageInner() {
     {
       label: 'USTA base',
       value: ustaBase,
-      display: ustaBase == null ? 'New' : ustaBase.toFixed(2),
+      display: isSelfRatedProfile ? 'Pending' : ustaBase == null ? 'New' : ustaBase.toFixed(2),
     },
     {
       label: 'USTA dynamic',
       value: ustaDynamic,
-      display: formatRating(ustaDynamic),
+      display: isSelfRatedProfile ? 'Pending' : formatRating(ustaDynamic),
     },
     {
       label: 'Overall',
       value: currentTiq,
-      display: formatRating(currentTiq),
+      display: `${formatRating(currentTiq)}${isSelfRatedProfile ? ' S' : ''}`,
     },
     {
       label: 'Singles',
       value: linkedPlayer?.singles_dynamic_rating ?? null,
-      display: formatRating(linkedPlayer?.singles_dynamic_rating ?? null),
+      display: `${formatRating(linkedPlayer?.singles_dynamic_rating ?? null)}${isSelfRatedProfile ? ' S' : ''}`,
     },
     {
       label: 'Doubles',
       value: linkedPlayer?.doubles_dynamic_rating ?? null,
-      display: formatRating(linkedPlayer?.doubles_dynamic_rating ?? null),
+      display: `${formatRating(linkedPlayer?.doubles_dynamic_rating ?? null)}${isSelfRatedProfile ? ' S' : ''}`,
     },
   ]
   const scorecardSummaryCards = [
@@ -2096,7 +2313,30 @@ function MyLabPageInner() {
     },
     { label: 'Current focus', value: activeGoal.goal || 'Optional', note: activeGoal.progressUpdate || 'Add a goal only when it helps' },
   ]
+  const starterActionCards = [
+    {
+      title: 'Upload scores',
+      text: 'Use a scorecard or team summary to replace the starter rating with verified match context.',
+      href: '/data-assist',
+    },
+    {
+      title: 'Local leagues',
+      text: 'Find nearby league play and register your first match path.',
+      href: '/explore/leagues',
+    },
+    {
+      title: 'Create league',
+      text: 'Start a TIQ league when your group needs structure, results, and rankings.',
+      href: '/league-coordinator',
+    },
+    {
+      title: 'Find players',
+      text: 'Pick a local player, open Matchup, and get a first comparison going.',
+      href: '/explore/players',
+    },
+  ]
   const trophyRoomCards = [
+    ...earnedAwardCards,
     {
       label: 'Peak TIQ',
       value: formatRating(
@@ -2138,14 +2378,15 @@ function MyLabPageInner() {
 
       <section id="player-workshop" style={profileLinkSectionStyle}>
         <div style={profileLinkCardStyle}>
+          <span aria-hidden="true" style={watermarkStyle} />
           <div style={sectionHeaderStyle}>
             <div style={sectionTitleClusterStyle}>
               <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
               <div>
-                <p style={sectionKickerStyle}>Player scorecard</p>
-                <h2 style={sectionTitleStyle}>{welcomeLine}</h2>
+                <p style={sectionKickerStyle}>You hub</p>
+                <h1 style={sectionTitleStyle}>{welcomeLine}</h1>
                 <p style={sectionTextStyle}>
-                  Ratings, progress, records, and the next useful matchup in one place.
+                  My Lab is the home base. Data Assist, Matchup, and Messages stay one move away.
                 </p>
               </div>
             </div>
@@ -2154,12 +2395,26 @@ function MyLabPageInner() {
             </Link>
           </div>
 
+          <section style={youHubPanelStyle}>
+            <div style={personalCommandGridStyle(isTablet)}>
+              {youHubCards.map((card) => (
+                <Link key={card.label} href={card.href} style={personalCommandCardStyle}>
+                  <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
+                  <div style={metricLabelStyle}>{card.label}</div>
+                  <div style={personalHomeTitleStyle}>{card.value}</div>
+                  <div style={metricNoteStyle}>{card.note}</div>
+                  <span style={miniActionLinkStyle}>{card.cta}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
           <section style={personalReadPanelStyle}>
             <div style={personalReadHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>Today&apos;s next move</p>
                 <h3 style={personalReadTitleStyle}>
-                  {linkedPlayer ? `${linkedPlayer.name}: ${nextMoveCta}` : 'Connect your profile to unlock your read'}
+                  {linkedPlayer ? `${linkedPlayer.name}: ${nextMoveCta}` : 'Set your profile to unlock your read'}
                 </h3>
               </div>
               <Link href={nextMoveHref} style={matchupPrimaryLinkStyle}>
@@ -2184,6 +2439,19 @@ function MyLabPageInner() {
               ))}
             </div>
           </section>
+
+          <PlayerDevelopmentPathPanel
+            linkedPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+            currentGoal={activeGoal?.goal || ''}
+          />
+
+          <PlayerCoachAssignmentsPanel
+            assignments={coachAssignments}
+            coachLinks={coachLinks}
+            loading={coachAssignmentsLoading}
+            message={coachAssignmentsMessage}
+            onComplete={completeCoachAssignment}
+          />
 
           {linkedPlayer ? (
             <>
@@ -2211,7 +2479,7 @@ function MyLabPageInner() {
                   </div>
                   <div style={levelMeterMetaStyle}>
                     <strong>{ustaBase == null ? 'USTA base pending' : `USTA ${ustaBase.toFixed(2)} - TIQ overall ${formatRating(currentTiq)}`}</strong>
-                    <span>{ratingToGo == null ? 'Link your player profile to show your next level path.' : `${ratingToGo.toFixed(2)} to go`}</span>
+                    <span>{ratingToGo == null ? 'Set your profile to show your next level path.' : `${ratingToGo.toFixed(2)} to go`}</span>
                   </div>
                   <div style={progressTrackStyle} aria-label={hasLevelProgress ? `Level progress ${Math.round(levelProgress)} percent` : 'Level progress pending'}>
                     <div style={levelProgressFillStyle(levelProgress, hasLevelProgress)} />
@@ -2235,6 +2503,31 @@ function MyLabPageInner() {
                   </div>
                 </div>
               </section>
+
+              {isNewSelfRatedProfile ? (
+                <section style={starterPanelStyle}>
+                  <div style={sectionHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Self-rated start</p>
+                        <h3 style={compactSectionTitleStyle}>Get your TIQ score moving</h3>
+                        <p style={sectionTextStyle}>
+                          Your rating shows an S until verified match or TennisLink data replaces it.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={starterGridStyle(isTablet)}>
+                    {starterActionCards.map((card) => (
+                      <Link key={card.title} href={card.href} style={starterCardStyle}>
+                        <strong>{card.title}</strong>
+                        <span>{card.text}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
               <section style={todayReadPanelStyle}>
                 <div style={workshopContextRowStyle}>
@@ -2264,7 +2557,7 @@ function MyLabPageInner() {
                       <p style={sectionTextStyle}>
                         {topMatchupCandidate
                           ? 'Pick a close test, open the read, then decide what to work on next.'
-                          : 'Link your player profile and My Lab will turn the player pool into matchup suggestions.'}
+                          : 'Set your profile and My Lab will turn the player pool into matchup suggestions.'}
                       </p>
                     </div>
                   </div>
@@ -2323,10 +2616,10 @@ function MyLabPageInner() {
               <details style={labDrawerDetailsStyle}>
                 <summary style={labDrawerSummaryStyle}>
                   <span style={labDrawerSummaryCopyStyle}>
-                    <strong>More player tools</strong>
-                    <em style={labDrawerSummaryHintStyle}>Goals, trends, and records when you need a deeper read.</em>
+                    <strong>Deeper lab read</strong>
+                    <em style={labDrawerSummaryHintStyle}>Goals, trends, and records after the quick read.</em>
                   </span>
-                  <span style={optionalContextCountStyle}>3 tools</span>
+                  <span style={optionalContextCountStyle}>3 views</span>
                 </summary>
 
                 <div style={labDrawerContentStyle}>
@@ -2411,8 +2704,25 @@ function MyLabPageInner() {
                         <div>
                           <p style={sectionKickerStyle}>Trophy room</p>
                           <h3 style={compactSectionTitleStyle}>Personal records</h3>
-                          <p style={sectionTextStyle}>Best marks across the tracked history for this profile.</p>
+                          <p style={sectionTextStyle}>Tournament honors and best marks across the tracked history for this profile.</p>
                         </div>
+                      </div>
+                    </div>
+                    <div style={trophyProofGridStyle(isTablet)} aria-label="Trophy room proof">
+                      <div style={trophyProofItemStyle}>
+                        <span style={trophyProofDotStyle} />
+                        <strong>Honors</strong>
+                        <em>{earnedAwardCards.length || 'New'}</em>
+                      </div>
+                      <div style={trophyProofItemStyle}>
+                        <span style={trophyProofDotStyle} />
+                        <strong>Certificates</strong>
+                        <em>{earnedAwardCards.length ? 'Ready' : 'Pending'}</em>
+                      </div>
+                      <div style={trophyProofItemStyle}>
+                        <span style={trophyProofDotStyle} />
+                        <strong>Best marks</strong>
+                        <em>{trophyRoomCards.length - earnedAwardCards.length}</em>
                       </div>
                     </div>
                     <div style={trophyRoomGridStyle(isTablet)}>
@@ -2421,6 +2731,11 @@ function MyLabPageInner() {
                           <div style={metricLabelStyle}>{record.label}</div>
                           <div style={trophyValueStyle}>{record.value}</div>
                           <div style={metricNoteStyle}>{record.note}</div>
+                          {'href' in record && record.href ? (
+                            <Link href={record.href} style={trophyCardActionStyle}>
+                              {record.cta}
+                            </Link>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -2434,7 +2749,7 @@ function MyLabPageInner() {
                 <TiqFeatureIcon name="accountSecurity" size="lg" variant="surface" />
                 <div>
                   <p style={sectionKickerStyle}>Finish setup</p>
-                  <h3 style={setupTitleStyle}>Connect your player record once.</h3>
+                  <h3 style={setupTitleStyle}>Set your player profile once.</h3>
                   <p style={sectionTextStyle}>
                     My Lab becomes your scorecard after your account knows which player is you.
                   </p>
@@ -2459,7 +2774,7 @@ function MyLabPageInner() {
               </div>
               <div style={setupActionRowStyle}>
                 <Link href="/profile" style={matchupPrimaryLinkStyle}>
-                  Finish profile
+                  Set profile
                 </Link>
                 <Link href="/explore/players" style={secondaryButtonStyle}>
                   Find player
@@ -2521,7 +2836,7 @@ function MyLabPageInner() {
                     <h3 style={compactSectionTitleStyle}>League prompts</h3>
                   </div>
                   <Link href="/compete/leagues" style={smallInlineLinkStyle}>
-                    My leagues
+                    League directory
                   </Link>
                 </div>
                 <div style={tiqActionGridStyle(isTablet)}>
@@ -2552,7 +2867,7 @@ function MyLabPageInner() {
                 <div style={sectionHeaderStyle}>
                   <div style={sectionHeaderCopyStyle}>
                     <p style={sectionKickerStyle}>Team prep</p>
-                    <h3 style={compactSectionTitleStyle}>Team tools from your profile</h3>
+                    <h3 style={compactSectionTitleStyle}>Team context from your profile</h3>
                   </div>
                   <Link href="/captain" style={smallInlineLinkStyle}>
                     Captain
@@ -3176,6 +3491,265 @@ function GhostButton({ onClick, children }: { onClick: () => void; children: Rea
   )
 }
 
+function PlayerDevelopmentPathPanel({
+  linkedPlayerName,
+  currentGoal,
+}: {
+  linkedPlayerName: string
+  currentGoal: string
+}) {
+  const primaryIdentity = PLAYER_DEVELOPMENT_IDENTITIES[0]
+  const nextIdentity = PLAYER_DEVELOPMENT_IDENTITIES[1]
+
+  return (
+    <section style={developmentPathPanelStyle}>
+      <div style={developmentPathHeaderStyle}>
+        <div style={sectionTitleClusterStyle}>
+          <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
+          <div style={sectionHeaderCopyStyle}>
+            <p style={sectionKickerStyle}>Player+ development path</p>
+            <h3 style={compactSectionTitleStyle}>
+              {linkedPlayerName ? `${linkedPlayerName}: choose this week's work` : "Choose this week's work"}
+            </h3>
+            <p style={sectionTextStyle}>
+              Print the workbook, bring a sheet to your coach, then use My Lab to keep the goal and weekly evidence connected.
+            </p>
+          </div>
+        </div>
+        <Link href={`/player-development/${primaryIdentity.slug}/workbook`} style={quickStartButtonStyle}>
+          Print workbook
+        </Link>
+      </div>
+
+      <div style={developmentPathGridStyle}>
+        {[primaryIdentity, nextIdentity].filter(Boolean).map((identity) => (
+          <Link href={`/player-development/${identity.slug}`} key={identity.slug} style={developmentIdentityCardStyle}>
+            <div style={metricLabelStyle}>{identity.ratingBand}</div>
+            <div style={developmentIdentityTitleStyle}>{identity.title}</div>
+            <div style={metricNoteStyle}>{identity.mantra}</div>
+          </Link>
+        ))}
+        <div style={developmentCheckInCardStyle}>
+          <div style={metricLabelStyle}>Current My Lab goal</div>
+          <div style={developmentIdentityTitleStyle}>{currentGoal || 'Set one weekly focus'}</div>
+          <div style={metricNoteStyle}>Use the workbook recap after practice or a match, then update this goal.</div>
+        </div>
+      </div>
+
+      <div style={developmentActionRowStyle}>
+        <Link href="/player-development" style={miniActionLinkStyle}>Open paths</Link>
+        <Link href={`/player-development/${primaryIdentity.slug}/coach-planner`} style={miniActionLinkStyle}>Coach planner</Link>
+        <Link href="#goal-progress" style={miniActionLinkStyle}>Update My Lab goal</Link>
+      </div>
+    </section>
+  )
+}
+
+function PlayerCoachAssignmentsPanel({
+  assignments,
+  coachLinks,
+  loading,
+  message,
+  onComplete,
+}: {
+  assignments: CoachAssignment[]
+  coachLinks: CoachStudentLink[]
+  loading: boolean
+  message: string
+  onComplete: (assignmentId: string, recap: string, evidence: string) => Promise<void>
+}) {
+  const coachLinkMap = useMemo(() => new Map(coachLinks.map((link) => [link.id, link])), [coachLinks])
+  const sortedAssignments = useMemo(() => sortPlayerAssignmentsForAction(assignments), [assignments])
+  const openAssignments = sortedAssignments.filter((assignment) => assignment.status !== 'completed')
+  const completedAssignments = assignments.filter((assignment) => assignment.status === 'completed')
+  const overdueAssignments = openAssignments.filter((assignment) => getCoachAssignmentDueState(assignment.dueDate).tone === 'overdue')
+  const dueTodayAssignments = openAssignments.filter((assignment) => getCoachAssignmentDueState(assignment.dueDate).tone === 'today')
+  const assignmentCards = (openAssignments.length ? openAssignments : sortedAssignments).slice(0, 4)
+  const activeCoachLink = coachLinks[0]
+  const [activeAssignmentId, setActiveAssignmentId] = useState('')
+  const [recap, setRecap] = useState('')
+  const [evidence, setEvidence] = useState('')
+  const [savingAssignmentId, setSavingAssignmentId] = useState('')
+  const [checkInMessage, setCheckInMessage] = useState('')
+
+  const submitCheckIn = async (assignmentId: string) => {
+    setSavingAssignmentId(assignmentId)
+    setCheckInMessage('')
+
+    try {
+      await onComplete(assignmentId, recap, evidence)
+      setActiveAssignmentId('')
+      setRecap('')
+      setEvidence('')
+      setCheckInMessage('Assignment completed. Your coach can review the recap from their workspace.')
+    } catch (err) {
+      setCheckInMessage(err instanceof Error ? err.message : 'Could not complete coach assignment.')
+    } finally {
+      setSavingAssignmentId('')
+    }
+  }
+
+  return (
+    <section style={coachAssignmentPanelStyle}>
+      <div style={developmentPathHeaderStyle}>
+        <div style={sectionTitleClusterStyle}>
+          <TiqFeatureIcon name="messagingCenter" size="md" variant="surface" />
+          <div style={sectionHeaderCopyStyle}>
+            <p style={sectionKickerStyle}>Coach-connected Player+</p>
+            <h3 style={compactSectionTitleStyle}>
+              {activeCoachLink ? `${activeCoachLink.playerName}: coach assignments` : 'Connect coach assignments'}
+            </h3>
+            <p style={sectionTextStyle}>
+              Accepted coach invites turn the workbook into a live weekly loop: assignment, practice evidence, recap, next focus.
+            </p>
+          </div>
+        </div>
+        <Link href={buildPlayerCoachMessageHref(activeCoachLink, 'Player+ coach check-in', 'Quick player note: ')} style={quickStartButtonStyle}>
+          Message coach
+        </Link>
+      </div>
+
+      <div style={coachAssignmentMetricsStyle}>
+        <SummaryCard label="Connected coaches" value={coachLinks.length ? String(coachLinks.length) : 'None'} note="Accept a coach invite to link work" />
+        <SummaryCard label="Due pressure" value={String(overdueAssignments.length + dueTodayAssignments.length)} note={`${overdueAssignments.length} overdue / ${dueTodayAssignments.length} today`} />
+        <SummaryCard label="Open assignments" value={String(openAssignments.length)} note="Coach-created work still in motion" />
+        <SummaryCard label="Completed" value={String(completedAssignments.length)} note="Finished coach follow-through" />
+      </div>
+
+      {loading ? (
+        <div style={emptyStateStyle}>Loading coach assignments.</div>
+      ) : message ? (
+        <div style={emptyStateStyle}>{message}</div>
+      ) : assignmentCards.length ? (
+        <div style={coachAssignmentGridStyle}>
+          {assignmentCards.map((assignment) => {
+            const link = coachLinkMap.get(assignment.studentLinkId)
+            const coachReview = getCoachAssignmentReview(assignment.assignment)
+            const assignmentSummary = getCoachAssignmentSummary(assignment.assignment)
+            const dueState = getCoachAssignmentDueState(assignment.dueDate)
+            return (
+              <div key={assignment.id} style={coachAssignmentCardStyle}>
+                <div style={metricLabelStyle}>{assignment.status === 'completed' ? 'Completed' : 'Assigned'}</div>
+                <div style={developmentIdentityTitleStyle}>{assignment.title}</div>
+                <div style={metricNoteStyle}>{assignment.focus || 'Coach assignment'}</div>
+                <div style={coachAssignmentMetaStyle}>
+                  <span>{link?.levelLabel || link?.identitySlug || 'Development path'}</span>
+                  <span style={coachAssignmentDueStyle(dueState.tone)}>{dueState.label}</span>
+                </div>
+                {link?.coachUserId ? (
+                  <Link
+                    href={buildPlayerCoachMessageHref(
+                      link,
+                      assignment.title,
+                      `Quick note on ${assignment.title}: `,
+                    )}
+                    style={miniActionLinkStyle}
+                  >
+                    Message coach about this
+                  </Link>
+                ) : null}
+                {assignmentSummary.detail || assignmentSummary.volume || assignmentSummary.tracker.length || assignmentSummary.prompt ? (
+                  <div style={coachAssignmentSummaryStyle}>
+                    {assignmentSummary.detail ? <span>{assignmentSummary.detail}</span> : null}
+                    {assignmentSummary.volume ? <strong>{assignmentSummary.volume}</strong> : null}
+                    {assignmentSummary.tracker.length ? (
+                      <ul style={coachAssignmentTrackerStyle}>
+                        {assignmentSummary.tracker.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {assignmentSummary.prompt ? <em>{assignmentSummary.prompt}</em> : null}
+                  </div>
+                ) : null}
+                {coachReview ? (
+                  <div style={coachFeedbackStyle}>
+                    <strong>Coach feedback</strong>
+                    {coachReview.note ? <span>{coachReview.note}</span> : null}
+                    {coachReview.nextFocus ? <em>Next: {coachReview.nextFocus}</em> : null}
+                  </div>
+                ) : null}
+                {assignment.status !== 'completed' ? (
+                  activeAssignmentId === assignment.id ? (
+                    <div style={coachCheckInFormStyle}>
+                      <textarea
+                        value={recap}
+                        onChange={(event) => setRecap(event.target.value)}
+                        placeholder="What did you complete, notice, or improve?"
+                        style={coachCheckInTextareaStyle}
+                      />
+                      <input
+                        value={evidence}
+                        onChange={(event) => setEvidence(event.target.value)}
+                        placeholder="Evidence: reps, score, drill result, workbook page"
+                        style={coachCheckInInputStyle}
+                      />
+                      <div style={developmentActionRowStyle}>
+                        <button
+                          type="button"
+                          onClick={() => void submitCheckIn(assignment.id)}
+                          disabled={savingAssignmentId === assignment.id}
+                          style={coachCheckInButtonStyle}
+                        >
+                          {savingAssignmentId === assignment.id ? 'Saving' : 'Complete assignment'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveAssignmentId('')}
+                          style={coachCheckInGhostButtonStyle}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveAssignmentId(assignment.id)
+                        setCheckInMessage('')
+                      }}
+                      style={coachCheckInGhostButtonStyle}
+                    >
+                      Add recap
+                    </button>
+                  )
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div style={coachAssignmentEmptyStyle}>
+          <strong>No live coach assignments yet.</strong>
+          <span>
+            Print the workbook now, then accept a coach invite when you want Player+ check-ins, assignment tracking, and weekly recaps connected to TenAceIQ.
+          </span>
+          <div style={developmentActionRowStyle}>
+            <Link href="/player-development" style={miniActionLinkStyle}>Open workbook paths</Link>
+            <Link href="/coach" style={miniActionLinkStyle}>Coach tools</Link>
+          </div>
+        </div>
+      )}
+      {checkInMessage ? <div style={coachCheckInMessageStyle}>{checkInMessage}</div> : null}
+    </section>
+  )
+}
+
+function buildPlayerCoachMessageHref(coachLink: CoachStudentLink | undefined, subject: string, body: string) {
+  if (!coachLink?.coachUserId) return '/messages'
+  const params = new URLSearchParams({
+    compose: 'direct',
+    recipientProfileId: coachLink.coachUserId,
+    recipient: 'Coach',
+    subject,
+    body,
+    entityType: 'coach_player_link',
+    entityId: coachLink.id,
+  })
+  return `/messages?${params.toString()}`
+}
+
 function FollowList({
   items,
   onRemove,
@@ -3226,11 +3800,244 @@ function InsightCard({ title, text }: { title: string; text: string }) {
 const pageStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  width: '100%',
-  maxWidth: '1280px',
+  width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '8px clamp(14px, 4vw, 24px) 0',
+  padding: '18px 0 64px',
+  display: 'grid',
+  gap: 18,
   minWidth: 0,
+  overflowX: 'clip',
+  boxSizing: 'border-box',
+}
+
+const developmentPathPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background:
+    'radial-gradient(circle at 8% 0%, rgba(155,225,29,0.14), transparent 28%), linear-gradient(180deg, rgba(14,31,60,0.78) 0%, rgba(8,19,38,0.94) 100%)',
+  boxShadow: 'var(--shadow-card)',
+  minWidth: 0,
+}
+
+const developmentPathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const developmentPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const developmentIdentityCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 142,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.035))',
+  textDecoration: 'none',
+}
+
+const developmentCheckInCardStyle: CSSProperties = {
+  ...developmentIdentityCardStyle,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.10), rgba(255,255,255,0.035))',
+}
+
+const developmentIdentityTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1.08rem',
+  fontWeight: 900,
+  lineHeight: 1.15,
+}
+
+const developmentActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 12,
+  alignItems: 'center',
+}
+
+const coachAssignmentPanelStyle: CSSProperties = {
+  ...developmentPathPanelStyle,
+  background:
+    'radial-gradient(circle at 86% 0%, rgba(116,190,255,0.16), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,251,255,0.96) 100%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, rgba(15,37,67,0.14) 82%)',
+  color: '#0b1730',
+}
+
+const coachAssignmentMetricsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 12,
+}
+
+const coachAssignmentGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 12,
+}
+
+const coachAssignmentCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  minHeight: 150,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid rgba(15,37,67,0.12)',
+  background: 'linear-gradient(180deg, rgba(255,255,255,1), rgba(243,248,255,0.96))',
+  boxShadow: '0 18px 40px rgba(5,18,40,0.08)',
+}
+
+const coachAssignmentMetaStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  color: '#55708e',
+  fontSize: '.82rem',
+  fontWeight: 800,
+}
+
+function coachAssignmentDueStyle(tone: ReturnType<typeof getCoachAssignmentDueState>['tone']): CSSProperties {
+  const urgent = tone === 'overdue' || tone === 'today'
+  const soon = tone === 'soon'
+  return {
+    borderRadius: 999,
+    border: urgent
+      ? '1px solid rgba(185,28,28,0.2)'
+      : soon
+        ? '1px solid rgba(93,143,18,0.22)'
+        : '1px solid rgba(15,37,67,0.12)',
+    background: urgent
+      ? 'rgba(254,226,226,0.78)'
+      : soon
+        ? 'rgba(155,225,29,0.11)'
+        : 'rgba(255,255,255,0.72)',
+    color: urgent ? '#991b1b' : soon ? '#2f5a0d' : '#55708e',
+    padding: '3px 8px',
+    fontSize: '.76rem',
+    fontWeight: 900,
+  }
+}
+
+const coachAssignmentEmptyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px dashed rgba(15,37,67,0.18)',
+  background: 'rgba(255,255,255,0.78)',
+  color: '#435775',
+  lineHeight: 1.55,
+}
+
+const coachAssignmentSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(15,37,67,0.1)',
+  background: 'rgba(255,255,255,0.82)',
+  color: '#435775',
+  fontSize: '.88rem',
+  lineHeight: 1.45,
+}
+
+const coachAssignmentTrackerStyle: CSSProperties = {
+  margin: 0,
+  paddingLeft: 18,
+  display: 'grid',
+  gap: 3,
+}
+
+const coachFeedbackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'rgba(155,225,29,0.11)',
+  color: '#21410f',
+  fontSize: '.88rem',
+  lineHeight: 1.45,
+  fontWeight: 780,
+}
+
+const coachCheckInFormStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginTop: 4,
+}
+
+const coachCheckInTextareaStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 86,
+  resize: 'vertical',
+  borderRadius: 14,
+  border: '1px solid rgba(15,37,67,0.18)',
+  background: '#fff',
+  color: '#0b1730',
+  padding: '11px 12px',
+  font: 'inherit',
+  boxSizing: 'border-box',
+}
+
+const coachCheckInInputStyle: CSSProperties = {
+  width: '100%',
+  borderRadius: 999,
+  border: '1px solid rgba(15,37,67,0.18)',
+  background: '#fff',
+  color: '#0b1730',
+  padding: '10px 12px',
+  font: 'inherit',
+  boxSizing: 'border-box',
+}
+
+const coachCheckInButtonStyle: CSSProperties = {
+  border: 0,
+  borderRadius: 999,
+  background: 'var(--brand-green)',
+  color: '#071226',
+  padding: '10px 14px',
+  fontSize: '.82rem',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const coachCheckInGhostButtonStyle: CSSProperties = {
+  border: '1px solid rgba(15,37,67,0.16)',
+  borderRadius: 999,
+  background: '#fff',
+  color: '#0b1730',
+  padding: '9px 13px',
+  fontSize: '.82rem',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const coachCheckInMessageStyle: CSSProperties = {
+  padding: '12px 14px',
+  borderRadius: 16,
+  background: 'rgba(155,225,29,0.12)',
+  border: '1px solid rgba(155,225,29,0.28)',
+  color: '#21410f',
+  fontSize: '.9rem',
+  fontWeight: 800,
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -3253,7 +4060,7 @@ const secondaryButtonStyle: CSSProperties = {
 }
 
 const profileLinkSectionStyle: CSSProperties = {
-  margin: '0 0 18px',
+  margin: 0,
   minWidth: 0,
 }
 
@@ -3271,14 +4078,30 @@ const warningNoteStyle: CSSProperties = {
 }
 
 const profileLinkCardStyle: CSSProperties = {
-  borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
+  position: 'relative',
+  borderRadius: 28,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
   padding: 'clamp(14px, 2.4vw, 20px)',
   display: 'grid',
   gap: 14,
   minWidth: 0,
+  overflow: 'hidden',
+}
+
+const watermarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(-92px, -7vw, -34px)',
+  top: 'clamp(-112px, -10vw, -52px)',
+  width: 'clamp(230px, 30vw, 420px)',
+  aspectRatio: '1',
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.15) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
+  opacity: 0.74,
+  pointerEvents: 'none',
 }
 
 const personalHomeTitleStyle: CSSProperties = {
@@ -3291,12 +4114,12 @@ const personalHomeTitleStyle: CSSProperties = {
 
 const personalReadPanelStyle: CSSProperties = {
   borderRadius: 20,
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg-strong) 92%)',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(8,13,28,0.50))',
   padding: 14,
   display: 'grid',
   gap: 12,
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.28)',
   minWidth: 0,
 }
 
@@ -3329,8 +4152,8 @@ const personalReadGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const personalReadCardStyle: CSSProperties = {
   borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(255,255,255,0.045)',
   padding: 12,
   minHeight: 108,
   display: 'grid',
@@ -3343,7 +4166,7 @@ const personalReadCardLinkStyle: CSSProperties = {
   ...personalReadCardStyle,
   textDecoration: 'none',
   color: 'inherit',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  border: '1px solid rgba(155,225,29,0.26)',
 }
 
 const personalReadValueStyle: CSSProperties = {
@@ -3364,12 +4187,12 @@ const levelUpPanelStyle = (isTablet: boolean): CSSProperties => ({
 
 const levelMeterStyle: CSSProperties = {
   borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.60)',
   padding: 20,
   display: 'grid',
   gap: 16,
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.28)',
 }
 
 const levelMeterHeaderStyle: CSSProperties = {
@@ -3457,12 +4280,12 @@ const levelProgressFillStyle = (value: number, hasProgress: boolean): CSSPropert
 
 const quickProfileStyle: CSSProperties = {
   borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(8,13,28,0.60)',
   padding: 20,
   display: 'grid',
   gap: 14,
-  boxShadow: 'var(--shadow-soft)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.28)',
   minWidth: 0,
 }
 
@@ -3486,8 +4309,8 @@ const quickProfileGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const quickProfileCardStyle: CSSProperties = {
   borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(255,255,255,0.045)',
   padding: 14,
   minHeight: 78,
   display: 'grid',
@@ -3584,6 +4407,40 @@ const todayReadPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const starterPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 7%, var(--shell-panel-bg) 93%)',
+  padding: 18,
+  display: 'grid',
+  gap: 14,
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const starterGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+})
+
+const starterCardStyle: CSSProperties = {
+  minWidth: 0,
+  minHeight: 118,
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -3592,6 +4449,7 @@ const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
     ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
     : 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 10,
+  minWidth: 0,
 })
 
 const todayReadCardStyle: CSSProperties = {
@@ -3603,6 +4461,8 @@ const todayReadCardStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
   alignContent: 'start',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const todayReadValueStyle: CSSProperties = {
@@ -3610,6 +4470,7 @@ const todayReadValueStyle: CSSProperties = {
   fontSize: '1.12rem',
   fontWeight: 950,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const matchupSpotlightStyle: CSSProperties = {
@@ -3917,6 +4778,39 @@ const trophyRoomGridStyle = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
+const trophyProofGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? 'repeat(auto-fit, minmax(min(100%, 135px), 1fr))'
+    : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+})
+
+const trophyProofItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gap: 8,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: '9px 10px',
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const trophyProofDotStyle: CSSProperties = {
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+}
+
 const trophyCardStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
@@ -3934,6 +4828,24 @@ const trophyValueStyle: CSSProperties = {
   fontSize: '1.55rem',
   fontWeight: 950,
   lineHeight: 1.05,
+  overflowWrap: 'anywhere',
+}
+
+const trophyCardActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  justifySelf: 'start',
+  minHeight: 30,
+  maxWidth: '100%',
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  textDecoration: 'none',
   overflowWrap: 'anywhere',
 }
 
@@ -3956,6 +4868,12 @@ const personalCommandCardStyle: CSSProperties = {
   textDecoration: 'none',
   minHeight: 160,
   alignContent: 'start',
+  minWidth: 0,
+}
+
+const youHubPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
   minWidth: 0,
 }
 

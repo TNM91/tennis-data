@@ -1,0 +1,80 @@
+import { getCoachApiAuth } from '@/lib/coach-api-auth'
+import {
+  buildCoachStudentLinkPayload,
+  mapCoachStudentLinkRow,
+  type CoachStudentLinkInput,
+  type CoachStudentLinkRow,
+} from '@/lib/coach-storage'
+
+export const runtime = 'nodejs'
+
+type SaveStudentBody = {
+  student?: CoachStudentLinkInput
+}
+
+export async function GET(request: Request) {
+  const auth = await getCoachApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  const { data, error } = await auth.supabase
+    .from('coach_player_links')
+    .select('id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,status,notes,updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(100)
+
+  if (error) {
+    return Response.json({ ok: false, message: error.message }, { status: 500 })
+  }
+
+  const students = ((data ?? []) as CoachStudentLinkRow[]).map(mapCoachStudentLinkRow)
+  return Response.json({ ok: true, students })
+}
+
+export async function POST(request: Request) {
+  const auth = await getCoachApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  let body: SaveStudentBody
+  try {
+    body = (await request.json()) as SaveStudentBody
+  } catch {
+    return Response.json({ ok: false, message: 'Invalid student request.' }, { status: 400 })
+  }
+
+  const payload = buildCoachStudentLinkPayload(body.student ?? {}, auth.userId)
+  if (!payload) {
+    return Response.json({ ok: false, message: 'Player name is required.' }, { status: 400 })
+  }
+
+  const { data, error } = await auth.supabase
+    .from('coach_player_links')
+    .upsert(payload, { onConflict: 'id' })
+    .select('id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,status,notes,updated_at')
+    .single()
+
+  if (error) {
+    return Response.json({ ok: false, message: error.message }, { status: 500 })
+  }
+
+  return Response.json({ ok: true, student: mapCoachStudentLinkRow(data as CoachStudentLinkRow) })
+}
+
+export async function DELETE(request: Request) {
+  const auth = await getCoachApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  const url = new URL(request.url)
+  const id = url.searchParams.get('id')?.trim() ?? ''
+  if (!id) return Response.json({ ok: false, message: 'Missing student id.' }, { status: 400 })
+
+  const { error } = await auth.supabase
+    .from('coach_player_links')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    return Response.json({ ok: false, message: error.message }, { status: 500 })
+  }
+
+  return Response.json({ ok: true })
+}

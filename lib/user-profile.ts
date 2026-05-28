@@ -52,10 +52,86 @@ function toError(message: string) {
   return new Error(message)
 }
 
+function hasProfileLinkData(value: UserProfileLink | null | undefined) {
+  return Boolean(
+    value?.linked_player_id ||
+      value?.linked_player_name ||
+      value?.linked_team_name ||
+      value?.linked_league_name ||
+      value?.linked_flight ||
+      value?.profile_photo_url ||
+      value?.message_display_name,
+  )
+}
+
+function hasLinkedIdentityData(value: UserProfileLink | null | undefined) {
+  return Boolean(
+    value?.linked_player_id ||
+      value?.linked_player_name ||
+      value?.linked_team_name ||
+      value?.linked_league_name ||
+      value?.linked_flight,
+  )
+}
+
+function mergeCloudAndLocalProfileLink(cloudData: UserProfileLink | null, localLink: UserProfileLink | null) {
+  if (!cloudData && !localLink) return null
+  return {
+    linked_player_id: cloudData?.linked_player_id || localLink?.linked_player_id || null,
+    linked_player_name: cloudData?.linked_player_name || localLink?.linked_player_name || null,
+    linked_team_name: cloudData?.linked_team_name || localLink?.linked_team_name || null,
+    linked_league_name: cloudData?.linked_league_name || localLink?.linked_league_name || null,
+    linked_flight: cloudData?.linked_flight || localLink?.linked_flight || null,
+    profile_photo_url: cloudData?.profile_photo_url || localLink?.profile_photo_url || null,
+    message_display_name: cloudData?.message_display_name || localLink?.message_display_name || null,
+  }
+}
+
+async function syncLocalProfileLinkToCloud(userId: string, localLink: UserProfileLink | null) {
+  if (!localLink || !hasLinkedIdentityData(localLink)) return
+
+  const payload = {
+    id: userId,
+    linked_player_id: localLink.linked_player_id,
+    linked_player_name: localLink.linked_player_name,
+    linked_team_name: localLink.linked_team_name,
+    linked_league_name: localLink.linked_league_name,
+    linked_flight: localLink.linked_flight || null,
+  }
+
+  try {
+    const fullRes = await supabase
+      .from('profiles')
+      .upsert(payload, { onConflict: 'id' })
+      .select('linked_player_id')
+      .maybeSingle()
+
+    if (!fullRes.error || !isMissingProfileLinkSchemaError(fullRes.error.message)) return
+
+    const fallbackPayload = {
+      id: payload.id,
+      linked_player_id: payload.linked_player_id,
+      linked_player_name: payload.linked_player_name,
+      linked_team_name: payload.linked_team_name,
+      linked_league_name: payload.linked_league_name,
+    }
+
+    await supabase
+      .from('profiles')
+      .upsert(fallbackPayload, { onConflict: 'id' })
+      .select('linked_player_id')
+      .maybeSingle()
+  } catch {
+    // Loading should never fail because a best-effort persistence repair failed.
+  }
+}
+
 export async function loadUserProfileLink(userId: string | null | undefined): Promise<LoadUserProfileLinkResult> {
   if (!userId) {
     return { data: null, error: null, source: 'none', cloudSchemaReady: true }
   }
+
+  const localLink = normalizeStoredProfileLink(readLocalProfileLink(userId))
 
   const fullRes = await supabase
     .from('profiles')
@@ -64,19 +140,24 @@ export async function loadUserProfileLink(userId: string | null | undefined): Pr
     .maybeSingle()
 
   if (!fullRes.error) {
+    const cloudData = (fullRes.data || null) as UserProfileLink | null
+    const data = mergeCloudAndLocalProfileLink(cloudData, localLink)
+    if (!hasLinkedIdentityData(cloudData) && hasLinkedIdentityData(localLink)) {
+      void syncLocalProfileLinkToCloud(userId, localLink)
+    }
     return {
-      data: (fullRes.data || null) as UserProfileLink | null,
+      data,
       error: null,
-      source: fullRes.data ? 'cloud' : 'none',
+      source: hasLinkedIdentityData(cloudData) || (hasProfileLinkData(cloudData) && !localLink) ? 'cloud' : localLink ? 'local' : 'none',
       cloudSchemaReady: true,
     }
   }
 
   if (!isMissingProfileLinkSchemaError(fullRes.error.message)) {
     return {
-      data: null,
+      data: localLink,
       error: toError(fullRes.error.message),
-      source: 'none',
+      source: localLink ? 'local' : 'none',
       cloudSchemaReady: true,
     }
   }
@@ -88,24 +169,28 @@ export async function loadUserProfileLink(userId: string | null | undefined): Pr
     .maybeSingle()
 
   if (!fallbackRes.error) {
+    const cloudData = (fallbackRes.data || null) as UserProfileLink | null
+    const data = mergeCloudAndLocalProfileLink(cloudData, localLink)
+    if (!hasLinkedIdentityData(cloudData) && hasLinkedIdentityData(localLink)) {
+      void syncLocalProfileLinkToCloud(userId, localLink)
+    }
     return {
-      data: (fallbackRes.data || null) as UserProfileLink | null,
+      data,
       error: null,
-      source: fallbackRes.data ? 'cloud' : 'none',
+      source: hasLinkedIdentityData(cloudData) || (hasProfileLinkData(cloudData) && !localLink) ? 'cloud' : localLink ? 'local' : 'none',
       cloudSchemaReady: false,
     }
   }
 
   if (!isMissingProfileLinkSchemaError(fallbackRes.error.message)) {
     return {
-      data: null,
+      data: localLink,
       error: toError(fallbackRes.error.message),
-      source: 'none',
+      source: localLink ? 'local' : 'none',
       cloudSchemaReady: false,
     }
   }
 
-  const localLink = normalizeStoredProfileLink(readLocalProfileLink(userId))
   return {
     data: localLink,
     error: null,
@@ -118,6 +203,8 @@ export async function saveUserProfileLink(
   userId: string,
   payload: SaveUserProfileLinkPayload,
 ): Promise<SaveUserProfileLinkResult> {
+  writeLocalProfileLink(userId, payload)
+
   const fullPayload = { id: userId, ...payload }
   const fullUpdate = await supabase
     .from('profiles')
@@ -138,13 +225,18 @@ export async function saveUserProfileLink(
     return {
       data: payload,
       error: toError(fullUpdate.error.message),
-      source: 'cloud',
+      source: 'local',
       cloudSchemaReady: true,
     }
   }
 
-  const fallbackPayload = { ...fullPayload }
-  delete fallbackPayload.linked_flight
+  const fallbackPayload = {
+    id: userId,
+    linked_player_id: payload.linked_player_id,
+    linked_player_name: payload.linked_player_name,
+    linked_team_name: payload.linked_team_name,
+    linked_league_name: payload.linked_league_name,
+  }
 
   const fallbackUpdate = await supabase
     .from('profiles')
@@ -165,12 +257,11 @@ export async function saveUserProfileLink(
     return {
       data: payload,
       error: toError(fallbackUpdate.error.message),
-      source: 'cloud',
+      source: 'local',
       cloudSchemaReady: false,
     }
   }
 
-  writeLocalProfileLink(userId, payload)
   return {
     data: payload,
     error: null,

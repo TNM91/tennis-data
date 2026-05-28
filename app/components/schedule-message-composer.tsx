@@ -28,6 +28,7 @@ export default function ScheduleMessageComposer({
   defaultDate = '',
   defaultTime = '',
   defaultFacility = '',
+  defaultNotes = '',
 }: {
   mode: ScheduleComposerMode
   triggerLabel: string
@@ -45,6 +46,7 @@ export default function ScheduleMessageComposer({
   defaultDate?: string
   defaultTime?: string
   defaultFacility?: string
+  defaultNotes?: string
 }) {
   const [open, setOpen] = useState(false)
   const [scheduledDate, setScheduledDate] = useState(defaultDate)
@@ -70,14 +72,14 @@ export default function ScheduleMessageComposer({
       setScheduledTime(defaultTime)
       setFacility(defaultFacility)
       setRecurrenceRule('')
-      setNotes('')
+      setNotes(defaultNotes)
       setConversationId('')
       setStatus('')
       setError('')
       setRecipientPreview(null)
       setPreviewLoading(false)
     }
-  }, [defaultDate, defaultFacility, defaultTime, open])
+  }, [defaultDate, defaultFacility, defaultNotes, defaultTime, open])
 
   useEffect(() => {
     if (!open || mode !== 'captain-practice' || !teamName) return
