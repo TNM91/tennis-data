@@ -34,6 +34,30 @@ import {
 } from '@/lib/coach-workspace'
 import { getPlayerDevelopmentIdentity } from '@/lib/player-development'
 
+const FIRST_ASSIGNMENT_STARTERS = [
+  {
+    id: 'movement',
+    templateId: 'split-recover-repeat',
+    title: 'First movement standard',
+    focus: 'Active feet + recovery',
+    cue: 'Set the baseline habit: split, first step, recover before watching.',
+  },
+  {
+    id: 'serve',
+    templateId: 'serve-target-ladder',
+    title: 'First serve pressure chart',
+    focus: 'Serve routine + target clarity',
+    cue: 'Give the player a measurable serve task they can bring back with evidence.',
+  },
+  {
+    id: 'decision',
+    templateId: 'attack-decision-audit',
+    title: 'First attack decision audit',
+    focus: 'Build, attack, or reset',
+    cue: 'Start the Coach Hub with smarter ball selection instead of generic winners.',
+  },
+] as const
+
 export default function CoachPage() {
   return (
     <SiteShell active="/coach">
@@ -285,6 +309,16 @@ function CoachContent() {
     setAssignmentFocus(presetAssignment.focus)
     setAssignmentPresetId(sessionPresetId)
     setWorkspaceMessage('Session preset loaded into the assignment form. Choose a student and due date, then create the Player+ follow-through.')
+  }
+
+  function loadFirstAssignmentStarter(starter: (typeof FIRST_ASSIGNMENT_STARTERS)[number]) {
+    const template = getCoachAssignmentTemplate(starter.templateId)
+    setAssignmentTemplateId(template.id)
+    setAssignmentTitle(starter.title)
+    setAssignmentFocus(starter.focus)
+    setAssignmentDueDate(getDateInputDaysFromNow(7))
+    setAssignmentPresetId('')
+    setWorkspaceMessage(`${starter.title} loaded. Choose the player, adjust anything needed, then create and send it.`)
   }
 
   async function saveAssignmentReview(assignmentId: string) {
@@ -678,6 +712,28 @@ function CoachContent() {
               {workspaceLoading ? 'Saving...' : 'Create assignment'}
             </button>
           </form>
+          <div style={firstAssignmentStarterStyle}>
+            <div>
+              <div style={eyebrowStyle}>First assignment starter</div>
+              <h3 style={sessionPlannerTitleStyle}>Answer the “what should I work on first?” message.</h3>
+              <p style={studentNextStyle}>
+                Load a practical first Player+ assignment, then create it and send it from the ready panel.
+              </p>
+            </div>
+            <div style={firstAssignmentStarterGridStyle}>
+              {FIRST_ASSIGNMENT_STARTERS.map((starter) => (
+                <button
+                  key={starter.id}
+                  type="button"
+                  onClick={() => loadFirstAssignmentStarter(starter)}
+                  style={starterButtonStyle}
+                >
+                  <strong>{starter.title}</strong>
+                  <span>{starter.cue}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           {workspaceMessage ? <div style={messageStyle}>{workspaceMessage}</div> : null}
           {lastCreatedAssignment && lastCreatedAssignmentStudent ? (
             <div style={assignmentSendPanelStyle}>
@@ -1195,6 +1251,12 @@ function buildLessonConfirmMessage(playerName: string, dateTime: string, focus: 
     focus.trim() ? `Focus: ${focus.trim()}` : 'Focus: ',
   ].join('  ')
   return `Let's confirm the next lesson for ${playerName}. ${details}`
+}
+
+function getDateInputDaysFromNow(days: number) {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
 }
 
 function buildAssignmentNotifyMessage(
@@ -1776,6 +1838,36 @@ const assignmentSendPanelStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.28)',
   background:
     'radial-gradient(circle at 88% 14%, rgba(155,225,29,0.18), transparent 30%), linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.045)), rgba(255,255,255,0.04)',
+}
+
+const firstAssignmentStarterStyle: CSSProperties = {
+  ...sessionPlannerStyle,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055)), rgba(255,255,255,0.035)',
+}
+
+const firstAssignmentStarterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const starterButtonStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  textAlign: 'left',
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: 15,
+  background: 'rgba(5,11,22,0.34)',
+  color: 'var(--foreground-strong)',
+  padding: 11,
+  font: 'inherit',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 800,
+  cursor: 'pointer',
 }
 
 const sessionPlannerHeaderStyle: CSSProperties = {
