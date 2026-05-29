@@ -7,7 +7,7 @@ type PlayerIconProps = IconProps & {
 }
 
 type MarkerIconProps = IconProps & {
-  type: 'ball' | 'cone'
+  type: 'ball' | 'cone' | 'x' | 'o'
 }
 
 export function PlayerIcon({ className, handedness = 'righty' }: PlayerIconProps) {
@@ -27,17 +27,30 @@ export function PlayerIcon({ className, handedness = 'righty' }: PlayerIconProps
         transform={handedness === 'lefty' ? 'scale(-1 1)' : undefined}
       >
         <ellipse cx="0" cy="12" fill="#9BE11D" opacity=".22" rx="8.5" ry="2" stroke="none" />
-        <circle cx="0" cy="-9" fill="#07101E" r="5.2" strokeWidth="1.6" />
-        <path d="M-4.7-8.9C-2.5-12.2.1-11.5 2.1-8.8 3.3-7.2 4.6-7.2 5.2-8.5" strokeWidth="1.35" />
-        <path d="M0-3.3V7.2M0-1.2l-6 4.3M0-1.2l6.8-.7M0 7.2l-5.2 7.2M0 7.2l5.8 6.5" strokeWidth="1.7" />
-        <path d="M5.9-1.8c2.4-1.4 3.9-3.2 4.6-5.5" strokeWidth="1.15" />
-        <ellipse cx="11.1" cy="-8.7" rx="2.4" ry="3.1" strokeWidth="1.1" transform="rotate(24 11.1 -8.7)" />
+        <circle cx="0" cy="-9" fill="#07101E" r="5.7" strokeWidth="1.55" />
+        <path d="M-5.1-8.8C-2.6-12.8.1-12.2 2.5-8.7 3.9-6.7 5-6.9 5.8-8.4" strokeWidth="1.35" />
+        <path d="M0-3.1V7.5M0-.9l-6.3 4.1M0-.9l6.3 4.1M0 7.5l-5.5 7.4M0 7.5l5.5 7.4" strokeWidth="1.8" />
       </g>
     </svg>
   )
 }
 
 export function MarkerIcon({ className, type }: MarkerIconProps) {
+  if (type === 'x' || type === 'o') {
+    return (
+      <svg aria-hidden="true" className={className} viewBox="-10 -10 20 20">
+        {type === 'x' ? (
+          <g fill="none" stroke="#9BE11D" strokeLinecap="round" strokeWidth="3">
+            <path d="M-5.8-5.8 5.8 5.8" />
+            <path d="M5.8-5.8-5.8 5.8" />
+          </g>
+        ) : (
+          <circle cx="0" cy="0" fill="none" r="6.2" stroke="#9BE11D" strokeWidth="2.8" />
+        )}
+      </svg>
+    )
+  }
+
   if (type === 'cone') {
     return (
       <svg aria-hidden="true" className={className} viewBox="-8 -8 16 16">

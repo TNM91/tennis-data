@@ -11,13 +11,15 @@ import { supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
 
+const coachLinkSelect = 'id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,player_email,player_phone,contact_preference,setup_status,status,notes,updated_at'
+
 export async function GET(request: Request) {
   const auth = await getPlayerApiAuth(request)
   if (!auth.ok) return auth.response
 
   const { data: linkData, error: linkError } = await auth.supabase
     .from('coach_player_links')
-    .select('id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,status,notes,updated_at')
+    .select(coachLinkSelect)
     .eq('player_user_id', auth.userId)
     .order('updated_at', { ascending: false })
     .limit(20)

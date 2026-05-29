@@ -1,5 +1,7 @@
 export type CoachStudentStatus = 'active' | 'needs_assignment' | 'review_notes' | 'paused'
 export type CoachAssignmentStatus = 'draft' | 'assigned' | 'completed' | 'archived'
+export type CoachContactPreference = 'in_app' | 'text' | 'both'
+export type CoachStudentSetupStatus = 'manual' | 'invited' | 'linked'
 
 export type CoachStudentLink = {
   id: string
@@ -9,6 +11,10 @@ export type CoachStudentLink = {
   playerName: string
   identitySlug: string
   levelLabel: string
+  playerEmail: string
+  playerPhone: string
+  contactPreference: CoachContactPreference
+  setupStatus: CoachStudentSetupStatus
   status: CoachStudentStatus
   notes: string
   updatedAt: string
@@ -33,6 +39,10 @@ export type CoachStudentLinkRow = {
   player_name: string
   identity_slug: string
   level_label: string
+  player_email?: string | null
+  player_phone?: string | null
+  contact_preference?: string | null
+  setup_status?: string | null
   status: string
   notes: string
   updated_at: string
@@ -56,6 +66,10 @@ export type CoachStudentLinkInput = {
   playerName?: unknown
   identitySlug?: unknown
   levelLabel?: unknown
+  playerEmail?: unknown
+  playerPhone?: unknown
+  contactPreference?: unknown
+  setupStatus?: unknown
   status?: unknown
   notes?: unknown
 }
@@ -116,6 +130,14 @@ export function normalizeCoachAssignmentStatus(value: unknown): CoachAssignmentS
     : 'draft'
 }
 
+export function normalizeCoachContactPreference(value: unknown): CoachContactPreference {
+  return value === 'text' || value === 'both' || value === 'in_app' ? value : 'in_app'
+}
+
+export function normalizeCoachStudentSetupStatus(value: unknown): CoachStudentSetupStatus {
+  return value === 'invited' || value === 'linked' || value === 'manual' ? value : 'manual'
+}
+
 export function mapCoachStudentLinkRow(row: CoachStudentLinkRow): CoachStudentLink {
   return {
     id: row.id,
@@ -125,6 +147,10 @@ export function mapCoachStudentLinkRow(row: CoachStudentLinkRow): CoachStudentLi
     playerName: row.player_name,
     identitySlug: row.identity_slug,
     levelLabel: row.level_label,
+    playerEmail: row.player_email ?? '',
+    playerPhone: row.player_phone ?? '',
+    contactPreference: normalizeCoachContactPreference(row.contact_preference),
+    setupStatus: normalizeCoachStudentSetupStatus(row.setup_status),
     status: normalizeCoachStudentStatus(row.status),
     notes: row.notes,
     updatedAt: row.updated_at,
@@ -158,6 +184,10 @@ export function buildCoachStudentLinkPayload(input: CoachStudentLinkInput, coach
     player_name: playerName,
     identity_slug: stringOrEmpty(input.identitySlug).trim() || 'relentless-competitor-4-0',
     level_label: stringOrEmpty(input.levelLabel).trim(),
+    player_email: normalizeEmail(input.playerEmail),
+    player_phone: normalizePhone(input.playerPhone),
+    contact_preference: normalizeCoachContactPreference(input.contactPreference),
+    setup_status: normalizeCoachStudentSetupStatus(input.setupStatus),
     status: normalizeCoachStudentStatus(input.status),
     notes: stringOrEmpty(input.notes).trim(),
     updated_at: new Date().toISOString(),
@@ -332,6 +362,15 @@ function stringOrEmpty(value: unknown) {
 function nullableString(value: unknown) {
   const text = stringOrEmpty(value).trim()
   return text || null
+}
+
+function normalizeEmail(value: unknown) {
+  const email = stringOrEmpty(value).trim().toLowerCase()
+  return email.includes('@') ? email : ''
+}
+
+function normalizePhone(value: unknown) {
+  return stringOrEmpty(value).replace(/[^\d+]/g, '').slice(0, 24)
 }
 
 function nullableDate(value: unknown) {

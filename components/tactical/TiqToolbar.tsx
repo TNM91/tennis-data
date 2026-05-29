@@ -1,16 +1,18 @@
 'use client'
 
-import type { TacticalRole, TacticalTemplateKey } from '@/lib/tactical/types'
+import type { TacticalPathKind, TacticalRole, TacticalTemplateKey, TacticalTokenType } from '@/lib/tactical/types'
 import { tacticalTemplateMeta } from '@/lib/tactical/templates'
 import styles from './TiqTacticalStudio.module.css'
 
 type TiqToolbarProps = {
   activeTemplate: TacticalTemplateKey
+  activeDrawKind: TacticalPathKind | null
   role: TacticalRole
   onRoleChange: (role: TacticalRole) => void
   onTemplateChange: (key: TacticalTemplateKey) => void
-  onAddToken: (type: 'player' | 'ball' | 'cone') => void
+  onAddToken: (type: TacticalTokenType) => void
   onAddPath: (kind: 'ball' | 'move' | 'recover') => void
+  onDrawKindChange: (kind: TacticalPathKind | null) => void
   onAddZone: () => void
   onCopyJson: () => void
   onCopyBriefing: () => void
@@ -23,11 +25,13 @@ type TiqToolbarProps = {
 
 export default function TiqToolbar({
   activeTemplate,
+  activeDrawKind,
   role,
   onRoleChange,
   onTemplateChange,
   onAddToken,
   onAddPath,
+  onDrawKindChange,
   onAddZone,
   onCopyJson,
   onCopyBriefing,
@@ -61,10 +65,24 @@ export default function TiqToolbar({
         <button className={`${styles.toolButton} ${styles.primary}`} onClick={() => onAddToken('player')} type="button">Player</button>
         <button className={styles.toolButton} onClick={() => onAddToken('ball')} type="button">Ball</button>
         <button className={styles.toolButton} onClick={() => onAddToken('cone')} type="button">Cone</button>
+        <button className={styles.toolButton} onClick={() => onAddToken('x')} type="button">X mark</button>
+        <button className={styles.toolButton} onClick={() => onAddToken('o')} type="button">O mark</button>
         <button className={styles.toolButton} onClick={onAddZone} type="button">Zone</button>
-        <button className={styles.toolButton} onClick={() => onAddPath('ball')} type="button">Ball path</button>
-        <button className={styles.toolButton} onClick={() => onAddPath('move')} type="button">Move path</button>
-        <button className={styles.toolButton} onClick={() => onAddPath('recover')} type="button">Recovery</button>
+      </div>
+
+      <div className={styles.panelTitle}>Draw lines</div>
+      <div className={styles.toolGrid}>
+        {(['ball', 'move', 'recover'] as const).map((kind) => (
+          <button
+            className={`${styles.toolButton} ${activeDrawKind === kind ? styles.active : ''}`}
+            key={kind}
+            onClick={() => onDrawKindChange(activeDrawKind === kind ? null : kind)}
+            type="button"
+          >
+            {kind === 'ball' ? 'Ball line' : kind === 'move' ? 'Move line' : 'Recover'}
+          </button>
+        ))}
+        <button className={styles.toolButton} onClick={() => onAddPath('ball')} type="button">Quick line</button>
       </div>
 
       <div className={styles.panelTitle}>Scenario actions</div>

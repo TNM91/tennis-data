@@ -124,7 +124,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
   if (invite.student_link_id) {
     const { error: linkError } = await service
       .from('coach_player_links')
-      .update({ player_user_id: user.id, status: 'active', updated_at: new Date().toISOString() })
+      .update({ player_user_id: user.id, setup_status: 'linked', status: 'active', updated_at: new Date().toISOString() })
       .eq('id', invite.student_link_id)
 
     if (linkError) return Response.json({ ok: false, message: linkError.message }, { status: 500 })

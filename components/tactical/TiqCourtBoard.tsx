@@ -1,8 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { useRef } from 'react'
-import type { TacticalPath, TacticalScenario, TacticalSelection, TacticalToken, TacticalZone } from '@/lib/tactical/types'
+import { useRef, useState } from 'react'
+import type { TacticalPath, TacticalPathKind, TacticalPoint, TacticalScenario, TacticalSelection, TacticalToken, TacticalZone } from '@/lib/tactical/types'
 import { pointFromPointer } from '@/lib/tactical/utils'
 import TiqTokenIcon from './TiqTokens'
 import styles from './TiqTacticalStudio.module.css'
@@ -14,9 +14,11 @@ type TiqCourtBoardProps = {
   showPaths: boolean
   showZones: boolean
   snapToGrid: boolean
+  drawingKind: TacticalPathKind | null
   onMoveToken: (id: string, x: number, y: number) => void
   onMovePathPoint: (id: string, endpoint: 'from' | 'to', x: number, y: number) => void
   onMoveZone: (id: string, x: number, y: number) => void
+  onCreatePath: (kind: TacticalPathKind, from: TacticalPoint, to: TacticalPoint) => void
   onSelect: (selection: TacticalSelection) => void
 }
 
@@ -39,14 +41,18 @@ export default function TiqCourtBoard({
   showPaths,
   showZones,
   snapToGrid,
+  drawingKind,
   onMoveToken,
   onMovePathPoint,
   onMoveZone,
+  onCreatePath,
   onSelect,
 }: TiqCourtBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null)
+  const [draftStart, setDraftStart] = useState<TacticalPoint | null>(null)
 
   function startTokenDrag(token: TacticalToken, event: React.PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     onSelect({ type: 'token', id: token.id })
   }
@@ -58,6 +64,7 @@ export default function TiqCourtBoard({
   }
 
   function startZoneDrag(zone: TacticalZone, event: React.PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     onSelect({ type: 'zone', id: zone.id })
   }
@@ -69,6 +76,7 @@ export default function TiqCourtBoard({
   }
 
   function startPathPointDrag(path: TacticalPath, endpoint: 'from' | 'to', event: React.PointerEvent<SVGCircleElement>) {
+    event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     onSelect({ type: 'path', id: path.id })
   }
@@ -79,9 +87,31 @@ export default function TiqCourtBoard({
     onMovePathPoint(path.id, endpoint, point.x, point.y)
   }
 
+  function handleBoardPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (!boardRef.current) return
+    if ((event.target as HTMLElement).closest('button')) return
+    if (!drawingKind) {
+      onSelect({ type: 'scenario', id: 'scenario' })
+      return
+    }
+
+    const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
+    if (!draftStart) {
+      setDraftStart(point)
+      return
+    }
+
+    onCreatePath(drawingKind, draftStart, point)
+    setDraftStart(null)
+  }
+
   return (
     <div className={styles.boardFrame}>
-      <div className={styles.board} ref={boardRef} onClick={() => onSelect({ type: 'scenario', id: 'scenario' })}>
+      <div
+        className={`${styles.board} ${drawingKind ? styles.drawing : ''}`}
+        ref={boardRef}
+        onPointerDown={handleBoardPointerDown}
+      >
         <Image alt="TenAceIQ master tactical court" className={styles.courtImage} draggable={false} fill priority sizes="(max-width: 900px) 100vw, 900px" src="/tiq/courts/tiq-court-master.png" />
         <svg aria-hidden="true" className={styles.overlay} preserveAspectRatio="none" viewBox="0 0 100 100">
           <defs>
@@ -105,7 +135,15 @@ export default function TiqCourtBoard({
               onStartPointDrag={startPathPointDrag}
             />
           ))}
+          {drawingKind && draftStart ? (
+            <circle cx={draftStart.x} cy={draftStart.y} fill="#020814" r="2.25" stroke={pathColor[drawingKind]} strokeWidth="0.75" />
+          ) : null}
         </svg>
+        {drawingKind ? (
+          <div className={styles.drawHint}>
+            {draftStart ? 'Tap the end point' : `Tap start for ${drawingKind === 'ball' ? 'ball' : drawingKind} line`}
+          </div>
+        ) : null}
         {showZones && scenario.zones.map((zone) => (
           <button
             className={`${styles.zoneHandle} ${selected.type === 'zone' && selected.id === zone.id ? styles.selected : ''}`}

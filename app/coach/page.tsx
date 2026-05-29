@@ -54,6 +54,8 @@ function CoachContent() {
   const [studentLevel, setStudentLevel] = useState('')
   const [studentIdentity, setStudentIdentity] = useState('relentless-competitor-4-0')
   const [inviteEmail, setInviteEmail] = useState('')
+  const [studentPhone, setStudentPhone] = useState('')
+  const [contactPreference, setContactPreference] = useState<CoachStudentLink['contactPreference']>('in_app')
   const [invites, setInvites] = useState<CoachStudentInvite[]>([])
   const [assignmentStudentId, setAssignmentStudentId] = useState('')
   const [assignmentTitle, setAssignmentTitle] = useState('')
@@ -141,6 +143,10 @@ function CoachContent() {
             playerName: studentName,
             identitySlug: studentIdentity,
             levelLabel: studentLevel,
+            playerEmail: inviteEmail,
+            playerPhone: studentPhone,
+            contactPreference,
+            setupStatus: inviteEmail.trim() || studentPhone.trim() ? 'invited' : 'manual',
             status: 'needs_assignment',
           },
         }),
@@ -156,9 +162,11 @@ function CoachContent() {
       setStudentName('')
       setStudentLevel('')
       setInviteEmail('')
+      setStudentPhone('')
+      setContactPreference('in_app')
       setWorkspaceMessage('Student added. Create the first assignment while the lesson is fresh.')
 
-      if (inviteEmail.trim()) {
+      if (inviteEmail.trim() || studentPhone.trim()) {
         await createInvite(json.student.id, inviteEmail.trim())
       }
     } catch (error) {
@@ -388,8 +396,20 @@ function CoachContent() {
               <input value={studentLevel} onChange={(event) => setStudentLevel(event.target.value)} placeholder="4.0, varsity, clinic..." style={inputStyle} />
             </label>
             <label style={fieldStyle}>
-              Invite email
-              <input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="Optional Player+ email" style={inputStyle} />
+              Player email
+              <input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="Optional account email" style={inputStyle} />
+            </label>
+            <label style={fieldStyle}>
+              Cell phone
+              <input inputMode="tel" value={studentPhone} onChange={(event) => setStudentPhone(event.target.value)} placeholder="Optional text setup" style={inputStyle} />
+            </label>
+            <label style={fieldStyle}>
+              Contact
+              <select value={contactPreference} onChange={(event) => setContactPreference(event.target.value as CoachStudentLink['contactPreference'])} style={inputStyle}>
+                <option value="in_app">TenAceIQ IM</option>
+                <option value="text">Text</option>
+                <option value="both">IM + text</option>
+              </select>
             </label>
             <button type="submit" disabled={workspaceLoading || !studentName.trim()} style={primaryButtonStyle}>
               {workspaceLoading ? 'Saving...' : 'Add student'}
@@ -397,16 +417,35 @@ function CoachContent() {
           </form>
           <div style={studentListStyle}>
             {savedStudents.length > 0
-              ? savedStudents.map((student) => (
+              ? savedStudents.map((student) => {
+                  const setupInvite = invites.find((invite) => invite.studentLinkId === student.id && invite.status === 'pending')
+                  return (
                   <article key={student.id} style={studentCardStyle}>
                     <div style={studentTopStyle}>
                       <strong>{student.playerName}</strong>
                       <span>{getStudentStatusLabel(student.status)}</span>
                     </div>
                     <div style={studentMetaStyle}>{getIdentityTitle(student.identitySlug)} / {student.levelLabel || 'Development path'}</div>
+                    {(student.playerEmail || student.playerPhone) ? (
+                      <div style={studentContactStyle}>
+                        {student.playerEmail ? <span>{student.playerEmail}</span> : null}
+                        {student.playerPhone ? <span>{student.playerPhone}</span> : null}
+                        <span>{getSetupStatusLabel(student)}</span>
+                      </div>
+                    ) : null}
                     <p style={studentNextStyle}>{student.notes || 'Create one assignment from today\'s lesson and connect it to a measurable court behavior.'}</p>
                     <div style={studentActionRowStyle}>
                       <Link href={getCoachPlannerHref(student.identitySlug)} style={studentActionStyle}>Open path</Link>
+                      {setupInvite ? (
+                        <>
+                          <a href={setupInvite.inviteHref} style={studentActionStyle}>Setup link</a>
+                          {student.playerPhone ? (
+                            <a href={buildSmsHref(student.playerPhone, `I created your TenAceIQ player setup link. Finish your account here: ${setupInvite.inviteHref}`)} style={studentActionStyle}>
+                              Text setup
+                            </a>
+                          ) : null}
+                        </>
+                      ) : null}
                       {student.playerUserId ? (
                         <>
                           <Link href={buildCoachPlayerMessageHref(student, 'Coach check-in', `Quick coach note for ${student.playerName}: `)} style={studentActionStyle}>
@@ -424,9 +463,15 @@ function CoachContent() {
                           </Link>
                         </>
                       ) : null}
+                      {student.playerPhone ? (
+                        <a href={buildSmsHref(student.playerPhone, `Let's confirm your next lesson. Date/time:  Site:  Focus: `)} style={studentActionStyle}>
+                          Text lesson
+                        </a>
+                      ) : null}
                     </div>
                   </article>
-                ))
+                  )
+                })
               : studentSnapshots.map((student) => (
                   <article key={student.id} style={studentCardStyle}>
                     <div style={studentTopStyle}>
@@ -731,6 +776,17 @@ function getInviteStatusLabel(status: CoachStudentInvite['status']) {
   return 'Pending invite'
 }
 
+function getSetupStatusLabel(student: CoachStudentLink) {
+  if (student.playerUserId || student.setupStatus === 'linked') return 'Linked Player+ account'
+  if (student.setupStatus === 'invited') return 'Setup link sent'
+  return 'Manual student'
+}
+
+function buildSmsHref(phone: string, body: string) {
+  const sanitizedPhone = phone.replace(/[^\d+]/g, '')
+  return `sms:${sanitizedPhone}?body=${encodeURIComponent(body)}`
+}
+
 function buildCoachPlayerMessageHref(
   student: CoachStudentLink,
   subject: string,
@@ -1005,6 +1061,15 @@ const studentMetaStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   textTransform: 'uppercase',
+}
+
+const studentContactStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
 }
 
 const studentNextStyle: CSSProperties = {

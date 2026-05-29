@@ -8,6 +8,8 @@ import {
 
 export const runtime = 'nodejs'
 
+const studentSelect = 'id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,player_email,player_phone,contact_preference,setup_status,status,notes,updated_at'
+
 type SaveStudentBody = {
   student?: CoachStudentLinkInput
 }
@@ -18,7 +20,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await auth.supabase
     .from('coach_player_links')
-    .select('id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,status,notes,updated_at')
+    .select(studentSelect)
     .order('updated_at', { ascending: false })
     .limit(100)
 
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
   const { data, error } = await auth.supabase
     .from('coach_player_links')
     .upsert(payload, { onConflict: 'id' })
-    .select('id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,status,notes,updated_at')
+    .select(studentSelect)
     .single()
 
   if (error) {

@@ -6,6 +6,31 @@ function id(prefix: string) {
 }
 
 export function createTacticalTemplate(key: TacticalTemplateKey): TacticalScenario {
+  if (key === 'basicDoubles') {
+    return {
+      id: id('scenario'),
+      name: 'Basic Doubles Board',
+      category: 'practice',
+      audience: ['captain', 'coach', 'player'],
+      duration: 'Open',
+      level: 'All levels',
+      focus: 'Setup',
+      note: 'Start with two players on each side and one ball. Add only the tactical marks, lines, and targets needed for the point.',
+      tokens: [
+        { id: id('token'), type: 'player', label: 'S', role: 'Server', x: 61, y: 82, team: 'green', handedness: 'righty' },
+        { id: id('token'), type: 'player', label: 'N', role: 'Net', x: 39, y: 58, team: 'green', handedness: 'righty' },
+        { id: id('token'), type: 'player', label: 'R', role: 'Returner', x: 36, y: 20, team: 'blue', handedness: 'righty' },
+        { id: id('token'), type: 'player', label: 'P', role: 'Partner', x: 62, y: 42, team: 'blue', handedness: 'righty' },
+        { id: id('token'), type: 'ball', label: '', x: 60, y: 75 },
+      ],
+      paths: [],
+      zones: [],
+      cues: [
+        { id: id('cue'), role: 'coach', text: 'Keep the board clean first, then draw the point intention: ball, movement, recovery.' },
+      ],
+    }
+  }
+
   if (key === 'australian') {
     return {
       id: id('scenario'),
@@ -123,6 +148,7 @@ export function createTacticalTemplate(key: TacticalTemplateKey): TacticalScenar
 }
 
 export const tacticalTemplateMeta: Array<{ key: TacticalTemplateKey; name: string; category: 'match' | 'practice'; description: string }> = [
+  { key: 'basicDoubles', name: 'Basic Board', category: 'practice', description: 'Two players each side, one ball, clean slate.' },
   { key: 'poach', name: 'Serve + Poach', category: 'match', description: 'Serve target, poach lane, cover the next ball.' },
   { key: 'australian', name: 'Australian', category: 'match', description: 'Stack near center and disrupt crosscourt comfort.' },
   { key: 'crosscourt', name: 'Crosscourt Pressure', category: 'practice', description: 'Build consistency, open space, then attack.' },

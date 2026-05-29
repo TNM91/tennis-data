@@ -1,6 +1,6 @@
 export type TacticalRole = 'captain' | 'coach' | 'player'
 export type TacticalCategory = 'match' | 'practice'
-export type TacticalTokenType = 'player' | 'ball' | 'cone'
+export type TacticalTokenType = 'player' | 'ball' | 'cone' | 'x' | 'o'
 export type TacticalTeam = 'green' | 'blue' | 'white'
 export type TacticalPathKind = 'ball' | 'move' | 'recover'
 export type TacticalZoneTone = 'green' | 'blue' | 'white'
@@ -56,7 +56,7 @@ export type TacticalScenario = {
   cues: TacticalCue[]
 }
 
-export type TacticalTemplateKey = 'poach' | 'australian' | 'crosscourt' | 'coachProgression'
+export type TacticalTemplateKey = 'basicDoubles' | 'poach' | 'australian' | 'crosscourt' | 'coachProgression'
 export type TacticalSelection =
   | { type: 'scenario'; id: 'scenario' }
   | { type: 'token'; id: string }

@@ -18,11 +18,12 @@ import { countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTactical
 const LOCAL_LIBRARY_KEY = 'tiq-tactical-studio-library-v1'
 
 export default function TiqTacticalStudio() {
-  const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('poach')
-  const [scenario, setScenario] = useState<TacticalScenario>(() => createTacticalTemplate('poach'))
+  const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('basicDoubles')
+  const [scenario, setScenario] = useState<TacticalScenario>(() => createTacticalTemplate('basicDoubles'))
   const [role, setRole] = useState<TacticalRole>('captain')
   const [briefingRole, setBriefingRole] = useState<TacticalRole>('captain')
   const [selected, setSelected] = useState<TacticalSelection>({ type: 'scenario', id: 'scenario' })
+  const [drawingKind, setDrawingKind] = useState<TacticalPathKind | null>(null)
   const [showLabels, setShowLabels] = useState(true)
   const [showPaths, setShowPaths] = useState(true)
   const [showZones, setShowZones] = useState(true)
@@ -154,7 +155,7 @@ export default function TiqTacticalStudio() {
 
   function loadScenario(nextScenario: TacticalScenario) {
     setScenario(nextScenario)
-    setTemplateKey('poach')
+    setTemplateKey('basicDoubles')
     setSelected({ type: 'scenario', id: 'scenario' })
     setStepIndex(99)
     notify('Scenario loaded')
@@ -216,6 +217,7 @@ export default function TiqTacticalStudio() {
   }
 
   function addToken(type: TacticalTokenType) {
+    const tokenPosition = getDefaultTokenPosition(type)
     setScenario((current) => ({
       ...current,
       tokens: [
@@ -227,8 +229,8 @@ export default function TiqTacticalStudio() {
           role: type === 'player' ? 'Player' : undefined,
           team: type === 'player' ? 'green' : undefined,
           handedness: type === 'player' ? 'righty' : undefined,
-          x: 50,
-          y: type === 'player' ? 75 : 55,
+          x: tokenPosition.x,
+          y: tokenPosition.y,
         },
       ],
     }))
@@ -289,6 +291,7 @@ export default function TiqTacticalStudio() {
       <div className={styles.workspace}>
         <TiqToolbar
           activeTemplate={templateKey}
+          activeDrawKind={drawingKind}
           role={role}
           onAddPath={addPath}
           onAddToken={addToken}
@@ -298,6 +301,7 @@ export default function TiqTacticalStudio() {
           onDownloadJson={downloadScenario}
           onImportJson={importScenario}
           onReset={() => loadTemplate(templateKey)}
+          onDrawKindChange={setDrawingKind}
           onRoleChange={setRole}
           onSaveCloud={saveScenarioCloud}
           onSaveLocal={saveScenarioLocal}
@@ -324,6 +328,23 @@ export default function TiqTacticalStudio() {
             showPaths={showPaths}
             showZones={showZones}
             snapToGrid={snapToGrid}
+            drawingKind={drawingKind}
+            onCreatePath={(kind, from, to) => {
+              setScenario((current) => ({
+                ...current,
+                paths: [
+                  ...current.paths,
+                  {
+                    id: makeTacticalId('path'),
+                    kind,
+                    label: defaultPathLabel(kind),
+                    from,
+                    to,
+                  },
+                ],
+              }))
+              setStepIndex(99)
+            }}
             onMovePathPoint={(id, endpoint, x, y) => setScenario((current) => ({ ...current, paths: current.paths.map((path) => path.id === id ? { ...path, [endpoint]: { x, y } } : path) }))}
             onMoveToken={(id, x, y) => setScenario((current) => ({ ...current, tokens: current.tokens.map((token) => token.id === id ? { ...token, x, y } : token) }))}
             onMoveZone={(id, x, y) => setScenario((current) => ({ ...current, zones: current.zones.map((zone) => zone.id === id ? { ...zone, x, y } : zone) }))}
@@ -390,6 +411,14 @@ export default function TiqTacticalStudio() {
 
 function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'tiq-scenario'
+}
+
+function getDefaultTokenPosition(type: TacticalTokenType) {
+  if (type === 'player') return { x: 50, y: 75 }
+  if (type === 'ball') return { x: 55, y: 68 }
+  if (type === 'cone') return { x: 82, y: 52 }
+  if (type === 'x') return { x: 88, y: 46 }
+  return { x: 88, y: 58 }
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: 'green' | 'blue' }) {
