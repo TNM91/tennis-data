@@ -3579,6 +3579,13 @@ function PlayerCoachAssignmentsPanel({
   const [savingAssignmentId, setSavingAssignmentId] = useState('')
   const [checkInMessage, setCheckInMessage] = useState('')
 
+  const beginPlayerCheckIn = (assignment: CoachAssignment) => {
+    setActiveAssignmentId(assignment.id)
+    setRecap('')
+    setEvidence('')
+    setCheckInMessage('')
+  }
+
   const submitCheckIn = async (assignmentId: string) => {
     setSavingAssignmentId(assignmentId)
     setCheckInMessage('')
@@ -3651,10 +3658,7 @@ function PlayerCoachAssignmentsPanel({
             {nextAssignment.status !== 'completed' ? (
               <button
                 type="button"
-                onClick={() => {
-                  setActiveAssignmentId(nextAssignment.id)
-                  setCheckInMessage('')
-                }}
+                onClick={() => beginPlayerCheckIn(nextAssignment)}
                 style={coachCheckInButtonStyle}
               >
                 Add recap
@@ -3691,6 +3695,7 @@ function PlayerCoachAssignmentsPanel({
             const assignmentSummary = getCoachAssignmentSummary(assignment.assignment)
             const dueState = getCoachAssignmentDueState(assignment.dueDate)
             const assignmentActionPlan = buildPlayerAssignmentActionPlan(assignment, assignmentSummary, dueState.label)
+            const checkInDraft = buildPlayerAssignmentCheckInDraft(assignment, assignmentSummary, dueState.label)
             return (
               <div key={assignment.id} id={`coach-assignment-${assignment.id}`} style={coachAssignmentCardStyle}>
                 <div style={metricLabelStyle}>{assignment.status === 'completed' ? 'Completed' : 'Assigned'}</div>
@@ -3752,19 +3757,34 @@ function PlayerCoachAssignmentsPanel({
                 {assignment.status !== 'completed' ? (
                   activeAssignmentId === assignment.id ? (
                     <div style={coachCheckInFormStyle}>
+                      <div style={coachCheckInGuideStyle}>
+                        <strong>Player+ recap guide</strong>
+                        <span>{checkInDraft.recapCue}</span>
+                        <em>{checkInDraft.evidenceCue}</em>
+                      </div>
                       <textarea
                         value={recap}
                         onChange={(event) => setRecap(event.target.value)}
-                        placeholder="What did you complete, notice, or improve?"
+                        placeholder={checkInDraft.recapPlaceholder}
                         style={coachCheckInTextareaStyle}
                       />
                       <input
                         value={evidence}
                         onChange={(event) => setEvidence(event.target.value)}
-                        placeholder="Evidence: reps, score, drill result, workbook page"
+                        placeholder={checkInDraft.evidencePlaceholder}
                         style={coachCheckInInputStyle}
                       />
                       <div style={developmentActionRowStyle}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecap(checkInDraft.recapTemplate)
+                            setEvidence(checkInDraft.evidenceTemplate)
+                          }}
+                          style={coachCheckInGhostButtonStyle}
+                        >
+                          Use guided draft
+                        </button>
                         <button
                           type="button"
                           onClick={() => void submitCheckIn(assignment.id)}
@@ -3785,10 +3805,7 @@ function PlayerCoachAssignmentsPanel({
                   ) : (
                     <button
                       type="button"
-                      onClick={() => {
-                        setActiveAssignmentId(assignment.id)
-                        setCheckInMessage('')
-                      }}
+                      onClick={() => beginPlayerCheckIn(assignment)}
                       style={coachCheckInGhostButtonStyle}
                     >
                       Add recap
@@ -3893,6 +3910,26 @@ function buildPlayerAssignmentActionPlan(
       value: dueLabel && dueLabel !== 'No due date' ? `${coachTarget} ${dueLabel}.` : coachTarget,
     },
   ]
+}
+
+function buildPlayerAssignmentCheckInDraft(
+  assignment: CoachAssignment,
+  summary: ReturnType<typeof getCoachAssignmentSummary> | null,
+  dueLabel: string,
+) {
+  const actionPlan = buildPlayerAssignmentActionPlan(assignment, summary, dueLabel)
+  const doTarget = actionPlan.find((item) => item.label === 'Do')?.value || assignment.focus || assignment.title
+  const trackTarget = actionPlan.find((item) => item.label === 'Track')?.value || summary?.expectedEvidence || 'reps, score, success rate, or workbook proof'
+  const sendBackTarget = actionPlan.find((item) => item.label === 'Send back')?.value || 'One clear result and one next question for your coach.'
+
+  return {
+    recapCue: `Write what happened on court against the actual assignment: ${doTarget}`,
+    evidenceCue: `Coach is looking for: ${trackTarget}`,
+    recapPlaceholder: `Completed: ${doTarget}\nResult: \nWhat changed: \nQuestion for coach: `,
+    evidencePlaceholder: `Evidence: ${trackTarget}`,
+    recapTemplate: `Completed: ${doTarget}\nResult: \nWhat changed: \nQuestion for coach: ${sendBackTarget}`,
+    evidenceTemplate: `Evidence: ${trackTarget}`,
+  }
 }
 
 function FollowList({
@@ -4196,6 +4233,18 @@ const coachCheckInFormStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   marginTop: 4,
+}
+
+const coachCheckInGuideStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(15,37,67,0.12)',
+  background: 'linear-gradient(135deg, rgba(8,19,38,0.92), rgba(17,46,42,0.9))',
+  color: '#f7fbff',
+  fontSize: '.82rem',
+  lineHeight: 1.4,
 }
 
 const coachCheckInTextareaStyle: CSSProperties = {
