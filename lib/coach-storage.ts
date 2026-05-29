@@ -116,6 +116,7 @@ export type CoachAssignmentSummary = {
   volume: string
   tracker: string[]
   prompt: string
+  expectedEvidence: string
 }
 
 export function normalizeCoachStudentStatus(value: unknown): CoachStudentStatus {
@@ -321,6 +322,7 @@ export function getCoachAssignmentSummary(assignment: Record<string, unknown>): 
   const sets = numberOrNull(assignment.sets)
   const detail = stringOrEmpty(assignment.detail).trim()
   const prompt = stringOrEmpty(assignment.playerPlusPrompt).trim()
+  const expectedEvidence = stringOrEmpty(assignment.expectedEvidence).trim()
   const tracker = Array.isArray(assignment.tracker)
     ? assignment.tracker.map((item) => stringOrEmpty(item).trim()).filter(Boolean).slice(0, 4)
     : []
@@ -330,6 +332,7 @@ export function getCoachAssignmentSummary(assignment: Record<string, unknown>): 
     volume: reps ? `${reps} reps` : sets ? `${sets} sets` : '',
     tracker,
     prompt,
+    expectedEvidence,
   }
 }
 

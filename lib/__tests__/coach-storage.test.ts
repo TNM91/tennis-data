@@ -302,17 +302,20 @@ describe('coach storage helpers', () => {
         reps: 60,
         tracker: ['Target called', 'Made target window', '', 42],
         playerPlusPrompt: 'Log the best pressure target.',
+        expectedEvidence: '60 serves charted by target.',
       }),
     ).toEqual({
       detail: 'Track target clarity.',
       volume: '60 reps',
       tracker: ['Target called', 'Made target window'],
       prompt: 'Log the best pressure target.',
+      expectedEvidence: '60 serves charted by target.',
     })
 
     expect(getCoachAssignmentSummary({ sets: 3, tracker: 'none' })).toMatchObject({
       volume: '3 sets',
       tracker: [],
+      expectedEvidence: '',
     })
   })
 })

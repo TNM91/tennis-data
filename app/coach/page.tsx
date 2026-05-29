@@ -90,6 +90,7 @@ function CoachContent() {
   const [assignmentDueDate, setAssignmentDueDate] = useState('')
   const [assignmentTemplateId, setAssignmentTemplateId] = useState(COACH_ASSIGNMENT_TEMPLATES[0]?.id ?? '')
   const [assignmentPresetId, setAssignmentPresetId] = useState('')
+  const [assignmentStarterId, setAssignmentStarterId] = useState('')
   const [contactStudentId, setContactStudentId] = useState('')
   const [lessonDateTime, setLessonDateTime] = useState('')
   const [lessonFocus, setLessonFocus] = useState('')
@@ -215,6 +216,9 @@ function CoachContent() {
 
     const template = getCoachAssignmentTemplate(assignmentTemplateId)
     const presetAssignment = assignmentPresetId ? buildSessionPresetAssignment(assignmentPresetId) : null
+    const starterAssignment = assignmentStarterId
+      ? FIRST_ASSIGNMENT_STARTERS.find((starter) => starter.id === assignmentStarterId) ?? null
+      : null
     setWorkspaceLoading(true)
     setWorkspaceMessage('')
 
@@ -243,8 +247,14 @@ function CoachContent() {
                     sessionPresetId: assignmentPresetId,
                   }
                 : {}),
+              ...(starterAssignment
+                ? {
+                    starterId: starterAssignment.id,
+                    expectedEvidence: starterAssignment.evidence,
+                  }
+                : {}),
               source: 'coach-portal',
-              createdFrom: presetAssignment ? 'session-preset' : 'one-hour-lesson-frame',
+              createdFrom: starterAssignment ? 'first-assignment-starter' : presetAssignment ? 'session-preset' : 'one-hour-lesson-frame',
             },
           },
         }),
@@ -263,6 +273,7 @@ function CoachContent() {
       setAssignmentFocus('')
       setAssignmentDueDate('')
       setAssignmentPresetId('')
+      setAssignmentStarterId('')
       setWorkspaceMessage('Assignment created. Send it now so the player knows exactly what to do next.')
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not create assignment.')
@@ -304,6 +315,7 @@ function CoachContent() {
     setAssignmentTitle(template.title)
     setAssignmentFocus(template.focus)
     setAssignmentPresetId('')
+    setAssignmentStarterId('')
   }
 
   function useSessionPresetForAssignment() {
@@ -311,6 +323,7 @@ function CoachContent() {
     setAssignmentTitle(presetAssignment.title)
     setAssignmentFocus(presetAssignment.focus)
     setAssignmentPresetId(sessionPresetId)
+    setAssignmentStarterId('')
     setWorkspaceMessage('Session preset loaded into the assignment form. Choose a student and due date, then create the Player+ follow-through.')
   }
 
@@ -321,6 +334,7 @@ function CoachContent() {
     setAssignmentFocus(starter.focus)
     setAssignmentDueDate(getDateInputDaysFromNow(7))
     setAssignmentPresetId('')
+    setAssignmentStarterId(starter.id)
     setWorkspaceMessage(`${starter.title} loaded. Expected evidence: ${starter.evidence}`)
   }
 
@@ -916,10 +930,11 @@ function CoachContent() {
                         Text about this
                       </a>
                     ) : null}
-                    {assignmentSummary.detail || assignmentSummary.volume || assignmentSummary.tracker.length ? (
+                    {assignmentSummary.detail || assignmentSummary.volume || assignmentSummary.tracker.length || assignmentSummary.expectedEvidence ? (
                       <div style={assignmentSummaryStyle}>
                         {assignmentSummary.detail ? <span>{assignmentSummary.detail}</span> : null}
                         {assignmentSummary.volume ? <strong>{assignmentSummary.volume}</strong> : null}
+                        {assignmentSummary.expectedEvidence ? <em>Evidence expected: {assignmentSummary.expectedEvidence}</em> : null}
                         {assignmentSummary.tracker.length ? (
                           <ul style={assignmentTrackerListStyle}>
                             {assignmentSummary.tracker.map((item) => (
@@ -1271,7 +1286,8 @@ function buildAssignmentNotifyMessage(
   const due = assignment.dueDate ? ` Due: ${assignment.dueDate}.` : ''
   const detail = summary?.detail ? ` ${summary.detail}` : ''
   const volume = summary?.volume ? ` Target: ${summary.volume}.` : ''
-  return `New TenAceIQ assignment: ${assignment.title}. Focus: ${focus}.${due}${detail}${volume}`
+  const evidence = summary?.expectedEvidence ? ` Evidence: ${summary.expectedEvidence}.` : ''
+  return `New TenAceIQ assignment: ${assignment.title}. Focus: ${focus}.${due}${detail}${volume}${evidence}`
 }
 
 function buildSmsHref(phone: string, body: string) {

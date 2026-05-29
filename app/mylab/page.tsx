@@ -3717,10 +3717,11 @@ function PlayerCoachAssignmentsPanel({
                     Message coach about this
                   </Link>
                 ) : null}
-                {assignmentSummary.detail || assignmentSummary.volume || assignmentSummary.tracker.length || assignmentSummary.prompt ? (
+                {assignmentSummary.detail || assignmentSummary.volume || assignmentSummary.tracker.length || assignmentSummary.prompt || assignmentSummary.expectedEvidence ? (
                   <div style={coachAssignmentSummaryStyle}>
                     {assignmentSummary.detail ? <span>{assignmentSummary.detail}</span> : null}
                     {assignmentSummary.volume ? <strong>{assignmentSummary.volume}</strong> : null}
+                    {assignmentSummary.expectedEvidence ? <em>Evidence expected: {assignmentSummary.expectedEvidence}</em> : null}
                     {assignmentSummary.tracker.length ? (
                       <ul style={coachAssignmentTrackerStyle}>
                         {assignmentSummary.tracker.map((item) => (
@@ -3876,7 +3877,7 @@ function buildPlayerAssignmentActionPlan(
   dueLabel: string,
 ) {
   const trackerTarget = summary?.tracker[0] || summary?.volume || 'Complete the work exactly as assigned.'
-  const proofTarget = summary?.tracker[1] || 'Record reps, score, success rate, or a short note from the session.'
+  const proofTarget = summary?.expectedEvidence || summary?.tracker[1] || 'Record reps, score, success rate, or a short note from the session.'
   const coachTarget = summary?.prompt || 'Send your coach the result and one thing you want to sharpen next.'
   return [
     {
