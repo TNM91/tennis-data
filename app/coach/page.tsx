@@ -359,6 +359,10 @@ function CoachContent() {
   const linkedPlayersCount = linkedPlayerCards.filter((card) => card.connection === 'linked').length
   const pendingInviteCount = linkedPlayerCards.filter((card) => card.connection === 'pending').length
   const overduePlayersCount = linkedPlayerCards.filter((card) => card.dueTone === 'overdue' || card.dueTone === 'today').length
+  const coachQueueActions = useMemo(
+    () => buildCoachQueueActions(linkedPlayerCards, assignmentsNeedingReview, savedStudents.length),
+    [assignmentsNeedingReview, linkedPlayerCards, savedStudents.length],
+  )
 
   if (!authResolved || role === 'public') return null
 
@@ -428,6 +432,21 @@ function CoachContent() {
             <DashboardMetric label="Due now" value={overduePlayersCount} />
           </div>
         </div>
+        <div style={coachQueueStyle} aria-label="Coach priority queue">
+          <div style={coachQueueIntroStyle}>
+            <div style={eyebrowStyle}>Today&apos;s coach queue</div>
+            <strong>Start with the highest-leverage touch.</strong>
+          </div>
+          <div style={coachQueueGridStyle}>
+            {coachQueueActions.map((action) => (
+              <a key={action.title} href={action.href} style={coachQueueCardStyle(action.tone)}>
+                <span style={coachQueueToneStyle(action.tone)}>{action.label}</span>
+                <strong>{action.title}</strong>
+                <em>{action.detail}</em>
+              </a>
+            ))}
+          </div>
+        </div>
         <div style={linkedCardsGridStyle}>
           {linkedPlayerCards.length ? linkedPlayerCards.map((card) => (
             <article key={card.student.id} style={linkedPlayerCardStyle}>
@@ -492,7 +511,7 @@ function CoachContent() {
       </section>
 
       <section style={workspaceGridStyle}>
-        <div style={panelStyle}>
+        <div id="coach-student-board" style={panelStyle}>
           <PanelHeader eyebrow="Student board" title="Coach the next action, not a vague goal." />
           <form onSubmit={handleAddStudent} style={formGridStyle}>
             <label style={fieldStyle}>
@@ -623,7 +642,7 @@ function CoachContent() {
           </div>
         </div>
 
-        <div style={panelStyle}>
+        <div id="coach-lesson-frame" style={panelStyle}>
           <PanelHeader eyebrow="Lesson frame" title="A repeatable one-hour coaching rhythm." />
           <form onSubmit={handleCreateAssignment} style={formGridStyle}>
             <label style={fieldStyle}>
@@ -1016,6 +1035,98 @@ type LinkedPlayerCard = {
   latestAssignment: CoachAssignment | null
 }
 
+type CoachQueueAction = {
+  label: string
+  title: string
+  detail: string
+  href: string
+  tone: 'review' | 'due' | 'setup' | 'assign' | 'steady'
+}
+
+function buildCoachQueueActions(
+  linkedPlayerCards: LinkedPlayerCard[],
+  assignmentsNeedingReview: CoachAssignment[],
+  studentCount: number,
+): CoachQueueAction[] {
+  const actions: CoachQueueAction[] = []
+  const firstReview = assignmentsNeedingReview[0]
+  const dueCard = linkedPlayerCards.find((card) => card.dueTone === 'overdue' || card.dueTone === 'today')
+  const pendingCard = linkedPlayerCards.find((card) => card.connection === 'pending' && card.pendingInvite)
+  const assignmentReadyCard = linkedPlayerCards.find((card) => !card.activeAssignments && card.connection !== 'pending')
+  const activeCard = linkedPlayerCards.find((card) => card.activeAssignments > 0)
+
+  if (firstReview) {
+    const reviewCard = linkedPlayerCards.find((card) => card.student.id === firstReview.studentLinkId)
+    actions.push({
+      label: 'Review',
+      title: `Respond to ${reviewCard?.student.playerName || 'player'} recap`,
+      detail: `${firstReview.title} is ready for coach feedback and the next focus.`,
+      href: `#coach-assignment-${firstReview.id}`,
+      tone: 'review',
+    })
+  }
+
+  if (dueCard?.latestAssignment) {
+    actions.push({
+      label: 'Due now',
+      title: `Follow up with ${dueCard.student.playerName}`,
+      detail: `${dueCard.latestAssignment.title} is ${dueCard.dueLabel.toLowerCase()}. Send a quick nudge or adjust the next lesson.`,
+      href: `#coach-assignment-${dueCard.latestAssignment.id}`,
+      tone: 'due',
+    })
+  }
+
+  if (pendingCard?.pendingInvite) {
+    actions.push({
+      label: 'Setup',
+      title: `Finish ${pendingCard.student.playerName}'s Player+ link`,
+      detail: 'Send the setup link again so assignments, check-ins, and messages connect.',
+      href: pendingCard.pendingInvite.inviteHref,
+      tone: 'setup',
+    })
+  }
+
+  if (!studentCount) {
+    actions.push({
+      label: 'Start',
+      title: 'Add your first student',
+      detail: 'Create the player record, then send the setup link when you want Player+ follow-through.',
+      href: '#coach-student-board',
+      tone: 'assign',
+    })
+  } else if (assignmentReadyCard) {
+    actions.push({
+      label: 'Assign',
+      title: `Give ${assignmentReadyCard.student.playerName} the next action`,
+      detail: 'Turn the last lesson into a measurable drill, reflection, or accountability item.',
+      href: '#coach-lesson-frame',
+      tone: 'assign',
+    })
+  }
+
+  if (!actions.length && activeCard?.latestAssignment) {
+    actions.push({
+      label: 'Steady',
+      title: 'Everything is moving',
+      detail: `${activeCard.student.playerName} has active work. Use Quick contact to confirm the next lesson.`,
+      href: '#coach-lesson-frame',
+      tone: 'steady',
+    })
+  }
+
+  if (!actions.length) {
+    actions.push({
+      label: 'Build',
+      title: 'Create the next coaching rhythm',
+      detail: 'Use a session preset, assign the follow-through, then send it to the player.',
+      href: '#coach-lesson-frame',
+      tone: 'steady',
+    })
+  }
+
+  return actions.slice(0, 3)
+}
+
 function buildLinkedPlayerCards(
   students: CoachStudentLink[],
   assignments: CoachAssignment[],
@@ -1299,6 +1410,78 @@ const linkedMetricStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 900,
   textTransform: 'uppercase',
+}
+
+const coachQueueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 13,
+  borderRadius: 20,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(5,11,22,0.30)',
+  minWidth: 0,
+}
+
+const coachQueueIntroStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 10,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 950,
+  minWidth: 0,
+}
+
+const coachQueueGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+function coachQueueCardStyle(tone: CoachQueueAction['tone']): CSSProperties {
+  const urgent = tone === 'review' || tone === 'due'
+  const setup = tone === 'setup'
+  return {
+    display: 'grid',
+    gap: 6,
+    minWidth: 0,
+    padding: 12,
+    borderRadius: 16,
+    border: urgent
+      ? '1px solid rgba(155,225,29,0.30)'
+      : setup
+        ? '1px solid rgba(116,190,255,0.24)'
+        : '1px solid rgba(255,255,255,0.10)',
+    background: urgent
+      ? 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(255,255,255,0.045))'
+      : setup
+        ? 'linear-gradient(135deg, rgba(116,190,255,0.10), rgba(255,255,255,0.04))'
+        : 'rgba(255,255,255,0.045)',
+    color: 'var(--foreground-strong)',
+    textDecoration: 'none',
+    fontSize: 13,
+    lineHeight: 1.4,
+    boxShadow: urgent ? '0 14px 30px rgba(155,225,29,0.08)' : 'none',
+  }
+}
+
+function coachQueueToneStyle(tone: CoachQueueAction['tone']): CSSProperties {
+  const urgent = tone === 'review' || tone === 'due'
+  return {
+    width: 'fit-content',
+    borderRadius: 999,
+    border: urgent ? '1px solid rgba(155,225,29,0.32)' : '1px solid rgba(255,255,255,0.12)',
+    background: urgent ? 'rgba(155,225,29,0.14)' : 'rgba(255,255,255,0.055)',
+    color: urgent ? 'var(--brand-green)' : 'var(--shell-copy-muted)',
+    padding: '3px 8px',
+    fontSize: 10,
+    fontWeight: 950,
+    letterSpacing: '.06em',
+    textTransform: 'uppercase',
+  }
 }
 
 const linkedCardsGridStyle: CSSProperties = {
