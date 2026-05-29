@@ -498,13 +498,26 @@ function CoachContent() {
                 ))}
           </div>
           <div style={assignmentListStyle}>
-            {invites.slice(0, 3).map((invite) => (
-              <article key={invite.id} style={assignmentCardStyle}>
-                <strong>{invite.inviteEmail || 'Coach invite link'}</strong>
-                <span>{getInviteStatusLabel(invite.status)}</span>
-                <a href={invite.inviteHref} style={studentActionStyle}>Copy/share invite</a>
-              </article>
-            ))}
+            {invites.slice(0, 3).map((invite) => {
+              const inviteStudent = savedStudents.find((student) => student.id === invite.studentLinkId)
+              return (
+                <article key={invite.id} style={assignmentCardStyle}>
+                  <strong>{invite.inviteEmail || inviteStudent?.playerName || 'Coach invite link'}</strong>
+                  <span>{getInviteStatusLabel(invite.status)}</span>
+                  <div style={studentActionRowStyle}>
+                    <a href={invite.inviteHref} style={studentActionStyle}>Open setup link</a>
+                    {inviteStudent?.playerPhone ? (
+                      <a
+                        href={buildSmsHref(inviteStudent.playerPhone, `I created your TenAceIQ player setup link. Finish your account here: ${invite.inviteHref}`)}
+                        style={studentActionStyle}
+                      >
+                        Text setup link
+                      </a>
+                    ) : null}
+                  </div>
+                </article>
+              )
+            })}
           </div>
         </div>
 

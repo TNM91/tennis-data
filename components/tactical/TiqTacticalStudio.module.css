@@ -271,6 +271,65 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.toolHint {
+  color: rgba(248, 251, 255, 0.62);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.45;
+  margin: -2px 0 10px;
+}
+
+.tokenPalette {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.paletteButton {
+  align-items: center;
+  aspect-ratio: 1 / 1;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  color: rgba(248, 251, 255, 0.78);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 950;
+  gap: 3px;
+  justify-items: center;
+  min-height: 72px;
+  padding: 7px;
+  text-align: center;
+}
+
+.paletteButton:hover {
+  border-color: rgba(155, 225, 29, 0.42);
+  color: #fff;
+}
+
+.paletteButton svg {
+  filter: drop-shadow(0 0 7px rgba(155, 225, 29, 0.54));
+  height: 34px;
+  width: 34px;
+}
+
+.primaryPaletteButton {
+  background: rgba(155, 225, 29, 0.12);
+  border-color: rgba(155, 225, 29, 0.38);
+  color: #dff8c2;
+}
+
+.zonePreview {
+  background: rgba(155, 225, 29, 0.15);
+  border: 2px solid rgba(155, 225, 29, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 0 12px rgba(155, 225, 29, 0.22);
+  height: 25px;
+  width: 42px;
+}
+
 .scenarioBar {
   border-radius: 24px;
   display: grid;
@@ -615,6 +674,24 @@
 
   .toolGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tokenPalette {
+    grid-template-columns: repeat(6, minmax(54px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
+  }
+
+  .paletteButton {
+    min-height: 64px;
+    min-width: 58px;
+    scroll-snap-align: start;
+  }
+
+  .paletteButton svg {
+    height: 29px;
+    width: 29px;
   }
 
   .toolButton,

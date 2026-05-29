@@ -2,6 +2,7 @@
 
 import type { TacticalPathKind, TacticalRole, TacticalTemplateKey, TacticalTokenType } from '@/lib/tactical/types'
 import { tacticalTemplateMeta } from '@/lib/tactical/templates'
+import { MarkerIcon, PlayerIcon } from './icons/TiqIcons'
 import styles from './TiqTacticalStudio.module.css'
 
 type TiqToolbarProps = {
@@ -61,13 +62,17 @@ export default function TiqToolbar({
       ))}
 
       <div className={styles.panelTitle}>Add elements</div>
-      <div className={styles.toolGrid}>
-        <button className={`${styles.toolButton} ${styles.primary}`} onClick={() => onAddToken('player')} type="button">Player</button>
-        <button className={styles.toolButton} onClick={() => onAddToken('ball')} type="button">Ball</button>
-        <button className={styles.toolButton} onClick={() => onAddToken('cone')} type="button">Cone</button>
-        <button className={styles.toolButton} onClick={() => onAddToken('x')} type="button">X mark</button>
-        <button className={styles.toolButton} onClick={() => onAddToken('o')} type="button">O mark</button>
-        <button className={styles.toolButton} onClick={onAddZone} type="button">Zone</button>
+      <p className={styles.toolHint}>Tap an icon to add it, then drag it into place on the court.</p>
+      <div className={styles.tokenPalette}>
+        <TokenTool label="Player" onClick={() => onAddToken('player')} primary type="player" />
+        <TokenTool label="Ball" onClick={() => onAddToken('ball')} type="ball" />
+        <TokenTool label="Cone" onClick={() => onAddToken('cone')} type="cone" />
+        <TokenTool label="X" onClick={() => onAddToken('x')} type="x" />
+        <TokenTool label="O" onClick={() => onAddToken('o')} type="o" />
+        <button aria-label="Add target zone" className={styles.paletteButton} onClick={onAddZone} type="button">
+          <span className={styles.zonePreview} />
+          <span>Zone</span>
+        </button>
       </div>
 
       <div className={styles.panelTitle}>Draw lines</div>
@@ -107,5 +112,29 @@ export default function TiqToolbar({
         <button className={styles.toolButton} onClick={onReset} type="button">Reset</button>
       </div>
     </aside>
+  )
+}
+
+function TokenTool({
+  label,
+  onClick,
+  primary = false,
+  type,
+}: {
+  label: string
+  onClick: () => void
+  primary?: boolean
+  type: TacticalTokenType
+}) {
+  return (
+    <button
+      aria-label={`Add ${label.toLowerCase()}`}
+      className={`${styles.paletteButton} ${primary ? styles.primaryPaletteButton : ''}`}
+      onClick={onClick}
+      type="button"
+    >
+      {type === 'player' ? <PlayerIcon /> : <MarkerIcon type={type} />}
+      <span>{label}</span>
+    </button>
   )
 }

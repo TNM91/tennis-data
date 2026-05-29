@@ -88,6 +88,7 @@ export default function TiqTacticalStudio() {
     setTemplateKey(key)
     setScenario(createTacticalTemplate(key))
     setSelected({ type: 'scenario', id: 'scenario' })
+    setDrawingKind(null)
     setStepIndex(99)
   }
 
@@ -157,6 +158,7 @@ export default function TiqTacticalStudio() {
     setScenario(nextScenario)
     setTemplateKey('basicDoubles')
     setSelected({ type: 'scenario', id: 'scenario' })
+    setDrawingKind(null)
     setStepIndex(99)
     notify('Scenario loaded')
   }
