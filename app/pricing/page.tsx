@@ -99,7 +99,7 @@ const PERSONALIZATION_FLOW: {
   },
   {
     title: 'Open your workspace',
-    cue: 'Open the You, Team, or League workspace that matches your role.',
+    cue: 'Open the You, Coach, Team, or League workspace that matches your role.',
     icon: 'myLab',
   },
   {
@@ -160,8 +160,8 @@ const UNLOCK_PATHS: Array<{
   {
     planId: 'full_court',
     title: 'Run the full court',
-    cue: 'Upgrade when Captain, League, and unlimited tournaments should live together.',
-    steps: ['Open the suite', 'Create tournaments', 'Track teams and results'],
+    cue: 'Upgrade when Coach, Captain, League, and unlimited tournaments should live together.',
+    steps: ['Open the suite', 'Coach and lead', 'Track teams and results'],
   },
 ]
 
@@ -274,6 +274,13 @@ const TIME_BACK_MOMENTS: Array<{
     action: 'Make it yours',
   },
   {
+    planId: 'coach',
+    before: 'Lesson notes, drill ideas, player homework, scheduling, and follow-up messages spread everywhere.',
+    after: 'Coach keeps students, lesson plans, Tactical Studio boards, assignments, check-ins, and messages in one lane.',
+    saved: 'Develop cleaner',
+    action: 'Coach smarter',
+  },
+  {
     planId: 'captain',
     before: 'Text threads, availability guesses, lineup drafts, and last-minute changes.',
     after: 'Captain turns match week into a clean readiness and lineup flow.',
@@ -289,8 +296,8 @@ const TIME_BACK_MOMENTS: Array<{
   },
   {
     planId: 'full_court',
-    before: 'Captain work, league operations, and tournaments split across different systems.',
-    after: 'Full-Court keeps the full suite in one tennis workspace.',
+    before: 'Coaching, captain work, league operations, and tournaments split across different systems.',
+    after: 'Full-Court keeps every TenAceIQ workspace in one tennis operation.',
     saved: 'Run everything',
     action: 'Unlock the suite',
   },
@@ -308,13 +315,51 @@ const PREMIUM_TOOL_SIGNALS: Array<{
   },
   {
     title: 'Unlock by job',
-    cue: 'Users choose Find, You, Team, or League instead of decoding feature bundles.',
+    cue: 'Users choose Find, You, Coach, Team, or League instead of decoding feature bundles.',
     icon: 'accountSecurity',
   },
   {
     title: 'Stay tennis-specific',
     cue: 'The value is fewer lineup guesses, clearer prep, and cleaner results, not generic dashboards.',
     icon: 'lineupBuilder',
+  },
+]
+
+const ROLE_FIT_CARDS: Array<{
+  planId: PricingPlanId
+  title: string
+  bestFor: string
+  includes: string[]
+  notFor: string
+  cta: string
+  href: string
+}> = [
+  {
+    planId: 'coach',
+    title: 'Coach',
+    bestFor: 'Private lessons, school coaches, clinics, training groups, and player development follow-through.',
+    includes: ['Student tracking', 'Lesson planning', 'Drill assignments', 'Tactical Studio', 'Coach-player messages'],
+    notFor: 'Weekly team lineup management, availability, and match-week captain decisions.',
+    cta: 'See Coach',
+    href: '#coach',
+  },
+  {
+    planId: 'captain',
+    title: 'Captain',
+    bestFor: 'Team leadership, weekly lineup decisions, availability, scouting, readiness, and team communication.',
+    includes: ['Lineup tools', 'Availability', 'Team scouting', 'Practice planning', 'Captain messaging'],
+    notFor: 'Private lesson student tracking and player homework workflows.',
+    cta: 'See Captain',
+    href: '#captain',
+  },
+  {
+    planId: 'full_court',
+    title: 'Full-Court',
+    bestFor: 'Users who coach players, lead teams, and run leagues or events from one account.',
+    includes: ['Player', 'Coach', 'Captain', 'League', 'Unlimited tournaments'],
+    notFor: 'Someone who only needs one focused workspace.',
+    cta: 'See Full-Court',
+    href: '#full_court',
   },
 ]
 
@@ -356,7 +401,7 @@ function PricingContent() {
           <div style={eyebrowStyle}>Pricing</div>
           <h1 style={heroTitleStyle}>Choose your lane.</h1>
           <p style={heroTextStyle}>
-            Find is free. Player, Captain, League, and Full-Court unlock the workspace behind the job.
+            Find is free. Player, Coach, Captain, League, and Full-Court unlock the workspace behind the job.
           </p>
 
           <div style={heroActionRowStyle}>
@@ -428,6 +473,8 @@ function PricingContent() {
         <PremiumValueBand />
 
         <PlanFitMatrix />
+
+        <RoleFitGuide />
 
         <section style={unlockPathShellStyle} aria-labelledby="unlock-path-title">
           <div style={unlockPathHeaderStyle}>
@@ -1066,6 +1113,7 @@ function PlanFitMatrix() {
                       style={{
                         ...fitMatrixMobilePlanStyle,
                         ...(best ? fitMatrixBestCellStyle : null),
+                        ...(plan.id === 'coach' ? fitMatrixCoachCellStyle : null),
                         ...(plan.id === 'captain' ? fitMatrixCaptainCellStyle : null),
                       }}
                     >
@@ -1086,6 +1134,7 @@ function PlanFitMatrix() {
             key={plan.id}
             style={{
               ...fitMatrixHeadCellStyle,
+              ...(plan.id === 'coach' ? fitMatrixCoachHeadStyle : null),
               ...(plan.id === 'captain' ? fitMatrixCaptainHeadStyle : null),
             }}
           >
@@ -1107,6 +1156,7 @@ function PlanFitMatrix() {
                   key={`${row.job}-${plan.id}`}
                   style={{
                     ...fitMatrixCellStyle,
+                    ...(plan.id === 'coach' ? fitMatrixCoachCellStyle : null),
                     ...(plan.id === 'captain' ? fitMatrixCaptainCellStyle : null),
                     ...(best ? fitMatrixBestCellStyle : null),
                   }}
@@ -1119,6 +1169,51 @@ function PlanFitMatrix() {
         ))}
         </div>
       )}
+    </section>
+  )
+}
+
+function RoleFitGuide() {
+  return (
+    <section style={roleFitShellStyle} aria-labelledby="role-fit-title">
+      <div style={roleFitHeaderStyle}>
+        <div>
+          <div style={sectionEyebrowStyle}>Coach, Captain, or Full-Court</div>
+          <h2 id="role-fit-title" style={fitMatrixTitleStyle}>
+            Pick the role by the work, not the title.
+          </h2>
+        </div>
+        <p style={roleFitIntroStyle}>
+          A school coach might need Coach for development and Captain for match week. Full-Court unlocks both, plus League and tournaments.
+        </p>
+      </div>
+      <div style={roleFitGridStyle}>
+        {ROLE_FIT_CARDS.map((card) => {
+          const plan = getPricingPlan(card.planId)
+          return (
+            <article key={card.planId} style={roleFitCardStyle(card.planId)}>
+              <div style={roleFitTopStyle}>
+                <TiqFeatureIcon name={PLAN_ICON_BY_ID[card.planId]} size="md" variant="ghost" />
+                <span style={cardPlanStyle}>{plan.priceLabel}</span>
+              </div>
+              <h3 style={roleFitTitleStyle}>{card.title}</h3>
+              <p style={roleFitTextStyle}>{card.bestFor}</p>
+              <div style={roleFitChipRowStyle}>
+                {card.includes.map((item) => (
+                  <span key={item} style={roleFitChipStyle}>{item}</span>
+                ))}
+              </div>
+              <div style={roleFitNotForStyle}>
+                <strong>Not mainly for:</strong>
+                <span>{card.notFor}</span>
+              </div>
+              <Link href={card.href} style={card.planId === 'full_court' ? fullCourtPrimaryCtaStyle : ctaStyle}>
+                {card.cta}
+              </Link>
+            </article>
+          )
+        })}
+      </div>
     </section>
   )
 }
@@ -1372,7 +1467,7 @@ const fitMatrixTitleStyle: CSSProperties = {
 
 const fitMatrixGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(min(100%, 190px), 1.25fr) repeat(4, minmax(min(100%, 112px), 1fr))',
+  gridTemplateColumns: 'minmax(min(100%, 190px), 1.25fr) repeat(6, minmax(min(100%, 112px), 1fr))',
   gap: 8,
   minWidth: 0,
 }
@@ -1436,6 +1531,11 @@ const fitMatrixCaptainHeadStyle: CSSProperties = {
   background: 'rgba(155,225,29,0.12)',
 }
 
+const fitMatrixCoachHeadStyle: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.34)',
+  background: 'rgba(125,211,252,0.10)',
+}
+
 const fitMatrixJobCellStyle: CSSProperties = {
   minWidth: 0,
   minHeight: 46,
@@ -1467,9 +1567,126 @@ const fitMatrixCaptainCellStyle: CSSProperties = {
   background: 'rgba(155,225,29,0.08)',
 }
 
+const fitMatrixCoachCellStyle: CSSProperties = {
+  border: '1px solid rgba(125,211,252,0.22)',
+  background: 'rgba(125,211,252,0.07)',
+}
+
 const fitMatrixBestCellStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.42)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const roleFitShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 18,
+  borderRadius: 28,
+  border: '1px solid rgba(155,225,29,0.20)',
+  background:
+    'radial-gradient(circle at 8% 0%, rgba(125,211,252,0.14), transparent 32%), linear-gradient(135deg, rgba(8,13,28,0.82), rgba(8,13,28,0.66))',
+  boxShadow: '0 18px 44px rgba(2, 10, 24, 0.14)',
+  minWidth: 0,
+}
+
+const roleFitHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+  gap: 16,
+  alignItems: 'end',
+  minWidth: 0,
+}
+
+const roleFitIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 760,
+  minWidth: 0,
+}
+
+const roleFitGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+function roleFitCardStyle(planId: PricingPlanId): CSSProperties {
+  const isFullCourt = planId === 'full_court'
+  const isCoach = planId === 'coach'
+  return {
+    display: 'grid',
+    alignContent: 'start',
+    gap: 12,
+    padding: 16,
+    borderRadius: 22,
+    border: isFullCourt
+      ? '1px solid rgba(155,225,29,0.34)'
+      : isCoach
+        ? '1px solid rgba(125,211,252,0.28)'
+        : '1px solid rgba(155,225,29,0.22)',
+    background: isFullCourt
+      ? 'linear-gradient(145deg, rgba(155,225,29,0.13), rgba(15,23,42,0.70))'
+      : isCoach
+        ? 'linear-gradient(145deg, rgba(125,211,252,0.10), rgba(15,23,42,0.66))'
+        : 'linear-gradient(145deg, rgba(155,225,29,0.09), rgba(15,23,42,0.66))',
+    minWidth: 0,
+  }
+}
+
+const roleFitTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+}
+
+const roleFitTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+}
+
+const roleFitTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.5,
+  fontWeight: 760,
+}
+
+const roleFitChipRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 7,
+  minWidth: 0,
+}
+
+const roleFitChipStyle: CSSProperties = {
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--foreground-strong)',
+  padding: '5px 8px',
+  fontSize: 11,
+  fontWeight: 900,
+}
+
+const roleFitNotForStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: 11,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.42,
 }
 
 const fitMatrixPositiveStyle: CSSProperties = {
