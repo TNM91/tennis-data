@@ -29,13 +29,37 @@ describe('route loading shells', () => {
 
   it('keeps Data Assist on an upload-specific loading state', () => {
     const source = readAppFile('app/data-assist/loading.tsx')
-    expect(source).toContain('Loading Data Assist')
+    expect(source).toContain('Preparing Data Assist')
     expect(source).toContain('pattern="upload"')
+  })
+
+  it('uses polished preparing copy instead of raw Loading labels on route shells', () => {
+    for (const file of [
+      'app/admin/loading.tsx',
+      'app/compete/loading.tsx',
+      'app/data-assist/loading.tsx',
+      'app/league-coordinator/loading.tsx',
+      'app/league-coordinator/results/loading.tsx',
+      'app/league-coordinator/individual-results/loading.tsx',
+      'app/mylab/loading.tsx',
+    ]) {
+      const source = readAppFile(file)
+      expect(source, file).toContain('Preparing')
+      expect(source, file).not.toContain('label="Loading')
+    }
   })
 
   it('avoids hard-coded white loader text so route loaders stay shell-readable', () => {
     expect(readAppFile('components/TiqLoader.tsx')).not.toContain('text-white/70')
     expect(readAppFile('app/components/TiqLoader.tsx')).not.toContain('text-white/70')
+  })
+
+  it('announces route loading shells as polite busy status regions', () => {
+    const source = readAppFile('app/components/route-loading-shell.tsx')
+
+    expect(source).toContain('role="status"')
+    expect(source).toContain('aria-live="polite"')
+    expect(source).toContain('aria-busy="true"')
   })
 
   it('keeps matchup loading rows shrink-safe on narrow screens', () => {

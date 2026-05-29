@@ -32,8 +32,8 @@ describe('TIQ league registry helpers', () => {
     expect(normalizeTiqLeagueVisibility('public')).toBe('public')
   })
 
-  it('keeps coordinator and player scheduling copy clear', () => {
-    expect(getTiqLeagueSchedulingModeLabel('coordinator_fixed')).toBe('Coordinator schedule')
+  it('keeps League Office and player scheduling copy clear', () => {
+    expect(getTiqLeagueSchedulingModeLabel('coordinator_fixed')).toBe('League Office schedule')
     expect(getTiqLeagueSchedulingModeDescription('coordinator_fixed')).toContain(
       'recurring match day, time, and site',
     )
@@ -53,7 +53,7 @@ describe('TIQ league registry helpers', () => {
     expect(getTiqLeagueScoringSystemDescription('dynamic_points')).toContain('Straight-set winner 14')
   })
 
-  it('labels explicit third-set rules for coordinator setup', () => {
+  it('labels explicit third-set rules for League Office setup', () => {
     expect(getTiqLeagueThirdSetRuleLabel('either')).toBe('Full set or 10-point tiebreak')
     expect(getTiqLeagueThirdSetRuleDescription('either')).toContain('local league rules')
     expect(getTiqLeagueThirdSetRuleLabel('full_set')).toBe('Full third set')
@@ -64,9 +64,10 @@ describe('TIQ league registry helpers', () => {
 
   it('states league visibility without implying open access', () => {
     expect(getTiqLeagueVisibilityLabel(true)).toBe('Public page')
-    expect(getTiqLeagueVisibilityDescription(true)).toContain('approval')
+    expect(getTiqLeagueVisibilityDescription(true)).toContain('League Office approval')
     expect(getTiqLeagueVisibilityLabel(false)).toBe('Private league')
     expect(getTiqLeagueVisibilityDescription(false)).toContain('hidden from public browse pages')
+    expect(getTiqLeagueVisibilityDescription(false)).toContain('League Office users manage requests')
   })
 
   it('deduplicates roster and participant list input from uploads or manual paste', () => {

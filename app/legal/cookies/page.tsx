@@ -1,15 +1,20 @@
 import type { Metadata } from 'next'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildRouteMetadata({
   title: 'Cookie Policy',
   description: 'TenAceIQ cookie policy.',
-}
+  path: '/legal/cookies',
+})
 
 export default function CookiesPage() {
   return (
     <SiteShell active="/legal/cookies">
+      <JsonLd id="cookies-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Cookie Policy', '/legal/cookies')} />
       <LegalPage title="Cookie Policy" effectiveDate="April 10, 2026">
         <p>
           This Cookie Policy explains how TenAceIQ uses cookies and similar technologies

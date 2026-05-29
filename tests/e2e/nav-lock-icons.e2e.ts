@@ -5,7 +5,7 @@ const LOCKED_PRIMARY_NAV = [
   { label: 'My Lab', plan: 'Player' },
   { label: 'Matchup', plan: 'Player' },
   { label: 'Captain', plan: 'Captain' },
-  { label: 'Coordinator', plan: 'TIQ League Coordinator' },
+  { label: 'Leagues', plan: 'League Office access' },
 ] as const
 const LOCK_COLOR = 'rgb(8, 17, 29)'
 

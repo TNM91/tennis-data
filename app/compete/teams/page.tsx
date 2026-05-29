@@ -15,9 +15,11 @@ import {
   type TiqTeamParticipationRecord,
 } from '@/lib/tiq-league-service'
 
+const dataAssistTeamsHref = '/data-assist?intent=upload-source&context=League%20Office%20teams'
+
 const emptyTeamActions = [
   { href: '/league-coordinator', label: 'Create team league' },
-  { href: '/data-assist', label: 'Refresh team data' },
+  { href: dataAssistTeamsHref, label: 'Refresh team data' },
   { href: '/teams', label: 'Browse teams' },
 ] as const
 

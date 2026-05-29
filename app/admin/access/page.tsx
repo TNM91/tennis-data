@@ -161,7 +161,7 @@ function formatAccessPreset(value: AccessPreset) {
   if (value === 'coach') return 'Coach'
   if (value === 'captain') return 'Captain'
   if (value === 'full_court') return 'Full-Court'
-  return 'Coordinator'
+  return 'League Office'
 }
 
 export default function AdminAccessPage() {
@@ -543,13 +543,13 @@ export default function AdminAccessPage() {
         <AdminReviewFrame>
           <AdminReviewHero
             kicker="Admin Access"
-            title="Player, Coach, Captain, and Coordinator entitlements"
+            title="Player, Coach, Captain, and League Office entitlements"
             actions={
               <>
                 <span className="badge badge-green">Coach subscription control</span>
                 <span className="badge badge-green">Captain subscription control</span>
-                <span className="badge badge-blue">Team coordinator access</span>
-                <span className="badge badge-slate">Individual coordinator access</span>
+                <span className="badge badge-blue">Team League Office access</span>
+                <span className="badge badge-slate">Individual League Office access</span>
               </>
             }
           >
@@ -569,8 +569,8 @@ export default function AdminAccessPage() {
               <MetricCard label="Player Active" value={activePlayerCount} />
               <MetricCard label="Coach Active" value={activeCoachCount} />
               <MetricCard label="Captain Active" value={activeCaptainCount} />
-              <MetricCard label="Team Coordinator" value={teamEntryCount} />
-              <MetricCard label="Individual Coordinator" value={individualCreatorCount} />
+              <MetricCard label="Team League Office" value={teamEntryCount} />
+              <MetricCard label="Individual League Office" value={individualCreatorCount} />
               <MetricCard label="Stripe Managed" value={stripeManagedCount} />
               <MetricCard label="Past Due" value={pastDueCount} />
               <MetricCard label="Canceled" value={canceledCount} />
@@ -654,7 +654,7 @@ export default function AdminAccessPage() {
             </AdminActionRow>
 
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 860 }}>
-              This page is the monetization control point for TenAceIQ. Coordinator access can be
+              This page is the monetization control point for TenAceIQ. League Office access can be
               granted by itself, without enabling Player or Captain tools. Use Billing filter for
               failed payments, canceled subscriptions, and webhook outcomes that need follow-up.
               {convertedRequestsAvailable
@@ -705,7 +705,7 @@ export default function AdminAccessPage() {
                       className="button-secondary"
                       onClick={() => applyAccessPreset(handoffProfile.id, 'league')}
                     >
-                      Draft Coordinator
+                      Draft League Office
                     </button>
                     <button
                       type="button"
@@ -749,8 +749,8 @@ export default function AdminAccessPage() {
                       <th>Coach Status</th>
                       <th>Captain Active</th>
                       <th>Captain Status</th>
-                      <th>Team Coordinator</th>
-                      <th>Individual Coordinator</th>
+                      <th>Team League Office</th>
+                      <th>Individual League Office</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -1151,11 +1151,11 @@ function buildAccessAudit(
   }
 
   if (draft.tiq_team_league_entry_enabled && draft.tiq_individual_league_creator_enabled) {
-    sources.push('Coordinator flags are enabled.')
+    sources.push('League Office flags are enabled.')
   } else if (draft.tiq_team_league_entry_enabled) {
-    sources.push('Team coordinator flag is enabled.')
+    sources.push('Team League Office flag is enabled.')
   } else if (draft.tiq_individual_league_creator_enabled) {
-    sources.push('Individual coordinator flag is enabled.')
+    sources.push('Individual League Office flag is enabled.')
   }
 
   if (lastConvertedRequest) {
@@ -1171,7 +1171,7 @@ function buildAccessAudit(
   }
 
   if (lastConvertedRequest?.planId === 'player_plus' && access.canUseLeagueTools) {
-    warnings.push('Review: Player checkout currently has Coordinator access.')
+    warnings.push('Review: Player checkout currently has League Office access.')
   }
 
   if (lastConvertedRequest?.planId === 'coach' && access.canUseCaptainWorkflow) {
@@ -1179,15 +1179,15 @@ function buildAccessAudit(
   }
 
   if (lastConvertedRequest?.planId === 'coach' && access.canUseLeagueTools) {
-    warnings.push('Review: Coach checkout currently has Coordinator access.')
+    warnings.push('Review: Coach checkout currently has League Office access.')
   }
 
   if (lastConvertedRequest?.planId === 'captain' && access.canUseLeagueTools) {
-    warnings.push('Review: Captain checkout currently has Coordinator access.')
+    warnings.push('Review: Captain checkout currently has League Office access.')
   }
 
   if (lastConvertedRequest?.planId === 'league' && access.canUseAdvancedPlayerInsights && role !== 'admin') {
-    warnings.push('Review: Coordinator checkout currently has Player access.')
+    warnings.push('Review: League Office checkout currently has Player access.')
   }
 
   return {
@@ -1205,7 +1205,7 @@ function formatPlanLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'Player'
   if (planId === 'coach') return 'Coach'
   if (planId === 'captain') return 'Captain'
-  if (planId === 'league') return 'Coordinator'
+  if (planId === 'league') return 'League Office'
   if (planId === 'full_court') return 'Full-Court'
   return 'Free'
 }

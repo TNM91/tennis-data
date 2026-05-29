@@ -35,12 +35,12 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('league')).toMatchObject({
-      priceLabel: '$14.99/month',
+      priceLabel: '$14.99/season workspace',
       billing: {
         amountCents: 1499,
-        interval: 'month',
-        checkoutMode: 'subscription',
-        quantityMode: 'account',
+        interval: 'season',
+        checkoutMode: 'one_time',
+        quantityMode: 'league',
       },
     })
 
@@ -99,7 +99,7 @@ describe('pricing plans', () => {
     expect(getPricingBillingCue('player_plus')).toBe('Monthly subscription')
     expect(getPricingBillingCue('coach')).toBe('Monthly subscription')
     expect(getPricingBillingCue('captain')).toBe('Monthly subscription')
-    expect(getPricingBillingCue('league')).toBe('Monthly subscription')
+    expect(getPricingBillingCue('league')).toBe('Season fee')
     expect(getPricingBillingCue('full_court')).toBe('Monthly subscription')
   })
 })

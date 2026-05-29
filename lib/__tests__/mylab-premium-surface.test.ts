@@ -15,6 +15,9 @@ describe('My Lab premium surface', () => {
   it('keeps the top read tennis-specific and Data Assist aware', () => {
     expect(source).toContain('scorecardSummaryCards')
     expect(source).toContain('starterActionCards')
+    expect(source).toContain("const dataAssistMyLabHref = '/data-assist?intent=upload-source&context=My%20Lab'")
+    expect(source).toContain('href: dataAssistMyLabHref')
+    expect(source).toContain('href={dataAssistMyLabHref}')
     expect(source).toContain('Recent record')
     expect(source).toContain('Matchup read')
     expect(source).toContain('Upload scores')
@@ -220,9 +223,10 @@ describe('My Lab premium surface', () => {
       expect(styleBlock(styleName)).toContain("whiteSpace: 'normal'")
     }
 
-    expect(styleBlock('matchupSpotlightHeroStyle')).toContain("'minmax(0, 1fr) minmax(0, auto)'")
-    expect(source).not.toContain("gridTemplateColumns: 'auto minmax(0, 1fr)'")
-    expect(source).not.toContain("'minmax(0, 1fr) auto'")
+    const matchupSpotlightHeroBlock = styleBlock('matchupSpotlightHeroStyle')
+    expect(matchupSpotlightHeroBlock).toContain("'minmax(0, 1fr) minmax(0, auto)'")
+    expect(matchupSpotlightHeroBlock).not.toContain("gridTemplateColumns: 'auto minmax(0, 1fr)'")
+    expect(matchupSpotlightHeroBlock).not.toContain("'minmax(0, 1fr) auto'")
   })
 
   it('keeps the optional drawer framed as lab context instead of another tools menu', () => {

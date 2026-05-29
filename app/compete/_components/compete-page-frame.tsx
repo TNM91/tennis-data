@@ -17,7 +17,7 @@ type FrameProps = {
 const HERO_SIGNALS = [
   {
     label: 'Mode',
-    value: 'League',
+    value: 'League Office',
     text: 'Run the season',
   },
   {
@@ -41,7 +41,7 @@ export default function CompetePageFrame({
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   return (
-    <SiteShell active="/compete">
+    <SiteShell active="/leagues">
       <section
         style={{
           padding: isMobile ? '16px 0 48px' : '20px 0 64px',

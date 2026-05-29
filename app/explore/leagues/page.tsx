@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import {
   buildExploreLeagueHref,
@@ -26,6 +27,7 @@ import {
   type TiqIndividualLeagueSummary,
 } from '@/lib/tiq-individual-results-summary'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
@@ -42,6 +44,7 @@ function buildLeagueSubtitle(league: LeagueCard) {
 export default function ExploreLeaguesPage() {
   return (
     <SiteShell active="/explore">
+      <JsonLd id="explore-leagues-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Explore Leagues', '/explore/leagues')} />
       <ExploreLeaguesContent />
     </SiteShell>
   )
@@ -235,10 +238,10 @@ function ExploreLeaguesContent() {
             </div>
 
             <div style={heroPillRowStyle}>
-              <span style={heroPillBlueStyle}>{layerCounts.usta} USTA</span>
-              <span style={heroPillGreenStyle}>{layerCounts.tiq} TIQ</span>
-              <span style={heroPillBlueStyle}>{summary.totalFlights} flights</span>
-              <span style={heroPillBlueStyle}>Latest: {formatDate(summary.latestMatch)}</span>
+              <span style={heroPillBlueStyle}>{loading ? 'USTA refreshing' : `${layerCounts.usta} USTA`}</span>
+              <span style={heroPillGreenStyle}>{loading ? 'TIQ refreshing' : `${layerCounts.tiq} TIQ`}</span>
+              <span style={heroPillBlueStyle}>{loading ? 'Flights pending' : `${summary.totalFlights} flights`}</span>
+              <span style={heroPillBlueStyle}>Latest: {loading ? 'Refreshing' : formatDate(summary.latestMatch)}</span>
             </div>
           </div>
 
@@ -290,7 +293,14 @@ function ExploreLeaguesContent() {
           {registryWarning ? <div style={noticeStyle}>{registryWarning}</div> : null}
         </div>
 
-        {loading ? <div style={stateStyle}>Loading league layers...</div> : null}
+        {loading ? (
+          <div style={stateStyle}>
+            <strong>Choose a league path.</strong>
+            <div style={{ marginTop: 8, color: 'var(--shell-copy-muted)', lineHeight: 1.6 }}>
+              Find existing league context or create a TIQ League Office workspace. The live league layer is refreshing behind this starter view.
+            </div>
+          </div>
+        ) : null}
         {error ? <div style={errorStyle}>{error}</div> : null}
 
         {!loading && !error ? (
@@ -422,7 +432,7 @@ function LeagueSection({
             ) : (
               <>
                 <GhostLink href="/league-coordinator">Create individual league</GhostLink>
-                <GhostLink href="/compete">Open Compete</GhostLink>
+                <GhostLink href="/leagues">Explore League Office</GhostLink>
               </>
             )}
           </div>

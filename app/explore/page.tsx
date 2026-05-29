@@ -2,9 +2,12 @@
 
 import Link from 'next/link'
 import { CSSProperties } from 'react'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import UniversalSearch from '@/app/components/universal-search'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -85,6 +88,7 @@ export default function ExplorePage() {
 
   return (
     <SiteShell active="explore">
+      <JsonLd id="explore-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Find', '/explore')} />
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div aria-hidden="true" style={watermarkStyle} />
@@ -95,8 +99,9 @@ export default function ExplorePage() {
               </h1>
 
               <p style={dynamicHeroText}>
-                Players. Teams. Leagues. Rankings.
+                Search a player, team, league, coach, tournament, city, court, resource, or tennis action.
               </p>
+              <UniversalSearch compact />
             </div>
 
           </div>

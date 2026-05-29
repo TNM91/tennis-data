@@ -1,19 +1,26 @@
 import type { Metadata } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  'https://pwxppfazbyourjrsutgx.supabase.co',
-  'sb_publishable_FQBYCnXJy2vjIYlri8TG7g_2XZ9IqqZ',
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  },
-)
-
 const DEFAULT_IMAGE = '/og-image.png'
+let metadataSupabase: ReturnType<typeof createClient> | null = null
+
+function getMetadataSupabase() {
+  if (!metadataSupabase) {
+    metadataSupabase = createClient(
+      'https://pwxppfazbyourjrsutgx.supabase.co',
+      'sb_publishable_FQBYCnXJy2vjIYlri8TG7g_2XZ9IqqZ',
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
+      },
+    )
+  }
+
+  return metadataSupabase
+}
 
 function joinParts(parts: Array<string | null | undefined>, separator: string) {
   return parts.filter(Boolean).join(separator)
@@ -35,6 +42,9 @@ export function buildRouteMetadata({
       canonical: path,
     },
     openGraph: {
+      type: 'website',
+      locale: 'en_US',
+      siteName: 'TenAceIQ',
       title,
       description,
       url: path,
@@ -104,8 +114,8 @@ export async function getTeamMetadataByName(team: string): Promise<Metadata> {
   const title = `${team} Team Intelligence`
   const context = joinParts([preview.secondary, preview.tertiary], ' | ')
   const description = context
-    ? `${team} on TenAceIQ. Review roster depth, recent form, and Captain context for ${context}.`
-    : `${team} on TenAceIQ. Review roster depth, recent form, and Captain workflow in one place.`
+    ? `${team} on TenAceIQ. Review roster depth, recent form, and Team Hub context for ${context}.`
+    : `${team} on TenAceIQ. Review roster depth, recent form, and Team Hub context in one place.`
 
   return buildRouteMetadata({
     title,
@@ -169,63 +179,74 @@ export async function getAwardMetadataById(id: string): Promise<Metadata> {
 }
 
 export async function getPlayerSharePreview(id: string) {
-  const { data } = await supabase
+  const { data } = await getMetadataSupabase()
     .from('players')
     .select('name, location')
     .eq('id', id)
     .maybeSingle()
+  const row = data as { name?: string | null; location?: string | null } | null
 
   return {
-    primary: data?.name?.trim() || 'Player Profile',
-    secondary: data?.location?.trim() || 'TenAceIQ player intelligence',
+    primary: row?.name?.trim() || 'Player Profile',
+    secondary: row?.location?.trim() || 'TenAceIQ player intelligence',
   }
 }
 
 export async function getTeamSharePreview(team: string) {
-  const { data } = await supabase
+  const { data } = await getMetadataSupabase()
     .from('matches')
     .select('league_name, flight, usta_section')
     .or(`home_team.eq.${team},away_team.eq.${team}`)
     .order('match_date', { ascending: false })
     .limit(1)
     .maybeSingle()
+  const row = data as { league_name?: string | null; flight?: string | null; usta_section?: string | null } | null
 
   return {
     primary: team,
-    secondary: data?.league_name?.trim() || 'Team intelligence',
-    tertiary: joinParts([data?.flight?.trim(), data?.usta_section?.trim()], ' | '),
+    secondary: row?.league_name?.trim() || 'Team intelligence',
+    tertiary: joinParts([row?.flight?.trim(), row?.usta_section?.trim()], ' | '),
   }
 }
 
 export async function getLeagueSharePreview(league: string) {
-  const { data } = await supabase
+  const { data } = await getMetadataSupabase()
     .from('matches')
     .select('league_name, flight, usta_section, district_area')
     .eq('league_name', league)
     .order('match_date', { ascending: false })
     .limit(1)
     .maybeSingle()
+  const row = data as { league_name?: string | null; flight?: string | null; usta_section?: string | null; district_area?: string | null } | null
 
   return {
-    primary: data?.league_name?.trim() || league,
-    secondary: data?.flight?.trim() || 'League season',
-    tertiary: joinParts([data?.usta_section?.trim(), data?.district_area?.trim()], ' | '),
+    primary: row?.league_name?.trim() || league,
+    secondary: row?.flight?.trim() || 'League season',
+    tertiary: joinParts([row?.usta_section?.trim(), row?.district_area?.trim()], ' | '),
   }
 }
 
 export async function getAwardSharePreview(id: string) {
-  const { data } = await supabase
+  const { data } = await getMetadataSupabase()
     .from('tiq_awards')
     .select('recipient_name,source_name,title,badge_label,badge_code,subtitle')
     .eq('id', id)
     .maybeSingle()
+  const row = data as {
+    recipient_name?: string | null
+    source_name?: string | null
+    title?: string | null
+    badge_label?: string | null
+    badge_code?: string | null
+    subtitle?: string | null
+  } | null
 
   return {
-    recipientName: data?.recipient_name?.trim() || '',
-    sourceName: data?.source_name?.trim() || 'TenAceIQ',
-    title: data?.title?.trim() || 'Award Certificate',
-    badgeLabel: data?.badge_label?.trim() || 'Award',
-    badgeCode: data?.badge_code?.trim() || 'TIQ',
-    subtitle: data?.subtitle?.trim() || 'More Tennis. Less Chaos.',
+    recipientName: row?.recipient_name?.trim() || '',
+    sourceName: row?.source_name?.trim() || 'TenAceIQ',
+    title: row?.title?.trim() || 'Award Certificate',
+    badgeLabel: row?.badge_label?.trim() || 'Award',
+    badgeCode: row?.badge_code?.trim() || 'TIQ',
+    subtitle: row?.subtitle?.trim() || 'More Tennis. Less Chaos.',
   }
 }

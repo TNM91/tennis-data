@@ -1,15 +1,20 @@
 import type { Metadata } from 'next'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildRouteMetadata({
   title: 'Disclaimer',
   description: 'TenAceIQ platform disclaimer.',
-}
+  path: '/legal/disclaimer',
+})
 
 export default function DisclaimerPage() {
   return (
     <SiteShell active="/legal/disclaimer">
+      <JsonLd id="disclaimer-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Disclaimer', '/legal/disclaimer')} />
       <LegalPage title="Platform Disclaimer" effectiveDate="April 10, 2026">
         <p>
           TenAceIQ provides analytical, informational, and workflow tools designed to help

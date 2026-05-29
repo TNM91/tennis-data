@@ -12,6 +12,11 @@ function styleBlock(styleName: string) {
 }
 
 describe('league detail table mobile layout guards', () => {
+  it('uses League Office wording for the season workspace CTA', () => {
+    expect(source).toContain('Open League Office')
+    expect(source).not.toContain('Open Compete')
+  })
+
   it('keeps standings tables touch-scrollable without page overflow', () => {
     const scrollStyle = styleBlock('standingsTableScrollStyle')
     expect(scrollStyle).toContain("overflowX: 'auto'")
@@ -22,5 +27,16 @@ describe('league detail table mobile layout guards', () => {
     expect(scrollStyle).toContain('minWidth: 0')
     expect(styleBlock('standingsTableStyle')).toContain('minWidth: 0')
     expect(styleBlock('standingsTableStyle')).not.toContain("minWidth: 'min(100%, 620px)'")
+  })
+
+  it('keeps the team filter select labeled and visibly focused', () => {
+    expect(source).toContain('<label htmlFor="teamFilter" style={inputLabel}>')
+    expect(source).toContain('onFocus={() => setTeamFilterFocused(true)}')
+    expect(source).toContain('onBlur={() => setTeamFilterFocused(false)}')
+    expect(source).toContain('...(teamFilterFocused ? selectFocusStyle : null)')
+    expect(source).toContain('const selectFocusStyle: CSSProperties')
+    expect(styleBlock('selectStyle')).toContain("outline: '2px solid transparent'")
+    expect(styleBlock('selectStyle')).toContain('outlineOffset: 2')
+    expect(styleBlock('selectStyle')).not.toContain("outline: 'none'")
   })
 })

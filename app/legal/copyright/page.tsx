@@ -1,15 +1,20 @@
 import type { Metadata } from 'next'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildRouteMetadata({
   title: 'Copyright Policy',
   description: 'TenAceIQ copyright and takedown policy.',
-}
+  path: '/legal/copyright',
+})
 
 export default function CopyrightPage() {
   return (
     <SiteShell active="/legal/copyright">
+      <JsonLd id="copyright-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Copyright Policy', '/legal/copyright')} />
       <LegalPage title="Copyright Policy" effectiveDate="April 10, 2026">
         <p>
           TenAceIQ respects intellectual property rights and expects users of the platform

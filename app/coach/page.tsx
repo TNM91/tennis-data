@@ -142,7 +142,7 @@ function CoachContent() {
       setAssignmentStudentId((current) => current || studentsJson.students?.[0]?.id || '')
       setContactStudentId((current) => current || studentsJson.students?.[0]?.id || '')
     } catch (error) {
-      setWorkspaceMessage(error instanceof Error ? error.message : 'Could not load Coach workspace.')
+      setWorkspaceMessage(error instanceof Error ? error.message : 'Could not load Coach Hub.')
     } finally {
       setWorkspaceLoading(false)
     }
@@ -423,7 +423,7 @@ function CoachContent() {
         active="/coach"
         planId="coach"
         headline="Unlock Coach to develop players with a connected workflow."
-        body="Coach brings lesson plans, Tactical Studio boards, assignments, student tracking, and scheduling into one workspace."
+        body="Coach Hub brings lesson plans, Tactical Studio boards, assignments, student tracking, and scheduling into one workspace."
         result="Players can still use printed guides, but linked digital follow-through unlocks with Player+ and Coach access."
         ctaLabel="Unlock Coach"
         secondaryLabel="Compare Full-Court"
@@ -436,7 +436,7 @@ function CoachContent() {
     <main style={pageStyle}>
       <section style={heroStyle}>
         <div style={heroCopyStyle}>
-          <div style={eyebrowStyle}>Coach workspace</div>
+          <div style={eyebrowStyle}>Coach Hub</div>
           <h1 style={titleStyle}>Plan the lesson. Assign the work. Track the player.</h1>
           <p style={bodyStyle}>
             Coach is for private teachers, development coaches, and team coaches who need practical player follow-through.

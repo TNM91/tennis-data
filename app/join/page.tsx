@@ -79,7 +79,7 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
     mobileTitle: 'Set up the full suite.',
     desktopTitle: 'Create your account. Run the full court.',
     mobileText: 'Create the free account first. Full-Court unlocks after the plan is active.',
-    desktopText: 'Full-Court starts with a free account, then unlocks Player, Coach, Captain, League, and unlimited tournaments after the plan is active.',
+    desktopText: 'Full-Court starts with a free account, then unlocks My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations after the plan is active.',
     formCue: 'Signup creates Free access. Activate Full-Court next, then open the full tennis operations workspace.',
     success: 'Free account created. Sign in, then activate Full-Court to open the full suite.',
   },

@@ -2176,7 +2176,7 @@ function TiqLeagueDetailContent() {
             <div style={stateText}>{error || 'This TIQ league could not be loaded right now.'}</div>
             <div style={actionRow}>
               <GhostLink href="/explore/leagues">Back to Explore Leagues</GhostLink>
-              <GhostLink href="/league-coordinator">Open League Coordinator</GhostLink>
+              <GhostLink href="/league-coordinator">Open League Office</GhostLink>
             </div>
           </div>
         ) : (
@@ -2223,7 +2223,7 @@ function TiqLeagueDetailContent() {
                       subtitle={[league.seasonLabel, league.flight].filter(Boolean).join(' | ')}
                     />
                     <GhostLink href="/explore/leagues">Back to Explore</GhostLink>
-                    <GhostLink href="/compete">Open Compete</GhostLink>
+                    <GhostLink href="/league-coordinator">Open League Office</GhostLink>
                   </div>
                 </div>
 
@@ -2429,7 +2429,7 @@ function TiqLeagueDetailContent() {
                   <div style={sectionEyebrow}>Schedule</div>
                   <h2 style={sectionTitle}>
                     {league.schedulingMode === 'coordinator_fixed'
-                      ? 'Coordinator-set schedule'
+                      ? 'League Office-set schedule'
                       : 'Player-arranged schedule'}
                   </h2>
                   <p style={sectionText}>{scheduleRulesText}</p>
@@ -2466,7 +2466,7 @@ function TiqLeagueDetailContent() {
                     </div>
                     <div style={formatCalloutText}>
                       {league.schedulingMode === 'coordinator_fixed'
-                        ? 'Coordinator-set leagues can publish dates, times, and sites so the season schedule is visible before match week.'
+                        ? 'League Office seasons can publish dates, times, and sites so the season schedule is visible before match week.'
                         : 'Player-arranged leagues let members propose the date, time, and site through TenAceIQ before the result is recorded.'}
                     </div>
                   </div>
@@ -2694,8 +2694,8 @@ function TiqLeagueDetailContent() {
                 </h2>
                 <p style={sectionText}>
                   {league.leagueFormat === 'team'
-                    ? 'Submit your team for coordinator approval. Approved teams appear in participants, schedules, results, and standings.'
-                    : `Submit your player entry for coordinator approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
+                    ? 'Submit your team for League Office approval. Approved teams appear in participants, schedules, results, and standings.'
+                    : `Submit your player entry for League Office approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
                 </p>
 
                 <label style={fieldLabel}>
@@ -2854,7 +2854,7 @@ function TiqLeagueDetailContent() {
 
                 {pendingEntries.length > 0 ? (
                   <div style={requestPreviewStyle}>
-                    <div style={formatCalloutTitle}>Waiting for coordinator approval</div>
+                    <div style={formatCalloutTitle}>Waiting for League Office approval</div>
                     <div style={requestPreviewGridStyle}>
                       {pendingEntries.slice(0, 4).map((entry) => {
                         const entryName = 'teamName' in entry ? entry.teamName : entry.playerName
@@ -2997,7 +2997,7 @@ function TiqLeagueDetailContent() {
                 <h2 style={sectionTitle}>Current player-result status.</h2>
                 <p style={sectionText}>
                   Check the logged result volume, recent activity, pair coverage, and corrections before sharing
-                  the table or opening Coordinator for updates.
+                  the table or opening League Office for updates.
                 </p>
 
                 <div style={resultCuePanelStyle}>
@@ -3253,7 +3253,7 @@ function TiqLeagueDetailContent() {
                   <UpgradePrompt
                     planId="league"
                     compact
-                    headline="Coordinator access records player results"
+                    headline="League Office records player results"
                     body={access.individualLeagueMessage}
                     ctaLabel="Unlock League"
                     ctaHref="/pricing"
@@ -3368,7 +3368,7 @@ function TiqLeagueDetailContent() {
                       ? 'Saving result...'
                       : canLogIndividualResults
                         ? individualFormatExperience.actionLabel
-                        : 'Coordinator Required'}
+                        : 'League Office Required'}
                   </button>
                   <span style={metaPill}>
                     {canLogIndividualResults
@@ -3664,7 +3664,7 @@ function TiqLeagueDetailContent() {
             ) : null}
 
             <section id="league-settings" style={panelCard}>
-              <div style={sectionEyebrow}>Coordinator context</div>
+              <div style={sectionEyebrow}>League Office context</div>
               <h2 style={sectionTitle}>Run the next league action.</h2>
               <p style={sectionText}>
                 Team leagues hand off into result entry and weekly Captain actions. Individual leagues keep entry,

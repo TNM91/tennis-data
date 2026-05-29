@@ -41,7 +41,7 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
               <div className={styles.heroCopy}>
                 <div className={styles.brandRow}>
                   <BrandWordmark top />
-                  <span className={styles.printBadge}>Printable + digital concept</span>
+                  <span className={styles.printBadge}>Printable + My Lab companion</span>
                 </div>
                 <p className={styles.kicker}>TenAceIQ Player Development System</p>
                 <h1>{identity.title}</h1>
@@ -78,32 +78,18 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
 
             <IdentitySelector activeSlug={identity.slug} />
 
-            <section className={styles.auditPanel} aria-labelledby="audit-title">
-              <div>
-                <p className={styles.kicker}>Design audit</p>
-                <h2 id="audit-title">TenAceIQ assets to reuse</h2>
-              </div>
-              <div className={styles.auditGrid}>
-                <AuditItem title="Logos + icons" text="/logo-header-dark.svg, /logo-ball.svg, favicon set, app icons, BrandWordmark." />
-                <AuditItem title="Visual language" text="Dark navy shell, glass cards, green IQ accent, blue borders, soft grid and tennis-ball atmosphere." />
-                <AuditItem title="Components" text="SiteShell, SiteHeader/Footer, BrandWordmark, TiqFeatureIcon, button/card/badge/table classes." />
-                <AuditItem title="Product language" text={`${playerTier.name}: ${playerTier.shortPromise} Future check-ins can route to My Lab and Data Assist.`} />
-              </div>
-            </section>
-
             <section className={styles.structurePanel} aria-labelledby="structure-title">
               <div className={styles.sectionHead}>
-                <p className={styles.kicker}>Structure</p>
-                <h2 id="structure-title">Page and component plan</h2>
+                <p className={styles.kicker}>Player Development</p>
+                <h2 id="structure-title">Turn match goals into court work.</h2>
                 <p>
-                  The workbook now renders from a typed identity model: rating band, traits, focus sections,
-                  module pages, coach lessons, reusable sheets, and TenAceIQ link prompts.
+                  Use workbook paths, coach planner sheets, weekly goals, match evidence, and My Lab check-ins to keep improvement moving between matches and lessons.
                 </p>
               </div>
               <div className={styles.planGrid}>
-                <PlanCard icon="myLab" title="/player-development" items={['Concept overview', 'Brand audit', 'Identity data model', 'Future TIQ integration path']} />
-                <PlanCard icon="reports" title="/player-development/workbook" items={['Cover', 'Identity page', 'Training menu', 'Module sheets', 'Recap and notes']} />
-                <PlanCard icon="schedule" title="/player-development/coach-planner" items={['Path progression', 'One-hour lesson template', 'Cues', 'Homework', 'Evaluation tracking']} />
+                <PlanCard icon="myLab" title="My Lab connection" items={['Choose a goal', 'Save match evidence', 'Track the next read']} />
+                <PlanCard icon="reports" title="Workbook path" items={['Identity page', 'Training menu', 'Module sheets', 'Recap and notes']} />
+                <PlanCard icon="schedule" title="Coach planner" items={['Lesson template', 'Cues', 'Homework', 'Evaluation tracking']} />
               </div>
             </section>
           </>
@@ -128,7 +114,7 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
         {!packetView ? (
           <>
             <ReusableSheets identity={identity} />
-            <FutureIntegration identity={identity} />
+            <ConnectedCompanion identity={identity} />
           </>
         ) : null}
     </main>
@@ -150,7 +136,7 @@ function IdentitySelector({ activeSlug }: { activeSlug: string }) {
         <p className={styles.kicker}>Development identities</p>
         <h2 id="identity-selector-title">Choose the player path</h2>
         <p>
-          Each identity can render its own workbook and coach planner while keeping the same TenAceIQ paper system.
+          Each identity has a workbook path, coach planner, and My Lab companion for the same development loop.
         </p>
       </div>
       <div className={styles.identitySelectorGrid}>
@@ -174,15 +160,6 @@ function IdentitySelector({ activeSlug }: { activeSlug: string }) {
         })}
       </div>
     </section>
-  )
-}
-
-function AuditItem({ title, text }: { title: string; text: string }) {
-  return (
-    <article className={styles.auditItem}>
-      <strong>{title}</strong>
-      <p>{text}</p>
-    </article>
   )
 }
 
@@ -1197,6 +1174,7 @@ function PlayerPlusCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }
 }
 
 function PlayerPlusCompanionMap({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const dataAssistPlayerDevelopmentHref = '/data-assist?intent=upload-source&context=Player%20development'
   const rows = [
     ['Save my identity', 'Turn the style finder into a My Lab goal', '/mylab'],
     ['Save my two-week focus', 'Track the one focus that changes the next match fastest', `/player-development/${identity.slug}/workbook`],
@@ -1204,7 +1182,7 @@ function PlayerPlusCompanionMap({ identity }: { identity: PlayerDevelopmentIdent
     ['Log match evidence', 'Keep proof from pressure points, serve targets, and style triggers', `/player-development/${identity.slug}/workbook`],
     ['Send coach note', 'Turn coach feedback into the next assignment', `/player-development/${identity.slug}/coach-planner`],
     ['Check readiness', `Compare evidence against ${identity.levelPath.to} gates`, '/profile'],
-    ['Notice missing context', DATA_ASSIST_STORY.shortCue, '/data-assist'],
+    ['Notice missing context', DATA_ASSIST_STORY.shortCue, dataAssistPlayerDevelopmentHref],
   ] as const
 
   return (
@@ -1625,15 +1603,15 @@ function AssignmentContract({ identity }: { identity: PlayerDevelopmentIdentity 
   )
 }
 
-function FutureIntegration({ identity }: { identity: PlayerDevelopmentIdentity }) {
+function ConnectedCompanion({ identity }: { identity: PlayerDevelopmentIdentity }) {
   return (
     <section className={styles.integrationPanel} aria-labelledby="integration-title">
       <div>
-        <p className={styles.kicker}>Future TIQ integration</p>
-        <h2 id="integration-title">Where this connects next</h2>
+        <p className={styles.kicker}>Connected companion</p>
+        <h2 id="integration-title">Where the work gets saved</h2>
         <p>
-          QR codes and links can route players to My Lab goals, matchup prep, progress check-ins,
-          coach assignments, and {DATA_ASSIST_STORY.shortCue}
+          QR codes and links route players to My Lab goals, matchup prep, progress check-ins,
+          Coach Hub assignments, and {DATA_ASSIST_STORY.shortCue}
         </p>
       </div>
       <div className={styles.integrationSteps}>

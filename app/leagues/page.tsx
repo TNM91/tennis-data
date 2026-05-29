@@ -5,8 +5,12 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import DataTrustPanel from '@/app/components/data-trust-panel'
 import FollowButton from '@/app/components/follow-button'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
+import { TiqLeagueStandingCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import TrackedProductLink from '@/app/components/tracked-product-link'
 import {
   getCompetitionLayerLabel,
   getLeagueFormatLabel,
@@ -15,11 +19,14 @@ import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
 import { formatDate, cleanText as safeText } from '@/lib/captain-formatters'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
 const LEAGUES_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_LEAGUES_INLINE || null
+const dataAssistLeagueOfficeHref = '/data-assist?intent=request-review&context=League%20Office'
 
 function buildLeagueHref(league: LeagueCard) {
   const slugBase = safeText(league.leagueName) || 'league'
@@ -64,6 +71,7 @@ export default function LeaguesPage() {
   const [seasonFilter, setSeasonFilter] = useState('all')
   const [genderFilter, setGenderFilter] = useState('all')
   const [ratingFilter, setRatingFilter] = useState('all')
+  const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
@@ -203,6 +211,127 @@ export default function LeaguesPage() {
 
   return (
     <SiteShell active="leagues">
+      <JsonLd id="leagues-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Leagues', '/leagues')} />
+      <section style={contentWrap}>
+        <article style={publicIntroCard}>
+          <div style={publicIntroCopy}>
+            <div style={sectionKicker}>Leagues</div>
+            <h1 style={publicIntroTitle}>Run the season without the spreadsheet chaos.</h1>
+            <p style={publicIntroText}>
+              Create league structure, manage teams or players, publish schedules, collect results, update standings, and keep everyone informed.
+            </p>
+            <div style={publicIntroActions}>
+              <button
+                type="button"
+                onClick={() => {
+                  void trackProductUsageEvent({
+                    eventName: 'league_search_submitted',
+                    surface: 'leagues',
+                    metadata: {
+                      location: 'leagues_intro',
+                    },
+                  })
+                  document.getElementById('league-search')?.focus()
+                }}
+                style={primaryIntroButton}
+              >
+                Find Leagues
+              </button>
+              <TrackedProductLink
+                href="/league-coordinator"
+                style={secondaryIntroButton}
+                event={{
+                  eventName: 'league_office_clicked',
+                  surface: 'leagues',
+                  metadata: {
+                    location: 'leagues_intro',
+                    label: 'Open League Office',
+                  },
+                }}
+              >
+                Open League Office
+              </TrackedProductLink>
+            </div>
+          </div>
+          <div style={publicIntroGrid}>
+            <IntroMiniCard title="League discovery" body="Find existing season context, flights, standings, schedules, and results." />
+            <IntroMiniCard title="League setup" body="Create teams or players, formats, schedules, score rules, standings, and messages." />
+            <IntroMiniCard title="Corrections" body="Use Data Assist for schedules, scorecards, rosters, and reviewed changes." />
+            <IntroMiniCard title="Formats" body="Support leagues, ladders, round robins, and tournament-style seasons from one office." />
+          </div>
+        </article>
+      </section>
+      <section style={contentWrap}>
+        <article style={panelCard}>
+          <div style={panelHead}>
+            <div>
+              <div style={sectionKicker}>League Office preview</div>
+              <h2 style={panelTitle}>Schedules, standings, corrections, and messages.</h2>
+              <p style={panelIntro}>
+                League Office turns a season into a workspace: publish the schedule, collect results, update standings, manage corrections, and hand reviewed data back to Data Assist.
+              </p>
+            </div>
+          </div>
+          <div style={leagueOfficePreviewGrid}>
+            <TiqWorkspacePreview
+              eyebrow="Schedule"
+              title="Spring Ladder schedule"
+              body="Publish court windows, team dates, round-robin blocks, and update notes."
+              metrics={[
+                { label: 'Matches', value: '36' },
+                { label: 'Courts', value: '6' },
+                { label: 'Changes', value: '2' },
+              ]}
+              href="/league-coordinator"
+              cta="Schedule Preview"
+              event={{
+                eventName: 'schedule_preview_clicked',
+                surface: 'leagues',
+                metadata: {
+                  location: 'league_office_preview',
+                },
+              }}
+            />
+            <TiqLeagueStandingCard
+              title="Spring Ladder standings"
+              body="Standings update after reviewed scores, tiebreakers, and corrections."
+              metrics={[
+                { label: 'Teams', value: '10' },
+                { label: 'Matches', value: '36' },
+                { label: 'Pending', value: '3' },
+              ]}
+              href="/league-coordinator"
+              cta="Standings Preview"
+              event={{
+                eventName: 'standings_preview_clicked',
+                surface: 'leagues',
+                metadata: {
+                  location: 'league_office_preview',
+                },
+              }}
+            />
+            <TiqWorkspacePreview
+              eyebrow="Data Assist handoff"
+              title="Corrections queue"
+              body="Schedules, scorecards, rosters, and disputed results move through review before public context changes."
+              metrics={[
+                { label: 'Source', value: 'Uploads' },
+                { label: 'Status', value: 'Review' },
+                { label: 'Office', value: 'League' },
+              ]}
+              href={dataAssistLeagueOfficeHref}
+              cta="Open Data Assist"
+              event={{
+                eventName: 'data_assist_opened',
+                surface: 'data_assist',
+                metadata: {
+                  location: 'league_office_preview',
+                },
+              }}
+            />
+          </div>
+        </article>
+      </section>
       <section style={contentWrap}>
         <article style={panelCard}>
           <div style={panelHead}>
@@ -237,10 +366,10 @@ export default function LeaguesPage() {
           </div>
 
           <div style={dynamicSummaryGrid}>
-            <MetricCard label="Visible leagues" value={String(summary.totalLeagues)} />
-            <MetricCard label="League matches" value={String(summary.totalMatches)} />
-            <MetricCard label="Flights" value={String(summary.totalFlights)} />
-            <MetricCard label="Latest match" value={formatDate(summary.latestMatch)} accent />
+            <MetricCard label="Visible leagues" value={loading ? '-' : String(summary.totalLeagues)} />
+            <MetricCard label="League matches" value={loading ? '-' : String(summary.totalMatches)} />
+            <MetricCard label="Flights" value={loading ? '-' : String(summary.totalFlights)} />
+            <MetricCard label="Latest match" value={loading ? 'Refreshing' : formatDate(summary.latestMatch)} accent />
           </div>
 
           <div style={dynamicFilterGrid}>
@@ -254,16 +383,21 @@ export default function LeaguesPage() {
                   id="league-search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onFocus={() => setFocusedDirectoryControl('search')}
+                  onBlur={() => setFocusedDirectoryControl(null)}
                   placeholder="Search by league, flight, section, or district"
-                  style={searchInput}
+                  style={{
+                    ...searchInput,
+                    ...(focusedDirectoryControl === 'search' ? directoryControlFocusStyle : null),
+                  }}
                 />
               </div>
             </div>
 
-            <FilterSelect id="league-year-filter" label="Year" value={yearFilter} onChange={setYearFilter} options={years} />
-            <FilterSelect id="league-season-filter" label="Season" value={seasonFilter} onChange={setSeasonFilter} options={seasons} />
-            <FilterSelect id="league-gender-filter" label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={genders} />
-            <FilterSelect id="league-rating-filter" label="Rating / Flight" value={ratingFilter} onChange={setRatingFilter} options={ratings} />
+            <FilterSelect id="league-year-filter" label="Year" value={yearFilter} onChange={setYearFilter} options={years} focused={focusedDirectoryControl === 'year'} onFocus={() => setFocusedDirectoryControl('year')} onBlur={() => setFocusedDirectoryControl(null)} />
+            <FilterSelect id="league-season-filter" label="Season" value={seasonFilter} onChange={setSeasonFilter} options={seasons} focused={focusedDirectoryControl === 'season'} onFocus={() => setFocusedDirectoryControl('season')} onBlur={() => setFocusedDirectoryControl(null)} />
+            <FilterSelect id="league-gender-filter" label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={genders} focused={focusedDirectoryControl === 'gender'} onFocus={() => setFocusedDirectoryControl('gender')} onBlur={() => setFocusedDirectoryControl(null)} />
+            <FilterSelect id="league-rating-filter" label="Rating / Flight" value={ratingFilter} onChange={setRatingFilter} options={ratings} focused={focusedDirectoryControl === 'rating'} onFocus={() => setFocusedDirectoryControl('rating')} onBlur={() => setFocusedDirectoryControl(null)} />
 
             <div>
               <label htmlFor="league-flight-filter" style={inputLabel}>Flight</label>
@@ -271,7 +405,12 @@ export default function LeaguesPage() {
                 id="league-flight-filter"
                 value={flightFilter}
                 onChange={(e) => setFlightFilter(e.target.value)}
-                style={selectStyle}
+                onFocus={() => setFocusedDirectoryControl('flight')}
+                onBlur={() => setFocusedDirectoryControl(null)}
+                style={{
+                  ...selectStyle,
+                  ...(focusedDirectoryControl === 'flight' ? directoryControlFocusStyle : null),
+                }}
               >
                 <option value="all">All Flights</option>
                 {flights.map((flight) => (
@@ -285,10 +424,27 @@ export default function LeaguesPage() {
 
           {loading ? (
             <div style={stateBox}>
-              <div style={sectionKicker}>Directory loading</div>
-              <div>Loading leagues...</div>
+              <div style={sectionKicker}>League discovery</div>
+              <div>Choose a league path.</div>
               <div style={stateHelperTextStyle}>
-                Rebuilding the browse layer from current league summary data.
+                Find existing league context or create a TIQ League Office workspace. The live league layer is refreshing behind this starter view.
+              </div>
+              <DataTrustPanel
+                title="League data trust"
+                signals={[
+                  { label: 'Source', value: 'Schedules, scorecards, standings' },
+                  { label: 'Freshness', value: 'Season refresh pending' },
+                  { label: 'Confidence', value: 'Higher after score review' },
+                  { label: 'Status', value: 'League names normalized' },
+                ]}
+              />
+              <div style={emptyActionRow}>
+                <Link href="/leagues" style={clearFilterButton}>
+                  Find Leagues
+                </Link>
+                <Link href="/league-coordinator" style={clearFilterButton}>
+                  Open League Office
+                </Link>
               </div>
             </div>
           ) : error ? (
@@ -309,12 +465,16 @@ export default function LeaguesPage() {
               <div style={sectionKicker}>Directory reset</div>
               {hasActiveFilters
                 ? 'No leagues matched the current search or flight filters.'
-                : 'League records are not available yet.'}
+                : 'Choose a league path.'}
               <div style={stateHelperTextStyle}>
                 {hasActiveFilters
                   ? 'Clear the active filters to widen the season view, or try a broader search term across league, flight, section, or district.'
                   : 'League cards only appear when reviewed uploads include a real league name, so this usually means more season data still needs to be uploaded through Data Assist or normalized.'}
               </div>
+              <DataTrustPanel
+                title="Why a league may be missing"
+                body="League Office needs reviewed schedules, results, standings, or Data Assist uploads with clear league and flight names before public cards can be trusted."
+              />
               {!hasActiveFilters ? (
                 <div style={emptyActionRow}>
                   <Link href={DATA_ASSIST_STORY.href} style={clearFilterButton}>
@@ -350,7 +510,7 @@ export default function LeaguesPage() {
                             Scope: {[row.flight, row.ustaSection, row.districtArea].filter(Boolean).join(' | ') || 'No scope fields'}
                           </div>
                           <div style={diagnosticSampleMeta}>
-                            Source: {row.source || 'Unknown'}{row.matchDate ? ` | ${formatDate(row.matchDate)}` : ''}
+                            Source: {row.source || 'Source pending review'}{row.matchDate ? ` | ${formatDate(row.matchDate)}` : ''}
                           </div>
                         </div>
                       ))}
@@ -409,17 +569,33 @@ function FilterSelect({
   value,
   onChange,
   options,
+  focused = false,
+  onFocus,
+  onBlur,
 }: {
   id: string
   label: string
   value: string
   onChange: (value: string) => void
   options: string[]
+  focused?: boolean
+  onFocus?: () => void
+  onBlur?: () => void
 }) {
   return (
     <div>
       <label htmlFor={id} style={inputLabel}>{label}</label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} style={selectStyle}>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        style={{
+          ...selectStyle,
+          ...(focused ? directoryControlFocusStyle : null),
+        }}
+      >
         <option value="all">All</option>
         {options.map((option) => (
           <option key={option} value={option}>
@@ -568,6 +744,15 @@ function DetailCard({
   )
 }
 
+function IntroMiniCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div style={introMiniCardStyle}>
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </div>
+  )
+}
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" style={iconSvgStyle} aria-hidden="true">
@@ -601,6 +786,107 @@ const contentWrap: CSSProperties = {
   minWidth: 0,
   boxSizing: 'border-box',
   overflowX: 'clip',
+}
+
+const publicIntroCard: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+  gap: 18,
+  alignItems: 'stretch',
+  borderRadius: 26,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(7,20,40,0.88))',
+  boxShadow: '0 30px 86px rgba(2, 8, 23, 0.40), inset 0 1px 0 rgba(255,255,255,0.05)',
+  padding: 20,
+  minWidth: 0,
+  marginBottom: 16,
+}
+
+const publicIntroCopy: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: 12,
+  minWidth: 0,
+}
+
+const publicIntroTitle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(2rem, 4vw, 4rem)',
+  lineHeight: 0.98,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const publicIntroText: CSSProperties = {
+  margin: 0,
+  maxWidth: 720,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 'clamp(1rem, 1.3vw, 1.15rem)',
+  lineHeight: 1.7,
+  fontWeight: 700,
+}
+
+const publicIntroActions: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const primaryIntroButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 44,
+  padding: '0 16px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'linear-gradient(180deg, #eaff9e 0%, #9be11d 100%)',
+  color: '#071226',
+  textDecoration: 'none',
+  fontSize: 13,
+  fontWeight: 950,
+  cursor: 'pointer',
+}
+
+const secondaryIntroButton: CSSProperties = {
+  ...primaryIntroButton,
+  background: 'rgba(7,17,33,0.72)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid rgba(116,190,255,0.16)',
+}
+
+const publicIntroGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const leagueOfficePreviewGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const introMiniCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  alignContent: 'start',
+  minHeight: 132,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 720,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const summaryGrid: CSSProperties = {
@@ -737,7 +1023,8 @@ const searchInput: CSSProperties = {
   color: 'var(--foreground-strong)',
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   boxShadow: 'var(--home-control-shadow)',
   colorScheme: 'dark',
 }
@@ -780,8 +1067,15 @@ const selectStyle: CSSProperties = {
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   colorScheme: 'dark',
+}
+
+const directoryControlFocusStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 44%, var(--shell-panel-border) 56%)',
+  outline: '2px solid color-mix(in srgb, var(--brand-green) 48%, transparent)',
+  boxShadow: '0 0 0 5px rgba(155,225,29,0.12), var(--home-control-shadow)',
 }
 
 const stateBox: CSSProperties = {

@@ -22,12 +22,12 @@ describe('upgrade request pricing snapshots', () => {
     })).toMatchObject({
       plan_id: 'league',
       plan_name: 'League',
-      price_label: '$14.99/month',
+      price_label: '$14.99/season workspace',
       billing_amount_cents: 1499,
       billing_currency: 'usd',
-      billing_interval: 'month',
-      checkout_mode: 'subscription',
-      quantity_mode: 'account',
+      billing_interval: 'season',
+      checkout_mode: 'one_time',
+      quantity_mode: 'league',
       entitlement_grant: {
         playerPlus: false,
         captain: false,

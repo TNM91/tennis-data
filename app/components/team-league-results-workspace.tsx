@@ -43,10 +43,12 @@ type MatchLineSummary = {
 type TeamResultCompletionFilter = 'all' | 'complete' | 'incomplete'
 type TeamResultDateFilter = 'all' | 'week' | 'month'
 
+const dataAssistTeamResultsHref = '/data-assist?intent=upload-source&context=Team%20league%20results'
+
 const emptyTeamResultActions = [
   { href: '#team-match-entry', label: 'Add match' },
   { href: '/compete/schedule', label: 'Open calendar' },
-  { href: '/data-assist', label: 'Upload scorecard' },
+  { href: dataAssistTeamResultsHref, label: 'Upload scorecard' },
 ] as const
 
 
@@ -860,7 +862,7 @@ function EventCard({
 
           {!canEditResults ? (
             <p style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>
-              Coordinator result entry is not active for this account.
+              League Office result entry is not active for this account.
             </p>
           ) : null}
 
@@ -1509,7 +1511,7 @@ function TeamLeagueResultsWorkspaceInner({
     return (
       <SiteShell active={activeRoute}>
         <div style={pageWrap}>
-          <div style={card}>Checking Coordinator access...</div>
+          <div style={card}>Checking League Office access...</div>
         </div>
       </SiteShell>
     )
@@ -1521,7 +1523,7 @@ function TeamLeagueResultsWorkspaceInner({
         active={activeRoute}
         planId="league"
         headline="Need to record TIQ team results?"
-        body="Unlock TIQ League Coordinator to enter team match results, manage season structure, and keep standings out of spreadsheets."
+        body="Unlock League Office to enter team match results, manage season structure, and keep standings out of spreadsheets."
         ctaLabel="Unlock League"
         secondaryLabel="Back to League"
         secondaryHref="/league-coordinator"
@@ -1609,7 +1611,7 @@ function TeamLeagueResultsWorkspaceInner({
             <div>
               <div style={{ fontWeight: 800, fontSize: 16 }}>New match</div>
               <div style={{ color: '#94a3b8', fontSize: 13, marginTop: 4 }}>
-                {canEditResults ? 'Open only when you need to record another result.' : 'Result entry unlocks with team-league Coordinator access.'}
+                {canEditResults ? 'Open only when you need to record another result.' : 'Result entry unlocks with Team League Office access.'}
               </div>
             </div>
             <span style={canEditResults ? pillGreen : pill}>Add result</span>

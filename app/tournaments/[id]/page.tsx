@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import DataTrustPanel from '@/app/components/data-trust-panel'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { loadTiqAwardsForSource, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import {
@@ -41,6 +42,7 @@ function TournamentPublicInner() {
   const [entrySmsOptIn, setEntrySmsOptIn] = useState(false)
   const [entryNotice, setEntryNotice] = useState('')
   const [entrySubmitting, setEntrySubmitting] = useState(false)
+  const [entryFocusedField, setEntryFocusedField] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -193,7 +195,7 @@ function TournamentPublicInner() {
           <div style={eyebrowStyle}>Tournament</div>
           <h1 style={titleStyle}>Bracket unavailable.</h1>
           <p style={textStyle}>{error || 'This tournament is private, unpublished, or no longer exists.'}</p>
-          <Link href="/league-coordinator/tournaments" style={primaryButtonStyle}>Open Tournament Builder</Link>
+          <Link href="/league-coordinator/tournaments" style={primaryButtonStyle}>Open Tournament Desk</Link>
         </section>
       </main>
     )
@@ -247,6 +249,17 @@ function TournamentPublicInner() {
           </div>
         </section>
       ) : null}
+
+      <DataTrustPanel
+        title="Tournament data trust"
+        body="Tournament pages combine Tournament Desk setup, director-posted schedules, entries, scorebook results, and awards when available. Use Data Assist when a draw, result, player entry, or award needs review."
+        signals={[
+          { label: 'Source', value: 'Tournament Desk, director updates, scorebook results' },
+          { label: 'Freshness', value: source === 'cloud' ? 'Cloud record loaded' : 'Device preview or pending sync' },
+          { label: 'Confidence', value: 'Higher after scorebook and awards review' },
+          { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+        ]}
+      />
 
       <section style={playerRailStyle} aria-label="Match-day actions">
         {matchDayActions.map((action) => {
@@ -371,19 +384,60 @@ function TournamentPublicInner() {
           <form style={entryGridStyle} onSubmit={submitEntry}>
             <label style={entryFieldStyle}>
               Name
-              <input value={entryName} onChange={(event) => setEntryName(event.target.value)} style={entryInputStyle} />
+              <input
+                value={entryName}
+                onChange={(event) => setEntryName(event.target.value)}
+                onFocus={() => setEntryFocusedField('name')}
+                onBlur={() => setEntryFocusedField(null)}
+                style={{
+                  ...entryInputStyle,
+                  ...(entryFocusedField === 'name' ? entryInputFocusStyle : null),
+                }}
+              />
             </label>
             <label style={entryFieldStyle}>
               Email
-              <input type="email" value={entryEmail} onChange={(event) => setEntryEmail(event.target.value)} style={entryInputStyle} />
+              <input
+                type="email"
+                value={entryEmail}
+                onChange={(event) => setEntryEmail(event.target.value)}
+                onFocus={() => setEntryFocusedField('email')}
+                onBlur={() => setEntryFocusedField(null)}
+                style={{
+                  ...entryInputStyle,
+                  ...(entryFocusedField === 'email' ? entryInputFocusStyle : null),
+                }}
+              />
             </label>
             <label style={entryFieldStyle}>
               Phone
-              <input value={entryPhone} onChange={(event) => setEntryPhone(event.target.value)} style={entryInputStyle} />
+              <input
+                value={entryPhone}
+                onChange={(event) => setEntryPhone(event.target.value)}
+                onFocus={() => setEntryFocusedField('phone')}
+                onBlur={() => setEntryFocusedField(null)}
+                style={{
+                  ...entryInputStyle,
+                  ...(entryFocusedField === 'phone' ? entryInputFocusStyle : null),
+                }}
+              />
             </label>
             <label style={entryFieldStyle}>
               Self-rating
-              <input type="number" min="1" max="7" step="0.1" value={entryRating} onChange={(event) => setEntryRating(event.target.value)} style={entryInputStyle} />
+              <input
+                type="number"
+                min="1"
+                max="7"
+                step="0.1"
+                value={entryRating}
+                onChange={(event) => setEntryRating(event.target.value)}
+                onFocus={() => setEntryFocusedField('rating')}
+                onBlur={() => setEntryFocusedField(null)}
+                style={{
+                  ...entryInputStyle,
+                  ...(entryFocusedField === 'rating' ? entryInputFocusStyle : null),
+                }}
+              />
             </label>
             <label style={entryToggleStyle}>
               <input type="checkbox" checked={entrySmsOptIn} onChange={(event) => setEntrySmsOptIn(event.target.checked)} />
@@ -1006,8 +1060,15 @@ const entryInputStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 14,
   fontWeight: 850,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   boxSizing: 'border-box',
+}
+
+const entryInputFocusStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.45)',
+  outline: '2px solid rgba(155,225,29,0.42)',
+  boxShadow: '0 0 0 5px rgba(155,225,29,0.12)',
 }
 
 const entryToggleStyle: CSSProperties = {

@@ -593,15 +593,16 @@ function ProfilePageInner() {
     { label: 'Doubles', value: `${formatRating(tiqDoublesValue)}${ratingSourceLabel === 'Self-rated S' ? ' S' : ''}` },
     { label: 'Source', value: ratingSourceLabel },
   ]
+  const dataAssistProfileHref = '/data-assist?intent=upload-source&context=Profile'
   const firstTiqMoves = [
-    { title: 'Upload scorecard', href: '/data-assist', icon: 'reports' },
+    { title: 'Upload scorecard', href: dataAssistProfileHref, icon: 'reports' },
     { title: 'Local leagues', href: '/explore/leagues', icon: 'schedule' },
     { title: 'Create TIQ league', href: '/league-coordinator', icon: 'captainDashboard' },
     { title: 'Find players', href: '/explore/players', icon: 'playerRatings' },
   ] as const
   const profileNextMoves = [
     { title: 'Open My Lab', href: '/mylab', icon: 'myLab' },
-    { title: 'Improve data', href: '/data-assist', icon: 'reports' },
+    { title: 'Improve data', href: dataAssistProfileHref, icon: 'reports' },
     { title: 'Prep matchup', href: profileMatchupHref, icon: 'matchPrep' },
     { title: 'Review messages', href: '/messages', icon: 'messagingCenter' },
   ] as const

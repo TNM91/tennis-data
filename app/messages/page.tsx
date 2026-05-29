@@ -182,7 +182,7 @@ function buildConversationContextPresentation(conversation: InternalConversation
       text: assignmentTitle
         ? `Assignment follow-up: ${assignmentTitle}${assignmentFocus ? ` / ${assignmentFocus}` : ''}`
         : `${subjectCue}${contact?.name ? ` with ${contact.name}` : ''}`,
-      cta: isCoachView ? 'Open Coach workspace' : 'Open My Lab',
+      cta: isCoachView ? 'Open Coach Hub' : 'Open My Lab',
     }
   }
 
@@ -369,9 +369,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     () => conversations.filter((conversation) => conversation.isUnread).length,
     [conversations],
   )
+  const dataAssistMessagesHref = '/data-assist?intent=upload-source&context=Messages'
   const emptyInboxActions = [
     { title: 'Open My Lab', href: '/mylab' },
-    { title: 'Improve data', href: '/data-assist' },
+    { title: 'Improve data', href: dataAssistMessagesHref },
     { title: 'Prep matchup', href: '/matchup' },
   ] as const
 

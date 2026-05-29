@@ -18,11 +18,14 @@ describe('tournament Full-Court value panel', () => {
   it('keeps locked visitors in a preview instead of exposing the full builder workspace', () => {
     const source = readFileSync(join(process.cwd(), 'app/components/tournament-builder-workspace.tsx'), 'utf8')
 
-    expect(source).toContain('Tournament Builder preview')
+    expect(source).toContain('Tournament Desk preview')
+    expect(source).toContain('Unlock Tournament Desk with Full-Court')
+    expect(source).toContain('<div style={eyebrowStyle}>Tournament Desk</div>')
     expect(source).toContain('lockedTournamentActions')
     expect(source).toContain('Run the event without a spreadsheet stack.')
     expect(source).toContain("if (!canUseLeague && authResolved)")
     expect(source).toContain("'/join?plan=full_court&next=/league-coordinator/tournaments'")
     expect(source).not.toContain('Tournament rooms sit inside League, but unlimited events are part of Full-Court.')
+    expect(source).not.toContain('Tournament Builder')
   })
 })

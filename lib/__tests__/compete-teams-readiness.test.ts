@@ -41,6 +41,9 @@ describe('compete teams readiness', () => {
   it('keeps the empty Teams state actionable and mobile-safe', () => {
     expect(source).toContain('function EmptyTeamsState')
     expect(source).toContain('Team workflow starts with one real team signal.')
+    expect(source).toContain("const dataAssistTeamsHref = '/data-assist?intent=upload-source&context=League%20Office%20teams'")
+    expect(source).not.toContain('context=Compete%20teams')
+    expect(source).toContain("href: dataAssistTeamsHref")
     expect(source).toContain('Create team league')
     expect(source).toContain('Refresh team data')
     expect(source).toContain('Browse teams')

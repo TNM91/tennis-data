@@ -38,7 +38,7 @@ describe('TIQ league calendar helpers', () => {
     ])
   })
 
-  it('turns coordinator schedules into publish-ready weekly rows', () => {
+  it('turns League Office schedules into publish-ready weekly rows', () => {
     const rows = buildTiqLeagueSchedulingPlanRows({
       startsOn: '2026-05-04',
       maxWeeks: 1,
@@ -52,7 +52,7 @@ describe('TIQ league calendar helpers', () => {
       mode: 'coordinator_fixed',
       label: '2026-05-06',
       meta: '19:00 | Court 4',
-      action: 'Coordinator publishes',
+      action: 'League Office publishes',
       windowStart: '2026-05-06',
       windowEnd: '2026-05-06',
     })

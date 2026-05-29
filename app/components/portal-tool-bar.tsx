@@ -16,6 +16,8 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type PortalLaneId = 'find' | 'you' | 'coach' | 'team' | 'league'
 
+const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'
+
 type PortalLane = {
   id: PortalLaneId
   label: string
@@ -63,7 +65,7 @@ const portalLanes: PortalLane[] = [
     searchScope: 'players',
     tasks: [
       { title: 'Open My Lab', detail: 'Your scorecard, goals, follows, and next read.', metric: 'Player', href: '/mylab', icon: 'myLab', requiredRoute: '/mylab' },
-      { title: 'Improve data', detail: 'Upload, report, or refresh the tennis context behind your read.', metric: 'Player', href: '/data-assist', icon: 'reports', requiredRoute: '/mylab' },
+      { title: 'Improve data', detail: 'Upload, report, or refresh the tennis context behind your read.', metric: 'Player', href: dataAssistPortalHref, icon: 'reports', requiredRoute: '/mylab' },
       { title: 'Prep matchup', detail: 'Compare the court before you play.', metric: 'Player', href: '/matchup', icon: 'matchupAnalysis', requiredRoute: '/mylab' },
       { title: 'Review messages', detail: 'Keep tennis replies and alerts together.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/mylab' },
     ],
@@ -78,7 +80,7 @@ const portalLanes: PortalLane[] = [
     paths: ['/coach', '/player-development', '/tactics'],
     searchScope: 'players',
     tasks: [
-      { title: 'Coach workspace', detail: 'Review students, assignments, due work, and coach feedback.', metric: 'Coach', href: '/coach', icon: 'scenarioBuilder', requiredRoute: '/coach' },
+      { title: 'Coach Hub', detail: 'Review students, assignments, due work, and coach feedback.', metric: 'Coach', href: '/coach', icon: 'scenarioBuilder', requiredRoute: '/coach' },
       { title: 'Tactical Studio', detail: 'Map the drill or pattern before assigning it.', metric: 'Coach', href: '/tactics', icon: 'matchPrep', requiredRoute: '/coach' },
       { title: 'Development paths', detail: 'Open workbook paths and identity-based coach planners.', metric: 'Coach', href: '/player-development', icon: 'reports', requiredRoute: '/coach' },
       { title: 'Coach-player messages', detail: 'Keep lesson follow-up tied to player goals and assignments.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/coach' },

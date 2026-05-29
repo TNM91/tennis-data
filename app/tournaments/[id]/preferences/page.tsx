@@ -27,6 +27,7 @@ function TournamentPreferencesInner() {
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState('')
+  const [focusedField, setFocusedField] = useState<string | null>(null)
   const [preferenceReceipt, setPreferenceReceipt] = useState<{
     status: 'on' | 'off'
     phone: string
@@ -127,11 +128,30 @@ function TournamentPreferencesInner() {
         <form style={formStyle} onSubmit={submitPreference}>
           <label style={fieldStyle}>
             Name
-            <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} style={inputStyle} />
+            <input
+              value={playerName}
+              onChange={(event) => setPlayerName(event.target.value)}
+              onFocus={() => setFocusedField('name')}
+              onBlur={() => setFocusedField(null)}
+              style={{
+                ...inputStyle,
+                ...(focusedField === 'name' ? inputFocusStyle : null),
+              }}
+            />
           </label>
           <label style={fieldStyle}>
             Phone
-            <input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="(555) 555-5555" style={inputStyle} />
+            <input
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              onFocus={() => setFocusedField('phone')}
+              onBlur={() => setFocusedField(null)}
+              placeholder="(555) 555-5555"
+              style={{
+                ...inputStyle,
+                ...(focusedField === 'phone' ? inputFocusStyle : null),
+              }}
+            />
           </label>
           <label style={toggleStyle}>
             <input type="checkbox" checked={smsOptIn} onChange={(event) => setSmsOptIn(event.target.checked)} />
@@ -303,8 +323,15 @@ const inputStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 15,
   fontWeight: 850,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   boxSizing: 'border-box',
+}
+
+const inputFocusStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.45)',
+  outline: '2px solid rgba(155,225,29,0.42)',
+  boxShadow: '0 0 0 5px rgba(155,225,29,0.12)',
 }
 
 const toggleStyle: CSSProperties = {

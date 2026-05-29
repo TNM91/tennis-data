@@ -1312,7 +1312,7 @@ function ScenarioComparisonContent() {
                       </div>
 
                       <div style={scenarioCommandCardStyle}>
-                        <div style={scenarioCommandLabelStyle}>Captain workflow</div>
+                        <div style={scenarioCommandLabelStyle}>Team Hub workflow</div>
                         <div style={scenarioCommandValueStyle}>Compare {'->'} refine {'->'} send</div>
                         <div style={scenarioCommandTextStyle}>
                           Keep scenario work focused on decision clarity, then move the final version into weekly team messaging.

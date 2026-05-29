@@ -55,10 +55,12 @@ type PlayerResultStanding = {
 type ResultReviewFilter = 'all' | 'edited' | 'clean'
 type ResultDateFilter = 'all' | 'week' | 'month'
 
+const dataAssistIndividualResultsHref = '/data-assist?intent=upload-source&context=Individual%20league%20results'
+
 const emptyIndividualResultActions = [
   { href: '#player-result-entry', label: 'Log player result' },
   { href: '/league-coordinator#league-setup-form', label: 'Set up league' },
-  { href: '/data-assist', label: 'Upload scorecard' },
+  { href: dataAssistIndividualResultsHref, label: 'Upload scorecard' },
 ] as const
 
 const pageWrap: CSSProperties = {
@@ -928,7 +930,7 @@ function IndividualLeagueResultsWorkspaceInner({
 
   async function handleResultSubmit() {
     if (!canEditResults) {
-      setStatus(accessMessage || 'Coordinator access is required before logging individual results.')
+      setStatus(accessMessage || 'League Office access is required before logging individual results.')
       return
     }
 
@@ -1116,7 +1118,7 @@ function IndividualLeagueResultsWorkspaceInner({
     return (
       <SiteShell active={activeRoute}>
         <div style={pageWrap}>
-          <div style={card}>Checking Coordinator access...</div>
+          <div style={card}>Checking League Office access...</div>
         </div>
       </SiteShell>
     )
@@ -1128,7 +1130,7 @@ function IndividualLeagueResultsWorkspaceInner({
         active={activeRoute}
         planId="league"
         headline="Need to record individual league results?"
-        body="Unlock TIQ League Coordinator to enter player results, keep standings current, and manage the season without spreadsheet cleanup."
+        body="Unlock League Office to enter player results, keep standings current, and manage the season without spreadsheet cleanup."
         ctaLabel="Unlock League"
         secondaryLabel="Back to League"
         secondaryHref="/league-coordinator"
@@ -1251,7 +1253,7 @@ function IndividualLeagueResultsWorkspaceInner({
                   ? editingResultId
                     ? 'Update the saved scoreline, winner, date, or notes.'
                     : 'Use this for individual TIQ league matches only.'
-                  : 'Result entry unlocks with individual-league Coordinator access.'}
+                  : 'Result entry unlocks with Individual League Office access.'}
               </div>
             </div>
             <span style={canEditResults ? pillGreen : pill}>{editingResultId ? 'Editing' : 'Add result'}</span>

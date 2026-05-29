@@ -103,7 +103,7 @@ const heroSearchFilters: Array<{
     links: [
       { href: '/explore/leagues', label: 'Leagues' },
       { href: '/compete/leagues', label: 'League directory' },
-      { href: '/pricing', label: 'League workspace' },
+      { href: '/pricing', label: 'League Office' },
     ],
   },
   {
@@ -436,8 +436,8 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
       icon: 'teamRankings',
     },
     {
-      title: 'Run team week',
-      detail: 'Use Captain actions alongside league operations.',
+      title: 'Open Team Hub',
+      detail: 'Use Captain Tools alongside League Office operations.',
       metric: 'Full-Court',
       href: '/captain',
       requiredPlan: 'captain',
@@ -515,9 +515,9 @@ const commandModeDetails: Record<
   },
   full_court: {
     headline: 'Run the full court from one workspace.',
-    subhead: 'Full-Court combines Player, Coach, Captain, League, and unlimited tournaments.',
+    subhead: 'Full-Court combines My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations.',
     searchPlaceholder: 'Search player, team, league, or tournament...',
-    queue: ['Build tournament', 'Run team week', 'Track results', 'Open player book'],
+    queue: ['Build tournament', 'Open Team Hub', 'Track results', 'Open player book'],
     unlockLine: 'Full-Court unlocks the full suite plus unlimited tournament workspaces.',
   },
 }
@@ -622,9 +622,9 @@ function canUseTier(access: ProductAccessState, planId: PricingPlanId) {
 
 function getTierOpenLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'Open My Lab'
-  if (planId === 'coach') return 'Open Coach'
-  if (planId === 'captain') return 'Open Team'
-  if (planId === 'league') return 'Open Leagues'
+  if (planId === 'coach') return 'Open Coach Hub'
+  if (planId === 'captain') return 'Open Team Hub'
+  if (planId === 'league') return 'Open League Office'
   if (planId === 'full_court') return 'Open Full-Court'
   return 'Explore Free'
 }
@@ -1014,7 +1014,7 @@ function getDashboardLane(planId: PricingPlanId) {
     return {
       label: 'Full-Court',
       title: 'The full tennis operation.',
-      show: 'Player, Coach, Captain, League, ladder, and unlimited tournaments in one operating lane.',
+      show: 'My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations in one connected suite.',
       removes: 'Splitting team, league, and tournament work across separate systems.',
       next: 'Unlock Full-Court when you need the full suite.',
     }
@@ -2675,12 +2675,12 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
         }}
       >
         <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
-          <div style={sectionKicker}>Your dashboard lanes</div>
+          <div style={sectionKicker}>What do you need today?</div>
           <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.65rem)', lineHeight: 1.02 }}>
-            Four doors. One tennis day.
+            Find, prepare, improve, lead, or run the week.
           </h2>
           <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
-            Start with Find. Unlock You, Team, or League when that lane removes work from your week.
+            Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when that workspace saves your week.
           </p>
         </div>
         <Link href="/pricing" style={{ ...buttonGhost, minHeight: 40 }}>
@@ -3323,7 +3323,7 @@ function CaptainSnapshot() {
   return (
     <SnapshotShell
       planId="captain"
-      title="Captain workspace"
+      title="Team Hub"
       subtitle="Availability, lineup builder, scenarios, projections, and team messaging"
       featured
     >
@@ -3365,7 +3365,7 @@ function LeagueSnapshot() {
   const { isSmallMobile } = useViewportBreakpoints()
 
   return (
-    <SnapshotShell planId="league" title="League workspace" subtitle="Standings, schedule, teams, and season operations">
+    <SnapshotShell planId="league" title="League Office" subtitle="Standings, schedule, teams, and season operations">
       <div style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: 10, minWidth: 0 }}>
           <SnapshotCard title="Teams" value="10" text="Entered this season" accent="blue" />

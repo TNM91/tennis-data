@@ -134,23 +134,23 @@ export function getTiqLeagueVisibilityLabel(isPublic: boolean) {
 
 export function getTiqLeagueVisibilityDescription(isPublic: boolean) {
   if (isPublic) {
-    return 'Public leagues are discoverable and shareable, but join requests still require coordinator approval.'
+    return 'Public leagues are discoverable and shareable, but join requests still require League Office approval.'
   }
 
-  return 'Private leagues are hidden from public browse pages. Coordinators manage requests and active participants from this workspace.'
+  return 'Private leagues are hidden from public browse pages. League Office users manage requests and active participants from this workspace.'
 }
 
 export function getTiqLeagueSchedulingModeLabel(mode: TiqLeagueSchedulingMode) {
   if (mode === 'player_arranged') return 'Players schedule'
-  return 'Coordinator schedule'
+  return 'League Office schedule'
 }
 
 export function getTiqLeagueSchedulingModeDescription(mode: TiqLeagueSchedulingMode) {
   if (mode === 'player_arranged') {
-    return 'The coordinator publishes pairings. Players schedule through TenAceIQ, then record the agreed date, time, and site.'
+    return 'League Office publishes pairings. Players schedule through TenAceIQ, then record the agreed date, time, and site.'
   }
 
-  return 'The coordinator sets the recurring match day, time, and site so the full season schedule can be published in advance.'
+  return 'League Office sets the recurring match day, time, and site so the full season schedule can be published in advance.'
 }
 
 export function getTiqLeagueScoringSystemLabel(system: TiqLeagueScoringSystem) {
@@ -181,7 +181,7 @@ export function getTiqLeagueThirdSetRuleDescription(rule: TiqLeagueThirdSetRule)
     return 'Deciding third sets use a 10-point match tiebreak and can be entered as 1-0 or the tiebreak score.'
   }
 
-  return 'Coordinators may accept either a played-out third set or a 10-point match tiebreak based on local league rules.'
+  return 'League Office users may accept either a played-out third set or a 10-point match tiebreak based on local league rules.'
 }
 
 function safeJsonParse<T>(raw: string | null): T | null {

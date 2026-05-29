@@ -1,13 +1,19 @@
 import type { Metadata } from 'next'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 import InfoActionGrid, { type InfoActionCard } from '@/app/components/info-action-grid'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
-export const metadata: Metadata = {
+const dataAssistMethodologyHref = '/data-assist?intent=request-review&context=Methodology'
+
+export const metadata: Metadata = buildRouteMetadata({
   title: 'Methodology',
   description:
     'How TenAceIQ calculates dynamic player ratings -- the Elo-based algorithm, K-factors, score multipliers, recency weighting, and inactivity decay.',
-}
+  path: '/methodology',
+})
 
 const methodologyCards: InfoActionCard[] = [
   {
@@ -23,7 +29,7 @@ const methodologyCards: InfoActionCard[] = [
   {
     title: 'Reviewed data',
     text: 'Data Assist and admin review keep source records from changing the platform unchecked.',
-    href: '/data-assist',
+    href: dataAssistMethodologyHref,
     cta: 'Open Data Assist',
     icon: 'reports',
   },
@@ -32,6 +38,7 @@ const methodologyCards: InfoActionCard[] = [
 export default function MethodologyPage() {
   return (
     <SiteShell active="/methodology">
+      <JsonLd id="methodology-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Methodology', '/methodology')} />
       <InfoPage
         kicker="Methodology"
         title="How TenAceIQ calculates dynamic ratings."

@@ -1,9 +1,9 @@
 ﻿import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Captain Workspace',
+  title: 'Team Hub',
   description:
-    'Use the TenAceIQ Captain workspace for availability, lineups, scenarios, messaging, and weekly team decisions.',
+    'Use TenAceIQ Team Hub and Captain Tools for availability, lineups, scenarios, messaging, and weekly team decisions.',
   robots: {
     index: false,
     follow: false,

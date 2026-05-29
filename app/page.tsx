@@ -1,9 +1,15 @@
 import type { Metadata } from 'next'
-import PreviewHomepage from '@/app/components/preview-homepage'
+import {
+  ActionGrid,
+  CommandHero,
+  ProductPreviewGrid,
+  PublicPageShell,
+  pageWrapStyle,
+} from '@/app/components/public-command-center'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
-  'More Tennis. Less Chaos. Search tennis for free, then open TenAceIQ workspaces for players, captains, league coordinators, and Full-Court operations.'
+  'Find players, teams, coaches, tournaments, leagues, match prep, and the next useful tennis action in one TenAceIQ command center.'
 
 export const metadata: Metadata = {
   title: PRODUCT_MOTTO,
@@ -33,5 +39,18 @@ export const metadata: Metadata = {
 }
 
 export default function HomePage() {
-  return <PreviewHomepage />
+  return (
+    <PublicPageShell active="home">
+      <main style={pageWrapStyle}>
+        <CommandHero
+          body="Find players, teams, coaches, tournaments, leagues, match prep, and the next useful tennis action, all in one place."
+          secondary={{ href: '#what-next', label: 'See What TenAceIQ Can Help With' }}
+        />
+        <div id="what-next">
+          <ActionGrid />
+        </div>
+        <ProductPreviewGrid />
+      </main>
+    </PublicPageShell>
+  )
 }

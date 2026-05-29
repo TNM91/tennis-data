@@ -193,7 +193,7 @@ const invitePathSteps = [
   {
     label: 'Coach',
     title: 'Keep the loop moving',
-    copy: 'Your coach can assign work, review evidence, and message you from their Coach workspace.',
+    copy: 'Your coach can assign work, review evidence, and message you from Coach Hub.',
   },
 ] as const
 

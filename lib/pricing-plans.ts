@@ -127,9 +127,9 @@ const PRICING_BILLING: Record<PricingPlanId, PricingBillingModel> = {
   league: {
     amountCents: 1499,
     currency: USD,
-    interval: 'month',
-    checkoutMode: 'subscription',
-    quantityMode: 'account',
+    interval: 'season',
+    checkoutMode: 'one_time',
+    quantityMode: 'league',
   },
   full_court: {
     amountCents: 1999,
@@ -149,7 +149,7 @@ function formatUsd(amountCents: number) {
 export function formatPricingBillingLabel(billing: PricingBillingModel) {
   if (billing.amountCents === 0 || billing.interval === 'none') return '$0'
   if (billing.interval === 'month') return `${formatUsd(billing.amountCents)}/month`
-  return `${formatUsd(billing.amountCents)}/season per ${billing.quantityMode}`
+  return `${formatUsd(billing.amountCents)}/season workspace`
 }
 
 export function getPricingBillingCue(planId: PricingPlanId) {

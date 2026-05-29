@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const aboutSource = readFileSync(join(process.cwd(), 'app/about/page.tsx'), 'utf8')
 const faqSource = readFileSync(join(process.cwd(), 'app/faq/page.tsx'), 'utf8')
 const howItWorksSource = readFileSync(join(process.cwd(), 'app/how-it-works/page.tsx'), 'utf8')
+const advertisingSource = readFileSync(join(process.cwd(), 'app/advertising-disclosure/page.tsx'), 'utf8')
 
 describe('public info product story copy', () => {
   it('reuses centralized Data Assist language on explainer pages', () => {
@@ -20,5 +21,35 @@ describe('public info product story copy', () => {
     expect(faqSource).toContain('DATA_ASSIST_STORY.shortCue')
     expect(faqSource).toContain('DATA_ASSIST_STORY.cta')
     expect(howItWorksSource).toContain('DATA_ASSIST_STORY.cta')
+  })
+
+  it('uses public workspace names on the About explainer', () => {
+    expect(aboutSource).toContain('Team Hub and League Office reduce scattered work')
+    expect(aboutSource).toContain('Team Hub,')
+    expect(aboutSource).toContain('and League Office into one place')
+    expect(aboutSource).not.toContain('Captain and League workspaces')
+    expect(aboutSource).not.toContain('League workspaces into one place')
+  })
+
+  it('uses public workspace names on the How It Works explainer', () => {
+    expect(howItWorksSource).toContain('Team Hub and Captain Tools')
+    expect(howItWorksSource).toContain('Team Hub is built around actual weekly operations')
+    expect(howItWorksSource).toContain('League Office is for organizers')
+    expect(howItWorksSource).toContain('matchup context, team pages, or Team Hub')
+    expect(howItWorksSource).not.toContain('Captain workflow')
+    expect(howItWorksSource).not.toContain('team workspaces')
+  })
+
+  it('uses public workspace names on FAQ and advertising pages', () => {
+    expect(faqSource).toContain('Team Hub leads teams')
+    expect(faqSource).toContain('League Office runs seasons')
+    expect(faqSource).toContain('Coach Hub')
+    expect(faqSource).toContain('Tournament Desk')
+    expect(faqSource).not.toContain('Captain leads')
+    expect(faqSource).not.toContain('League operates')
+    expect(faqSource).not.toContain('Captain adds')
+
+    expect(advertisingSource).toContain('Team Hub workflow screens')
+    expect(advertisingSource).not.toContain('captain workflow screens')
   })
 })

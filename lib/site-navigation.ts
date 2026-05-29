@@ -1,5 +1,3 @@
-import { PRODUCT_MODE_LANGUAGE, type ProductModeId } from './product-story'
-
 export type NavItem = {
   href: string
   label: string
@@ -10,23 +8,21 @@ export type NavSection = {
   items: NavItem[]
 }
 
-function modeNavItem(modeId: ProductModeId): NavItem {
-  const mode = PRODUCT_MODE_LANGUAGE[modeId]
-  return { href: mode.route, label: mode.label }
-}
-
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
-  modeNavItem('find'),
-  modeNavItem('you'),
-  modeNavItem('coach'),
-  modeNavItem('team'),
-  modeNavItem('league'),
-  modeNavItem('plans'),
+  { href: '/explore', label: 'Find' },
+  { href: '/matchup', label: 'Prepare' },
+  { href: '/mylab', label: 'Improve' },
+  { href: '/coaches', label: 'Coaches' },
+  { href: '/teams', label: 'Teams' },
+  { href: '/tournaments', label: 'Tournaments' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/resources', label: 'Resources' },
+  { href: '/pricing', label: 'Pricing' },
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
   { href: '/mylab', label: 'Open My Lab' },
-  { href: '/coach', label: 'Coach workspace' },
+  { href: '/coach', label: 'Coach Hub' },
   { href: '/data-assist', label: 'Improve data' },
   { href: '/matchup', label: 'Prep matchup' },
   { href: '/messages', label: 'Review messages' },
@@ -48,7 +44,8 @@ export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
 ]
 
 export const COACH_QUICK_NAV_ITEMS: NavItem[] = [
-  { href: '/coach', label: 'Coach workspace' },
+  { href: '/coaches', label: 'Find coaches' },
+  { href: '/coach', label: 'Coach Hub' },
   { href: '/tactics', label: 'Tactical Studio' },
   { href: '/player-development', label: 'Development paths' },
   { href: '/player-development/relentless-competitor-4-0/coach-planner', label: 'Coach planner' },
@@ -59,6 +56,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     title: 'Start',
     items: [
       { href: '/', label: 'Home' },
+      { href: '/resources', label: 'Resources' },
       { href: '/pricing', label: 'Pricing' },
       { href: '/legal/billing', label: 'Billing' },
       { href: '/messages?compose=support', label: 'Support' },
@@ -67,7 +65,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: PRODUCT_MODE_LANGUAGE.you.label,
+    title: 'Improve',
     items: [
       { href: '/mylab', label: 'Open My Lab' },
       { href: '/data-assist', label: 'Improve data' },
@@ -76,20 +74,22 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: PRODUCT_MODE_LANGUAGE.find.label,
+    title: 'Find',
     items: EXPLORE_NAV_ITEMS,
   },
   {
-    title: PRODUCT_MODE_LANGUAGE.team.label,
+    title: 'Teams',
     items: CAPTAIN_QUICK_NAV_ITEMS,
   },
   {
-    title: PRODUCT_MODE_LANGUAGE.coach.label,
+    title: 'Coaches',
     items: COACH_QUICK_NAV_ITEMS,
   },
   {
-    title: PRODUCT_MODE_LANGUAGE.league.label,
+    title: 'Leagues and tournaments',
     items: [
+      { href: '/leagues', label: 'Find leagues' },
+      { href: '/tournaments', label: 'Find tournaments' },
       { href: '/compete/schedule', label: 'Shared calendar' },
       { href: '/league-coordinator/tournaments', label: 'Build tournament' },
       { href: '/league-coordinator/results', label: 'Team book' },

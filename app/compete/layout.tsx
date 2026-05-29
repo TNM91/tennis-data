@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Compete',
+  title: 'League Office',
   description:
-    'Weekly competition workflow for your active leagues, teams, schedule, and results.',
+    'Operational workspace for active league seasons, team results, player results, schedules, and tournament handoffs.',
+  robots: {
+    index: false,
+    follow: false,
+  },
 }
 
 export default function CompeteLayout({

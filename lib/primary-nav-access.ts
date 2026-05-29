@@ -33,13 +33,14 @@ export function canUsePrimaryNavItem(access: ProductAccessState, href: string) {
 
 export function getPrimaryNavLockedLabel(label: string, requiredPlan: PricingPlanId | null) {
   if (!requiredPlan) return `${label} requires an active plan.`
-  const planName = getMembershipTier(requiredPlan).name
+  const planName = requiredPlan === 'league' ? 'League Office access' : getMembershipTier(requiredPlan).name
   return `${label} requires ${planName}. Create a free account first, then activate ${planName}.`
 }
 
 export function getPrimaryNavLockedTitle(label: string, requiredPlan: PricingPlanId | null) {
   if (!requiredPlan) return `${label} requires an active plan`
-  return `${label} requires ${getMembershipTier(requiredPlan).name}`
+  const planName = requiredPlan === 'league' ? 'League Office access' : getMembershipTier(requiredPlan).name
+  return `${label} requires ${planName}`
 }
 
 export function getPrimaryNavTarget(href: string, access: ProductAccessState, authenticated: boolean) {

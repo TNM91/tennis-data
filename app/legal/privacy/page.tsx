@@ -1,13 +1,17 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
 import { buildSupportMessageHref } from '@/lib/message-links'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildRouteMetadata({
   title: 'Privacy Policy',
   description: 'TenAceIQ privacy policy.',
-}
+  path: '/legal/privacy',
+})
 
 const privacySupportHref = buildSupportMessageHref({
   category: 'account',
@@ -23,6 +27,7 @@ const privacySupportHref = buildSupportMessageHref({
 export default function PrivacyPage() {
   return (
     <SiteShell active="/legal/privacy">
+      <JsonLd id="privacy-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Privacy Policy', '/legal/privacy')} />
       <LegalPage title="Privacy Policy" effectiveDate="April 10, 2026">
         <p>
           TenAceIQ (&quot;TenAceIQ,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) respects your privacy and is

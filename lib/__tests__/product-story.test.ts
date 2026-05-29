@@ -5,6 +5,7 @@ describe('product story guardrails', () => {
   it('keeps Data Assist positioned as reviewed user uploads instead of an API dependency', () => {
     expect(DATA_ASSIST_STORY.body).toContain('uploads')
     expect(DATA_ASSIST_STORY.body).toContain('instead of relying on a direct USTA API')
+    expect(DATA_ASSIST_STORY.href).toBe('/data-assist?intent=upload-source&context=Product%20story')
     expect(DATA_ASSIST_STORY.proof).toContain('Review keeps imported data trustworthy')
     expect(PRODUCT_AVOID_LIST).toContain('Promises that imply direct USTA API dependence')
   })
@@ -12,8 +13,11 @@ describe('product story guardrails', () => {
   it('keeps Free distinct from paid unlock tiers', () => {
     expect(MEMBERSHIP_TIERS.free.description).toContain('public tennis intelligence')
     expect(MEMBERSHIP_TIERS.player_plus.valueProps).toContain('Unlock My Lab')
-    expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player plus the Captain workspace')
+    expect(MEMBERSHIP_TIERS.coach.description).toContain('Use Player plus Coach Hub')
+    expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player plus Team Hub and Captain Tools')
     expect(MEMBERSHIP_TIERS.league.valueProps).toContain('Use Data Assist uploads for schedules, rosters, and official scorecards')
+    expect(MEMBERSHIP_TIERS.full_court.upgradeCue).toContain('Coach Hub, Team Hub, League Office')
+    expect(MEMBERSHIP_TIERS.full_court.description).toContain('unlimited Tournament Desk operations')
   })
 
   it('keeps user-facing mode language mapped to the right formal tiers', () => {
@@ -24,5 +28,6 @@ describe('product story guardrails', () => {
     expect(PRODUCT_MODE_LANGUAGE.team).toMatchObject({ label: 'Team', route: '/captain', planId: 'captain' })
     expect(PRODUCT_MODE_LANGUAGE.league).toMatchObject({ label: 'Leagues', route: '/league-coordinator', planId: 'league' })
     expect(PRODUCT_MODE_LANGUAGE.plans).toMatchObject({ label: 'Pricing', route: '/pricing', planId: null })
+    expect(PRODUCT_MODE_LANGUAGE.plans.cue).toContain('My Lab, Coach Hub, Team Hub, League Office')
   })
 })

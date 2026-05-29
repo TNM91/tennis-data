@@ -35,7 +35,7 @@ export const DATA_ASSIST_STORY = {
     'TenAceIQ uses player, captain, coordinator, and admin uploads instead of relying on a direct USTA API. Upload TennisLink exports for scorecards, schedules, and team summaries, then review before they shape platform intelligence.',
   shortCue: 'Upload TennisLink exports through Data Assist when results, schedules, or rosters need to refresh.',
   cta: 'Open Data Assist',
-  href: '/data-assist',
+  href: '/data-assist?intent=upload-source&context=Product%20story',
   proof: [
     'Scorecard uploads refresh match history',
     'Schedule uploads power weekly planning',
@@ -94,7 +94,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Private coaches, school coaches, and training-group leaders',
     upgradeCue: 'Unlock lesson planning, drill assignments, student tracking, scheduling, and coach-player communication.',
     description:
-      'Use Player plus the Coach workspace for lesson planning, student progress tracking, drill assignments, scheduling, tactical boards, and two-way communication with Player students.',
+      'Use Player plus Coach Hub for lesson planning, student progress tracking, drill assignments, scheduling, tactical boards, and two-way communication with Player students.',
     valueProps: [
       'Plan lessons and practice blocks',
       'Track students and training groups',
@@ -108,9 +108,9 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     name: 'Captain',
     shortPromise: 'Make team decisions with more clarity.',
     audience: 'Captains managing lineups, readiness, and weekly decisions',
-    upgradeCue: 'Add the Captain workspace on top of Player.',
+    upgradeCue: 'Add Team Hub and Captain Tools on top of Player.',
     description:
-      'Use Player plus the Captain workspace for lineups, scouting, team decisions, player readiness, and weekly team flow.',
+      'Use Player plus Team Hub and Captain Tools for lineups, scouting, team decisions, player readiness, and weekly team flow.',
     valueProps: [
       'Build and compare lineups',
       'Scout players and teams',
@@ -140,12 +140,12 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     name: 'Full-Court',
     shortPromise: 'Unlock every TenAceIQ workspace.',
     audience: 'Coaches, captains, clubs, and organizers running the full tennis operation',
-    upgradeCue: 'Unlock Player, Coach, Captain, League, and unlimited tournaments.',
+    upgradeCue: 'Unlock My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations.',
     description:
-      'Use Player, Coach, Captain, League, ladder, and unlimited tournaments in one workspace for the full tennis operation.',
+      'Use My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations in one connected suite.',
     valueProps: [
-      'Everything in Player, Coach, Captain, and League',
-      'Unlimited tournament and event workspaces',
+      'Everything in My Lab, Coach Hub, Team Hub, and League Office',
+      'Unlimited Tournament Desk and event workspaces',
       'Shared scheduling, results, standings, and rankings',
       'Team and player books across the full operation',
       'One workspace for coaches, captains, coordinators, and organizers',
@@ -229,7 +229,7 @@ export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> =
     route: '/pricing',
     planId: null,
     job: 'Choose the right unlock',
-    cue: 'Start free, then activate Player, Coach, Captain, League, or Full-Court when that role saves time.',
+    cue: 'Start free, then activate My Lab, Coach Hub, Team Hub, League Office, or Full-Court when that role saves time.',
   },
 } as const
 
@@ -284,7 +284,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   captain: {
     stage: 'Captain unlock',
     headline: 'Run the team week with more clarity.',
-    copy: 'Use Player features plus the Captain workspace for lineups, scouting, readiness, and weekly team decisions.',
+    copy: 'Use Player features plus Team Hub and Captain Tools for lineups, scouting, readiness, and weekly team decisions.',
     bullets: [
       'Build lineups with less guesswork',
       'Scout players and teams before decisions',
@@ -309,14 +309,14 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   full_court: {
     stage: 'Full-Court unlock',
     headline: 'Run the whole tennis operation.',
-    copy: 'Combine Player, Coach, Captain, League, and unlimited tournaments so teams, lessons, leagues, ladders, and events live in one premium workspace.',
+    copy: 'Combine My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations so teams, lessons, leagues, ladders, and events live in one premium suite.',
     bullets: [
-      'Unlock Player, Coach, Captain, and League together',
-      'Create unlimited tournament workspaces',
+      'Unlock My Lab, Coach Hub, Team Hub, and League Office together',
+      'Create unlimited Tournament Desk workspaces',
       'Keep scheduling, results, rankings, and communication connected',
     ],
     primaryCta: { label: 'Unlock Full-Court', href: '/pricing#full_court' },
-    secondaryCta: { label: 'Open League', href: '/league-coordinator' },
+    secondaryCta: { label: 'Open League Office', href: '/league-coordinator' },
     featuredNote: 'Best for organizers who run more than one tennis job at once.',
   },
 }
@@ -385,7 +385,7 @@ export const CAPTAIN_STORY = {
   eyebrow: 'Captain unlock',
   headline: 'Run the week without chasing answers.',
   body:
-    'See who can play, build the lineup, test the choice, refresh match context through Data Assist, and send the plan from one captain workspace.',
+    'See who can play, build the lineup, test the choice, refresh match context through Data Assist, and send the plan from Team Hub.',
   quickStartKicker: 'Captain weekly flow',
   quickStartTitle: 'Four steps to match day',
   activeTitle: 'Captain keeps this team organized.',
@@ -436,16 +436,16 @@ export const LEAGUE_COORDINATOR_STORY = {
     'Choose team or individual format, name the season, set visibility, then approve participants.',
   upgradeHeadline: 'Ready to run organized competition without spreadsheets?',
   upgradeBody:
-    'TIQ League Coordinator gives organizers one League workspace for approvals, schedules, results, standings, and member clarity.',
-  draftUpgradeHeadline: 'Need this draft to become a real league workspace?',
+    'League Office gives organizers one place for approvals, schedules, results, standings, and member clarity.',
+  draftUpgradeHeadline: 'Need this draft to become a real League Office workspace?',
   draftUpgradeBody:
-    'TIQ League Coordinator turns setup into a season workspace where requests, scheduling, results, and standings stay together.',
+    'League Office turns setup into a season workspace where requests, scheduling, results, and standings stay together.',
   registryTitle: 'Current TIQ league definitions',
   registryBody:
     'Manage the league records that power approvals, uploaded schedules, standings, results, and organizer workflows.',
   finalUpgradeHeadline: 'Ready to run the season without spreadsheet cleanup?',
   finalUpgradeBody:
-    'TIQ League Coordinator turns league records into one cleaner system for scheduling, standings, participation, and league-wide clarity.',
+    'League Office turns league records into one cleaner system for scheduling, standings, participation, and league-wide clarity.',
   cta: 'Unlock League',
 } as const
 

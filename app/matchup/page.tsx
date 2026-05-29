@@ -3,9 +3,11 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
+import { CSSProperties, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import DataTrustPanel from '@/app/components/data-trust-panel'
+import JsonLd from '@/app/components/json-ld'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
@@ -16,7 +18,11 @@ import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { getMatchupStaleSelectionNotice, normalizeMatchupPlayerOptions } from '@/lib/matchup-player-options'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+
+const dataAssistMatchupHref = '/data-assist?intent=request-review&context=Matchup'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -210,6 +216,7 @@ export default function MatchupPage() {
   const [trajectories, setTrajectories] = useState<{ left: Array<{ date: string; rating: number }>; right: Array<{ date: string; rating: number }> }>({ left: [], right: [] })
   const urlReadyRef = useRef(false)
   const profilePrefillAttemptedRef = useRef(false)
+  const previewTrackedRef = useRef('')
   const [accuracy, setAccuracy] = useState<AccuracyState>({
     overall: null,
     high: null,
@@ -222,6 +229,13 @@ export default function MatchupPage() {
 
   useEffect(() => {
     void loadPlayers()
+    void trackProductUsageEvent({
+      eventName: 'matchup_started',
+      surface: 'matchup',
+      metadata: {
+        location: 'matchup_page',
+      },
+    })
   }, [])
 
   useEffect(() => {
@@ -1320,6 +1334,28 @@ export default function MatchupPage() {
     }
   }, [comparison])
 
+  useEffect(() => {
+    if (!comparison || !projection) return
+
+    const matchupKey = matchType === 'singles'
+      ? [playerAId, playerBId].filter(Boolean).join(':')
+      : [teamA1Id, teamA2Id, teamB1Id, teamB2Id].filter(Boolean).join(':')
+    if (!matchupKey || previewTrackedRef.current === `${matchType}:${matchupKey}`) return
+
+    previewTrackedRef.current = `${matchType}:${matchupKey}`
+    void trackProductUsageEvent({
+      eventName: 'matchup_preview_viewed',
+      surface: 'matchup',
+      metadata: {
+        matchType,
+        ratingView,
+        leftLabel: comparison.leftLabel,
+        rightLabel: comparison.rightLabel,
+        confidence: projection.confidenceLabel,
+      },
+    })
+  }, [comparison, matchType, playerAId, playerBId, projection, ratingView, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+
   const handoffState = useMemo(() => {
     if (selectionCount === 0) return null
     const missing = Math.max(selectionTarget - selectionCount, 0)
@@ -1410,6 +1446,7 @@ export default function MatchupPage() {
 
   return (
     <SiteShell active="/matchup">
+      <JsonLd id="matchup-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Matchup', '/matchup')} />
       <section style={contentWrap}>
         <PlayerSuitePanel active="matchup" playerLabel={profileLink?.linked_player_name || 'Player prep'} />
         <article style={controlsCard}>
@@ -1552,6 +1589,17 @@ export default function MatchupPage() {
                 onChange={(value) => {
                   setSelectionNotice('')
                   setPlayerAId(value)
+                  if (value) {
+                    void trackProductUsageEvent({
+                      eventName: 'player_a_selected',
+                      surface: 'matchup',
+                      metadata: {
+                        matchType: 'singles',
+                        playerId: value,
+                        playerName: players.find((player) => player.id === value)?.name ?? '',
+                      },
+                    })
+                  }
                 }}
                 options={availablePlayersForA}
                 disabled={loading}
@@ -1562,6 +1610,17 @@ export default function MatchupPage() {
                 onChange={(value) => {
                   setSelectionNotice('')
                   setPlayerBId(value)
+                  if (value) {
+                    void trackProductUsageEvent({
+                      eventName: 'player_b_selected',
+                      surface: 'matchup',
+                      metadata: {
+                        matchType: 'singles',
+                        playerId: value,
+                        playerName: players.find((player) => player.id === value)?.name ?? '',
+                      },
+                    })
+                  }
                 }}
                 options={availablePlayersForB}
                 disabled={loading}
@@ -1580,6 +1639,17 @@ export default function MatchupPage() {
                     onClick={() => {
                       setSelectionNotice('')
                       setTeamA1Id(profilePlayer.id)
+                      void trackProductUsageEvent({
+                        eventName: 'player_a_selected',
+                        surface: 'matchup',
+                        metadata: {
+                          matchType: 'doubles',
+                          slot: 'teamA1',
+                          playerId: profilePlayer.id,
+                          playerName: profilePlayer.name,
+                          source: 'quick_start',
+                        },
+                      })
                     }}
                     style={quickStartButtonStyle}
                   >
@@ -1594,6 +1664,18 @@ export default function MatchupPage() {
                   onChange={(value) => {
                     setSelectionNotice('')
                     setTeamA1Id(value)
+                    if (value) {
+                      void trackProductUsageEvent({
+                        eventName: 'player_a_selected',
+                        surface: 'matchup',
+                        metadata: {
+                          matchType: 'doubles',
+                          slot: 'teamA1',
+                          playerId: value,
+                          playerName: players.find((player) => player.id === value)?.name ?? '',
+                        },
+                      })
+                    }
                   }}
                   options={availableTeamA1}
                   disabled={loading}
@@ -1604,6 +1686,18 @@ export default function MatchupPage() {
                   onChange={(value) => {
                     setSelectionNotice('')
                     setTeamA2Id(value)
+                    if (value) {
+                      void trackProductUsageEvent({
+                        eventName: 'player_a_selected',
+                        surface: 'matchup',
+                        metadata: {
+                          matchType: 'doubles',
+                          slot: 'teamA2',
+                          playerId: value,
+                          playerName: players.find((player) => player.id === value)?.name ?? '',
+                        },
+                      })
+                    }
                   }}
                   options={availableTeamA2}
                   disabled={loading}
@@ -1614,6 +1708,18 @@ export default function MatchupPage() {
                   onChange={(value) => {
                     setSelectionNotice('')
                     setTeamB1Id(value)
+                    if (value) {
+                      void trackProductUsageEvent({
+                        eventName: 'player_b_selected',
+                        surface: 'matchup',
+                        metadata: {
+                          matchType: 'doubles',
+                          slot: 'teamB1',
+                          playerId: value,
+                          playerName: players.find((player) => player.id === value)?.name ?? '',
+                        },
+                      })
+                    }
                   }}
                   options={availableTeamB1}
                   disabled={loading}
@@ -1624,6 +1730,18 @@ export default function MatchupPage() {
                   onChange={(value) => {
                     setSelectionNotice('')
                     setTeamB2Id(value)
+                    if (value) {
+                      void trackProductUsageEvent({
+                        eventName: 'player_b_selected',
+                        surface: 'matchup',
+                        metadata: {
+                          matchType: 'doubles',
+                          slot: 'teamB2',
+                          playerId: value,
+                          playerName: players.find((player) => player.id === value)?.name ?? '',
+                        },
+                      })
+                    }
                   }}
                   options={availableTeamB2}
                   disabled={loading}
@@ -1673,7 +1791,19 @@ export default function MatchupPage() {
                     <button
                       key={player.id}
                       type="button"
-                      onClick={() => setPlayerBId(player.id)}
+                      onClick={() => {
+                        setPlayerBId(player.id)
+                        void trackProductUsageEvent({
+                          eventName: 'player_b_selected',
+                          surface: 'matchup',
+                          metadata: {
+                            matchType: 'singles',
+                            playerId: player.id,
+                            playerName: player.name,
+                            source: 'suggestion',
+                          },
+                        })
+                      }}
                       style={suggestionButton}
                     >
                       <span style={suggestionName}>{player.name}</span>
@@ -1696,8 +1826,31 @@ export default function MatchupPage() {
             <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
           </div>
 
+          <DataTrustPanel
+            title="Matchup data trust"
+            body="Matchup reads combine TIQ ratings, public tennis context, reviewed uploads, and recent match evidence when available. Use the edge as a preparation signal, not a guaranteed outcome."
+            signals={[
+              { label: 'Source', value: 'TIQ ratings, public data, reviewed uploads' },
+              { label: 'Freshness', value: 'Refreshes as reviewed matches connect' },
+              { label: 'Confidence', value: 'Limited until enough match context exists' },
+              { label: 'Status', value: 'Report or request review through Data Assist' },
+            ]}
+          />
+
           {authResolved && !access.canUseAdvancedPlayerInsights ? (
-            <div style={{ marginBottom: 16 }}>
+            <div
+              style={{ marginBottom: 16 }}
+              onClickCapture={() => {
+                void trackProductUsageEvent({
+                  eventName: 'matchup_unlock_clicked',
+                  surface: 'matchup',
+                  metadata: {
+                    matchType,
+                    location: 'matchup_upgrade_prompt',
+                  },
+                })
+              }}
+            >
               <UpgradePrompt
                 planId="player_plus"
                 compact
@@ -1718,7 +1871,7 @@ export default function MatchupPage() {
                 <button type="button" onClick={() => void loadPlayers()} style={retryButtonStyle}>
                   Retry matchup load
                 </button>
-                <Link href="/data-assist" style={retryLinkStyle}>
+                <Link href={dataAssistMatchupHref} style={retryLinkStyle}>
                   {DATA_ASSIST_STORY.cta}
                 </Link>
               </div>
@@ -1735,19 +1888,25 @@ export default function MatchupPage() {
           ) : null}
 
           {loading ? (
-            <div style={emptyState}>Loading players...</div>
+            <div style={emptyState}>
+              <DemoMatchupCard />
+              <div style={emptyStateHint}>
+                Search Player A and Player B above. The live player list is refreshing behind this public preview.
+              </div>
+            </div>
           ) : !players.length && !error ? (
             <div style={emptyState}>
-              <div style={emptyStateTitle}>No active players are ready for Matchup.</div>
+              <DemoMatchupCard />
               <div style={emptyStateText}>
-                {DATA_ASSIST_STORY.shortCue} Once reviewed players have ratings, they will appear here for comparison.
+                Matchup can still show the product shape before live data is ready. {DATA_ASSIST_STORY.shortCue} Once reviewed players have ratings, they will appear here for comparison.
               </div>
-              <Link href="/data-assist" style={retryLinkStyle}>
+              <Link href={dataAssistMatchupHref} style={retryLinkStyle}>
                 {DATA_ASSIST_STORY.cta}
               </Link>
             </div>
           ) : !comparison ? (
             <div style={emptyState}>
+              <DemoMatchupCard />
               <div style={emptyStateTitle}>Build the matchup first</div>
               <div style={emptyStateText}>
                 {insufficientDataMessage ||
@@ -1763,6 +1922,9 @@ export default function MatchupPage() {
                   : matchType === 'doubles'
                     ? 'Tip: start with your likely partner on Your side, then test opponent pairings before court time.'
                     : 'Tip: start with your projected court assignment, then use the probability and swing-match signals to decide whether you need a safer or higher-upside option.'}
+              </div>
+              <div style={emptyStateHint}>
+                Free preview: rating gap, recent form signal, and one watch item. Player unlocks full notes, split detail, confidence, upset risk, history, and Save to My Lab.
               </div>
               <button
                 type="button"
@@ -2124,6 +2286,37 @@ export default function MatchupPage() {
   )
 }
 
+function DemoMatchupCard() {
+  return (
+    <article style={demoMatchupCardStyle} aria-label="Sample matchup preview">
+      <div style={demoMatchupTopStyle}>
+        <span style={decisionLabel}>Public demo</span>
+        <strong style={demoMatchupTitleStyle}>You vs Rivera</strong>
+      </div>
+      <div style={demoMetricGridStyle}>
+        <div style={demoMetricStyle}>
+          <span>Rating gap</span>
+          <strong>+0.18</strong>
+        </div>
+        <div style={demoMetricStyle}>
+          <span>Projected edge</span>
+          <strong>63%</strong>
+        </div>
+        <div style={demoMetricStyle}>
+          <span>Confidence</span>
+          <strong>Medium</strong>
+        </div>
+      </div>
+      <p style={emptyStateText}>Watch item: second-serve pressure.</p>
+      <div style={exploreNavRow}>
+        <Link href="/explore/players" style={miniGhostButton}>Compare this player</Link>
+        <Link href="/teams" style={miniGhostButton}>Scout this team</Link>
+        <Link href="/matchup" style={miniGhostButton}>Prep this match</Link>
+      </div>
+    </article>
+  )
+}
+
 function getH2HScoreQuality(score: string | null | undefined): string {
   if (!score) return ''
   if (/\b6-0\b/.test(score) || /\b0-6\b/.test(score)) return 'Dominant'
@@ -2310,21 +2503,29 @@ function SelectField({
   options: Player[]
   disabled: boolean
 }) {
+  const selectId = useId()
+  const [focused, setFocused] = useState(false)
   const hasActiveSelection = !value || options.some((player) => player.id === value)
   const selectedValue = hasActiveSelection ? value : ''
   const placeholder = options.length
     ? hasActiveSelection
       ? 'Select player'
       : 'Selected player unavailable'
-    : 'No active players'
+    : 'Players appear after review'
 
   return (
     <div style={selectFieldStyle}>
-      <label style={inputLabel}>{label}</label>
+      <label htmlFor={selectId} style={inputLabel}>{label}</label>
       <select
+        id={selectId}
         value={selectedValue}
         onChange={(e) => onChange(e.target.value)}
-        style={selectStyle}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          ...selectStyle,
+          ...(focused ? selectFocusStyle : null),
+        }}
         aria-invalid={!hasActiveSelection}
         disabled={disabled}
       >
@@ -2802,8 +3003,15 @@ const selectStyle: CSSProperties = {
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   minWidth: 0,
+}
+
+const selectFocusStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 44%, var(--shell-panel-border) 56%)',
+  outline: '2px solid color-mix(in srgb, var(--brand-green) 48%, transparent)',
+  boxShadow: '0 0 0 5px rgba(155,225,29,0.12), var(--home-control-shadow)',
 }
 
 const errorBanner: CSSProperties = {
@@ -2936,6 +3144,54 @@ const emptyStateHint: CSSProperties = {
   lineHeight: 1.6,
   marginBottom: '14px',
   overflowWrap: 'anywhere',
+}
+
+const demoMatchupCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  marginBottom: '16px',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(116,190,255,0.07)), rgba(7,17,33,0.72)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const demoMatchupTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '10px',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const demoMatchupTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 3vw, 1.7rem)',
+  lineHeight: 1.05,
+  overflowWrap: 'anywhere',
+}
+
+const demoMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const demoMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(5,12,26,0.54)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 850,
+  minWidth: 0,
 }
 
 const resetButton: CSSProperties = {

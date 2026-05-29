@@ -1,0 +1,80 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const source = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'utf8')
+const layoutSource = readFileSync(join(process.cwd(), 'app/data-assist/layout.tsx'), 'utf8')
+const eventsSource = readFileSync(join(process.cwd(), 'lib/product-usage-events.ts'), 'utf8')
+
+describe('Data Assist trust engine', () => {
+  it('positions Data Assist as the public data-quality workflow', () => {
+    expect(source).toContain('Fix Data / Data Assist')
+    expect(source).toContain("import { buildSupportMessageHref } from '@/lib/message-links'")
+    expect(source).toContain('Help keep TenAceIQ accurate.')
+    expect(source).toContain('Upload scorecards, schedules, rosters, team summaries, and corrections.')
+    expect(source).toContain('Reviewed data can improve player profiles')
+    expect(source).toContain('team pages, and Team Hub')
+    expect(source).not.toContain('Captain workspaces')
+    expect(layoutSource).toContain('buildRouteMetadata')
+    expect(layoutSource).toContain("path: '/data-assist'")
+    expect(layoutSource).toContain('Fix tennis data with reviewed scorecard')
+  })
+
+  it('shows source, freshness, confidence, status, and review actions', () => {
+    expect(source).toContain('USTA / TIQ / user upload / admin reviewed / public data')
+    expect(source).toContain('Updated today / last refreshed / pending review')
+    expect(source).toContain('High / medium / limited')
+    expect(source).toContain('Verified / needs review / imported / disputed')
+    expect(source).toContain('Upload source')
+    expect(source).toContain('Report issue')
+    expect(source).toContain('Request review')
+    expect(source).toContain('League Office results')
+    expect(source).toContain('Open League Office')
+    expect(source).not.toContain('Coordinator results')
+    expect(source).not.toContain('Open Coordinator')
+    expect(source).toContain('id="history"')
+  })
+
+  it('acknowledges review/report URL intents from public trust links', () => {
+    expect(source).toContain("import { useSearchParams } from 'next/navigation'")
+    expect(source).toContain("type DataAssistIntent = 'upload-source' | 'report-issue' | 'request-review'")
+    expect(source).toContain('function getDataAssistIntent')
+    expect(source).toContain('function getDataAssistContext')
+    expect(source).toContain('function getDataAssistQuery')
+    expect(source).toContain('function buildDataAssistIssueHref')
+    expect(source).toContain("subject: context ? `Data issue: ${context}` : 'Data issue'")
+    expect(source).toContain('Source context: ${context}')
+    expect(source).toContain('Search phrase: ${query}')
+    expect(source).toContain("const intent = getDataAssistIntent(searchParams.get('intent'))")
+    expect(source).toContain("const intentContext = getDataAssistContext(searchParams.get('context'))")
+    expect(source).toContain("const intentQuery = getDataAssistQuery(searchParams.get('q'))")
+    expect(source).toContain('DataAssistIntentPanel')
+    expect(source).toContain('Add the source behind this tennis read.')
+    expect(source).toContain('Tell TenAceIQ what looks wrong.')
+    expect(source).toContain('Send a source for review.')
+    expect(source).toContain("metadata: intent || intentContext || intentQuery ? { intent, context: intentContext, query: intentQuery } : undefined")
+    expect(source).toContain('From: {context}')
+    expect(source).toContain('Search: {query}')
+    expect(source).toContain("location: 'data_assist_intent_panel'")
+  })
+
+  it('keeps intent panel layout mobile-safe', () => {
+    expect(source).toContain('const intentPanelStyle: CSSProperties')
+    expect(source).toContain('const intentContextStyle: CSSProperties')
+    expect(source).toContain('const intentActionRowStyle: CSSProperties')
+    expect(source).toContain("flexWrap: 'wrap'")
+    expect(source).toContain("overflowWrap: 'anywhere'")
+  })
+
+  it('tracks Data Assist discovery, upload choices, upload starts, and reports', () => {
+    expect(eventsSource).toContain("'data_assist_opened'")
+    expect(eventsSource).toContain("'upload_type_selected'")
+    expect(eventsSource).toContain("'scorecard_upload_started'")
+    expect(eventsSource).toContain("'schedule_upload_started'")
+    expect(eventsSource).toContain("'team_summary_upload_started'")
+    expect(eventsSource).toContain("'data_issue_reported'")
+    expect(source).toContain("eventName: 'upload_type_selected'")
+    expect(source).toContain("eventName: 'data_assist_opened'")
+    expect(source).toContain("eventName: 'data_issue_reported'")
+  })
+})

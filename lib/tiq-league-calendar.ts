@@ -110,7 +110,7 @@ export function buildTiqLeagueSchedulingPlanRows(input: TiqLeagueCalendarInput):
       mode,
       label: row.date || 'Set start date',
       meta: [row.time || 'Time TBD', row.site || 'Site TBD'].join(' | '),
-      action: 'Coordinator publishes',
+      action: 'League Office publishes',
       windowStart: row.date,
       windowEnd: row.date,
     }

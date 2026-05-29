@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
@@ -18,6 +19,7 @@ import {
   surfaceCardStrong,
 } from '@/lib/design-system'
 import { buildExploreLeagueHref, getCompetitionLayerLabel } from '@/lib/competition-layers'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -143,6 +145,7 @@ function buildTeamKey(team: string, league: string | null, flight: string | null
 export default function ExploreSearchPage() {
   return (
     <SiteShell active="explore">
+      <JsonLd id="explore-search-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Search', '/explore/search')} />
       <ExploreSearchContent />
     </SiteShell>
   )

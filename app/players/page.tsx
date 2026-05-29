@@ -4,9 +4,12 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import DataTrustPanel from '@/app/components/data-trust-panel'
 import FollowButton from '@/app/components/follow-button'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
@@ -138,6 +141,7 @@ export default function PlayersPage() {
   const [flightFilter, setFlightFilter] = useState<FlightFilter>('all')
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const [searchFocused, setSearchFocused] = useState(false)
+  const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
   const [browseAll, setBrowseAll] = useState(false)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -401,7 +405,7 @@ export default function PlayersPage() {
 
   const dynamicSearchInput: CSSProperties = {
     ...searchInput,
-    boxShadow: searchFocused ? '0 0 0 2px rgba(64,145,255,0.18)' : 'none',
+    ...(searchFocused ? directoryControlFocusStyle : null),
   }
 
   const dynamicSelectStyle: CSSProperties = {
@@ -410,22 +414,31 @@ export default function PlayersPage() {
     minWidth: isTablet ? 0 : '150px',
   }
 
+  const dynamicSelectWrap: CSSProperties = {
+    display: 'grid',
+    minWidth: isTablet ? 0 : '150px',
+    width: isTablet ? '100%' : 'auto',
+  }
+
   const dynamicSortSelect: CSSProperties = {
     ...dynamicSelectStyle,
     borderColor: sortBy !== 'overall' ? 'rgba(155,225,29,0.42)' : undefined,
     boxShadow: sortBy !== 'overall' ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+    ...(focusedDirectoryControl === 'sort' ? directoryControlFocusStyle : null),
   }
 
   const dynamicFilterSelect: CSSProperties = {
     ...dynamicSelectStyle,
     borderColor: filterBy !== 'all' ? 'rgba(155,225,29,0.42)' : undefined,
     boxShadow: filterBy !== 'all' ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+    ...(focusedDirectoryControl === 'filter' ? directoryControlFocusStyle : null),
   }
 
   const dynamicFlightSelect: CSSProperties = {
     ...dynamicSelectStyle,
     borderColor: flightFilter !== 'all' ? 'rgba(155,225,29,0.42)' : undefined,
     boxShadow: flightFilter !== 'all' ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+    ...(focusedDirectoryControl === 'flight' ? directoryControlFocusStyle : null),
   }
 
   const dynamicSectionHeader: CSSProperties = {
@@ -449,6 +462,7 @@ export default function PlayersPage() {
 
   return (
     <SiteShell active="players">
+      <JsonLd id="players-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Players', '/players')} />
       <section style={playerToolWrap}>
         <div style={dynamicControlsShell}>
           <div aria-hidden="true" style={watermarkStyle} />
@@ -459,12 +473,15 @@ export default function PlayersPage() {
             </div>
             <div style={inlineStatRow}>
               <StatChip label="Players" value={loading ? '-' : String(players.length)} />
-              <StatChip label="Shown" value={loading ? '-' : shouldShowPlayerResults ? String(filteredPlayers.length) : '0'} accent />
+              <StatChip label="Shown" value={loading ? '-' : shouldShowPlayerResults ? String(filteredPlayers.length) : 'Ready'} accent />
             </div>
           </div>
 
           <div style={dynamicControlsRow}>
             <div style={dynamicSearchInputWrap}>
+              <label htmlFor="players-directory-search" style={srOnlyStyle}>
+                Search players by name or location
+              </label>
               <div style={searchIconWrap}>
                 <SearchIcon />
               </div>
@@ -482,47 +499,65 @@ export default function PlayersPage() {
               />
             </div>
 
-            <select
-              id="players-directory-sort"
-              aria-label="Sort player directory"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortKey)}
-              style={dynamicSortSelect}
-            >
-              <option value="overall">Sort: Overall</option>
-              <option value="singles">Sort: Singles</option>
-              <option value="doubles">Sort: Doubles</option>
-              <option value="name">Sort: Name</option>
-            </select>
+            <div style={dynamicSelectWrap}>
+              <label htmlFor="players-directory-sort" style={srOnlyStyle}>
+                Sort player directory
+              </label>
+              <select
+                id="players-directory-sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortKey)}
+                onFocus={() => setFocusedDirectoryControl('sort')}
+                onBlur={() => setFocusedDirectoryControl(null)}
+                style={dynamicSortSelect}
+              >
+                <option value="overall">Sort: Overall</option>
+                <option value="singles">Sort: Singles</option>
+                <option value="doubles">Sort: Doubles</option>
+                <option value="name">Sort: Name</option>
+              </select>
+            </div>
 
-            <select
-              id="players-directory-filter"
-              aria-label="Filter player directory"
-              value={filterBy}
-              onChange={(e) => setFilterBy(e.target.value as FilterKey)}
-              style={dynamicFilterSelect}
-            >
-              <option value="all">All players</option>
-              <option value="with-matches">With matches</option>
-              <option value="high-rated">4.0+ overall</option>
-              <option value="trending-up">Trending up</option>
-              <option value="at-risk">At risk</option>
-            </select>
+            <div style={dynamicSelectWrap}>
+              <label htmlFor="players-directory-filter" style={srOnlyStyle}>
+                Filter player directory
+              </label>
+              <select
+                id="players-directory-filter"
+                value={filterBy}
+                onChange={(e) => setFilterBy(e.target.value as FilterKey)}
+                onFocus={() => setFocusedDirectoryControl('filter')}
+                onBlur={() => setFocusedDirectoryControl(null)}
+                style={dynamicFilterSelect}
+              >
+                <option value="all">All players</option>
+                <option value="with-matches">With matches</option>
+                <option value="high-rated">4.0+ overall</option>
+                <option value="trending-up">Trending up</option>
+                <option value="at-risk">At risk</option>
+              </select>
+            </div>
 
-            <select
-              id="players-directory-flight"
-              aria-label="Filter by league flight / NTRP level"
-              value={flightFilter}
-              onChange={(e) => setFlightFilter(e.target.value as FlightFilter)}
-              style={dynamicFlightSelect}
-            >
-              <option value="all">All levels</option>
-              <option value="2.5">2.5</option>
-              <option value="3.0">3.0</option>
-              <option value="3.5">3.5</option>
-              <option value="4.0">4.0</option>
-              <option value="4.5+">4.5+</option>
-            </select>
+            <div style={dynamicSelectWrap}>
+              <label htmlFor="players-directory-flight" style={srOnlyStyle}>
+                Filter by league flight or NTRP level
+              </label>
+              <select
+                id="players-directory-flight"
+                value={flightFilter}
+                onChange={(e) => setFlightFilter(e.target.value as FlightFilter)}
+                onFocus={() => setFocusedDirectoryControl('flight')}
+                onBlur={() => setFocusedDirectoryControl(null)}
+                style={dynamicFlightSelect}
+              >
+                <option value="all">All levels</option>
+                <option value="2.5">2.5</option>
+                <option value="3.0">3.0</option>
+                <option value="3.5">3.5</option>
+                <option value="4.0">4.0</option>
+                <option value="4.5+">4.5+</option>
+              </select>
+            </div>
           </div>
 
           <div id="players-directory-helper" style={controlsHelperText}>
@@ -636,7 +671,7 @@ export default function PlayersPage() {
 
         {loading ? (
           <div style={loadingCard}>
-            <div style={sectionKicker}>Directory loading</div>
+            <div style={sectionKicker}>Player discovery</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 800, color: '#f8fbff' }}>
               <span
                 style={{
@@ -649,11 +684,20 @@ export default function PlayersPage() {
                   animation: 'tenaceiq-spin 0.7s linear infinite',
                 }}
               />
-              Loading player directory...
+              Start with a player search.
             </div>
             <p style={emptyStateText}>
-              Building a cleaner scouting board from current player, rating, and match data.
+              Try a name, city, team, league, or rating level. The reviewed player layer is refreshing behind this starter view.
             </p>
+            <DataTrustPanel
+              title="Player data trust"
+              signals={[
+                { label: 'Source', value: 'Public records, TIQ context, Data Assist' },
+                { label: 'Freshness', value: 'Last refresh shown on profiles' },
+                { label: 'Confidence', value: 'Based on verified match volume' },
+                { label: 'Status', value: 'Corrections reviewable' },
+              ]}
+            />
           </div>
         ) : !shouldShowPlayerResults ? (
           <div style={findStartPanelStyle}>
@@ -699,6 +743,10 @@ export default function PlayersPage() {
             <p style={emptyStateText}>
               Public discovery only shows reviewed player context. Try a broader name or location search, reset the filters, or refresh roster and scorecard context through Data Assist.
             </p>
+            <DataTrustPanel
+              title="Why a player may be missing"
+              body="Player records appear after reviewed match, roster, or profile context is available. Data Assist is the fastest path for scorecards, team summaries, and corrections."
+            />
             <div style={emptyStateActionRow}>
               <button
                 type="button"
@@ -1089,7 +1137,8 @@ const searchInput: CSSProperties = {
   color: 'var(--foreground-strong)',
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   boxShadow: 'var(--home-control-shadow)',
 }
 
@@ -1102,8 +1151,27 @@ const selectStyle: CSSProperties = {
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   boxShadow: 'var(--home-control-shadow)',
+}
+
+const directoryControlFocusStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 44%, var(--shell-panel-border) 56%)',
+  outline: '2px solid color-mix(in srgb, var(--brand-green) 48%, transparent)',
+  boxShadow: '0 0 0 5px rgba(155,225,29,0.12), var(--home-control-shadow)',
+}
+
+const srOnlyStyle: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
 }
 
 const controlsHelperText: CSSProperties = {

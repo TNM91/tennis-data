@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
 import {
@@ -10,15 +11,19 @@ import {
   MONTHLY_SUBSCRIPTION_POLICY,
 } from '@/lib/billing-policy'
 import { SUPPORT_THREAD_ASSURANCE } from '@/lib/message-links'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildRouteMetadata({
   title: 'Billing and Refund Policy',
   description: 'TenAceIQ billing, cancellation, refund, and league season policy.',
-}
+  path: '/legal/billing',
+})
 
 export default function BillingPolicyPage() {
   return (
     <SiteShell active="/legal/billing">
+      <JsonLd id="billing-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Billing and Refund Policy', '/legal/billing')} />
       <LegalPage title="Billing and Refund Policy" effectiveDate="May 6, 2026">
         <p>
           This policy explains how paid TenAceIQ plans, cancellations, refunds, and league

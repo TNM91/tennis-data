@@ -26,7 +26,7 @@ describe('compete leagues readiness', () => {
     const source = readFileSync(join(process.cwd(), 'app/compete/leagues/page.tsx'), 'utf8')
 
     expect(source).toContain('function EmptyLeagueSection')
-    expect(source).toContain('Team seasons start in the league workspace.')
+    expect(source).toContain('Team seasons start in League Office.')
     expect(source).toContain('Individual play starts with a league room.')
     expect(source).toContain('Create league')
     expect(source).toContain('Browse leagues')

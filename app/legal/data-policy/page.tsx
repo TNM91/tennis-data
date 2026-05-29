@@ -1,13 +1,17 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
 import { buildSupportMessageHref } from '@/lib/message-links'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildRouteMetadata({
   title: 'Data Policy',
   description: 'TenAceIQ data source and fair use policy.',
-}
+  path: '/legal/data-policy',
+})
 
 const dataSupportHref = buildSupportMessageHref({
   category: 'data',
@@ -24,6 +28,7 @@ const dataSupportHref = buildSupportMessageHref({
 export default function DataPolicyPage() {
   return (
     <SiteShell active="/legal/data-policy">
+      <JsonLd id="data-policy-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Data Policy', '/legal/data-policy')} />
       <LegalPage title="Data Source & Fair Use Policy" effectiveDate="April 10, 2026">
         <p>
           TenAceIQ uses, organizes, and analyzes tennis-related information in order to deliver

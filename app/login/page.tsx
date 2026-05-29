@@ -31,15 +31,15 @@ const LOGIN_INTENT_COPY: Record<MembershipTierId, {
   },
   coach: {
     eyebrow: 'Coach path',
-    destination: 'Coach workspace',
+    destination: 'Coach Hub',
   },
   captain: {
     eyebrow: 'Team path',
-    destination: 'Captain workspace',
+    destination: 'Team Hub',
   },
   league: {
     eyebrow: 'League path',
-    destination: 'League desk',
+    destination: 'League Office',
   },
   full_court: {
     eyebrow: 'Full-Court path',

@@ -4,7 +4,7 @@ import { buildRouteMetadata } from '@/lib/route-metadata'
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Teams',
   description:
-    'Explore team rosters, recent match results, and roster depth ratings across USTA and TIQ leagues on TenAceIQ.',
+    'Team tennis without the group-text chaos. Find teams, follow rosters, scout opponents, and open Captain Tools for match week.',
   path: '/teams',
 })
 

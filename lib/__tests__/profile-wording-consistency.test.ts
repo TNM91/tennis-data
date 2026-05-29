@@ -26,15 +26,13 @@ describe('profile wording consistency', () => {
     expect(captain).not.toContain('Link profile</Link>')
   })
 
-  it('keeps Matchup, Pricing, and Upgrade on set-profile language', () => {
+  it('keeps Matchup, Upgrade, and league fallbacks on set-profile language', () => {
     const matchup = source('app/matchup/page.tsx')
-    const pricing = source('app/pricing/page.tsx')
     const upgrade = source('app/upgrade/page.tsx')
     const tiqLeague = source('app/explore/leagues/tiq/[league]/page.tsx')
 
     expect(matchup).toContain('Set your profile before running your own matchups.')
     expect(matchup).not.toContain('Improve profile')
-    expect(pricing).toContain("title: 'Set profile'")
     expect(upgrade).toContain("secondaryAction: 'Set profile'")
     expect(upgrade).toContain("'Set profile'")
     expect(tiqLeague).toContain('Player profile needed')

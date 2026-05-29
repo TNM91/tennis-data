@@ -1,17 +1,22 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
 import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildRouteMetadata({
   title: 'Terms of Service',
   description: 'TenAceIQ terms of service.',
-}
+  path: '/legal/terms',
+})
 
 export default function TermsPage() {
   return (
     <SiteShell active="/legal/terms">
+      <JsonLd id="terms-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Terms of Service', '/legal/terms')} />
       <LegalPage title="Terms of Service" effectiveDate="April 10, 2026">
         <p>
           These Terms of Service govern your access to and use of TenAceIQ. By using the
@@ -86,8 +91,8 @@ export default function TermsPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>8. Paid plans, billing, and refunds</h2>
           <p>
-            Paid Player, Coach, and Captain plans are monthly subscriptions that renew until canceled.
-            TIQ League Coordinator season fees cover one bounded league season.
+            Paid Player, Coach, Captain, and Full-Court plans are monthly subscriptions that renew until canceled.
+            League Office season fees cover one bounded league, ladder, or tournament season.
           </p>
           <p>
             Billing, cancellation, refund, and league season rules are described in the{' '}

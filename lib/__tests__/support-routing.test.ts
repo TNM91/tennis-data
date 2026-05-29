@@ -42,7 +42,7 @@ describe('internal support routing', () => {
     expect(`${contactSource}\n${billingSource}\n${pricingSource}`).toContain('SUPPORT_THREAD_ASSURANCE')
     expect(pricingSource).toContain('BILLING_SUPPORT_PATH')
     expect(pricingSource).toContain('Open support thread')
-    expect(pricingSource).toContain('billingPolicyActionRowStyle')
+    expect(pricingSource).toContain('heroActionRowStyle')
   })
 
   it('keeps contact and legal data requests routed to categorized support threads', () => {

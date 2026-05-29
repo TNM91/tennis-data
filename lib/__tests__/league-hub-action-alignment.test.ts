@@ -5,13 +5,20 @@ import { describe, expect, it } from 'vitest'
 describe('League hub action alignment', () => {
   it('keeps the League hub and footer aligned with the portal action dock', () => {
     const compete = readFileSync(join(process.cwd(), 'app/compete/page.tsx'), 'utf8')
+    const competeLayout = readFileSync(join(process.cwd(), 'app/compete/layout.tsx'), 'utf8')
+    const competeFrame = readFileSync(join(process.cwd(), 'app/compete/_components/compete-page-frame.tsx'), 'utf8')
     const footerNav = readFileSync(join(process.cwd(), 'lib/site-navigation.ts'), 'utf8')
 
+    expect(competeLayout).toContain("title: 'League Office'")
+    expect(competeLayout).toContain('index: false')
+    expect(competeFrame).toContain("value: 'League Office'")
+    expect(competeFrame).toContain('<SiteShell active="/leagues">')
+    expect(compete).toContain('eyebrow="League Office"')
     expect(compete).toContain('Shared calendar')
     expect(compete).toContain('Build tournament')
     expect(compete).toContain('Team book')
     expect(compete).toContain('Player book')
-    expect(compete).toContain('Shared calendar, tournaments, team results, and player results')
+    expect(compete).toContain('Shared calendar, tournaments, team results, and player results stay in one League Office lane.')
     expect(compete).not.toContain('title="My leagues"')
 
     expect(footerNav).toContain("{ href: '/league-coordinator/tournaments', label: 'Build tournament' }")
@@ -31,12 +38,13 @@ describe('League hub action alignment', () => {
   it('keeps the deeper League directory supportive instead of acting like another command hub', () => {
     const leagueDirectory = readFileSync(join(process.cwd(), 'app/compete/leagues/page.tsx'), 'utf8')
 
-    expect(leagueDirectory).toContain('eyebrow="League directory"')
+    expect(leagueDirectory).toContain('eyebrow="League Office directory"')
     expect(leagueDirectory).toContain('title="Open the right league room."')
-    expect(leagueDirectory).toContain('title="League workspace"')
+    expect(leagueDirectory).toContain('title="League Office"')
     expect(leagueDirectory).toContain('title="Browse leagues"')
     expect(leagueDirectory).toContain('title="Improve league data"')
     expect(leagueDirectory).toContain('title="Team week"')
+    expect(leagueDirectory).toContain('Open League Office')
     expect(leagueDirectory).not.toContain('eyebrow="My Leagues"')
     expect(leagueDirectory).not.toContain('title="TIQ League Coordinator"')
     expect(leagueDirectory).not.toContain('title="Captain Command Center"')

@@ -186,7 +186,7 @@ function formatEventName(value: string) {
 function formatPlanLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'Player'
   if (planId === 'captain') return 'Captain'
-  if (planId === 'league') return 'Coordinator'
+  if (planId === 'league') return 'League Office'
   return 'Free'
 }
 

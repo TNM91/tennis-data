@@ -6,6 +6,7 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import DataTrustPanel from '@/app/components/data-trust-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -562,6 +563,7 @@ function PlayerProfileContent() {
   const [showAllHovered, setShowAllHovered] = useState(false)
   const [hoveredMatchRow, setHoveredMatchRow] = useState<string | null>(null)
   const [matchSearch, setMatchSearch] = useState('')
+  const [matchSearchFocused, setMatchSearchFocused] = useState(false)
   const matchSearchedMatches = useMemo(() => {
     const q = matchSearch.trim().toLowerCase()
     if (!q) return filteredMatches
@@ -1327,6 +1329,17 @@ function PlayerProfileContent() {
       </section>
 
       <section style={contentWrap}>
+        <DataTrustPanel
+          title="Player data trust"
+          body="Player profiles combine public player records, TIQ ratings, reviewed scorecards, team summaries, and tournament awards when available. Use Data Assist when a rating, match, team, or award needs review."
+          signals={[
+            { label: 'Source', value: 'Player records, scorecards, teams, awards' },
+            { label: 'Freshness', value: stalenessLabel || 'Updates as reviewed data connects' },
+            { label: 'Confidence', value: `${confidence} from ${totalMatches} tracked matches` },
+            { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+          ]}
+        />
+
         <article style={scorecardPanelStyle} id="profile-scorecard">
           <div style={scorecardMainStyle}>
             <div style={scorecardHeaderStyle}>
@@ -1947,7 +1960,7 @@ function PlayerProfileContent() {
                     <MiniLink href={`/explore/leagues/tiq/${encodeURIComponent(entry.leagueId)}?league_id=${encodeURIComponent(entry.leagueId)}`}>
                       Open league
                     </MiniLink>
-                    <MiniLink href="/compete">Compete</MiniLink>
+                    <MiniLink href="/leagues">Leagues</MiniLink>
                   </div>
                 </div>
               ))}
@@ -2100,8 +2113,14 @@ function PlayerProfileContent() {
                   type="text"
                   value={matchSearch}
                   onChange={(e) => { setMatchSearch(e.target.value); setShowAllMatches(true) }}
+                  onFocus={() => setMatchSearchFocused(true)}
+                  onBlur={() => setMatchSearchFocused(false)}
+                  aria-label="Search latest match history"
                   placeholder="Search opponent, score…"
-                  style={matchSearchInputStyle}
+                  style={{
+                    ...matchSearchInputStyle,
+                    ...(matchSearchFocused ? matchSearchInputFocusStyle : null),
+                  }}
                 />
                 {matchSearch ? (
                   <button type="button" onClick={() => setMatchSearch('')} style={{ ...showAllButton, padding: '0 10px', fontSize: 12 }}>Clear</button>
@@ -4343,7 +4362,14 @@ const matchSearchInputStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: 13,
   fontWeight: 600,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
+}
+
+const matchSearchInputFocusStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.45)',
+  outline: '2px solid rgba(155,225,29,0.42)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.12)',
 }
 
 const rivalryListStyle: CSSProperties = {

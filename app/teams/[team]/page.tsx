@@ -20,6 +20,7 @@ import {
   type TiqTeamParticipationRecord,
 } from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
+import DataTrustPanel from '@/app/components/data-trust-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
@@ -1369,6 +1370,17 @@ function TeamPageContent() {
           </div>
         </section>
 
+        <DataTrustPanel
+          title="Team data trust"
+          body="Team pages combine reviewed team summaries, scorecards, TIQ league entries, and public tennis context when available. Use Data Assist when a roster, result, or team identity needs review."
+          signals={[
+            { label: 'Source', value: 'Team summaries, scorecards, TIQ league entries' },
+            { label: 'Freshness', value: 'Updates as reviewed uploads connect' },
+            { label: 'Confidence', value: 'Higher when scorecards and roster context agree' },
+            { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+          ]}
+        />
+
         {error ? (
           <section style={surfaceCard}>
             <h2 style={sectionTitle}>Team page unavailable</h2>
@@ -1383,7 +1395,7 @@ function TeamPageContent() {
           <section style={surfaceCard}>
             <h2 style={sectionTitle}>No reviewed scorecards yet</h2>
             <p style={bodyText}>
-              This team can exist from a reviewed team summary before results arrive. Use the roster and Captain workspace now,
+              This team can exist from a reviewed team summary before results arrive. Use the roster and Team Hub now,
               then reviewed Data Assist scorecards will enrich match history, records, and player usage.
             </p>
             <div style={dynamicHeroActions}>

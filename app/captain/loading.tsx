@@ -3,7 +3,7 @@
 export default function Loading() {
   return (
     <RouteLoadingShell
-      label="Loading Captain workspace..."
+      label="Preparing Team Hub..."
       detail="Checking team scope, availability, lineup context, and match-week notes."
       pattern="workflow"
     />

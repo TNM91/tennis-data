@@ -127,7 +127,7 @@ const adminTools: AdminTool[] = [
     title: 'Access Control',
     href: '/admin/access',
     description:
-      'Manage Player, Coach, Captain, and TIQ league entitlement flags so monetization and league access stay explicit instead of being inferred only from role names.',
+      'Manage Player, Coach, Captain, and League Office entitlement flags so monetization and league access stay explicit instead of being inferred only from role names.',
     badge: 'Access',
     accent: 'blue',
     icon: 'accountSecurity',
@@ -304,7 +304,7 @@ export default function AdminDashboardPage() {
               />
               <MiniPanel
                 title="Access + Monetization"
-                text="Use Access Control when Coach, Captain, and TIQ league permissions need explicit profile-level updates."
+                text="Use Access Control when Coach, Captain, and League Office permissions need explicit profile-level updates."
                 tone="slate"
               />
             </div>

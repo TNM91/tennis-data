@@ -982,7 +982,7 @@ export default function TournamentBuilderWorkspace() {
     <section style={heroStyle}>
       <span aria-hidden="true" style={watermarkStyle} />
       <div style={heroCopyStyle}>
-        <div style={eyebrowStyle}>Tournament Builder</div>
+        <div style={eyebrowStyle}>Tournament Desk</div>
         <h1 style={titleStyle}>Build the draw. Publish the path.</h1>
         <p style={textStyle}>
           Create player or team tournaments, seed the field, preview the draw, then move into scheduling and score entry.
@@ -1022,13 +1022,13 @@ export default function TournamentBuilderWorkspace() {
 
         <UpgradePrompt
           planId="full_court"
-          headline="Unlock Tournament Builder with Full-Court"
+          headline="Unlock Tournament Desk with Full-Court"
           body="Unlimited tournament rooms, shared schedules, entrant profiles, awards, and alerts live inside Full-Court."
           ctaLabel="Unlock Full-Court"
           compact
         />
 
-        <section style={lockedPreviewStyle} aria-label="Tournament Builder preview">
+        <section style={lockedPreviewStyle} aria-label="Tournament Desk preview">
           <div style={lockedPreviewHeaderStyle}>
             <div>
               <div style={sectionEyebrowStyle}>Full-Court preview</div>

@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
+import { useSearchParams } from 'next/navigation'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
@@ -31,7 +33,10 @@ import { detectDataAssistExportType } from '@/lib/data-assist-export-detection'
 import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { buildSupportMessageHref } from '@/lib/message-links'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
 const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
@@ -46,6 +51,13 @@ const emptyHistoryActions = [
   { href: '/data-assist#upload', label: 'Upload first file' },
   { href: '/mylab', label: 'Open My Lab' },
   { href: '/profile', label: 'Check profile' },
+] as const
+
+const dataAssistTrustSignals = [
+  { label: 'Source', value: 'USTA / TIQ / user upload / admin reviewed / public data' },
+  { label: 'Freshness', value: 'Updated today / last refreshed / pending review' },
+  { label: 'Confidence', value: 'High / medium / limited' },
+  { label: 'Status', value: 'Verified / needs review / imported / disputed' },
 ] as const
 
 const importTypes: Array<{
@@ -93,9 +105,40 @@ type BulkScorecardResult = {
   matchup: string
 }
 
+type DataAssistIntent = 'upload-source' | 'report-issue' | 'request-review'
+
+function getDataAssistIntent(value: string | null): DataAssistIntent | null {
+  if (value === 'upload-source' || value === 'report-issue' || value === 'request-review') return value
+  return null
+}
+
+function getDataAssistContext(value: string | null): string {
+  return (value || '').trim().slice(0, 80)
+}
+
+function getDataAssistQuery(value: string | null): string {
+  return (value || '').trim().slice(0, 120)
+}
+
+function buildDataAssistIssueHref(context = '', query = '') {
+  const details = [
+    context ? `Source context: ${context}` : '',
+    query ? `Search phrase: ${query}` : '',
+  ].filter(Boolean)
+
+  return buildSupportMessageHref({
+    category: 'data',
+    subject: context ? `Data issue: ${context}` : 'Data issue',
+    body: details.length
+      ? `Please review this TenAceIQ data issue.\n\n${details.join('\n')}\n\nWhat looks wrong: `
+      : 'Please review this TenAceIQ data issue.\n\nWhat looks wrong: ',
+  })
+}
+
 export default function DataAssistPage() {
   return (
     <SiteShell active="/data-assist">
+      <JsonLd id="data-assist-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Data Assist', '/data-assist')} />
       <DataAssistWorkspace />
     </SiteShell>
   )
@@ -103,7 +146,11 @@ export default function DataAssistPage() {
 
 function DataAssistWorkspace() {
   const { userId, authResolved } = useAuth()
+  const searchParams = useSearchParams()
   const { isTablet, isMobile } = useViewportBreakpoints()
+  const intent = getDataAssistIntent(searchParams.get('intent'))
+  const intentContext = getDataAssistContext(searchParams.get('context'))
+  const intentQuery = getDataAssistQuery(searchParams.get('q'))
   const [importType, setImportType] = useState<DataAssistImportType>('scorecard')
   const [summary, setSummary] = useState<DataAssistBatchSummary | null>(null)
   const [preparing, setPreparing] = useState(false)
@@ -158,6 +205,13 @@ function DataAssistWorkspace() {
   }
 
   function updateImportType(nextType: DataAssistImportType) {
+    void trackProductUsageEvent({
+      eventName: 'upload_type_selected',
+      surface: 'data_assist',
+      metadata: {
+        importType: nextType,
+      },
+    })
     setImportType(nextType)
     setSummary((current) => current ? summarizeDataAssistBatch(nextType, current.screenshots) : null)
     setSavedBatchId('')
@@ -192,6 +246,14 @@ function DataAssistWorkspace() {
     void refreshSubmissions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authResolved, userId])
+
+  useEffect(() => {
+    void trackProductUsageEvent({
+      eventName: 'data_assist_opened',
+      surface: 'data_assist',
+      metadata: intent || intentContext || intentQuery ? { intent, context: intentContext, query: intentQuery } : undefined,
+    })
+  }, [intent, intentContext, intentQuery])
 
   useEffect(() => {
     if (!latestScan) return
@@ -247,6 +309,20 @@ function DataAssistWorkspace() {
       return
     }
     const changedType = detected.importType !== importType
+    void trackProductUsageEvent({
+      eventName: detected.importType === 'schedule'
+        ? 'schedule_upload_started'
+        : detected.importType === 'team_summary'
+          ? 'team_summary_upload_started'
+          : 'scorecard_upload_started',
+      surface: 'data_assist',
+      metadata: {
+        importType: detected.importType,
+        fileCount: files.length,
+        mixed: detected.mixed,
+        changedType,
+      },
+    })
     setImportType(detected.importType)
     if (files.length > 1) {
       setPreparing(false)
@@ -651,6 +727,7 @@ function DataAssistWorkspace() {
       </section>
       {!showOrderStep && message ? <div style={successStyle}>{message}</div> : null}
       {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
+      {intent ? <DataAssistIntentPanel intent={intent} context={intentContext} query={intentQuery} /> : null}
       {showBulkScorecardResults ? (
         <BulkScorecardResultsPanel
           results={bulkScorecardResults}
@@ -661,6 +738,8 @@ function DataAssistWorkspace() {
       <section style={workspaceStyle()}>
         {showUploadStep ? (
           <section id="upload" style={panelStyle}>
+            <DataAssistTrustEnginePanel />
+
             <div style={sectionHeaderStyle}>
               <div style={headerCopyStyle}>
                 <StepBadge step={1} label="Select type" />
@@ -931,6 +1010,110 @@ function DataAssistWorkspace() {
         onDeleteAllDrafts={() => void deleteAllDraftSubmissions()}
       />
       ) : null}
+    </section>
+  )
+}
+
+function DataAssistTrustEnginePanel() {
+  return (
+    <section style={trustEnginePanelStyle} aria-labelledby="data-assist-trust-title">
+      <div style={trustEngineCopyStyle}>
+        <span style={trustEngineEyebrowStyle}>Fix Data / Data Assist</span>
+        <h2 id="data-assist-trust-title" style={trustEngineTitleStyle}>Help keep TenAceIQ accurate.</h2>
+        <p style={copyStyle}>
+          Upload scorecards, schedules, rosters, team summaries, and corrections. Reviewed data can improve player profiles,
+          teams, leagues, rankings, matchup reads, and My Lab.
+        </p>
+      </div>
+      <div style={trustSignalGridStyle} aria-label="Data quality signals">
+        {dataAssistTrustSignals.map((signal) => (
+          <div key={signal.label} style={trustSignalCardStyle}>
+            <span>{signal.label}</span>
+            <strong>{signal.value}</strong>
+          </div>
+        ))}
+      </div>
+      <div style={trustActionRowStyle} aria-label="Data quality actions">
+        <a href="#upload" style={primaryButtonStyle}>
+          Upload source
+        </a>
+        <Link
+          href={buildDataAssistIssueHref()}
+          style={secondaryButtonStyle}
+          onClick={() => {
+            void trackProductUsageEvent({
+              eventName: 'data_issue_reported',
+              surface: 'data_assist',
+              metadata: {
+                location: 'data_assist_trust_panel',
+              },
+            })
+          }}
+        >
+          Report issue
+        </Link>
+        <a href="#history" style={secondaryButtonStyle}>
+          Request review
+        </a>
+      </div>
+    </section>
+  )
+}
+
+function DataAssistIntentPanel({ intent, context, query }: { intent: DataAssistIntent; context: string; query: string }) {
+  const isReportIssue = intent === 'report-issue'
+  const isUploadSource = intent === 'upload-source'
+  return (
+    <section style={intentPanelStyle} aria-label="Data Assist requested action">
+      <div style={intentCopyStyle}>
+        <span style={intentEyebrowStyle}>
+          {isUploadSource ? 'Upload source' : isReportIssue ? 'Report issue' : 'Request review'}
+        </span>
+        <strong style={intentTitleStyle}>
+          {isUploadSource
+            ? 'Add the source behind this tennis read.'
+            : isReportIssue
+              ? 'Tell TenAceIQ what looks wrong.'
+              : 'Send a source for review.'}
+        </strong>
+        <p style={intentTextStyle}>
+          {isUploadSource
+            ? 'Upload a scorecard, schedule, team summary, roster, or correction source so TenAceIQ can connect it to the right player, team, league, tournament, or ranking.'
+            : isReportIssue
+              ? 'Use the support path for wrong players, teams, scores, ratings, draws, standings, or source labels.'
+              : 'Upload a scorecard, schedule, team summary, or correction source so the data can move through review.'}
+        </p>
+        {context ? <span style={intentContextStyle}>From: {context}</span> : null}
+        {query ? <span style={intentContextStyle}>Search: {query}</span> : null}
+      </div>
+      <div style={intentActionRowStyle}>
+        {isReportIssue ? (
+          <Link
+            href={buildDataAssistIssueHref(context, query)}
+            style={secondaryButtonStyle}
+            onClick={() => {
+              void trackProductUsageEvent({
+                eventName: 'data_issue_reported',
+                surface: 'data_assist',
+                metadata: {
+                  location: 'data_assist_intent_panel',
+                  intent,
+                  context,
+                  query,
+                },
+              })
+            }}
+          >
+            Open support report
+          </Link>
+        ) : null}
+        <a href="#upload" style={primaryButtonStyle}>
+          Upload source
+        </a>
+        <a href="#history" style={secondaryButtonStyle}>
+          Review history
+        </a>
+      </div>
     </section>
   )
 }
@@ -1377,7 +1560,7 @@ function MySubmissionsPanel({
   const filteredSubmissions = filterDataAssistSubmissions(submissions, historyFilter)
 
   return (
-    <section style={panelStyle}>
+    <section id="history" style={panelStyle}>
       <div style={sectionHeaderStyle}>
         <div style={headerCopyStyle}>
           <div className="section-kicker">History</div>
@@ -1955,7 +2138,7 @@ function TeamSummaryImportedPanel({
         <div style={headerCopyStyle}>
           <strong>Roster imported</strong>
           <p style={copyStyle}>
-            Team roster records and starting ratings are now available for player, team, and Captain workspaces.
+            Team roster records and starting ratings are now available for player profiles, team pages, and Team Hub.
           </p>
         </div>
         <span style={pillGreenStyle}>Done</span>
@@ -1996,7 +2179,7 @@ function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedD
   const awayHref = parsedDraft?.awayTeam ? buildTeamHref(parsedDraft.awayTeam, {}) : ''
   if (homeHref) actions.push({ label: 'Home team', href: homeHref })
   if (awayHref && awayHref !== homeHref) actions.push({ label: 'Visiting team', href: awayHref })
-  actions.push({ label: 'Coordinator results', href: '/league-coordinator/results' })
+  actions.push({ label: 'League Office results', href: '/league-coordinator/results' })
   actions.push({ label: 'Find players', href: '/explore/players' })
   return actions
 }
@@ -2005,7 +2188,7 @@ function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDra
   const actions: Array<{ label: string; href: string }> = []
   const teamHref = parsedDraft.teamName ? buildTeamHref(parsedDraft.teamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
-  actions.push({ label: 'Open Coordinator', href: '/league-coordinator#league-registry' })
+  actions.push({ label: 'Open League Office', href: '/league-coordinator#league-registry' })
   actions.push({ label: 'View schedule', href: '/compete/schedule' })
   return actions
 }
@@ -2014,7 +2197,7 @@ function buildRosterPostImportActions(parsedDraft: DataAssistTeamSummaryParsedDr
   const actions: Array<{ label: string; href: string }> = []
   const teamHref = parsedDraft.rosterTeamName ? buildTeamHref(parsedDraft.rosterTeamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
-  actions.push({ label: 'Open Coordinator', href: '/league-coordinator#league-setup-form' })
+  actions.push({ label: 'Open League Office', href: '/league-coordinator#league-setup-form' })
   actions.push({ label: 'Find players', href: buildPlayerSearchHref(parsedDraft.players[0]?.name || parsedDraft.rosterTeamName) })
   return actions
 }
@@ -2511,6 +2694,135 @@ const panelStyle: CSSProperties = {
   padding: 'clamp(13px, 4vw, 18px)',
   display: 'grid',
   gap: 14,
+  minWidth: 0,
+}
+
+const trustEnginePanelStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-panel-bg) 91%))',
+  padding: 'clamp(13px, 3vw, 16px)',
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const trustEngineCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  maxWidth: 820,
+  minWidth: 0,
+}
+
+const trustEngineEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
+const trustEngineTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(22px, 5vw, 30px)',
+  lineHeight: 1.1,
+  fontWeight: 950,
+}
+
+const trustSignalGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const trustSignalCardStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, transparent)',
+  padding: 12,
+  display: 'grid',
+  gap: 5,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 850,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const trustActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const intentPanelStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 14,
+  flexWrap: 'wrap',
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-panel-bg) 91%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const intentCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 280px',
+  minWidth: 0,
+}
+
+const intentEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const intentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 950,
+}
+
+const intentTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.6,
+  fontWeight: 700,
+}
+
+const intentContextStyle: CSSProperties = {
+  display: 'inline-flex',
+  width: 'fit-content',
+  maxWidth: '100%',
+  padding: '5px 9px',
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const intentActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  gap: 10,
   minWidth: 0,
 }
 

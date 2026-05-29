@@ -8,13 +8,13 @@ type RouteLoadingShellProps = {
 }
 
 export default function RouteLoadingShell({
-  label = 'Loading TenAceIQ...',
+  label = 'Preparing TenAceIQ...',
   detail,
   pattern = 'cards',
 }: RouteLoadingShellProps) {
   return (
     <div className="page-shell">
-      <section style={shellStyle}>
+      <section aria-busy="true" aria-live="polite" role="status" style={shellStyle}>
         <TiqLoader label={label} size="md" />
         {detail ? <p style={detailStyle}>{detail}</p> : null}
         <LoadingPattern pattern={pattern} />

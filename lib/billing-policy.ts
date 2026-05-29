@@ -13,9 +13,9 @@ export const BILLING_SUPPORT_PATH = buildSupportMessageHref({
 })
 
 export const MONTHLY_SUBSCRIPTION_POLICY = {
-  title: 'Player, Coach, and Captain monthly subscriptions',
+  title: 'Player, Coach, Captain, and Full-Court monthly subscriptions',
   summary:
-    'Player, Coach, and Captain plans renew monthly until canceled. Cancel anytime from Profile billing management or by opening a support thread.',
+    'Player, Coach, Captain, and Full-Court plans renew monthly until canceled. Cancel anytime from Profile billing management or by opening a support thread.',
   bullets: [
     'Cancellation stops future monthly renewals. Access normally continues through the period already paid for.',
     'Monthly subscription charges are generally non-refundable after the billing period begins.',
@@ -25,9 +25,9 @@ export const MONTHLY_SUBSCRIPTION_POLICY = {
 } as const
 
 export const LEAGUE_SEASON_POLICY = {
-  title: 'TIQ League Coordinator season fees',
+  title: 'League Office season fees',
   summary:
-    'A League Coordinator season fee covers one bounded league season, not an unlimited ongoing league.',
+    'A League Office season fee covers one bounded league, ladder, or tournament season, not an unlimited ongoing competition.',
   bullets: [
     'A standard TIQ league season is capped at 12 weeks unless TenAceIQ approves an extension.',
     'A standard season supports up to 120 match events or result entries before a new season should be created.',

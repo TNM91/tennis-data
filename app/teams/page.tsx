@@ -3,14 +3,20 @@
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState, type ReactNode } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import DataTrustPanel from '@/app/components/data-trust-panel'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
+import { TiqLineupPreview, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import TrackedProductLink from '@/app/components/tracked-product-link'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { supabase } from '@/lib/supabase'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 
 type MatchRow = {
@@ -107,6 +113,7 @@ export default function TeamsPage() {
   const [flightFilter, setFlightFilter] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('matches')
   const [browseAll, setBrowseAll] = useState(false)
+  const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { access, authResolved } = useProductAccess()
@@ -451,6 +458,127 @@ export default function TeamsPage() {
   return (
     <SiteShell active="teams">
       <main style={pageWrap}>
+        <JsonLd id="teams-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Teams', '/teams')} />
+        <section style={contentWrap}>
+          <article style={publicIntroCard}>
+            <div style={publicIntroCopy}>
+              <p style={sectionKicker}>Teams</p>
+              <h1 style={publicIntroTitle}>Team tennis without the group-text chaos.</h1>
+              <p style={publicIntroText}>
+                Find teams, follow rosters, scout opponents, collect availability, build lineups, and keep match week organized.
+              </p>
+              <div style={publicIntroActions}>
+                <button
+                  type="button"
+                  style={primaryIntroButton}
+                  onClick={() => {
+                    void trackProductUsageEvent({
+                      eventName: 'team_search_submitted',
+                      surface: 'teams',
+                      metadata: {
+                        location: 'teams_intro',
+                      },
+                    })
+                    document.getElementById('team-directory-search')?.focus()
+                  }}
+                >
+                  Find Teams
+                </button>
+                <TrackedProductLink
+                  href="/captain"
+                  style={secondaryIntroButton}
+                  event={{
+                    eventName: 'captain_tools_clicked',
+                    surface: 'teams',
+                    metadata: {
+                      location: 'teams_intro',
+                      label: 'Open Captain Tools',
+                    },
+                  }}
+                >
+                  Open Captain Tools
+                </TrackedProductLink>
+              </div>
+            </div>
+            <div style={publicIntroGrid}>
+              <IntroMiniCard title="For players" body="Find your team, follow the schedule, see rosters, and stay connected." />
+              <IntroMiniCard title="For captains" body="Collect availability, build smarter lineups, scout opponents, and prepare each court." />
+              <IntroMiniCard title="For opponents" body="Scout team strength, recent results, roster depth, and matchup context." />
+              <IntroMiniCard title="For leagues" body="Keep rosters, schedules, captains, scorecards, and team visibility easier to manage." />
+            </div>
+          </article>
+        </section>
+        <section style={contentWrap}>
+          <section style={filtersCard}>
+            <div style={sectionHeader}>
+              <div>
+                <p style={sectionKicker}>Team Hub preview</p>
+                <h2 style={sectionTitle}>Availability, lineup, scouting, and match week.</h2>
+                <p style={sectionText}>
+                  Team Hub is the public team object plus Captain Tools for the person organizing who can play, where they fit, and what the week needs.
+                </p>
+              </div>
+            </div>
+            <div style={teamHubPreviewGrid}>
+              <TiqWorkspacePreview
+                eyebrow="Availability"
+                title="Saturday vs West County"
+                body="Collect who is in, out, or on the bubble before lineup lock."
+                metrics={[
+                  { label: 'Available', value: '8/10' },
+                  { label: 'Bubble', value: '2' },
+                  { label: 'Deadline', value: 'Thu' },
+                ]}
+                href="/captain/availability"
+                cta="Check Availability"
+                event={{
+                  eventName: 'availability_clicked',
+                  surface: 'teams',
+                  metadata: {
+                    location: 'team_hub_preview',
+                  },
+                }}
+              />
+              <TiqLineupPreview
+                title="Suggested lineup"
+                body="Compare projected courts, player availability, and team edge before match day."
+                metrics={[
+                  { label: 'Available', value: '8/10' },
+                  { label: 'Team edge', value: '71%' },
+                  { label: 'Risk', value: 'D1 swap' },
+                ]}
+                href="/captain/lineup-builder"
+                cta="Build Lineup"
+                event={{
+                  eventName: 'lineup_preview_clicked',
+                  surface: 'teams',
+                  metadata: {
+                    location: 'team_hub_preview',
+                  },
+                }}
+              />
+              <TiqWorkspacePreview
+                eyebrow="Opponent scouting"
+                title="West County roster read"
+                body="Scan roster depth, recent results, and matchup context before assigning courts."
+                metrics={[
+                  { label: 'Roster', value: '12' },
+                  { label: 'Recent', value: '3-1' },
+                  { label: 'Watch', value: 'Doubles' },
+                ]}
+                href="/matchup"
+                cta="Scout Opponent"
+                event={{
+                  eventName: 'matchup_started',
+                  surface: 'matchup',
+                  metadata: {
+                    location: 'team_hub_preview',
+                  },
+                }}
+              />
+            </div>
+          </section>
+        </section>
         <section style={contentWrap}>
           <section style={filtersCard}>
             <div aria-hidden="true" style={watermarkStyle} />
@@ -479,28 +607,36 @@ export default function TeamsPage() {
             </div>
 
             <div style={summaryRow(isSmallMobile)}>
-              <StatPill label="Teams" value={String(totals.teams)} />
-              <StatPill label="Leagues" value={String(totals.leagues)} />
-              <StatPill label="Flights" value={String(totals.flights)} />
-              <StatPill label="Players" value={String(totals.players)} />
+              <StatPill label="Teams" value={loading ? '-' : String(totals.teams)} />
+              <StatPill label="Leagues" value={loading ? '-' : String(totals.leagues)} />
+              <StatPill label="Flights" value={loading ? '-' : String(totals.flights)} />
+              <StatPill label="Players" value={loading ? '-' : String(totals.players)} />
             </div>
 
             <div style={filtersGrid(isMobile)}>
               <div>
-                <label style={labelStyle}>Search</label>
+                <label htmlFor="team-directory-search" style={labelStyle}>Search</label>
                 <input
                   id="team-directory-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
+                  onFocus={() => setFocusedDirectoryControl('search')}
+                  onBlur={() => setFocusedDirectoryControl(null)}
                   placeholder="Search teams"
-                  style={inputStyle}
+                  style={{
+                    ...inputStyle,
+                    ...(focusedDirectoryControl === 'search' ? directoryControlFocusStyle : null),
+                  }}
                 />
               </div>
 
               <div>
-                <label style={labelStyle}>League</label>
+                <label htmlFor="team-directory-league" style={labelStyle}>League</label>
                 <select
+                  id="team-directory-league"
                   value={leagueFilter}
+                  onFocus={() => setFocusedDirectoryControl('league')}
+                  onBlur={() => setFocusedDirectoryControl(null)}
                   onChange={(event) => {
                     setLeagueFilter(event.target.value)
                     setFlightFilter('')
@@ -509,6 +645,7 @@ export default function TeamsPage() {
                     ...inputStyle,
                     borderColor: leagueFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
                     boxShadow: leagueFilter ? 'var(--home-control-shadow)' : undefined,
+                    ...(focusedDirectoryControl === 'league' ? directoryControlFocusStyle : null),
                   }}
                 >
                   <option value="">All leagues</option>
@@ -521,14 +658,18 @@ export default function TeamsPage() {
               </div>
 
               <div>
-                <label style={labelStyle}>Flight</label>
+                <label htmlFor="team-directory-flight" style={labelStyle}>Flight</label>
                 <select
+                  id="team-directory-flight"
                   value={flightFilter}
+                  onFocus={() => setFocusedDirectoryControl('flight')}
+                  onBlur={() => setFocusedDirectoryControl(null)}
                   onChange={(event) => setFlightFilter(event.target.value)}
                   style={{
                     ...inputStyle,
                     borderColor: flightFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
                     boxShadow: flightFilter ? 'var(--home-control-shadow)' : undefined,
+                    ...(focusedDirectoryControl === 'flight' ? directoryControlFocusStyle : null),
                   }}
                 >
                   <option value="">All flights</option>
@@ -541,14 +682,18 @@ export default function TeamsPage() {
               </div>
 
               <div>
-                <label style={labelStyle}>Sort</label>
+                <label htmlFor="team-directory-sort" style={labelStyle}>Sort</label>
                 <select
+                  id="team-directory-sort"
                   value={sortBy}
+                  onFocus={() => setFocusedDirectoryControl('sort')}
+                  onBlur={() => setFocusedDirectoryControl(null)}
                   onChange={(event) => setSortBy(event.target.value as SortKey)}
                   style={{
                     ...inputStyle,
                     borderColor: sortBy !== 'matches' ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
                     boxShadow: sortBy !== 'matches' ? 'var(--home-control-shadow)' : undefined,
+                    ...(focusedDirectoryControl === 'sort' ? directoryControlFocusStyle : null),
                   }}
                 >
                   <option value="matches">Most matches</option>
@@ -595,9 +740,30 @@ export default function TeamsPage() {
 
           {loading ? (
             <section style={surfaceCard}>
-              <div style={sectionKicker}>Directory loading</div>
-              <div style={emptyTitle}>Loading teams...</div>
-              <p style={emptyText}>Building the directory from valid match rows only.</p>
+              <div style={sectionKicker}>Team discovery</div>
+              <div style={emptyTitle}>Search for a team or browse by league.</div>
+              <p style={emptyText}>
+                Team pages help players, captains, opponents, and league organizers understand the week. The live directory is refreshing behind this starter view.
+              </p>
+              <DataTrustPanel
+                title="Team data trust"
+                signals={[
+                  { label: 'Source', value: 'Scorecards, rosters, team summaries' },
+                  { label: 'Freshness', value: 'Recent matches first' },
+                  { label: 'Confidence', value: 'Higher with reviewed scorecards' },
+                  { label: 'Status', value: 'Needs review when disputed' },
+                ]}
+              />
+              <div style={teamStartGridStyle}>
+                <button type="button" style={teamStartActionStyle} onClick={() => setBrowseAll(true)}>
+                  <strong>Browse teams</strong>
+                  <span>Open the reviewed team board when it is ready.</span>
+                </button>
+                <Link href="/captain" style={{ ...teamStartActionStyle, textDecoration: 'none' }}>
+                  <strong>Captain Tools</strong>
+                  <span>Collect availability and build the week.</span>
+                </Link>
+              </div>
             </section>
           ) : error ? (
             <section style={surfaceCard}>
@@ -630,10 +796,14 @@ export default function TeamsPage() {
           ) : visibleRows.length === 0 ? (
             <section style={surfaceCard}>
               <div style={sectionKicker}>Directory reset</div>
-              <div style={emptyTitle}>Teams are not available yet</div>
+              <div style={emptyTitle}>Search for a team or browse by league.</div>
               <p style={emptyText}>
                 Public discovery only shows reviewed team context. Try widening your filters, clearing the search box, or use Data Assist if this league and flight should already exist.
               </p>
+              <DataTrustPanel
+                title="Why a team may be missing"
+                body="Team pages need reviewed roster, scorecard, league, or team-summary context before they appear in public discovery."
+              />
               <div style={emptyActionRow}>
                 <button
                   type="button"
@@ -796,6 +966,15 @@ function StatPill({ label, value }: { label: string; value: string }) {
   )
 }
 
+function IntroMiniCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div style={introMiniCardStyle}>
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </div>
+  )
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div style={metricCard}>
@@ -817,6 +996,106 @@ const contentWrap: CSSProperties = {
   width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '12px auto 0',
   minWidth: 0,
+}
+
+const publicIntroCard: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+  gap: 18,
+  alignItems: 'stretch',
+  borderRadius: 26,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(7,20,40,0.88))',
+  boxShadow: '0 30px 86px rgba(2, 8, 23, 0.40), inset 0 1px 0 rgba(255,255,255,0.05)',
+  padding: 20,
+  minWidth: 0,
+}
+
+const publicIntroCopy: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: 12,
+  minWidth: 0,
+}
+
+const publicIntroTitle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(2rem, 4vw, 4rem)',
+  lineHeight: 0.98,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const publicIntroText: CSSProperties = {
+  margin: 0,
+  maxWidth: 720,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 'clamp(1rem, 1.3vw, 1.15rem)',
+  lineHeight: 1.7,
+  fontWeight: 700,
+}
+
+const publicIntroActions: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const primaryIntroButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 44,
+  padding: '0 16px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'linear-gradient(180deg, #eaff9e 0%, #9be11d 100%)',
+  color: '#071226',
+  textDecoration: 'none',
+  fontSize: 13,
+  fontWeight: 950,
+  cursor: 'pointer',
+}
+
+const secondaryIntroButton: CSSProperties = {
+  ...primaryIntroButton,
+  background: 'rgba(7,17,33,0.72)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid rgba(116,190,255,0.16)',
+}
+
+const publicIntroGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const teamHubPreviewGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const introMiniCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  alignContent: 'start',
+  minHeight: 132,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 720,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const summaryRow = (isSmallMobile: boolean): CSSProperties => ({
@@ -1023,8 +1302,15 @@ const inputStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   colorScheme: 'dark',
+}
+
+const directoryControlFocusStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 44%, var(--shell-panel-border) 56%)',
+  outline: '2px solid color-mix(in srgb, var(--brand-green) 48%, transparent)',
+  boxShadow: '0 0 0 5px rgba(155,225,29,0.12), var(--home-control-shadow)',
 }
 
 const surfaceCard: CSSProperties = {

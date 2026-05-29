@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildProductAccessState } from '../access-model'
-import { getPrimaryNavLockedLabel, getPrimaryNavTarget } from '../primary-nav-access'
+import { getPrimaryNavLockedLabel, getPrimaryNavLockedTitle, getPrimaryNavTarget } from '../primary-nav-access'
 
 describe('primary nav access', () => {
   it('routes public locked tools through join with the required plan intent', () => {
@@ -25,7 +25,11 @@ describe('primary nav access', () => {
 
   it('explains that a free account starts access before the paid plan activates', () => {
     expect(getPrimaryNavLockedLabel('League', 'league')).toBe(
-      'League requires TIQ League Coordinator. Create a free account first, then activate TIQ League Coordinator.',
+      'League requires League Office access. Create a free account first, then activate League Office access.',
     )
+  })
+
+  it('uses the League Office workspace name for league lock titles', () => {
+    expect(getPrimaryNavLockedTitle('League', 'league')).toBe('League requires League Office access')
   })
 })

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
+import JsonLd from '@/app/components/json-ld'
 import { ThemeProvider } from '@/app/components/theme-provider'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-data'
 import './globals.css'
 
 export const viewport: Viewport = {
@@ -19,14 +21,17 @@ export const metadata: Metadata = {
     template: '%s | TenAceIQ',
   },
   description:
-    'More Tennis. Less Chaos. Explore tennis for free, then unlock Player, Captain, League, or Full-Court workspaces for prep, team decisions, tournaments, and league operations.',
+    'More Tennis. Less Chaos. Find tennis context, prepare for matches, improve in My Lab, and unlock Coach Hub, Team Hub, Tournament Desk, League Office, or Full-Court.',
   keywords: [
     'TenAceIQ',
     'tennis analytics',
     'tennis ratings',
     'My Lab tennis',
+    'Coach Hub',
+    'Team Hub',
+    'Tournament Desk',
+    'League Office',
     'tennis lineup builder',
-    'captain workspace',
     'tennis matchup analysis',
     'league tennis',
     'USTA lineup planning',
@@ -66,7 +71,7 @@ export const metadata: Metadata = {
     siteName: 'TenAceIQ',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description:
-      'More Tennis. Less Chaos. Choose the right TenAceIQ tier for free discovery, Player insight, Captain decisions, League operations, or the Full-Court suite.',
+      'More Tennis. Less Chaos. Find tennis context, prepare for matches, improve in My Lab, and unlock Coach Hub, Team Hub, Tournament Desk, League Office, or Full-Court.',
     images: [
       {
         url: '/og-image.png',
@@ -80,7 +85,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description:
-      'More Tennis. Less Chaos. Choose the right TenAceIQ tier for free discovery, Player insight, Captain decisions, League operations, or the Full-Court suite.',
+      'More Tennis. Less Chaos. Find tennis context, prepare for matches, improve in My Lab, and unlock Coach Hub, Team Hub, Tournament Desk, League Office, or Full-Court.',
     images: ['/og-image.png'],
   },
   manifest: '/manifest.webmanifest',
@@ -119,6 +124,8 @@ export default function RootLayout({
             }
           })();
         `}</Script>
+        <JsonLd id="tenaceiq-organization-jsonld" data={buildOrganizationJsonLd()} />
+        <JsonLd id="tenaceiq-website-jsonld" data={buildWebSiteJsonLd()} />
         <ThemeProvider>{children}</ThemeProvider>
         <script
           async

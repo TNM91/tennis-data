@@ -25,6 +25,8 @@ describe('individual result follow-through', () => {
   it('keeps the empty player result book actionable', () => {
     expect(source).toContain('function EmptyIndividualResultsPanel')
     expect(source).toContain('Player results start with one finished match.')
+    expect(source).toContain("const dataAssistIndividualResultsHref = '/data-assist?intent=upload-source&context=Individual%20league%20results'")
+    expect(source).toContain("href: dataAssistIndividualResultsHref")
     expect(source).toContain('Log player result')
     expect(source).toContain('Set up league')
     expect(source).toContain('Upload scorecard')

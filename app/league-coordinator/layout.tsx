@@ -3,10 +3,14 @@ import type { ReactNode } from 'react'
 
 export const metadata: Metadata = {
   title: {
-    absolute: 'League Coordinator | TenAceIQ',
+    absolute: 'League Office | TenAceIQ',
   },
   description:
-    'Use TIQ League Coordinator to run leagues of players or teams with setup, scoring, standings, participation, and results.',
+    'Use League Office to run leagues of players or teams with setup, scoring, standings, participation, and results.',
+  robots: {
+    index: false,
+    follow: false,
+  },
 }
 
 export default function LeagueCoordinatorLayout({ children }: { children: ReactNode }) {

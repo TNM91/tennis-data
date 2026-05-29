@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import UniversalSearch from '@/app/components/universal-search'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
@@ -60,13 +61,31 @@ export default function SiteHeader({ active }: { active?: string }) {
   const { role, userId, entitlements, authResolved } = useAuth()
   const { screenWidth, isTablet, isMobile } = useViewportBreakpoints()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setMenuOpen(false), 0)
+    const timeout = window.setTimeout(() => {
+      setMenuOpen(false)
+      setSearchOpen(false)
+    }, 0)
     return () => window.clearTimeout(timeout)
   }, [pathname])
+
+  useEffect(() => {
+    if (!menuOpen && !searchOpen) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+        setSearchOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [menuOpen, searchOpen])
 
   useEffect(() => {
     let active = true
@@ -111,7 +130,7 @@ export default function SiteHeader({ active }: { active?: string }) {
       ? 'Admin'
       : authenticated
         ? access.currentPlanId === 'league'
-          ? 'Coordinator'
+          ? 'League'
           : access.currentPlanId === 'full_court'
             ? 'Full-Court'
             : access.currentPlanId === 'captain'
@@ -220,6 +239,17 @@ export default function SiteHeader({ active }: { active?: string }) {
                 {PRIMARY_NAV_ITEMS.map((item) => (
                   <UtilityLink key={item.href} href={item.href}>{item.label}</UtilityLink>
                 ))}
+                <button
+                  type="button"
+                  aria-label={searchOpen ? 'Close site search' : 'Open site search'}
+                  aria-expanded={searchOpen}
+                  aria-controls="site-header-search-panel"
+                  aria-haspopup="dialog"
+                  onClick={() => setSearchOpen((current) => !current)}
+                  style={utilityButtonStyle}
+                >
+                  Search
+                </button>
                 {accountLabel ? (
                   <span style={accountPillStyle}>
                     {profilePhotoUrl ? (
@@ -241,6 +271,17 @@ export default function SiteHeader({ active }: { active?: string }) {
                 {PRIMARY_NAV_ITEMS.map((item) => (
                   <UtilityLink key={item.href} href={item.href}>{item.label}</UtilityLink>
                 ))}
+                <button
+                  type="button"
+                  aria-label={searchOpen ? 'Close site search' : 'Open site search'}
+                  aria-expanded={searchOpen}
+                  aria-controls="site-header-search-panel"
+                  aria-haspopup="dialog"
+                  onClick={() => setSearchOpen((current) => !current)}
+                  style={utilityButtonStyle}
+                >
+                  Search
+                </button>
                 <UtilityLink href="/login">Sign in</UtilityLink>
                 <Link href="/join" style={primaryCtaStyle}>
                   Start Free
@@ -261,6 +302,32 @@ export default function SiteHeader({ active }: { active?: string }) {
             ) : null}
           </div>
         </div>
+
+        {!useCompactHeader && searchOpen ? (
+          <div
+            id="site-header-search-panel"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="site-header-search-title"
+            style={headerSearchPanelStyle}
+          >
+            <div style={headerSearchPanelHeaderStyle}>
+              <div style={headerSearchTitleBlockStyle}>
+                <div style={mobileSectionLabelStyle}>Search</div>
+                <h2 id="site-header-search-title" style={headerSearchTitleStyle}>Search TenAceIQ</h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Close site search"
+                onClick={() => setSearchOpen(false)}
+                style={searchCloseButtonStyle}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <UniversalSearch compact placeholder="Search players, teams, leagues, coaches, tournaments, resources, or actions" />
+          </div>
+        ) : null}
 
         {useCompactHeader && menuOpen ? (
           <div
@@ -298,6 +365,9 @@ export default function SiteHeader({ active }: { active?: string }) {
                     </span>
                   ) : null}
                 </div>
+              </div>
+              <div style={mobileSearchWrapStyle}>
+                <UniversalSearch compact placeholder="Search TenAceIQ" />
               </div>
 
               {authPending ? null : authenticated ? (
@@ -530,4 +600,62 @@ const mobileAccountToolsStyle: CSSProperties = {
   minWidth: 0,
   maxWidth: '100%',
   overflowWrap: 'anywhere',
+}
+
+const headerSearchPanelStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: 'min(920px, calc(100% - 24px))',
+  margin: '10px auto 0',
+  padding: 14,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--shell-panel-border) 78%, rgba(116,190,255,0.16) 22%)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--surface) 4%) 0%, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--surface-soft) 8%) 100%)',
+  boxShadow: 'var(--shadow-card)',
+}
+
+const headerSearchPanelHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  marginBottom: 10,
+}
+
+const headerSearchTitleBlockStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const headerSearchTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '18px',
+  fontWeight: 900,
+  letterSpacing: 0,
+  lineHeight: 1.15,
+}
+
+const searchCloseButtonStyle: CSSProperties = {
+  width: 40,
+  height: 40,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flex: '0 0 auto',
+  borderRadius: 13,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+}
+
+const mobileSearchWrapStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: '8px 4px 10px',
 }

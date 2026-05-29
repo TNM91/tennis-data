@@ -7,6 +7,7 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNod
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import DataTrustPanel from '@/app/components/data-trust-panel'
 import FollowButton from '@/app/components/follow-button'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import {
@@ -103,6 +104,7 @@ export default function LeagueDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [teamFilter, setTeamFilter] = useState('all')
+  const [teamFilterFocused, setTeamFilterFocused] = useState(false)
   const [standingsView, setStandingsView] = useState<'cards' | 'table'>('cards')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
@@ -628,7 +630,7 @@ export default function LeagueDetailPage() {
                 subtitle={subtitleParts.join(' | ')}
               />
               <GhostLink href="/leagues">Back to Leagues</GhostLink>
-              <GhostLink href={competeHref}>Open Compete</GhostLink>
+              <GhostLink href={competeHref}>Open League Office</GhostLink>
             </div>
           </div>
 
@@ -658,6 +660,17 @@ export default function LeagueDetailPage() {
             ) : null}
           </div>
         </section>
+
+        <DataTrustPanel
+          title="League data trust"
+          body="League pages combine reviewed schedule rows, scorecards, team summaries, and public tennis context when available. Use Data Assist when standings, teams, or scorecards need review."
+          signals={[
+            { label: 'Source', value: 'Schedules, scorecards, team summaries' },
+            { label: 'Freshness', value: 'Refreshes as reviewed league uploads connect' },
+            { label: 'Confidence', value: 'Higher when schedule and scorecards agree' },
+            { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+          ]}
+        />
 
         <div style={dynamicMetricGrid}>
           <MetricCard label="Completed" value={String(stats.completed)} />
@@ -911,7 +924,12 @@ export default function LeagueDetailPage() {
                       id="teamFilter"
                       value={teamFilter}
                       onChange={(e) => setTeamFilter(e.target.value)}
-                      style={selectStyle}
+                      onFocus={() => setTeamFilterFocused(true)}
+                      onBlur={() => setTeamFilterFocused(false)}
+                      style={{
+                        ...selectStyle,
+                        ...(teamFilterFocused ? selectFocusStyle : null),
+                      }}
                     >
                       <option value="all">All Teams</option>
                       {teamSummaries.map((team) => (
@@ -1887,8 +1905,15 @@ const selectStyle: CSSProperties = {
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   colorScheme: 'dark',
+}
+
+const selectFocusStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.45)',
+  outline: '2px solid rgba(155,225,29,0.42)',
+  boxShadow: '0 0 0 5px rgba(155,225,29,0.12)',
 }
 
 const clearFilterButton: CSSProperties = {

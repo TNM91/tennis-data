@@ -4,8 +4,11 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import DataTrustPanel from '@/app/components/data-trust-panel'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
   formatRatingValue,
   getRatingViewLabel,
@@ -134,6 +137,7 @@ export default function RankingsPage() {
   const [hoveredPodium, setHoveredPodium] = useState<string | null>(null)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const [hideInactive, setHideInactive] = useState(false)
+  const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
   const [sortCol, setSortCol] = useState<'tiq' | 'trend' | 'form' | 'winRate' | 'matches'>('tiq')
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -473,9 +477,25 @@ export default function RankingsPage() {
 
   const topPlayer = topThree[0] ?? null
   const topRival = topThree[1] ?? null
+  const rankedPlayerSummary = loading
+    ? 'Board refreshing'
+    : rankedPlayers.length
+      ? `${rankedPlayers.length} shown`
+      : 'Search to build the board'
+  const locationSummary = loading
+    ? 'Locations pending'
+    : locations.length
+      ? `${locations.length} locations`
+      : 'Location filters appear after review'
+  const leaderboardSummary = loading
+    ? 'Preparing board'
+    : rankedPlayers.length
+      ? `Showing ${rankedPlayers.length}`
+      : 'Board starts after verified context'
 
   return (
     <SiteShell active="rankings">
+      <JsonLd id="rankings-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Rankings', '/rankings')} />
       <section style={contentWrap}>
         <div style={dynamicControlsCard}>
           <div aria-hidden="true" style={watermarkStyle} />
@@ -485,8 +505,8 @@ export default function RankingsPage() {
               <h1 style={rankingPanelTitle}>Check the field.</h1>
             </div>
             <div style={heroHintRow}>
-              <span style={heroHintPill}>{rankedPlayers.length} shown</span>
-              <span style={heroHintPill}>{locations.length} locations</span>
+              <span style={heroHintPill}>{rankedPlayerSummary}</span>
+              <span style={heroHintPill}>{locationSummary}</span>
               <span style={heroHintPill}>{capitalize(ratingView)} mode</span>
             </div>
           </div>
@@ -501,9 +521,12 @@ export default function RankingsPage() {
                       type="button"
                       aria-pressed={ratingView === 'overall'}
                       onClick={() => setRatingView('overall')}
+                      onFocus={() => setFocusedDirectoryControl('overall')}
+                      onBlur={() => setFocusedDirectoryControl(null)}
                       style={{
                       ...segmentButton,
                       ...(ratingView === 'overall' ? segmentButtonActive : {}),
+                      ...(focusedDirectoryControl === 'overall' ? directoryControlFocusStyle : {}),
                     }}
                   >
                     Overall
@@ -512,9 +535,12 @@ export default function RankingsPage() {
                       type="button"
                       aria-pressed={ratingView === 'singles'}
                       onClick={() => setRatingView('singles')}
+                      onFocus={() => setFocusedDirectoryControl('singles')}
+                      onBlur={() => setFocusedDirectoryControl(null)}
                       style={{
                       ...segmentButton,
                       ...(ratingView === 'singles' ? segmentButtonActive : {}),
+                      ...(focusedDirectoryControl === 'singles' ? directoryControlFocusStyle : {}),
                     }}
                   >
                     Singles
@@ -523,9 +549,12 @@ export default function RankingsPage() {
                       type="button"
                       aria-pressed={ratingView === 'doubles'}
                       onClick={() => setRatingView('doubles')}
+                      onFocus={() => setFocusedDirectoryControl('doubles')}
+                      onBlur={() => setFocusedDirectoryControl(null)}
                       style={{
                       ...segmentButton,
                       ...(ratingView === 'doubles' ? segmentButtonActive : {}),
+                      ...(focusedDirectoryControl === 'doubles' ? directoryControlFocusStyle : {}),
                     }}
                   >
                     Doubles
@@ -545,8 +574,13 @@ export default function RankingsPage() {
                         aria-describedby="rankings-filter-helper"
                         value={searchText}
                       onChange={(e) => setSearchText(e.target.value)}
+                      onFocus={() => setFocusedDirectoryControl('search')}
+                      onBlur={() => setFocusedDirectoryControl(null)}
                       placeholder="Search players or location..."
-                      style={searchInput}
+                      style={{
+                        ...searchInput,
+                        ...(focusedDirectoryControl === 'search' ? directoryControlFocusStyle : {}),
+                      }}
                     />
                   </div>
                 </div>
@@ -558,10 +592,13 @@ export default function RankingsPage() {
                       aria-describedby="rankings-filter-helper"
                       value={locationFilter}
                       onChange={(e) => setLocationFilter(e.target.value)}
+                      onFocus={() => setFocusedDirectoryControl('location')}
+                      onBlur={() => setFocusedDirectoryControl(null)}
                       style={{
                         ...selectStyle,
                         borderColor: locationFilter ? 'rgba(155,225,29,0.42)' : undefined,
                         boxShadow: locationFilter ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+                        ...(focusedDirectoryControl === 'location' ? directoryControlFocusStyle : {}),
                       }}
                   >
                     <option value="">All locations</option>
@@ -609,9 +646,9 @@ export default function RankingsPage() {
               </div>
 
               <div style={summaryStatsGrid}>
-                <StatChip label="Players shown" value={String(rankedPlayers.length)} />
-                <StatChip label="Top TIQ" value={formatRating(topThree[0]?.selectedRating)} accent />
-                <StatChip label="Average TIQ" value={formatRating(avgSelected)} />
+                <StatChip label="Players shown" value={loading ? '-' : String(rankedPlayers.length)} />
+                <StatChip label="Top TIQ" value={loading ? '-' : formatRating(topThree[0]?.selectedRating)} accent />
+                <StatChip label="Average TIQ" value={loading ? '-' : formatRating(avgSelected)} />
                 <StatChip label="Basis" value={ratingViewLabel} />
               </div>
         </div>
@@ -874,16 +911,31 @@ export default function RankingsPage() {
               <h2 style={panelTitle}>Full rankings</h2>
             </div>
 
-            <div style={panelChipWrap}>
-              <span style={panelChip}>Showing {rankedPlayers.length}</span>
+          <div style={panelChipWrap}>
+              <span style={panelChip}>{leaderboardSummary}</span>
               <span style={panelChip}>TIQ {ratingViewLabel}</span>
             </div>
           </div>
 
+          {loading || rankedPlayers.length === 0 ? (
+            <DataTrustPanel
+              title="Ranking data trust"
+              body="Rankings appear when enough reviewed player and match context exists. Confidence improves as scorecards, schedules, and player records are verified."
+              signals={[
+                { label: 'Source', value: 'Player records and reviewed matches' },
+                { label: 'Freshness', value: 'Board refresh pending' },
+                { label: 'Confidence', value: 'Sample-size based' },
+                { label: 'Status', value: 'Report gaps through Data Assist' },
+              ]}
+            />
+          ) : null}
+
           {isMobile ? (
             <div style={compactLeaderboardStyle}>
               {loading ? (
-                <div style={emptyCell}>Loading rankings...</div>
+                <div style={emptyCell}>
+                  Search to build the board. Rankings appear when enough verified player and match context is available.
+                </div>
               ) : rankedPlayers.length === 0 ? (
                 <div style={emptyCell}>
                   {hasActiveFilters
@@ -938,7 +990,9 @@ export default function RankingsPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={14} style={emptyCell}>Loading rankings...</td>
+                      <td colSpan={14} style={emptyCell}>
+                        Search to build the board. Rankings appear when enough verified player and match context is available.
+                      </td>
                     </tr>
                   ) : rankedPlayers.length === 0 ? (
                     <tr>
@@ -1759,7 +1813,8 @@ const searchInput: CSSProperties = {
   color: 'var(--foreground-strong)',
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   boxShadow: 'var(--home-control-shadow)',
   colorScheme: 'dark',
 }
@@ -1774,9 +1829,16 @@ const selectStyle: CSSProperties = {
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   boxShadow: 'var(--home-control-shadow)',
   colorScheme: 'dark',
+}
+
+const directoryControlFocusStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 44%, var(--shell-panel-border) 56%)',
+  outline: '2px solid color-mix(in srgb, var(--brand-green) 48%, transparent)',
+  boxShadow: '0 0 0 5px rgba(155,225,29,0.12), var(--home-control-shadow)',
 }
 
 const errorBanner: CSSProperties = {

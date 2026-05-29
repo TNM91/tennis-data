@@ -28,6 +28,8 @@ describe('team result event follow-through', () => {
   it('keeps the empty team result book actionable', () => {
     expect(source).toContain('function EmptyTeamResultsPanel')
     expect(source).toContain('Team results start with one match event.')
+    expect(source).toContain("const dataAssistTeamResultsHref = '/data-assist?intent=upload-source&context=Team%20league%20results'")
+    expect(source).toContain("href: dataAssistTeamResultsHref")
     expect(source).toContain('Add match')
     expect(source).toContain('Open calendar')
     expect(source).toContain('Upload scorecard')

@@ -58,6 +58,8 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 
+const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
+
 type TeamMatch = {
   id: string
   league_name: string | null
@@ -238,7 +240,7 @@ function CaptainLockedSurface({
 }) {
   return (
     <div style={pageWrap}>
-      <section style={heroCard} aria-label="Captain workspace preview">
+      <section style={heroCard} aria-label="Team Hub preview">
         <span aria-hidden="true" style={watermarkStyle} />
         <div style={heroLeft}>
           <div>
@@ -581,7 +583,7 @@ function CaptainHubContent() {
       const typedScenarios = (scenarioData || []) as Array<{ id: string; scenario_name: string; match_date: string | null }>
       setScenarioCount(typedScenarios.length)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load Captain workspace')
+      setError(err instanceof Error ? err.message : 'Failed to load Team Hub')
     } finally {
       setLoadingTeam(false)
     }
@@ -1511,7 +1513,7 @@ function CaptainHubContent() {
                   : stage === 'brief'
                     ? 'Weekly Brief'
                     : stage === 'season-dashboard'
-                      ? 'League Coordinator'
+                      ? 'League Office'
                       : stage === 'tiq-team-matches'
                         ? 'Team Match Results'
                         : 'Captain',
@@ -1543,7 +1545,7 @@ function CaptainHubContent() {
         <div style={loadingStateCardStyle}>
           <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
           <div>
-            <div style={loadingStateTitleStyle}>Loading Captain workspace</div>
+            <div style={loadingStateTitleStyle}>Preparing Team Hub</div>
             <div style={loadingStateTextStyle}>Checking your role, team profile, and match-week context.</div>
           </div>
         </div>
@@ -1659,7 +1661,7 @@ function CaptainHubContent() {
                   <Link href="/mylab#player-workshop" style={captainDataAssistLinkStyle}>
                     Set in My Lab
                   </Link>
-                  <Link href="/data-assist" style={captainDataAssistLinkStyle}>
+                  <Link href={dataAssistCaptainHref} style={captainDataAssistLinkStyle}>
                     {DATA_ASSIST_STORY.cta}
                   </Link>
                 </div>
@@ -1672,7 +1674,7 @@ function CaptainHubContent() {
                     Captain started from {selectedCaptainScopeSourceLabel}; roster, schedule, and scorecard uploads can keep this workspace current.
                   </span>
                 </div>
-                <Link href="/data-assist" style={captainDataAssistLinkStyle}>
+                <Link href={dataAssistCaptainHref} style={captainDataAssistLinkStyle}>
                   Refresh with Data Assist
                 </Link>
               </div>
@@ -2125,7 +2127,7 @@ function CaptainHubContent() {
               </div>
               <div style={captainLaneActions}>
                 <PrimarySmallBtn disabled={!leagueToolsEnabled} onClick={() => handleCaptainNav(seasonDashboardHref, 'season-dashboard')}>
-                  League Coordinator
+                  League Office
                 </PrimarySmallBtn>
                 <SecondarySmallBtn disabled={!leagueToolsEnabled} onClick={() => handleCaptainNav(tiqTeamMatchesHref, 'tiq-team-matches')}>
                   Match Results
@@ -2321,7 +2323,7 @@ function CaptainHubContent() {
                 <span>Captain shows roster usage and match mix after My Lab sets your profile team or Data Assist review connects roster history.</span>
                 <div style={captainEmptyActionRowStyle}>
                   <Link href="/profile" style={inlineEmptyLinkStyle}>Set profile</Link>
-                  <Link href="/data-assist" style={inlineEmptyLinkStyle}>Upload team data</Link>
+                  <Link href={dataAssistCaptainHref} style={inlineEmptyLinkStyle}>Upload team data</Link>
                 </div>
               </div>
             ) : roster.length === 0 ? (
@@ -2329,7 +2331,7 @@ function CaptainHubContent() {
                 <strong>No roster players are available yet.</strong>
                 <span>Refresh rosters through Data Assist, then review the imported names before using lineup actions.</span>
                 <div style={captainEmptyActionRowStyle}>
-                  <Link href="/data-assist" style={inlineEmptyLinkStyle}>Open Data Assist</Link>
+                  <Link href={dataAssistCaptainHref} style={inlineEmptyLinkStyle}>Open Data Assist</Link>
                   <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={inlineEmptyButtonStyle}>
                     Refresh Captain
                   </button>

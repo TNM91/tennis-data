@@ -2237,7 +2237,7 @@ function importScenarioToLineup() {
           </details>
 
           {loading ? (
-            <section style={surfaceCard}><p style={mutedTextStyle}>Loading Captain workspace...</p></section>
+            <section style={surfaceCard}><p style={mutedTextStyle}>Preparing Team Hub...</p></section>
           ) : (
             <>
               {error ? (

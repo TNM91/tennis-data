@@ -57,7 +57,7 @@ export function buildTeamResultCue(input: TeamResultCueInput) {
       {
         label: 'Teams',
         complete: input.teamCount > 1,
-        detail: input.teamCount > 0 ? `${pluralizeCount(input.teamCount, 'team')} in scope` : 'Add teams in Coordinator setup',
+        detail: input.teamCount > 0 ? `${pluralizeCount(input.teamCount, 'team')} in scope` : 'Add teams in League Office setup',
       },
       {
         label: 'Matches',
@@ -100,7 +100,7 @@ export function buildIndividualResultCue(input: IndividualResultCueInput) {
       {
         label: 'Players',
         complete: input.playerCount > 1,
-        detail: input.playerCount > 0 ? `${pluralizeCount(input.playerCount, 'player')} in scope` : 'Add players in Coordinator setup',
+        detail: input.playerCount > 0 ? `${pluralizeCount(input.playerCount, 'player')} in scope` : 'Add players in League Office setup',
       },
       {
         label: 'Results',

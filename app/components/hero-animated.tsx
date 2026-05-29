@@ -107,7 +107,7 @@ export default function HeroAnimated() {
             transition={{ duration: 0.7, delay: 0.2 }}
           >
             <span className="hero-chip">Ratings &amp; analytics</span>
-            <span className="hero-chip">Captain workspace</span>
+            <span className="hero-chip">Team Hub</span>
             <span className="hero-chip">Community insights</span>
           </motion.div>
         </motion.div>

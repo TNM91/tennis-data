@@ -1,5 +1,5 @@
 import RouteLoadingShell from '@/app/components/route-loading-shell'
 
 export default function Loading() {
-  return <RouteLoadingShell label="Loading Matchup..." pattern="matchup" />
+  return <RouteLoadingShell label="Preparing Matchup..." pattern="matchup" />
 }

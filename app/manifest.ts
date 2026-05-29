@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'TenAceIQ',
     short_name: 'TenAceIQ',
     description:
-      `${PRODUCT_MOTTO} Explore tennis for free, then use Player, Captain, League, and Full-Court workspaces.`,
+      `${PRODUCT_MOTTO} Explore tennis for free, then use My Lab, Team Hub, League Office, and Full-Court workspaces.`,
     start_url: '/',
     scope: '/',
     display: 'standalone',
@@ -30,14 +30,14 @@ export default function manifest(): MetadataRoute.Manifest {
         icons: [{ src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' }],
       },
       {
-        name: 'Captain workspace',
+        name: 'Team Hub',
         short_name: 'Captain',
         description: 'Run the team week with lineup and readiness actions.',
         url: '/captain',
         icons: [{ src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' }],
       },
       {
-        name: 'League Coordinator',
+        name: 'League Office',
         short_name: 'League',
         description: 'Open league setup, results, and season operations.',
         url: '/league-coordinator',

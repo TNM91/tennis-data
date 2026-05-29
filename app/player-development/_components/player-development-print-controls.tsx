@@ -9,7 +9,7 @@ type PlayerDevelopmentPrintControlsProps = {
 }
 
 const labels: Record<PlayerDevelopmentPrintControlsProps['activePacket'], string> = {
-  overview: 'Print concept preview',
+  overview: 'Print overview',
   workbook: 'Print player workbook',
   coach: 'Print coach planner',
 }

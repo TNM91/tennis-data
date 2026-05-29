@@ -218,6 +218,79 @@ const EMPTY_LAB_GOAL: LabGoalState = {
   updatedAt: null,
 }
 
+const MY_LAB_ONBOARDING_GOALS: Array<{ label: string; template: GoalTemplate }> = [
+  {
+    label: 'Win more singles',
+    template: {
+      goal: 'Win more singles',
+      progressUpdate: 'Track one pattern from each singles match.',
+      doingWell: 'Name the point pattern that is already holding up.',
+      improveNext: 'Choose one serve plus first-ball pattern to test.',
+      notes: 'Next singles test:\nPattern to repeat:\nPattern to clean up:',
+    },
+  },
+  {
+    label: 'Improve doubles',
+    template: {
+      goal: 'Improve doubles',
+      progressUpdate: 'Track positioning, return pressure, and partner patterns.',
+      doingWell: 'Name one team pattern that creates easy balls.',
+      improveNext: 'Choose one poach, lob, or return target to practice.',
+      notes: 'Doubles partner:\nBest pattern:\nNext court habit:',
+    },
+  },
+  {
+    label: 'Get ready for 4.0 / 4.5',
+    template: {
+      goal: 'Get ready for 4.0 / 4.5',
+      progressUpdate: 'Use match evidence to test whether the next rating band is getting closer.',
+      doingWell: 'Name the level-up skill that already travels under pressure.',
+      improveNext: 'Pick one pressure pattern to repeat for two weeks.',
+      notes: 'Target level:\nPressure skill:\nEvidence to upload:',
+    },
+  },
+  {
+    label: 'Prepare for playoffs',
+    template: {
+      goal: 'Prepare for playoffs',
+      progressUpdate: 'Scout likely opponents and choose one reliable match plan.',
+      doingWell: 'Name what you can trust late in sets.',
+      improveNext: 'Choose one matchup risk to practice before playoffs.',
+      notes: 'Likely opponent:\nCourt plan:\nWatch item:',
+    },
+  },
+  {
+    label: 'Captain a team',
+    template: {
+      goal: 'Captain a team',
+      progressUpdate: 'Use team context to reduce availability, lineup, and scouting friction.',
+      doingWell: 'Name the part of match week that is already organized.',
+      improveNext: 'Choose one captain workflow to move into Team Hub.',
+      notes: 'Team:\nAvailability gap:\nLineup question:',
+    },
+  },
+  {
+    label: 'Find a coach',
+    template: {
+      goal: 'Find a coach',
+      progressUpdate: 'Bring one match pattern and one question into the next lesson.',
+      doingWell: 'Name what you want a coach to keep.',
+      improveNext: 'Choose the first measurable assignment to ask for.',
+      notes: 'Coach question:\nMatch evidence:\nAssignment idea:',
+    },
+  },
+  {
+    label: 'Build a practice routine',
+    template: {
+      goal: 'Build a practice routine',
+      progressUpdate: 'Turn match evidence into one repeatable weekly practice block.',
+      doingWell: 'Name one skill that responds well to repetition.',
+      improveNext: 'Choose a practice routine you can repeat twice this week.',
+      notes: 'Routine:\nFrequency:\nEvidence after practice:',
+    },
+  },
+]
+
 function safeDate(value: string | null | undefined) {
   if (!value) return 'Recently'
   const d = new Date(value)
@@ -2143,6 +2216,7 @@ function MyLabPageInner() {
       icon: 'myLab' as TiqFeatureIconName,
     },
   ]
+  const dataAssistMyLabHref = '/data-assist?intent=upload-source&context=My%20Lab'
   const youHubCards = [
     {
       label: 'Open My Lab',
@@ -2160,7 +2234,7 @@ function MyLabPageInner() {
       note: isNewSelfRatedProfile
         ? 'Upload a scorecard or team summary to replace the starter signal.'
         : 'Upload, report, or correct the tennis context behind your read.',
-      href: '/data-assist',
+      href: dataAssistMyLabHref,
       cta: 'Open Data Assist',
       icon: 'reports' as TiqFeatureIconName,
     },
@@ -2317,7 +2391,7 @@ function MyLabPageInner() {
     {
       title: 'Upload scores',
       text: 'Use a scorecard or team summary to replace the starter rating with verified match context.',
-      href: '/data-assist',
+      href: dataAssistMyLabHref,
     },
     {
       title: 'Local leagues',
@@ -2406,6 +2480,65 @@ function MyLabPageInner() {
                   <span style={miniActionLinkStyle}>{card.cta}</span>
                 </Link>
               ))}
+            </div>
+          </section>
+
+          <section style={onboardingPanelStyle}>
+            <div style={sectionHeaderStyle}>
+              <div style={sectionHeaderCopyStyle}>
+                <p style={sectionKickerStyle}>First My Lab read</p>
+                <h2 style={compactSectionTitleStyle}>Find yourself, choose a goal, open one useful card.</h2>
+                <p style={sectionTextStyle}>
+                  My Lab works best when setup feels like a tennis next step, not a page full of empty counters.
+                </p>
+              </div>
+              <Link href={isProfileConfirmed ? nextMoveHref : '/profile'} style={matchupPrimaryLinkStyle}>
+                {isProfileConfirmed ? 'Open first read' : 'Find yourself'}
+              </Link>
+            </div>
+
+            <div style={onboardingStepGridStyle(isTablet)}>
+              <div style={onboardingStepCardStyle}>
+                <span style={setupStepNumberStyle}>1</span>
+                <strong>Find yourself</strong>
+                <p>{isProfileConfirmed ? profileLink?.linked_player_name || linkedPlayer?.name || 'Player profile linked.' : 'Search for your player record or create a self-rated profile.'}</p>
+                <Link href="/profile" style={smallInlineLinkStyle}>{isProfileConfirmed ? 'Review profile' : 'Set profile'}</Link>
+              </div>
+
+              <div style={onboardingStepCardStyle}>
+                <span style={setupStepNumberStyle}>2</span>
+                <strong>Choose your tennis goal</strong>
+                <p>{activeGoal.goal.trim() || 'Pick one focus for the next two weeks.'}</p>
+                <div style={onboardingGoalGridStyle}>
+                  {MY_LAB_ONBOARDING_GOALS.map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => applyGoalTemplate(option.template)}
+                      style={activeGoal.goal === option.template.goal ? onboardingGoalButtonActiveStyle : onboardingGoalButtonStyle}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={onboardingStepCardStyle}>
+                <span style={setupStepNumberStyle}>3</span>
+                <strong>Open your first read</strong>
+                <p>
+                  {topMatchupCandidate
+                    ? `Try the matchup read vs ${topMatchupCandidate.player.name}.`
+                    : isProfileConfirmed
+                      ? 'Upload data, follow a team, or build a matchup to sharpen the read.'
+                      : 'Set your profile first, then My Lab can suggest the next card.'}
+                </p>
+                <div style={onboardingReadListStyle}>
+                  <Link href={nextMoveHref} style={miniActionPillStyle}>{nextMoveCta}</Link>
+                  <Link href={dataAssistMyLabHref} style={smallInlineLinkStyle}>Upload data</Link>
+                  <Link href="/coaches" style={smallInlineLinkStyle}>Find a coach</Link>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -3341,7 +3474,12 @@ function MyLabPageInner() {
             </div>
 
             {loading ? (
-              <div style={emptyStateStyle}>Loading your lab...</div>
+              <div style={emptyStateStyle}>
+                <strong>Find yourself, choose a tennis goal, then open your first read.</strong>
+                <div style={{ marginTop: 8 }}>
+                  My Lab is getting your player record, follows, matchup notes, and coach context ready.
+                </div>
+              </div>
             ) : error ? (
               <div style={errorStateStyle}>
                 <div>Some data could not be loaded: {error}</div>
@@ -3624,10 +3762,10 @@ function PlayerCoachAssignmentsPanel({
       </div>
 
       <div style={coachAssignmentMetricsStyle}>
-        <SummaryCard label="Connected coaches" value={coachLinks.length ? String(coachLinks.length) : 'None'} note="Accept a coach invite to link work" />
-        <SummaryCard label="Due pressure" value={String(overdueAssignments.length + dueTodayAssignments.length)} note={`${overdueAssignments.length} overdue / ${dueTodayAssignments.length} today`} />
-        <SummaryCard label="Open assignments" value={String(openAssignments.length)} note="Coach-created work still in motion" />
-        <SummaryCard label="Completed" value={String(completedAssignments.length)} note="Finished coach follow-through" />
+        <SummaryCard label="Connected coaches" value={coachLinks.length ? String(coachLinks.length) : 'Connect'} note="Accept a coach invite to link work" />
+        <SummaryCard label="Due pressure" value={openAssignments.length ? String(overdueAssignments.length + dueTodayAssignments.length) : 'Clear'} note={openAssignments.length ? `${overdueAssignments.length} overdue / ${dueTodayAssignments.length} today` : 'Choose your first goal before assignment counters matter'} />
+        <SummaryCard label="Open assignments" value={openAssignments.length ? String(openAssignments.length) : 'First read'} note="Coach-created work appears after setup" />
+        <SummaryCard label="Completed" value={completedAssignments.length ? String(completedAssignments.length) : 'Later'} note="Finished coach follow-through" />
       </div>
 
       {nextAssignment ? (
@@ -4391,6 +4529,79 @@ const personalReadPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   boxShadow: '0 18px 45px rgba(2,8,23,0.28)',
+  minWidth: 0,
+}
+
+const onboardingPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.07), rgba(8,13,28,0.62))',
+  padding: 16,
+  display: 'grid',
+  gap: 14,
+  boxShadow: '0 18px 45px rgba(2,8,23,0.26)',
+  minWidth: 0,
+  overflow: 'hidden',
+}
+
+const onboardingStepGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+  minWidth: 0,
+})
+
+const onboardingStepCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  alignContent: 'start',
+  minHeight: 210,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(7,17,33,0.62)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 750,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const onboardingGoalGridStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 7,
+  minWidth: 0,
+}
+
+const onboardingGoalButtonStyle: CSSProperties = {
+  minHeight: 34,
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  padding: '0 10px',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const onboardingGoalButtonActiveStyle: CSSProperties = {
+  ...onboardingGoalButtonStyle,
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
+}
+
+const onboardingReadListStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 9,
+  alignItems: 'center',
+  marginTop: 'auto',
   minWidth: 0,
 }
 

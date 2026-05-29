@@ -16,6 +16,7 @@ type PlayerSuiteConfig = {
 }
 
 const PLAYER_TIER = MEMBERSHIP_TIERS.player_plus
+const dataAssistPlayerSuiteHref = '/data-assist?intent=upload-source&context=Player%20suite'
 
 const SUITE_STEPS: Record<PlayerSuiteStep, PlayerSuiteConfig> = {
   lab: {
@@ -36,7 +37,7 @@ const SUITE_STEPS: Record<PlayerSuiteStep, PlayerSuiteConfig> = {
     label: 'Improve data',
     title: 'Improve data',
     body: 'Upload, report, or refresh the tennis context behind your read.',
-    href: '/data-assist',
+    href: dataAssistPlayerSuiteHref,
     icon: 'reports',
   },
   matchup: {

@@ -1,16 +1,20 @@
 import type { Metadata } from 'next'
 import type { CSSProperties } from 'react'
 import Link from 'next/link'
+import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { SUPPORT_THREAD_ASSURANCE, buildSupportMessageHref } from '@/lib/message-links'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildRouteMetadata({
   title: 'Contact',
   description:
     'Contact TenAceIQ for support, data quality questions, account issues, and partnership inquiries.',
-}
+  path: '/contact',
+})
 
 const generalSupportHref = buildSupportMessageHref({
   category: 'general',
@@ -74,6 +78,7 @@ const contactCards: Array<{
 export default function ContactPage() {
   return (
     <SiteShell active="/contact">
+      <JsonLd id="contact-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Contact', '/contact')} />
       <InfoPage
         kicker="Contact"
         title="Questions, support, or data issues."

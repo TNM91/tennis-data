@@ -798,7 +798,7 @@ export async function addTiqTeamLeagueEntry(
       return {
         record: null,
         source: 'local',
-        warning: 'Sign in to request entry. Coordinators approve every TIQ league request.',
+        warning: 'Sign in to request entry. League Office approves every TIQ league request.',
       }
     }
 
@@ -853,7 +853,7 @@ export async function addTiqPlayerLeagueEntry(
       return {
         record: null,
         source: 'local',
-        warning: 'Sign in to request entry. Coordinators approve every TIQ league request.',
+        warning: 'Sign in to request entry. League Office approves every TIQ league request.',
       }
     }
 

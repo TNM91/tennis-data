@@ -6,9 +6,9 @@ import CompetePageFrame, {
 export default function CompetePage() {
   return (
     <CompetePageFrame
-      eyebrow="League hub"
+      eyebrow="League Office"
       title="Run the season."
-      description="Shared calendar, tournaments, team results, and player results stay in one operating lane."
+      description="Shared calendar, tournaments, team results, and player results stay in one League Office lane."
     >
       <CompeteGrid>
         <CompeteCard

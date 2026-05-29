@@ -252,6 +252,8 @@ export const PLAYER_DEVELOPMENT_DIAGRAMS: Record<PlayerDevelopmentDiagram, Playe
   },
 }
 
+const dataAssistPlayerDevelopmentHref = '/data-assist?intent=upload-source&context=Player%20development'
+
 export const RELENTLESS_COMPETITOR_IDENTITY: PlayerDevelopmentIdentity = {
   slug: 'relentless-competitor-4-0',
   title: 'The Relentless Competitor',
@@ -590,7 +592,7 @@ export const RELENTLESS_COMPETITOR_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Improve data',
       cue: 'Upload scorecards or notes when the tennis context needs to refresh.',
-      href: '/data-assist',
+      href: dataAssistPlayerDevelopmentHref,
     },
     {
       title: 'Bring to coach',

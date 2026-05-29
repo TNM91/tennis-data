@@ -11,7 +11,7 @@ describe('stripe checkout helpers', () => {
     expect(getStripeCheckoutMode('player_plus')).toBe('subscription')
     expect(getStripeCheckoutMode('coach')).toBe('subscription')
     expect(getStripeCheckoutMode('captain')).toBe('subscription')
-    expect(getStripeCheckoutMode('league')).toBe('subscription')
+    expect(getStripeCheckoutMode('league')).toBe('payment')
     expect(getStripeCheckoutMode('full_court')).toBe('subscription')
   })
 
@@ -44,7 +44,7 @@ describe('stripe checkout helpers', () => {
     )
   })
 
-  it('builds League subscription Checkout Session params with subscription metadata', () => {
+  it('builds League season fee Checkout Session params with payment metadata', () => {
     const params = buildStripeCheckoutSessionParams({
       planId: 'league',
       priceId: 'price_league',
@@ -54,10 +54,10 @@ describe('stripe checkout helpers', () => {
       nextHref: '/league-coordinator',
     })
 
-    expect(params.get('mode')).toBe('subscription')
+    expect(params.get('mode')).toBe('payment')
     expect(params.get('line_items[0][price]')).toBe('price_league')
     expect(params.get('allow_promotion_codes')).toBe('true')
-    expect(params.get('subscription_data[metadata][plan_id]')).toBe('league')
+    expect(params.get('payment_intent_data[metadata][plan_id]')).toBe('league')
     expect(params.get('cancel_url')).toBe(
       'https://tenaceiq.test/upgrade?plan=league&next=%2Fleague-coordinator&checkout=cancel&request=request-2',
     )

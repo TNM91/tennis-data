@@ -355,7 +355,7 @@ export default function HomePageHeroResponsive() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Captain workspace
+                  Team Hub
                 </div>
                 <div
                   style={{

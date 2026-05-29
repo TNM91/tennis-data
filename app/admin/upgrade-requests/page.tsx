@@ -427,8 +427,8 @@ function getActivationCue(request: UpgradeRequestRecord) {
       title: tier.name,
       summary: tier.shortPromise,
       grants: ['Team league entry', 'Individual league creator'],
-      excludes: ['Player Lab', 'Captain workflow'],
-      note: 'Coordinator activation stays independent from Player and Captain access.',
+      excludes: ['My Lab', 'Team Hub'],
+      note: 'League Office activation stays independent from Player and Captain access.',
     }
   }
 
@@ -436,7 +436,7 @@ function getActivationCue(request: UpgradeRequestRecord) {
     return {
       title: tier.name,
       summary: tier.shortPromise,
-      grants: ['Player tools', 'Coach workspace', 'Captain workflow', 'League coordinator'],
+      grants: ['My Lab', 'Coach Hub', 'Team Hub', 'League Office'],
       excludes: ['Nothing in the current paid suite'],
       note: 'Full-Court activation unlocks every current paid workspace for the account.',
     }
@@ -446,8 +446,8 @@ function getActivationCue(request: UpgradeRequestRecord) {
     return {
       title: tier.name,
       summary: tier.shortPromise,
-      grants: ['Player tools', 'Coach workspace', 'Student assignments'],
-      excludes: ['Captain workflow', 'Coordinator tools'],
+      grants: ['My Lab', 'Coach Hub', 'Student assignments'],
+      excludes: ['Team Hub', 'League Office'],
       note: 'Coach activation includes Player+ access plus coach-player planning and follow-through.',
     }
   }
@@ -456,8 +456,8 @@ function getActivationCue(request: UpgradeRequestRecord) {
     return {
       title: tier.name,
       summary: tier.shortPromise,
-      grants: ['Player tools', 'Captain workflow'],
-      excludes: ['Coordinator tools'],
+      grants: ['My Lab', 'Team Hub'],
+      excludes: ['League Office'],
       note: 'Captain activation includes Player access for matchup and lab workflows.',
     }
   }
@@ -466,7 +466,7 @@ function getActivationCue(request: UpgradeRequestRecord) {
     title: tier.name,
     summary: tier.shortPromise,
     grants: ['My Lab', 'Follows', 'Matchup insight'],
-    excludes: ['Captain workflow', 'Coordinator tools'],
+    excludes: ['Team Hub', 'League Office'],
     note: 'Player activation keeps team and league operations locked.',
   }
 }

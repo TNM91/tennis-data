@@ -51,6 +51,13 @@ describe('suite panel navigation deduplication', () => {
     expect(captain).not.toContain('Open tools')
   })
 
+  it('routes player-suite data improvement through guided Data Assist', () => {
+    const playerSuite = source('app/components/player-suite-panel.tsx')
+
+    expect(playerSuite).toContain("const dataAssistPlayerSuiteHref = '/data-assist?intent=upload-source&context=Player%20suite'")
+    expect(playerSuite).toContain('href: dataAssistPlayerSuiteHref')
+  })
+
   it('keeps the persistent portal from replacing page-level headings', () => {
     const portal = source('app/components/portal-tool-bar.tsx')
     const myLab = source('app/mylab/page.tsx')
@@ -60,6 +67,8 @@ describe('suite panel navigation deduplication', () => {
     expect(portal).toContain('aria-label="TenAceIQ command center"')
     expect(portal).toContain('aria-label="Choose a TenAceIQ workspace"')
     expect(portal).toContain('Plan practice')
+    expect(portal).toContain("const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'")
+    expect(portal).toContain('href: dataAssistPortalHref')
     expect(portal).not.toContain('<h1 style={portalTitleStyle}>')
     expect(myLab).toContain('<h1 style={sectionTitleStyle}>{welcomeLine}</h1>')
     expect(captain).toContain('<h1 style={scopeTitleStyle}>Choose the week.</h1>')

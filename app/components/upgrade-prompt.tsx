@@ -252,7 +252,7 @@ function getUnlockSteps(planId: PricingPlanId) {
   return [
     { title: 'Find', body: 'Search public players, teams, leagues, and rankings.' },
     { title: 'Learn', body: 'Use the profile paths to understand the tennis landscape.' },
-    { title: 'Upgrade when useful', body: 'Add personal, team, or league workspaces only when they help.' },
+    { title: 'Upgrade when useful', body: 'Add My Lab, Team Hub, or League Office only when they help.' },
   ]
 }
 

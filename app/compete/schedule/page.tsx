@@ -25,9 +25,11 @@ type ScheduleMatch = {
   away_team: string | null
 }
 
+const dataAssistScheduleHref = '/data-assist?intent=upload-source&context=League%20Office%20schedule'
+
 const emptyScheduleActions = [
   { href: '/league-coordinator#league-setup-form', label: 'League setup' },
-  { href: '/data-assist', label: 'Upload schedule' },
+  { href: dataAssistScheduleHref, label: 'Upload schedule' },
   { href: '/messages', label: 'Coordinate dates' },
   { href: '/league-coordinator/results', label: 'Team results' },
 ] as const
@@ -252,7 +254,7 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
   const scheduleIsReady = rowReadinessItems.every((item) => item.ready)
   const rowNextHref = scheduleIsReady && primaryTeam
     ? buildCaptainScopedHref('/captain/weekly-brief', rowScope)
-    : '/data-assist'
+    : dataAssistScheduleHref
   const rowNextLabel = scheduleIsReady ? 'Open prep' : 'Fill schedule'
   const supportSubject = `Question about ${homeTeam || 'home team'} vs ${awayTeam || 'away team'}`
   const supportBody = [

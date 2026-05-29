@@ -299,7 +299,7 @@ export function LeagueCoordinatorWorkspace() {
     } catch (error) {
       setRecords([])
       setStorageSource('local')
-      setStorageWarning(error instanceof Error ? error.message : 'League workspace data could not load.')
+      setStorageWarning(error instanceof Error ? error.message : 'League Office data could not load.')
     }
   }, [])
 
@@ -741,7 +741,7 @@ export function LeagueCoordinatorWorkspace() {
     {
       label: 'Access',
       complete: access.canUseLeagueTools,
-      detail: access.canUseLeagueTools ? 'League workspace is active.' : 'League access is not active yet.',
+      detail: access.canUseLeagueTools ? 'League Office is active.' : 'League access is not active yet.',
       href: '/pricing#league',
       cta: 'See plan',
     },
@@ -801,7 +801,7 @@ export function LeagueCoordinatorWorkspace() {
       title: activeParticipantCount > 0 ? 'Participant list is started' : 'Add teams or players',
       detail:
         activeParticipantCount > 0
-          ? `${activeParticipantCount} participants are tracked across the Coordinator workspace.`
+          ? `${activeParticipantCount} participants are tracked across League Office.`
           : 'A league becomes usable once the competing teams or players are in the record.',
       href: '#league-setup-form',
       cta: activeParticipantCount > 0 ? 'Review participants' : 'Add participants',
@@ -830,8 +830,8 @@ export function LeagueCoordinatorWorkspace() {
         storageSource === 'supabase'
           ? 'League setup is synced for public pages, standings, and coordinator review.'
           : 'This workspace is still using saved preview data until live sync is available.',
-      href: records.length > 0 ? '/compete/leagues' : '#league-setup-form',
-      cta: records.length > 0 ? 'View leagues' : 'Create first',
+      href: records.length > 0 ? '/leagues' : '#league-setup-form',
+      cta: records.length > 0 ? 'View public leagues' : 'Create first',
       complete: storageSource === 'supabase',
     },
   ]
@@ -1234,9 +1234,9 @@ export function LeagueCoordinatorWorkspace() {
                 <h1 style={leagueOpsTitleStyle}>
                   {access.canUseLeagueTools
                     ? records.length > 0
-                      ? 'Your next Coordinator move is ready.'
-                      : 'Set up the first league workspace.'
-                    : 'Unlock League access to save league workspaces.'}
+                      ? 'Your next League Office move is ready.'
+                      : 'Set up the first League Office workspace.'
+                    : 'Unlock League access to save League Office workspaces.'}
                 </h1>
                 <p style={leagueOpsTextStyle}>
                   {nextLeagueOpsStep.detail}
@@ -1275,8 +1275,8 @@ export function LeagueCoordinatorWorkspace() {
           <span aria-hidden="true" style={portalWatermarkStyle} />
           <div style={portalPanelContentStyle}>
             <div>
-              <div style={sectionEyebrow}>League workspace</div>
-              <h2 style={sectionTitle}>{records.length ? 'Your season workspace is ready.' : 'Create the first league workspace.'}</h2>
+              <div style={sectionEyebrow}>League Office</div>
+              <h2 style={sectionTitle}>{records.length ? 'Your season workspace is ready.' : 'Create the first League Office workspace.'}</h2>
               <p style={sectionText}>
                 Approve players, keep the schedule visible, collect scores, review uploads, and let standings update around the season.
               </p>
@@ -1341,7 +1341,7 @@ export function LeagueCoordinatorWorkspace() {
               <h2 style={leagueOpsTitleStyle}>Data refresh path</h2>
               <p style={leagueOpsTextStyle}>Open when schedules, rosters, or scorecards need to refresh the season.</p>
             </div>
-            <GhostLink href="/data-assist">{DATA_ASSIST_STORY.cta}</GhostLink>
+            <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
           </summary>
           <div style={leagueOpsHeaderStyle}>
             <div style={leagueOpsHeaderCopyStyle}>
@@ -1351,7 +1351,7 @@ export function LeagueCoordinatorWorkspace() {
                 {DATA_ASSIST_STORY.shortCue} Setup stays reviewable; Data Assist brings in schedules, rosters, and official scorecards when the season changes.
               </p>
             </div>
-            <GhostLink href="/data-assist">{DATA_ASSIST_STORY.cta}</GhostLink>
+            <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
           </div>
           <div style={dataAssistOpsGridStyle}>
             <div style={dataAssistOpsCardStyle}>
@@ -2080,7 +2080,7 @@ export function LeagueCoordinatorWorkspace() {
                   }
                   style={inputStyle}
                 >
-                  <option value="coordinator_fixed">Coordinator sets schedule</option>
+                  <option value="coordinator_fixed">League Office sets schedule</option>
                   <option value="player_arranged">Players schedule matches</option>
                 </select>
                 <span style={fieldHelpText}>
@@ -2360,7 +2360,7 @@ export function LeagueCoordinatorWorkspace() {
                   <strong style={setupAssistTitleStyle}>
                     {draft.schedulingMode === 'player_arranged'
                       ? 'Player-arranged scheduling preview'
-                      : 'Coordinator-published schedule preview'}
+                      : 'League Office-published schedule preview'}
                   </strong>
                   <p style={setupAssistTextStyle}>{schedulingHandoffSummary}</p>
                 </div>
@@ -2408,7 +2408,7 @@ export function LeagueCoordinatorWorkspace() {
                 </datalist>
               </div>
               <span style={fieldHelpText}>
-                Use known names when available, or paste reviewed roster names from Data Assist. Custom names are allowed; coordinator approval keeps join requests from turning into active participants automatically.
+                Use known names when available, or paste reviewed roster names from Data Assist. Custom names are allowed; League Office approval keeps join requests from turning into active participants automatically.
               </span>
               <textarea
                 value={draft.leagueFormat === 'team' ? teamListInput : playerListInput}
@@ -2515,7 +2515,7 @@ export function LeagueCoordinatorWorkspace() {
                 <span style={pendingEntryRequestCount > 0 ? pillGreen : pillSlate}>
                   {pendingEntryRequestCount} pending
                 </span>
-                <span style={pillSlate}>Coordinator approval required</span>
+                <span style={pillSlate}>League Office approval required</span>
               </div>
               <div style={registryTitle}>Join requests</div>
               <div style={registryText}>
@@ -2760,7 +2760,7 @@ function EmptyLeagueRegistryPanel() {
     <div style={emptyRegistryPanelStyle}>
       <div style={emptyRegistryCopyStyle}>
         <strong>League operations start with one season shell.</strong>
-        <span>Create a team or individual league, then bring in schedules, rosters, scorecards, and public pages from the same League lane.</span>
+        <span>Create a team or individual league, then bring in schedules, rosters, scorecards, and public pages from the same League Office.</span>
       </div>
       <div style={emptyRegistryActionRowStyle}>
         {emptyLeagueRegistryActions.map((action) => (

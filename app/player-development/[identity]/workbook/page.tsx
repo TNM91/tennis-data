@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
+import JsonLd from '@/app/components/json-ld'
 import PlayerDevelopmentSystem from '../../_components/player-development-system'
 import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentity } from '@/lib/player-development'
+import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildBreadcrumbJsonLd } from '@/lib/structured-data'
 
 type IdentityWorkbookPageProps = {
   params: Promise<{ identity: string }>
@@ -14,13 +17,29 @@ export async function generateMetadata({ params }: IdentityWorkbookPageProps): P
   const { identity: slug } = await params
   const identity = getPlayerDevelopmentIdentity(slug)
 
-  return {
+  return buildRouteMetadata({
     title: `${identity.title} Workbook | TenAceIQ Player Development`,
     description: `Printable TenAceIQ workbook pages for ${identity.title}.`,
-  }
+    path: `/player-development/${identity.slug}/workbook`,
+  })
 }
 
 export default async function IdentityWorkbookPage({ params }: IdentityWorkbookPageProps) {
-  const { identity } = await params
-  return <PlayerDevelopmentSystem focus="workbook" identitySlug={identity} />
+  const { identity: slug } = await params
+  const identity = getPlayerDevelopmentIdentity(slug)
+
+  return (
+    <>
+      <JsonLd
+        id="player-development-identity-workbook-breadcrumb-jsonld"
+        data={buildBreadcrumbJsonLd([
+          { name: 'Home', path: '/' },
+          { name: 'Player Development', path: '/player-development' },
+          { name: identity.title, path: `/player-development/${identity.slug}` },
+          { name: 'Workbook', path: `/player-development/${identity.slug}/workbook` },
+        ])}
+      />
+      <PlayerDevelopmentSystem focus="workbook" identitySlug={slug} />
+    </>
+  )
 }

@@ -66,18 +66,18 @@ export default function CompeteLeaguesPage() {
 
   return (
     <CompetePageFrame
-      eyebrow="League directory"
+      eyebrow="League Office directory"
       title="Open the right league room."
-      description="Saved TIQ leagues, public league pages, data refreshes, and team-week handoffs stay under the League lane."
+      description="Saved TIQ leagues, public league pages, data refreshes, and team-week handoffs stay under the League Office lane."
     >
       <CompeteGrid>
         <CompeteCard
           href="/league-coordinator"
           meta="Workspace"
-          title="League workspace"
+          title="League Office"
           text="Set up seasons, approve entries, publish pages, and record results."
           icon="teamRankings"
-          action="Open workspace"
+          action="Open League Office"
         />
         <CompeteCard
           href="/explore/leagues"
@@ -112,7 +112,7 @@ export default function CompeteLeaguesPage() {
           <div style={sectionEyebrowStyle}>Unlock path</div>
           <div style={upgradeTitleStyle}>Open the workspace that matches the job.</div>
           <div style={sectionTextStyle}>
-            Player handles personal prep, Captain handles team week, and League handles seasons, scorebooks, and public league rooms.
+            Player handles personal prep, Captain handles team week, and League Office handles seasons, scorebooks, and public league rooms.
           </div>
         </div>
 
@@ -347,10 +347,10 @@ function EmptyLeagueSection({ title }: { title: string }) {
   return (
     <div style={emptyLeagueStyle}>
       <div style={emptyLeagueCopyStyle}>
-        <strong>{isTeam ? 'Team seasons start in the league workspace.' : 'Individual play starts with a league room.'}</strong>
+        <strong>{isTeam ? 'Team seasons start in League Office.' : 'Individual play starts with a league room.'}</strong>
         <span>
           {isTeam
-            ? 'Create the season, add teams, then schedule and record results from one League lane.'
+            ? 'Create the season, add teams, then schedule and record results from League Office.'
             : 'Create a ladder, round robin, or challenge board, then invite players and log the first result.'}
         </span>
       </div>
