@@ -3570,6 +3570,9 @@ function PlayerCoachAssignmentsPanel({
   const nextDueState = nextAssignment ? getCoachAssignmentDueState(nextAssignment.dueDate) : null
   const nextAssignmentSummary = nextAssignment ? getCoachAssignmentSummary(nextAssignment.assignment) : null
   const nextCoachReview = nextAssignment ? getCoachAssignmentReview(nextAssignment.assignment) : null
+  const nextAssignmentActionPlan = nextAssignment
+    ? buildPlayerAssignmentActionPlan(nextAssignment, nextAssignmentSummary, nextDueState?.label ?? '')
+    : []
   const [activeAssignmentId, setActiveAssignmentId] = useState('')
   const [recap, setRecap] = useState('')
   const [evidence, setEvidence] = useState('')
@@ -3633,6 +3636,16 @@ function PlayerCoachAssignmentsPanel({
             {nextCoachReview?.nextFocus ? (
               <em>Coach next focus: {nextCoachReview.nextFocus}</em>
             ) : null}
+            {nextAssignmentActionPlan.length ? (
+              <div style={coachAssignmentActionPlanStyle}>
+                {nextAssignmentActionPlan.map((item) => (
+                  <span key={item.label} style={coachAssignmentActionItemStyle}>
+                    <strong>{item.label}</strong>
+                    <em>{item.value}</em>
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div style={coachHubNextActionsStyle}>
             {nextAssignment.status !== 'completed' ? (
@@ -3677,6 +3690,7 @@ function PlayerCoachAssignmentsPanel({
             const coachReview = getCoachAssignmentReview(assignment.assignment)
             const assignmentSummary = getCoachAssignmentSummary(assignment.assignment)
             const dueState = getCoachAssignmentDueState(assignment.dueDate)
+            const assignmentActionPlan = buildPlayerAssignmentActionPlan(assignment, assignmentSummary, dueState.label)
             return (
               <div key={assignment.id} id={`coach-assignment-${assignment.id}`} style={coachAssignmentCardStyle}>
                 <div style={metricLabelStyle}>{assignment.status === 'completed' ? 'Completed' : 'Assigned'}</div>
@@ -3715,6 +3729,16 @@ function PlayerCoachAssignmentsPanel({
                       </ul>
                     ) : null}
                     {assignmentSummary.prompt ? <em>{assignmentSummary.prompt}</em> : null}
+                  </div>
+                ) : null}
+                {assignment.status !== 'completed' && assignmentActionPlan.length ? (
+                  <div style={coachAssignmentMicroPlanStyle}>
+                    {assignmentActionPlan.map((item) => (
+                      <span key={item.label}>
+                        <strong>{item.label}: </strong>
+                        {item.value}
+                      </span>
+                    ))}
                   </div>
                 ) : null}
                 {coachReview ? (
@@ -3815,6 +3839,30 @@ function buildPlayerCoachMessageHref(
   if (assignmentContext?.assignmentTitle) params.set('assignmentTitle', assignmentContext.assignmentTitle)
   if (assignmentContext?.assignmentFocus) params.set('assignmentFocus', assignmentContext.assignmentFocus)
   return `/messages?${params.toString()}`
+}
+
+function buildPlayerAssignmentActionPlan(
+  assignment: CoachAssignment,
+  summary: ReturnType<typeof getCoachAssignmentSummary> | null,
+  dueLabel: string,
+) {
+  const trackerTarget = summary?.tracker[0] || summary?.volume || 'Complete the work exactly as assigned.'
+  const proofTarget = summary?.tracker[1] || 'Record reps, score, success rate, or a short note from the session.'
+  const coachTarget = summary?.prompt || 'Send your coach the result and one thing you want to sharpen next.'
+  return [
+    {
+      label: 'Do',
+      value: summary?.detail || assignment.focus || trackerTarget,
+    },
+    {
+      label: 'Track',
+      value: proofTarget,
+    },
+    {
+      label: 'Send back',
+      value: dueLabel && dueLabel !== 'No due date' ? `${coachTarget} ${dueLabel}.` : coachTarget,
+    },
+  ]
 }
 
 function FollowList({
@@ -3988,6 +4036,25 @@ const coachHubNextActionsStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const coachAssignmentActionPlanStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 8,
+  marginTop: 4,
+}
+
+const coachAssignmentActionItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(15,37,67,0.1)',
+  background: 'rgba(255,255,255,0.78)',
+  color: '#435775',
+  fontSize: '.82rem',
+  lineHeight: 1.35,
+}
+
 const coachAssignmentCardStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -4061,6 +4128,18 @@ const coachAssignmentTrackerStyle: CSSProperties = {
   paddingLeft: 18,
   display: 'grid',
   gap: 3,
+}
+
+const coachAssignmentMicroPlanStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 11,
+  borderRadius: 15,
+  border: '1px solid rgba(93,143,18,0.16)',
+  background: 'rgba(238,248,229,0.72)',
+  color: '#31445f',
+  fontSize: '.82rem',
+  lineHeight: 1.4,
 }
 
 const coachFeedbackStyle: CSSProperties = {
