@@ -152,7 +152,50 @@ const pageStyles = {
     fontSize: 14,
     lineHeight: 1.55,
   },
+  pathGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+    gap: 10,
+    marginTop: 22,
+  },
+  pathCard: {
+    display: 'grid',
+    gap: 8,
+    border: '1px solid rgba(15, 37, 67, 0.12)',
+    borderRadius: 18,
+    background: 'linear-gradient(180deg, #ffffff 0%, #f7fbff 100%)',
+    padding: 14,
+    color: '#435775',
+    fontSize: 13,
+    lineHeight: 1.45,
+    fontWeight: 760,
+  },
+  pathLabel: {
+    color: '#5d8f12',
+    fontSize: 11,
+    fontWeight: 950,
+    letterSpacing: '.1em',
+    textTransform: 'uppercase',
+  },
 } satisfies Record<string, CSSProperties>
+
+const invitePathSteps = [
+  {
+    label: 'Free',
+    title: 'Accept the coach link',
+    copy: 'Your coach can keep you on their student board and hand you useful printed or digital guide work.',
+  },
+  {
+    label: 'Player+',
+    title: 'Activate connected follow-through',
+    copy: 'Assignments, recaps, coach feedback, and progress history appear in My Lab.',
+  },
+  {
+    label: 'Coach',
+    title: 'Keep the loop moving',
+    copy: 'Your coach can assign work, review evidence, and message you from their Coach workspace.',
+  },
+] as const
 
 export default function CoachInvitePage() {
   return (
@@ -226,7 +269,7 @@ function CoachInviteContent() {
         throw new Error(json.message || 'This coach invite could not be accepted.')
       }
       setInvite((current) => (current ? { ...current, status: 'accepted' } : current))
-      setMessage('Coach connected. Your guide is still useful on paper, and Player+ turns it into live assignments, recaps, and check-ins.')
+      setMessage('Coach connected. Free keeps the relationship linked; Player+ activates live assignments, recaps, feedback, and check-ins.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'This coach invite could not be accepted.')
     } finally {
@@ -258,6 +301,15 @@ function CoachInviteContent() {
               Create or sign into your account, accept the coach link, and your development work can move from the
               printed guide into TenAceIQ assignments, recaps, match reflections, and accountability tracking.
             </p>
+            <div style={pageStyles.pathGrid} aria-label="Coach invite path">
+              {invitePathSteps.map((step) => (
+                <div key={step.label} style={pageStyles.pathCard}>
+                  <span style={pageStyles.pathLabel}>{step.label}</span>
+                  <strong style={{ color: '#0b1730' }}>{step.title}</strong>
+                  <span>{step.copy}</span>
+                </div>
+              ))}
+            </div>
 
             {message ? (
               <p style={{ ...pageStyles.note, background: message.includes('connected') || message.includes('Coach connected') ? '#102a21' : '#071226' }}>
@@ -278,14 +330,25 @@ function CoachInviteContent() {
                   </Link>
                 </>
               ) : invite?.status === 'accepted' ? (
-                <>
-                  <Link href="/mylab" style={pageStyles.primaryButton}>
-                    Open My Lab
-                  </Link>
-                  <Link href="/player-development" style={pageStyles.secondaryButton}>
-                    Open development paths
-                  </Link>
-                </>
+                access.canUseAdvancedPlayerInsights ? (
+                  <>
+                    <Link href="/mylab#player-workshop" style={pageStyles.primaryButton}>
+                      Open My Lab Coach Hub
+                    </Link>
+                    <Link href="/player-development" style={pageStyles.secondaryButton}>
+                      Open development paths
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link href={playerPlusHref} style={pageStyles.primaryButton}>
+                      Activate Player+
+                    </Link>
+                    <Link href="/player-development" style={pageStyles.secondaryButton}>
+                      Use standalone guide
+                    </Link>
+                  </>
+                )
               ) : (
                 <>
                   <button type="button" onClick={acceptInvite} disabled={accepting} style={pageStyles.primaryButton}>
@@ -330,8 +393,8 @@ function CoachInviteContent() {
             ) : null}
 
             <p style={{ ...pageStyles.copy, marginTop: 18, fontSize: 14 }}>
-              The printed workbook remains a standalone development tool. Player+ unlocks the connected layer: coach assignments,
-              digital check-ins, progress history, and bring-this-to-your-coach follow-through.
+              The printed workbook remains a standalone development tool. Player+ is what unlocks the connected layer:
+              coach assignments, digital check-ins, progress history, and bring-this-to-your-coach follow-through.
             </p>
           </aside>
         </div>
