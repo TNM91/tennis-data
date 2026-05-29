@@ -126,6 +126,7 @@ function JoinContent() {
   const [message, setMessage] = useState('')
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const requestedPlan = searchParams.get('plan')
+  const requestedEmail = searchParams.get('email')?.trim() ?? ''
   const selectedPlanId: MembershipTierId = JOIN_PLAN_IDS.includes(requestedPlan as MembershipTierId)
     ? (requestedPlan as MembershipTierId)
     : 'free'
@@ -138,6 +139,10 @@ function JoinContent() {
     if (!authResolved || role === 'public') return
     router.replace(getDefaultSignedInRoute(role, entitlements))
   }, [authResolved, entitlements, role, router])
+
+  useEffect(() => {
+    if (requestedEmail && !email) setEmail(requestedEmail)
+  }, [email, requestedEmail])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

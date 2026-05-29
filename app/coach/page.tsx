@@ -63,6 +63,9 @@ function CoachContent() {
   const [assignmentDueDate, setAssignmentDueDate] = useState('')
   const [assignmentTemplateId, setAssignmentTemplateId] = useState(COACH_ASSIGNMENT_TEMPLATES[0]?.id ?? '')
   const [assignmentPresetId, setAssignmentPresetId] = useState('')
+  const [contactStudentId, setContactStudentId] = useState('')
+  const [lessonDateTime, setLessonDateTime] = useState('')
+  const [lessonFocus, setLessonFocus] = useState('')
   const [sessionPresetId, setSessionPresetId] = useState(COACH_SESSION_PRESETS[0]?.id ?? '')
   const [reviewAssignmentId, setReviewAssignmentId] = useState('')
   const [reviewNote, setReviewNote] = useState('')
@@ -108,6 +111,7 @@ function CoachContent() {
       setAssignments(assignmentsJson.assignments ?? [])
       setInvites(invitesJson.invites ?? [])
       setAssignmentStudentId((current) => current || studentsJson.students?.[0]?.id || '')
+      setContactStudentId((current) => current || studentsJson.students?.[0]?.id || '')
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not load Coach workspace.')
     } finally {
@@ -159,6 +163,7 @@ function CoachContent() {
 
       setSavedStudents((current) => [json.student as CoachStudentLink, ...current.filter((student) => student.id !== json.student?.id)])
       setAssignmentStudentId(json.student.id)
+      setContactStudentId(json.student.id)
       setStudentName('')
       setStudentLevel('')
       setInviteEmail('')
@@ -317,6 +322,14 @@ function CoachContent() {
 
   const sortedAssignments = useMemo(() => sortCoachAssignmentsForReview(assignments), [assignments])
   const selectedSessionPreset = useMemo(() => getCoachSessionPreset(sessionPresetId), [sessionPresetId])
+  const selectedContactStudent = useMemo(
+    () => savedStudents.find((student) => student.id === contactStudentId) ?? savedStudents[0] ?? null,
+    [contactStudentId, savedStudents],
+  )
+  const lessonMessage = useMemo(
+    () => buildLessonConfirmMessage(selectedContactStudent?.playerName ?? 'your lesson', lessonDateTime, lessonFocus),
+    [lessonDateTime, lessonFocus, selectedContactStudent?.playerName],
+  )
   const assignmentsNeedingReview = useMemo(
     () => assignments.filter(assignmentNeedsCoachReview),
     [assignments],
@@ -532,6 +545,50 @@ function CoachContent() {
             </button>
           </form>
           {workspaceMessage ? <div style={messageStyle}>{workspaceMessage}</div> : null}
+          <div style={contactPanelStyle}>
+            <div style={sessionPlannerHeaderStyle}>
+              <div>
+                <div style={eyebrowStyle}>Quick contact</div>
+                <h3 style={sessionPlannerTitleStyle}>Confirm the next lesson.</h3>
+              </div>
+              <select value={contactStudentId} onChange={(event) => setContactStudentId(event.target.value)} style={compactSelectStyle}>
+                <option value="">Choose student</option>
+                {savedStudents.map((student) => (
+                  <option key={student.id} value={student.id}>{student.playerName}</option>
+                ))}
+              </select>
+            </div>
+            <div style={sessionStepGridStyle}>
+              <label style={fieldStyle}>
+                Date / time
+                <input value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} placeholder="Tue 4:30 PM" style={inputStyle} />
+              </label>
+              <label style={fieldStyle}>
+                Lesson focus
+                <input value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
+              </label>
+            </div>
+            <p style={studentNextStyle}>{lessonMessage}</p>
+            <div style={sessionActionRowStyle}>
+              {selectedContactStudent?.playerUserId ? (
+                <Link
+                  href={buildCoachPlayerMessageHref(selectedContactStudent, 'Next lesson schedule', lessonMessage)}
+                  style={smallPrimaryLinkStyle}
+                >
+                  Send IM
+                </Link>
+              ) : (
+                <span style={disabledPillStyle}>Link Player+ for IM</span>
+              )}
+              {selectedContactStudent?.playerPhone ? (
+                <a href={buildSmsHref(selectedContactStudent.playerPhone, lessonMessage)} style={smallGhostLinkStyle}>
+                  Send text
+                </a>
+              ) : (
+                <span style={disabledPillStyle}>Add cell for text</span>
+              )}
+            </div>
+          </div>
           <div style={reviewQueueStyle}>
             <div style={reviewQueueMetricStyle}>
               <span>Needs review</span>
@@ -780,6 +837,14 @@ function getSetupStatusLabel(student: CoachStudentLink) {
   if (student.playerUserId || student.setupStatus === 'linked') return 'Linked Player+ account'
   if (student.setupStatus === 'invited') return 'Setup link sent'
   return 'Manual student'
+}
+
+function buildLessonConfirmMessage(playerName: string, dateTime: string, focus: string) {
+  const details = [
+    dateTime.trim() ? `Time: ${dateTime.trim()}` : 'Time: ',
+    focus.trim() ? `Focus: ${focus.trim()}` : 'Focus: ',
+  ].join('  ')
+  return `Let's confirm the next lesson for ${playerName}. ${details}`
 }
 
 function buildSmsHref(phone: string, body: string) {
@@ -1165,6 +1230,13 @@ const sessionPlannerStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const contactPanelStyle: CSSProperties = {
+  ...sessionPlannerStyle,
+  border: '1px solid rgba(116,190,255,0.2)',
+  background:
+    'linear-gradient(135deg, rgba(116,190,255,0.1), rgba(155,225,29,0.055)), rgba(255,255,255,0.035)',
+}
+
 const sessionPlannerHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -1376,6 +1448,14 @@ const smallPrimaryButtonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
+const smallPrimaryLinkStyle: CSSProperties = {
+  ...smallPrimaryButtonStyle,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
+}
+
 const smallGhostButtonStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.14)',
   borderRadius: 999,
@@ -1393,6 +1473,16 @@ const smallGhostLinkStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   textDecoration: 'none',
+}
+
+const disabledPillStyle: CSSProperties = {
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: 999,
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--shell-copy-muted)',
+  padding: '8px 12px',
+  fontSize: 12,
+  fontWeight: 900,
 }
 
 const integrationStyle: CSSProperties = {

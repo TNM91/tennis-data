@@ -177,7 +177,12 @@ function CoachInviteContent() {
   const [accepting, setAccepting] = useState(false)
 
   const nextHref = `/coach/invite/${encodeURIComponent(token)}`
-  const playerPlusHref = `/join?plan=player_plus&next=${encodeURIComponent(nextHref)}`
+  const signupParams = new URLSearchParams({
+    plan: 'player_plus',
+    next: nextHref,
+  })
+  if (invite?.inviteEmail) signupParams.set('email', invite.inviteEmail)
+  const playerPlusHref = `/join?${signupParams.toString()}`
   const loginHref = `/login?next=${encodeURIComponent(nextHref)}`
 
   const loadInvite = useCallback(async () => {
@@ -248,10 +253,10 @@ function CoachInviteContent() {
         <div style={pageStyles.body} className="coach-invite-grid">
           <div style={pageStyles.main}>
             <span style={pageStyles.eyebrow}>Coach invite</span>
-            <h1 style={pageStyles.title}>Connect your coach workspace.</h1>
+            <h1 style={pageStyles.title}>Finish the player setup your coach started.</h1>
             <p style={pageStyles.copy}>
-              This link connects a coach planner to a player account so development work can move from the printed guide into
-              TenAceIQ assignments, recaps, match reflections, and accountability tracking.
+              Create or sign into your account, accept the coach link, and your development work can move from the
+              printed guide into TenAceIQ assignments, recaps, match reflections, and accountability tracking.
             </p>
 
             {message ? (
@@ -269,7 +274,7 @@ function CoachInviteContent() {
                     Sign in to accept
                   </Link>
                   <Link href={playerPlusHref} style={pageStyles.secondaryButton}>
-                    Join Player+
+                    Create account
                   </Link>
                 </>
               ) : invite?.status === 'accepted' ? (
