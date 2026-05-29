@@ -41,6 +41,7 @@ const FIRST_ASSIGNMENT_STARTERS = [
     title: 'First movement standard',
     focus: 'Active feet + recovery',
     cue: 'Set the baseline habit: split, first step, recover before watching.',
+    evidence: 'Player returns with four completed cycles and one note on when their feet stopped moving.',
   },
   {
     id: 'serve',
@@ -48,6 +49,7 @@ const FIRST_ASSIGNMENT_STARTERS = [
     title: 'First serve pressure chart',
     focus: 'Serve routine + target clarity',
     cue: 'Give the player a measurable serve task they can bring back with evidence.',
+    evidence: 'Player tracks 60 serves by target and names the target that held up best under pressure.',
   },
   {
     id: 'decision',
@@ -55,6 +57,7 @@ const FIRST_ASSIGNMENT_STARTERS = [
     title: 'First attack decision audit',
     focus: 'Build, attack, or reset',
     cue: 'Start the Coach Hub with smarter ball selection instead of generic winners.',
+    evidence: 'Player brings three point notes: correct attack, smart reset, and one forced attack to clean up.',
   },
 ] as const
 
@@ -318,7 +321,7 @@ function CoachContent() {
     setAssignmentFocus(starter.focus)
     setAssignmentDueDate(getDateInputDaysFromNow(7))
     setAssignmentPresetId('')
-    setWorkspaceMessage(`${starter.title} loaded. Choose the player, adjust anything needed, then create and send it.`)
+    setWorkspaceMessage(`${starter.title} loaded. Expected evidence: ${starter.evidence}`)
   }
 
   async function saveAssignmentReview(assignmentId: string) {
@@ -730,6 +733,7 @@ function CoachContent() {
                 >
                   <strong>{starter.title}</strong>
                   <span>{starter.cue}</span>
+                  <em>Evidence: {starter.evidence}</em>
                 </button>
               ))}
             </div>
