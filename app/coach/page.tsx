@@ -322,6 +322,10 @@ function CoachContent() {
 
   const sortedAssignments = useMemo(() => sortCoachAssignmentsForReview(assignments), [assignments])
   const selectedSessionPreset = useMemo(() => getCoachSessionPreset(sessionPresetId), [sessionPresetId])
+  const linkedPlayerCards = useMemo(
+    () => buildLinkedPlayerCards(savedStudents, assignments, invites),
+    [assignments, invites, savedStudents],
+  )
   const selectedContactStudent = useMemo(
     () => savedStudents.find((student) => student.id === contactStudentId) ?? savedStudents[0] ?? null,
     [contactStudentId, savedStudents],
@@ -336,6 +340,9 @@ function CoachContent() {
   )
   const activeAssignmentsCount = assignments.filter((assignment) => assignment.status === 'assigned').length
   const reviewedAssignmentsCount = assignments.filter((assignment) => Boolean(getCoachAssignmentReview(assignment.assignment))).length
+  const linkedPlayersCount = linkedPlayerCards.filter((card) => card.connection === 'linked').length
+  const pendingInviteCount = linkedPlayerCards.filter((card) => card.connection === 'pending').length
+  const overduePlayersCount = linkedPlayerCards.filter((card) => card.dueTone === 'overdue' || card.dueTone === 'today').length
 
   if (!authResolved || role === 'public') return null
 
@@ -387,6 +394,85 @@ function CoachContent() {
             </span>
           </Link>
         ))}
+      </section>
+
+      <section style={linkedDashboardStyle} aria-label="Linked players dashboard">
+        <div style={linkedDashboardHeaderStyle}>
+          <div>
+            <div style={eyebrowStyle}>Linked players</div>
+            <h2 style={sectionTitleStyle}>Know who needs the next touch.</h2>
+            <p style={bodyStyle}>
+              Track setup status, Player+ connection, assignment pressure, and review needs before the next lesson.
+            </p>
+          </div>
+          <div style={linkedMetricGridStyle}>
+            <DashboardMetric label="Linked" value={linkedPlayersCount} />
+            <DashboardMetric label="Pending" value={pendingInviteCount} />
+            <DashboardMetric label="Review" value={assignmentsNeedingReview.length} />
+            <DashboardMetric label="Due now" value={overduePlayersCount} />
+          </div>
+        </div>
+        <div style={linkedCardsGridStyle}>
+          {linkedPlayerCards.length ? linkedPlayerCards.map((card) => (
+            <article key={card.student.id} style={linkedPlayerCardStyle}>
+              <div style={linkedCardTopStyle}>
+                <div>
+                  <strong>{card.student.playerName}</strong>
+                  <span>{getIdentityTitle(card.student.identitySlug)} / {card.student.levelLabel || 'Development path'}</span>
+                </div>
+                <span style={connectionBadgeStyle(card.connection)}>{card.connectionLabel}</span>
+              </div>
+              <div style={linkedBadgeRowStyle}>
+                <span style={pressureBadgeStyle(card.dueTone)}>{card.dueLabel}</span>
+                <span style={miniBadgeStyle}>{card.activeAssignments} active</span>
+                {card.needsReview ? <span style={reviewBadgeStyle}>Needs review</span> : null}
+              </div>
+              <p style={studentNextStyle}>
+                {card.latestAssignment
+                  ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
+                  : card.pendingInvite
+                    ? 'Invite pending. Send setup link, then create the first Player+ assignment.'
+                    : 'Create a measurable next action from the last lesson.'}
+              </p>
+              <div style={studentActionRowStyle}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssignmentStudentId(card.student.id)
+                    setAssignmentTitle('')
+                    setAssignmentFocus('')
+                    setWorkspaceMessage(`Assignment form is ready for ${card.student.playerName}.`)
+                  }}
+                  style={inlineActionButtonStyle}
+                >
+                  Assign work
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContactStudentId(card.student.id)
+                    setWorkspaceMessage(`Quick contact is ready for ${card.student.playerName}.`)
+                  }}
+                  style={inlineActionButtonStyle}
+                >
+                  Contact
+                </button>
+                {card.student.playerUserId ? (
+                  <Link href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)} style={studentActionStyle}>
+                    Message
+                  </Link>
+                ) : card.pendingInvite ? (
+                  <a href={card.pendingInvite.inviteHref} style={studentActionStyle}>Setup link</a>
+                ) : null}
+              </div>
+            </article>
+          )) : (
+            <article style={linkedEmptyStyle}>
+              <strong>No linked players yet.</strong>
+              <span>Add a student below, then send a setup link when you want the Player+ layer connected.</span>
+            </article>
+          )}
+        </div>
       </section>
 
       <section style={workspaceGridStyle}>
@@ -812,6 +898,15 @@ function IntegrationPill({ label, value }: { label: string; value: string }) {
   )
 }
 
+function DashboardMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={linkedMetricStyle}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
 function SessionStep({ label, value }: { label: string; value: string }) {
   return (
     <div style={sessionStepStyle}>
@@ -844,6 +939,74 @@ function getInviteStatusLabel(status: CoachStudentInvite['status']) {
   if (status === 'revoked') return 'Revoked'
   if (status === 'expired') return 'Expired'
   return 'Pending invite'
+}
+
+type LinkedPlayerCard = {
+  student: CoachStudentLink
+  connection: 'linked' | 'pending' | 'manual'
+  connectionLabel: string
+  pendingInvite: CoachStudentInvite | null
+  activeAssignments: number
+  needsReview: boolean
+  dueLabel: string
+  dueTone: ReturnType<typeof getCoachAssignmentDueState>['tone']
+  latestAssignment: CoachAssignment | null
+}
+
+function buildLinkedPlayerCards(
+  students: CoachStudentLink[],
+  assignments: CoachAssignment[],
+  invites: CoachStudentInvite[],
+): LinkedPlayerCard[] {
+  return students.map((student) => {
+    const studentAssignments = assignments.filter((assignment) => assignment.studentLinkId === student.id)
+    const pendingInvite = invites.find((invite) => invite.studentLinkId === student.id && invite.status === 'pending') ?? null
+    const activeAssignments = studentAssignments.filter((assignment) => assignment.status === 'assigned').length
+    const needsReview = studentAssignments.some(assignmentNeedsCoachReview)
+    const latestAssignment = [...studentAssignments].sort((a, b) => Date.parse(b.updatedAt || '') - Date.parse(a.updatedAt || ''))[0] ?? null
+    const dueState = getHighestPressureDueState(studentAssignments)
+    const connection: LinkedPlayerCard['connection'] = student.playerUserId || student.setupStatus === 'linked'
+      ? 'linked'
+      : pendingInvite || student.setupStatus === 'invited'
+        ? 'pending'
+        : 'manual'
+
+    return {
+      student,
+      connection,
+      connectionLabel: connection === 'linked' ? 'Linked' : connection === 'pending' ? 'Invite pending' : 'Manual',
+      pendingInvite,
+      activeAssignments,
+      needsReview,
+      dueLabel: dueState.label,
+      dueTone: dueState.tone,
+      latestAssignment,
+    }
+  }).sort((a, b) => getLinkedPlayerPriority(a) - getLinkedPlayerPriority(b))
+}
+
+function getHighestPressureDueState(assignments: CoachAssignment[]) {
+  const dueStates = assignments
+    .filter((assignment) => assignment.status === 'assigned')
+    .map((assignment) => getCoachAssignmentDueState(assignment.dueDate))
+
+  return dueStates.sort((a, b) => getDueTonePriority(a.tone) - getDueTonePriority(b.tone))[0] ?? { label: 'No active due date', tone: 'none' as const }
+}
+
+function getDueTonePriority(tone: ReturnType<typeof getCoachAssignmentDueState>['tone']) {
+  if (tone === 'overdue') return 0
+  if (tone === 'today') return 1
+  if (tone === 'soon') return 2
+  if (tone === 'future') return 3
+  return 4
+}
+
+function getLinkedPlayerPriority(card: LinkedPlayerCard) {
+  if (card.needsReview) return 0
+  if (card.dueTone === 'overdue' || card.dueTone === 'today') return 1
+  if (card.connection === 'pending') return 2
+  if (card.activeAssignments > 0) return 3
+  return 4
 }
 
 function getSetupStatusLabel(student: CoachStudentLink) {
@@ -1023,6 +1186,107 @@ const commandCopyStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.45,
   fontWeight: 760,
+}
+
+const linkedDashboardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 24,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.055)), linear-gradient(180deg, rgba(12,26,50,0.86), rgba(8,18,36,0.94))',
+  minWidth: 0,
+}
+
+const linkedDashboardHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(260px, 0.5fr)',
+  gap: 16,
+  alignItems: 'start',
+  minWidth: 0,
+}
+
+const linkedMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const linkedMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+}
+
+const linkedCardsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const linkedPlayerCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(255,255,255,0.045)',
+}
+
+const linkedCardTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 10,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 950,
+}
+
+const linkedBadgeRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 7,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const miniBadgeStyle: CSSProperties = {
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--shell-copy-muted)',
+  padding: '4px 8px',
+  fontSize: 10,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const reviewBadgeStyle: CSSProperties = {
+  ...miniBadgeStyle,
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.12)',
+  color: 'var(--brand-green)',
+}
+
+const linkedEmptyStyle: CSSProperties = {
+  ...linkedPlayerCardStyle,
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.5,
+  fontSize: 13,
+  fontWeight: 800,
 }
 
 const workspaceGridStyle: CSSProperties = {
@@ -1379,6 +1643,50 @@ function assignmentDueStyle(tone: ReturnType<typeof getCoachAssignmentDueState>[
   }
 }
 
+function connectionBadgeStyle(connection: LinkedPlayerCard['connection']): CSSProperties {
+  const linked = connection === 'linked'
+  const pending = connection === 'pending'
+  return {
+    borderRadius: 999,
+    border: linked
+      ? '1px solid rgba(155,225,29,0.34)'
+      : pending
+        ? '1px solid rgba(255,194,87,0.32)'
+        : '1px solid rgba(255,255,255,0.12)',
+    background: linked
+      ? 'rgba(155,225,29,0.14)'
+      : pending
+        ? 'rgba(255,194,87,0.1)'
+        : 'rgba(255,255,255,0.055)',
+    color: linked ? 'var(--brand-green)' : pending ? '#ffc257' : 'var(--shell-copy-muted)',
+    padding: '4px 8px',
+    fontSize: 10,
+    fontWeight: 950,
+    letterSpacing: '.05em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+  }
+}
+
+function pressureBadgeStyle(tone: ReturnType<typeof getCoachAssignmentDueState>['tone']): CSSProperties {
+  const urgent = tone === 'overdue' || tone === 'today'
+  const soon = tone === 'soon'
+  return {
+    ...miniBadgeStyle,
+    border: urgent
+      ? '1px solid rgba(255,122,122,0.32)'
+      : soon
+        ? '1px solid rgba(155,225,29,0.24)'
+        : '1px solid rgba(255,255,255,0.12)',
+    background: urgent
+      ? 'rgba(255,122,122,0.12)'
+      : soon
+        ? 'rgba(155,225,29,0.1)'
+        : 'rgba(255,255,255,0.055)',
+    color: urgent ? '#ffb2b2' : soon ? 'var(--brand-green)' : 'var(--shell-copy-muted)',
+  }
+}
+
 const checkInReviewStyle: CSSProperties = {
   display: 'grid',
   gap: 5,
@@ -1459,6 +1767,17 @@ const smallPrimaryButtonStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   cursor: 'pointer',
+}
+
+const inlineActionButtonStyle: CSSProperties = {
+  border: 0,
+  background: 'transparent',
+  color: 'var(--brand-green)',
+  cursor: 'pointer',
+  font: 'inherit',
+  fontSize: 12,
+  fontWeight: 950,
+  padding: 0,
 }
 
 const smallPrimaryLinkStyle: CSSProperties = {
