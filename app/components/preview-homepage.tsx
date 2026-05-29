@@ -130,7 +130,7 @@ const heroSearchFilters: Array<{
   },
 ]
 
-const coreConversionTierIds: PricingPlanId[] = ['free', 'player_plus', 'captain', 'league']
+const coreConversionTierIds: PricingPlanId[] = ['free', 'player_plus', 'coach', 'captain', 'league']
 const commandModes: Array<{
   planId: PricingPlanId
   lane: string
@@ -162,6 +162,16 @@ const commandModes: Array<{
     proof: ['Linked player', 'Next matchup', 'Goal notes'],
   },
   {
+    planId: 'coach',
+    lane: 'Coach',
+    action: 'Develop players',
+    label: 'Lessons, assignments, Tactical Studio',
+    href: '/pricing#coach',
+    cta: 'Unlock Coach',
+    icon: 'scenarioBuilder',
+    proof: ['Students', 'Drill boards', 'Check-ins'],
+  },
+  {
     planId: 'captain',
     lane: 'Team',
     action: 'Build the week',
@@ -185,11 +195,11 @@ const commandModes: Array<{
     planId: 'full_court',
     lane: 'Full-Court',
     action: 'Run the full suite',
-    label: 'Captain, league, and unlimited tournaments',
+    label: 'Coach, Captain, League, and unlimited tournaments',
     href: '/pricing#full_court',
     cta: 'Unlock Full-Court',
     icon: 'teamRankings',
-    proof: ['Captain', 'League', 'Tournaments'],
+    proof: ['Coach', 'Captain', 'League'],
   },
 ]
 type CommandTask = {
@@ -2904,6 +2914,14 @@ function RoleChooserPreview() {
       text: 'My Lab, data refreshes, matchup prep, and messages.',
       href: '/pricing#player_plus',
       cta: 'Player',
+    },
+    {
+      planId: 'coach',
+      label: 'Coach players',
+      title: 'Develop players between lessons',
+      text: 'Lesson plans, assignments, Tactical Studio, and check-ins.',
+      href: '/pricing#coach',
+      cta: 'Coach',
     },
     {
       planId: 'captain',

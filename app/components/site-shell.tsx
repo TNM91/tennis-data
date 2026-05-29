@@ -43,9 +43,10 @@ function SiteShellContent({ children, active }: { children: ReactNode; active?: 
 }
 
 function getBrandAtmosphereClassName(pathname: string) {
-  const hubRoutes = new Set(['/', '/mylab', '/captain', '/league-coordinator', '/admin'])
+  const hubRoutes = new Set(['/', '/mylab', '/coach', '/captain', '/league-coordinator', '/admin'])
   const quietPrefixes = [
     '/admin/',
+    '/coach/',
     '/captain/',
     '/league-coordinator/results',
     '/league-coordinator/individual-results',

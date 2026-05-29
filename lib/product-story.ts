@@ -1,5 +1,5 @@
 export const PRODUCT_NORTH_STAR =
-  'TenAceIQ helps tennis players, captains, and league coordinators spend less time guessing, more time understanding, and more time playing.'
+  'TenAceIQ helps tennis players, coaches, captains, and league coordinators spend less time guessing, more time understanding, and more time playing.'
 
 export const PRODUCT_MOTTO = 'More Tennis. Less Chaos.'
 
@@ -13,6 +13,7 @@ export const PRODUCT_PRINCIPLES = [
   'User-uploaded Data Assist refreshes',
   'Practical workspaces over generic dashboards',
   'Personalized insight for players',
+  'Connected development workflows for coaches',
   'Team decision support for captains',
   'League operations for coordinators and admins',
 ] as const
@@ -157,6 +158,7 @@ export const MEMBERSHIP_TIER_ORDER: MembershipTierId[] = ['free', 'player_plus',
 export const PRODUCT_PROOF_POINTS = [
   'Less guessing',
   'Clearer match prep',
+  'Better player development',
   'Smarter team decisions',
   'Cleaner league operations',
 ] as const
@@ -326,8 +328,8 @@ export const HOME_HERO_STORY = {
   headlineTop: 'Tennis decisions,',
   headlineBottom: 'made clearer.',
   body:
-    'Start free. Upgrade when you need your lab, your lineup, your league, or the full court.',
-  proof: ['Free search', 'Player insight', 'Captain decisions', 'Full-Court operations'],
+    'Start free. Upgrade when you need your lab, your coach workflow, your lineup, your league, or the full court.',
+  proof: ['Free search', 'Player insight', 'Coach development', 'Captain decisions', 'Full-Court operations'],
 } as const
 
 export const MY_LAB_STORY = {
