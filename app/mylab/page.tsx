@@ -3800,14 +3800,43 @@ function PlayerCoachAssignmentsPanel({
         </div>
       ) : (
         <div style={coachAssignmentEmptyStyle}>
-          <strong>No live coach assignments yet.</strong>
-          <span>
-            Print the workbook now, then accept a coach invite when you want Player+ check-ins, assignment tracking, and weekly recaps connected to TenAceIQ.
-          </span>
-          <div style={developmentActionRowStyle}>
-            <Link href="/player-development" style={miniActionLinkStyle}>Open workbook paths</Link>
-            <Link href="/coach" style={miniActionLinkStyle}>Coach tools</Link>
-          </div>
+          {activeCoachLink ? (
+            <>
+              <strong>Coach connected. Ask for the first assignment.</strong>
+              <span>
+                Your Coach Hub is ready. Once your coach assigns work, it will show up here with recap prompts, evidence tracking, and feedback.
+              </span>
+              <div style={coachConnectedEmptyStepsStyle}>
+                <span><strong>1</strong> Request a measurable assignment</span>
+                <span><strong>2</strong> Complete the work on court</span>
+                <span><strong>3</strong> Send back recap and evidence</span>
+              </div>
+              <div style={developmentActionRowStyle}>
+                <Link
+                  href={buildPlayerCoachMessageHref(
+                    activeCoachLink,
+                    'First Player+ assignment',
+                    'Coach, can you send my first TenAceIQ assignment so I can track it in My Lab? ',
+                  )}
+                  style={miniActionLinkStyle}
+                >
+                  Request first assignment
+                </Link>
+                <Link href="/player-development" style={miniActionLinkStyle}>Open workbook paths</Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <strong>No live coach assignments yet.</strong>
+              <span>
+                Print the workbook now, then accept a coach invite when you want Player+ check-ins, assignment tracking, and weekly recaps connected to TenAceIQ.
+              </span>
+              <div style={developmentActionRowStyle}>
+                <Link href="/player-development" style={miniActionLinkStyle}>Open workbook paths</Link>
+                <Link href="/pricing#coach" style={miniActionLinkStyle}>See Coach tools</Link>
+              </div>
+            </>
+          )}
         </div>
       )}
       {checkInMessage ? <div style={coachCheckInMessageStyle}>{checkInMessage}</div> : null}
@@ -4109,6 +4138,13 @@ const coachAssignmentEmptyStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.78)',
   color: '#435775',
   lineHeight: 1.55,
+}
+
+const coachConnectedEmptyStepsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 8,
+  marginTop: 2,
 }
 
 const coachAssignmentSummaryStyle: CSSProperties = {
