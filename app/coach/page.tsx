@@ -72,6 +72,7 @@ function CoachContent() {
   const [reviewNextFocus, setReviewNextFocus] = useState('')
   const [workspaceMessage, setWorkspaceMessage] = useState('')
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
+  const [lastCreatedAssignment, setLastCreatedAssignment] = useState<CoachAssignment | null>(null)
 
   const loadCoachWorkspace = useCallback(async () => {
     if (!session?.access_token || !access.canUseCoachWorkflow) return
@@ -227,12 +228,15 @@ function CoachContent() {
         throw new Error(json.message || 'Could not create assignment.')
       }
 
-      setAssignments((current) => [json.assignment as CoachAssignment, ...current.filter((assignment) => assignment.id !== json.assignment?.id)])
+      const savedAssignment = json.assignment as CoachAssignment
+      setAssignments((current) => [savedAssignment, ...current.filter((assignment) => assignment.id !== savedAssignment.id)])
+      setLastCreatedAssignment(savedAssignment)
+      setContactStudentId(savedAssignment.studentLinkId)
       setAssignmentTitle('')
       setAssignmentFocus('')
       setAssignmentDueDate('')
       setAssignmentPresetId('')
-      setWorkspaceMessage('Assignment created and ready for player follow-through.')
+      setWorkspaceMessage('Assignment created. Send it now so the player knows exactly what to do next.')
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not create assignment.')
     } finally {
@@ -333,6 +337,18 @@ function CoachContent() {
   const lessonMessage = useMemo(
     () => buildLessonConfirmMessage(selectedContactStudent?.playerName ?? 'your lesson', lessonDateTime, lessonFocus),
     [lessonDateTime, lessonFocus, selectedContactStudent?.playerName],
+  )
+  const lastCreatedAssignmentStudent = useMemo(
+    () => (lastCreatedAssignment ? savedStudents.find((student) => student.id === lastCreatedAssignment.studentLinkId) ?? null : null),
+    [lastCreatedAssignment, savedStudents],
+  )
+  const lastAssignmentSummary = useMemo(
+    () => (lastCreatedAssignment ? getCoachAssignmentSummary(lastCreatedAssignment.assignment) : null),
+    [lastCreatedAssignment],
+  )
+  const lastAssignmentNotifyMessage = useMemo(
+    () => (lastCreatedAssignment ? buildAssignmentNotifyMessage(lastCreatedAssignment, lastAssignmentSummary) : ''),
+    [lastAssignmentSummary, lastCreatedAssignment],
   )
   const assignmentsNeedingReview = useMemo(
     () => assignments.filter(assignmentNeedsCoachReview),
@@ -644,6 +660,48 @@ function CoachContent() {
             </button>
           </form>
           {workspaceMessage ? <div style={messageStyle}>{workspaceMessage}</div> : null}
+          {lastCreatedAssignment && lastCreatedAssignmentStudent ? (
+            <div style={assignmentSendPanelStyle}>
+              <div>
+                <div style={eyebrowStyle}>Assignment ready</div>
+                <h3 style={sessionPlannerTitleStyle}>{lastCreatedAssignment.title}</h3>
+                <p style={studentNextStyle}>
+                  Send to {lastCreatedAssignmentStudent.playerName}. Player+ accounts can receive this inside TenAceIQ; cell numbers can use the free text shortcut.
+                </p>
+              </div>
+              <div style={sessionActionRowStyle}>
+                {lastCreatedAssignmentStudent.playerUserId ? (
+                  <Link
+                    href={buildCoachPlayerMessageHref(
+                      lastCreatedAssignmentStudent,
+                      lastCreatedAssignment.title,
+                      lastAssignmentNotifyMessage,
+                      {
+                        assignmentId: lastCreatedAssignment.id,
+                        assignmentTitle: lastCreatedAssignment.title,
+                        assignmentFocus: lastCreatedAssignment.focus,
+                      },
+                    )}
+                    style={smallPrimaryLinkStyle}
+                  >
+                    Send IM
+                  </Link>
+                ) : (
+                  <span style={disabledPillStyle}>Link Player+ for IM</span>
+                )}
+                {lastCreatedAssignmentStudent.playerPhone ? (
+                  <a href={buildSmsHref(lastCreatedAssignmentStudent.playerPhone, lastAssignmentNotifyMessage)} style={smallGhostLinkStyle}>
+                    Send text
+                  </a>
+                ) : (
+                  <span style={disabledPillStyle}>Add cell for text</span>
+                )}
+                <button type="button" onClick={() => setLastCreatedAssignment(null)} style={smallGhostButtonStyle}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div style={contactPanelStyle}>
             <div style={sessionPlannerHeaderStyle}>
               <div>
@@ -773,6 +831,11 @@ function CoachContent() {
                       >
                         Message about this
                       </Link>
+                    ) : null}
+                    {student?.playerPhone ? (
+                      <a href={buildSmsHref(student.playerPhone, buildAssignmentNotifyMessage(assignment, assignmentSummary))} style={studentActionStyle}>
+                        Text about this
+                      </a>
                     ) : null}
                     {assignmentSummary.detail || assignmentSummary.volume || assignmentSummary.tracker.length ? (
                       <div style={assignmentSummaryStyle}>
@@ -1021,6 +1084,17 @@ function buildLessonConfirmMessage(playerName: string, dateTime: string, focus: 
     focus.trim() ? `Focus: ${focus.trim()}` : 'Focus: ',
   ].join('  ')
   return `Let's confirm the next lesson for ${playerName}. ${details}`
+}
+
+function buildAssignmentNotifyMessage(
+  assignment: CoachAssignment,
+  summary: ReturnType<typeof getCoachAssignmentSummary> | null,
+) {
+  const focus = assignment.focus.trim() || 'Coach follow-through'
+  const due = assignment.dueDate ? ` Due: ${assignment.dueDate}.` : ''
+  const detail = summary?.detail ? ` ${summary.detail}` : ''
+  const volume = summary?.volume ? ` Target: ${summary.volume}.` : ''
+  return `New TenAceIQ assignment: ${assignment.title}. Focus: ${focus}.${due}${detail}${volume}`
 }
 
 function buildSmsHref(phone: string, body: string) {
@@ -1512,6 +1586,13 @@ const contactPanelStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.2)',
   background:
     'linear-gradient(135deg, rgba(116,190,255,0.1), rgba(155,225,29,0.055)), rgba(255,255,255,0.035)',
+}
+
+const assignmentSendPanelStyle: CSSProperties = {
+  ...sessionPlannerStyle,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background:
+    'radial-gradient(circle at 88% 14%, rgba(155,225,29,0.18), transparent 30%), linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.045)), rgba(255,255,255,0.04)',
 }
 
 const sessionPlannerHeaderStyle: CSSProperties = {
