@@ -142,6 +142,57 @@ function buildConversationContextHref(conversation: InternalConversation | null,
   return ''
 }
 
+function buildConversationContextPresentation(conversation: InternalConversation | null, coachContacts: CoachMessageContact[]) {
+  if (!conversation) {
+    return {
+      label: 'Context',
+      text: 'Conversation context',
+      cta: 'Open context',
+    }
+  }
+
+  const entityType = conversation.metadata.entityType || conversation.relatedEntityType
+  const entityId = conversation.metadata.entityId || conversation.relatedEntityId
+
+  if (conversation.conversationType === 'league') {
+    return {
+      label: 'League context',
+      text: conversation.metadata.leagueName || conversation.relatedEntityId || 'League conversation',
+      cta: 'Open league',
+    }
+  }
+
+  if (conversation.conversationType === 'support') {
+    return {
+      label: 'Support context',
+      text: `${supportCategoryLabel(conversation.relatedEntityType)} support`,
+      cta: 'Open context',
+    }
+  }
+
+  if (entityType === 'coach_player_link') {
+    const contact = coachContacts.find((item) => item.linkId === entityId)
+    const isCoachView = contact?.relationship === 'student'
+    const assignmentTitle = conversation.metadata.assignmentTitle
+    const assignmentFocus = conversation.metadata.assignmentFocus
+    const relationshipLabel = isCoachView ? 'Coach-player thread' : 'Player+ coach thread'
+    const subjectCue = conversation.subject.toLowerCase().includes('first') ? 'First assignment request' : 'Coach-player development thread'
+    return {
+      label: relationshipLabel,
+      text: assignmentTitle
+        ? `Assignment follow-up: ${assignmentTitle}${assignmentFocus ? ` / ${assignmentFocus}` : ''}`
+        : `${subjectCue}${contact?.name ? ` with ${contact.name}` : ''}`,
+      cta: isCoachView ? 'Open Coach workspace' : 'Open My Lab',
+    }
+  }
+
+  return {
+    label: 'Context',
+    text: 'Conversation context',
+    cta: 'Open context',
+  }
+}
+
 function normalizeCoachMessageContacts(items: CoachMessageContact[]) {
   const seen = new Set<string>()
   return items.filter((item) => {
@@ -298,6 +349,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   )
   const selectedContextHref = useMemo(
     () => buildConversationContextHref(selectedConversation, coachContacts),
+    [coachContacts, selectedConversation],
+  )
+  const selectedContextPresentation = useMemo(
+    () => buildConversationContextPresentation(selectedConversation, coachContacts),
     [coachContacts, selectedConversation],
   )
   const unreadNotificationCount = useMemo(
@@ -933,21 +988,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           {selectedConversation && (selectedConversation.conversationType === 'support' || selectedConversation.conversationType === 'league' || selectedContextHref) ? (
             <div style={contextPanelStyle}>
               <div>
-                <div style={labelStyle}>Context</div>
-                <p style={copyStyle}>
-                  {selectedConversation.conversationType === 'league'
-                    ? selectedConversation.metadata.leagueName || selectedConversation.relatedEntityId || 'League conversation'
-                    : selectedConversation.conversationType === 'support'
-                      ? `${supportCategoryLabel(selectedConversation.relatedEntityType)} support`
-                      : selectedConversation.metadata.entityType === 'coach_player_link' || selectedConversation.relatedEntityType === 'coach_player_link'
-                        ? selectedConversation.metadata.assignmentTitle
-                          ? `Assignment follow-up: ${selectedConversation.metadata.assignmentTitle}${selectedConversation.metadata.assignmentFocus ? ` / ${selectedConversation.metadata.assignmentFocus}` : ''}`
-                          : 'Coach-player development thread'
-                        : 'Conversation context'}
-                </p>
+                <div style={labelStyle}>{selectedContextPresentation.label}</div>
+                <p style={copyStyle}>{selectedContextPresentation.text}</p>
               </div>
               {selectedContextHref ? (
-                <Link href={selectedContextHref} style={ghostButtonStyle}>Open context</Link>
+                <Link href={selectedContextHref} style={ghostButtonStyle}>{selectedContextPresentation.cta}</Link>
               ) : null}
             </div>
           ) : null}
