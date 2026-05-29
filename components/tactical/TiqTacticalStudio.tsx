@@ -333,6 +333,13 @@ export default function TiqTacticalStudio() {
               <div className={styles.scenarioTitleLabel}>Scenario</div>
               <div className={styles.scenarioTitle}>{scenario.name}</div>
               <div className={styles.scenarioNote}>{scenario.note}</div>
+              <div className={styles.activeToolPill}>
+                {placementType
+                  ? `Placing ${placementType === 'player' ? 'player' : placementType}`
+                  : drawingKind
+                    ? `Drawing ${drawingKind === 'ball' ? 'ball line' : `${drawingKind} line`}`
+                    : 'Select, drag, or choose a tool'}
+              </div>
             </div>
             <div className={styles.metaGrid}>
               <Meta label="Duration" value={scenario.duration} />
@@ -372,6 +379,30 @@ export default function TiqTacticalStudio() {
             onSelect={setSelected}
           />
           <TiqTimeline activeIndex={stepIndex} paths={scenario.paths} onStep={setStepIndex} />
+          <div className={styles.boardActionBar}>
+            <button className={styles.boardActionButton} disabled={selected.type === 'scenario'} onClick={duplicateSelected} type="button">
+              Duplicate
+            </button>
+            <button className={styles.boardActionButton} disabled={selected.type === 'scenario'} onClick={deleteSelected} type="button">
+              Delete
+            </button>
+            {drawingKind || placementType ? (
+              <button
+                className={`${styles.boardActionButton} ${styles.primaryBoardAction}`}
+                onClick={() => {
+                  setDrawingKind(null)
+                  setPlacementType(null)
+                }}
+                type="button"
+              >
+                Done
+              </button>
+            ) : (
+              <button className={styles.boardActionButton} onClick={() => loadTemplate('basicDoubles')} type="button">
+                Basic reset
+              </button>
+            )}
+          </div>
         </section>
 
         <TiqInspector

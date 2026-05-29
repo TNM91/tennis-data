@@ -372,6 +372,19 @@
   font-size: 1.35rem;
 }
 
+.activeToolPill {
+  background: rgba(155, 225, 29, 0.1);
+  border: 1px solid rgba(155, 225, 29, 0.26);
+  border-radius: 999px;
+  color: #dff8c2;
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 950;
+  margin-top: 9px;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+
 .metaPill {
   padding: 8px 11px;
 }
@@ -611,6 +624,37 @@
   padding-top: 14px;
 }
 
+.boardActionBar {
+  display: none;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.boardActionButton {
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 999px;
+  color: rgba(248, 251, 255, 0.78);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 950;
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
+.boardActionButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.primaryBoardAction {
+  background: #9be11d;
+  border-color: transparent;
+  color: #07111f;
+}
+
 .briefing,
 .jsonPreview {
   font-size: 0.78rem;
@@ -763,5 +807,9 @@
   .tokenLabel {
     font-size: 0.62rem;
     margin-top: -5px;
+  }
+
+  .boardActionBar {
+    display: grid;
   }
 }
