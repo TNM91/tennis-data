@@ -3566,6 +3566,10 @@ function PlayerCoachAssignmentsPanel({
   const dueTodayAssignments = openAssignments.filter((assignment) => getCoachAssignmentDueState(assignment.dueDate).tone === 'today')
   const assignmentCards = (openAssignments.length ? openAssignments : sortedAssignments).slice(0, 4)
   const activeCoachLink = coachLinks[0]
+  const nextAssignment = openAssignments[0] ?? sortedAssignments[0] ?? null
+  const nextDueState = nextAssignment ? getCoachAssignmentDueState(nextAssignment.dueDate) : null
+  const nextAssignmentSummary = nextAssignment ? getCoachAssignmentSummary(nextAssignment.assignment) : null
+  const nextCoachReview = nextAssignment ? getCoachAssignmentReview(nextAssignment.assignment) : null
   const [activeAssignmentId, setActiveAssignmentId] = useState('')
   const [recap, setRecap] = useState('')
   const [evidence, setEvidence] = useState('')
@@ -3597,10 +3601,10 @@ function PlayerCoachAssignmentsPanel({
           <div style={sectionHeaderCopyStyle}>
             <p style={sectionKickerStyle}>Coach-connected Player+</p>
             <h3 style={compactSectionTitleStyle}>
-              {activeCoachLink ? `${activeCoachLink.playerName}: coach assignments` : 'Connect coach assignments'}
+              {activeCoachLink ? `${activeCoachLink.playerName}: Coach Hub` : 'Connect Coach Hub'}
             </h3>
             <p style={sectionTextStyle}>
-              Accepted coach invites turn the workbook into a live weekly loop: assignment, practice evidence, recap, next focus.
+              Your coach assignments, recaps, feedback, and next focus stay together between lessons.
             </p>
           </div>
         </div>
@@ -3615,6 +3619,52 @@ function PlayerCoachAssignmentsPanel({
         <SummaryCard label="Open assignments" value={String(openAssignments.length)} note="Coach-created work still in motion" />
         <SummaryCard label="Completed" value={String(completedAssignments.length)} note="Finished coach follow-through" />
       </div>
+
+      {nextAssignment ? (
+        <div style={coachHubNextActionStyle}>
+          <div style={coachHubNextCopyStyle}>
+            <div style={metricLabelStyle}>Next coach action</div>
+            <strong>{nextAssignment.title}</strong>
+            <span>{nextAssignment.focus || nextAssignmentSummary?.detail || 'Complete the next measurable assignment.'}</span>
+            <div style={coachAssignmentMetaStyle}>
+              {nextDueState ? <span style={coachAssignmentDueStyle(nextDueState.tone)}>{nextDueState.label}</span> : null}
+              {nextAssignment.status === 'completed' ? <span style={coachAssignmentDueStyle('none')}>Completed</span> : null}
+            </div>
+            {nextCoachReview?.nextFocus ? (
+              <em>Coach next focus: {nextCoachReview.nextFocus}</em>
+            ) : null}
+          </div>
+          <div style={coachHubNextActionsStyle}>
+            {nextAssignment.status !== 'completed' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveAssignmentId(nextAssignment.id)
+                  setCheckInMessage('')
+                }}
+                style={coachCheckInButtonStyle}
+              >
+                Add recap
+              </button>
+            ) : null}
+            <Link
+              href={buildPlayerCoachMessageHref(
+                coachLinkMap.get(nextAssignment.studentLinkId),
+                nextAssignment.title,
+                `Quick note on ${nextAssignment.title}: `,
+                {
+                  assignmentId: nextAssignment.id,
+                  assignmentTitle: nextAssignment.title,
+                  assignmentFocus: nextAssignment.focus,
+                },
+              )}
+              style={coachCheckInGhostLinkStyle}
+            >
+              Message coach
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       {loading ? (
         <div style={emptyStateStyle}>Loading coach assignments.</div>
@@ -3907,6 +3957,37 @@ const coachAssignmentGridStyle: CSSProperties = {
   gap: 12,
 }
 
+const coachHubNextActionStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: 14,
+  alignItems: 'center',
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid rgba(93,143,18,0.2)',
+  background:
+    'radial-gradient(circle at 92% 18%, rgba(155,225,29,0.18), transparent 34%), linear-gradient(135deg, rgba(255,255,255,1), rgba(238,248,229,0.94))',
+  boxShadow: '0 18px 42px rgba(5,18,40,0.08)',
+  minWidth: 0,
+}
+
+const coachHubNextCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  color: '#435775',
+  fontSize: '.92rem',
+  lineHeight: 1.45,
+}
+
+const coachHubNextActionsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  justifyContent: 'flex-end',
+  minWidth: 0,
+}
+
 const coachAssignmentCardStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -4045,6 +4126,14 @@ const coachCheckInGhostButtonStyle: CSSProperties = {
   fontSize: '.82rem',
   fontWeight: 900,
   cursor: 'pointer',
+}
+
+const coachCheckInGhostLinkStyle: CSSProperties = {
+  ...coachCheckInGhostButtonStyle,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
 }
 
 const coachCheckInMessageStyle: CSSProperties = {
