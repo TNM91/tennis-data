@@ -24,6 +24,7 @@ export default function TiqTacticalStudio() {
   const [briefingRole, setBriefingRole] = useState<TacticalRole>('captain')
   const [selected, setSelected] = useState<TacticalSelection>({ type: 'scenario', id: 'scenario' })
   const [drawingKind, setDrawingKind] = useState<TacticalPathKind | null>(null)
+  const [placementType, setPlacementType] = useState<TacticalTokenType | null>(null)
   const [showLabels, setShowLabels] = useState(true)
   const [showPaths, setShowPaths] = useState(true)
   const [showZones, setShowZones] = useState(true)
@@ -89,6 +90,7 @@ export default function TiqTacticalStudio() {
     setScenario(createTacticalTemplate(key))
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
+    setPlacementType(null)
     setStepIndex(99)
   }
 
@@ -159,6 +161,7 @@ export default function TiqTacticalStudio() {
     setTemplateKey('basicDoubles')
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
+    setPlacementType(null)
     setStepIndex(99)
     notify('Scenario loaded')
   }
@@ -220,22 +223,28 @@ export default function TiqTacticalStudio() {
 
   function addToken(type: TacticalTokenType) {
     const tokenPosition = getDefaultTokenPosition(type)
+    addTokenAt(type, tokenPosition.x, tokenPosition.y)
+  }
+
+  function addTokenAt(type: TacticalTokenType, x: number, y: number) {
+    const nextId = makeTacticalId('token')
     setScenario((current) => ({
       ...current,
       tokens: [
         ...current.tokens,
         {
-          id: makeTacticalId('token'),
+          id: nextId,
           type,
           label: defaultTokenLabel(type),
           role: type === 'player' ? 'Player' : undefined,
           team: type === 'player' ? 'green' : undefined,
           handedness: type === 'player' ? 'righty' : undefined,
-          x: tokenPosition.x,
-          y: tokenPosition.y,
+          x,
+          y,
         },
       ],
     }))
+    setSelected({ type: 'token', id: nextId })
   }
 
   function addPath(kind: TacticalPathKind) {
@@ -294,6 +303,7 @@ export default function TiqTacticalStudio() {
         <TiqToolbar
           activeTemplate={templateKey}
           activeDrawKind={drawingKind}
+          activePlacementType={placementType}
           role={role}
           onAddPath={addPath}
           onAddToken={addToken}
@@ -303,7 +313,14 @@ export default function TiqTacticalStudio() {
           onDownloadJson={downloadScenario}
           onImportJson={importScenario}
           onReset={() => loadTemplate(templateKey)}
-          onDrawKindChange={setDrawingKind}
+          onDrawKindChange={(kind) => {
+            setDrawingKind(kind)
+            if (kind) setPlacementType(null)
+          }}
+          onPlacementTypeChange={(type) => {
+            setPlacementType(type)
+            if (type) setDrawingKind(null)
+          }}
           onRoleChange={setRole}
           onSaveCloud={saveScenarioCloud}
           onSaveLocal={saveScenarioLocal}
@@ -331,6 +348,7 @@ export default function TiqTacticalStudio() {
             showZones={showZones}
             snapToGrid={snapToGrid}
             drawingKind={drawingKind}
+            placementTokenType={placementType}
             onCreatePath={(kind, from, to) => {
               setScenario((current) => ({
                 ...current,
@@ -347,6 +365,7 @@ export default function TiqTacticalStudio() {
               }))
               setStepIndex(99)
             }}
+            onPlaceToken={(type, point) => addTokenAt(type, point.x, point.y)}
             onMovePathPoint={(id, endpoint, x, y) => setScenario((current) => ({ ...current, paths: current.paths.map((path) => path.id === id ? { ...path, [endpoint]: { x, y } } : path) }))}
             onMoveToken={(id, x, y) => setScenario((current) => ({ ...current, tokens: current.tokens.map((token) => token.id === id ? { ...token, x, y } : token) }))}
             onMoveZone={(id, x, y) => setScenario((current) => ({ ...current, zones: current.zones.map((zone) => zone.id === id ? { ...zone, x, y } : zone) }))}

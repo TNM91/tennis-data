@@ -8,10 +8,12 @@ import styles from './TiqTacticalStudio.module.css'
 type TiqToolbarProps = {
   activeTemplate: TacticalTemplateKey
   activeDrawKind: TacticalPathKind | null
+  activePlacementType: TacticalTokenType | null
   role: TacticalRole
   onRoleChange: (role: TacticalRole) => void
   onTemplateChange: (key: TacticalTemplateKey) => void
   onAddToken: (type: TacticalTokenType) => void
+  onPlacementTypeChange: (type: TacticalTokenType | null) => void
   onAddPath: (kind: 'ball' | 'move' | 'recover') => void
   onDrawKindChange: (kind: TacticalPathKind | null) => void
   onAddZone: () => void
@@ -27,10 +29,12 @@ type TiqToolbarProps = {
 export default function TiqToolbar({
   activeTemplate,
   activeDrawKind,
+  activePlacementType,
   role,
   onRoleChange,
   onTemplateChange,
   onAddToken,
+  onPlacementTypeChange,
   onAddPath,
   onDrawKindChange,
   onAddZone,
@@ -62,18 +66,19 @@ export default function TiqToolbar({
       ))}
 
       <div className={styles.panelTitle}>Add elements</div>
-      <p className={styles.toolHint}>Tap an icon to add it, then drag it into place on the court.</p>
+      <p className={styles.toolHint}>Tap an icon, then tap the court where it belongs. Tap the active icon again to cancel.</p>
       <div className={styles.tokenPalette}>
-        <TokenTool label="Player" onClick={() => onAddToken('player')} primary type="player" />
-        <TokenTool label="Ball" onClick={() => onAddToken('ball')} type="ball" />
-        <TokenTool label="Cone" onClick={() => onAddToken('cone')} type="cone" />
-        <TokenTool label="X" onClick={() => onAddToken('x')} type="x" />
-        <TokenTool label="O" onClick={() => onAddToken('o')} type="o" />
+        <TokenTool active={activePlacementType === 'player'} label="Player" onClick={() => onPlacementTypeChange(activePlacementType === 'player' ? null : 'player')} primary type="player" />
+        <TokenTool active={activePlacementType === 'ball'} label="Ball" onClick={() => onPlacementTypeChange(activePlacementType === 'ball' ? null : 'ball')} type="ball" />
+        <TokenTool active={activePlacementType === 'cone'} label="Cone" onClick={() => onPlacementTypeChange(activePlacementType === 'cone' ? null : 'cone')} type="cone" />
+        <TokenTool active={activePlacementType === 'x'} label="X" onClick={() => onPlacementTypeChange(activePlacementType === 'x' ? null : 'x')} type="x" />
+        <TokenTool active={activePlacementType === 'o'} label="O" onClick={() => onPlacementTypeChange(activePlacementType === 'o' ? null : 'o')} type="o" />
         <button aria-label="Add target zone" className={styles.paletteButton} onClick={onAddZone} type="button">
           <span className={styles.zonePreview} />
           <span>Zone</span>
         </button>
       </div>
+      <button className={styles.quickAddButton} onClick={() => onAddToken('player')} type="button">Quick add player</button>
 
       <div className={styles.panelTitle}>Draw lines</div>
       <div className={styles.toolGrid}>
@@ -118,18 +123,20 @@ export default function TiqToolbar({
 function TokenTool({
   label,
   onClick,
+  active,
   primary = false,
   type,
 }: {
   label: string
   onClick: () => void
+  active?: boolean
   primary?: boolean
   type: TacticalTokenType
 }) {
   return (
     <button
       aria-label={`Add ${label.toLowerCase()}`}
-      className={`${styles.paletteButton} ${primary ? styles.primaryPaletteButton : ''}`}
+      className={`${styles.paletteButton} ${primary ? styles.primaryPaletteButton : ''} ${active ? styles.activePaletteButton : ''}`}
       onClick={onClick}
       type="button"
     >

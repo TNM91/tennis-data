@@ -321,6 +321,35 @@
   color: #dff8c2;
 }
 
+.activePaletteButton {
+  background: #9be11d;
+  border-color: transparent;
+  color: #07111f;
+  outline: 2px solid rgba(223, 248, 194, 0.52);
+  outline-offset: 2px;
+}
+
+.activePaletteButton svg {
+  filter: drop-shadow(0 0 8px rgba(7, 17, 31, 0.34));
+}
+
+.quickAddButton {
+  background: transparent;
+  border: 0;
+  color: rgba(223, 248, 194, 0.74);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 900;
+  margin-top: 8px;
+  padding: 0;
+  text-align: left;
+}
+
+.quickAddButton:hover {
+  color: #fff;
+}
+
 .zonePreview {
   background: rgba(155, 225, 29, 0.15);
   border: 2px solid rgba(155, 225, 29, 0.8);

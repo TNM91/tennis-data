@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useRef, useState } from 'react'
-import type { TacticalPath, TacticalPathKind, TacticalPoint, TacticalScenario, TacticalSelection, TacticalToken, TacticalZone } from '@/lib/tactical/types'
+import type { TacticalPath, TacticalPathKind, TacticalPoint, TacticalScenario, TacticalSelection, TacticalToken, TacticalTokenType, TacticalZone } from '@/lib/tactical/types'
 import { pointFromPointer } from '@/lib/tactical/utils'
 import TiqTokenIcon from './TiqTokens'
 import styles from './TiqTacticalStudio.module.css'
@@ -15,10 +15,12 @@ type TiqCourtBoardProps = {
   showZones: boolean
   snapToGrid: boolean
   drawingKind: TacticalPathKind | null
+  placementTokenType: TacticalTokenType | null
   onMoveToken: (id: string, x: number, y: number) => void
   onMovePathPoint: (id: string, endpoint: 'from' | 'to', x: number, y: number) => void
   onMoveZone: (id: string, x: number, y: number) => void
   onCreatePath: (kind: TacticalPathKind, from: TacticalPoint, to: TacticalPoint) => void
+  onPlaceToken: (type: TacticalTokenType, point: TacticalPoint) => void
   onSelect: (selection: TacticalSelection) => void
 }
 
@@ -42,10 +44,12 @@ export default function TiqCourtBoard({
   showZones,
   snapToGrid,
   drawingKind,
+  placementTokenType,
   onMoveToken,
   onMovePathPoint,
   onMoveZone,
   onCreatePath,
+  onPlaceToken,
   onSelect,
 }: TiqCourtBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null)
@@ -90,6 +94,13 @@ export default function TiqCourtBoard({
   function handleBoardPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (!boardRef.current) return
     if ((event.target as HTMLElement).closest('button')) return
+    if (placementTokenType) {
+      const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
+      onPlaceToken(placementTokenType, point)
+      setDraftStart(null)
+      return
+    }
+
     if (!drawingKind) {
       onSelect({ type: 'scenario', id: 'scenario' })
       return
@@ -108,7 +119,7 @@ export default function TiqCourtBoard({
   return (
     <div className={styles.boardFrame}>
       <div
-        className={`${styles.board} ${drawingKind ? styles.drawing : ''}`}
+        className={`${styles.board} ${drawingKind || placementTokenType ? styles.drawing : ''}`}
         ref={boardRef}
         onPointerDown={handleBoardPointerDown}
       >
@@ -139,7 +150,11 @@ export default function TiqCourtBoard({
             <circle cx={draftStart.x} cy={draftStart.y} fill="#020814" r="2.25" stroke={pathColor[drawingKind]} strokeWidth="0.75" />
           ) : null}
         </svg>
-        {drawingKind ? (
+        {placementTokenType ? (
+          <div className={styles.drawHint}>
+            Tap court to place {placementTokenType === 'player' ? 'player' : placementTokenType}
+          </div>
+        ) : drawingKind ? (
           <div className={styles.drawHint}>
             {draftStart ? 'Tap the end point' : `Tap start for ${drawingKind === 'ball' ? 'ball' : drawingKind} line`}
           </div>
