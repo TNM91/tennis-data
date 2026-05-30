@@ -11,6 +11,7 @@ const sitemapSource = readFileSync(join(process.cwd(), 'app/sitemap.ts'), 'utf8'
 const trainingMenusSource = readFileSync(join(process.cwd(), 'lib/player-training-menus.ts'), 'utf8')
 const developmentSystemSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
 const liveWorkbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
+const developmentStylesSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8')
 
 describe('Level Up page', () => {
   it('creates a direct phone-first Level Up destination from the shared drill engine', () => {
@@ -60,5 +61,18 @@ describe('Level Up page', () => {
     expect(liveWorkbenchSource).toContain('setActiveDrillId(`${nextFocusId}-coach-${nextWorkType}`)')
     expect(liveWorkbenchSource).toContain('assignmentId: assignmentId || undefined')
     expect(liveWorkbenchSource).toContain('Synced. Coach assignment marked complete for review.')
+  })
+
+  it('keeps the phone Level Up flow compact for on-court use', () => {
+    expect(liveWorkbenchSource).toContain('liveCompactSummary')
+    expect(developmentStylesSource).toContain('.liveCompactSummary')
+    expect(developmentStylesSource).toContain('.liveCoachLoop,')
+    expect(developmentStylesSource).toContain('.liveAccessPanel,')
+    expect(developmentStylesSource).toContain('.levelUpRouteActions,')
+    expect(developmentStylesSource).toContain('.liveAssignmentBanner,')
+    expect(developmentStylesSource).toContain('.liveProgressPanel,')
+    expect(developmentStylesSource).toContain('display: none;')
+    expect(developmentStylesSource).toContain('overflow-x: auto')
+    expect(developmentStylesSource).toContain('min-height: 78px')
   })
 })

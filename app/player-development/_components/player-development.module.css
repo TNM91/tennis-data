@@ -317,6 +317,10 @@
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.liveCompactSummary {
+  display: none;
+}
+
 .liveWorkbenchHero h2 {
   margin: 8px 0 0;
   color: var(--foreground-strong);
@@ -4662,8 +4666,84 @@
     justify-content: flex-start;
   }
 
+  .levelUpShell {
+    gap: 10px;
+  }
+
+  .levelUpRouteHeader {
+    padding: 12px;
+  }
+
+  .levelUpRouteCopy h1 {
+    margin-top: 7px;
+    font-size: 2rem;
+    line-height: 0.98;
+  }
+
+  .levelUpRouteCopy p,
+  .levelUpRouteActions,
+  .levelUpIdentityStrip,
+  .liveWorkbenchHero,
+  .liveCoachLoop,
+  .liveAccessPanel,
+  .liveAssignmentBanner,
+  .liveModeStrip,
+  .liveProgressPanel,
+  .liveUnlockPanel,
+  .liveRecentList {
+    display: none;
+  }
+
+  .liveCompactSummary {
+    display: grid;
+    gap: 4px;
+    border: 1px solid rgba(155, 225, 29, 0.24);
+    border-radius: 14px;
+    background: rgba(155, 225, 29, 0.08);
+    padding: 11px;
+  }
+
+  .liveCompactSummary span {
+    color: var(--brand-green-3);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .liveCompactSummary strong {
+    color: var(--foreground-strong);
+    font-size: 1rem;
+    line-height: 1.12;
+  }
+
+  .liveCompactSummary p {
+    margin: 0;
+    color: var(--muted-strong);
+    font-size: 0.82rem;
+    line-height: 1.3;
+  }
+
   .liveFocusRail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    margin: 0 -2px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
+  }
+
+  .liveFocusButton {
+    min-width: 148px;
+    min-height: 66px;
+    scroll-snap-align: start;
+  }
+
+  .liveFocusButton span,
+  .liveCurrentGoal p,
+  .liveMicroPlan p,
+  .liveTimerPanel p,
+  .liveActionLinks :global(.button-secondary) {
+    display: none;
   }
 
   .liveCoachLoop,
@@ -4675,6 +4755,68 @@
   .liveUnlockPanel,
   .liveModeStrip {
     grid-template-columns: 1fr;
+  }
+
+  .liveTrainingFlow,
+  .liveStepPanel,
+  .liveLaneColumn,
+  .liveActionCard,
+  .liveTracker,
+  .liveTimerPanel {
+    gap: 9px;
+  }
+
+  .liveStepPanel,
+  .liveLaneColumn,
+  .liveCurrentGoal,
+  .liveActionCard,
+  .liveTracker,
+  .liveTimerPanel,
+  .liveAssignmentBanner,
+  .liveSavedBanner {
+    padding: 11px;
+    border-radius: 14px;
+  }
+
+  .liveAssignmentBanner p {
+    display: none;
+  }
+
+  .liveLaneTabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .liveLaneTabs button,
+  .liveContextGrid button,
+  .liveFeelingGrid button,
+  .liveDrillChoices button {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+
+  .liveActionCard h3 {
+    font-size: 1.2rem;
+  }
+
+  .liveActionCard > p,
+  .liveActionGuide p,
+  .liveTracker small {
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .liveMicroPlan,
+  .liveActionGuide {
+    padding: 9px;
+  }
+
+  .liveTimerPanel strong {
+    font-size: 2.35rem;
+  }
+
+  .liveTracker textarea {
+    min-height: 78px;
   }
 
   .companionMap article {

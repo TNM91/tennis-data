@@ -354,6 +354,12 @@ export default function PlayerLiveWorkbench({
         </div>
       </div>
 
+      <div className={styles.liveCompactSummary} aria-label="Current Level Up path">
+        <span>{hasCoachAssignment ? 'Coach challenge' : 'Ready now'}</span>
+        <strong>{hasCoachAssignment ? assignmentTitle || activeDrill.title : activeFocus.title.replace(' Development', '')}</strong>
+        <p>{workTypeLabels[workType]} / {contextLabels[context]}</p>
+      </div>
+
       <div className={styles.liveCoachLoop} aria-label="Coach linked training loop">
         <article>
           <span>Coach invite</span>
