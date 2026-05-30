@@ -10,6 +10,7 @@ import FollowButton from '@/app/components/follow-button'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
+import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { TiqLeagueStandingCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import {
@@ -685,6 +686,16 @@ function LeagueCardItem({
           Latest match: <strong>{formatDate(league.latestMatchDate)}</strong>
         </span>
       </div>
+      <TiqTrustStrip
+        label={`${league.leagueName} data trust signals`}
+        signals={[
+          { label: 'Source', value: getCompetitionLayerLabel(league.competitionLayer), tone: league.competitionLayer === 'tiq' ? 'good' : 'info' },
+          { label: 'Freshness', value: league.latestMatchDate ? formatDate(league.latestMatchDate) : 'Review pending', tone: league.latestMatchDate ? 'good' : 'warn' },
+          { label: 'Confidence', value: league.matchCount >= 10 ? 'High' : league.matchCount >= 3 ? 'Medium' : 'Limited', tone: league.matchCount >= 10 ? 'good' : league.matchCount >= 3 ? 'warn' : 'info' },
+          { label: 'Status', value: 'Reviewable', tone: 'good' },
+        ]}
+        actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`League ${league.leagueName}`)}`}
+      />
     </div>
   )
 }

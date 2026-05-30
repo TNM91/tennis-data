@@ -7,6 +7,7 @@ import DataTrustPanel from '@/app/components/data-trust-panel'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
+import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { TiqLineupPreview, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
@@ -944,6 +945,16 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
           <Metric label="Players" value={String(row.playerIds.size)} />
           <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '—')} />
         </div>
+        <TiqTrustStrip
+          label={`${row.team} data trust signals`}
+          signals={[
+            { label: 'Source', value: 'Scorecards / rosters', tone: 'info' },
+            { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
+            { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
+            { label: 'Status', value: 'Reviewable', tone: 'good' },
+          ]}
+          actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`Team ${row.team}`)}`}
+        />
     </article>
   )
 }

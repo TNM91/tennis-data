@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
+import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import {
   buildExploreLeagueHref,
   getCompetitionLayerDescription,
@@ -476,6 +477,16 @@ function LeagueSection({
                   <span>{league.teamCount} teams</span>
                   <span>{formatDate(league.latestMatchDate)}</span>
                 </div>
+                <TiqTrustStrip
+                  label={`${league.leagueName} data trust signals`}
+                  signals={[
+                    { label: 'Source', value: getCompetitionLayerLabel(league.competitionLayer), tone: league.competitionLayer === 'tiq' ? 'good' : 'info' },
+                    { label: 'Freshness', value: league.latestMatchDate ? formatDate(league.latestMatchDate) : 'Review pending', tone: league.latestMatchDate ? 'good' : 'warn' },
+                    { label: 'Confidence', value: league.matchCount >= 10 ? 'High' : league.matchCount >= 3 ? 'Medium' : 'Limited', tone: league.matchCount >= 10 ? 'good' : league.matchCount >= 3 ? 'warn' : 'info' },
+                    { label: 'Status', value: 'Reviewable', tone: 'good' },
+                  ]}
+                  actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`League ${league.leagueName}`)}`}
+                />
                 {league.competitionLayer === 'tiq' && league.leagueFormat === 'individual' ? (
                   <div style={formatPreviewStyle}>
                     {getTiqIndividualCompetitionFormatPreview(

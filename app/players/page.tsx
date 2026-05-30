@@ -9,6 +9,7 @@ import FollowButton from '@/app/components/follow-button'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
+import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
@@ -881,6 +882,17 @@ export default function PlayersPage() {
 
                     <span style={signalConfidencePill}>{player.confidence}</span>
                   </div>
+
+                  <TiqTrustStrip
+                    label={`${player.name} data trust signals`}
+                    signals={[
+                      { label: 'Source', value: isSelfRatedPlayer(player) ? 'Self-rated' : 'Reviewed public data', tone: isSelfRatedPlayer(player) ? 'warn' : 'good' },
+                      { label: 'Freshness', value: player.matches > 0 ? 'Match context' : 'Profile context', tone: player.matches > 0 ? 'good' : 'warn' },
+                      { label: 'Confidence', value: player.confidence, tone: player.confidence === 'High' ? 'good' : player.confidence === 'Medium' ? 'warn' : 'info' },
+                      { label: 'Status', value: isSelfRatedPlayer(player) ? 'Needs review' : 'Reviewable', tone: isSelfRatedPlayer(player) ? 'warn' : 'good' },
+                    ]}
+                    actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`Player ${player.name}`)}`}
+                  />
 
                   <div style={deltaRow}>
                     <div style={deltaStat}>

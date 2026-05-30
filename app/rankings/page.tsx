@@ -8,6 +8,7 @@ import DataTrustPanel from '@/app/components/data-trust-panel'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
+import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
@@ -1478,6 +1479,16 @@ function RankingCompactCard({
         </span>
         <span style={confidencePill}>{player.confidence}</span>
       </div>
+      <TiqTrustStrip
+        label={`${player.name} ranking data trust signals`}
+        signals={[
+          { label: 'Source', value: 'Reviewed matches', tone: 'info' },
+          { label: 'Freshness', value: trendPoints.length ? 'Snapshot history' : 'Review pending', tone: trendPoints.length ? 'good' : 'warn' },
+          { label: 'Confidence', value: player.confidence, tone: player.confidence === 'High' ? 'good' : player.confidence === 'Medium' ? 'warn' : 'info' },
+          { label: 'Status', value: player.status, tone: player.status === 'Holding' || player.status === 'Trending Up' ? 'good' : 'warn' },
+        ]}
+        actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`Ranking ${player.name}`)}`}
+      />
 
       <div style={compactBottomGridStyle}>
         <div>

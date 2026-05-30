@@ -1,0 +1,33 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
+
+describe('public entity trust strips', () => {
+  it('provides a compact reusable trust strip with source, freshness, confidence, status, and issue reporting', () => {
+    const source = read('app/components/tiq-trust-strip.tsx')
+
+    expect(source).toContain("label: 'Source' | 'Freshness' | 'Confidence' | 'Status'")
+    expect(source).toContain("actionLabel = 'Report issue'")
+    expect(source).toContain('aria-label={label}')
+    expect(source).toContain('actionHref')
+  })
+
+  it('surfaces trust strips on public entity result cards', () => {
+    const players = read('app/players/page.tsx')
+    const teams = read('app/teams/page.tsx')
+    const rankings = read('app/rankings/page.tsx')
+    const leagues = read('app/leagues/page.tsx')
+    const exploreLeagues = read('app/explore/leagues/page.tsx')
+
+    for (const source of [players, teams, rankings, leagues, exploreLeagues]) {
+      expect(source).toContain('TiqTrustStrip')
+      expect(source).toContain("label: 'Source'")
+      expect(source).toContain("label: 'Freshness'")
+      expect(source).toContain("label: 'Confidence'")
+      expect(source).toContain("label: 'Status'")
+      expect(source).toContain("intent=report-issue")
+    }
+  })
+})
