@@ -158,6 +158,7 @@ function PricingContent() {
   const { role, userId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
+  const accessPending = !authResolved || (Boolean(userId) && entitlements === null)
   const recommendedPlanId = access.recommendedUpgradePlanId ?? access.currentPlanId
 
   return (
@@ -178,8 +179,8 @@ function PricingContent() {
         <SectionHeader eyebrow="Choose your role" title="Pick the job you need TenAceIQ to do." body="Each tier is role-based. Free stays useful for discovery; paid plans unlock the workspace behind the work." />
         <div style={planGridStyle}>
           {PRICING_PLANS.map((plan) => {
-            const active = isPlanActive(plan.id, access)
-            const recommended = !active && recommendedPlanId === plan.id
+            const active = !accessPending && isPlanActive(plan.id, access)
+            const recommended = !accessPending && !active && recommendedPlanId === plan.id
             const tier = getMembershipTier(plan.id)
 
             return (
@@ -190,9 +191,10 @@ function PricingContent() {
                     <span style={planNameStyle}>{PLAN_PUBLIC_NAMES[plan.id]}</span>
                     {recommended ? <span style={badgeStyle}>Recommended</span> : null}
                     {active ? <span style={badgeStyle}>Active</span> : null}
+                    {accessPending ? <span style={badgeStyle}>Checking access</span> : null}
                   </div>
                 </div>
-                <div style={priceStyle}>{active ? 'Unlocked' : plan.priceLabel}</div>
+                <div style={priceStyle}>{accessPending ? plan.priceLabel : active ? 'Unlocked' : plan.priceLabel}</div>
                 {!active ? <div style={billingCueStyle}>{getPricingBillingCue(plan.id)}</div> : null}
                 <p style={cardTextStyle}>{plan.outcome}</p>
                 <div style={fitBoxStyle}>
@@ -204,8 +206,8 @@ function PricingContent() {
                     <li key={valueProp}>{valueProp}</li>
                   ))}
                 </ul>
-                <Link href={getPlanHref(plan.id, active)} style={plan.id === 'captain' ? primaryButtonStyle : secondaryButtonStyle}>
-                  {getPlanCta(plan.id, active)}
+                <Link href={accessPending ? '#pricing-plans' : getPlanHref(plan.id, active)} style={plan.id === 'captain' ? primaryButtonStyle : secondaryButtonStyle}>
+                  {accessPending ? 'View tiers' : getPlanCta(plan.id, active)}
                 </Link>
               </article>
             )
@@ -268,7 +270,11 @@ function PricingContent() {
           <p style={heroTextStyle}>
             Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $14.99 per season workspace for one bounded league, ladder, or tournament season.
           </p>
+          <p style={heroTextStyle}>
+            Creating an account opens Free access for public tennis intelligence and data contributions. Paid workspaces open only after the matching plan is active.
+          </p>
           <p style={smallTextStyle}>{DATA_ASSIST_STORY.shortCue}</p>
+          <p style={smallTextStyle}>Data Assist uploads refresh the platform and move through review before they shape TenAceIQ.</p>
         </div>
         <div style={heroActionRowStyle}>
           <Link href="/legal/billing" style={secondaryButtonStyle}>Billing and refunds</Link>
@@ -423,6 +429,7 @@ const sectionHeaderStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
   maxWidth: 860,
+  minWidth: 0,
 }
 
 const sectionEyebrowStyle: CSSProperties = {
@@ -559,6 +566,7 @@ const workspaceGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
   gap: 14,
+  minWidth: 0,
 }
 
 const workspaceCardStyle: CSSProperties = {
@@ -569,6 +577,8 @@ const workspaceCardStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(8,16,34,0.74)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const workspaceLabelStyle: CSSProperties = {
@@ -610,9 +620,13 @@ const chipStyle: CSSProperties = {
 
 const tableWrapStyle: CSSProperties = {
   overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'thin',
   borderRadius: 22,
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(8,16,34,0.74)',
+  minWidth: 0,
 }
 
 const compareTableStyle: CSSProperties = {
@@ -629,6 +643,7 @@ const tableHeadStyle: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
   borderBottom: '1px solid rgba(116,190,255,0.13)',
+  overflowWrap: 'anywhere',
 }
 
 const tableJobStyle: CSSProperties = {
@@ -636,6 +651,7 @@ const tableJobStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   borderBottom: '1px solid rgba(116,190,255,0.09)',
+  overflowWrap: 'anywhere',
 }
 
 const tableCellStyle: CSSProperties = {
@@ -643,6 +659,7 @@ const tableCellStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 800,
   borderBottom: '1px solid rgba(116,190,255,0.09)',
+  overflowWrap: 'anywhere',
 }
 
 const tableMutedCellStyle: CSSProperties = {
@@ -655,6 +672,7 @@ const billingBandStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
   gap: 16,
   alignItems: 'center',
+  minWidth: 0,
   padding: 22,
   borderRadius: 24,
   border: '1px solid rgba(155,225,29,0.24)',

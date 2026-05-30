@@ -6,15 +6,15 @@ describe('pricing entitlement copy', () => {
     const source = readFileSync('app/pricing/page.tsx', 'utf8')
 
     expect(source).toContain('Creating an account opens Free access for public tennis intelligence and data contributions.')
-    expect(source).toContain('Start Free access. Paid workspaces open only when that plan is active.')
-    expect(source).toContain('Paid workspaces need activation')
-    expect(source).toContain('open only after the matching plan is active')
+    expect(source).toContain('Paid workspaces open only after the matching plan is active.')
+    expect(source).toContain("const active = !accessPending && isPlanActive(plan.id, access)")
+    expect(source).toContain("{accessPending ? 'View tiers' : getPlanCta(plan.id, active)}")
   })
 
   it('keeps Data Assist uploads positioned as the platform refresh path', () => {
     const source = readFileSync('app/pricing/page.tsx', 'utf8')
 
-    expect(source).toContain('Uploads refresh the platform')
+    expect(source).toContain('uploads refresh the platform')
     expect(source).toContain('move through review before they shape TenAceIQ')
     expect(source).toContain('data contributions')
   })
