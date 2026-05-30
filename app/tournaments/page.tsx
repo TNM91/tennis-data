@@ -141,6 +141,7 @@ export default function TournamentsPage() {
             />
           </div>
           <TrustStrip
+            context="Tournaments trust strip"
             signals={[
               { label: 'Source', value: 'Tournament Desk', tone: 'info' },
               { label: 'Freshness', value: 'Schedule changes visible', tone: 'good' },

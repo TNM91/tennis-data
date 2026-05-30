@@ -319,12 +319,24 @@ function renderPreviewCard(card: PreviewCard) {
   return <TiqWorkspacePreview eyebrow={card.label} {...props} />
 }
 
-export function TrustStrip({ signals = defaultTrustSignals }: { signals?: TrustSignal[] }) {
-  return <TiqTrustChips signals={signals} />
+export function TrustStrip({
+  signals = defaultTrustSignals,
+  context = 'Homepage trust strip',
+}: {
+  signals?: TrustSignal[]
+  context?: string
+}) {
+  return <TiqTrustChips signals={signals} context={context} />
 }
 
-export function TiqTrustChips({ signals = defaultTrustSignals }: { signals?: TrustSignal[] }) {
-  const trustContext = encodeURIComponent('Homepage trust strip')
+export function TiqTrustChips({
+  signals = defaultTrustSignals,
+  context = 'Homepage trust strip',
+}: {
+  signals?: TrustSignal[]
+  context?: string
+}) {
+  const trustContext = encodeURIComponent(context)
   const uploadHref = `/data-assist?intent=upload-source&context=${trustContext}`
   const reportHref = `/data-assist?intent=report-issue&context=${trustContext}`
   const reviewHref = `/data-assist?intent=request-review&context=${trustContext}`

@@ -53,7 +53,8 @@ describe('public CTA analytics', () => {
   })
 
   it('passes Data Assist intent and context from the homepage trust strip', () => {
-    expect(commandCenterSource).toContain("const trustContext = encodeURIComponent('Homepage trust strip')")
+    expect(commandCenterSource).toContain("context = 'Homepage trust strip'")
+    expect(commandCenterSource).toContain('const trustContext = encodeURIComponent(context)')
     expect(commandCenterSource).toContain('/data-assist?intent=upload-source&context=${trustContext}')
     expect(commandCenterSource).toContain('/data-assist?intent=report-issue&context=${trustContext}')
     expect(commandCenterSource).toContain('/data-assist?intent=request-review&context=${trustContext}')

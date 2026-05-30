@@ -43,12 +43,15 @@ describe('public landing preview cards', () => {
     expect(tournamentsSource).not.toContain('cta="Publish Results"')
     expect(tournamentsSource).toContain("eventName: 'tournament_desk_clicked'")
     expect(tournamentsSource).toContain('Draws reviewable')
+    expect(tournamentsSource).toContain('context="Tournaments trust strip"')
     expect(tournamentsSource).not.toContain('ProductPreviewGrid')
   })
 
   it('lets public section headers provide accessible labels', () => {
     expect(commandCenterSource).toContain('titleId?: string')
     expect(commandCenterSource).toContain('<h2 id={titleId}')
+    expect(commandCenterSource).toContain('context?: string')
+    expect(commandCenterSource).toContain('const trustContext = encodeURIComponent(context)')
     expect(commandCenterSource).toContain("{ label: 'Results', value: 'Clear' }")
     expect(commandCenterSource).not.toContain("{ label: 'Results', value: '0 pending' }")
   })
