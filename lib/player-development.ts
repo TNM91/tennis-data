@@ -145,8 +145,8 @@ export const PLAYER_DEVELOPMENT_DIAGRAMS: Record<PlayerDevelopmentDiagram, Playe
   'ball-call-rally': {
     title: 'Attack decision and close',
     intent: 'Train the player to call the ball before choosing attack speed or closing forward.',
-    setup: 'Targets show red, yellow, and green decisions, then a forward lane for the earned short ball.',
-    read: 'Green balls can be attacked; the rep is not complete until the player closes and splits after advantage.',
+    setup: 'Targets show defense, neutral, and offense decisions, then a forward lane for the earned short ball.',
+    read: 'Offense balls can be attacked; the rep is not complete until the player closes and splits after advantage.',
   },
   'short-ball-approach': {
     title: 'Short-ball approach',
@@ -200,7 +200,7 @@ export const PLAYER_DEVELOPMENT_DIAGRAMS: Record<PlayerDevelopmentDiagram, Playe
     title: 'Crosscourt to line change',
     intent: 'Earn direction change through crosscourt depth and balance.',
     setup: 'Player builds crosscourt before changing down the line on a balanced ball.',
-    read: 'Line changes are only green-light choices after depth creates space.',
+    read: 'Line changes are offense choices only after depth creates space.',
   },
   'serve-plus-one': {
     title: 'Serve plus one',
@@ -337,7 +337,7 @@ export const RELENTLESS_COMPETITOR_IDENTITY: PlayerDevelopmentIdentity = {
       title: 'Forehand / Backhand Development',
       cue: 'Attack the correct ball, not every ball.',
       icon: 'matchupAnalysis',
-      drills: ['Green-yellow-red ball calling', 'Crosscourt depth builders', 'Short-ball decision reps'],
+      drills: ['Offense-neutral-defense ball calling', 'Crosscourt depth builders', 'Short-ball decision reps'],
       tracker: ['Depth', 'Shape', 'Attack selection', 'Error after advantage'],
     },
     {
@@ -472,8 +472,8 @@ export const RELENTLESS_COMPETITOR_IDENTITY: PlayerDevelopmentIdentity = {
       title: 'Attack the correct ball',
       objective: 'Separate neutral, build, attack, and short-ball opportunities before choosing speed.',
       diagram: 'ball-call-rally',
-      mainDrill: 'Green-yellow-red ball calling into short-ball approach: call it, earn it, close it.',
-      pressureGame: 'Attack only green balls; bonus point for a clean short-ball approach and split.',
+      mainDrill: 'Offense-neutral-defense ball calling into short-ball approach: call it, earn it, close it.',
+      pressureGame: 'Attack only offense balls; bonus point for a clean short-ball approach and split.',
       accountability: 'List two balls you wanted to attack but correctly built instead, plus one short ball you closed.',
       coachCue: 'Make the player call the ball before the swing and keep moving after the advantage.',
       tiqPrompt: 'Use Matchup prep language: what ball are you trying to earn against this opponent?',
@@ -628,7 +628,7 @@ export const SMART_ATTACKER_IDENTITY: PlayerDevelopmentIdentity = {
       'Builds before changing direction',
       'Splits after every approach or transition',
       'Uses placement before extra racquet speed',
-      'Checks balance before calling a ball green',
+      'Checks balance before calling a ball offense',
     ],
     styleLeaks: [
       'Forces line changes from neutral balls',
@@ -745,7 +745,7 @@ export const SMART_ATTACKER_IDENTITY: PlayerDevelopmentIdentity = {
       skill: 'Shot selection',
       baseline: 'Confuses aggression with speed.',
       target: 'Separates build, strike, and reset decisions before choosing pace.',
-      evidence: 'Attack audit shows fewer forced attacks and clearer green-ball choices.',
+      evidence: 'Attack audit shows fewer forced attacks and clearer offense-ball choices.',
       playerPlusAction: 'Add a match reflection on the best earned attack.',
     },
     {

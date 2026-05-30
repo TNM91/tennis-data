@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const pageSource = readFileSync(join(process.cwd(), 'app/player-development/page.tsx'), 'utf8')
 const systemSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
 const controlsSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-print-controls.tsx'), 'utf8')
+const liveWorkbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
 
 describe('Player Development public cleanup', () => {
   it('positions the public page as a workbook and coach-planner product story', () => {
@@ -49,6 +50,7 @@ describe('Player Development public cleanup', () => {
       'PlayerOffCourtTraining',
       'PlayerPerformanceUpgrade',
       'PlayerAtHomePerformanceTraining',
+      'PlayerLiveWorkbench',
       'ModuleTestCard',
       'CoachReadinessAdapter',
       'CoachProgressionRules',
@@ -73,6 +75,9 @@ describe('Player Development public cleanup', () => {
     expect(systemSource).toContain('Performance Upgrade')
     expect(systemSource).toContain('Level up the engine that supports your game.')
     expect(systemSource).toContain('At-home performance')
+    expect(systemSource).toContain('id="solo-training"')
+    expect(systemSource).toContain('id="partner-training"')
+    expect(systemSource).toContain('id="off-court-work"')
     expect(systemSource).toContain('Jump rope rhythm builder')
     expect(systemSource).toContain('Cone recover + shadow swing')
     expect(systemSource).toContain('wall sit')
@@ -97,6 +102,17 @@ describe('Player Development public cleanup', () => {
     expect(systemSource).not.toContain('earned green balls')
     expect(systemSource).not.toContain('BodyToolkit')
     expect(systemSource).not.toContain('Body Toolbelt')
+    expect(liveWorkbenchSource).toContain('Train today')
+    expect(liveWorkbenchSource).toContain('What do you want to level up right now?')
+    expect(liveWorkbenchSource).toContain('Court drills')
+    expect(liveWorkbenchSource).toContain('Mind / habit')
+    expect(liveWorkbenchSource).toContain('Coach challenge')
+    expect(liveWorkbenchSource).toContain('Training alone')
+    expect(liveWorkbenchSource).toContain('Share this recap with my coach when linked')
+    expect(liveWorkbenchSource).toContain('Save training log')
+    expect(liveWorkbenchSource).toContain('Over / under')
+    expect(liveWorkbenchSource).toContain('window.localStorage')
+    expect(liveWorkbenchSource).toContain('tenaceiq:train-today')
     expect(existsSync(join(process.cwd(), 'scripts/verify-player-development-print.mjs'))).toBe(true)
   })
 })

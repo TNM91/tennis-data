@@ -18,6 +18,7 @@ import {
 } from '@/lib/player-development'
 import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
 import PlayerDevelopmentPrintControls from './player-development-print-controls'
+import PlayerLiveWorkbench from './player-live-workbench'
 import styles from './player-development.module.css'
 
 type PlayerDevelopmentSystemProps = {
@@ -182,46 +183,59 @@ function PlanCard({ icon, title, items }: { icon: TiqFeatureIconName; title: str
 function PlayerMissionDashboard({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const primaryModule = identity.weeks[0]
   const primaryFocus = identity.sections[0]
+  const trainingMenus = getPlayerTrainingMenus(identity)
 
   return (
-    <section className={styles.missionDashboard} aria-labelledby="mission-dashboard-title">
-      <div className={styles.missionHero}>
-        <TiqFeatureIcon name="matchPrep" size="lg" variant="surface" />
-        <div>
-          <span>Today&apos;s player mission</span>
-          <h2 id="mission-dashboard-title">Use one tool today. Prove one habit.</h2>
-          <p>{identity.mantra}</p>
+    <>
+      <section className={styles.missionDashboard} aria-labelledby="mission-dashboard-title">
+        <div className={styles.missionHero}>
+          <TiqFeatureIcon name="matchPrep" size="lg" variant="surface" />
+          <div>
+            <span>Today&apos;s player mission</span>
+            <h2 id="mission-dashboard-title">Use one tool today. Prove one habit.</h2>
+            <p>{identity.mantra}</p>
+          </div>
         </div>
-      </div>
-      <div className={styles.missionGrid}>
-        <article>
-          <span>Current focus</span>
-          <strong>{primaryFocus?.title ?? 'Choose one habit'}</strong>
-          <p>{primaryFocus?.cue ?? 'Pick the habit that changes the next match fastest.'}</p>
-        </article>
-        <article>
-          <span>Today&apos;s cue</span>
-          <strong>When the habit breaks, reset before the next ball.</strong>
-          <p>Make the cue visible before practice, not after the mistake.</p>
-        </article>
-        <article>
-          <span>Tool to use</span>
-          <strong>{primaryModule?.title ?? 'Weekly action plan'}</strong>
-          <p>{primaryModule?.pressureGame ?? 'Test the habit under score, fatigue, or a missed ball.'}</p>
-        </article>
-        <article>
-          <span>Reward</span>
-          <strong>Check the rep when you respond like the player you are becoming.</strong>
-          <p>Reward the controlled behavior, not only the point result.</p>
-        </article>
-      </div>
-      <div className={styles.missionActions}>
-        <Link className="button-primary" href="#weekly-action-plan">Start today</Link>
-        <Link className="button-secondary" href="#toolbelt">Pick a tool</Link>
-        <Link className="button-secondary" href="#match-card">Match mode</Link>
-        <Link className="button-secondary" href="#performance-upgrade">Performance upgrade</Link>
-      </div>
-    </section>
+        <div className={styles.missionGrid}>
+          <article>
+            <span>Current focus</span>
+            <strong>{primaryFocus?.title ?? 'Choose one habit'}</strong>
+            <p>{primaryFocus?.cue ?? 'Pick the habit that changes the next match fastest.'}</p>
+          </article>
+          <article>
+            <span>Today&apos;s cue</span>
+            <strong>When the habit breaks, reset before the next ball.</strong>
+            <p>Make the cue visible before practice, not after the mistake.</p>
+          </article>
+          <article>
+            <span>Tool to use</span>
+            <strong>{primaryModule?.title ?? 'Weekly action plan'}</strong>
+            <p>{primaryModule?.pressureGame ?? 'Test the habit under score, fatigue, or a missed ball.'}</p>
+          </article>
+          <article>
+            <span>Reward</span>
+            <strong>Check the rep when you respond like the player you are becoming.</strong>
+            <p>Reward the controlled behavior, not only the point result.</p>
+          </article>
+        </div>
+        <div className={styles.missionActions}>
+          <Link className="button-primary" href="#weekly-action-plan">Start today</Link>
+          <Link className="button-secondary" href="#toolbelt">Pick a tool</Link>
+          <Link className="button-secondary" href="#match-card">Match mode</Link>
+          <Link className="button-secondary" href="#performance-upgrade">Performance upgrade</Link>
+        </div>
+      </section>
+      <PlayerLiveWorkbench
+        identitySlug={identity.slug}
+        identityTitle={identity.title}
+        mantra={identity.mantra}
+        focuses={identity.sections}
+        solo={trainingMenus.solo}
+        partner={trainingMenus.partner}
+        offCourt={trainingMenus.offCourt}
+        performance={trainingMenus.performance}
+      />
+    </>
   )
 }
 
@@ -398,16 +412,19 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage footer="Solo training">
+        <div id="solo-training" />
         <PageHeader label="Player practice" title="Court work you can do by yourself" />
         <PlayerSoloTraining identity={identity} />
       </WorkbookPage>
 
       <WorkbookPage footer="Hitting partner">
+        <div id="partner-training" />
         <PageHeader label="Player practice" title="Drills to run with a hitting partner" />
         <PlayerPartnerTraining identity={identity} />
       </WorkbookPage>
 
       <WorkbookPage footer="Off-court work">
+        <div id="off-court-work" />
         <PageHeader label="Player practice" title="Off-court work that changes match habits" />
         <PlayerOffCourtTraining identity={identity} />
       </WorkbookPage>
@@ -419,6 +436,7 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage footer="At-home performance">
+        <div id="at-home-performance" />
         <PageHeader label="At-home performance" title="Strength, conditioning, mobility, and recovery" />
         <PlayerAtHomePerformanceTraining identity={identity} />
       </WorkbookPage>

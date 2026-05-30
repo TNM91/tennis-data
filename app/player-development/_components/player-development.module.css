@@ -156,6 +156,7 @@
 }
 
 .missionDashboard,
+.liveWorkbench,
 .performanceUpgrade {
   display: grid;
   gap: 14px;
@@ -168,6 +169,7 @@
 }
 
 .missionHero,
+.liveWorkbenchHero,
 .performanceUpgradeHero,
 .performanceSafetyNote,
 .codexAssistBox,
@@ -182,6 +184,7 @@
 }
 
 .missionHero,
+.liveWorkbenchHero,
 .performanceUpgradeHero {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -190,6 +193,7 @@
 }
 
 .missionGrid,
+.liveWorkbenchBody,
 .performanceGrowthGrid,
 .movementEngineGrid {
   display: grid;
@@ -198,6 +202,285 @@
 
 .missionGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.liveWorkbench {
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.09), transparent 34%),
+    var(--surface);
+}
+
+.liveWorkbenchHero {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.liveWorkbenchHero h2 {
+  margin: 8px 0 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.55rem, 3vw, 2.45rem);
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.liveWorkbenchHero p {
+  margin: 8px 0 0;
+  color: var(--muted-strong);
+  line-height: 1.45;
+}
+
+.liveFocusRail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.liveFocusButton,
+.liveLaneTabs button,
+.liveContextGrid button,
+.liveDrillChoices button,
+.liveRatingButtons button {
+  appearance: none;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.liveFocusButton:hover,
+.liveLaneTabs button:hover,
+.liveContextGrid button:hover,
+.liveDrillChoices button:hover,
+.liveRatingButtons button:hover {
+  border-color: rgba(155, 225, 29, 0.36);
+  transform: translateY(-1px);
+}
+
+.liveFocusButton {
+  display: grid;
+  gap: 6px;
+  min-height: 104px;
+  border-radius: 14px;
+  padding: 12px;
+  text-align: left;
+}
+
+.liveFocusButton[data-active='true'],
+.liveLaneTabs button[data-active='true'],
+.liveContextGrid button[data-active='true'],
+.liveDrillChoices button[data-active='true'],
+.liveRatingButtons button[data-active='true'] {
+  border-color: rgba(155, 225, 29, 0.56);
+  background: rgba(155, 225, 29, 0.13);
+  color: var(--foreground-strong);
+}
+
+.liveFocusButton strong {
+  color: var(--foreground-strong);
+  font-size: 0.92rem;
+  line-height: 1.12;
+}
+
+.liveFocusButton span {
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  line-height: 1.28;
+}
+
+.liveWorkbenchBody {
+  grid-template-columns: minmax(220px, 0.78fr) minmax(0, 1.24fr) minmax(240px, 0.78fr);
+  align-items: stretch;
+}
+
+.liveHeroActions,
+.liveTrainingFlow,
+.liveLaneColumn,
+.liveStepPanel,
+.liveCurrentGoal,
+.liveActionCard,
+.liveTracker,
+.liveRecentList {
+  display: grid;
+  gap: 12px;
+}
+
+.liveCoachLoop,
+.liveProgressPanel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.liveProgressPanel {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.liveCoachLoop article,
+.liveProgressPanel article,
+.liveStepPanel,
+.liveCurrentGoal,
+.liveActionCard,
+.liveTracker,
+.liveRecentList,
+.liveRecentList article {
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 16px;
+}
+
+.liveLaneColumn,
+.liveStepPanel,
+.liveActionCard,
+.liveTracker,
+.liveRecentList,
+.liveCoachLoop article,
+.liveProgressPanel article,
+.liveRecentList article {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.liveCurrentGoal {
+  padding: 14px;
+}
+
+.liveCurrentGoal span,
+.liveActionCard > span,
+.liveTracker > span,
+.liveWorkbenchHero span,
+.liveStepPanel > span,
+.liveCoachLoop span,
+.liveProgressPanel span,
+.liveRecentList > span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 7px 10px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.liveCurrentGoal strong,
+.liveActionCard h3,
+.liveActionGuide strong,
+.liveTracker strong,
+.liveStepPanel > strong,
+.liveCoachLoop strong,
+.liveProgressPanel strong,
+.liveRecentList strong {
+  display: block;
+  margin: 8px 0 0;
+  color: var(--foreground-strong);
+  line-height: 1.14;
+}
+
+.liveActionCard h3 {
+  margin: 0;
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+}
+
+.liveCurrentGoal p,
+.liveActionCard p,
+.liveActionGuide p,
+.liveCoachLoop p,
+.liveProgressPanel p,
+.liveRecentList p,
+.liveTracker small,
+.liveLaneHint {
+  margin: 7px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.87rem;
+  line-height: 1.45;
+}
+
+.liveLaneTabs {
+  display: grid;
+  gap: 8px;
+}
+
+.liveContextGrid,
+.liveDrillChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.liveLaneTabs button,
+.liveContextGrid button,
+.liveDrillChoices button {
+  min-height: 44px;
+  border-radius: 999px;
+  padding: 10px 12px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.liveDrillChoices button {
+  border-radius: 12px;
+  font-size: 0.82rem;
+}
+
+.liveActionGuide {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
+.liveActionLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.liveTracker textarea {
+  width: 100%;
+  min-height: 108px;
+  resize: vertical;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(4, 12, 18, 0.46);
+  color: var(--foreground-strong);
+  padding: 12px;
+  font: inherit;
+  line-height: 1.4;
+}
+
+.liveTracker textarea::placeholder {
+  color: rgba(225, 237, 242, 0.5);
+}
+
+.liveShareToggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  color: var(--muted-strong);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.liveShareToggle input {
+  margin-top: 2px;
+  accent-color: var(--brand-green-2);
+}
+
+.liveRatingButtons {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.liveRatingButtons button {
+  aspect-ratio: 1;
+  min-width: 0;
+  border-radius: 12px;
+  font-weight: 950;
 }
 
 .performanceGrowthGrid,
@@ -3935,6 +4218,19 @@
   .weekPageGrid {
     grid-template-columns: 1fr;
   }
+
+  .liveFocusRail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .liveCoachLoop,
+  .liveProgressPanel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .liveWorkbenchBody {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 860px) {
@@ -4019,7 +4315,17 @@
 
   .packetIndexHero,
   .missionHero,
+  .liveWorkbenchHero,
   .performanceUpgradeHero {
+    grid-template-columns: 1fr;
+  }
+
+  .liveFocusRail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .liveCoachLoop,
+  .liveProgressPanel {
     grid-template-columns: 1fr;
   }
 
@@ -4039,6 +4345,9 @@
 
 @media (max-width: 620px) {
   .identityGrid,
+  .liveFocusRail,
+  .liveContextGrid,
+  .liveDrillChoices,
   .lessonTemplate {
     grid-template-columns: 1fr;
   }
@@ -4077,6 +4386,7 @@
   .sheetPanel,
   .integrationPanel,
   .missionDashboard,
+  .liveWorkbench,
   .shell > :global(.surface-card) {
     display: none;
   }
