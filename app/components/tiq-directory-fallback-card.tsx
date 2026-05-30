@@ -19,20 +19,23 @@ export default function TiqDirectoryFallbackCard({
   chips: string[]
   actions?: DirectoryFallbackAction[]
 }) {
+  const titleId = `${slugifyForId(eyebrow)}-${slugifyForId(title)}-title`
+  const bodyId = `${slugifyForId(eyebrow)}-${slugifyForId(title)}-body`
+
   return (
-    <article style={cardStyle}>
+    <article style={cardStyle} aria-labelledby={titleId} aria-describedby={bodyId}>
       <div style={eyebrowStyle}>{eyebrow}</div>
-      <div style={titleStyle}>{title}</div>
-      <p style={bodyStyle}>{body}</p>
-      <div style={chipRowStyle} aria-label={`${title} signals`}>
+      <h2 id={titleId} style={titleStyle}>{title}</h2>
+      <p id={bodyId} style={bodyStyle}>{body}</p>
+      <div style={chipRowStyle} role="list" aria-label={`${title} signals`}>
         {chips.map((chip) => (
-          <span key={chip} style={chipStyle}>
+          <span key={chip} style={chipStyle} role="listitem">
             {chip}
           </span>
         ))}
       </div>
       {actions.length ? (
-        <div style={actionRowStyle}>
+        <div style={actionRowStyle} aria-label={`${title} actions`}>
           {actions.map((action) => (
             <FallbackLink key={`${action.href}-${action.label}`} href={action.href}>
               {action.label}
@@ -42,6 +45,10 @@ export default function TiqDirectoryFallbackCard({
       ) : null}
     </article>
   )
+}
+
+function slugifyForId(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'directory-fallback'
 }
 
 function FallbackLink({ href, children }: { href: string; children: ReactNode }) {
@@ -75,6 +82,7 @@ const eyebrowStyle: CSSProperties = {
 }
 
 const titleStyle: CSSProperties = {
+  margin: 0,
   color: 'var(--foreground-strong)',
   fontSize: 20,
   lineHeight: 1.12,

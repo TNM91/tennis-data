@@ -5,6 +5,18 @@ import { describe, expect, it } from 'vitest'
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
 
 describe('public loading state polish', () => {
+  it('renders directory fallback cards as semantic starter content', () => {
+    const fallbackSource = read('app/components/tiq-directory-fallback-card.tsx')
+
+    expect(fallbackSource).toContain('aria-labelledby={titleId}')
+    expect(fallbackSource).toContain('aria-describedby={bodyId}')
+    expect(fallbackSource).toContain('<h2 id={titleId}')
+    expect(fallbackSource).toContain('role="list"')
+    expect(fallbackSource).toContain('role="listitem"')
+    expect(fallbackSource).toContain('aria-label={`${title} actions`}')
+    expect(fallbackSource).toContain('slugifyForId')
+  })
+
   it('keeps the Players directory loading view useful instead of raw loading copy', () => {
     const playersSource = read('app/players/page.tsx')
 
