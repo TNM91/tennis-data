@@ -217,6 +217,30 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
 
 const resourceQuickStarts = [
   {
+    eyebrow: 'Play',
+    title: 'Find a place to play',
+    body: 'Start with teams, leagues, tournaments, courts, clubs, ladders, or open play when the job is getting on court.',
+    metrics: [
+      { label: 'Paths', value: 'Play' },
+      { label: 'Context', value: 'Local' },
+      { label: 'Next', value: 'Join' },
+    ],
+    href: '/resources#play',
+    cta: 'Find Play Paths',
+    event: {
+      eventName: 'search_result_clicked',
+      surface: 'public_site',
+      metadata: {
+        location: 'resources_quick_start',
+        job: 'play',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Resource hub', tone: 'info' },
+      { label: 'Status', value: 'Browse ready', tone: 'good' },
+    ],
+  },
+  {
     eyebrow: 'Find',
     title: 'Find coaching support',
     body: 'Start with coaching when the next tennis action is a lesson, clinic, question, or practice plan.',
@@ -237,6 +261,29 @@ const resourceQuickStarts = [
     trust: [
       { label: 'Source', value: 'Resource hub', tone: 'info' },
       { label: 'Status', value: 'Discovery ready', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Lead',
+    title: 'Captain match week',
+    body: 'Use Teams when availability, lineup ideas, opponent scouting, communication, and scorecard reminders need one path.',
+    metrics: [
+      { label: 'Role', value: 'Captain' },
+      { label: 'Workspace', value: 'Team Hub' },
+      { label: 'Tools', value: 'Match week' },
+    ],
+    href: '/teams',
+    cta: 'Open Captain Tools',
+    event: {
+      eventName: 'captain_tools_clicked',
+      surface: 'teams',
+      metadata: {
+        location: 'resources_quick_start',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Team context', tone: 'info' },
+      { label: 'Status', value: 'Public path', tone: 'good' },
     ],
   },
   {
@@ -369,6 +416,9 @@ function resourceClickEvent(item: string, group: string) {
   if (lower.includes('coach')) {
     eventName = 'find_coach_clicked'
     surface = 'coach'
+  } else if (lower.includes('team')) {
+    eventName = 'team_search_submitted'
+    surface = 'teams'
   } else if (lower.includes('league')) {
     eventName = 'league_search_submitted'
     surface = 'leagues'
