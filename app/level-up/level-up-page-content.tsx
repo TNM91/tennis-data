@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import PlayerLiveWorkbench from '@/app/player-development/_components/player-live-workbench'
@@ -44,16 +45,18 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           </div>
         </section>
 
-        <PlayerLiveWorkbench
-          identitySlug={identity.slug}
-          identityTitle={identity.title}
-          mantra={identity.mantra}
-          focuses={identity.sections}
-          solo={trainingMenus.solo}
-          partner={trainingMenus.partner}
-          offCourt={trainingMenus.offCourt}
-          performance={trainingMenus.performance}
-        />
+        <Suspense fallback={<div className={styles.liveAccessPanel}>Loading Level Up.</div>}>
+          <PlayerLiveWorkbench
+            identitySlug={identity.slug}
+            identityTitle={identity.title}
+            mantra={identity.mantra}
+            focuses={identity.sections}
+            solo={trainingMenus.solo}
+            partner={trainingMenus.partner}
+            offCourt={trainingMenus.offCourt}
+            performance={trainingMenus.performance}
+          />
+        </Suspense>
       </main>
     </SiteShell>
   )

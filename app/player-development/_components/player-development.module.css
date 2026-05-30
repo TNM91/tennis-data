@@ -409,6 +409,7 @@
 .liveActionCard,
 .liveTracker,
 .liveAccessPanel,
+.liveAssignmentBanner,
 .liveSavedBanner,
 .liveUnlockPanel,
 .liveRecentList {
@@ -461,6 +462,7 @@
 .liveTimerPanel,
 .liveTracker,
 .liveAccessPanel,
+.liveAssignmentBanner,
 .liveSavedBanner,
 .liveUnlockPanel,
 .liveRecentList,
@@ -476,6 +478,7 @@
 .liveTimerPanel,
 .liveTracker,
 .liveAccessPanel,
+.liveAssignmentBanner,
 .liveSavedBanner,
 .liveUnlockPanel,
 .liveRecentList,
@@ -495,6 +498,7 @@
 .liveActionCard > span,
 .liveTracker > span,
 .liveAccessPanel > div > span,
+.liveAssignmentBanner span,
 .liveWorkbenchHero span,
 .liveStepPanel > span,
 .liveCoachLoop span,
@@ -520,6 +524,7 @@
 .liveActionGuide strong,
 .liveTracker strong,
 .liveAccessPanel > div > strong,
+.liveAssignmentBanner strong,
 .liveStepPanel > strong,
 .liveCoachLoop strong,
 .liveProgressPanel strong,
@@ -541,6 +546,7 @@
 .liveActionCard p,
 .liveActionGuide p,
 .liveAccessPanel > div > p,
+.liveAssignmentBanner p,
 .liveCoachLoop p,
 .liveProgressPanel p,
 .liveSavedBanner p,
@@ -562,6 +568,15 @@
 .liveAccessPanel {
   grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
   align-items: stretch;
+}
+
+.liveAssignmentBanner {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: rgba(155, 225, 29, 0.32);
+  background:
+    linear-gradient(90deg, rgba(155, 225, 29, 0.12), transparent 40%),
+    rgba(255, 255, 255, 0.055);
 }
 
 .liveAccessGrid {
@@ -4539,6 +4554,7 @@
   .liveCoachLoop,
   .liveProgressPanel,
   .liveAccessPanel,
+  .liveAssignmentBanner,
   .liveSavedBanner,
   .liveUnlockPanel,
   .levelUpRouteHeader,
@@ -4654,6 +4670,7 @@
   .liveProgressPanel,
   .liveAccessPanel,
   .liveAccessGrid,
+  .liveAssignmentBanner,
   .liveSavedBanner,
   .liveUnlockPanel,
   .liveModeStrip {

@@ -3795,10 +3795,18 @@ function PlayerCoachAssignmentsPanel({
           </div>
           <div style={coachHubNextActionsStyle}>
             {nextAssignment.status !== 'completed' ? (
+              <Link
+                href={buildAssignmentLevelUpHref(nextAssignment, coachLinkMap.get(nextAssignment.studentLinkId))}
+                style={coachCheckInPrimaryLinkStyle}
+              >
+                Start Level Up
+              </Link>
+            ) : null}
+            {nextAssignment.status !== 'completed' ? (
               <button
                 type="button"
                 onClick={() => beginPlayerCheckIn(nextAssignment)}
-                style={coachCheckInButtonStyle}
+                style={coachCheckInGhostButtonStyle}
               >
                 Add recap
               </button>
@@ -3845,21 +3853,31 @@ function PlayerCoachAssignmentsPanel({
                   <span style={coachAssignmentDueStyle(dueState.tone)}>{dueState.label}</span>
                 </div>
                 {link?.coachUserId ? (
-                  <Link
-                    href={buildPlayerCoachMessageHref(
-                      link,
-                      assignment.title,
-                      `Quick note on ${assignment.title}: `,
-                      {
-                        assignmentId: assignment.id,
-                        assignmentTitle: assignment.title,
-                        assignmentFocus: assignment.focus,
-                      },
-                    )}
-                    style={miniActionLinkStyle}
-                  >
-                    Message coach about this
-                  </Link>
+                  <div style={developmentActionRowStyle}>
+                    {assignment.status !== 'completed' ? (
+                      <Link
+                        href={buildAssignmentLevelUpHref(assignment, link)}
+                        style={miniActionLinkStyle}
+                      >
+                        Start Level Up
+                      </Link>
+                    ) : null}
+                    <Link
+                      href={buildPlayerCoachMessageHref(
+                        link,
+                        assignment.title,
+                        `Quick note on ${assignment.title}: `,
+                        {
+                          assignmentId: assignment.id,
+                          assignmentTitle: assignment.title,
+                          assignmentFocus: assignment.focus,
+                        },
+                      )}
+                      style={miniActionLinkStyle}
+                    >
+                      Message coach
+                    </Link>
+                  </div>
                 ) : null}
                 {assignmentSummary.detail || assignmentSummary.volume || assignmentSummary.tracker.length || assignmentSummary.prompt || assignmentSummary.expectedEvidence ? (
                   <div style={coachAssignmentSummaryStyle}>
@@ -4025,6 +4043,21 @@ function buildPlayerCoachMessageHref(
   if (assignmentContext?.assignmentTitle) params.set('assignmentTitle', assignmentContext.assignmentTitle)
   if (assignmentContext?.assignmentFocus) params.set('assignmentFocus', assignmentContext.assignmentFocus)
   return `/messages?${params.toString()}`
+}
+
+function buildAssignmentLevelUpHref(
+  assignment: CoachAssignment,
+  coachLink: CoachStudentLink | undefined,
+) {
+  const identitySlug = coachLink?.identitySlug || 'relentless-competitor-4-0'
+  const params = new URLSearchParams({
+    assignmentId: assignment.id,
+    studentLinkId: assignment.studentLinkId,
+    coach: '1',
+    assignmentTitle: assignment.title,
+  })
+  if (assignment.focus) params.set('assignmentFocus', assignment.focus)
+  return `/level-up/${encodeURIComponent(identitySlug)}?${params.toString()}`
 }
 
 function buildPlayerAssignmentActionPlan(
@@ -4419,6 +4452,14 @@ const coachCheckInButtonStyle: CSSProperties = {
   fontSize: '.82rem',
   fontWeight: 900,
   cursor: 'pointer',
+}
+
+const coachCheckInPrimaryLinkStyle: CSSProperties = {
+  ...coachCheckInButtonStyle,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
 }
 
 const coachCheckInGhostButtonStyle: CSSProperties = {

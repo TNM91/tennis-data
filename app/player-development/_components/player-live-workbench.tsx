@@ -1,5 +1,6 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
@@ -45,6 +46,9 @@ type SavedSession = {
   elapsedSeconds: number
   sharedWithCoach: boolean
   completedAt: string
+  assignmentId?: string
+  studentLinkId?: string
+  assignmentTitle?: string
 }
 
 type RemoteLevelUpSession = SavedSession & {
@@ -132,6 +136,12 @@ export default function PlayerLiveWorkbench({
   offCourt,
   performance,
 }: PlayerLiveWorkbenchProps) {
+  const searchParams = useSearchParams()
+  const assignmentId = searchParams.get('assignmentId')?.trim() ?? ''
+  const studentLinkId = searchParams.get('studentLinkId')?.trim() ?? ''
+  const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
+  const assignmentFocus = searchParams.get('assignmentFocus')?.trim() || searchParams.get('focus')?.trim() || ''
+  const hasCoachAssignment = Boolean(assignmentId || studentLinkId || searchParams.get('coach') === '1')
   const playableFocuses = useMemo(
     () => focuses.filter((focus) => focus.id !== 'accountability'),
     [focuses],
@@ -163,6 +173,19 @@ export default function PlayerLiveWorkbench({
   const recentSessions = sessions.slice(0, 4)
   const progress = getProgressSummary(sessions, playableFocuses)
   const activeAccess = accessModes[accessMode]
+
+  useEffect(() => {
+    if (!hasCoachAssignment) return
+
+    const focusMatch = findAssignmentFocus(playableFocuses, assignmentFocus)
+    setAccessMode('coach_invited')
+    setContext('coach')
+    setWorkType('court')
+    setDraft((current) => ({ ...current, sharedWithCoach: true }))
+    setSyncState({ status: 'idle', message: 'Coach challenge loaded. Rate and save after the work.' })
+    if (focusMatch) setActiveFocusId(focusMatch.id)
+    setActiveDrillId('')
+  }, [assignmentFocus, hasCoachAssignment, playableFocuses])
 
   useEffect(() => {
     let active = true
@@ -250,6 +273,9 @@ export default function PlayerLiveWorkbench({
       elapsedSeconds: getTimerSeconds(activeDrill.id),
       sharedWithCoach: draft.sharedWithCoach,
       completedAt: new Date().toISOString(),
+      assignmentId: assignmentId || undefined,
+      studentLinkId: studentLinkId || undefined,
+      assignmentTitle: assignmentTitle || undefined,
     }
     const nextSessions = [nextSession, ...sessions].slice(0, 40)
     setSessions(nextSessions)
@@ -290,7 +316,9 @@ export default function PlayerLiveWorkbench({
       setSyncState({
         status: 'synced',
         message:
-          session.accessMode === 'coach_invited' && session.sharedWithCoach
+          session.assignmentId
+            ? 'Synced. Coach assignment marked complete for review.'
+            : session.accessMode === 'coach_invited' && session.sharedWithCoach
             ? 'Synced. Your linked coach can use this for the next lesson.'
             : 'Synced to your Level Up history.',
       })
@@ -335,6 +363,17 @@ export default function PlayerLiveWorkbench({
           <p>Player+ turns quick logs into My Lab progress, match evidence, and next-focus intelligence.</p>
         </article>
       </div>
+
+      {hasCoachAssignment ? (
+        <div className={styles.liveAssignmentBanner} role="status">
+          <div>
+            <span>Coach challenge loaded</span>
+            <strong>{assignmentTitle || activeDrill.title}</strong>
+            <p>Do the work, rate it 0-5, add one tiny note if it helps, and save. When linked, this marks the assignment complete for your coach.</p>
+          </div>
+          <a className="button-secondary" href="/mylab#coach-assignments">Back to My Lab</a>
+        </div>
+      ) : null}
 
       <div className={styles.liveAccessPanel} aria-label="Choose Level Up access path">
         <div>
@@ -735,7 +774,19 @@ function remoteToSavedSession(session: RemoteLevelUpSession): SavedSession {
     elapsedSeconds: session.elapsedSeconds,
     sharedWithCoach: session.sharedWithCoach,
     completedAt: session.completedAt,
+    assignmentId: session.assignmentId ?? undefined,
+    studentLinkId: session.studentLinkId ?? undefined,
   }
+}
+
+function findAssignmentFocus(focuses: LiveFocus[], assignmentFocus: string) {
+  const normalized = assignmentFocus.toLowerCase()
+  if (!normalized) return null
+
+  return focuses.find((focus) => {
+    const title = focus.title.toLowerCase()
+    return normalized.includes(focus.id.toLowerCase()) || normalized.includes(title.replace(' development', '')) || title.includes(normalized)
+  }) ?? null
 }
 
 function mergeSessions(remoteSessions: SavedSession[], localSessions: SavedSession[]) {

@@ -10,6 +10,7 @@ const navSource = readFileSync(join(process.cwd(), 'lib/site-navigation.ts'), 'u
 const sitemapSource = readFileSync(join(process.cwd(), 'app/sitemap.ts'), 'utf8')
 const trainingMenusSource = readFileSync(join(process.cwd(), 'lib/player-training-menus.ts'), 'utf8')
 const developmentSystemSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
+const liveWorkbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
 
 describe('Level Up page', () => {
   it('creates a direct phone-first Level Up destination from the shared drill engine', () => {
@@ -43,5 +44,16 @@ describe('Level Up page', () => {
     expect(identityPageSource).toContain('LevelUpPageContent')
     expect(contentSource).toContain('href={`/level-up/${item.slug}`}')
     expect(sitemapSource).toContain('`/level-up/${identity.slug}`')
+  })
+
+  it('hands coach assignments straight into the on-court Level Up flow', () => {
+    expect(myLabSource).toContain('buildAssignmentLevelUpHref')
+    expect(myLabSource).toContain("coach: '1'")
+    expect(myLabSource).toContain('Start Level Up')
+    expect(myLabSource).toContain('/level-up/${encodeURIComponent(identitySlug)}')
+    expect(liveWorkbenchSource).toContain('useSearchParams')
+    expect(liveWorkbenchSource).toContain('Coach challenge loaded')
+    expect(liveWorkbenchSource).toContain('assignmentId: assignmentId || undefined')
+    expect(liveWorkbenchSource).toContain('Synced. Coach assignment marked complete for review.')
   })
 })
