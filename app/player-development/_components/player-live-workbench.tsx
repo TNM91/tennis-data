@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
 
@@ -138,6 +138,7 @@ export default function PlayerLiveWorkbench({
   performance,
 }: PlayerLiveWorkbenchProps) {
   const searchParams = useSearchParams()
+  const activityRef = useRef<HTMLElement | null>(null)
   const assignmentId = searchParams.get('assignmentId')?.trim() ?? ''
   const studentLinkId = searchParams.get('studentLinkId')?.trim() ?? ''
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
@@ -198,6 +199,18 @@ export default function PlayerLiveWorkbench({
     setActiveDrillId(`${nextFocusId}-coach-${nextWorkType}`)
     setEditingStep(null)
   }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment])
+
+  useEffect(() => {
+    if (!hasCoachAssignment) return
+    if (typeof window === 'undefined') return
+    if (!window.matchMedia('(max-width: 860px)').matches) return
+
+    const id = window.setTimeout(() => {
+      activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 180)
+
+    return () => window.clearTimeout(id)
+  }, [activeDrill.id, hasCoachAssignment])
 
   useEffect(() => {
     let active = true
@@ -348,7 +361,7 @@ export default function PlayerLiveWorkbench({
   if (!activeFocus || !activeDrill) return null
 
   return (
-    <section className={styles.liveWorkbench} aria-labelledby="live-workbench-title">
+    <section className={styles.liveWorkbench} data-assignment={hasCoachAssignment ? 'true' : 'false'} aria-labelledby="live-workbench-title">
       <div className={styles.liveWorkbenchHero}>
         <div>
           <span>Level Up</span>
@@ -493,7 +506,7 @@ export default function PlayerLiveWorkbench({
             </div>
           </div>
 
-          <article className={styles.liveActionCard}>
+          <article ref={activityRef} className={styles.liveActionCard} id="level-up-activity">
             <span>{workTypeLabels[activeDrill.workType]} / {contextLabels[activeDrill.context]}</span>
             <h3>{activeDrill.title}</h3>
             <p>{activeDrill.summary}</p>

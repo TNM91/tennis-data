@@ -4732,6 +4732,11 @@
     display: none;
   }
 
+  .levelUpShell:has(.liveWorkbench[data-assignment='true']) .levelUpRouteHeader,
+  .liveWorkbench[data-assignment='true'] .liveCompactSummary {
+    display: none;
+  }
+
   .liveCompactSummary {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -4846,6 +4851,10 @@
   .liveSavedBanner {
     padding: 11px;
     border-radius: 14px;
+  }
+
+  .liveActionCard {
+    scroll-margin-top: 12px;
   }
 
   .liveAssignmentBanner p {
