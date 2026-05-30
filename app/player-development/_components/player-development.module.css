@@ -238,6 +238,7 @@
 .liveLaneTabs button,
 .liveContextGrid button,
 .liveDrillChoices button,
+.liveFeelingGrid button,
 .liveRatingButtons button {
   appearance: none;
   cursor: pointer;
@@ -251,6 +252,7 @@
 .liveLaneTabs button:hover,
 .liveContextGrid button:hover,
 .liveDrillChoices button:hover,
+.liveFeelingGrid button:hover,
 .liveRatingButtons button:hover {
   border-color: rgba(155, 225, 29, 0.36);
   transform: translateY(-1px);
@@ -269,6 +271,7 @@
 .liveLaneTabs button[data-active='true'],
 .liveContextGrid button[data-active='true'],
 .liveDrillChoices button[data-active='true'],
+.liveFeelingGrid button[data-active='true'],
 .liveRatingButtons button[data-active='true'] {
   border-color: rgba(155, 225, 29, 0.56);
   background: rgba(155, 225, 29, 0.13);
@@ -299,6 +302,8 @@
 .liveCurrentGoal,
 .liveActionCard,
 .liveTracker,
+.liveSavedBanner,
+.liveUnlockPanel,
 .liveRecentList {
   display: grid;
   gap: 12px;
@@ -348,6 +353,8 @@
 .liveActionCard,
 .liveTimerPanel,
 .liveTracker,
+.liveSavedBanner,
+.liveUnlockPanel,
 .liveRecentList,
 .liveRecentList article {
   border: 1px solid rgba(116, 190, 255, 0.14);
@@ -360,6 +367,8 @@
 .liveActionCard,
 .liveTimerPanel,
 .liveTracker,
+.liveSavedBanner,
+.liveUnlockPanel,
 .liveRecentList,
 .liveCoachLoop article,
 .liveProgressPanel article,
@@ -380,6 +389,8 @@
 .liveStepPanel > span,
 .liveCoachLoop span,
 .liveProgressPanel span,
+.liveSavedBanner span,
+.liveUnlockPanel span,
 .liveRecentList > span {
   display: inline-flex;
   width: fit-content;
@@ -401,6 +412,8 @@
 .liveStepPanel > strong,
 .liveCoachLoop strong,
 .liveProgressPanel strong,
+.liveSavedBanner strong,
+.liveUnlockPanel strong,
 .liveRecentList strong {
   display: block;
   margin: 8px 0 0;
@@ -418,6 +431,8 @@
 .liveActionGuide p,
 .liveCoachLoop p,
 .liveProgressPanel p,
+.liveSavedBanner p,
+.liveUnlockPanel p,
 .liveRecentList p,
 .liveTracker small,
 .liveLaneHint {
@@ -433,6 +448,7 @@
 }
 
 .liveContextGrid,
+.liveFeelingGrid,
 .liveDrillChoices {
   display: flex;
   flex-wrap: wrap;
@@ -441,6 +457,7 @@
 
 .liveLaneTabs button,
 .liveContextGrid button,
+.liveFeelingGrid button,
 .liveDrillChoices button {
   min-height: 44px;
   border-radius: 999px;
@@ -452,6 +469,40 @@
 .liveDrillChoices button {
   border-radius: 12px;
   font-size: 0.82rem;
+}
+
+.liveFeelingGrid button {
+  min-height: 40px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+}
+
+.liveMicroPlan {
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 14px;
+  background: rgba(155, 225, 29, 0.08);
+  padding: 12px;
+}
+
+.liveMicroPlan span {
+  color: var(--brand-green-3);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.liveMicroPlan strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--foreground-strong);
+}
+
+.liveMicroPlan p {
+  margin: 6px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  line-height: 1.4;
 }
 
 .liveActionGuide {
@@ -520,6 +571,38 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-top: auto;
+}
+
+.liveSavedBanner {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: rgba(155, 225, 29, 0.32);
+  background: rgba(155, 225, 29, 0.09);
+}
+
+.liveSavedActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.liveUnlockPanel {
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  align-items: center;
+}
+
+.liveUnlockGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.liveUnlockGrid span {
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .liveTracker textarea {
@@ -4309,6 +4392,8 @@
 
   .liveCoachLoop,
   .liveProgressPanel,
+  .liveSavedBanner,
+  .liveUnlockPanel,
   .liveModeStrip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4411,6 +4496,8 @@
 
   .liveCoachLoop,
   .liveProgressPanel,
+  .liveSavedBanner,
+  .liveUnlockPanel,
   .liveModeStrip {
     grid-template-columns: 1fr;
   }
@@ -4433,7 +4520,9 @@
   .identityGrid,
   .liveFocusRail,
   .liveContextGrid,
+  .liveFeelingGrid,
   .liveDrillChoices,
+  .liveUnlockGrid,
   .lessonTemplate {
     grid-template-columns: 1fr;
   }

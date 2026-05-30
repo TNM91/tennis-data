@@ -15,6 +15,7 @@ type LiveFocus = {
 
 type WorkType = 'court' | 'physical' | 'mental'
 type TrainingContext = 'alone' | 'partner' | 'singles' | 'doubles' | 'coach'
+type PlayerFeeling = 'ready' | 'tight' | 'tired' | 'nervous'
 
 type DrillOption = {
   id: string
@@ -36,6 +37,7 @@ type SavedSession = {
   context: TrainingContext
   drillTitle: string
   rating: number
+  feeling: PlayerFeeling
   note: string
   elapsedSeconds: number
   sharedWithCoach: boolean
@@ -67,8 +69,16 @@ const contextLabels: Record<TrainingContext, string> = {
   coach: 'Coach challenge',
 }
 
+const feelingLabels: Record<PlayerFeeling, string> = {
+  ready: 'Ready',
+  tight: 'Tight',
+  tired: 'Tired',
+  nervous: 'Nervous',
+}
+
 const emptyDraft = {
   rating: null as number | null,
+  feeling: 'ready' as PlayerFeeling,
   note: '',
   sharedWithCoach: true,
 }
@@ -93,6 +103,7 @@ export default function PlayerLiveWorkbench({
   const [workType, setWorkType] = useState<WorkType>('court')
   const [activeDrillId, setActiveDrillId] = useState('')
   const [draft, setDraft] = useState(emptyDraft)
+  const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
   const storageKey = `tenaceiq:level-up:${identitySlug}`
   const [sessions, setSessions] = useState<SavedSession[]>(() => readSavedSessions(storageKey))
 
@@ -140,6 +151,7 @@ export default function PlayerLiveWorkbench({
       context,
       drillTitle: activeDrill.title,
       rating: draft.rating,
+      feeling: draft.feeling,
       note: draft.note.trim(),
       elapsedSeconds: getTimerSeconds(activeDrill.id),
       sharedWithCoach: draft.sharedWithCoach,
@@ -148,6 +160,7 @@ export default function PlayerLiveWorkbench({
     const nextSessions = [nextSession, ...sessions].slice(0, 40)
     setSessions(nextSessions)
     window.localStorage.setItem(storageKey, JSON.stringify(nextSessions))
+    setLastSavedSession(nextSession)
     setDraft(emptyDraft)
   }
 
@@ -254,6 +267,11 @@ export default function PlayerLiveWorkbench({
             <span>{workTypeLabels[activeDrill.workType]} / {contextLabels[activeDrill.context]}</span>
             <h3>{activeDrill.title}</h3>
             <p>{activeDrill.summary}</p>
+            <div className={styles.liveMicroPlan}>
+              <span>Target</span>
+              <strong>{activeFocus.tracker[0] ?? 'Proof rating'}</strong>
+              <p>Win the drill by showing the habit, not just by liking the outcome.</p>
+            </div>
             <div className={styles.liveActionGuide}>
               <strong>Time</strong>
               <p>{activeDrill.duration}</p>
@@ -284,6 +302,18 @@ export default function PlayerLiveWorkbench({
           <aside className={styles.liveTracker} aria-label="Quick tracking">
             <span>3. Submit</span>
             <strong>Rate it, add one tiny note, save.</strong>
+            <div className={styles.liveFeelingGrid} aria-label="How do you feel right now?">
+              {(Object.keys(feelingLabels) as PlayerFeeling[]).map((feeling) => (
+                <button
+                  type="button"
+                  key={feeling}
+                  data-active={draft.feeling === feeling ? 'true' : 'false'}
+                  onClick={() => setDraft({ ...draft, feeling })}
+                >
+                  {feelingLabels[feeling]}
+                </button>
+              ))}
+            </div>
             <div className={styles.liveRatingButtons} aria-label="Rate this work from 0 to 5">
               {[0, 1, 2, 3, 4, 5].map((value) => (
                 <button
@@ -319,6 +349,25 @@ export default function PlayerLiveWorkbench({
         </div>
       </div>
 
+      {lastSavedSession ? (
+        <div className={styles.liveSavedBanner} role="status">
+          <div>
+            <span>Saved</span>
+            <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
+            <p>
+              {lastSavedSession.rating}/5, {formatClock(lastSavedSession.elapsedSeconds)}, feeling {feelingLabels[lastSavedSession.feeling].toLowerCase()}.
+              {lastSavedSession.sharedWithCoach ? ' Ready to sync to your coach when linked.' : ' Kept private for now.'}
+            </p>
+          </div>
+          <div className={styles.liveSavedActions}>
+            <a className="button-primary" href="/mylab#coach-assignments">Open My Lab</a>
+            <button type="button" className="button-secondary" onClick={() => setLastSavedSession(null)}>
+              Keep training
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className={styles.liveProgressPanel} aria-label="Training progress summary">
         <article>
           <span>Overall</span>
@@ -337,9 +386,26 @@ export default function PlayerLiveWorkbench({
         </article>
         <article>
           <span>Next lesson</span>
-          <strong>Calendar-ready later</strong>
-          <p>Coach scheduling can connect lesson reminders to the same focus and phone calendar flow.</p>
+          <strong>{progress.nextMove}</strong>
+          <p>Coach scheduling can connect lesson reminders to this same focus and phone calendar flow.</p>
         </article>
+      </div>
+
+      <div className={styles.liveUnlockPanel} aria-label="Player Plus unlock path">
+        <div>
+          <span>Player+ unlock</span>
+          <strong>Turn on-court logs into a shared development plan.</strong>
+          <p>
+            Free keeps the coach link and basic challenges usable. Player+ should unlock saved history across devices,
+            trend charts, recommendations, calendar-linked lessons, and coach-visible progress.
+          </p>
+        </div>
+        <div className={styles.liveUnlockGrid}>
+          <span>Sync across devices</span>
+          <span>Coach challenge history</span>
+          <span>Over / under training trends</span>
+          <span>Lesson calendar reminders</span>
+        </div>
       </div>
 
       {recentSessions.length ? (
@@ -348,7 +414,7 @@ export default function PlayerLiveWorkbench({
           {recentSessions.map((session) => (
             <article key={session.id}>
               <strong>{session.focusTitle}: {session.drillTitle}</strong>
-              <p>{session.rating}/5 {formatClock(session.elapsedSeconds)} {session.sharedWithCoach ? 'shared with coach' : 'private'}{session.note ? ` - ${session.note}` : ''}</p>
+              <p>{session.rating}/5 {formatClock(session.elapsedSeconds)} {feelingLabels[session.feeling] ?? 'Ready'} {session.sharedWithCoach ? 'shared with coach' : 'private'}{session.note ? ` - ${session.note}` : ''}</p>
             </article>
           ))}
         </div>
@@ -523,5 +589,6 @@ function getProgressSummary(sessions: SavedSession[], focuses: LiveFocus[]) {
     topFocus: top ? focuses.find((focus) => focus.id === top[0])?.title.replace(' Development', '') : '',
     lowFocus: low?.[2] === 0 || sessions.length > 2 ? low?.[1] : '',
     sharedCount: sessions.filter((session) => session.sharedWithCoach).length,
+    nextMove: low?.[1] ? `Level up ${low[1]}` : 'Calendar-ready later',
   }
 }
