@@ -32,6 +32,7 @@ import {
   getCoachPlannerHref,
   getCoachSessionPreset,
 } from '@/lib/coach-workspace'
+import type { LevelUpSession } from '@/lib/level-up-sessions'
 import { getPlayerDevelopmentIdentity } from '@/lib/player-development'
 
 const FIRST_ASSIGNMENT_STARTERS = [
@@ -77,6 +78,7 @@ function CoachContent() {
   const studentSnapshots = useMemo(() => buildCoachStudentSnapshots(), [])
   const [savedStudents, setSavedStudents] = useState<CoachStudentLink[]>([])
   const [assignments, setAssignments] = useState<CoachAssignment[]>([])
+  const [levelUpSessions, setLevelUpSessions] = useState<LevelUpSession[]>([])
   const [studentName, setStudentName] = useState('')
   const [studentLevel, setStudentLevel] = useState('')
   const [studentIdentity, setStudentIdentity] = useState('relentless-competitor-4-0')
@@ -108,7 +110,7 @@ function CoachContent() {
     setWorkspaceMessage('')
 
     try {
-      const [studentsResponse, assignmentsResponse, invitesResponse] = await Promise.all([
+      const [studentsResponse, assignmentsResponse, invitesResponse, levelUpResponse] = await Promise.all([
         fetch('/api/coach/students', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         }),
@@ -118,11 +120,15 @@ function CoachContent() {
         fetch('/api/coach/invites', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         }),
+        fetch('/api/coach/level-up-sessions', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }),
       ])
 
       const studentsJson = (await studentsResponse.json()) as { ok?: boolean; students?: CoachStudentLink[]; message?: string }
       const assignmentsJson = (await assignmentsResponse.json()) as { ok?: boolean; assignments?: CoachAssignment[]; message?: string }
       const invitesJson = (await invitesResponse.json()) as { ok?: boolean; invites?: CoachStudentInvite[]; message?: string }
+      const levelUpJson = (await levelUpResponse.json()) as { ok?: boolean; sessions?: LevelUpSession[]; message?: string }
 
       if (!studentsResponse.ok || !studentsJson.ok) {
         throw new Error(studentsJson.message || 'Could not load coach students.')
@@ -139,6 +145,7 @@ function CoachContent() {
       setSavedStudents(studentsJson.students ?? [])
       setAssignments(assignmentsJson.assignments ?? [])
       setInvites(invitesJson.invites ?? [])
+      setLevelUpSessions(levelUpResponse.ok && levelUpJson.ok ? levelUpJson.sessions ?? [] : [])
       setAssignmentStudentId((current) => current || studentsJson.students?.[0]?.id || '')
       setContactStudentId((current) => current || studentsJson.students?.[0]?.id || '')
     } catch (error) {
@@ -324,7 +331,7 @@ function CoachContent() {
     setAssignmentFocus(presetAssignment.focus)
     setAssignmentPresetId(sessionPresetId)
     setAssignmentStarterId('')
-    setWorkspaceMessage('Session preset loaded into the assignment form. Choose a student and due date, then create the Player+ follow-through.')
+    setWorkspaceMessage('Session preset loaded into the assignment form. Choose a student and due date, then create the Level Up follow-through.')
   }
 
   function loadFirstAssignmentStarter(starter: (typeof FIRST_ASSIGNMENT_STARTERS)[number]) {
@@ -407,6 +414,7 @@ function CoachContent() {
   )
   const activeAssignmentsCount = assignments.filter((assignment) => assignment.status === 'assigned').length
   const reviewedAssignmentsCount = assignments.filter((assignment) => Boolean(getCoachAssignmentReview(assignment.assignment))).length
+  const recentLevelUpSessions = useMemo(() => levelUpSessions.slice(0, 3), [levelUpSessions])
   const linkedPlayersCount = linkedPlayerCards.filter((card) => card.connection === 'linked').length
   const pendingInviteCount = linkedPlayerCards.filter((card) => card.connection === 'pending').length
   const overduePlayersCount = linkedPlayerCards.filter((card) => card.dueTone === 'overdue' || card.dueTone === 'today').length
@@ -424,7 +432,7 @@ function CoachContent() {
         planId="coach"
         headline="Unlock Coach to develop players with a connected workflow."
         body="Coach Hub brings lesson plans, Tactical Studio boards, assignments, student tracking, and scheduling into one workspace."
-        result="Players can still use printed guides, but linked digital follow-through unlocks with Player+ and Coach access."
+        result="Invited players can complete coach-assigned work through your Coach tier. Player+ unlocks self-guided history and trends."
         ctaLabel="Unlock Coach"
         secondaryLabel="Compare Full-Court"
         secondaryHref="/pricing#full_court"
@@ -473,7 +481,7 @@ function CoachContent() {
             <div style={eyebrowStyle}>Linked players</div>
             <h2 style={sectionTitleStyle}>Know who needs the next touch.</h2>
             <p style={bodyStyle}>
-              Track setup status, Player+ connection, assignment pressure, and review needs before the next lesson.
+              Track setup status, coach-linked access, assignment pressure, and review needs before the next lesson.
             </p>
           </div>
           <div style={linkedMetricGridStyle}>
@@ -481,6 +489,7 @@ function CoachContent() {
             <DashboardMetric label="Pending" value={pendingInviteCount} />
             <DashboardMetric label="Review" value={assignmentsNeedingReview.length} />
             <DashboardMetric label="Due now" value={overduePlayersCount} />
+            <DashboardMetric label="Level Up" value={levelUpSessions.length} />
           </div>
         </div>
         <div style={coachQueueStyle} aria-label="Coach priority queue">
@@ -517,7 +526,7 @@ function CoachContent() {
                 {card.latestAssignment
                   ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
                   : card.pendingInvite
-                    ? 'Invite pending. Send setup link, then create the first Player+ assignment.'
+                    ? 'Invite pending. Send setup link, then create the first Level Up assignment.'
                     : 'Create a measurable next action from the last lesson.'}
               </p>
               <div style={studentActionRowStyle}>
@@ -734,7 +743,7 @@ function CoachContent() {
               <div style={eyebrowStyle}>First assignment starter</div>
               <h3 style={sessionPlannerTitleStyle}>Answer the “what should I work on first?” message.</h3>
               <p style={studentNextStyle}>
-                Load a practical first Player+ assignment, then create it and send it from the ready panel.
+                Load a practical first Level Up assignment, then create it and send it from the ready panel.
               </p>
             </div>
             <div style={firstAssignmentStarterGridStyle}>
@@ -893,6 +902,24 @@ function CoachContent() {
             ))}
           </div>
           <div style={assignmentListStyle}>
+            {recentLevelUpSessions.length ? (
+              <article style={assignmentCardStyle}>
+                <div style={assignmentTopStyle}>
+                  <strong>Recent Level Up logs</strong>
+                  <span style={assignmentStatusStyle('completed')}>Player signal</span>
+                </div>
+                {recentLevelUpSessions.map((log) => {
+                  const student = savedStudents.find((candidate) => candidate.id === log.studentLinkId)
+                  return (
+                    <div key={log.id} style={checkInReviewStyle}>
+                      <strong>{student?.playerName || 'Linked player'} / {log.focusTitle}</strong>
+                      <span>{log.drillTitle}: {log.rating}/5, {formatClock(log.elapsedSeconds)}, {log.feeling}</span>
+                      {log.note ? <em>{log.note}</em> : null}
+                    </div>
+                  )
+                })}
+              </article>
+            ) : null}
             {sortedAssignments.length > 0 ? (
               sortedAssignments.slice(0, 6).map((assignment) => {
                 const playerCheckIn = getPlayerAssignmentCheckIn(assignment.assignment)
@@ -1276,6 +1303,12 @@ function getDateInputDaysFromNow(days: number) {
   const date = new Date()
   date.setDate(date.getDate() + days)
   return date.toISOString().slice(0, 10)
+}
+
+function formatClock(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
 function buildAssignmentNotifyMessage(

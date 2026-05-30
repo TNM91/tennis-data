@@ -951,7 +951,7 @@ function MyLabPageInner() {
   useEffect(() => {
     if (!authResolved) return
 
-    if (!session?.access_token || !access.canUseAdvancedPlayerInsights) {
+    if (!session?.access_token) {
       setCoachLinks([])
       setCoachAssignments([])
       setCoachAssignmentsMessage('')
@@ -993,7 +993,7 @@ function MyLabPageInner() {
     return () => {
       active = false
     }
-  }, [access.canUseAdvancedPlayerInsights, authResolved, session?.access_token])
+  }, [authResolved, session?.access_token])
 
   const completeCoachAssignment = useCallback(
     async (assignmentId: string, recap: string, evidence: string) => {
@@ -3747,7 +3747,7 @@ function PlayerCoachAssignmentsPanel({
         <div style={sectionTitleClusterStyle}>
           <TiqFeatureIcon name="messagingCenter" size="md" variant="surface" />
           <div style={sectionHeaderCopyStyle}>
-            <p style={sectionKickerStyle}>Coach-connected Player+</p>
+            <p style={sectionKickerStyle}>Coach-connected Level Up</p>
             <h3 style={compactSectionTitleStyle}>
               {activeCoachLink ? `${activeCoachLink.playerName}: Coach Hub` : 'Connect Coach Hub'}
             </h3>
@@ -3756,7 +3756,7 @@ function PlayerCoachAssignmentsPanel({
             </p>
           </div>
         </div>
-        <Link href={buildPlayerCoachMessageHref(activeCoachLink, 'Player+ coach check-in', 'Quick player note: ')} style={quickStartButtonStyle}>
+        <Link href={buildPlayerCoachMessageHref(activeCoachLink, 'Level Up coach check-in', 'Quick player note: ')} style={quickStartButtonStyle}>
           Message coach
         </Link>
       </div>
@@ -3971,7 +3971,7 @@ function PlayerCoachAssignmentsPanel({
                 <Link
                   href={buildPlayerCoachMessageHref(
                     activeCoachLink,
-                    'First Player+ assignment',
+                    'First Level Up assignment',
                     'Coach, can you send my first TenAceIQ assignment so I can track it in My Lab? ',
                   )}
                   style={miniActionLinkStyle}
@@ -3985,7 +3985,7 @@ function PlayerCoachAssignmentsPanel({
             <>
               <strong>No live coach assignments yet.</strong>
               <span>
-                Print the workbook now, then accept a coach invite when you want Player+ check-ins, assignment tracking, and weekly recaps connected to TenAceIQ.
+                Print the workbook now, then accept a coach invite when you want assigned check-ins and coach feedback. Player+ adds self-guided history and trends.
               </span>
               <div style={developmentActionRowStyle}>
                 <Link href="/player-development" style={miniActionLinkStyle}>Open workbook paths</Link>

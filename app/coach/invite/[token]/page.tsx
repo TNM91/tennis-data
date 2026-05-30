@@ -269,7 +269,7 @@ function CoachInviteContent() {
         throw new Error(json.message || 'This coach invite could not be accepted.')
       }
       setInvite((current) => (current ? { ...current, status: 'accepted' } : current))
-      setMessage('Coach connected. Free keeps the relationship linked; Player+ activates live assignments, recaps, feedback, and check-ins.')
+      setMessage('Coach connected. Your coach-assigned Level Up work is linked; Player+ unlocks full self-guided history and trends.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'This coach invite could not be accepted.')
     } finally {
@@ -289,7 +289,7 @@ function CoachInviteContent() {
             <span>TenAceIQ Coach Connect</span>
           </div>
           <span style={{ color: '#a6ff2e', fontSize: 12, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>
-            Player+ linked workflow
+            Coach-linked workflow
           </span>
         </div>
 
@@ -332,8 +332,8 @@ function CoachInviteContent() {
               ) : invite?.status === 'accepted' ? (
                 access.canUseAdvancedPlayerInsights ? (
                   <>
-                    <Link href="/mylab#player-workshop" style={pageStyles.primaryButton}>
-                      Open My Lab Coach Hub
+                    <Link href="/mylab#coach-assignments" style={pageStyles.primaryButton}>
+                      Open My Lab
                     </Link>
                     <Link href="/player-development" style={pageStyles.secondaryButton}>
                       Open development paths
@@ -341,11 +341,11 @@ function CoachInviteContent() {
                   </>
                 ) : (
                   <>
-                    <Link href={playerPlusHref} style={pageStyles.primaryButton}>
-                      Activate Player+
+                    <Link href="/mylab#coach-assignments" style={pageStyles.primaryButton}>
+                      Open My Lab
                     </Link>
-                    <Link href="/player-development" style={pageStyles.secondaryButton}>
-                      Use standalone guide
+                    <Link href={playerPlusHref} style={pageStyles.secondaryButton}>
+                      Unlock Player+
                     </Link>
                   </>
                 )
@@ -393,8 +393,8 @@ function CoachInviteContent() {
             ) : null}
 
             <p style={{ ...pageStyles.copy, marginTop: 18, fontSize: 14 }}>
-              The printed workbook remains a standalone development tool. Player+ is what unlocks the connected layer:
-              coach assignments, digital check-ins, progress history, and bring-this-to-your-coach follow-through.
+              The printed workbook remains a standalone development tool. Your coach invite unlocks assigned work and
+              check-ins from that coach; Player+ unlocks the full self-guided layer across your own training.
             </p>
           </aside>
         </div>

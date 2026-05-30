@@ -553,8 +553,8 @@ function WorkbookPreview({
         </div>
       </WorkbookPage>
 
-      <WorkbookPage footer="Player+ check-in">
-        <PageHeader label="Player+ check-in" title="Coach-ready check-in" />
+      <WorkbookPage footer="Level Up check-in">
+        <PageHeader label="Level Up check-in" title="Coach-ready check-in" />
         <PlayerPlusCheckIn identity={identity} />
         <div className={styles.twoColumn}>
           <ReflectionLines label="What I want TenAceIQ to track next" rows={4} />
@@ -577,11 +577,11 @@ function PlayerPlusAccessNote() {
     <div className={styles.accessNote}>
       <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
       <div>
-        <strong>Print guide first. Player+ connected tools second.</strong>
+        <strong>Print guide first. Connected Level Up second.</strong>
         <p>
           Anyone can use the workbook as a training guide if it is shared with them.
-          Scanning the QR codes can open TenAceIQ pages, but saving goals, check-ins,
-          progress history, and coach assignments requires active Player+ access.
+          Coach-invited players can complete assigned Level Up work through the coach tier.
+          Player+ unlocks self-guided goals, check-ins, progress history, and recommendations.
         </p>
       </div>
     </div>
@@ -1769,7 +1769,7 @@ function WeeklyWorkbookPage({ identity, week }: { identity: PlayerDevelopmentIde
             <TiqPromptBlock
               href={`/player-development/${identity.slug}/workbook#module-${week.week}`}
               text={week.tiqPrompt}
-              title="Player+ check-in"
+              title="Level Up check-in"
             />
           </aside>
         </div>
@@ -2222,7 +2222,7 @@ function CoachPlannerPreview({
         <CoachEvidenceReview identity={identity} />
         <div className={styles.twoColumn}>
           <ReflectionLines label="Next private lesson priority" rows={4} />
-          <ReflectionLines label="Next Player+ assignment" rows={4} />
+          <ReflectionLines label="Next Level Up assignment" rows={4} />
         </div>
       </WorkbookPage>
     </section>

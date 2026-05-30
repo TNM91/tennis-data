@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
 
 type TrainingRow = string[]
@@ -44,6 +45,21 @@ type SavedSession = {
   elapsedSeconds: number
   sharedWithCoach: boolean
   completedAt: string
+}
+
+type RemoteLevelUpSession = SavedSession & {
+  playerUserId: string
+  coachUserId: string | null
+  studentLinkId: string | null
+  assignmentId: string | null
+  identitySlug: string
+  createdAt: string
+  updatedAt: string
+}
+
+type SyncState = {
+  status: 'idle' | 'syncing' | 'synced' | 'local' | 'error'
+  message: string
 }
 
 type PlayerLiveWorkbenchProps = {
@@ -128,6 +144,7 @@ export default function PlayerLiveWorkbench({
   const [activeDrillId, setActiveDrillId] = useState('')
   const [draft, setDraft] = useState(emptyDraft)
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
+  const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
   const storageKey = `tenaceiq:level-up:${identitySlug}`
   const [sessions, setSessions] = useState<SavedSession[]>(() => readSavedSessions(storageKey))
 
@@ -147,10 +164,44 @@ export default function PlayerLiveWorkbench({
   const progress = getProgressSummary(sessions, playableFocuses)
   const activeAccess = accessModes[accessMode]
 
+  useEffect(() => {
+    let active = true
+
+    void (async () => {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) return
+
+      try {
+        const response = await fetch('/api/player/level-up-sessions', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const json = (await response.json()) as { ok?: boolean; sessions?: RemoteLevelUpSession[] }
+        if (!response.ok || !json.ok || !active) return
+
+        const remoteSessions = (json.sessions ?? [])
+          .filter((session) => session.identitySlug === identitySlug)
+          .map(remoteToSavedSession)
+        const merged = mergeSessions(remoteSessions, readSavedSessions(storageKey)).slice(0, 40)
+        setSessions(merged)
+        window.localStorage.setItem(storageKey, JSON.stringify(merged))
+      } catch {
+        if (active) {
+          setSyncState({ status: 'local', message: 'Saved work will stay on this device until sync is available.' })
+        }
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [identitySlug, storageKey])
+
   function chooseFocus(focusId: string) {
     setActiveFocusId(focusId)
     setActiveDrillId('')
     setDraft(emptyDraft)
+    setSyncState({ status: 'idle', message: '' })
   }
 
   function chooseContext(nextContext: TrainingContext) {
@@ -205,6 +256,50 @@ export default function PlayerLiveWorkbench({
     window.localStorage.setItem(storageKey, JSON.stringify(nextSessions))
     setLastSavedSession(nextSession)
     setDraft(emptyDraft)
+    setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing now...' })
+    void syncLevelUpSession(nextSession)
+  }
+
+  async function syncLevelUpSession(session: SavedSession) {
+    if (session.accessMode === 'free_preview') {
+      setSyncState({ status: 'local', message: 'Free preview saved locally. Coach invite or Player+ turns on cloud history.' })
+      return
+    }
+
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) {
+      setSyncState({ status: 'local', message: 'Saved locally. Sign in from a coach invite or Player+ to sync it.' })
+      return
+    }
+
+    try {
+      const response = await fetch('/api/player/level-up-sessions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ session: { ...session, identitySlug } }),
+      })
+      const json = (await response.json()) as { ok?: boolean; message?: string }
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message || 'Could not sync this Level Up log yet.')
+      }
+
+      setSyncState({
+        status: 'synced',
+        message:
+          session.accessMode === 'coach_invited' && session.sharedWithCoach
+            ? 'Synced. Your linked coach can use this for the next lesson.'
+            : 'Synced to your Level Up history.',
+      })
+    } catch (error) {
+      setSyncState({
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Saved locally. Cloud sync can retry next time.',
+      })
+    }
   }
 
   if (!activeFocus || !activeDrill) return null
@@ -407,9 +502,9 @@ export default function PlayerLiveWorkbench({
               <span>{accessMode === 'coach_invited' ? 'Share this recap with my coach when linked' : 'Coach sharing unlocks when invited by a coach'}</span>
             </label>
             <button type="button" className="button-primary" disabled={draft.rating === null} onClick={saveSession}>
-              Save training log
+              {syncState.status === 'syncing' ? 'Saving...' : 'Save training log'}
             </button>
-            <small>{draft.rating === null ? 'Pick a 0-5 rating before saving.' : 'This will become coach-visible when connected.'}</small>
+            <small>{draft.rating === null ? 'Pick a 0-5 rating before saving.' : 'It saves locally first, then syncs when your access path is connected.'}</small>
           </aside>
         </div>
       </div>
@@ -421,11 +516,12 @@ export default function PlayerLiveWorkbench({
             <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
             <p>
               {lastSavedSession.rating}/5, {formatClock(lastSavedSession.elapsedSeconds)}, feeling {feelingLabels[lastSavedSession.feeling].toLowerCase()}.
-              {lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
-                ? ' Ready to sync to your coach when linked.'
+              {' '}
+              {syncState.message || (lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
+                ? 'Ready to sync to your coach when linked.'
                 : lastSavedSession.accessMode === 'player_plus'
-                  ? ' Ready for Player+ history and trends.'
-                  : ' Kept as a local preview for now.'}
+                  ? 'Ready for Player+ history and trends.'
+                  : 'Kept as a local preview for now.')}
             </p>
           </div>
           <div className={styles.liveSavedActions}>
@@ -622,6 +718,32 @@ function readSavedSessions(storageKey: string): SavedSession[] {
   } catch {
     return []
   }
+}
+
+function remoteToSavedSession(session: RemoteLevelUpSession): SavedSession {
+  return {
+    id: session.id,
+    focusId: session.focusId,
+    focusTitle: session.focusTitle,
+    workType: session.workType,
+    context: session.context,
+    drillTitle: session.drillTitle,
+    rating: session.rating,
+    feeling: session.feeling,
+    accessMode: session.accessMode,
+    note: session.note,
+    elapsedSeconds: session.elapsedSeconds,
+    sharedWithCoach: session.sharedWithCoach,
+    completedAt: session.completedAt,
+  }
+}
+
+function mergeSessions(remoteSessions: SavedSession[], localSessions: SavedSession[]) {
+  const byId = new Map<string, SavedSession>()
+  for (const session of [...remoteSessions, ...localSessions]) {
+    byId.set(session.id, session)
+  }
+  return [...byId.values()].sort((a, b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))
 }
 
 function timerStorageKey(drillId: string) {

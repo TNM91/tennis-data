@@ -6,6 +6,7 @@ const source = readFileSync(join(process.cwd(), 'app/api/player/coach-assignment
 
 describe('player coach assignment ownership', () => {
   it('requires the assignment link to belong to the signed-in player before completion', () => {
+    expect(source).toContain('getSignedInPlayerApiAuth')
     expect(source).toContain(".from('coach_player_links')")
     expect(source).toContain(".eq('id', existing.studentLinkId)")
     expect(source).toContain(".eq('player_user_id', auth.userId)")

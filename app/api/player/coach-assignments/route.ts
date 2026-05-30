@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { getPlayerApiAuth } from '@/lib/player-api-auth'
+import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
 import {
   buildPlayerAssignmentCompletion,
   mapCoachAssignmentRow,
@@ -14,7 +14,7 @@ export const runtime = 'nodejs'
 const coachLinkSelect = 'id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,player_email,player_phone,contact_preference,setup_status,status,notes,updated_at'
 
 export async function GET(request: Request) {
-  const auth = await getPlayerApiAuth(request)
+  const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth.response
 
   const { data: linkData, error: linkError } = await auth.supabase
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await getPlayerApiAuth(request)
+  const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth.response
 
   let body: { assignmentId?: unknown; recap?: unknown; evidence?: unknown }

@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { buildProductAccessState, normalizeSubscriptionStatus } from './access-model'
 import { supabaseKey, supabaseUrl } from './supabase'
 
-type PlayerApiAuth =
+export type PlayerApiAuth =
   | {
       ok: true
       supabase: SupabaseClient
@@ -25,11 +25,26 @@ type ProfileEntitlementRow = {
 }
 
 export async function getPlayerApiAuth(request: Request): Promise<PlayerApiAuth> {
+  const auth = await getSignedInPlayerApiAuth(request)
+  if (!auth.ok) return auth
+
+  const access = await loadPlayerAccess(auth.supabase, auth.userId)
+  if (!access.canUseAdvancedPlayerInsights) {
+    return {
+      ok: false,
+      response: Response.json({ ok: false, message: 'Player+ access is required for this tool.' }, { status: 403 }),
+    }
+  }
+
+  return auth
+}
+
+export async function getSignedInPlayerApiAuth(request: Request): Promise<PlayerApiAuth> {
   const token = getBearerToken(request)
   if (!token) {
     return {
       ok: false,
-      response: Response.json({ ok: false, message: 'Sign in to use Player+ tools.' }, { status: 401 }),
+      response: Response.json({ ok: false, message: 'Sign in to use player tools.' }, { status: 401 }),
     }
   }
 
@@ -51,22 +66,14 @@ export async function getPlayerApiAuth(request: Request): Promise<PlayerApiAuth>
   if (error || !user) {
     return {
       ok: false,
-      response: Response.json({ ok: false, message: 'Sign in to use Player+ tools.' }, { status: 401 }),
-    }
-  }
-
-  const access = await loadPlayerAccess(supabase, user.id)
-  if (!access.canUseAdvancedPlayerInsights) {
-    return {
-      ok: false,
-      response: Response.json({ ok: false, message: 'Player+ access is required for connected coach assignments.' }, { status: 403 }),
+      response: Response.json({ ok: false, message: 'Sign in to use player tools.' }, { status: 401 }),
     }
   }
 
   return { ok: true, supabase, userId: user.id }
 }
 
-async function loadPlayerAccess(supabase: SupabaseClient, userId: string) {
+export async function loadPlayerAccess(supabase: SupabaseClient, userId: string) {
   const { data } = await supabase
     .from('profiles')
     .select(
