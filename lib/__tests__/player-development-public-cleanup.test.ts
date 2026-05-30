@@ -40,6 +40,7 @@ describe('Player Development public cleanup', () => {
       'TodayLessonSheet',
       'PlayerGoalCheckIn',
       'PlayerWeeklyActionPlan',
+      'PlayerFocusDecisionPage',
       'PlayerMatchOnePager',
       'PlayerSoloTraining',
       'PlayerPartnerTraining',
@@ -52,8 +53,11 @@ describe('Player Development public cleanup', () => {
     }
 
     expect(systemSource).toContain('One week. One habit. One proof note.')
+    expect(systemSource).toContain('Pick the page that solves this week')
     expect(systemSource).toContain('Before, during, after')
     expect(systemSource).toContain('Adjust the lesson to how the player feels')
+    expect(systemSource).toContain('data-core-page')
+    expect(controlsSource).toContain('Print core workbook')
     expect(systemSource).toContain('One-hour lesson plans: Modules 1-4')
     expect(systemSource).toContain('One-hour lesson plans: Modules 5-8')
     expect(existsSync(join(process.cwd(), 'scripts/verify-player-development-print.mjs'))).toBe(true)

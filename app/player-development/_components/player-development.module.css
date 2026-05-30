@@ -892,10 +892,14 @@
 .weeklyActionPlan,
 .weeklyActionHero,
 .actionStepGrid,
+.focusDecisionPage,
+.focusDecisionHero,
+.focusDecisionGrid,
 .matchOnePager,
 .matchCardHero,
 .matchCardGrid,
 .matchCardFooter,
+.quickCheckStrip,
 .playerTrainingSheet,
 .playerTrainingIntro,
 .playerTrainingGrid,
@@ -1462,6 +1466,7 @@
 
 .playerCheckInHero,
 .weeklyActionHero,
+.focusDecisionHero,
 .matchCardHero,
 .playerTrainingIntro {
   display: grid;
@@ -1483,6 +1488,8 @@
 .playerCheckInHero span,
 .weeklyActionHero span,
 .actionStepGrid span,
+.focusDecisionHero span,
+.focusDecisionGrid span,
 .matchCardHero span,
 .matchCardGrid span,
 .goalLoopGrid span,
@@ -1501,6 +1508,8 @@
 .playerCheckInHero strong,
 .weeklyActionHero strong,
 .actionStepGrid strong,
+.focusDecisionHero strong,
+.focusDecisionGrid strong,
 .matchCardHero strong,
 .matchCardGrid strong,
 .goalLoopGrid strong,
@@ -1516,6 +1525,7 @@
 
 .playerCheckInHero strong,
 .weeklyActionHero strong,
+.focusDecisionHero strong,
 .matchCardHero strong,
 .playerTrainingIntro strong {
   font-size: clamp(1.15rem, 2.4vw, 1.62rem);
@@ -1524,6 +1534,8 @@
 .playerCheckInHero p,
 .weeklyActionHero p,
 .actionStepGrid p,
+.focusDecisionHero p,
+.focusDecisionGrid p,
 .matchCardHero p,
 .matchCardGrid p,
 .goalLoopGrid p,
@@ -1540,9 +1552,18 @@
 
 .goalLoopGrid,
 .actionStepGrid,
+.focusDecisionGrid,
 .matchCardGrid,
 .playerTrainingGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.focusDecisionGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.focusDecisionGrid b {
+  color: var(--foreground-strong);
 }
 
 .matchCardGrid {
@@ -1551,6 +1572,7 @@
 
 .goalLoopGrid article,
 .actionStepGrid article,
+.focusDecisionGrid article,
 .matchCardGrid section,
 .playerTrainingGrid article,
 .coachHourPlans article,
@@ -1584,6 +1606,34 @@
 
 .matchCardFooter .reflectionLines {
   margin-top: 0;
+}
+
+.quickCheckStrip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickCheckStrip span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.quickCheckStrip i {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(155, 225, 29, 0.42);
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 auto;
 }
 
 .coachReadinessHero {
@@ -3370,9 +3420,12 @@
 .printBook .playerCheckInHero,
 .printBook .weeklyActionHero,
 .printBook .actionStepGrid article,
+.printBook .focusDecisionHero,
+.printBook .focusDecisionGrid article,
 .printBook .matchCardHero,
 .printBook .matchCardGrid section,
 .printBook .matchCardGrid section > div,
+.printBook .quickCheckStrip span,
 .printBook .goalLoopGrid article,
 .printBook .playerTrainingIntro,
 .printBook .playerTrainingGrid article,
@@ -3392,6 +3445,8 @@
 .printBook .playerCheckInHero strong,
 .printBook .weeklyActionHero strong,
 .printBook .actionStepGrid strong,
+.printBook .focusDecisionHero strong,
+.printBook .focusDecisionGrid strong,
 .printBook .matchCardHero strong,
 .printBook .matchCardGrid strong,
 .printBook .goalLoopGrid strong,
@@ -3411,8 +3466,11 @@
 .printBook .playerCheckInHero p,
 .printBook .weeklyActionHero p,
 .printBook .actionStepGrid p,
+.printBook .focusDecisionHero p,
+.printBook .focusDecisionGrid p,
 .printBook .matchCardHero p,
 .printBook .matchCardGrid p,
+.printBook .quickCheckStrip span,
 .printBook .goalLoopGrid p,
 .printBook .playerTrainingIntro p,
 .printBook .playerTrainingGrid p,
@@ -3433,6 +3491,8 @@
 .printBook .playerCheckInHero span,
 .printBook .weeklyActionHero span,
 .printBook .actionStepGrid span,
+.printBook .focusDecisionHero span,
+.printBook .focusDecisionGrid span,
 .printBook .matchCardHero span,
 .printBook .matchCardGrid span,
 .printBook .goalLoopGrid span,
@@ -3450,6 +3510,11 @@
   border-bottom-color: var(--paper-line-strong);
 }
 
+.printBook .quickCheckStrip i {
+  border-color: rgba(110, 166, 0, 0.42);
+  background: #ffffff;
+}
+
 @media (max-width: 1100px) {
   .hero,
   .packetHeader,
@@ -3465,7 +3530,9 @@
   .lessonTestGrid,
   .goalLoopGrid,
   .actionStepGrid,
+  .focusDecisionGrid,
   .matchCardGrid,
+  .quickCheckStrip,
   .playerTrainingGrid,
   .identityProfileBoard,
   .triggerGrid,
@@ -3521,8 +3588,10 @@
   .lessonTestGrid,
   .goalLoopGrid,
   .actionStepGrid,
+  .focusDecisionGrid,
   .matchCardGrid,
   .matchCardFooter,
+  .quickCheckStrip,
   .playerTrainingGrid,
   .workbookGrid,
   .phaseMap,
@@ -3647,6 +3716,10 @@
     display: grid;
   }
 
+  :global(body[data-player-development-print-scope='core']) .printBook[data-print-active='true'] .workbookPage:not([data-core-page='true']) {
+    display: none;
+  }
+
   .workbookPage {
     width: 8in;
     min-height: 10.5in;
@@ -3708,6 +3781,7 @@
   .printBook .todayLessonSheet,
   .printBook .playerCheckInSheet,
   .printBook .weeklyActionPlan,
+  .printBook .focusDecisionPage,
   .printBook .matchOnePager,
   .printBook .playerTrainingSheet,
   .printBook .identityProfileBoard,
@@ -3775,9 +3849,12 @@
   .printBook .playerCheckInHero,
   .printBook .weeklyActionHero,
   .printBook .actionStepGrid article,
+  .printBook .focusDecisionHero,
+  .printBook .focusDecisionGrid article,
   .printBook .matchCardHero,
   .printBook .matchCardGrid section,
   .printBook .matchCardGrid section > div,
+  .printBook .quickCheckStrip span,
   .printBook .goalLoopGrid article,
   .printBook .playerTrainingIntro,
   .printBook .playerTrainingGrid article,
@@ -3801,8 +3878,11 @@
   .printBook .playerCheckInHero p,
   .printBook .weeklyActionHero p,
   .printBook .actionStepGrid p,
+  .printBook .focusDecisionHero p,
+  .printBook .focusDecisionGrid p,
   .printBook .matchCardHero p,
   .printBook .matchCardGrid p,
+  .printBook .quickCheckStrip span,
   .printBook .goalLoopGrid p,
   .printBook .playerTrainingIntro p,
   .printBook .playerTrainingGrid p,

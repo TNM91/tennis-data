@@ -195,7 +195,7 @@ function WorkbookPreview({
       aria-labelledby="workbook-title"
       data-print-active={printActive ? 'true' : 'false'}
     >
-      <WorkbookPage className={styles.coverPage} footer="Workbook cover">
+      <WorkbookPage className={styles.coverPage} core footer="Workbook cover">
         <div className={styles.pageTopline}>
           <BrandWordmark compact onLight />
           <span>Player workbook</span>
@@ -223,32 +223,37 @@ function WorkbookPreview({
         <CourtDiagram diagram={identity.weeks[0]?.diagram ?? 'movement-screen'} title={`${identity.title.replace(/^The /, '')} court map`} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Packet index">
+      <WorkbookPage core footer="Packet index">
         <PageHeader label="Packet index" title="How to use this workbook" />
         <WorkbookPacketIndex identity={identity} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Today's lesson">
+      <WorkbookPage core footer="Today's lesson">
         <PageHeader label="Lesson-ready page" title="Use this before your next session" />
         <TodayLessonSheet identity={identity} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Goal check-in">
+      <WorkbookPage core footer="Goal check-in">
         <PageHeader label="Player check-in" title="Goal, work, proof, next step" />
         <PlayerGoalCheckIn identity={identity} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Weekly action plan">
+      <WorkbookPage core footer="Weekly action plan">
         <PageHeader label="Start here" title="Your one-week action plan" />
         <PlayerWeeklyActionPlan identity={identity} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Match card">
+      <WorkbookPage core footer="Focus decision">
+        <PageHeader label="Choose one" title="Pick the page that solves this week" />
+        <PlayerFocusDecisionPage identity={identity} />
+      </WorkbookPage>
+
+      <WorkbookPage core footer="Match card">
         <PageHeader label="Match card" title="Before, during, after" />
         <PlayerMatchOnePager identity={identity} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Identity">
+      <WorkbookPage core footer="Identity">
         <PageHeader label="Identity page" title="Define how you win" />
         <div className={styles.identityBlueprint}>
           <div>
@@ -332,7 +337,7 @@ function WorkbookPreview({
         <ReflectionLines label="This module I will bring this evidence into TenAceIQ" rows={4} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Training menu">
+      <WorkbookPage core footer="Training menu">
         <PageHeader label="Player training menu" title="What to work on this week" />
         <div className={styles.workbookGrid}>
           {identity.sections.map((section) => (
@@ -738,10 +743,58 @@ function PlayerWeeklyActionPlan({ identity }: { identity: PlayerDevelopmentIdent
         ))}
       </div>
       <TrackerTable columns={['This week', 'My choice', 'Done?', 'Proof']} rows={guideRows} />
+      <QuickCheckStrip labels={['Picked one habit', 'Court work done', 'Off-court work done', 'Proof written']} />
       <div className={styles.twoColumn}>
         <ReflectionLines label="The one habit I am training this week" rows={4} />
         <ReflectionLines label="The proof I will bring back" rows={4} />
       </div>
+    </div>
+  )
+}
+
+function PlayerFocusDecisionPage({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const isRelentless = identity.slug.includes('relentless')
+  const choices = isRelentless
+    ? [
+        ['Serves change under pressure', 'Serve Development', 'Call the target before the toss. Track made target, not just made serve.'],
+        ['Feet stop after contact', 'Movement Development', 'Recover before watching the result. Count only reps where recovery happens.'],
+        ['You attack too early', 'Forehand / Backhand Development', 'Call neutral, build, attack, or short before swinging faster.'],
+        ['You rush when stretched', 'Conditioning Section', 'Hit high-margin reset, recover, breathe, then play the next ball.'],
+        ['Doubles feels reactive', 'Doubles Development', 'Call serve location and first move before the point starts.'],
+      ]
+    : [
+        ['You force line changes', 'Pattern Development', 'Build crosscourt depth before changing direction.'],
+        ['Serve does not create a first ball', 'Serve +1 Development', 'Name the +1 target before the serve.'],
+        ['Returns start neutral or worse', 'Return Pressure', 'Step in on second serves and recover after depth.'],
+        ['You approach and stop', 'Forward Closing', 'Close, split, then choose the finish.'],
+        ['Attacks become panic swings', 'Transition Defense', 'Reset when the attack is not earned.'],
+      ]
+
+  return (
+    <div className={styles.focusDecisionPage}>
+      <div className={styles.focusDecisionHero}>
+        <TiqFeatureIcon name="scenarioBuilder" size="lg" variant="surface" />
+        <div>
+          <span>Decision rule</span>
+          <strong>Do the page that matches the problem you actually have.</strong>
+          <p>Pick one row. Use it for seven days. Do not add a second focus until you have proof from the first one.</p>
+        </div>
+      </div>
+      <div className={styles.focusDecisionGrid}>
+        {choices.map(([problem, page, action], index) => (
+          <article key={problem}>
+            <span>{String(index + 1).padStart(2, '0')} If</span>
+            <strong>{problem}</strong>
+            <p><b>Go to:</b> {page}</p>
+            <p><b>Do:</b> {action}</p>
+          </article>
+        ))}
+      </div>
+      <TrackerTable
+        columns={['This week I choose', 'Why it matters', 'Action I will do', 'Proof I will bring']}
+        rows={identity.sections.slice(0, 5).map((section) => section.title)}
+      />
+      <QuickCheckStrip labels={['One focus only', 'Drill chosen', 'Test chosen', 'Proof target clear']} />
     </div>
   )
 }
@@ -816,6 +869,7 @@ function PlayerMatchOnePager({ identity }: { identity: PlayerDevelopmentIdentity
         <ReflectionLines label="My next practice should start with" rows={4} />
         <QrAction href={`/player-development/${identity.slug}/workbook`} label="Save match recap" mode="player-plus" />
       </div>
+      <QuickCheckStrip labels={['Cue chosen', 'Plan used', 'Reset used', 'Recap done']} />
     </div>
   )
 }
@@ -882,7 +936,18 @@ function PlayerTrainingSheet({
         ))}
       </div>
       <TrackerTable columns={['Work block', 'Reps or score', 'What improved?', 'What to repeat?']} rows={tableRows} />
+      <QuickCheckStrip labels={['Done', 'Hard', 'Showed in match', 'Bring to coach']} />
       <ReflectionLines label="My note before the next session" rows={4} />
+    </div>
+  )
+}
+
+function QuickCheckStrip({ labels }: { labels: string[] }) {
+  return (
+    <div className={styles.quickCheckStrip}>
+      {labels.map((label) => (
+        <span key={label}><i /> {label}</span>
+      ))}
     </div>
   )
 }
@@ -2132,14 +2197,16 @@ function ConnectedCompanion({ identity }: { identity: PlayerDevelopmentIdentity 
 function WorkbookPage({
   children,
   className = '',
+  core = false,
   footer,
 }: {
   children: React.ReactNode
   className?: string
+  core?: boolean
   footer?: string
 }) {
   return (
-    <article className={`${styles.workbookPage} ${className}`}>
+    <article className={`${styles.workbookPage} ${className}`} data-core-page={core ? 'true' : undefined}>
       <header className={styles.paperBrandBar}>
         <BrandWordmark compact />
         <span>Player Development System</span>

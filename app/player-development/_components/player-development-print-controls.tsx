@@ -19,6 +19,15 @@ export default function PlayerDevelopmentPrintControls({
   identitySlug,
 }: PlayerDevelopmentPrintControlsProps) {
   const basePath = identitySlug ? `/player-development/${identitySlug}` : '/player-development'
+  const isWorkbook = activePacket === 'workbook'
+
+  function printPacket(scope: 'core' | 'full' = 'full') {
+    document.body.dataset.playerDevelopmentPrintScope = scope
+    window.print()
+    window.setTimeout(() => {
+      delete document.body.dataset.playerDevelopmentPrintScope
+    }, 500)
+  }
 
   return (
     <div className="surface-card panel-pad player-development-print-controls" style={wrapStyle}>
@@ -27,9 +36,20 @@ export default function PlayerDevelopmentPrintControls({
         <strong style={titleStyle}>{labels[activePacket]}</strong>
       </div>
       <div style={actionsStyle}>
-        <button type="button" className="button-primary" onClick={() => window.print()}>
-          Print / save PDF
-        </button>
+        {isWorkbook ? (
+          <>
+            <button type="button" className="button-primary" onClick={() => printPacket('core')}>
+              Print core workbook
+            </button>
+            <button type="button" className="button-secondary" onClick={() => printPacket('full')} style={linkStyle}>
+              Print full workbook
+            </button>
+          </>
+        ) : (
+          <button type="button" className="button-primary" onClick={() => printPacket('full')}>
+            Print / save PDF
+          </button>
+        )}
         <PacketLink href={`${basePath}/workbook`}>Workbook</PacketLink>
         <PacketLink href={`${basePath}/coach-planner`}>Coach planner</PacketLink>
       </div>

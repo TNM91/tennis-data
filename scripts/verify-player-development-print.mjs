@@ -2,11 +2,17 @@ import { chromium } from '@playwright/test'
 
 const url = process.argv[2] ?? 'http://localhost:3000/player-development/relentless-competitor-4-0/workbook'
 const screenshotPath = process.argv[3] ?? 'tmp-screenshots/player-development-print.png'
+const printScope = process.argv[4]
 
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 900, height: 1100 }, deviceScaleFactor: 1 })
 
 await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 })
+if (printScope) {
+  await page.evaluate((scope) => {
+    document.body.dataset.playerDevelopmentPrintScope = scope
+  }, printScope)
+}
 await page.emulateMedia({ media: 'print' })
 
 const audit = await page.evaluate(() => {
