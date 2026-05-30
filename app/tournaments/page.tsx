@@ -35,6 +35,29 @@ export default function TournamentsPage() {
           secondary={{ href: '#desk', label: 'Run a Tournament' }}
           searchPlaceholder="Search tournaments, draws, divisions, round robins, court schedules, or results"
         />
+        <section style={nextActionSectionStyle} aria-labelledby="tournament-next-actions-title">
+          <SectionHeader
+            eyebrow="Tournament next actions"
+            title="Pick the event job, then open the right tournament path."
+            body="Tournaments need different paths for players, directors, court scheduling, and corrections. Start with the job that needs attention now."
+            titleId="tournament-next-actions-title"
+          />
+          <div style={nextActionGridStyle}>
+            {tournamentNextActions.map((action) => (
+              <TiqActionCard
+                key={action.title}
+                eyebrow={action.eyebrow}
+                title={action.title}
+                body={action.body}
+                metrics={[...action.metrics]}
+                href={action.href}
+                cta={action.cta}
+                event={action.event}
+                trust={[...action.trust]}
+              />
+            ))}
+          </div>
+        </section>
         <section id="find" style={findSectionStyle} aria-labelledby="tournament-find-title">
           <SectionHeader
             eyebrow="Find tournaments"
@@ -155,6 +178,101 @@ export default function TournamentsPage() {
   )
 }
 
+const tournamentNextActions = [
+  {
+    eyebrow: 'Find',
+    title: 'Find an event to play',
+    body: 'Search event pages by tournament, division, format, schedule, or location before entering.',
+    metrics: [
+      { label: 'Search', value: 'Events' },
+      { label: 'Browse', value: 'Divisions' },
+      { label: 'Next', value: 'Enter' },
+    ],
+    href: '#find',
+    cta: 'Find Tournaments',
+    event: {
+      eventName: 'tournament_search_submitted',
+      surface: 'tournaments',
+      metadata: {
+        location: 'tournament_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Public event pages', tone: 'info' },
+      { label: 'Status', value: 'Discovery ready', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Draws',
+    title: 'Follow a draw or court',
+    body: 'See divisions, court blocks, match order, and what players need before the next round.',
+    metrics: [
+      { label: 'Draws', value: 'Draft' },
+      { label: 'Courts', value: 'Assigned' },
+      { label: 'Watch', value: 'Next match' },
+    ],
+    href: '#desk',
+    cta: 'Preview Draws',
+    event: {
+      eventName: 'draw_preview_clicked',
+      surface: 'tournaments',
+      metadata: {
+        location: 'tournament_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Freshness', value: 'Director updates', tone: 'good' },
+      { label: 'Confidence', value: 'Medium until published', tone: 'warn' },
+    ],
+  },
+  {
+    eyebrow: 'Run',
+    title: 'Run the event desk',
+    body: 'Open Tournament Desk when entries, draws, courts, results, and player updates need one operational home.',
+    metrics: [
+      { label: 'Desk', value: 'Full-Court' },
+      { label: 'Results', value: 'Reviewable' },
+      { label: 'Notify', value: 'Players' },
+    ],
+    href: tournamentDeskHref,
+    cta: 'Open Desk',
+    event: {
+      eventName: 'run_tournament_clicked',
+      surface: 'tournaments',
+      metadata: {
+        location: 'tournament_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Organizer workspace', tone: 'info' },
+      { label: 'Source', value: 'Tournament Desk', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Fix data',
+    title: 'Report a draw or result issue',
+    body: 'Use Data Assist when entries, draws, court times, scores, winners, or awards need a reviewed source.',
+    metrics: [
+      { label: 'Upload', value: 'Source' },
+      { label: 'Review', value: 'Required' },
+      { label: 'Feeds', value: 'Results' },
+    ],
+    href: '/data-assist?intent=request-review&context=Tournament%20Desk',
+    cta: 'Open Data Assist',
+    event: {
+      eventName: 'data_assist_opened',
+      surface: 'data_assist',
+      metadata: {
+        location: 'tournament_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'User upload', tone: 'info' },
+      { label: 'Status', value: 'Review before publish', tone: 'warn' },
+    ],
+  },
+] as const
+
 const tournamentFlow = [
   {
     step: '01',
@@ -254,6 +372,19 @@ const tournamentDiscoveryCards = [
 
 const findSectionStyle: CSSProperties = {
   display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const nextActionSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const nextActionGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 14,
   minWidth: 0,
 }
