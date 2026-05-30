@@ -34,6 +34,8 @@ describe('universal search result model', () => {
       'Request data review',
       'Prep a matchup',
       'Scout a team',
+      'Find a place to play',
+      'Captain match week',
     ]) {
       expect(source).toContain(phrase)
     }
@@ -50,6 +52,8 @@ describe('universal search result model', () => {
       'scout team',
       'rating level',
       'request review',
+      'play tennis near me',
+      'captain match week',
     ]) {
       expect(source).toContain(keyword)
     }

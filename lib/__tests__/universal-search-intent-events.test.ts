@@ -21,6 +21,8 @@ describe('universal search intent events', () => {
     expect(source).toContain("q.includes('request review')")
     expect(source).toContain("eventName: 'lineup_preview_clicked'")
     expect(source).toContain("eventName: 'availability_clicked'")
+    expect(source).toContain("eventName: 'captain_tools_clicked'")
+    expect(source).toContain("q.includes('captain match week')")
     expect(source).toContain("eventName: 'matchup_started'")
     expect(source).toContain("q.includes('match prep')")
     expect(source).toContain("q.includes('prepare for a match')")
@@ -42,5 +44,14 @@ describe('universal search intent events', () => {
     expect(issueIndex).toBeGreaterThan(-1)
     expect(genericIndex).toBeGreaterThan(-1)
     expect(issueIndex).toBeLessThan(genericIndex)
+  })
+
+  it('checks captain tool searches before generic team searches', () => {
+    const captainIndex = source.indexOf("q.includes('captain match week')")
+    const teamIndex = source.indexOf("group === 'Teams' || q.includes('team')")
+
+    expect(captainIndex).toBeGreaterThan(-1)
+    expect(teamIndex).toBeGreaterThan(-1)
+    expect(captainIndex).toBeLessThan(teamIndex)
   })
 })

@@ -129,6 +129,20 @@ const results: SearchResult[] = [
   },
   {
     group: 'Actions',
+    title: 'Find a place to play',
+    detail: 'Open Resource Hub play paths for teams, leagues, tournaments, courts, clubs, ladders, and open play.',
+    href: '/resources#play',
+    keywords: ['find a place to play', 'places to play', 'open play', 'find courts', 'find clubs', 'play tennis near me', 'join tennis'],
+  },
+  {
+    group: 'Actions',
+    title: 'Captain match week',
+    detail: 'Open Teams for availability, lineup ideas, opponent scouting, communication, and scorecard reminders.',
+    href: '/teams',
+    keywords: ['captain match week', 'captain tools', 'team hub', 'availability', 'lineup ideas', 'scorecard reminders'],
+  },
+  {
+    group: 'Actions',
     title: 'Build a lineup',
     detail: 'Open Captain Tools for availability, pairings, and court-by-court decisions.',
     href: '/captain/lineup-builder',
@@ -402,6 +416,7 @@ export default function UniversalSearch({
 function getSearchIntentEvent(query: string, group?: SearchGroup | null): { eventName: ProductUsageEventName; surface: ProductUsageEventSurface } {
   const q = query.toLowerCase()
 
+  if (q.includes('captain match week') || q.includes('captain tools') || q.includes('team hub')) return { eventName: 'captain_tools_clicked', surface: 'teams' }
   if (group === 'Teams' || q.includes('team') || q.includes('scout team')) return { eventName: 'team_search_submitted', surface: 'teams' }
   if (group === 'Leagues' || q.includes('league')) return { eventName: 'league_search_submitted', surface: 'leagues' }
   if (group === 'Tournaments' || q.includes('tournament') || q.includes('draw')) return { eventName: 'tournament_search_submitted', surface: 'tournaments' }
