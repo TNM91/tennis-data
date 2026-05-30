@@ -52,4 +52,14 @@ describe('TIQ product preview cards', () => {
     expect(commandCenterSource).toContain('TiqLeagueStandingCard')
     expect(commandCenterSource).toContain('renderPreviewCard(card)')
   })
+
+  it('keeps the public command-center cards compact instead of overly rounded', () => {
+    expect(commandCenterSource).toContain('const actionCardStyle: CSSProperties')
+    expect(commandCenterSource).toContain('const heroCopyStyle: CSSProperties')
+    expect(commandCenterSource).toContain('const heroPanelStyle: CSSProperties')
+    expect(commandCenterSource).toContain('const miniCourtStyle: CSSProperties')
+    expect(commandCenterSource).toContain('borderRadius: 8')
+    expect(commandCenterSource).not.toContain('borderRadius: 22')
+    expect(commandCenterSource).not.toContain('borderRadius: 28')
+  })
 })
