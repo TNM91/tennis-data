@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const pageSource = readFileSync(join(process.cwd(), 'app/level-up/page.tsx'), 'utf8')
+const contentSource = readFileSync(join(process.cwd(), 'app/level-up/level-up-page-content.tsx'), 'utf8')
+const identityPageSource = readFileSync(join(process.cwd(), 'app/level-up/[identity]/page.tsx'), 'utf8')
 const myLabSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 const navSource = readFileSync(join(process.cwd(), 'lib/site-navigation.ts'), 'utf8')
 const sitemapSource = readFileSync(join(process.cwd(), 'app/sitemap.ts'), 'utf8')
@@ -12,11 +14,12 @@ const developmentSystemSource = readFileSync(join(process.cwd(), 'app/player-dev
 describe('Level Up page', () => {
   it('creates a direct phone-first Level Up destination from the shared drill engine', () => {
     expect(existsSync(join(process.cwd(), 'app/level-up/page.tsx'))).toBe(true)
-    expect(pageSource).toContain('PlayerLiveWorkbench')
-    expect(pageSource).toContain('getPlayerTrainingMenus')
-    expect(pageSource).toContain('Start now')
-    expect(pageSource).toContain('/mylab#coach-assignments')
-    expect(pageSource).toContain('Choose development identity')
+    expect(pageSource).toContain('LevelUpPageContent')
+    expect(contentSource).toContain('PlayerLiveWorkbench')
+    expect(contentSource).toContain('getPlayerTrainingMenus')
+    expect(contentSource).toContain('Start now')
+    expect(contentSource).toContain('/mylab#coach-assignments')
+    expect(contentSource).toContain('Choose development identity')
   })
 
   it('surfaces Level Up from My Lab, navigation, and the sitemap', () => {
@@ -31,5 +34,14 @@ describe('Level Up page', () => {
     expect(trainingMenusSource).toContain('First-strike conditioning')
     expect(developmentSystemSource).toContain("from '@/lib/player-training-menus'")
     expect(developmentSystemSource).not.toContain('function getPlayerTrainingMenus')
+  })
+
+  it('gives every development identity a direct Level Up URL', () => {
+    expect(existsSync(join(process.cwd(), 'app/level-up/[identity]/page.tsx'))).toBe(true)
+    expect(identityPageSource).toContain('generateStaticParams')
+    expect(identityPageSource).toContain('PLAYER_DEVELOPMENT_IDENTITIES')
+    expect(identityPageSource).toContain('LevelUpPageContent')
+    expect(contentSource).toContain('href={`/level-up/${item.slug}`}')
+    expect(sitemapSource).toContain('`/level-up/${identity.slug}`')
   })
 })
