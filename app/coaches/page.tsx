@@ -10,7 +10,7 @@ import {
   TwoColumnStory,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
-import { TiqCoachAssignmentCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import { TiqActionCard, TiqCoachAssignmentCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
@@ -49,6 +49,29 @@ export default function CoachesPage() {
           rightTitle="For coaches"
           rightBody="Manage students, plan lessons, assign drills, track progress, and keep players moving between sessions."
         />
+        <section style={nextActionSectionStyle} aria-labelledby="coach-next-actions-title">
+          <SectionHeader
+            eyebrow="Coaching next actions"
+            title="Turn a lesson into the next useful tennis move."
+            body="Start with the job in front of you: find coaching support, bring better context into a lesson, assign follow-through, or fix the data that should shape the next read."
+            titleId="coach-next-actions-title"
+          />
+          <div style={nextActionGridStyle}>
+            {coachNextActions.map((action) => (
+              <TiqActionCard
+                key={action.title}
+                eyebrow={action.eyebrow}
+                title={action.title}
+                body={action.body}
+                metrics={[...action.metrics]}
+                href={action.href}
+                cta={action.cta}
+                event={action.event}
+                trust={[...action.trust]}
+              />
+            ))}
+          </div>
+        </section>
         <section style={{ display: 'grid', gap: 14 }}>
           <SectionHeader
             eyebrow="Coach Hub preview"
@@ -114,6 +137,114 @@ export default function CoachesPage() {
       </main>
     </PublicPageShell>
   )
+}
+
+const coachNextActions = [
+  {
+    eyebrow: 'Find support',
+    title: 'Find a coach',
+    body: 'Start from the resource hub when a player needs a lesson, clinic, hitting plan, or coaching direction.',
+    metrics: [
+      { label: 'Need', value: 'Coach' },
+      { label: 'Context', value: 'Goals' },
+      { label: 'Next', value: 'Connect' },
+    ],
+    href: '/resources?q=find%20a%20coach',
+    cta: 'Find a Coach',
+    event: {
+      eventName: 'find_coach_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coaches_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Resource hub', tone: 'info' },
+      { label: 'Status', value: 'Discovery ready', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Lesson prep',
+    title: 'Bring match context',
+    body: 'Use goals, matchup questions, and recent player evidence to make the next lesson sharper.',
+    metrics: [
+      { label: 'Prep', value: 'Goals' },
+      { label: 'Evidence', value: 'Matches' },
+      { label: 'Use', value: 'Lesson' },
+    ],
+    href: '/matchup',
+    cta: 'Prep a Lesson',
+    event: {
+      eventName: 'matchup_started',
+      surface: 'matchup',
+      metadata: {
+        location: 'coaches_lesson_prep',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Player context', tone: 'info' },
+      { label: 'Confidence', value: 'Improves with reviewed results', tone: 'warn' },
+    ],
+  },
+  {
+    eyebrow: 'Coach Hub',
+    title: 'Assign follow-through',
+    body: 'Coaches can turn a lesson focus into practice work, due dates, and evidence to review.',
+    metrics: [
+      { label: 'Assign', value: 'Drills' },
+      { label: 'Due', value: 'Next week' },
+      { label: 'Review', value: 'Evidence' },
+    ],
+    href: '/coach',
+    cta: 'Open Coach Hub',
+    event: {
+      eventName: 'coach_hub_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coaches_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Workspace action', tone: 'good' },
+      { label: 'Freshness', value: 'Coach updated', tone: 'info' },
+    ],
+  },
+  {
+    eyebrow: 'Fix data',
+    title: 'Refresh player evidence',
+    body: 'Upload scorecards or request a review when a player record, result, or coaching context looks incomplete.',
+    metrics: [
+      { label: 'Upload', value: 'Scorecard' },
+      { label: 'Review', value: 'Needed' },
+      { label: 'Feeds', value: 'Coach Hub' },
+    ],
+    href: '/data-assist?intent=upload-source&context=Coaches%20next%20actions',
+    cta: 'Open Data Assist',
+    event: {
+      eventName: 'data_assist_opened',
+      surface: 'data_assist',
+      metadata: {
+        location: 'coaches_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'User upload', tone: 'info' },
+      { label: 'Status', value: 'Review before use', tone: 'warn' },
+    ],
+  },
+] as const
+
+const nextActionSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const nextActionGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: 14,
+  minWidth: 0,
 }
 
 const previewGridStyle: CSSProperties = {
