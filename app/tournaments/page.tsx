@@ -9,7 +9,7 @@ import {
   TwoColumnStory,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
-import { TiqTournamentDrawCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import { TiqActionCard, TiqTournamentDrawCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
@@ -33,8 +33,30 @@ export default function TournamentsPage() {
           secondary={{ href: '#desk', label: 'Run a Tournament' }}
           searchPlaceholder="Search tournaments, draws, divisions, round robins, court schedules, or results"
         />
+        <section id="find" style={findSectionStyle} aria-labelledby="tournament-find-title">
+          <SectionHeader
+            eyebrow="Find tournaments"
+            title="Search events, follow draws, or check results."
+            body="Tournament discovery should answer the next practical question: where can I play, when do I play, and what happened?"
+            titleId="tournament-find-title"
+          />
+          <div style={discoveryGridStyle}>
+            {tournamentDiscoveryCards.map((card) => (
+              <TiqActionCard
+                key={card.title}
+                eyebrow="Tournament discovery"
+                title={card.title}
+                body={card.body}
+                metrics={[...card.metrics]}
+                href={card.href}
+                cta={card.cta}
+                event={card.event}
+                trust={[...card.trust]}
+              />
+            ))}
+          </div>
+        </section>
         <TwoColumnStory
-          id="find"
           leftTitle="For players"
           leftBody="Find events, view divisions, see draws, know your schedule, and follow results."
           rightTitle="For organizers"
@@ -157,6 +179,88 @@ const tournamentFlow = [
     body: 'Keep players informed about schedules, court moves, results, and event updates.',
   },
 ] as const
+
+const tournamentDiscoveryCards = [
+  {
+    title: 'Find events',
+    body: 'Search public event pages by tournament, division, format, schedule, or location.',
+    metrics: [
+      { label: 'Search', value: 'Events' },
+      { label: 'Browse', value: 'Divisions' },
+      { label: 'Next', value: 'Enter' },
+    ],
+    href: '/explore/search?q=tournament',
+    cta: 'Search Events',
+    event: {
+      eventName: 'tournament_search_submitted',
+      surface: 'tournaments',
+      metadata: {
+        location: 'tournaments_find_events',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Public event pages', tone: 'info' },
+      { label: 'Status', value: 'Discovery ready', tone: 'good' },
+    ],
+  },
+  {
+    title: 'Follow a draw',
+    body: 'Scan divisions, match order, court blocks, and what players need before the next round.',
+    metrics: [
+      { label: 'Draws', value: 'Draft' },
+      { label: 'Courts', value: 'Assigned' },
+      { label: 'Watch', value: 'Next match' },
+    ],
+    href: '#desk',
+    cta: 'Preview Draws',
+    event: {
+      eventName: 'draw_preview_clicked',
+      surface: 'tournaments',
+      metadata: {
+        location: 'tournaments_follow_draw',
+      },
+    },
+    trust: [
+      { label: 'Freshness', value: 'Director updates', tone: 'good' },
+      { label: 'Confidence', value: 'Medium until published', tone: 'warn' },
+    ],
+  },
+  {
+    title: 'Run an event',
+    body: 'Open Tournament Desk when entries, draws, courts, results, and notifications need one place.',
+    metrics: [
+      { label: 'Desk', value: 'Full-Court' },
+      { label: 'Results', value: 'Reviewable' },
+      { label: 'Notify', value: 'Players' },
+    ],
+    href: '/league-coordinator/tournaments',
+    cta: 'Open Desk',
+    event: {
+      eventName: 'run_tournament_clicked',
+      surface: 'tournaments',
+      metadata: {
+        location: 'tournaments_run_event',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Organizer workspace', tone: 'info' },
+      { label: 'Source', value: 'Tournament Desk', tone: 'good' },
+    ],
+  },
+] as const
+
+const findSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const discoveryGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 14,
+  minWidth: 0,
+}
 
 const previewGridStyle: CSSProperties = {
   display: 'grid',
