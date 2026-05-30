@@ -99,7 +99,7 @@ export default function TournamentsPage() {
                 { label: 'Courts', value: '6' },
               ]}
               href={tournamentDeskHref}
-              cta="Preview Draw"
+              cta="Open Tournament Desk"
               event={{
                 eventName: 'draw_preview_clicked',
                 surface: 'tournaments',
@@ -124,7 +124,7 @@ export default function TournamentsPage() {
                 { label: 'Notify', value: 'Players' },
               ]}
               href={tournamentDeskHref}
-              cta="Publish Results"
+              cta="Open Tournament Desk"
               event={{
                 eventName: 'tournament_desk_clicked',
                 surface: 'tournaments',
