@@ -686,6 +686,7 @@ function DrillTimer({ drillId, targetSeconds }: { drillId: string; targetSeconds
   const [running, setRunning] = useState(false)
   const progress = targetSeconds > 0 ? Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100)) : 0
   const targetLabel = targetSeconds > 0 ? formatClock(targetSeconds) : 'Open'
+  const timerState = running ? 'running' : elapsedSeconds > 0 ? 'paused' : 'idle'
 
   useEffect(() => {
     if (!running) return
@@ -708,7 +709,7 @@ function DrillTimer({ drillId, targetSeconds }: { drillId: string; targetSeconds
   }
 
   return (
-    <div className={styles.liveTimerPanel}>
+    <div className={styles.liveTimerPanel} data-timer-state={timerState}>
       <div>
         <span>Timer</span>
         <strong>{formatClock(elapsedSeconds)}</strong>
