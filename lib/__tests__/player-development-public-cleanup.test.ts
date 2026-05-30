@@ -6,6 +6,7 @@ const pageSource = readFileSync(join(process.cwd(), 'app/player-development/page
 const systemSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
 const controlsSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-print-controls.tsx'), 'utf8')
 const liveWorkbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
+const trainingMenusSource = readFileSync(join(process.cwd(), 'lib/player-training-menus.ts'), 'utf8')
 
 describe('Player Development public cleanup', () => {
   it('positions the public page as a workbook and coach-planner product story', () => {
@@ -78,10 +79,10 @@ describe('Player Development public cleanup', () => {
     expect(systemSource).toContain('id="solo-training"')
     expect(systemSource).toContain('id="partner-training"')
     expect(systemSource).toContain('id="off-court-work"')
-    expect(systemSource).toContain('Jump rope rhythm builder')
-    expect(systemSource).toContain('Cone recover + shadow swing')
-    expect(systemSource).toContain('wall sit')
-    expect(systemSource).toContain('Post-play mobility reset')
+    expect(trainingMenusSource).toContain('Jump rope rhythm builder')
+    expect(trainingMenusSource).toContain('Cone recover + shadow swing')
+    expect(trainingMenusSource).toContain('wall sit')
+    expect(trainingMenusSource).toContain('Post-play mobility reset')
     expect(systemSource).toContain('Reward the habit')
     expect(systemSource).toContain('Cue')
     expect(systemSource).toContain('Routine')

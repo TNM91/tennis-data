@@ -6,6 +6,11 @@
   gap: 22px;
 }
 
+.levelUpShell {
+  width: min(1180px, calc(100% - 28px));
+  padding-top: 16px;
+}
+
 .packetShell {
   padding-top: 24px;
 }
@@ -166,6 +171,104 @@
   color: var(--foreground);
   border-radius: var(--radius-lg);
   padding: clamp(20px, 3vw, 28px);
+}
+
+.levelUpRouteHeader,
+.levelUpIdentityStrip {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--card-border-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  border-radius: var(--radius-lg);
+  padding: clamp(16px, 3vw, 22px);
+}
+
+.levelUpRouteHeader {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.levelUpRouteCopy span,
+.levelUpIdentityStrip strong {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 7px 10px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpRouteCopy h1 {
+  margin: 10px 0 0;
+  color: var(--foreground-strong);
+  font-size: clamp(2.2rem, 7vw, 4.8rem);
+  font-weight: 950;
+  line-height: 0.92;
+  letter-spacing: 0;
+}
+
+.levelUpRouteCopy p,
+.levelUpIdentityStrip span {
+  max-width: 760px;
+  margin: 10px 0 0;
+  color: var(--muted-strong);
+  line-height: 1.46;
+}
+
+.levelUpRouteActions,
+.levelUpIdentityButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.levelUpRouteActions {
+  justify-content: flex-end;
+}
+
+.levelUpIdentityStrip {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.levelUpIdentityStrip > div:first-child {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: center;
+}
+
+.levelUpIdentityStrip > div:first-child span {
+  grid-column: 2;
+  margin-top: 0;
+}
+
+.levelUpIdentityButtons a {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 8px 12px;
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.levelUpIdentityButtons a[data-active='true'] {
+  border-color: rgba(155, 225, 29, 0.52);
+  background: rgba(155, 225, 29, 0.13);
+  color: var(--foreground-strong);
 }
 
 .missionHero,
@@ -4438,6 +4541,8 @@
   .liveAccessPanel,
   .liveSavedBanner,
   .liveUnlockPanel,
+  .levelUpRouteHeader,
+  .levelUpIdentityStrip,
   .liveModeStrip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4530,8 +4635,15 @@
   .packetIndexHero,
   .missionHero,
   .liveWorkbenchHero,
+  .levelUpRouteHeader,
+  .levelUpIdentityStrip,
   .performanceUpgradeHero {
     grid-template-columns: 1fr;
+  }
+
+  .levelUpRouteActions,
+  .levelUpIdentityButtons {
+    justify-content: flex-start;
   }
 
   .liveFocusRail {

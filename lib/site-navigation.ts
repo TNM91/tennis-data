@@ -21,6 +21,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
+  { href: '/level-up', label: 'Level Up' },
   { href: '/mylab', label: 'Open My Lab' },
   { href: '/coach', label: 'Coach Hub' },
   { href: '/data-assist', label: 'Improve data' },
@@ -67,6 +68,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
   {
     title: 'Improve',
     items: [
+      { href: '/level-up', label: 'Level Up' },
       { href: '/mylab', label: 'Open My Lab' },
       { href: '/data-assist', label: 'Improve data' },
       { href: '/matchup', label: 'Prep matchup' },

@@ -3654,8 +3654,8 @@ function PlayerDevelopmentPathPanel({
             </p>
           </div>
         </div>
-        <Link href={`/player-development/${primaryIdentity.slug}/workbook`} style={quickStartButtonStyle}>
-          Print workbook
+        <Link href="/level-up" style={quickStartButtonStyle}>
+          Level Up now
         </Link>
       </div>
 
@@ -3675,6 +3675,7 @@ function PlayerDevelopmentPathPanel({
       </div>
 
       <div style={developmentActionRowStyle}>
+        <Link href={`/player-development/${primaryIdentity.slug}/workbook`} style={miniActionLinkStyle}>Print workbook</Link>
         <Link href="/player-development" style={miniActionLinkStyle}>Open paths</Link>
         <Link href={`/player-development/${primaryIdentity.slug}/coach-planner`} style={miniActionLinkStyle}>Coach planner</Link>
         <Link href="#goal-progress" style={miniActionLinkStyle}>Update My Lab goal</Link>
