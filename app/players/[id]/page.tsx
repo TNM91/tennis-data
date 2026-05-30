@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import DataTrustPanel from '@/app/components/data-trust-panel'
+import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -31,6 +32,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import {
@@ -1093,11 +1095,22 @@ function PlayerProfileContent() {
   if (loading) {
     return (
       <section style={dynamicHeroWrap}>
-        <div style={dynamicHeroShell}>
-          <div style={heroNoise} />
-          <div aria-hidden="true" style={watermarkStyle} />
-          <div style={loadingCard}>Loading player profile...</div>
-        </div>
+        <PublicDetailState
+          eyebrow="Player scorecard"
+          title="Opening player context."
+          body="Checking ratings, recent matches, team context, awards, and review signals so this profile starts with useful tennis evidence."
+          signals={[
+            { label: 'Source', value: 'Player records, scorecards, TIQ context' },
+            { label: 'Freshness', value: 'Recent matches first' },
+            { label: 'Status', value: 'Corrections reviewable' },
+          ]}
+          actions={[
+            { href: '/players', label: 'Find Players' },
+            { href: '/matchup', label: 'Open Matchup' },
+            { href: '/rankings', label: 'Check Rankings' },
+            { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
+          ]}
+        />
       </section>
     )
   }
@@ -4226,17 +4239,6 @@ const resultLoss: CSSProperties = {
   border: '1px solid rgba(255, 60, 40, 0.16)',
 }
 
-const loadingCard: CSSProperties = {
-  padding: '26px',
-  borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'var(--portal-surface-bg)',
-  color: 'var(--foreground)',
-  fontWeight: 700,
-  position: 'relative',
-  zIndex: 1,
-}
-
 const errorCard: CSSProperties = {
   padding: '22px',
   borderRadius: '28px',
@@ -4510,18 +4512,3 @@ const nearbySecondaryActionStyle: CSSProperties = {
   color: '#93c5fd',
   fontWeight: 700,
 }
-
-const watermarkStyle: CSSProperties = {
-  position: 'absolute',
-  right: '-92px',
-  top: '-118px',
-  width: '360px',
-  aspectRatio: '1',
-  borderRadius: '50%',
-  border: '1px solid rgba(155,225,29,0.16)',
-  background:
-    'radial-gradient(circle at 38% 34%, rgba(155,225,29,0.2), rgba(155,225,29,0.07) 42%, rgba(116,190,255,0.04) 66%, transparent 70%)',
-  opacity: 0.58,
-  pointerEvents: 'none',
-}
-

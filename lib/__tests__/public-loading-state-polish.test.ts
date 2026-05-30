@@ -19,6 +19,7 @@ describe('public loading state polish', () => {
 
   it('uses semantic public detail states instead of raw detail-page loading copy', () => {
     const detailStateSource = read('app/components/public-detail-state.tsx')
+    const playerDetailSource = read('app/players/[id]/page.tsx')
     const teamDetailSource = read('app/teams/[team]/page.tsx')
     const leagueDetailSource = read('app/leagues/[league]/page.tsx')
     const tournamentDetailSource = read('app/tournaments/[id]/page.tsx')
@@ -28,6 +29,10 @@ describe('public loading state polish', () => {
     expect(detailStateSource).toContain("titleAs?: 'h1' | 'h2'")
     expect(detailStateSource).toContain('<dl style={signalGridStyle}')
     expect(detailStateSource).toContain('aria-label={`${title} actions`}')
+    expect(playerDetailSource).toContain('Opening player context.')
+    expect(playerDetailSource).toContain('Player records, scorecards, TIQ context')
+    expect(playerDetailSource).toContain('Open Matchup')
+    expect(playerDetailSource).not.toContain('Loading player profile...')
     expect(teamDetailSource).toContain('Opening team context.')
     expect(teamDetailSource).toContain('Rosters, scorecards, team summaries')
     expect(teamDetailSource).not.toContain('Loading team page...')
