@@ -352,13 +352,13 @@ export function TiqTrustChips({
         ))}
       </div>
       <div style={trustActionRowStyle}>
-        <TrackedProductLink href={uploadHref} style={trustActionStyle} event={getPublicLinkEvent('Upload source', uploadHref, 'trust-strip')}>
+        <TrackedProductLink href={uploadHref} style={trustActionStyle} event={getPublicLinkEvent('Upload source', uploadHref, context)}>
           Upload source
         </TrackedProductLink>
-        <TrackedProductLink href={reportHref} style={trustActionStyle} event={getPublicLinkEvent('Report issue', reportHref, 'trust-strip')}>
+        <TrackedProductLink href={reportHref} style={trustActionStyle} event={getPublicLinkEvent('Report issue', reportHref, context)}>
           Report issue
         </TrackedProductLink>
-        <TrackedProductLink href={reviewHref} style={trustActionStyle} event={getPublicLinkEvent('Request review', reviewHref, 'trust-strip')}>
+        <TrackedProductLink href={reviewHref} style={trustActionStyle} event={getPublicLinkEvent('Request review', reviewHref, context)}>
           Request review
         </TrackedProductLink>
       </div>
