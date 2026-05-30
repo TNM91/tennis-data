@@ -354,11 +354,21 @@ export function TiqTrustChips({ signals = defaultTrustSignals }: { signals?: Tru
   )
 }
 
-export function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
+export function SectionHeader({
+  eyebrow,
+  title,
+  body,
+  titleId,
+}: {
+  eyebrow: string
+  title: string
+  body: string
+  titleId?: string
+}) {
   return (
     <div style={sectionHeaderStyle}>
       <span style={eyebrowStyle}>{eyebrow}</span>
-      <h2 style={sectionTitleStyle}>{title}</h2>
+      <h2 id={titleId} style={sectionTitleStyle}>{title}</h2>
       <p style={sectionBodyStyle}>{body}</p>
     </div>
   )

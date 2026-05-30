@@ -45,13 +45,14 @@ export default function TournamentsPage() {
             eyebrow="Tournament flow"
             title="From entry to results, keep the event moving."
             body="Each tournament job has a clear next action so players know where to go and directors know what still needs attention."
+            titleId="tournament-flow-title"
           />
           <ol style={flowGridStyle}>
             {tournamentFlow.map((step) => (
               <li key={step.title} style={flowStepStyle}>
                 <span style={flowStepNumberStyle}>{step.step}</span>
                 <div style={flowStepCopyStyle}>
-                  <h2 id={step.title === 'Event setup' ? 'tournament-flow-title' : undefined} style={flowStepTitleStyle}>{step.title}</h2>
+                  <h2 style={flowStepTitleStyle}>{step.title}</h2>
                   <p style={flowStepBodyStyle}>{step.body}</p>
                 </div>
               </li>
