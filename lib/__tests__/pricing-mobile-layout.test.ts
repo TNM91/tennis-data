@@ -21,6 +21,8 @@ describe('pricing mobile layout guards', () => {
 
     for (const styleName of [
       'planGridStyle',
+      'jobChooserGridStyle',
+      'jobChooserCardStyle',
       'planCardStyle',
       'workspaceGridStyle',
       'workspaceCardStyle',
@@ -31,6 +33,7 @@ describe('pricing mobile layout guards', () => {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
     expect(styleBlock('planGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")
+    expect(styleBlock('jobChooserGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
     expect(styleBlock('workspaceGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")
     expect(styleBlock('billingBandStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: '28px 34px 1fr'")
@@ -52,6 +55,7 @@ describe('pricing mobile layout guards', () => {
       'tableHeadStyle',
       'tableJobStyle',
       'tableCellStyle',
+      'jobChooserCardStyle',
       'workspaceCardStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")

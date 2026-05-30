@@ -80,6 +80,50 @@ const WORKSPACE_PREVIEWS: Array<{
   },
 ]
 
+const JOB_CHOOSER: Array<{
+  job: string
+  cue: string
+  planId: PricingPlanId
+  href: string
+}> = [
+  {
+    job: 'Find tennis context',
+    cue: 'Players, teams, leagues, rankings, coaches, tournaments, and resources.',
+    planId: 'free',
+    href: getPlanSignupHref('free'),
+  },
+  {
+    job: 'Improve my game',
+    cue: 'Goals, matchup notes, follows, and your My Lab home base.',
+    planId: 'player_plus',
+    href: getPlanSignupHref('player_plus'),
+  },
+  {
+    job: 'Coach players',
+    cue: 'Students, lessons, assignments, evidence, and Coach Hub follow-through.',
+    planId: 'coach',
+    href: getPlanSignupHref('coach'),
+  },
+  {
+    job: 'Captain match week',
+    cue: 'Availability, lineups, scouting, messages, and Team Hub.',
+    planId: 'captain',
+    href: getPlanSignupHref('captain'),
+  },
+  {
+    job: 'Run a season or event',
+    cue: 'League Office for one bounded league, ladder, or tournament season.',
+    planId: 'league',
+    href: getPlanSignupHref('league'),
+  },
+  {
+    job: 'Connect everything',
+    cue: 'All workspaces plus unlimited Tournament Desk operations.',
+    planId: 'full_court',
+    href: getPlanSignupHref('full_court'),
+  },
+]
+
 const COMPARE_ROWS: Array<{
   job: string
   free: string
@@ -173,6 +217,27 @@ function PricingContent() {
         <div style={heroActionRowStyle}>
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
           <Link href="#compare" style={secondaryButtonStyle}>Compare what unlocks</Link>
+        </div>
+      </section>
+
+      <section id="job-chooser" style={sectionStyle} aria-labelledby="job-chooser-title">
+        <SectionHeader
+          eyebrow="Choose by tennis job"
+          title="Start from what you are trying to do."
+          body="The fastest pricing decision is not a feature hunt. Pick the tennis job, then open the matching workspace."
+        />
+        <div style={jobChooserGridStyle}>
+          {JOB_CHOOSER.map((item) => {
+            const plan = getPricingPlan(item.planId)
+            return (
+              <Link key={item.job} href={item.href} style={jobChooserCardStyle}>
+                <span style={workspaceLabelStyle}>{plan.name}</span>
+                <strong style={jobChooserTitleStyle}>{item.job}</strong>
+                <span style={jobChooserCueStyle}>{item.cue}</span>
+                <span style={jobChooserPriceStyle}>{plan.priceLabel}</span>
+              </Link>
+            )
+          })}
         </div>
       </section>
 
@@ -463,6 +528,53 @@ const planGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const jobChooserGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const jobChooserCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  alignContent: 'start',
+  minHeight: 174,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.74)',
+  color: 'inherit',
+  textDecoration: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const jobChooserTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const jobChooserCueStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const jobChooserPriceStyle: CSSProperties = {
+  alignSelf: 'end',
+  color: 'var(--brand-green)',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const planCardStyle: CSSProperties = {

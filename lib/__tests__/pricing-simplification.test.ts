@@ -8,6 +8,13 @@ const joinSource = readFileSync(join(process.cwd(), 'app/join/page.tsx'), 'utf8'
 
 describe('pricing simplification', () => {
   it('keeps pricing organized around the five decision sections', () => {
+    expect(pricingSource).toContain('Choose by tennis job')
+    expect(pricingSource).toContain('Start from what you are trying to do.')
+    expect(pricingSource).toContain('JOB_CHOOSER')
+    expect(pricingSource).toContain('Find tennis context')
+    expect(pricingSource).toContain('Improve my game')
+    expect(pricingSource).toContain('Captain match week')
+    expect(pricingSource).toContain('Run a season or event')
     expect(pricingSource).toContain('Choose your role')
     expect(pricingSource).toContain('See the workspace')
     expect(pricingSource).toContain('Compare what unlocks')
