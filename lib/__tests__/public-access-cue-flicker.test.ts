@@ -31,19 +31,21 @@ describe('public access cue flicker guards', () => {
     const exploreSearchSource = readAppFile('app/explore/search/page.tsx')
     const exploreLeaguesSource = readAppFile('app/explore/leagues/page.tsx')
 
-    expect(teamsSource).toContain('authResolved && (!access.canUseCaptainWorkflow || !access.canUseLeagueTools)')
-    expect(rankingsSource).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
-    expect(playersSource).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
+    expect(teamsSource).not.toContain('UpgradePrompt')
+    expect(rankingsSource).not.toContain('UpgradePrompt')
+    expect(playersSource).not.toContain('UpgradePrompt')
     expect(matchupSource).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
-    expect(exploreSearchSource).toContain('if (!authResolved) return null')
-    expect(exploreLeaguesSource).toContain('{authResolved ? (')
+    expect(exploreSearchSource).not.toContain('UpgradePrompt')
+    expect(exploreLeaguesSource).not.toContain('UpgradePrompt')
   })
 
-  it('keeps explore search and league upsells on the shared auth provider', () => {
+  it('keeps auth-dependent discovery surfaces on the shared auth provider', () => {
     for (const path of [
-      'app/explore/search/page.tsx',
-      'app/explore/leagues/page.tsx',
       'app/explore/leagues/tiq/[league]/page.tsx',
+      'app/matchup/page.tsx',
+      'app/players/page.tsx',
+      'app/rankings/page.tsx',
+      'app/teams/page.tsx',
     ]) {
       const source = readAppFile(path)
       expect(source).toMatch(/use(ProductAccess|Auth)\(\)/)
@@ -91,7 +93,8 @@ describe('public access cue flicker guards', () => {
 
     expect(myLabSource).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
     expect(myLabSource).toContain('buildProductAccessState(resolvedRole, entitlements)')
-    expect(myLabSource).toContain('authResolved && !access.canUseAdvancedPlayerInsights')
+    expect(myLabSource).toContain('const accessPending = !authResolved || (Boolean(userId) && entitlements === null)')
+    expect(myLabSource).toContain('!accessPending && !access.canUseAdvancedPlayerInsights')
   })
 
   it('keeps upgrade access state on the shared auth provider', () => {
