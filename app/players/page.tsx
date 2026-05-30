@@ -474,8 +474,8 @@ export default function PlayersPage() {
               <h1 style={controlsLabel}>Find a player.</h1>
             </div>
             <div style={inlineStatRow}>
-              <StatChip label="Players" value={loading ? '-' : String(players.length)} />
-              <StatChip label="Shown" value={loading ? '-' : shouldShowPlayerResults ? String(filteredPlayers.length) : 'Ready'} accent />
+              <StatChip label="Players" value={loading ? 'Refreshing' : String(players.length)} />
+              <StatChip label="Shown" value={loading ? 'Starter' : shouldShowPlayerResults ? String(filteredPlayers.length) : 'Ready'} accent />
             </div>
           </div>
 

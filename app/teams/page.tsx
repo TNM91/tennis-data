@@ -637,10 +637,10 @@ export default function TeamsPage() {
             </div>
 
             <div style={summaryRow(isSmallMobile)}>
-              <StatPill label="Teams" value={loading ? '-' : String(totals.teams)} />
-              <StatPill label="Leagues" value={loading ? '-' : String(totals.leagues)} />
-              <StatPill label="Flights" value={loading ? '-' : String(totals.flights)} />
-              <StatPill label="Players" value={loading ? '-' : String(totals.players)} />
+              <StatPill label="Teams" value={loading ? 'Refreshing' : String(totals.teams)} />
+              <StatPill label="Leagues" value={loading ? 'Starter' : String(totals.leagues)} />
+              <StatPill label="Flights" value={loading ? 'Reviewing' : String(totals.flights)} />
+              <StatPill label="Players" value={loading ? 'Roster sync' : String(totals.players)} />
             </div>
 
             <div style={filtersGrid(isMobile)}>

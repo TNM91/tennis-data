@@ -396,9 +396,9 @@ export default function LeaguesPage() {
           </div>
 
           <div style={dynamicSummaryGrid}>
-            <MetricCard label="Visible leagues" value={loading ? '-' : String(summary.totalLeagues)} />
-            <MetricCard label="League matches" value={loading ? '-' : String(summary.totalMatches)} />
-            <MetricCard label="Flights" value={loading ? '-' : String(summary.totalFlights)} />
+            <MetricCard label="Visible leagues" value={loading ? 'Refreshing' : String(summary.totalLeagues)} />
+            <MetricCard label="League matches" value={loading ? 'Reviewing' : String(summary.totalMatches)} />
+            <MetricCard label="Flights" value={loading ? 'Starter' : String(summary.totalFlights)} />
             <MetricCard label="Latest match" value={loading ? 'Refreshing' : formatDate(summary.latestMatch)} accent />
           </div>
 
