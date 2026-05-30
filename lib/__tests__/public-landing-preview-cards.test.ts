@@ -9,6 +9,13 @@ const commandCenterSource = readFileSync(join(process.cwd(), 'app/components/pub
 describe('public landing preview cards', () => {
   it('uses named coach preview cards with tracked product actions', () => {
     expect(coachesSource).toContain('TiqActionCard')
+    expect(coachesSource).toContain('Lesson loop')
+    expect(coachesSource).toContain('Give every lesson a before, during, and after.')
+    expect(coachesSource).toContain('Bring the right context')
+    expect(coachesSource).toContain('Plan the court work')
+    expect(coachesSource).toContain('Assign the next proof')
+    expect(coachesSource).toContain('aria-labelledby="coach-lesson-loop-title"')
+    expect(coachesSource).toContain('titleId="coach-lesson-loop-title"')
     expect(coachesSource).toContain('Coaching next actions')
     expect(coachesSource).toContain('Turn a lesson into the next useful tennis move.')
     expect(coachesSource).toContain('Find a coach')

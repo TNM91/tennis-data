@@ -49,6 +49,23 @@ export default function CoachesPage() {
           rightTitle="For coaches"
           rightBody="Manage students, plan lessons, assign drills, track progress, and keep players moving between sessions."
         />
+        <section style={lessonLoopSectionStyle} aria-labelledby="coach-lesson-loop-title">
+          <SectionHeader
+            eyebrow="Lesson loop"
+            title="Give every lesson a before, during, and after."
+            body="TenAceIQ should make coaching feel organized without turning it into paperwork. Each step connects the player, coach, assignment, and next match."
+            titleId="coach-lesson-loop-title"
+          />
+          <div style={lessonLoopGridStyle}>
+            {coachLessonLoop.map((step) => (
+              <article key={step.title} style={lessonLoopCardStyle}>
+                <div style={lessonLoopStepStyle}>{step.step}</div>
+                <h2 style={lessonLoopTitleStyle}>{step.title}</h2>
+                <p style={lessonLoopBodyStyle}>{step.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
         <section style={nextActionSectionStyle} aria-labelledby="coach-next-actions-title">
           <SectionHeader
             eyebrow="Coaching next actions"
@@ -233,6 +250,71 @@ const coachNextActions = [
     ],
   },
 ] as const
+
+const coachLessonLoop = [
+  {
+    step: 'Before',
+    title: 'Bring the right context',
+    body: 'Player goals, match notes, matchup questions, and recent evidence give the coach a sharper starting point.',
+  },
+  {
+    step: 'During',
+    title: 'Plan the court work',
+    body: 'Lesson focus turns into drills, tactical notes, and simple cues the player can remember under pressure.',
+  },
+  {
+    step: 'After',
+    title: 'Assign the next proof',
+    body: 'Coach Hub keeps the follow-through visible with due work, evidence requests, and the next review.',
+  },
+] as const
+
+const lessonLoopSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const lessonLoopGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const lessonLoopCardStyle: CSSProperties = {
+  borderRadius: 8,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 16,
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const lessonLoopStepStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  lineHeight: 1,
+  textTransform: 'uppercase',
+}
+
+const lessonLoopTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  fontWeight: 950,
+}
+
+const lessonLoopBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 720,
+}
 
 const nextActionSectionStyle: CSSProperties = {
   display: 'grid',
