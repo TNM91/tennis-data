@@ -1193,6 +1193,17 @@ export default function RankingsPage() {
         </article>
       </section>
 
+      {!error ? (
+        <section style={contentWrap}>
+          <RankingNextActionRail
+            topPlayer={topPlayer}
+            topRival={topRival}
+            loading={loading}
+            hasRankedPlayers={rankedPlayers.length > 0}
+          />
+        </section>
+      ) : null}
+
       {!loading && !error ? (
         <section style={contentWrap}>
           <details style={insightDetails}>
@@ -1317,6 +1328,78 @@ export default function RankingsPage() {
         </div>
       ) : null}
     </SiteShell>
+  )
+}
+
+function RankingNextActionRail({
+  topPlayer,
+  topRival,
+  loading,
+  hasRankedPlayers,
+}: {
+  topPlayer: RankedPlayer | null
+  topRival: RankedPlayer | null
+  loading: boolean
+  hasRankedPlayers: boolean
+}) {
+  const compareHref = topPlayer
+    ? buildRankingCompareHref(topPlayer, topPlayer, topRival)
+    : '/matchup?type=singles'
+  const compareTitle = topPlayer && topRival
+    ? `Compare ${topPlayer.name} vs ${topRival.name}`
+    : 'Open Matchup'
+  const boardCue = loading
+    ? 'Board is preparing'
+    : hasRankedPlayers
+      ? 'Use the board'
+      : 'Start with a search'
+
+  const actions = [
+    {
+      href: compareHref,
+      label: compareTitle,
+      body: 'Turn a ranking gap into a practical match read with edge, confidence, and a watch item.',
+      cta: 'Compare',
+    },
+    {
+      href: '/players',
+      label: 'Find the player record',
+      body: 'Open a profile before drawing conclusions from a rating, tier, or recent form signal.',
+      cta: 'Find players',
+    },
+    {
+      href: '/leagues',
+      label: 'Check league context',
+      body: 'See the teams, flights, standings, and season shape behind the board.',
+      cta: 'Find leagues',
+    },
+    {
+      href: DATA_ASSIST_STORY.href,
+      label: 'Fix ranking data',
+      body: 'Upload a scorecard, report a missing player, or request a review when the board looks off.',
+      cta: DATA_ASSIST_STORY.cta,
+    },
+  ]
+
+  return (
+    <article style={rankingNextActionPanel}>
+      <div style={rankingNextActionHead}>
+        <div>
+          <div style={sectionKicker}>Ranking next actions</div>
+          <h2 style={rankingNextActionTitle}>Use rankings to decide what to check next.</h2>
+        </div>
+        <span style={panelChip}>{boardCue}</span>
+      </div>
+      <div style={rankingNextActionGrid}>
+        {actions.map((action) => (
+          <Link key={action.label} href={action.href} style={rankingNextActionCard}>
+            <span style={rankingNextActionCardTitle}>{action.label}</span>
+            <span style={rankingNextActionCardBody}>{action.body}</span>
+            <span style={rankingNextActionCta}>{action.cta}</span>
+          </Link>
+        ))}
+      </div>
+    </article>
   )
 }
 
@@ -2310,6 +2393,94 @@ const rowActionSecondaryStyle: CSSProperties = {
   ...rowActionPrimaryStyle,
   background: 'rgba(7,17,33,0.72)',
   border: '1px solid rgba(116,190,255,0.13)',
+}
+
+const rankingNextActionPanel: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  marginBottom: '16px',
+  padding: '20px',
+  borderRadius: '26px',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const rankingNextActionHead: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const rankingNextActionTitle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.4vw, 1.85rem)',
+  lineHeight: 1.08,
+  fontWeight: 900,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const rankingNextActionGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: '12px',
+  minWidth: 0,
+}
+
+const rankingNextActionCard: CSSProperties = {
+  display: 'grid',
+  gap: '9px',
+  alignContent: 'start',
+  minHeight: '168px',
+  padding: '16px',
+  borderRadius: '20px',
+  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid rgba(116,190,255,0.13)',
+  color: 'inherit',
+  textDecoration: 'none',
+  minWidth: 0,
+}
+
+const rankingNextActionCardTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '16px',
+  lineHeight: 1.18,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const rankingNextActionCardBody: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.58,
+  fontWeight: 650,
+  overflowWrap: 'anywhere',
+}
+
+const rankingNextActionCta: CSSProperties = {
+  alignSelf: 'end',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 'fit-content',
+  maxWidth: '100%',
+  minHeight: '36px',
+  padding: '0 12px',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-lime) 15%, var(--shell-chip-bg) 85%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const insightDetails: CSSProperties = {
