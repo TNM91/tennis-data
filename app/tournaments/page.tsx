@@ -20,6 +20,8 @@ export const metadata: Metadata = buildRouteMetadata({
   path: '/tournaments',
 })
 
+const tournamentDeskHref = '/join?plan=full_court&next=/league-coordinator/tournaments'
+
 export default function TournamentsPage() {
   return (
     <PublicPageShell active="tournaments">
@@ -96,7 +98,7 @@ export default function TournamentsPage() {
                 { label: 'Draws', value: 'Draft' },
                 { label: 'Courts', value: '6' },
               ]}
-              href="/league-coordinator/tournaments"
+              href={tournamentDeskHref}
               cta="Preview Draw"
               event={{
                 eventName: 'draw_preview_clicked',
@@ -121,7 +123,7 @@ export default function TournamentsPage() {
                 { label: 'Winners', value: 'Ready' },
                 { label: 'Notify', value: 'Players' },
               ]}
-              href="/league-coordinator/tournaments"
+              href={tournamentDeskHref}
               cta="Publish Results"
               event={{
                 eventName: 'tournament_desk_clicked',
@@ -233,7 +235,7 @@ const tournamentDiscoveryCards = [
       { label: 'Results', value: 'Reviewable' },
       { label: 'Notify', value: 'Players' },
     ],
-    href: '/league-coordinator/tournaments',
+    href: tournamentDeskHref,
     cta: 'Open Desk',
     event: {
       eventName: 'run_tournament_clicked',
