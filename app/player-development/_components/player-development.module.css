@@ -886,6 +886,7 @@
 .sessionFields,
 .todayFocusGrid,
 .lessonTestGrid,
+.quickRatingStrip,
 .playerCheckInSheet,
 .playerCheckInHero,
 .goalLoopGrid,
@@ -903,6 +904,9 @@
 .matchCardGrid,
 .matchCardFooter,
 .quickCheckStrip,
+.toolBeltMenu,
+.toolBeltHero,
+.toolBeltRouteGrid,
 .playerTrainingSheet,
 .playerTrainingIntro,
 .playerTrainingGrid,
@@ -1470,11 +1474,49 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.quickRatingStrip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickRatingStrip span {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) repeat(6, 22px);
+  gap: 5px;
+  align-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  padding: 9px;
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.quickRatingStrip strong {
+  color: var(--foreground-strong);
+  line-height: 1.1;
+}
+
+.quickRatingStrip i {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(155, 225, 29, 0.32);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted-strong);
+  font-style: normal;
+  font-weight: 900;
+}
+
 .playerCheckInHero,
 .weeklyActionHero,
 .focusDecisionHero,
 .progressionHero,
 .matchCardHero,
+.toolBeltHero,
 .playerTrainingIntro {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -1501,6 +1543,8 @@
 .progressionStageGrid span,
 .progressionRuleGrid span,
 .progressionCoachLinks span,
+.toolBeltHero span,
+.toolBeltRouteGrid span,
 .matchCardHero span,
 .matchCardGrid span,
 .goalLoopGrid span,
@@ -1525,6 +1569,8 @@
 .progressionStageGrid strong,
 .progressionRuleGrid strong,
 .progressionCoachLinks strong,
+.toolBeltHero strong,
+.toolBeltRouteGrid strong,
 .matchCardHero strong,
 .matchCardGrid strong,
 .goalLoopGrid strong,
@@ -1542,6 +1588,7 @@
 .weeklyActionHero strong,
 .focusDecisionHero strong,
 .progressionHero strong,
+.toolBeltHero strong,
 .matchCardHero strong,
 .playerTrainingIntro strong {
   font-size: clamp(1.15rem, 2.4vw, 1.62rem);
@@ -1556,6 +1603,8 @@
 .progressionStageGrid p,
 .progressionRuleGrid p,
 .progressionCoachLinks p,
+.toolBeltHero p,
+.toolBeltRouteGrid p,
 .matchCardHero p,
 .matchCardGrid p,
 .goalLoopGrid p,
@@ -1576,6 +1625,7 @@
 .progressionStageGrid,
 .progressionRuleGrid,
 .progressionCoachLinks,
+.toolBeltRouteGrid,
 .matchCardGrid,
 .playerTrainingGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1597,6 +1647,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.toolBeltRouteGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .matchCardGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1607,6 +1661,7 @@
 .progressionStageGrid article,
 .progressionRuleGrid article,
 .progressionCoachLinks article,
+.toolBeltRouteGrid article,
 .matchCardGrid section,
 .playerTrainingGrid article,
 .coachHourPlans article,
@@ -3449,6 +3504,7 @@
 .printBook .sessionFields div,
 .printBook .todayFocusGrid article,
 .printBook .lessonTestGrid article,
+.printBook .quickRatingStrip span,
 .printBook .moduleTestCard,
 .printBook .moduleTestGrid article,
 .printBook .playerCheckInHero,
@@ -3460,6 +3516,8 @@
 .printBook .progressionStageGrid article,
 .printBook .progressionRuleGrid article,
 .printBook .progressionCoachLinks article,
+.printBook .toolBeltHero,
+.printBook .toolBeltRouteGrid article,
 .printBook .matchCardHero,
 .printBook .matchCardGrid section,
 .printBook .matchCardGrid section > div,
@@ -3489,6 +3547,9 @@
 .printBook .progressionStageGrid strong,
 .printBook .progressionRuleGrid strong,
 .printBook .progressionCoachLinks strong,
+.printBook .toolBeltHero strong,
+.printBook .toolBeltRouteGrid strong,
+.printBook .quickRatingStrip strong,
 .printBook .matchCardHero strong,
 .printBook .matchCardGrid strong,
 .printBook .goalLoopGrid strong,
@@ -3514,6 +3575,9 @@
 .printBook .progressionStageGrid p,
 .printBook .progressionRuleGrid p,
 .printBook .progressionCoachLinks p,
+.printBook .toolBeltHero p,
+.printBook .toolBeltRouteGrid p,
+.printBook .quickRatingStrip span,
 .printBook .matchCardHero p,
 .printBook .matchCardGrid p,
 .printBook .quickCheckStrip span,
@@ -3543,6 +3607,8 @@
 .printBook .progressionStageGrid span,
 .printBook .progressionRuleGrid span,
 .printBook .progressionCoachLinks span,
+.printBook .toolBeltHero span,
+.printBook .toolBeltRouteGrid span,
 .printBook .matchCardHero span,
 .printBook .matchCardGrid span,
 .printBook .goalLoopGrid span,
@@ -3565,6 +3631,12 @@
   background: #ffffff;
 }
 
+.printBook .quickRatingStrip i {
+  border-color: rgba(110, 166, 0, 0.38);
+  background: #ffffff;
+  color: var(--paper-muted);
+}
+
 @media (max-width: 1100px) {
   .hero,
   .packetHeader,
@@ -3578,12 +3650,14 @@
   .sessionFields,
   .todayFocusGrid,
   .lessonTestGrid,
+  .quickRatingStrip,
   .goalLoopGrid,
   .actionStepGrid,
   .focusDecisionGrid,
   .progressionStageGrid,
   .progressionRuleGrid,
   .progressionCoachLinks,
+  .toolBeltRouteGrid,
   .matchCardGrid,
   .quickCheckStrip,
   .playerTrainingGrid,
@@ -3639,12 +3713,14 @@
   .sessionFields,
   .todayFocusGrid,
   .lessonTestGrid,
+  .quickRatingStrip,
   .goalLoopGrid,
   .actionStepGrid,
   .focusDecisionGrid,
   .progressionStageGrid,
   .progressionRuleGrid,
   .progressionCoachLinks,
+  .toolBeltRouteGrid,
   .matchCardGrid,
   .matchCardFooter,
   .quickCheckStrip,
@@ -3839,6 +3915,7 @@
   .printBook .weeklyActionPlan,
   .printBook .focusDecisionPage,
   .printBook .playerProgressionCard,
+  .printBook .toolBeltMenu,
   .printBook .coachProgressionRules,
   .printBook .matchOnePager,
   .printBook .playerTrainingSheet,
@@ -3902,6 +3979,7 @@
   .printBook .sessionFields div,
   .printBook .todayFocusGrid article,
   .printBook .lessonTestGrid article,
+  .printBook .quickRatingStrip span,
   .printBook .moduleTestCard,
   .printBook .moduleTestGrid article,
   .printBook .playerCheckInHero,
@@ -3913,6 +3991,8 @@
   .printBook .progressionStageGrid article,
   .printBook .progressionRuleGrid article,
   .printBook .progressionCoachLinks article,
+  .printBook .toolBeltHero,
+  .printBook .toolBeltRouteGrid article,
   .printBook .matchCardHero,
   .printBook .matchCardGrid section,
   .printBook .matchCardGrid section > div,
@@ -3946,6 +4026,9 @@
   .printBook .progressionStageGrid p,
   .printBook .progressionRuleGrid p,
   .printBook .progressionCoachLinks p,
+  .printBook .toolBeltHero p,
+  .printBook .toolBeltRouteGrid p,
+  .printBook .quickRatingStrip span,
   .printBook .matchCardHero p,
   .printBook .matchCardGrid p,
   .printBook .quickCheckStrip span,

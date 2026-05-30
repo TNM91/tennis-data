@@ -244,7 +244,7 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage core footer="Focus decision">
-        <PageHeader label="Choose one" title="Pick the page that solves this week" />
+        <PageHeader label="Tool belt" title="Pick the tool that solves this week" />
         <PlayerFocusDecisionPage identity={identity} />
       </WorkbookPage>
 
@@ -343,21 +343,8 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage core footer="Training menu">
-        <PageHeader label="Player training menu" title="What to work on this week" />
-        <div className={styles.workbookGrid}>
-          {identity.sections.map((section) => (
-            <article className={styles.workbookSection} key={section.title}>
-              <TiqFeatureIcon name={section.icon} size="sm" variant="ghost" />
-              <div>
-                <h3>{section.title}</h3>
-                <p>{section.cue}</p>
-                <ul>
-                  {section.drills.map((drill) => <li key={drill}>{drill}</li>)}
-                </ul>
-              </div>
-            </article>
-          ))}
-        </div>
+        <PageHeader label="Player tool belt" title="Find the right drill fast" />
+        <PlayerToolBeltMenu identity={identity} />
       </WorkbookPage>
 
       <WorkbookPage footer="Solo training">
@@ -524,11 +511,11 @@ function PlayerPlusAccessNote() {
 
 function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const sections = [
-    ['Start here', 'Pick one goal, one court action, one off-court action, and one proof note.'],
-    ['Training menu', 'Choose the drill page that matches your next match problem.'],
+    ['Start here', 'Write the plan goal and rate where you are today.'],
+    ['Tool belt', 'Choose the tool that matches what you want to improve.'],
+    ['Training menu', 'Find self, partner, singles, doubles, and off-court work.'],
     ['Modules', 'Use the module only when it supports this week\'s goal.'],
-    ['Reusable sheets', 'Use extra recaps, match reflections, serve charts, doubles trackers, and assignments when needed.'],
-    ['Player+ companion', 'Scan QR codes when you want to save goals and evidence.'],
+    ['Player+ companion', 'Update goals, quick check-ins, and coach assignment status.'],
   ] as const
 
   return (
@@ -537,8 +524,8 @@ function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity
         <TiqFeatureIcon name="reports" size="lg" variant="surface" />
         <div>
           <span>{identity.levelPath.from} to {identity.levelPath.to}</span>
-          <strong>Do not use every page every week. Use the page that tells you what to do next.</strong>
-          <p>Each week should produce one clear goal, one honest training note, and one piece of proof you can bring back to the court.</p>
+          <strong>This is a tool belt. Use the page that matches the problem in front of you.</strong>
+          <p>Each week should produce one clear goal, a few quick ratings, and one small note if it helps you choose the next tool.</p>
         </div>
       </div>
       <div className={styles.packetIndexGrid}>
@@ -550,7 +537,7 @@ function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity
           </article>
         ))}
       </div>
-      <TrackerTable columns={['Use this page when', 'You complete', 'Coach reviews', 'Player+ save point']} rows={['Before the block', 'Each module', 'After a match', 'Before next lesson']} />
+      <TrackerTable columns={['If I need', 'Go to', 'Use it for', 'Quick check-in']} rows={['Plan goal', 'Tool belt', 'Self drill', 'Partner / doubles drill', 'Off-court habit']} />
     </div>
   )
 }
@@ -609,9 +596,10 @@ function TodayLessonSheet({ identity }: { identity: PlayerDevelopmentIdentity })
         columns={['Test', 'Pass', 'Fix cue', 'Retest result']}
         rows={['Routine holds under pressure', 'Target named before contact', 'Recovery happens after contact', 'You can explain the next assignment']}
       />
+      <QuickRatingStrip labels={['Plan clear', 'Body ready', 'Focus locked', 'Confidence']} />
       <div className={styles.twoColumn}>
-        <ReflectionLines label="One sentence goal for today's lesson" rows={4} />
-        <ReflectionLines label="Assignment to bring back next time" rows={4} />
+        <ReflectionLines label="Plan goal in one sentence" rows={3} />
+        <ReflectionLines label="Small note if needed" rows={3} />
       </div>
     </div>
   )
@@ -637,7 +625,7 @@ function getPlayerTrainingMenus(identity: PlayerDevelopmentIdentity) {
     partner: isRelentless
       ? [
           ['Wide-ball reset game', 'Partner feeds wide. You must reset high crosscourt, recover, then play the next ball neutral.'],
-          ['Green-yellow-red rally', 'Call the ball before contact and attack only green balls.'],
+          ['Offense-neutral-defense rally', 'Call the ball before contact: defend, neutralize, or attack. Attack only when the ball is earned.'],
           ['Second-serve plus one', 'Start each point with a second serve. Score only if the next ball is ready and controlled.'],
           ['Late-game footwork set', 'Play first to 7 starting at 30-30. Bonus point if feet stay active after contact.'],
         ]
@@ -665,11 +653,11 @@ function getPlayerTrainingMenus(identity: PlayerDevelopmentIdentity) {
 
 function PlayerGoalCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const rows = [
-    'Current two-week goal',
-    'On-court work completed',
-    'Off-court habit completed',
-    'Best proof from match or practice',
-    'Next adjustment',
+    'Plan goal',
+    'Practice effort',
+    'Execution',
+    'Pressure response',
+    'Confidence',
   ]
 
   return (
@@ -677,34 +665,35 @@ function PlayerGoalCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }
       <div className={styles.playerCheckInHero}>
         <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
         <div>
-          <span>Player-owned tracking</span>
-          <strong>Show what you worked on. Tell what changed. Choose what comes next.</strong>
+          <span>Player quick check-in</span>
+          <strong>Rate it fast. Write one note only if it helps you choose the next tool.</strong>
           <p>
-            This page is for you first. Bring it to a coach, captain, parent, or practice partner when you need feedback.
+            This is not a summary page. It is a quick read on your plan, your work, and what you should train next.
           </p>
         </div>
       </div>
       <div className={styles.goalLoopGrid}>
-        {['Goal', 'Work', 'Proof', 'Next'].map((step, index) => (
+        {['Plan', 'Rate', 'Choose', 'Act'].map((step, index) => (
           <article key={step}>
             <span>{String(index + 1).padStart(2, '0')}</span>
             <strong>{step}</strong>
             <p>
-              {step === 'Goal'
+              {step === 'Plan'
                 ? `Pick one ${identity.title.replace(/^The /, '').toLowerCase()} habit.`
-                : step === 'Work'
-                  ? 'Do the court or off-court work and record the reps.'
-                  : step === 'Proof'
-                    ? 'Bring a match moment, score, chart, or drill result.'
-                    : 'Choose the next small adjustment before adding more goals.'}
+                : step === 'Rate'
+                  ? 'Use numbers first. Save writing for what actually matters.'
+                  : step === 'Choose'
+                    ? 'Use the tool belt: self, partner, doubles, match, or off-court.'
+                    : 'Do the smallest useful action before adding more goals.'}
             </p>
           </article>
         ))}
       </div>
-      <TrackerTable columns={['Check-in item', 'This week', 'Evidence', 'Next action']} rows={rows} />
+      <QuickRatingStrip labels={['Plan clarity', 'Effort', 'Execution', 'Pressure', 'Confidence']} />
+      <TrackerTable columns={['Quick check-in', '0-5 rating', 'Tool to use next', 'Tiny note if needed']} rows={rows} />
       <div className={styles.twoColumn}>
-        <ReflectionLines label="What I am proud of from this week" rows={4} />
-        <ReflectionLines label="What I want help testing next" rows={4} />
+        <ReflectionLines label="Plan goal" rows={3} />
+        <ReflectionLines label="Small overall note if needed" rows={3} />
       </div>
     </div>
   )
@@ -748,10 +737,11 @@ function PlayerWeeklyActionPlan({ identity }: { identity: PlayerDevelopmentIdent
         ))}
       </div>
       <TrackerTable columns={['This week', 'My choice', 'Done?', 'Proof']} rows={guideRows} />
+      <QuickRatingStrip labels={['Goal clear', 'On-court work', 'Off-court work', 'Match ready']} />
       <QuickCheckStrip labels={['Picked one habit', 'Court work done', 'Off-court work done', 'Proof written']} />
       <div className={styles.twoColumn}>
         <ReflectionLines label="The one habit I am training this week" rows={4} />
-        <ReflectionLines label="The proof I will bring back" rows={4} />
+        <ReflectionLines label="Small note if needed" rows={4} />
       </div>
     </div>
   )
@@ -761,18 +751,18 @@ function PlayerFocusDecisionPage({ identity }: { identity: PlayerDevelopmentIden
   const isRelentless = identity.slug.includes('relentless')
   const choices = isRelentless
     ? [
-        ['Serves change under pressure', 'Serve Development', 'Call the target before the toss. Track made target, not just made serve.'],
-        ['Feet stop after contact', 'Movement Development', 'Recover before watching the result. Count only reps where recovery happens.'],
-        ['You attack too early', 'Forehand / Backhand Development', 'Call neutral, build, attack, or short before swinging faster.'],
-        ['You rush when stretched', 'Conditioning Section', 'Hit high-margin reset, recover, breathe, then play the next ball.'],
-        ['Doubles feels reactive', 'Doubles Development', 'Call serve location and first move before the point starts.'],
+        ['Serve breaks under pressure', 'Self drill: serve target reps', 'Call wide, body, or T before the toss. Rate routine clarity 0-5.'],
+        ['Feet stop after contact', 'Self or partner drill: recovery lanes', 'Recover before watching the result. Rate recovery 0-5.'],
+        ['You attack too early', 'Partner drill: offense-neutral-defense rally', 'Call defend, neutral, or offense before contact. Rate decision quality 0-5.'],
+        ['You rush when stretched', 'Match card + off-court reset', 'Hit high-margin defense, recover, breathe, then play the next ball. Rate calm 0-5.'],
+        ['Doubles feels reactive', 'Partner drill: doubles first move', 'Call serve location and first move before the point starts. Rate communication 0-5.'],
       ]
     : [
-        ['You force line changes', 'Pattern Development', 'Build crosscourt depth before changing direction.'],
-        ['Serve does not create a first ball', 'Serve +1 Development', 'Name the +1 target before the serve.'],
-        ['Returns start neutral or worse', 'Return Pressure', 'Step in on second serves and recover after depth.'],
-        ['You approach and stop', 'Forward Closing', 'Close, split, then choose the finish.'],
-        ['Attacks become panic swings', 'Transition Defense', 'Reset when the attack is not earned.'],
+        ['You force line changes', 'Partner drill: crosscourt earn-and-change', 'Build crosscourt depth before changing direction. Rate patience 0-5.'],
+        ['Serve does not create a first ball', 'Self drill: serve plus-one shadow', 'Name the +1 target before the serve. Rate first-ball clarity 0-5.'],
+        ['Returns start neutral or worse', 'Partner drill: return step-in game', 'Step in on second serves and recover after depth. Rate return intent 0-5.'],
+        ['You approach and stop', 'Partner drill: short-ball close', 'Close, split, then choose the finish. Rate forward movement 0-5.'],
+        ['Attacks become panic swings', 'Match card + off-court balance audit', 'Reset when the attack is not earned. Rate decision quality 0-5.'],
       ]
 
   return (
@@ -780,9 +770,9 @@ function PlayerFocusDecisionPage({ identity }: { identity: PlayerDevelopmentIden
       <div className={styles.focusDecisionHero}>
         <TiqFeatureIcon name="scenarioBuilder" size="lg" variant="surface" />
         <div>
-          <span>Decision rule</span>
-          <strong>Do the page that matches the problem you actually have.</strong>
-          <p>Pick one row. Use it for seven days. Do not add a second focus until you have proof from the first one.</p>
+          <span>Tool belt rule</span>
+          <strong>Choose the tool that matches what you want to improve.</strong>
+          <p>Pick one row. Use it for seven days. Rate it quickly, then switch tools only when the rating tells you to.</p>
         </div>
       </div>
       <div className={styles.focusDecisionGrid}>
@@ -790,16 +780,16 @@ function PlayerFocusDecisionPage({ identity }: { identity: PlayerDevelopmentIden
           <article key={problem}>
             <span>{String(index + 1).padStart(2, '0')} If</span>
             <strong>{problem}</strong>
-            <p><b>Go to:</b> {page}</p>
+            <p><b>Tool:</b> {page}</p>
             <p><b>Do:</b> {action}</p>
           </article>
         ))}
       </div>
       <TrackerTable
-        columns={['This week I choose', 'Why it matters', 'Action I will do', 'Proof I will bring']}
+        columns={['I want to improve', 'Tool I need', '0-5 now', 'Use next']}
         rows={identity.sections.slice(0, 5).map((section) => section.title)}
       />
-      <QuickCheckStrip labels={['One focus only', 'Drill chosen', 'Test chosen', 'Proof target clear']} />
+      <QuickCheckStrip labels={['One focus only', 'Tool chosen', 'Rating done', 'Next action clear']} />
     </div>
   )
 }
@@ -864,17 +854,17 @@ function PlayerMatchOnePager({ identity }: { identity: PlayerDevelopmentIdentity
     ? [
         ['If you get tight', 'Breathe, name the target, play with margin.'],
         ['If legs get heavy', 'Recover before watching and make the next ball neutral.'],
-        ['If you miss attacking', 'Go back to earning green balls before accelerating.'],
+        ['If you miss attacking', 'Go back to earning offensive balls before accelerating.'],
       ]
     : [
         ['If you get tight', 'Build one more ball before trying to finish.'],
         ['If you rush forward', 'Split after the approach before choosing the volley.'],
         ['If errors stack', 'Use placement and court position before extra speed.'],
       ]
-  const recapRows = [
+  const checkInRows = [
     'Score and opponent',
-    'Best identity moment',
-    'Moment I lost the plan',
+    'Plan rating 0-5',
+    'Pressure rating 0-5',
     'One thing to train next',
   ]
 
@@ -884,7 +874,7 @@ function PlayerMatchOnePager({ identity }: { identity: PlayerDevelopmentIdentity
         <TiqFeatureIcon name="reports" size="lg" variant="surface" />
         <div>
           <span>Carry this to matches</span>
-          <strong>Prepare simply. Reset quickly. Recap before the lesson fades.</strong>
+          <strong>Prepare simply. Reset quickly. Check in before the lesson fades.</strong>
           <p>Use this one page on match day. The goal is not a long journal. The goal is one clear next action.</p>
         </div>
       </div>
@@ -908,16 +898,16 @@ function PlayerMatchOnePager({ identity }: { identity: PlayerDevelopmentIdentity
           ))}
         </section>
         <section>
-          <span>Post-match recap</span>
-          <p>Do this within five minutes. Do not wait until the story changes.</p>
-          <TrackerTable columns={['Recap item', 'Your note']} rows={recapRows} />
+          <span>Post-match quick check-in</span>
+          <p>Do this within five minutes. Use numbers first. Add one small note only if it changes the next practice.</p>
+          <TrackerTable columns={['Check-in item', 'Rating / note']} rows={checkInRows} />
         </section>
       </div>
       <div className={styles.matchCardFooter}>
         <ReflectionLines label="My next practice should start with" rows={4} />
-        <QrAction href={`/player-development/${identity.slug}/workbook`} label="Save match recap" mode="player-plus" />
+        <QrAction href="/mylab" label="Save check-in" mode="player-plus" />
       </div>
-      <QuickCheckStrip labels={['Cue chosen', 'Plan used', 'Reset used', 'Recap done']} />
+      <QuickCheckStrip labels={['Cue chosen', 'Plan used', 'Reset used', 'Check-in done']} />
     </div>
   )
 }
@@ -958,6 +948,54 @@ function PlayerOffCourtTraining({ identity }: { identity: PlayerDevelopmentIdent
   )
 }
 
+function PlayerToolBeltMenu({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const toolRoutes = [
+    ['Plan goal', 'Start with the weekly action plan and goal check-in.', 'Weekly action plan'],
+    ['I need reps alone', 'Use solo work: serve basket, wall, shadow, recovery, or routine reps.', 'Solo training'],
+    ['I have a partner', 'Use rally constraints, feed drills, serve/return games, or pressure sets.', 'Hitting partner'],
+    ['I need doubles work', 'Use communication, first move, poach timing, and partner-position drills.', 'Doubles tools'],
+    ['I am preparing for a match', 'Use the pre-match, during-match, and post-match quick check-in card.', 'Match card'],
+    ['I am away from court', 'Use routine rehearsal, match notes, fitness habits, and opponent plans.', 'Off-court work'],
+  ] as const
+
+  return (
+    <div className={styles.toolBeltMenu}>
+      <div className={styles.toolBeltHero}>
+        <TiqFeatureIcon name="scenarioBuilder" size="lg" variant="surface" />
+        <div>
+          <span>Use the right tool</span>
+          <strong>Pick what you want to improve, then go straight to that page.</strong>
+          <p>Do not read every section. Choose the smallest tool that helps your next practice, match, or coach assignment.</p>
+        </div>
+      </div>
+      <div className={styles.toolBeltRouteGrid}>
+        {toolRoutes.map(([need, action, page], index) => (
+          <article key={need}>
+            <span>{String(index + 1).padStart(2, '0')} {need}</span>
+            <strong>{page}</strong>
+            <p>{action}</p>
+          </article>
+        ))}
+      </div>
+      <div className={styles.workbookGrid}>
+        {identity.sections.map((section) => (
+          <article className={styles.workbookSection} key={section.title}>
+            <TiqFeatureIcon name={section.icon} size="sm" variant="ghost" />
+            <div>
+              <h3>{section.title}</h3>
+              <p>{section.cue}</p>
+              <ul>
+                {section.drills.map((drill) => <li key={drill}>{drill}</li>)}
+              </ul>
+            </div>
+          </article>
+        ))}
+      </div>
+      <TrackerTable columns={['I want to improve', 'Tool page', 'Self / partner / doubles', '0-5 after']} rows={identity.sections.slice(0, 5).map((section) => section.title)} />
+    </div>
+  )
+}
+
 function PlayerTrainingSheet({
   intro,
   rows,
@@ -983,9 +1021,23 @@ function PlayerTrainingSheet({
           </article>
         ))}
       </div>
-      <TrackerTable columns={['Work block', 'Reps or score', 'What improved?', 'What to repeat?']} rows={tableRows} />
+      <TrackerTable columns={['Work block', 'Reps or score', '0-5 rating', 'Tiny note']} rows={tableRows} />
+      <QuickRatingStrip labels={['Effort', 'Control', 'Decision', 'Pressure']} />
       <QuickCheckStrip labels={['Done', 'Hard', 'Showed in match', 'Bring to coach']} />
-      <ReflectionLines label="My note before the next session" rows={4} />
+      <ReflectionLines label="Small note before the next session" rows={3} />
+    </div>
+  )
+}
+
+function QuickRatingStrip({ labels }: { labels: string[] }) {
+  return (
+    <div className={styles.quickRatingStrip}>
+      {labels.map((label) => (
+        <span key={label}>
+          <strong>{label}</strong>
+          <i>0</i><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i>
+        </span>
+      ))}
     </div>
   )
 }
@@ -1104,7 +1156,7 @@ function getWorkbookEnhancements(identity: PlayerDevelopmentIdentity) {
       ? [
           'Held second-serve routine on three pressure points.',
           'Recovered neutral after five wide-ball defensive reps.',
-          'Attacked only earned green balls for one full set.',
+          'Attacked only when the ball created an offensive advantage for one full set.',
           'Won more late games because feet stayed active after contact.',
           'Created a playable +1 after called serve targets.',
         ]
@@ -2120,12 +2172,12 @@ function ReusableSheets({ identity }: { identity: PlayerDevelopmentIdentity }) {
 function ReusableWorkbookSheets({ identity }: { identity: PlayerDevelopmentIdentity }) {
   return (
     <>
-      <WorkbookPage footer="Player recap">
-        <PageHeader label="Reusable sheet" title="Player recap" />
+      <WorkbookPage footer="Player check-in">
+        <PageHeader label="Reusable sheet" title="Player quick check-in" />
         <div className={styles.sheetLayout}>
-          <ReflectionLines label="What improved in this module" rows={5} />
-          <ReflectionLines label="What needs coach attention" rows={5} />
-          <TrackerTable columns={['Habit', 'Score', 'Evidence', 'Next action']} rows={identity.sections.slice(0, 5).map((section) => section.title)} />
+          <TrackerTable columns={['Habit', '0-5 now', 'Tool to use next', 'Tiny note']} rows={identity.sections.slice(0, 5).map((section) => section.title)} />
+          <QuickRatingStrip labels={['Plan', 'Effort', 'Execution', 'Pressure']} />
+          <ReflectionLines label="Small note if needed" rows={4} />
         </div>
       </WorkbookPage>
 
@@ -2500,9 +2552,9 @@ function getTacticalOverlay(diagram: PlayerDevelopmentDiagram): DrillOverlay {
         { id: 'close', from: { x: 50, y: 76 }, to: { x: 50, y: 55 }, type: 'movement' },
       ],
       zones: [
-        { id: 'red', marker: 'cone', x: 28, y: 61, width: 14, height: 10 },
-        { id: 'yellow', marker: 'target', x: 44, y: 48, width: 12, height: 9 },
-        { id: 'green', marker: 'target', x: 62, y: 25, width: 13, height: 9 },
+        { id: 'defense', marker: 'cone', x: 28, y: 61, width: 14, height: 10 },
+        { id: 'neutral', marker: 'target', x: 44, y: 48, width: 12, height: 9 },
+        { id: 'offense', marker: 'target', x: 62, y: 25, width: 13, height: 9 },
       ],
     },
     'short-ball-approach': {
@@ -2775,9 +2827,9 @@ export function getCourtOverlay(diagram: PlayerDevelopmentDiagram) {
         <rect className={styles.courtZone} x="118" y="82" width="46" height="30" rx="5" />
         <rect className={styles.courtAttackZone} x="176" y="42" width="44" height="32" rx="5" />
         <rect className={styles.courtAttackZone} x="116" y="92" width="52" height="28" rx="5" />
-        <CourtTarget x={82} y={132} label="Red" shortLabel="R" tone="danger" labelPosition="inside" />
-        <CourtTarget x={140} y={96} label="Yellow" shortLabel="Y" labelPosition="inside" />
-        <CourtTarget x={198} y={58} label="Green" shortLabel="G" labelPosition="inside" />
+        <CourtTarget x={82} y={132} label="Defense" shortLabel="D" tone="danger" labelPosition="inside" />
+        <CourtTarget x={140} y={96} label="Neutral" shortLabel="N" labelPosition="inside" />
+        <CourtTarget x={198} y={58} label="Offense" shortLabel="O" labelPosition="inside" />
         <path className={styles.courtArrow} d="M82 132 C103 112 121 104 140 96" />
         <path className={styles.courtArrow} d="M140 96 C159 78 177 66 198 58" />
         <path className={styles.courtRecoveryLane} d="M140 150 L140 106" />

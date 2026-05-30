@@ -41,6 +41,7 @@ describe('Player Development public cleanup', () => {
       'PlayerGoalCheckIn',
       'PlayerWeeklyActionPlan',
       'PlayerFocusDecisionPage',
+      'PlayerToolBeltMenu',
       'PlayerProgressionCard',
       'PlayerMatchOnePager',
       'PlayerSoloTraining',
@@ -50,12 +51,18 @@ describe('Player Development public cleanup', () => {
       'CoachReadinessAdapter',
       'CoachProgressionRules',
       'CoachOneHourPlans',
+      'QuickRatingStrip',
     ]) {
       expect(systemSource).toContain(expected)
     }
 
     expect(systemSource).toContain('One week. One habit. One proof note.')
-    expect(systemSource).toContain('Pick the page that solves this week')
+    expect(systemSource).toContain('Pick the tool that solves this week')
+    expect(systemSource).toContain('This is a tool belt.')
+    expect(systemSource).toContain('Offense-neutral-defense rally')
+    expect(systemSource).toContain('Defense')
+    expect(systemSource).toContain('Neutral')
+    expect(systemSource).toContain('Offense')
     expect(systemSource).toContain('Know when to repeat, progress, or test in a match')
     expect(systemSource).toContain('Use the same progression language as the player')
     expect(systemSource).toContain('Before, during, after')
@@ -68,6 +75,8 @@ describe('Player Development public cleanup', () => {
     expect(controlsSource).toContain('Coach section')
     expect(systemSource).toContain('One-hour lesson plans: Modules 1-4')
     expect(systemSource).toContain('One-hour lesson plans: Modules 5-8')
+    expect(systemSource).not.toContain('Green-yellow-red rally')
+    expect(systemSource).not.toContain('earned green balls')
     expect(existsSync(join(process.cwd(), 'scripts/verify-player-development-print.mjs'))).toBe(true)
   })
 })
