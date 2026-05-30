@@ -60,6 +60,29 @@ const dataAssistTrustSignals = [
   { label: 'Status', value: 'Verified / needs review / imported / disputed' },
 ] as const
 
+const dataAssistReviewFlow = [
+  {
+    step: '1',
+    title: 'Upload source',
+    body: 'Add a scorecard, schedule, team summary, roster, or correction source.',
+  },
+  {
+    step: '2',
+    title: 'Read the signals',
+    body: 'TenAceIQ checks source, freshness, confidence, and review status before using it.',
+  },
+  {
+    step: '3',
+    title: 'Confirm or flag',
+    body: 'Clean reads can import. Unclear rows stop for review instead of quietly changing records.',
+  },
+  {
+    step: '4',
+    title: 'Feed tennis context',
+    body: 'Reviewed data can improve players, teams, leagues, rankings, Matchup, My Lab, and Coach Hub.',
+  },
+] as const
+
 const importTypes: Array<{
   id: DataAssistImportType
   label: string
@@ -739,6 +762,7 @@ function DataAssistWorkspace() {
         {showUploadStep ? (
           <section id="upload" style={panelStyle}>
             <DataAssistTrustEnginePanel />
+            <DataAssistReviewFlowPanel />
 
             <div style={sectionHeaderStyle}>
               <div style={headerCopyStyle}>
@@ -1055,6 +1079,29 @@ function DataAssistTrustEnginePanel() {
         <a href="#history" style={secondaryButtonStyle}>
           Request review
         </a>
+      </div>
+    </section>
+  )
+}
+
+function DataAssistReviewFlowPanel() {
+  return (
+    <section style={reviewFlowPanelStyle} aria-labelledby="data-assist-review-flow-title">
+      <div style={reviewFlowHeaderStyle}>
+        <span style={reviewFlowEyebrowStyle}>Review flow</span>
+        <h2 id="data-assist-review-flow-title" style={reviewFlowTitleStyle}>What happens after an upload?</h2>
+        <p style={copyStyle}>
+          Data Assist is intentionally review-first. It should make records more useful without hiding uncertainty.
+        </p>
+      </div>
+      <div style={reviewFlowGridStyle}>
+        {dataAssistReviewFlow.map((item) => (
+          <article key={item.title} style={reviewFlowCardStyle}>
+            <span style={reviewFlowStepStyle}>{item.step}</span>
+            <strong style={reviewFlowCardTitleStyle}>{item.title}</strong>
+            <p style={reviewFlowCardTextStyle}>{item.body}</p>
+          </article>
+        ))}
       </div>
     </section>
   )
@@ -2759,6 +2806,90 @@ const trustActionRowStyle: CSSProperties = {
   gap: 10,
   alignItems: 'center',
   minWidth: 0,
+}
+
+const reviewFlowPanelStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const reviewFlowHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  maxWidth: 820,
+  overflowWrap: 'anywhere',
+}
+
+const reviewFlowEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const reviewFlowTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const reviewFlowGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const reviewFlowCardStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 12,
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const reviewFlowStepStyle: CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-panel-bg) 86%)',
+  color: 'var(--foreground-strong)',
+  display: 'grid',
+  placeItems: 'center',
+  fontSize: 12,
+  fontWeight: 950,
+}
+
+const reviewFlowCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const reviewFlowCardTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const intentPanelStyle: CSSProperties = {

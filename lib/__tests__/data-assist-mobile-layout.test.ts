@@ -32,6 +32,10 @@ describe('Data Assist mobile layout guards', () => {
       'dropzoneStyle',
       'compactDropzoneStyle',
       'scorecardPausedPanelStyle',
+      'reviewFlowPanelStyle',
+      'reviewFlowHeaderStyle',
+      'reviewFlowGridStyle',
+      'reviewFlowCardStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }

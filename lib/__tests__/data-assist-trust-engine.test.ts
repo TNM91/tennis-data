@@ -35,6 +35,18 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('id="history"')
   })
 
+  it('explains the review-first upload flow before users choose a file', () => {
+    expect(source).toContain('const dataAssistReviewFlow')
+    expect(source).toContain('DataAssistReviewFlowPanel')
+    expect(source).toContain('What happens after an upload?')
+    expect(source).toContain('Data Assist is intentionally review-first.')
+    expect(source).toContain('Upload source')
+    expect(source).toContain('Read the signals')
+    expect(source).toContain('Confirm or flag')
+    expect(source).toContain('Feed tennis context')
+    expect(source).toContain('Reviewed data can improve players, teams, leagues, rankings, Matchup, My Lab, and Coach Hub.')
+  })
+
   it('acknowledges review/report URL intents from public trust links', () => {
     expect(source).toContain("import { useSearchParams } from 'next/navigation'")
     expect(source).toContain("type DataAssistIntent = 'upload-source' | 'report-issue' | 'request-review'")
