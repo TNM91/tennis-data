@@ -605,7 +605,7 @@ const mobileAccountToolsStyle: CSSProperties = {
 const headerSearchPanelStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  width: 'min(920px, calc(100% - 24px))',
+  width: 'min(920px, calc(100% - clamp(24px, 5vw, 32px)))',
   margin: '10px auto 0',
   padding: 14,
   borderRadius: 22,

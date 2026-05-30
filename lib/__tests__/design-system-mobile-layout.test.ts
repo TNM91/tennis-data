@@ -18,10 +18,10 @@ describe('shared design system mobile layout guards', () => {
     expect(styleBlock('pageShell')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 32px)))'")
     expect(styleBlock('pageShellTight')).toContain("width: 'min(1120px, calc(100% - clamp(24px, 5vw, 32px)))'")
 
-    expect(styleBlock('orbOne')).toContain("width: 'min(100%, 360px)'")
+    expect(styleBlock('orbOne')).toContain("width: 'min(84vw, 360px)'")
     expect(styleBlock('orbOne')).toContain("height: 'min(100%, 360px)'")
     expect(styleBlock('orbOne')).toContain("maxWidth: '100%'")
-    expect(styleBlock('orbTwo')).toContain("width: 'min(100%, 320px)'")
+    expect(styleBlock('orbTwo')).toContain("width: 'min(74vw, 320px)'")
     expect(styleBlock('orbTwo')).toContain("height: 'min(100%, 320px)'")
     expect(styleBlock('orbTwo')).toContain("maxWidth: '100%'")
 
