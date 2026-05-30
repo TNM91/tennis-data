@@ -891,7 +891,7 @@ export default function PlayersPage() {
                       { label: 'Confidence', value: player.confidence, tone: player.confidence === 'High' ? 'good' : player.confidence === 'Medium' ? 'warn' : 'info' },
                       { label: 'Status', value: isSelfRatedPlayer(player) ? 'Needs review' : 'Reviewable', tone: isSelfRatedPlayer(player) ? 'warn' : 'good' },
                     ]}
-                    actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`Player ${player.name}`)}`}
+                    reviewContext={`Player ${player.name}`}
                   />
 
                   <div style={deltaRow}>

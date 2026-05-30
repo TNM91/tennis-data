@@ -270,7 +270,7 @@ function TournamentPublicInner() {
           { label: 'Confidence', value: summary?.completedMatches ? 'Results reviewed' : 'Limited until scores', tone: summary?.completedMatches ? 'good' : 'warn' },
           { label: 'Status', value: record.isPublic ? 'Public / reviewable' : 'Director view', tone: record.isPublic ? 'good' : 'info' },
         ]}
-        actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`Tournament ${record.name}`)}`}
+        reviewContext={`Tournament ${record.name}`}
       />
 
       <section style={playerRailStyle} aria-label="Match-day actions">

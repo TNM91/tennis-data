@@ -485,7 +485,7 @@ function LeagueSection({
                     { label: 'Confidence', value: league.matchCount >= 10 ? 'High' : league.matchCount >= 3 ? 'Medium' : 'Limited', tone: league.matchCount >= 10 ? 'good' : league.matchCount >= 3 ? 'warn' : 'info' },
                     { label: 'Status', value: 'Reviewable', tone: 'good' },
                   ]}
-                  actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`League ${league.leagueName}`)}`}
+                  reviewContext={`League ${league.leagueName}`}
                 />
                 {league.competitionLayer === 'tiq' && league.leagueFormat === 'individual' ? (
                   <div style={formatPreviewStyle}>

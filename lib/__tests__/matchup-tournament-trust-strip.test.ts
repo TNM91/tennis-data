@@ -13,16 +13,16 @@ describe('matchup and tournament trust strips', () => {
     expect(source).toContain("value: 'TIQ demo'")
     expect(source).toContain("value: 'Preview'")
     expect(source).toContain("value: 'Medium'")
-    expect(source).toContain('context=Matchup%20demo')
+    expect(source).toContain('reviewContext="Matchup demo"')
   })
 
-  it('adds compact trust signals and report path to tournament public detail pages', () => {
+  it('adds compact trust signals and Data Assist review actions to tournament public detail pages', () => {
     const source = read('app/tournaments/[id]/page.tsx')
 
     expect(source).toContain("import TiqTrustStrip from '@/app/components/tiq-trust-strip'")
     expect(source).toContain('compact data trust signals')
     expect(source).toContain("source === 'cloud' ? 'Tournament Desk' : 'Device preview'")
     expect(source).toContain("summary?.completedMatches ? 'Results reviewed' : 'Limited until scores'")
-    expect(source).toContain("intent=report-issue")
+    expect(source).toContain('reviewContext={`Tournament ${record.name}`}')
   })
 })

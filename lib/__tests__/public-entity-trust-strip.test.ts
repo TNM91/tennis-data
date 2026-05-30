@@ -5,13 +5,21 @@ import { describe, expect, it } from 'vitest'
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
 
 describe('public entity trust strips', () => {
-  it('provides a compact reusable trust strip with source, freshness, confidence, status, and issue reporting', () => {
+  it('provides a compact reusable trust strip with source, freshness, confidence, status, and Data Assist review actions', () => {
     const source = read('app/components/tiq-trust-strip.tsx')
 
     expect(source).toContain("import TrackedProductLink")
     expect(source).toContain("label: 'Source' | 'Freshness' | 'Confidence' | 'Status'")
     expect(source).toContain("actionLabel = 'Report issue'")
+    expect(source).toContain('reviewContext')
+    expect(source).toContain("label: 'Upload source'")
+    expect(source).toContain("label: 'Report issue'")
+    expect(source).toContain("label: 'Request review'")
+    expect(source).toContain('intent=upload-source')
+    expect(source).toContain('intent=report-issue')
+    expect(source).toContain('intent=request-review')
     expect(source).toContain("eventName: 'data_issue_reported'")
+    expect(source).toContain("eventName: 'data_assist_opened'")
     expect(source).toContain("metadata: {")
     expect(source).toContain("trustLabel: label")
     expect(source).toContain('aria-label={label}')
@@ -31,7 +39,7 @@ describe('public entity trust strips', () => {
       expect(source).toContain("label: 'Freshness'")
       expect(source).toContain("label: 'Confidence'")
       expect(source).toContain("label: 'Status'")
-      expect(source).toContain("intent=report-issue")
+      expect(source).toContain("reviewContext={`")
     }
   })
 })

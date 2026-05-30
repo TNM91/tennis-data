@@ -953,7 +953,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
             { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
             { label: 'Status', value: 'Reviewable', tone: 'good' },
           ]}
-          actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`Team ${row.team}`)}`}
+          reviewContext={`Team ${row.team}`}
         />
     </article>
   )

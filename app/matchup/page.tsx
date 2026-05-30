@@ -2317,7 +2317,7 @@ function DemoMatchupCard() {
           { label: 'Confidence', value: 'Medium', tone: 'warn' },
           { label: 'Status', value: 'Reviewable', tone: 'good' },
         ]}
-        actionHref="/data-assist?intent=report-issue&context=Matchup%20demo"
+        reviewContext="Matchup demo"
       />
       <div style={exploreNavRow}>
         <Link href="/explore/players" style={miniGhostButton}>Compare this player</Link>

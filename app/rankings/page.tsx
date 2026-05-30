@@ -1502,7 +1502,7 @@ function RankingCompactCard({
           { label: 'Confidence', value: player.confidence, tone: player.confidence === 'High' ? 'good' : player.confidence === 'Medium' ? 'warn' : 'info' },
           { label: 'Status', value: player.status, tone: player.status === 'Holding' || player.status === 'Trending Up' ? 'good' : 'warn' },
         ]}
-        actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`Ranking ${player.name}`)}`}
+        reviewContext={`Ranking ${player.name}`}
       />
 
       <div style={compactBottomGridStyle}>

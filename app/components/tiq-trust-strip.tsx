@@ -17,6 +17,7 @@ export default function TiqTrustStrip({
   actionLabel = 'Report issue',
   actionEvent,
   actionSurface = 'data_assist',
+  reviewContext,
 }: {
   label?: string
   signals: TiqTrustSignal[]
@@ -24,6 +25,7 @@ export default function TiqTrustStrip({
   actionLabel?: string
   actionEvent?: ProductLinkEvent
   actionSurface?: ProductUsageEventSurface
+  reviewContext?: string
 }) {
   const event = actionEvent ?? (actionHref
     ? {
@@ -36,6 +38,38 @@ export default function TiqTrustStrip({
         },
       }
     : undefined)
+  const encodedReviewContext = reviewContext ? encodeURIComponent(reviewContext) : ''
+  const reviewActions = reviewContext
+    ? [
+        {
+          label: 'Upload source',
+          href: `/data-assist?intent=upload-source&context=${encodedReviewContext}`,
+          event: {
+            eventName: 'data_assist_opened' as const,
+            surface: actionSurface,
+            metadata: { action: 'upload_source', trustLabel: label, context: reviewContext },
+          },
+        },
+        {
+          label: 'Report issue',
+          href: `/data-assist?intent=report-issue&context=${encodedReviewContext}`,
+          event: {
+            eventName: 'data_issue_reported' as const,
+            surface: actionSurface,
+            metadata: { action: 'report_issue', trustLabel: label, context: reviewContext },
+          },
+        },
+        {
+          label: 'Request review',
+          href: `/data-assist?intent=request-review&context=${encodedReviewContext}`,
+          event: {
+            eventName: 'data_assist_opened' as const,
+            surface: actionSurface,
+            metadata: { action: 'request_review', trustLabel: label, context: reviewContext },
+          },
+        },
+      ]
+    : []
 
   return (
     <div style={trustRowStyle} aria-label={label}>
@@ -45,7 +79,18 @@ export default function TiqTrustStrip({
           {signal.value}
         </span>
       ))}
-      {actionHref ? (
+      {reviewActions.map((action) => (
+        <TrackedProductLink
+          key={action.label}
+          href={action.href}
+          style={actionChipStyle}
+          ariaLabel={`${action.label}: ${label}`}
+          event={action.event}
+        >
+          {action.label}
+        </TrackedProductLink>
+      ))}
+      {actionHref && !reviewContext ? (
         <TrackedProductLink
           href={actionHref}
           style={actionChipStyle}
