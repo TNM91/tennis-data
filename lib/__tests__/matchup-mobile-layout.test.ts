@@ -23,7 +23,6 @@ function functionBlock(functionName: string) {
 describe('matchup mobile layout guards', () => {
   it('collapses dense setup and comparison rows on narrow screens', () => {
     expect(matchupSource).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
-    expect(matchupSource).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(matchupSource).toContain('const dynamicIdentitySetupStripStyle: CSSProperties')
     expect(matchupSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
     expect(styleBlock('identitySetupStripStyle')).toContain("'minmax(0, 3.5rem) minmax(0, 1fr) minmax(0, 10rem)'")
@@ -38,9 +37,7 @@ describe('matchup mobile layout guards', () => {
     expect(matchupSource).toContain("flex: '0 1 90px'")
     expect(matchupSource).not.toContain("minWidth: '90px'")
     expect(styleBlock('contentWrap')).toContain('minWidth: 0')
-    expect(styleBlock('heroWrap')).toContain('minWidth: 0')
-    expect(styleBlock('engineCard')).toContain('minWidth: 0')
-    expect(functionBlock('dynamicHeroContent')).toContain("isTablet ? 'minmax(0, 1fr)'")
+    expect(styleBlock('controlsCard')).toContain('minWidth: 0')
     expect(functionBlock('dynamicCompareGrid')).toContain('gridTemplateColumns: isTablet')
     expect(functionBlock('dynamicCompareGrid')).toContain("? 'minmax(0, 1fr)'")
     expect(functionBlock('dynamicCompareGrid')).toContain("minmax(min(100%, 180px), 220px)")
@@ -62,13 +59,12 @@ describe('matchup mobile layout guards', () => {
       'selectorGrid',
       'selectFieldStyle',
       'ratingSignalStyle',
-      'editorialPanel',
-      'editorialGrid',
-      'editorialCard',
+      'handoffHeaderStyle',
       'handoffSidesGridStyle',
       'handoffCardStyle',
       'handoffSideCardStyle',
       'doublesQuickStartStyle',
+      'doublesQuickStartTextStyle',
       'doublesPreviewGridStyle',
       'doublesPreviewCardStyle',
       'suggestionGrid',
@@ -92,24 +88,27 @@ describe('matchup mobile layout guards', () => {
       'inputLabel',
       'ratingSectionLabelStyle',
       'errorTitleStyle',
-      'editorialText',
-      'editorialCard',
-      'editorialCardLabel',
-      'editorialCardValue',
       'handoffKickerStyle',
       'handoffCardStyle',
       'handoffSideCardStyle',
       'handoffSideLabelStyle',
+      'handoffSideNameStyle',
+      'handoffSideMetaStyle',
       'doublesQuickStartStyle',
+      'doublesQuickStartTextStyle',
       'doublesPreviewCardStyle',
       'doublesPreviewLabelStyle',
+      'doublesPreviewNamesStyle',
+      'doublesPreviewMetaStyle',
       'prefillPromptCard',
+      'prefillPromptText',
       'formCompareLabel',
       'formCellLabel',
-      'engineLabel',
-      'engineValue',
-      'engineText',
-      'editorialCardText',
+      'metricLabel',
+      'metricValue',
+      'metricSub',
+      'calloutTitle',
+      'calloutSub',
       'emptyStateTitle',
       'emptyStateText',
       'emptyStateHint',
@@ -117,9 +116,11 @@ describe('matchup mobile layout guards', () => {
       'prefillPromptKicker',
       'decisionLabel',
       'prepReadLabel',
+      'prepReadValue',
+      'prepReadText',
       'highlightLabel',
       'gapLabel',
-      'sectionKicker',
+      'sectionTitle',
       'recommendationCard',
       'intelligenceHintLabel',
       'emptyHeadToHeadActions',
@@ -127,8 +128,6 @@ describe('matchup mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     })
 
-    expect(styleBlock('profileContextLinkStyle')).toContain('minWidth: 0')
-    expect(styleBlock('profileContextLinkStyle')).toContain("maxWidth: '100%'")
     expect(matchupSource).toContain('<div style={selectFieldStyle}>')
     expect(matchupSource).toContain('<div style={ratingSectionLabelStyle}>TIQ DYNAMIC</div>')
     expect(matchupSource).toContain("<div style={{ ...ratingSectionLabelStyle, marginTop: 10 }}>USTA DYNAMIC</div>")
@@ -162,8 +161,6 @@ describe('matchup mobile layout guards', () => {
     expect(styleBlock('inlineAdWrapStyle')).toContain("maxWidth: '100%'")
     expect(matchupSource).toContain('<div style={headToHeadHistoryStackStyle}>')
     expect(matchupSource).toContain('<div style={inlineAdWrapStyle}>')
-    expect(functionBlock('CopyLinkButton')).toContain("maxWidth: '100%'")
-    expect(functionBlock('CopyLinkButton')).toContain("overflowWrap: 'anywhere'")
     expect(functionBlock('SwapSidesButton')).toContain("maxWidth: '100%'")
     expect(functionBlock('SwapSidesButton')).toContain("whiteSpace: 'normal' as const")
     expect(matchupSource).not.toContain("linear-gradient(90deg, #9be11d, #4ade80)")
