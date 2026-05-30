@@ -494,6 +494,21 @@ export default function RankingsPage() {
     : rankedPlayers.length
       ? `Showing ${rankedPlayers.length}`
       : 'Board starts after verified context'
+  const playersShownValue = loading
+    ? 'Reviewing'
+    : rankedPlayers.length
+      ? String(rankedPlayers.length)
+      : 'Start search'
+  const topTiqValue = loading
+    ? 'Pending'
+    : topThree[0]
+      ? formatRating(topThree[0].selectedRating)
+      : 'Needs data'
+  const averageTiqValue = loading
+    ? 'Pending'
+    : rankedPlayers.length
+      ? formatRating(avgSelected)
+      : 'Needs data'
 
   return (
     <SiteShell active="rankings">
@@ -648,9 +663,9 @@ export default function RankingsPage() {
               </div>
 
               <div style={summaryStatsGrid}>
-                <StatChip label="Players shown" value={loading ? '-' : String(rankedPlayers.length)} />
-                <StatChip label="Top TIQ" value={loading ? '-' : formatRating(topThree[0]?.selectedRating)} accent />
-                <StatChip label="Average TIQ" value={loading ? '-' : formatRating(avgSelected)} />
+                <StatChip label="Players shown" value={playersShownValue} />
+                <StatChip label="Top TIQ" value={topTiqValue} accent />
+                <StatChip label="Average TIQ" value={averageTiqValue} />
                 <StatChip label="Basis" value={ratingViewLabel} />
               </div>
         </div>
@@ -954,7 +969,7 @@ export default function RankingsPage() {
                 <div style={emptyCell}>
                   {hasActiveFilters
                     ? 'No players matched the current search or location filter. Clear filters to widen the board.'
-                    : `Player rankings are not available yet. ${DATA_ASSIST_STORY.shortCue}`}
+                    : `Search to build the board. Rankings appear when enough verified player and match context is available. ${DATA_ASSIST_STORY.shortCue}`}
                 </div>
               ) : (
                 tieredRows.map((row) => {
@@ -1013,7 +1028,7 @@ export default function RankingsPage() {
                       <td colSpan={14} style={emptyCell}>
                         {hasActiveFilters
                           ? 'No players matched the current search or location filter. Clear filters to widen the board.'
-                          : `Player rankings are not available yet. ${DATA_ASSIST_STORY.shortCue}`}
+                          : `Search to build the board. Rankings appear when enough verified player and match context is available. ${DATA_ASSIST_STORY.shortCue}`}
                       </td>
                     </tr>
                   ) : (
