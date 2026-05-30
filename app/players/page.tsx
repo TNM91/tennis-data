@@ -8,6 +8,7 @@ import DataTrustPanel from '@/app/components/data-trust-panel'
 import FollowButton from '@/app/components/follow-button'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
+import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
@@ -466,10 +467,10 @@ export default function PlayersPage() {
       <section style={playerToolWrap}>
         <div style={dynamicControlsShell}>
           <div aria-hidden="true" style={watermarkStyle} />
-          <div style={dynamicControlsTopRow}>
-            <div style={controlsTitleGroup}>
-              <div style={sectionKicker}>Player discovery</div>
-              <div style={controlsLabel}>Find a player</div>
+            <div style={dynamicControlsTopRow}>
+              <div style={controlsTitleGroup}>
+                <div style={sectionKicker}>Player discovery</div>
+              <h1 style={controlsLabel}>Find a player.</h1>
             </div>
             <div style={inlineStatRow}>
               <StatChip label="Players" value={loading ? '-' : String(players.length)} />
@@ -696,6 +697,16 @@ export default function PlayersPage() {
                 { label: 'Freshness', value: 'Last refresh shown on profiles' },
                 { label: 'Confidence', value: 'Based on verified match volume' },
                 { label: 'Status', value: 'Corrections reviewable' },
+              ]}
+            />
+            <TiqDirectoryFallbackCard
+              eyebrow="Featured player path"
+              title="Start with a name, city, or rating band."
+              body="A good first search is a player name, a city, or a level like 4.0 doubles. From there, open the profile, compare the matchup, or follow the player into My Lab."
+              chips={['Search players', 'Compare matchup', 'Follow profile']}
+              actions={[
+                { href: '/matchup', label: 'Open Matchup' },
+                { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
               ]}
             />
           </div>
@@ -1088,6 +1099,7 @@ const controlsTopRow: CSSProperties = {
 }
 
 const controlsLabel: CSSProperties = {
+  margin: 0,
   color: 'var(--foreground-strong)',
   fontSize: 'clamp(1.25rem, 2.4vw, 1.9rem)',
   fontWeight: 950,

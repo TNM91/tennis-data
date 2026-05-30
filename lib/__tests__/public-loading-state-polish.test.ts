@@ -10,6 +10,7 @@ describe('public loading state polish', () => {
 
     expect(playersSource).toContain('Player discovery')
     expect(playersSource).toContain('Start with a player search.')
+    expect(playersSource).toContain('Featured player path')
     expect(playersSource).toContain('The reviewed player layer is refreshing behind this starter view.')
     expect(playersSource).not.toContain('Directory loading')
   })
@@ -50,14 +51,25 @@ describe('public loading state polish', () => {
     const leaguesSource = read('app/leagues/page.tsx')
 
     expect(rankingsSource).toContain('Search to build the board')
+    expect(rankingsSource).toContain('Featured ranking path')
     expect(rankingsSource).toContain('Board starts after verified context')
     expect(rankingsSource).toContain('Location filters appear after review')
     expect(rankingsSource).not.toContain('Showing {rankedPlayers.length}')
     expect(teamsSource).toContain('Search for a team or browse by league.')
+    expect(teamsSource).toContain('Featured team path')
     expect(teamsSource).not.toContain('Teams are not available yet')
     expect(leaguesSource).toContain('Choose a league path.')
+    expect(leaguesSource).toContain('Featured league path')
     expect(leaguesSource).toContain('Source pending review')
     expect(leaguesSource).not.toContain('League records are not available yet.')
     expect(leaguesSource).not.toContain("row.source || 'Unknown'")
+  })
+
+  it('gives Explore Leagues a useful starter card while the layer refreshes', () => {
+    const exploreLeaguesSource = read('app/explore/leagues/page.tsx')
+
+    expect(exploreLeaguesSource).toContain('Featured league path')
+    expect(exploreLeaguesSource).toContain('Search a flight, section, or district.')
+    expect(exploreLeaguesSource).not.toContain('Loading league layers')
   })
 })

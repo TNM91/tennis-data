@@ -9,6 +9,7 @@ import DataTrustPanel from '@/app/components/data-trust-panel'
 import FollowButton from '@/app/components/follow-button'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
+import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import { TiqLeagueStandingCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import {
@@ -436,6 +437,16 @@ export default function LeaguesPage() {
                   { label: 'Freshness', value: 'Season refresh pending' },
                   { label: 'Confidence', value: 'Higher after score review' },
                   { label: 'Status', value: 'League names normalized' },
+                ]}
+              />
+              <TiqDirectoryFallbackCard
+                eyebrow="Featured league path"
+                title="Find or run the season from one office."
+                body="Search an existing league, flight, section, or district. If the season is not public yet, League Office and Data Assist give coordinators a cleaner path to schedules, standings, and corrections."
+                chips={['League Office', 'Schedules', 'Standings']}
+                actions={[
+                  { href: '/league-coordinator', label: 'Open League Office' },
+                  { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
                 ]}
               />
               <div style={emptyActionRow}>

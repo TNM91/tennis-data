@@ -7,6 +7,7 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
+import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
@@ -918,16 +919,28 @@ export default function RankingsPage() {
           </div>
 
           {loading || rankedPlayers.length === 0 ? (
-            <DataTrustPanel
-              title="Ranking data trust"
-              body="Rankings appear when enough reviewed player and match context exists. Confidence improves as scorecards, schedules, and player records are verified."
-              signals={[
-                { label: 'Source', value: 'Player records and reviewed matches' },
-                { label: 'Freshness', value: 'Board refresh pending' },
-                { label: 'Confidence', value: 'Sample-size based' },
-                { label: 'Status', value: 'Report gaps through Data Assist' },
-              ]}
-            />
+            <>
+              <DataTrustPanel
+                title="Ranking data trust"
+                body="Rankings appear when enough reviewed player and match context exists. Confidence improves as scorecards, schedules, and player records are verified."
+                signals={[
+                  { label: 'Source', value: 'Player records and reviewed matches' },
+                  { label: 'Freshness', value: 'Board refresh pending' },
+                  { label: 'Confidence', value: 'Sample-size based' },
+                  { label: 'Status', value: 'Report gaps through Data Assist' },
+                ]}
+              />
+              <TiqDirectoryFallbackCard
+                eyebrow="Featured ranking path"
+                title="Build a board around the tennis question."
+                body="Search a player, location, or rating view. Rankings become most useful when you compare overall, singles, doubles, activity, and confidence together."
+                chips={['Overall board', 'Singles split', 'Doubles split']}
+                actions={[
+                  { href: '/players', label: 'Find Players' },
+                  { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
+                ]}
+              />
+            </>
           ) : null}
 
           {isMobile ? (

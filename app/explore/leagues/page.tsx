@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
+import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import {
   buildExploreLeagueHref,
   getCompetitionLayerDescription,
@@ -300,6 +301,16 @@ function ExploreLeaguesContent() {
             <div style={{ marginTop: 8, color: 'var(--shell-copy-muted)', lineHeight: 1.6 }}>
               Find existing league context or create a TIQ League Office workspace. The live league layer is refreshing behind this starter view.
             </div>
+            <TiqDirectoryFallbackCard
+              eyebrow="Featured league path"
+              title="Search a flight, section, or district."
+              body="League cards become public after reviewed schedules, scorecards, or standings include enough season context to trust the view."
+              chips={['USTA layer', 'TIQ layer', 'Data Assist']}
+              actions={[
+                { href: '/leagues', label: 'Find Leagues' },
+                { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
+              ]}
+            />
           </div>
         ) : null}
         {error ? <div style={errorStyle}>{error}</div> : null}

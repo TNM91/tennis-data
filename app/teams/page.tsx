@@ -6,6 +6,7 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
+import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import { TiqLineupPreview, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
@@ -752,6 +753,16 @@ export default function TeamsPage() {
                   { label: 'Freshness', value: 'Recent matches first' },
                   { label: 'Confidence', value: 'Higher with reviewed scorecards' },
                   { label: 'Status', value: 'Needs review when disputed' },
+                ]}
+              />
+              <TiqDirectoryFallbackCard
+                eyebrow="Featured team path"
+                title="Scout the next team before match week."
+                body="Start with a team name, league, or flight. Team pages help players and captains see roster context, recent form, and where Captain Tools can make the week cleaner."
+                chips={['Roster context', 'Recent results', 'Captain Tools']}
+                actions={[
+                  { href: '/captain', label: 'Open Captain Tools' },
+                  { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
                 ]}
               />
               <div style={teamStartGridStyle}>
