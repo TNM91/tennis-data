@@ -1296,9 +1296,9 @@ function CoachConversationSheet({ identity }: { identity: PlayerDevelopmentIdent
         <div>
           <span>Player+ handoff</span>
           <strong>Turn the conversation into a saved assignment.</strong>
-          <p>The workbook can guide the lesson on paper. Player+ should store the agreed focus and evidence after the session.</p>
+          <p>The workbook can guide the lesson on paper. My Lab stores your status update; Coach Hub keeps the coach&apos;s plan and review.</p>
         </div>
-        <QrAction href={`/player-development/${identity.slug}/coach-planner`} label="Coach note" mode="player-plus" />
+        <QrAction href="/mylab#coach-assignments" label="Update status" mode="player-plus" />
       </div>
     </div>
   )
@@ -1619,7 +1619,7 @@ function PlayerPlusEvidenceLog({ identity, weeks = identity.weeks }: { identity:
   const actionCycle = [
     { href: '/mylab', label: 'My Lab goal', icon: 'myLab' as const },
     { href: `/player-development/${identity.slug}/workbook`, label: 'Match reflection', icon: 'reports' as const },
-    { href: `/player-development/${identity.slug}/coach-planner`, label: 'Coach note', icon: 'messagingCenter' as const },
+    { href: '/mylab#coach-assignments', label: 'Assignment status', icon: 'messagingCenter' as const },
     { href: '/profile', label: 'Progress check', icon: 'playerRatings' as const },
   ]
 
@@ -1663,8 +1663,8 @@ function PlayerPlusCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }
           <span>Player+ review loop</span>
           <strong>Evidence creates the next assignment.</strong>
           <p>
-            Use this page after each phase to decide what gets updated in My Lab, what gets sent to the coach,
-            and what becomes the next match-day focus.
+            Use this page after each phase to decide what you update in My Lab. When you are linked, your assignment recap
+            syncs back to Coach Hub so the coach can plan the next session.
           </p>
         </div>
       </div>
@@ -1697,7 +1697,7 @@ function PlayerPlusCompanionMap({ identity }: { identity: PlayerDevelopmentIdent
     ['Save my two-week focus', 'Track the one focus that changes the next match fastest', `/player-development/${identity.slug}/workbook`],
     ['Build the tactic board', 'Turn the workbook cue into a visual point plan in TIQ Tactical Studio', '/tactics'],
     ['Log match evidence', 'Keep proof from pressure points, serve targets, and style triggers', `/player-development/${identity.slug}/workbook`],
-    ['Send coach note', 'Turn coach feedback into the next assignment', `/player-development/${identity.slug}/coach-planner`],
+    ['Update coach assignment status', 'Mark the work complete in My Lab; linked coaches see the recap in Coach Hub', '/mylab#coach-assignments'],
     ['Check readiness', `Compare evidence against ${identity.levelPath.to} gates`, '/profile'],
     ['Notice missing context', DATA_ASSIST_STORY.shortCue, dataAssistPlayerDevelopmentHref],
   ] as const

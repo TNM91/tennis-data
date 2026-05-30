@@ -50,8 +50,8 @@ export default function PlayerDevelopmentPrintControls({
             Print / save PDF
           </button>
         )}
-        <PacketLink href={`${basePath}/workbook`}>Workbook</PacketLink>
-        <PacketLink href={`${basePath}/coach-planner`}>Coach planner</PacketLink>
+        <PacketLink href={`${basePath}/workbook`}>Player workbook</PacketLink>
+        <PacketLink href={`${basePath}/coach-planner`}>Coach section</PacketLink>
       </div>
     </div>
   )

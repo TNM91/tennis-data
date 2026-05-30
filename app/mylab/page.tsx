@@ -3742,7 +3742,7 @@ function PlayerCoachAssignmentsPanel({
   }
 
   return (
-    <section style={coachAssignmentPanelStyle}>
+    <section id="coach-assignments" style={coachAssignmentPanelStyle}>
       <div style={developmentPathHeaderStyle}>
         <div style={sectionTitleClusterStyle}>
           <TiqFeatureIcon name="messagingCenter" size="md" variant="surface" />

@@ -81,6 +81,18 @@ export async function PATCH(request: Request) {
     return Response.json({ ok: false, message: 'Archived assignments cannot be completed.' }, { status: 409 })
   }
 
+  const { data: linkData, error: linkError } = await auth.supabase
+    .from('coach_player_links')
+    .select('id')
+    .eq('id', existing.studentLinkId)
+    .eq('player_user_id', auth.userId)
+    .maybeSingle()
+
+  if (linkError) return Response.json({ ok: false, message: linkError.message }, { status: 500 })
+  if (!linkData) {
+    return Response.json({ ok: false, message: 'Assignment was not found for this player.' }, { status: 404 })
+  }
+
   const service = getServiceClient()
   if (!service) {
     return Response.json({ ok: false, message: 'Coach assignment check-ins are not configured yet.' }, { status: 503 })
@@ -99,6 +111,7 @@ export async function PATCH(request: Request) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', assignmentId)
+    .eq('student_link_id', existing.studentLinkId)
     .select('id,student_link_id,title,focus,due_date,status,assignment_json,updated_at')
     .single()
 
