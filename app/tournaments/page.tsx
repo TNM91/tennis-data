@@ -95,7 +95,7 @@ export default function TournamentsPage() {
               title="Finals and awards"
               body="Publish outcomes, standings, winners, and award-ready recaps."
               metrics={[
-                { label: 'Pending', value: '0' },
+                { label: 'Pending', value: 'Clear' },
                 { label: 'Winners', value: 'Ready' },
                 { label: 'Notify', value: 'Players' },
               ]}

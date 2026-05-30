@@ -185,7 +185,7 @@ export const previewCards: PreviewCard[] = [
     metrics: [
       { label: 'Entries', value: '28' },
       { label: 'Draws', value: 'Draft' },
-      { label: 'Results', value: '0 pending' },
+      { label: 'Results', value: 'Clear' },
     ],
     href: '/tournaments',
     cta: 'Open Tournament Desk',

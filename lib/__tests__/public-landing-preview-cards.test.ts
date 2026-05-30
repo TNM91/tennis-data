@@ -23,6 +23,8 @@ describe('public landing preview cards', () => {
     expect(tournamentsSource).toContain('titleId="tournament-flow-title"')
     expect(tournamentsSource).toContain('Event setup')
     expect(tournamentsSource).toContain('Player notifications')
+    expect(tournamentsSource).toContain("{ label: 'Pending', value: 'Clear' }")
+    expect(tournamentsSource).not.toContain("{ label: 'Pending', value: '0' }")
     expect(tournamentsSource).toContain("eventName: 'draw_preview_clicked'")
     expect(tournamentsSource).toContain("location: 'tournaments_draw_preview'")
     expect(tournamentsSource).toContain('Preview Draw')
@@ -34,5 +36,7 @@ describe('public landing preview cards', () => {
   it('lets public section headers provide accessible labels', () => {
     expect(commandCenterSource).toContain('titleId?: string')
     expect(commandCenterSource).toContain('<h2 id={titleId}')
+    expect(commandCenterSource).toContain("{ label: 'Results', value: 'Clear' }")
+    expect(commandCenterSource).not.toContain("{ label: 'Results', value: '0 pending' }")
   })
 })
