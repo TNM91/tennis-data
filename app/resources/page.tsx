@@ -8,7 +8,7 @@ import {
   TrustStrip,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
-import { TiqResourceCard } from '@/app/components/tiq-product-preview-cards'
+import { TiqActionCard, TiqResourceCard } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import type { ProductUsageEventName, ProductUsageEventSurface } from '@/lib/product-usage-events'
 import { buildRouteMetadata } from '@/lib/route-metadata'
@@ -136,6 +136,29 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
             ) : null}
           </section>
         ) : null}
+        <section style={quickStartSectionStyle} aria-labelledby="resource-quick-start-title">
+          <SectionHeader
+            eyebrow="Quick starts"
+            title="Start with the tennis job, then open the right path."
+            body="These routes cover the most common reasons someone lands here: finding help, preparing for a match, running an event, or fixing the context that powers TenAceIQ."
+            titleId="resource-quick-start-title"
+          />
+          <div style={quickStartGridStyle}>
+            {resourceQuickStarts.map((quickStart) => (
+              <TiqActionCard
+                key={quickStart.title}
+                eyebrow={quickStart.eyebrow}
+                title={quickStart.title}
+                body={quickStart.body}
+                metrics={[...quickStart.metrics]}
+                href={quickStart.href}
+                cta={quickStart.cta}
+                event={quickStart.event}
+                trust={[...quickStart.trust]}
+              />
+            ))}
+          </div>
+        </section>
         <section style={{ display: 'grid', gap: 14 }}>
           <SectionHeader
             eyebrow="Resource Hub"
@@ -191,6 +214,101 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
     </PublicPageShell>
   )
 }
+
+const resourceQuickStarts = [
+  {
+    eyebrow: 'Find',
+    title: 'Find coaching support',
+    body: 'Start with coaching when the next tennis action is a lesson, clinic, question, or practice plan.',
+    metrics: [
+      { label: 'Need', value: 'Coach' },
+      { label: 'Path', value: 'Coaches' },
+      { label: 'Next', value: 'Connect' },
+    ],
+    href: '/coaches',
+    cta: 'Find a Coach',
+    event: {
+      eventName: 'find_coach_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'resources_quick_start',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Resource hub', tone: 'info' },
+      { label: 'Status', value: 'Discovery ready', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Prepare',
+    title: 'Prep the next match',
+    body: 'Use Matchup when a player, team, or ranking signal needs a practical read before match time.',
+    metrics: [
+      { label: 'Read', value: 'Edge' },
+      { label: 'Signal', value: 'Watch item' },
+      { label: 'Use', value: 'Match day' },
+    ],
+    href: '/matchup',
+    cta: 'Prep Matchup',
+    event: {
+      eventName: 'matchup_started',
+      surface: 'matchup',
+      metadata: {
+        location: 'resources_quick_start',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Player context', tone: 'info' },
+      { label: 'Confidence', value: 'Data-dependent', tone: 'warn' },
+    ],
+  },
+  {
+    eyebrow: 'Run',
+    title: 'Run an event',
+    body: 'Open tournament and league paths when draws, schedules, standings, results, or updates need one place.',
+    metrics: [
+      { label: 'Events', value: 'Tournaments' },
+      { label: 'Seasons', value: 'Leagues' },
+      { label: 'Next', value: 'Desk' },
+    ],
+    href: '/tournaments',
+    cta: 'Find Tournaments',
+    event: {
+      eventName: 'tournament_search_submitted',
+      surface: 'tournaments',
+      metadata: {
+        location: 'resources_quick_start',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Public path', tone: 'good' },
+      { label: 'Source', value: 'Tournament Desk', tone: 'info' },
+    ],
+  },
+  {
+    eyebrow: 'Fix data',
+    title: 'Upload or report a source',
+    body: 'Use Data Assist when scorecards, schedules, rosters, player records, or standings need review.',
+    metrics: [
+      { label: 'Upload', value: 'Source' },
+      { label: 'Review', value: 'Required' },
+      { label: 'Feeds', value: 'Platform' },
+    ],
+    href: '/data-assist?intent=upload-source&context=Resources%20quick%20starts',
+    cta: 'Open Data Assist',
+    event: {
+      eventName: 'data_assist_opened',
+      surface: 'data_assist',
+      metadata: {
+        location: 'resources_quick_start',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'User upload', tone: 'info' },
+      { label: 'Status', value: 'Review before use', tone: 'warn' },
+    ],
+  },
+] as const
 
 function getResourceMatches(query: string) {
   const normalizedQuery = query.toLowerCase()
@@ -286,6 +404,19 @@ function resourceClickEvent(item: string, group: string) {
 const resourceGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 14,
+  minWidth: 0,
+}
+
+const quickStartSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const quickStartGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 14,
   minWidth: 0,
 }

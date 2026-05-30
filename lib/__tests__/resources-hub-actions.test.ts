@@ -6,6 +6,14 @@ const source = readFileSync(join(process.cwd(), 'app/resources/page.tsx'), 'utf8
 
 describe('Resources hub actions', () => {
   it('uses reusable resource cards instead of static directory cards', () => {
+    expect(source).toContain('TiqActionCard')
+    expect(source).toContain('Quick starts')
+    expect(source).toContain('Start with the tennis job, then open the right path.')
+    expect(source).toContain('resourceQuickStarts.map((quickStart)')
+    expect(source).toContain('Find coaching support')
+    expect(source).toContain('Prep the next match')
+    expect(source).toContain('Run an event')
+    expect(source).toContain('Upload or report a source')
     expect(source).toContain('TiqResourceCard')
     expect(source).toContain('Resource path')
     expect(source).toContain('resourceGridStyle')
