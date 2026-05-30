@@ -17,6 +17,9 @@ describe('public landing preview cards', () => {
   it('uses named tournament preview cards with Tournament Desk tracking', () => {
     expect(tournamentsSource).toContain('TiqTournamentDrawCard')
     expect(tournamentsSource).toContain('TiqWorkspacePreview')
+    expect(tournamentsSource).toContain('Tournament flow')
+    expect(tournamentsSource).toContain('Event setup')
+    expect(tournamentsSource).toContain('Player notifications')
     expect(tournamentsSource).toContain("eventName: 'draw_preview_clicked'")
     expect(tournamentsSource).toContain("location: 'tournaments_draw_preview'")
     expect(tournamentsSource).toContain('Preview Draw')

@@ -40,6 +40,24 @@ export default function TournamentsPage() {
           rightTitle="For organizers"
           rightBody="Create divisions, manage entries, build draws, schedule courts, collect scores, and publish results."
         />
+        <section style={flowSectionStyle} aria-labelledby="tournament-flow-title">
+          <SectionHeader
+            eyebrow="Tournament flow"
+            title="From entry to results, keep the event moving."
+            body="Each tournament job has a clear next action so players know where to go and directors know what still needs attention."
+          />
+          <ol style={flowGridStyle}>
+            {tournamentFlow.map((step) => (
+              <li key={step.title} style={flowStepStyle}>
+                <span style={flowStepNumberStyle}>{step.step}</span>
+                <div style={flowStepCopyStyle}>
+                  <h2 id={step.title === 'Event setup' ? 'tournament-flow-title' : undefined} style={flowStepTitleStyle}>{step.title}</h2>
+                  <p style={flowStepBodyStyle}>{step.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
         <section id="desk" style={{ display: 'grid', gap: 14 }}>
           <SectionHeader
             eyebrow="Tournament Desk"
@@ -111,9 +129,101 @@ export default function TournamentsPage() {
   )
 }
 
+const tournamentFlow = [
+  {
+    step: '01',
+    title: 'Event setup',
+    body: 'Name the event, set divisions, add entry rules, and publish the player-facing page.',
+  },
+  {
+    step: '02',
+    title: 'Entries',
+    body: 'Collect players or teams, review duplicates, and keep the accepted list clean.',
+  },
+  {
+    step: '03',
+    title: 'Draws and courts',
+    body: 'Build draws, assign courts, and make schedule changes visible before match time.',
+  },
+  {
+    step: '04',
+    title: 'Results',
+    body: 'Collect scores, resolve corrections, and update standings, winners, and awards.',
+  },
+  {
+    step: '05',
+    title: 'Player notifications',
+    body: 'Keep players informed about schedules, court moves, results, and event updates.',
+  },
+] as const
+
 const previewGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const flowSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const flowGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+  margin: 0,
+  padding: 0,
+  listStyle: 'none',
+}
+
+const flowStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 8,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+}
+
+const flowStepNumberStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  width: 34,
+  height: 34,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  lineHeight: 1,
+}
+
+const flowStepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const flowStepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 900,
+}
+
+const flowStepBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 650,
 }
