@@ -10,7 +10,8 @@ describe('pricing auth access rendering', () => {
     expect(source).toContain('function PricingContent()')
     expect(source).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
     expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
-    expect(source).toContain('const accessPending = !authResolved || (Boolean(userId) && entitlements === null)')
+    expect(source).toContain("const authenticated = Boolean(userId) || role !== 'public'")
+    expect(source).toContain('const accessPending = authenticated && (!authResolved || entitlements === null)')
     expect(source).not.toContain('getClientAuthState')
   })
 

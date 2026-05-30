@@ -802,7 +802,7 @@ function SearchCommandPanel({
         <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
         <div style={searchCommandHeaderCopyStyle}>
           <div style={searchCommandEyebrowStyle}>Search path</div>
-          <h2 style={searchCommandTitleStyle}>Choose a scope.</h2>
+          <h1 style={searchCommandTitleStyle}>Choose a scope.</h1>
           {query.trim() ? (
             <p style={searchCommandTextStyle}>
               {totalResults} result{totalResults === 1 ? '' : 's'}

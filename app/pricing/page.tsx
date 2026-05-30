@@ -158,7 +158,8 @@ function PricingContent() {
   const { role, userId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
-  const accessPending = !authResolved || (Boolean(userId) && entitlements === null)
+  const authenticated = Boolean(userId) || role !== 'public'
+  const accessPending = authenticated && (!authResolved || entitlements === null)
   const recommendedPlanId = access.recommendedUpgradePlanId ?? access.currentPlanId
 
   return (

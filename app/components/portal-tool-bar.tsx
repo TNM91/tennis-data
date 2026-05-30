@@ -199,6 +199,8 @@ export default function PortalToolBar() {
     router.push(`/explore/search?${params.toString()}`)
   }
 
+  if (!authenticated && pathname !== '/') return null
+
   const headline = authenticated
     ? firstName
       ? `Hi ${firstName}, welcome back!`

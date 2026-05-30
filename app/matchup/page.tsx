@@ -1455,9 +1455,9 @@ export default function MatchupPage() {
               <TiqFeatureIcon name={matchType === 'doubles' ? 'lineupBuilder' : 'matchupAnalysis'} size="md" variant="surface" />
               <div style={headerCopyStyle}>
                 <div style={toolHeaderKickerStyle}>Build the matchup</div>
-                <h2 style={toolHeaderTitleStyle}>
+                <h1 style={toolHeaderTitleStyle}>
                   {matchType === 'doubles' ? 'Choose both sides.' : 'Choose two players.'}
-                </h2>
+                </h1>
               </div>
             </div>
             <div style={toolHeaderTextStyle}>{MATCHUP_STORY.proof.join(' - ')}</div>
