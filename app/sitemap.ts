@@ -17,6 +17,7 @@ const routes: RouteConfig[] = [
   { path: '/tournaments', changeFrequency: 'weekly', priority: 0.82 },
   { path: '/resources', changeFrequency: 'weekly', priority: 0.78 },
   { path: '/matchup', changeFrequency: 'weekly', priority: 0.82 },
+  { path: '/explore/search', changeFrequency: 'weekly', priority: 0.8 },
   { path: '/player-development', changeFrequency: 'monthly', priority: 0.72 },
   { path: '/player-development/workbook', changeFrequency: 'monthly', priority: 0.62 },
   { path: '/player-development/coach-planner', changeFrequency: 'monthly', priority: 0.62 },

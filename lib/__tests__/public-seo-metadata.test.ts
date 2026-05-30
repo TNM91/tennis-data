@@ -8,6 +8,11 @@ const rootLayout = read('app/layout.tsx')
 const routeMetadataSource = read('lib/route-metadata.ts')
 
 describe('public SEO metadata', () => {
+  const metadataRoutePattern =
+    /metadata|getExploreMetadata|getRankingsMetadata|getMatchupMetadata|getTournamentMetadataById|buildRouteMetadata/
+  const sharedMetadataPattern =
+    /canonical|openGraph|twitter|buildRouteMetadata|getExploreMetadata|getRankingsMetadata|getMatchupMetadata|getTournamentMetadataById/
+
   it('lazy-initializes the metadata Supabase client for build safety', () => {
     expect(routeMetadataSource).toContain('let metadataSupabase')
     expect(routeMetadataSource).toContain('function getMetadataSupabase()')
@@ -46,6 +51,8 @@ describe('public SEO metadata', () => {
       'app/explore/teams/layout.tsx',
       'app/explore/leagues/layout.tsx',
       'app/explore/rankings/layout.tsx',
+      'app/explore/search/layout.tsx',
+      'app/explore/matchups/layout.tsx',
       'app/players/layout.tsx',
       'app/teams/layout.tsx',
       'app/leagues/layout.tsx',
@@ -61,6 +68,7 @@ describe('public SEO metadata', () => {
       'app/about/page.tsx',
       'app/faq/page.tsx',
       'app/contact/page.tsx',
+      'app/tournaments/[id]/layout.tsx',
       'app/advertising-disclosure/page.tsx',
       'app/legal/privacy/page.tsx',
       'app/legal/terms/page.tsx',
@@ -72,10 +80,8 @@ describe('public SEO metadata', () => {
       'app/pricing/layout.tsx',
     ]) {
       const source = read(routeFile)
-      expect(source).toMatch(/metadata|getExploreMetadata|getRankingsMetadata|getMatchupMetadata|buildRouteMetadata/)
-      expect(source).toMatch(/canonical|buildRouteMetadata|getExploreMetadata|getRankingsMetadata|getMatchupMetadata/)
-      expect(source).toMatch(/openGraph|buildRouteMetadata|getExploreMetadata|getRankingsMetadata|getMatchupMetadata/)
-      expect(source).toMatch(/twitter|buildRouteMetadata|getExploreMetadata|getRankingsMetadata|getMatchupMetadata/)
+      expect(source).toMatch(metadataRoutePattern)
+      expect(source).toMatch(sharedMetadataPattern)
     }
   })
 
@@ -97,6 +103,7 @@ describe('public SEO metadata', () => {
       ['app/explore/teams/layout.tsx', '/explore/teams'],
       ['app/explore/leagues/layout.tsx', '/explore/leagues'],
       ['app/explore/rankings/layout.tsx', '/explore/rankings'],
+      ['app/explore/search/layout.tsx', '/explore/search'],
       ['app/how-it-works/page.tsx', '/how-it-works'],
       ['app/methodology/page.tsx', '/methodology'],
       ['app/about/page.tsx', '/about'],
@@ -122,11 +129,22 @@ describe('public SEO metadata', () => {
 
   it('keeps Matchup on its canonical social metadata helper', () => {
     const matchupLayout = read('app/matchup/layout.tsx')
+    const exploreMatchupsLayout = read('app/explore/matchups/layout.tsx')
 
     expect(matchupLayout).toContain('getMatchupMetadata')
+    expect(exploreMatchupsLayout).toContain('getMatchupMetadata')
     expect(routeMetadataSource).toContain('export function getMatchupMetadata()')
     expect(routeMetadataSource).toContain("path: '/matchup'")
     expect(routeMetadataSource).toContain("title: 'Matchup Analysis'")
+  })
+
+  it('keeps tournament detail pages shareable with dynamic canonical metadata', () => {
+    const tournamentDetailLayout = read('app/tournaments/[id]/layout.tsx')
+
+    expect(tournamentDetailLayout).toContain('generateMetadata')
+    expect(tournamentDetailLayout).toContain('getTournamentMetadataById')
+    expect(routeMetadataSource).toContain('export function getTournamentMetadataById')
+    expect(routeMetadataSource).toContain('path: `/tournaments/${encodeURIComponent(id)}`')
   })
 
   it('keeps root metadata aligned to public workspace names', () => {

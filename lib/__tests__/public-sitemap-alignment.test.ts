@@ -13,6 +13,7 @@ describe('public sitemap alignment', () => {
       '/tournaments',
       '/resources',
       '/matchup',
+      '/explore/search',
       '/player-development',
       '/teams',
       '/leagues',
@@ -21,6 +22,10 @@ describe('public sitemap alignment', () => {
     ]) {
       expect(sitemapSource).toContain(`path: '${path}'`)
     }
+  })
+
+  it('keeps redirect-only public aliases out of the sitemap', () => {
+    expect(sitemapSource).not.toContain("path: '/explore/matchups'")
   })
 
   it('includes public player development workbook and coach planner routes', () => {

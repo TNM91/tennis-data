@@ -93,6 +93,24 @@ export function getMatchupMetadata(): Metadata {
   })
 }
 
+export function getTournamentMetadataById(id: string): Metadata {
+  const decoded = decodeURIComponent(id)
+  const readableName = decoded
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  const tournamentName = readableName || 'Tournament'
+  const title = `${tournamentName} Tournament`
+
+  return buildRouteMetadata({
+    title,
+    description:
+      'Open a TenAceIQ tournament page with event details, divisions, entries, draws, schedule context, and results.',
+    path: `/tournaments/${encodeURIComponent(id)}`,
+  })
+}
+
 export async function getPlayerMetadataById(id: string): Promise<Metadata> {
   const preview = await getPlayerSharePreview(id)
   const name = preview.primary

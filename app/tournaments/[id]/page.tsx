@@ -182,7 +182,8 @@ function TournamentPublicInner() {
         <section style={heroStyle}>
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={eyebrowStyle}>Tournament</div>
-          <h1 style={titleStyle}>Loading bracket.</h1>
+          <h1 style={titleStyle}>Opening tournament details.</h1>
+          <p style={textStyle}>Checking divisions, schedule, entries, and results.</p>
         </section>
       </main>
     )

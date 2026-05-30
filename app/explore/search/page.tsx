@@ -310,6 +310,7 @@ function ExploreSearchContent() {
 
   const selectedScopeLabel = searchScopes.find((item) => item.value === scope)?.label ?? 'Player name'
   const selectedScopeGuide = scopeGuides[scope]
+  const hasQuery = Boolean(query.trim())
   const showPlayerResults = scope === 'players'
   const showTeamResults = scope === 'teams'
   const showLeagueResults = scope === 'leagues' || scope === 'flight' || scope === 'area'
@@ -452,12 +453,12 @@ function ExploreSearchContent() {
               alignItems: 'center',
             }}
           >
-            {showPlayerResults ? <span style={badgeBlue}>{players.length} players</span> : null}
-            {showTeamResults ? <span style={badgeBlue}>{teams.length} teams</span> : null}
-            {showLeagueResults ? <span style={badgeGreen}>{filteredLeagues.length} leagues</span> : null}
-            {showPlayerResults ? <span style={badgeGreen}>{matchupSuggestions.length} My Lab actions</span> : null}
+            {hasQuery && showPlayerResults ? <span style={badgeBlue}>{players.length} players</span> : null}
+            {hasQuery && showTeamResults ? <span style={badgeBlue}>{teams.length} teams</span> : null}
+            {hasQuery && showLeagueResults ? <span style={badgeGreen}>{filteredLeagues.length} leagues</span> : null}
+            {hasQuery && showPlayerResults ? <span style={badgeGreen}>{matchupSuggestions.length} My Lab actions</span> : null}
             <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700, overflowWrap: 'anywhere' }}>
-              {query.trim() ? `${totalResults} results for "${query.trim()}"` : 'Ready'}
+              {hasQuery ? `${totalResults} results for "${query.trim()}"` : 'Ready to search'}
             </span>
           </div>
         </section>
