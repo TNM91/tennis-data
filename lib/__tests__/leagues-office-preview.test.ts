@@ -6,6 +6,9 @@ const source = readFileSync(join(process.cwd(), 'app/leagues/page.tsx'), 'utf8')
 
 describe('Leagues Office preview', () => {
   it('makes League Office operations concrete before directory data loads', () => {
+    expect(source).toContain('TiqActionCard')
+    expect(source).toContain('leagueNextActionGrid')
+    expect(source).toContain("location: 'league_next_actions'")
     expect(source).toContain('League Office preview')
     expect(source).toContain('Schedules, standings, corrections, and messages.')
     expect(source).toContain('TiqWorkspacePreview')

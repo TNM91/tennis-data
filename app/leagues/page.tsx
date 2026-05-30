@@ -11,7 +11,7 @@ import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
-import { TiqLeagueStandingCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import { TiqActionCard, TiqLeagueStandingCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import {
   getCompetitionLayerLabel,
@@ -260,6 +260,34 @@ export default function LeaguesPage() {
             <IntroMiniCard title="League setup" body="Create teams or players, formats, schedules, score rules, standings, and messages." />
             <IntroMiniCard title="Corrections" body="Use Data Assist for schedules, scorecards, rosters, and reviewed changes." />
             <IntroMiniCard title="Formats" body="Support leagues, ladders, round robins, and tournament-style seasons from one office." />
+          </div>
+        </article>
+      </section>
+      <section style={contentWrap}>
+        <article style={panelCard}>
+          <div style={panelHead}>
+            <div>
+              <div style={sectionKicker}>League next actions</div>
+              <h2 style={panelTitle}>Pick the season job, then open the right workspace.</h2>
+              <p style={panelIntro}>
+                League pages should help players and organizers move from discovery to the next operational step without hunting through a spreadsheet.
+              </p>
+            </div>
+          </div>
+          <div style={leagueNextActionGrid}>
+            {leagueNextActions.map((action) => (
+              <TiqActionCard
+                key={action.title}
+                eyebrow={action.eyebrow}
+                title={action.title}
+                body={action.body}
+                metrics={[...action.metrics]}
+                href={action.href}
+                cta={action.cta}
+                event={action.event}
+                trust={[...action.trust]}
+              />
+            ))}
           </div>
         </article>
       </section>
@@ -568,6 +596,101 @@ export default function LeaguesPage() {
     </SiteShell>
   )
 }
+
+const leagueNextActions = [
+  {
+    eyebrow: 'Find',
+    title: 'Find a league or flight',
+    body: 'Search existing league, flight, section, district, season, and rating context before opening the season view.',
+    metrics: [
+      { label: 'Search', value: 'League' },
+      { label: 'Filter', value: 'Flight' },
+      { label: 'Next', value: 'Season' },
+    ],
+    href: '#league-search',
+    cta: 'Find Leagues',
+    event: {
+      eventName: 'league_search_submitted',
+      surface: 'leagues',
+      metadata: {
+        location: 'league_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Public league layer', tone: 'info' },
+      { label: 'Status', value: 'Discovery ready', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Schedule',
+    title: 'Publish the season schedule',
+    body: 'Use League Office when teams, players, court windows, round-robin blocks, or match dates need one place.',
+    metrics: [
+      { label: 'Office', value: 'Schedule' },
+      { label: 'Formats', value: 'League / ladder' },
+      { label: 'Updates', value: 'Visible' },
+    ],
+    href: '/league-coordinator',
+    cta: 'Schedule Preview',
+    event: {
+      eventName: 'schedule_preview_clicked',
+      surface: 'leagues',
+      metadata: {
+        location: 'league_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'League Office', tone: 'info' },
+      { label: 'Freshness', value: 'Coordinator updated', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Standings',
+    title: 'Update standings cleanly',
+    body: 'Collect reviewed scores, apply tiebreakers, and keep standings useful for captains, players, and coordinators.',
+    metrics: [
+      { label: 'Results', value: 'Reviewed' },
+      { label: 'Rules', value: 'Tiebreakers' },
+      { label: 'Status', value: 'Publish' },
+    ],
+    href: '/league-coordinator',
+    cta: 'Standings Preview',
+    event: {
+      eventName: 'standings_preview_clicked',
+      surface: 'leagues',
+      metadata: {
+        location: 'league_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Confidence', value: 'Higher after review', tone: 'warn' },
+      { label: 'Status', value: 'Reviewable', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Fix data',
+    title: 'Send corrections to review',
+    body: 'Use Data Assist when schedules, scorecards, rosters, teams, or standings need a source attached.',
+    metrics: [
+      { label: 'Upload', value: 'Source' },
+      { label: 'Review', value: 'Required' },
+      { label: 'Feeds', value: 'League Office' },
+    ],
+    href: dataAssistLeagueOfficeHref,
+    cta: 'Open Data Assist',
+    event: {
+      eventName: 'data_assist_opened',
+      surface: 'data_assist',
+      metadata: {
+        location: 'league_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'User upload', tone: 'info' },
+      { label: 'Status', value: 'Review before public use', tone: 'warn' },
+    ],
+  },
+] as const
 
 function uniqueSorted(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.map((value) => safeText(value)).filter(Boolean))).sort((a, b) =>
@@ -890,6 +1013,13 @@ const publicIntroGrid: CSSProperties = {
 const leagueOfficePreviewGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const leagueNextActionGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 12,
   minWidth: 0,
 }
