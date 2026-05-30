@@ -8,7 +8,7 @@ import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
-import { TiqLineupPreview, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import { TiqActionCard, TiqLineupPreview, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
@@ -514,6 +514,34 @@ export default function TeamsPage() {
           <section style={filtersCard}>
             <div style={sectionHeader}>
               <div>
+                <p style={sectionKicker}>Team next actions</p>
+                <h2 style={sectionTitle}>Pick the match-week job, then open the right tool.</h2>
+                <p style={sectionText}>
+                  Teams are public. Captain Tools are the leadership lane for availability, lineups, scouting, and clean team data.
+                </p>
+              </div>
+            </div>
+            <div style={teamNextActionGrid}>
+              {teamNextActions.map((action) => (
+                <TiqActionCard
+                  key={action.title}
+                  eyebrow={action.eyebrow}
+                  title={action.title}
+                  body={action.body}
+                  metrics={[...action.metrics]}
+                  href={action.href}
+                  cta={action.cta}
+                  event={action.event}
+                  trust={[...action.trust]}
+                />
+              ))}
+            </div>
+          </section>
+        </section>
+        <section style={contentWrap}>
+          <section style={filtersCard}>
+            <div style={sectionHeader}>
+              <div>
                 <p style={sectionKicker}>Team Hub preview</p>
                 <h2 style={sectionTitle}>Availability, lineup, scouting, and match week.</h2>
                 <p style={sectionText}>
@@ -868,6 +896,101 @@ export default function TeamsPage() {
   )
 }
 
+const teamNextActions = [
+  {
+    eyebrow: 'Find',
+    title: 'Find a team or roster',
+    body: 'Search by team name, league, captain, club, or flight before opening the public team record.',
+    metrics: [
+      { label: 'Search', value: 'Team' },
+      { label: 'Context', value: 'Roster' },
+      { label: 'Next', value: 'Open' },
+    ],
+    href: '#team-directory-search',
+    cta: 'Find Teams',
+    event: {
+      eventName: 'team_search_submitted',
+      surface: 'teams',
+      metadata: {
+        location: 'team_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Reviewed team layer', tone: 'info' },
+      { label: 'Status', value: 'Discovery ready', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Availability',
+    title: 'Collect who can play',
+    body: 'Captain Tools help turn scattered replies into a match-week availability read.',
+    metrics: [
+      { label: 'Players', value: 'In / out' },
+      { label: 'Deadline', value: 'Match week' },
+      { label: 'Use', value: 'Lineup' },
+    ],
+    href: '/captain/availability',
+    cta: 'Check Availability',
+    event: {
+      eventName: 'availability_clicked',
+      surface: 'teams',
+      metadata: {
+        location: 'team_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Captain update', tone: 'info' },
+      { label: 'Freshness', value: 'Week of match', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Lineup',
+    title: 'Build the courts',
+    body: 'Compare availability, player fit, projected court strength, and opponent context before locking lines.',
+    metrics: [
+      { label: 'Tool', value: 'Lineup' },
+      { label: 'Risk', value: 'Court swaps' },
+      { label: 'Next', value: 'Submit' },
+    ],
+    href: '/captain/lineup-builder',
+    cta: 'Build Lineup',
+    event: {
+      eventName: 'lineup_preview_clicked',
+      surface: 'teams',
+      metadata: {
+        location: 'team_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Confidence', value: 'Improves with results', tone: 'warn' },
+      { label: 'Status', value: 'Captain decision', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Fix data',
+    title: 'Refresh team context',
+    body: 'Use Data Assist when rosters, scorecards, schedules, or team names need a reviewed source.',
+    metrics: [
+      { label: 'Upload', value: 'Roster' },
+      { label: 'Review', value: 'Required' },
+      { label: 'Feeds', value: 'Team Hub' },
+    ],
+    href: '/data-assist?intent=upload-source&context=Team%20Hub',
+    cta: DATA_ASSIST_STORY.cta,
+    event: {
+      eventName: 'data_assist_opened',
+      surface: 'data_assist',
+      metadata: {
+        location: 'team_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'User upload', tone: 'info' },
+      { label: 'Status', value: 'Review before public use', tone: 'warn' },
+    ],
+  },
+] as const
+
 function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry; awards: TiqAwardRecord[] }) {
   const [hovered, setHovered] = useState(false)
 
@@ -1099,6 +1222,13 @@ const publicIntroGrid: CSSProperties = {
 const teamHubPreviewGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const teamNextActionGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 12,
   minWidth: 0,
 }

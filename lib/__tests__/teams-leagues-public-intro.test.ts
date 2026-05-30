@@ -10,6 +10,8 @@ describe('Teams and Leagues public intros', () => {
     expect(teamsSource).toContain('Team tennis without the group-text chaos.')
     expect(teamsSource).toContain('Find Teams')
     expect(teamsSource).toContain('Open Captain Tools')
+    expect(teamsSource).toContain('Team next actions')
+    expect(teamsSource).toContain('Pick the match-week job, then open the right tool.')
     expect(teamsSource).toContain('For players')
     expect(teamsSource).toContain('For captains')
     expect(teamsSource).toContain('For opponents')
