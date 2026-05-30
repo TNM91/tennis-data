@@ -881,6 +881,20 @@
 .phaseMap,
 .packetIndex,
 .packetIndexGrid,
+.todayLessonSheet,
+.lessonReadyHero,
+.sessionFields,
+.todayFocusGrid,
+.lessonTestGrid,
+.playerCheckInSheet,
+.playerCheckInHero,
+.goalLoopGrid,
+.weeklyActionPlan,
+.weeklyActionHero,
+.actionStepGrid,
+.playerTrainingSheet,
+.playerTrainingIntro,
+.playerTrainingGrid,
 .identityProfileBoard,
 .triggerSheet,
 .triggerGrid,
@@ -912,6 +926,8 @@
 .checkInRows,
 .coachReviewGrid,
 .levelUpScorecard,
+.coachHourPlans,
+.coachPlanBlocks,
 .lessonGrid,
 .lessonTemplate,
 .twoColumn,
@@ -1359,6 +1375,198 @@
   line-height: 1.38;
 }
 
+.lessonReadyHero {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  border-radius: 18px;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  background:
+    radial-gradient(circle at 0 0, rgba(155, 225, 29, 0.16), transparent 38%),
+    rgba(255, 255, 255, 0.045);
+  padding: 16px;
+}
+
+.lessonReadyHero span,
+.sessionFields span,
+.todayFocusGrid span,
+.lessonTestGrid span,
+.moduleTestCard span,
+.moduleTestGrid span {
+  color: var(--brand-green-3);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lessonReadyHero strong,
+.todayFocusGrid strong,
+.lessonTestGrid strong,
+.moduleTestCard strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  line-height: 1.18;
+}
+
+.lessonReadyHero strong {
+  font-size: clamp(1.18rem, 2.4vw, 1.72rem);
+}
+
+.lessonReadyHero p,
+.todayFocusGrid p,
+.lessonTestGrid p,
+.moduleTestGrid p {
+  margin: 7px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.sessionFields {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sessionFields div,
+.todayFocusGrid article,
+.lessonTestGrid article,
+.moduleTestCard,
+.moduleTestGrid article {
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  padding: 12px;
+}
+
+.sessionFields i {
+  display: block;
+  height: 30px;
+  margin-top: 10px;
+  border-bottom: 1px solid rgba(197, 213, 234, 0.46);
+}
+
+.todayFocusGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.lessonTestGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.playerCheckInHero,
+.weeklyActionHero,
+.playerTrainingIntro {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  border-radius: 18px;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  background:
+    radial-gradient(circle at 0 0, rgba(155, 225, 29, 0.16), transparent 38%),
+    rgba(255, 255, 255, 0.045);
+  padding: 16px;
+}
+
+.playerTrainingIntro {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.playerCheckInHero span,
+.weeklyActionHero span,
+.actionStepGrid span,
+.goalLoopGrid span,
+.playerTrainingIntro span,
+.playerTrainingGrid span,
+.coachPlanHeader span,
+.coachPlanBlocks span,
+.coachPlanFooter span {
+  color: var(--brand-green-3);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playerCheckInHero strong,
+.weeklyActionHero strong,
+.actionStepGrid strong,
+.goalLoopGrid strong,
+.playerTrainingIntro strong,
+.playerTrainingGrid strong,
+.coachPlanHeader strong,
+.coachPlanBlocks strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  line-height: 1.18;
+}
+
+.playerCheckInHero strong,
+.weeklyActionHero strong,
+.playerTrainingIntro strong {
+  font-size: clamp(1.15rem, 2.4vw, 1.62rem);
+}
+
+.playerCheckInHero p,
+.weeklyActionHero p,
+.actionStepGrid p,
+.goalLoopGrid p,
+.playerTrainingIntro p,
+.playerTrainingGrid p,
+.coachPlanHeader p,
+.coachPlanBlocks p,
+.coachPlanFooter p {
+  margin: 7px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.goalLoopGrid,
+.actionStepGrid,
+.playerTrainingGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.goalLoopGrid article,
+.actionStepGrid article,
+.playerTrainingGrid article,
+.coachHourPlans article,
+.coachPlanBlocks section,
+.coachPlanFooter {
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  padding: 12px;
+}
+
+.coachHourPlans {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.coachHourPlans article {
+  display: grid;
+  gap: 10px;
+}
+
+.coachPlanBlocks {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.coachPlanBlocks section {
+  display: grid;
+  grid-template-columns: 44px minmax(86px, 0.42fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.coachPlanBlocks p,
+.coachPlanFooter p {
+  margin-top: 0;
+}
+
 .playerPlusBridge {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -1779,6 +1987,8 @@
 .weekAside,
 .weekBlocks,
 .practicePrescription,
+.moduleTestCard,
+.moduleTestGrid,
 .moduleStandards {
   display: grid;
   gap: 14px;
@@ -1812,6 +2022,26 @@
     radial-gradient(circle at 0 0, rgba(155, 225, 29, 0.12), transparent 36%),
     rgba(255, 255, 255, 0.045);
   padding: 14px;
+}
+
+.moduleTestCard {
+  grid-template-columns: minmax(0, 0.56fr) minmax(0, 1fr);
+  align-items: stretch;
+  border-radius: 18px;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  background:
+    radial-gradient(circle at 0 0, rgba(155, 225, 29, 0.12), transparent 36%),
+    rgba(255, 255, 255, 0.045);
+  padding: 14px;
+}
+
+.moduleTestGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.moduleTestGrid article {
+  padding: 10px;
 }
 
 .prescriptionHead {
@@ -3033,6 +3263,78 @@
   box-shadow: 0 0 0 4px #ffffff, 0 0 0 5px rgba(7, 18, 38, 0.12);
 }
 
+.printBook .lessonReadyHero,
+.printBook .sessionFields div,
+.printBook .todayFocusGrid article,
+.printBook .lessonTestGrid article,
+.printBook .moduleTestCard,
+.printBook .moduleTestGrid article,
+.printBook .playerCheckInHero,
+.printBook .weeklyActionHero,
+.printBook .actionStepGrid article,
+.printBook .goalLoopGrid article,
+.printBook .playerTrainingIntro,
+.printBook .playerTrainingGrid article,
+.printBook .coachHourPlans article,
+.printBook .coachPlanBlocks section,
+.printBook .coachPlanFooter {
+  border-color: var(--paper-line);
+  background: rgba(241, 246, 251, 0.72);
+}
+
+.printBook .lessonReadyHero strong,
+.printBook .todayFocusGrid strong,
+.printBook .lessonTestGrid strong,
+.printBook .moduleTestCard strong,
+.printBook .playerCheckInHero strong,
+.printBook .weeklyActionHero strong,
+.printBook .actionStepGrid strong,
+.printBook .goalLoopGrid strong,
+.printBook .playerTrainingIntro strong,
+.printBook .playerTrainingGrid strong,
+.printBook .coachPlanHeader strong,
+.printBook .coachPlanBlocks strong {
+  color: var(--paper-navy);
+}
+
+.printBook .lessonReadyHero p,
+.printBook .todayFocusGrid p,
+.printBook .lessonTestGrid p,
+.printBook .moduleTestGrid p,
+.printBook .playerCheckInHero p,
+.printBook .weeklyActionHero p,
+.printBook .actionStepGrid p,
+.printBook .goalLoopGrid p,
+.printBook .playerTrainingIntro p,
+.printBook .playerTrainingGrid p,
+.printBook .coachPlanHeader p,
+.printBook .coachPlanBlocks p,
+.printBook .coachPlanFooter p {
+  color: var(--paper-muted);
+}
+
+.printBook .lessonReadyHero span,
+.printBook .sessionFields span,
+.printBook .todayFocusGrid span,
+.printBook .lessonTestGrid span,
+.printBook .moduleTestCard span,
+.printBook .moduleTestGrid span,
+.printBook .playerCheckInHero span,
+.printBook .weeklyActionHero span,
+.printBook .actionStepGrid span,
+.printBook .goalLoopGrid span,
+.printBook .playerTrainingIntro span,
+.printBook .playerTrainingGrid span,
+.printBook .coachPlanHeader span,
+.printBook .coachPlanBlocks span,
+.printBook .coachPlanFooter span {
+  color: #416600;
+}
+
+.printBook .sessionFields i {
+  border-bottom-color: var(--paper-line-strong);
+}
+
 @media (max-width: 1100px) {
   .hero,
   .packetHeader,
@@ -3043,6 +3345,12 @@
 
   .identityGrid,
   .identityBlueprint,
+  .sessionFields,
+  .todayFocusGrid,
+  .lessonTestGrid,
+  .goalLoopGrid,
+  .actionStepGrid,
+  .playerTrainingGrid,
   .identityProfileBoard,
   .triggerGrid,
   .coachQuestionGrid,
@@ -3066,9 +3374,12 @@
   .evidenceLog,
   .coachReviewGrid,
   .levelUpScorecard dl,
+  .coachHourPlans,
   .lessonTemplate,
   .weekBlocks,
   .prescriptionGrid,
+  .moduleTestCard,
+  .moduleTestGrid,
   .moduleStandards,
   .moduleEvidenceGrid,
   .doublesTracker {
@@ -3088,31 +3399,38 @@
   .planGrid,
   .auditGrid,
   .identitySelectorGrid,
-    .workbookGrid,
-    .phaseMap,
-    .packetIndexGrid,
-    .identityProfileBoard,
-    .triggerGrid,
-    .coachQuestionGrid,
-    .auditDecisionGrid,
-    .focusSelectorGrid,
-    .practiceChooserGrid,
-    .coachAskGrid,
-    .guardrailGrid,
-    .evidenceExampleGrid,
-    .opponentGrid,
-    .routineGrid,
-    .readinessGateGrid,
-    .rubricScale,
-    .evidenceRubric,
-    .companionMap,
-    .cueBank,
+  .sessionFields,
+  .todayFocusGrid,
+  .lessonTestGrid,
+  .goalLoopGrid,
+  .actionStepGrid,
+  .playerTrainingGrid,
+  .workbookGrid,
+  .phaseMap,
+  .packetIndexGrid,
+  .identityProfileBoard,
+  .triggerGrid,
+  .coachQuestionGrid,
+  .auditDecisionGrid,
+  .focusSelectorGrid,
+  .practiceChooserGrid,
+  .coachAskGrid,
+  .guardrailGrid,
+  .evidenceExampleGrid,
+  .opponentGrid,
+  .routineGrid,
+  .readinessGateGrid,
+  .rubricScale,
+  .evidenceRubric,
+  .companionMap,
+  .cueBank,
   .readinessGates,
-    .evidenceLog,
+  .evidenceLog,
   .checkInRows,
-    .coachReviewGrid,
-    .levelUpScorecard dl,
-    .lessonGrid,
+  .coachReviewGrid,
+  .levelUpScorecard dl,
+  .coachHourPlans,
+  .lessonGrid,
   .sheetGrid,
   .twoColumn,
   .threeColumn,
@@ -3123,6 +3441,8 @@
   .sheetLayout,
   .weekBlocks,
   .prescriptionGrid,
+  .moduleTestCard,
+  .moduleTestGrid,
   .moduleStandards,
   .moduleEvidenceGrid,
   .doublesTracker {
@@ -3209,14 +3529,14 @@
 
   .workbookPage {
     width: 8in;
-    height: 10.5in;
-    min-height: auto;
+    min-height: 10.5in;
+    height: auto;
     margin: 0 auto;
     padding: 0.28in;
     break-after: page;
     page-break-after: always;
-    break-inside: avoid;
-    page-break-inside: avoid;
+    break-inside: auto;
+    page-break-inside: auto;
     border: 0;
     border-radius: 0;
     box-shadow: none;
@@ -3234,7 +3554,7 @@
   }
 
   .workbookPageBody {
-    overflow: hidden;
+    overflow: visible;
   }
 
   .paperBrandBar {
@@ -3255,11 +3575,115 @@
   }
 
   .pageHeader {
-    padding: 0.09in 0.12in;
+    margin-bottom: 0.1in;
+    padding: 0.07in 0.1in;
   }
 
   .pageHeader h2 {
-    font-size: 21pt;
+    font-size: 17pt;
+  }
+
+  .printBook .workbookPageBody,
+  .printBook .packetIndex,
+  .printBook .todayLessonSheet,
+  .printBook .playerCheckInSheet,
+  .printBook .weeklyActionPlan,
+  .printBook .playerTrainingSheet,
+  .printBook .identityProfileBoard,
+  .printBook .triggerSheet,
+  .printBook .selfAudit,
+  .printBook .focusSelector,
+  .printBook .practiceChooser,
+  .printBook .coachConversation,
+  .printBook .matchDayRoutine,
+  .printBook .weekPrimary,
+  .printBook .weekAside,
+  .printBook .practicePrescription,
+  .printBook .moduleTestCard,
+  .printBook .moduleStandards,
+  .printBook .coachHourPlans,
+  .printBook .coachPlanBlocks,
+  .printBook .sheetLayout {
+    gap: 0.09in;
+  }
+
+  .printBook .trackerTable {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .printBook .trackerTable th,
+  .printBook .trackerTable td {
+    height: 0.32in;
+    padding: 0.045in;
+    font-size: 7.2pt;
+    line-height: 1.18;
+  }
+
+  .printBook .reflectionLines {
+    gap: 0.06in;
+    margin-top: 0.1in;
+  }
+
+  .printBook .reflectionLines span {
+    height: 0.2in;
+  }
+
+  .printBook .qrCode {
+    width: 0.55in;
+    height: 0.55in;
+  }
+
+  .printBook .qrAction {
+    gap: 0.06in;
+    padding: 0.05in;
+  }
+
+  .printBook .qrAction small {
+    display: none;
+  }
+
+  .printBook .lessonReadyHero,
+  .printBook .sessionFields div,
+  .printBook .todayFocusGrid article,
+  .printBook .lessonTestGrid article,
+  .printBook .moduleTestCard,
+  .printBook .moduleTestGrid article,
+  .printBook .playerCheckInHero,
+  .printBook .weeklyActionHero,
+  .printBook .actionStepGrid article,
+  .printBook .goalLoopGrid article,
+  .printBook .playerTrainingIntro,
+  .printBook .playerTrainingGrid article,
+  .printBook .coachHourPlans article,
+  .printBook .coachPlanBlocks section,
+  .printBook .coachPlanFooter,
+  .printBook .practicePrescription,
+  .printBook .practicePrescription article,
+  .printBook .weekObjective,
+  .printBook .weekPlanTable th,
+  .printBook .weekPlanTable td {
+    padding: 0.08in;
+  }
+
+  .printBook .lessonReadyHero p,
+  .printBook .todayFocusGrid p,
+  .printBook .lessonTestGrid p,
+  .printBook .moduleTestGrid p,
+  .printBook .playerCheckInHero p,
+  .printBook .weeklyActionHero p,
+  .printBook .actionStepGrid p,
+  .printBook .goalLoopGrid p,
+  .printBook .playerTrainingIntro p,
+  .printBook .playerTrainingGrid p,
+  .printBook .coachPlanHeader p,
+  .printBook .coachPlanBlocks p,
+  .printBook .coachPlanFooter p,
+  .printBook .practicePrescription article p,
+  .printBook .weekPlanTable td,
+  .printBook .weekObjective p {
+    font-size: 8pt;
+    line-height: 1.28;
   }
 
   .coverPage .workbookPageBody {

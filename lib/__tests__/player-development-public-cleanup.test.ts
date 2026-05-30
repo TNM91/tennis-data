@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -33,5 +33,25 @@ describe('Player Development public cleanup', () => {
     ]) {
       expect(combined).not.toContain(forbidden)
     }
+  })
+
+  it('keeps workbook and coach planner pages practical enough to print and use', () => {
+    for (const expected of [
+      'TodayLessonSheet',
+      'PlayerGoalCheckIn',
+      'PlayerWeeklyActionPlan',
+      'PlayerSoloTraining',
+      'PlayerPartnerTraining',
+      'PlayerOffCourtTraining',
+      'ModuleTestCard',
+      'CoachOneHourPlans',
+    ]) {
+      expect(systemSource).toContain(expected)
+    }
+
+    expect(systemSource).toContain('One week. One habit. One proof note.')
+    expect(systemSource).toContain('One-hour lesson plans: Modules 1-4')
+    expect(systemSource).toContain('One-hour lesson plans: Modules 5-8')
+    expect(existsSync(join(process.cwd(), 'scripts/verify-player-development-print.mjs'))).toBe(true)
   })
 })

@@ -11,6 +11,7 @@ import {
   PLAYER_DEVELOPMENT_IDENTITIES,
   PLAYER_DEVELOPMENT_DIAGRAMS,
   getPlayerDevelopmentIdentity,
+  type CoachLessonPlan,
   type PlayerDevelopmentDiagram,
   type PlayerDevelopmentIdentity,
   type PlayerDevelopmentWeek,
@@ -227,8 +228,23 @@ function WorkbookPreview({
         <WorkbookPacketIndex identity={identity} />
       </WorkbookPage>
 
+      <WorkbookPage footer="Today's lesson">
+        <PageHeader label="Lesson-ready page" title="Use this before your next session" />
+        <TodayLessonSheet identity={identity} />
+      </WorkbookPage>
+
+      <WorkbookPage footer="Goal check-in">
+        <PageHeader label="Player check-in" title="Goal, work, proof, next step" />
+        <PlayerGoalCheckIn identity={identity} />
+      </WorkbookPage>
+
+      <WorkbookPage footer="Weekly action plan">
+        <PageHeader label="Start here" title="Your one-week action plan" />
+        <PlayerWeeklyActionPlan identity={identity} />
+      </WorkbookPage>
+
       <WorkbookPage footer="Identity">
-        <PageHeader label="Identity page" title="How this player wins" />
+        <PageHeader label="Identity page" title="Define how you win" />
         <div className={styles.identityBlueprint}>
           <div>
             <span>Archetype</span>
@@ -260,7 +276,7 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage footer="Style finder">
-        <PageHeader label="Style finder" title="Recognize the player you are building" />
+        <PageHeader label="Style finder" title="Recognize the player you are becoming" />
         <IdentityProfileBoard identity={identity} />
       </WorkbookPage>
 
@@ -312,7 +328,7 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage footer="Training menu">
-        <PageHeader label="Training menu" title="Training menu by theme" />
+        <PageHeader label="Player training menu" title="What to work on this week" />
         <div className={styles.workbookGrid}>
           {identity.sections.map((section) => (
             <article className={styles.workbookSection} key={section.title}>
@@ -327,6 +343,21 @@ function WorkbookPreview({
             </article>
           ))}
         </div>
+      </WorkbookPage>
+
+      <WorkbookPage footer="Solo training">
+        <PageHeader label="Player practice" title="Court work you can do by yourself" />
+        <PlayerSoloTraining identity={identity} />
+      </WorkbookPage>
+
+      <WorkbookPage footer="Hitting partner">
+        <PageHeader label="Player practice" title="Drills to run with a hitting partner" />
+        <PlayerPartnerTraining identity={identity} />
+      </WorkbookPage>
+
+      <WorkbookPage footer="Off-court work">
+        <PageHeader label="Player practice" title="Off-court work that changes match habits" />
+        <PlayerOffCourtTraining identity={identity} />
       </WorkbookPage>
 
       <WorkbookPage footer="Focus selector">
@@ -478,11 +509,11 @@ function PlayerPlusAccessNote() {
 
 function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const sections = [
-    ['Identity', 'Define how this player wins and what habits matter most.'],
-    ['Training menu', 'Choose weekly work by movement, serve, strokes, conditioning, doubles, or accountability.'],
-    ['Modules', 'Run each practice with the prescription, court diagram, pressure game, and evidence note.'],
-    ['Reusable sheets', 'Print extra recaps, match reflections, serve charts, doubles trackers, and assignments.'],
-    ['Player+ companion', 'Scan QR codes to save goals and evidence when Player+ access is active.'],
+    ['Start here', 'Pick one goal, one court action, one off-court action, and one proof note.'],
+    ['Training menu', 'Choose the drill page that matches your next match problem.'],
+    ['Modules', 'Use the module only when it supports this week\'s goal.'],
+    ['Reusable sheets', 'Use extra recaps, match reflections, serve charts, doubles trackers, and assignments when needed.'],
+    ['Player+ companion', 'Scan QR codes when you want to save goals and evidence.'],
   ] as const
 
   return (
@@ -491,8 +522,8 @@ function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity
         <TiqFeatureIcon name="reports" size="lg" variant="surface" />
         <div>
           <span>{identity.levelPath.from} to {identity.levelPath.to}</span>
-          <strong>Use the guide in order, then reuse the sheets as needed.</strong>
-          <p>The workbook should create one coach-ready note every module and one Player+ action whenever the player wants the work saved inside TenAceIQ.</p>
+          <strong>Do not use every page every week. Use the page that tells you what to do next.</strong>
+          <p>Each week should produce one clear goal, one honest training note, and one piece of proof you can bring back to the court.</p>
         </div>
       </div>
       <div className={styles.packetIndexGrid}>
@@ -504,7 +535,275 @@ function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity
           </article>
         ))}
       </div>
-      <TrackerTable columns={['Use this page when', 'Player completes', 'Coach reviews', 'Player+ save point']} rows={['Before the block', 'Each module', 'After a match', 'Before next lesson']} />
+      <TrackerTable columns={['Use this page when', 'You complete', 'Coach reviews', 'Player+ save point']} rows={['Before the block', 'Each module', 'After a match', 'Before next lesson']} />
+    </div>
+  )
+}
+
+function TodayLessonSheet({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const firstModule = identity.weeks[0]
+  const focusOptions = identity.sections.slice(0, 5)
+
+  return (
+    <div className={styles.todayLessonSheet}>
+      <div className={styles.lessonReadyHero}>
+        <TiqFeatureIcon name="schedule" size="lg" variant="surface" />
+        <div>
+          <span>Your session setup</span>
+          <strong>Pick one focus, test it under pressure, leave with one assignment.</strong>
+          <p>
+            Use this page before the session starts. It gives you a clear target and a quick pass/fix/retest loop.
+          </p>
+        </div>
+      </div>
+      <div className={styles.sessionFields}>
+        {['Player', 'Date', 'Module', 'Coach'].map((field) => (
+          <div key={field}>
+            <span>{field}</span>
+            <i />
+          </div>
+        ))}
+      </div>
+      <div className={styles.todayFocusGrid}>
+        {focusOptions.map((section, index) => (
+          <article key={section.id}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <strong>{section.title}</strong>
+            <p>{section.cue}</p>
+          </article>
+        ))}
+      </div>
+      <div className={styles.lessonTestGrid}>
+        <article>
+          <span>Warm-up read</span>
+          <strong>{firstModule?.mainDrill ?? 'Start with the cleanest repeatable rep.'}</strong>
+          <p>Watch feet, target clarity, and recovery before adding score.</p>
+        </article>
+        <article>
+          <span>Pressure test</span>
+          <strong>{firstModule?.pressureGame ?? 'Make the drill survive score pressure.'}</strong>
+          <p>Retest the same habit after fatigue, missed balls, or a 30-30 score.</p>
+        </article>
+        <article>
+          <span>Proof due</span>
+          <strong>{firstModule?.accountability ?? 'Write the evidence before the next lesson.'}</strong>
+          <p>You should leave knowing exactly what counts as progress.</p>
+        </article>
+      </div>
+      <TrackerTable
+        columns={['Test', 'Pass', 'Fix cue', 'Retest result']}
+        rows={['Routine holds under pressure', 'Target named before contact', 'Recovery happens after contact', 'You can explain the next assignment']}
+      />
+      <div className={styles.twoColumn}>
+        <ReflectionLines label="One sentence goal for today's lesson" rows={4} />
+        <ReflectionLines label="Assignment to bring back next time" rows={4} />
+      </div>
+    </div>
+  )
+}
+
+function getPlayerTrainingMenus(identity: PlayerDevelopmentIdentity) {
+  const isRelentless = identity.slug.includes('relentless')
+
+  return {
+    solo: isRelentless
+      ? [
+          ['Serve target reps', 'Call wide, body, or T before every serve. Chart made target and whether the routine stayed the same.'],
+          ['Shadow recovery lanes', 'Drop a cone at recovery position. Hit or shadow, recover before watching the result, then reset.'],
+          ['Wall rhythm ladder', 'Use crosscourt-height targets on a wall. Count only balanced contacts with active feet after contact.'],
+          ['Pressure routine rehearsal', 'Start every rep at 30-30 in your head. Breathe, name target, commit, reset.'],
+        ]
+      : [
+          ['Serve plus-one shadow', 'Call serve target, shadow the first ball lane, recover, then repeat with a new location.'],
+          ['Approach footwork ladder', 'Move through short-ball contact, close, split, and recover without pausing at contact.'],
+          ['Wall depth builder', 'Work heavy crosscourt shape before a controlled line-change target.'],
+          ['Decision rehearsal', 'Call neutral, build, attack, or finish before each shadow swing.'],
+        ],
+    partner: isRelentless
+      ? [
+          ['Wide-ball reset game', 'Partner feeds wide. You must reset high crosscourt, recover, then play the next ball neutral.'],
+          ['Green-yellow-red rally', 'Call the ball before contact and attack only green balls.'],
+          ['Second-serve plus one', 'Start each point with a second serve. Score only if the next ball is ready and controlled.'],
+          ['Late-game footwork set', 'Play first to 7 starting at 30-30. Bonus point if feet stay active after contact.'],
+        ]
+      : [
+          ['Crosscourt earn-and-change', 'Build three deep crosscourts before changing line only from balance.'],
+          ['Short-ball close', 'Partner feeds short after depth. Player approaches, closes, splits, and finishes placement.'],
+          ['Return step-in game', 'Partner serves second serves. Returner steps in and scores for depth plus recovery.'],
+          ['Attack reset rally', 'If the attack is not earned, player must reset and rebuild instead of forcing.'],
+        ],
+    offCourt: isRelentless
+      ? [
+          ['Match note in five minutes', 'Write one proof, one leak, and one next practice focus within five minutes after play.'],
+          ['Pressure breath routine', 'Practice the same breath, target call, and reset phrase before ten imagined pressure points.'],
+          ['Legs-late finisher', 'Short interval set: 20 seconds work, 20 seconds reset, then write whether posture stayed calm.'],
+          ['Opponent plan card', 'Before a match, write the opponent style and the first three-game adjustment.'],
+        ]
+      : [
+          ['Pattern notebook', 'Write the pattern that earned short balls and the ball you were trying to create.'],
+          ['Balance audit', 'After match play, list three attacks: earned, forced, or rushed.'],
+          ['Forward-close mobility', 'Practice split, close, and recover footwork with a clear finish cue.'],
+          ['First-strike plan card', 'Before play, choose serve target, first ball, and recovery cue.'],
+        ],
+  }
+}
+
+function PlayerGoalCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const rows = [
+    'Current two-week goal',
+    'On-court work completed',
+    'Off-court habit completed',
+    'Best proof from match or practice',
+    'Next adjustment',
+  ]
+
+  return (
+    <div className={styles.playerCheckInSheet}>
+      <div className={styles.playerCheckInHero}>
+        <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
+        <div>
+          <span>Player-owned tracking</span>
+          <strong>Show what you worked on. Tell what changed. Choose what comes next.</strong>
+          <p>
+            This page is for you first. Bring it to a coach, captain, parent, or practice partner when you need feedback.
+          </p>
+        </div>
+      </div>
+      <div className={styles.goalLoopGrid}>
+        {['Goal', 'Work', 'Proof', 'Next'].map((step, index) => (
+          <article key={step}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <strong>{step}</strong>
+            <p>
+              {step === 'Goal'
+                ? `Pick one ${identity.title.replace(/^The /, '').toLowerCase()} habit.`
+                : step === 'Work'
+                  ? 'Do the court or off-court work and record the reps.'
+                  : step === 'Proof'
+                    ? 'Bring a match moment, score, chart, or drill result.'
+                    : 'Choose the next small adjustment before adding more goals.'}
+            </p>
+          </article>
+        ))}
+      </div>
+      <TrackerTable columns={['Check-in item', 'This week', 'Evidence', 'Next action']} rows={rows} />
+      <div className={styles.twoColumn}>
+        <ReflectionLines label="What I am proud of from this week" rows={4} />
+        <ReflectionLines label="What I want help testing next" rows={4} />
+      </div>
+    </div>
+  )
+}
+
+function PlayerWeeklyActionPlan({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const { solo, partner, offCourt } = getPlayerTrainingMenus(identity)
+  const primaryModule = identity.weeks[0]
+  const actions = [
+    ['Choose', 'Circle one habit that would change your next match fastest.', identity.sections[0]?.title ?? 'Movement'],
+    ['Train', 'Do one court action twice this week.', solo[0]?.[0] ?? 'Solo training'],
+    ['Test', 'Make it survive score, fatigue, or a missed ball.', primaryModule?.pressureGame ?? 'Pressure test'],
+    ['Show', 'Write proof a coach or partner can understand.', primaryModule?.accountability ?? 'Evidence note'],
+  ] as const
+  const guideRows = [
+    `Solo: ${solo[0]?.[0] ?? 'Court work'}`,
+    `Partner: ${partner[0]?.[0] ?? 'Hitting drill'}`,
+    `Off court: ${offCourt[0]?.[0] ?? 'Match note'}`,
+    `Module: ${primaryModule ? `${primaryModule.week} - ${primaryModule.title}` : 'Choose one module'}`,
+  ]
+
+  return (
+    <div className={styles.weeklyActionPlan}>
+      <div className={styles.weeklyActionHero}>
+        <TiqFeatureIcon name="matchPrep" size="lg" variant="surface" />
+        <div>
+          <span>Use this first</span>
+          <strong>One week. One habit. One proof note.</strong>
+          <p>
+            If a page does not help you act this week, skip it. Come back when that page answers a real problem.
+          </p>
+        </div>
+      </div>
+      <div className={styles.actionStepGrid}>
+        {actions.map(([label, text, example], index) => (
+          <article key={label}>
+            <span>{String(index + 1).padStart(2, '0')} {label}</span>
+            <strong>{text}</strong>
+            <p>Example: {example}</p>
+          </article>
+        ))}
+      </div>
+      <TrackerTable columns={['This week', 'My choice', 'Done?', 'Proof']} rows={guideRows} />
+      <div className={styles.twoColumn}>
+        <ReflectionLines label="The one habit I am training this week" rows={4} />
+        <ReflectionLines label="The proof I will bring back" rows={4} />
+      </div>
+    </div>
+  )
+}
+
+function PlayerSoloTraining({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const { solo } = getPlayerTrainingMenus(identity)
+
+  return (
+    <PlayerTrainingSheet
+      intro="Use these when you have a court, basket, wall, or open space but no coach. Keep the reps simple and measurable."
+      rows={solo}
+      tableRows={['Serve basket', 'Wall or shadow work', 'Footwork lane', 'Pressure routine']}
+    />
+  )
+}
+
+function PlayerPartnerTraining({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const { partner } = getPlayerTrainingMenus(identity)
+
+  return (
+    <PlayerTrainingSheet
+      intro="Use these with a friend. One player feeds or plays the constraint while the other tracks whether the habit shows up."
+      rows={partner}
+      tableRows={['Feed-and-recover drill', 'Rally constraint', 'Serve or return game', 'Pressure finish']}
+    />
+  )
+}
+
+function PlayerOffCourtTraining({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const { offCourt } = getPlayerTrainingMenus(identity)
+
+  return (
+    <PlayerTrainingSheet
+      intro="Use these away from the court so the next practice starts with a clearer mind and a better match habit."
+      rows={offCourt}
+      tableRows={['Match note', 'Routine rehearsal', 'Fitness habit', 'Opponent plan']}
+    />
+  )
+}
+
+function PlayerTrainingSheet({
+  intro,
+  rows,
+  tableRows,
+}: {
+  intro: string
+  rows: string[][]
+  tableRows: string[]
+}) {
+  return (
+    <div className={styles.playerTrainingSheet}>
+      <div className={styles.playerTrainingIntro}>
+        <span>Player instructions</span>
+        <strong>Pick one, do it honestly, write down proof.</strong>
+        <p>{intro}</p>
+      </div>
+      <div className={styles.playerTrainingGrid}>
+        {rows.map(([title, text], index) => (
+          <article key={title}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <strong>{title}</strong>
+            <p>{text}</p>
+          </article>
+        ))}
+      </div>
+      <TrackerTable columns={['Work block', 'Reps or score', 'What improved?', 'What to repeat?']} rows={tableRows} />
+      <ReflectionLines label="My note before the next session" rows={4} />
     </div>
   )
 }
@@ -590,7 +889,7 @@ function IdentitySelfAudit({ identity }: { identity: PlayerDevelopmentIdentity }
       <div className={styles.auditDecisionGrid}>
         <article>
           <span>If the lowest score is a weapon</span>
-          <p>Train reps first. The player needs more repeatable pattern volume before adding pressure.</p>
+          <p>Train reps first. You need more repeatable pattern volume before adding pressure.</p>
         </article>
         <article>
           <span>If the lowest score is a pressure habit</span>
@@ -666,7 +965,7 @@ function IdentityGuardrails({ identity }: { identity: PlayerDevelopmentIdentity 
         <div>
           <span>Identity clarity</span>
           <strong>A useful style narrows decisions. It should not excuse bad habits.</strong>
-          <p>Use this page when the player starts using the identity as a label instead of a match plan.</p>
+          <p>Use this page when you start using the identity as a label instead of a match plan.</p>
         </div>
       </div>
       <div className={styles.guardrailGrid}>
@@ -769,7 +1068,7 @@ function PracticeChooser({ identity }: { identity: PlayerDevelopmentIdentity }) 
       <div className={styles.practiceRule}>
         <span>Selection rule</span>
         <strong>Train the leak that changes the next match fastest.</strong>
-        <p>Choose one leak, one module, and one pressure test. Save the rest for later so the player does not scatter attention.</p>
+        <p>Choose one leak, one module, and one pressure test. Save the rest for later so you do not scatter attention.</p>
       </div>
     </div>
   )
@@ -794,7 +1093,7 @@ function CoachConversationSheet({ identity }: { identity: PlayerDevelopmentIdent
         ))}
       </div>
       <TrackerTable
-        columns={['Coach sees', 'Player feels', 'Shared priority', 'Assignment']}
+        columns={['Coach sees', 'You feel', 'Shared priority', 'Assignment']}
         rows={identity.sections.slice(0, 5).map((section) => section.title)}
       />
       <div className={styles.twoColumn}>
@@ -891,6 +1190,7 @@ function WeeklyWorkbookPage({ identity, week }: { identity: PlayerDevelopmentIde
               <span>Objective</span>
               <p>{week.objective}</p>
             </section>
+            <ModuleTestCard week={week} />
             <PracticePrescription week={week} />
             <WeekPlanTable week={week} />
           </div>
@@ -938,6 +1238,31 @@ function PracticePrescription({ week }: { week: PlayerDevelopmentWeek }) {
           <article key={label}>
             <span>{time}</span>
             <strong>{label}</strong>
+            <p>{text}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ModuleTestCard({ week }: { week: PlayerDevelopmentWeek }) {
+  const tests = [
+    ['Pass', 'You can repeat the cue without coach rescue.'],
+    ['Pressure', 'Same habit survives score, fatigue, or a missed ball.'],
+    ['Proof', week.accountability],
+  ] as const
+
+  return (
+    <div className={styles.moduleTestCard}>
+      <div>
+        <span>Module test</span>
+        <strong>Run it clean, then run it under pressure.</strong>
+      </div>
+      <div className={styles.moduleTestGrid}>
+        {tests.map(([label, text]) => (
+          <article key={label}>
+            <span>{label}</span>
             <p>{text}</p>
           </article>
         ))}
@@ -1274,6 +1599,16 @@ function CoachPlannerPreview({
         </div>
       </WorkbookPage>
 
+      <WorkbookPage footer="Lesson plans 1-4">
+        <PageHeader label="Coach guide" title="One-hour lesson plans: Modules 1-4" />
+        <CoachOneHourPlans identity={identity} lessons={identity.coachLessons.slice(0, 4)} />
+      </WorkbookPage>
+
+      <WorkbookPage footer="Lesson plans 5-8">
+        <PageHeader label="Coach guide" title="One-hour lesson plans: Modules 5-8" />
+        <CoachOneHourPlans identity={identity} lessons={identity.coachLessons.slice(4)} />
+      </WorkbookPage>
+
       <WorkbookPage footer="One-hour lesson">
         <PageHeader label="One-hour lesson" title="Lesson plan template" />
         <div className={styles.lessonTemplate}>
@@ -1344,6 +1679,52 @@ function CoachPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity })
         ))}
       </div>
       <TrackerTable columns={['Coach decision', 'Repeat if', 'Progress if', 'Transfer if']} rows={identity.metrics.map((metric) => metric.skill)} />
+    </div>
+  )
+}
+
+function CoachOneHourPlans({
+  identity,
+  lessons,
+}: {
+  identity: PlayerDevelopmentIdentity
+  lessons: CoachLessonPlan[]
+}) {
+  return (
+    <div className={styles.coachHourPlans}>
+      {lessons.map((lesson) => {
+        const week = identity.weeks.find((candidate) => candidate.week === lesson.week)
+        const blocks = [
+          ['0-8', 'Check in', 'Ask for the player goal, last proof, and one place the habit broke down.'],
+          ['8-18', 'Prime', week?.objective ?? lesson.objective],
+          ['18-38', 'Main drill', week?.mainDrill ?? lesson.blocks[0] ?? lesson.focus],
+          ['38-52', 'Pressure test', week?.pressureGame ?? 'Make the drill survive score pressure.'],
+          ['52-60', 'Assignment', week?.accountability ?? lesson.homework],
+        ] as const
+
+        return (
+          <article key={lesson.week}>
+            <div className={styles.coachPlanHeader}>
+              <span>Module {lesson.week}</span>
+              <strong>{lesson.focus}</strong>
+              <p>{lesson.objective}</p>
+            </div>
+            <div className={styles.coachPlanBlocks}>
+              {blocks.map(([time, title, text]) => (
+                <section key={`${lesson.week}-${time}`}>
+                  <span>{time}</span>
+                  <strong>{title}</strong>
+                  <p>{text}</p>
+                </section>
+              ))}
+            </div>
+            <div className={styles.coachPlanFooter}>
+              <span>Coach cue</span>
+              <p>{week?.coachCue ?? 'Keep the assignment measurable and tied to player evidence.'}</p>
+            </div>
+          </article>
+        )
+      })}
     </div>
   )
 }
@@ -1498,7 +1879,7 @@ function ReusableWorkbookSheets({ identity }: { identity: PlayerDevelopmentIdent
         <AssignmentContract identity={identity} />
         <div className={styles.assignmentGrid}>
           <ReflectionLines label="Coach assignment" rows={5} />
-          <ReflectionLines label="Player evidence to bring back" rows={5} />
+          <ReflectionLines label="Your evidence to bring back" rows={5} />
         </div>
         <TrackerTable columns={['Day', 'Work completed', 'Confidence', 'Note']} rows={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Match day']} />
       </WorkbookPage>
@@ -1704,7 +2085,7 @@ function TemplateBlock({ time, title, text }: { time: string; title: string; tex
 
 function CourtDiagram({ diagram, title }: { diagram: PlayerDevelopmentDiagram; title: string }) {
   const meta = PLAYER_DEVELOPMENT_DIAGRAMS[diagram]
-  const overlay = getTacticalOverlay(diagram)
+  const overlay = getWorkbookCourtOverlay(getTacticalOverlay(diagram))
 
   return (
     <figure className={styles.courtFigure}>
@@ -1712,9 +2093,26 @@ function CourtDiagram({ diagram, title }: { diagram: PlayerDevelopmentDiagram; t
         <span>{title}</span>
         <small>{meta.title}</small>
       </figcaption>
-      <TiqCourt alt={title} className={styles.tiqCourtFrame} overlay={overlay} showLabels={false} />
+      <TiqCourt alt={title} className={styles.tiqCourtFrame} overlay={overlay} showLabels />
     </figure>
   )
+}
+
+function getWorkbookCourtOverlay(overlay: DrillOverlay): DrillOverlay {
+  const startMarkers = overlay.players?.map((player) => ({
+    id: `start-${player.id}`,
+    label: player.label,
+    size: 6,
+    type: 'cone' as const,
+    x: player.x,
+    y: player.y,
+  })) ?? []
+
+  return {
+    ...overlay,
+    players: undefined,
+    markers: [...(overlay.markers ?? []), ...startMarkers],
+  }
 }
 
 function DiagramReadout({ diagram }: { diagram: PlayerDevelopmentDiagram }) {
