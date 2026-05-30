@@ -19,6 +19,7 @@ type WorkType = 'court' | 'physical' | 'mental'
 type TrainingContext = 'alone' | 'partner' | 'singles' | 'doubles' | 'coach'
 type PlayerFeeling = 'ready' | 'tight' | 'tired' | 'nervous'
 type AccessMode = 'coach_invited' | 'player_plus' | 'free_preview'
+type EditingStep = 'focus' | 'setup' | 'work' | null
 
 type DrillOption = {
   id: string
@@ -159,6 +160,7 @@ export default function PlayerLiveWorkbench({
   const [workType, setWorkType] = useState<WorkType>(initialWorkType)
   const [accessMode, setAccessMode] = useState<AccessMode>('coach_invited')
   const [activeDrillId, setActiveDrillId] = useState(hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : '')
+  const [editingStep, setEditingStep] = useState<EditingStep>(hasCoachAssignment ? null : 'focus')
   const [draft, setDraft] = useState(emptyDraft)
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
@@ -193,6 +195,7 @@ export default function PlayerLiveWorkbench({
     setSyncState({ status: 'idle', message: 'Coach challenge loaded. Rate and save after the work.' })
     setActiveFocusId(nextFocusId)
     setActiveDrillId(`${nextFocusId}-coach-${nextWorkType}`)
+    setEditingStep(null)
   }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment])
 
   useEffect(() => {
@@ -233,6 +236,7 @@ export default function PlayerLiveWorkbench({
     setActiveDrillId('')
     setDraft(emptyDraft)
     setSyncState({ status: 'idle', message: '' })
+    setEditingStep('setup')
   }
 
   function chooseContext(nextContext: TrainingContext) {
@@ -240,11 +244,13 @@ export default function PlayerLiveWorkbench({
     if (nextContext === 'coach') setWorkType('court')
     if (nextContext === 'doubles') setWorkType('court')
     setActiveDrillId('')
+    setEditingStep('work')
   }
 
   function chooseWorkType(nextWorkType: WorkType) {
     setWorkType(nextWorkType)
     setActiveDrillId('')
+    setEditingStep(null)
   }
 
   function chooseAccessMode(nextMode: AccessMode) {
@@ -358,6 +364,17 @@ export default function PlayerLiveWorkbench({
         <span>{hasCoachAssignment ? 'Coach challenge' : 'Ready now'}</span>
         <strong>{hasCoachAssignment ? assignmentTitle || activeDrill.title : activeFocus.title.replace(' Development', '')}</strong>
         <p>{workTypeLabels[workType]} / {contextLabels[context]}</p>
+        <div className={styles.liveCompactEdits} aria-label="Change Level Up choices">
+          <button type="button" data-active={editingStep === 'focus' ? 'true' : 'false'} onClick={() => setEditingStep('focus')}>
+            Focus
+          </button>
+          <button type="button" data-active={editingStep === 'setup' ? 'true' : 'false'} onClick={() => setEditingStep('setup')}>
+            Setup
+          </button>
+          <button type="button" data-active={editingStep === 'work' ? 'true' : 'false'} onClick={() => setEditingStep('work')}>
+            Work
+          </button>
+        </div>
       </div>
 
       <div className={styles.liveCoachLoop} aria-label="Coach linked training loop">
@@ -418,7 +435,7 @@ export default function PlayerLiveWorkbench({
       </div>
 
       <div id="level-up-flow" className={styles.liveTrainingFlow}>
-        <div className={styles.liveStepPanel}>
+        <div className={styles.liveStepPanel} data-collapsed={editingStep !== 'focus' ? 'true' : 'false'}>
           <span>1. Focus</span>
           <strong>Choose today&apos;s target.</strong>
           <div className={styles.liveFocusRail} aria-label="Choose a training focus">
@@ -437,7 +454,7 @@ export default function PlayerLiveWorkbench({
           </div>
         </div>
 
-        <div className={styles.liveStepPanel}>
+        <div className={styles.liveStepPanel} data-collapsed={editingStep !== 'setup' ? 'true' : 'false'}>
           <span>2. Setup</span>
           <strong>How are you training?</strong>
           <div className={styles.liveContextGrid} aria-label="Choose training setup">
@@ -454,8 +471,8 @@ export default function PlayerLiveWorkbench({
           </div>
         </div>
 
-        <div className={styles.liveWorkbenchBody}>
-          <div className={styles.liveLaneColumn}>
+        <div className={styles.liveWorkbenchBody} data-flow-state={editingStep ?? 'drill'}>
+          <div className={styles.liveLaneColumn} data-collapsed={editingStep !== 'work' ? 'true' : 'false'}>
             <div className={styles.liveCurrentGoal}>
               <span>Current plan</span>
               <strong>{activeFocus.title}</strong>

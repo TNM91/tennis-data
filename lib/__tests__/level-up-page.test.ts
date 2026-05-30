@@ -65,7 +65,14 @@ describe('Level Up page', () => {
 
   it('keeps the phone Level Up flow compact for on-court use', () => {
     expect(liveWorkbenchSource).toContain('liveCompactSummary')
+    expect(liveWorkbenchSource).toContain('type EditingStep')
+    expect(liveWorkbenchSource).toContain('setEditingStep')
+    expect(liveWorkbenchSource).toContain('data-collapsed={editingStep !==')
+    expect(liveWorkbenchSource).toContain('data-flow-state={editingStep ??')
     expect(developmentStylesSource).toContain('.liveCompactSummary')
+    expect(developmentStylesSource).toContain('.liveCompactEdits')
+    expect(developmentStylesSource).toContain(".liveStepPanel[data-collapsed='true']")
+    expect(developmentStylesSource).toContain(".liveWorkbenchBody[data-flow-state='focus']")
     expect(developmentStylesSource).toContain('.liveCoachLoop,')
     expect(developmentStylesSource).toContain('.liveAccessPanel,')
     expect(developmentStylesSource).toContain('.levelUpRouteActions,')
