@@ -1012,7 +1012,7 @@ export default function TournamentBuilderWorkspace() {
 
   if (!canUseLeague && authResolved) {
     const primaryHref = role === 'public'
-      ? '/join?plan=full_court&next=/league-coordinator/tournaments'
+      ? '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments'
       : '/pricing'
     const primaryLabel = role === 'public' ? 'Create account' : 'Compare Full-Court'
 
