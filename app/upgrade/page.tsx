@@ -826,6 +826,7 @@ function UpgradeContent({
                   <label style={fieldStyle}>
                     Name
                     <input
+                      className="tiq-focus-ring"
                       value={requestName}
                       onChange={(event) => setRequestName(event.target.value)}
                       placeholder="Your name"
@@ -835,6 +836,7 @@ function UpgradeContent({
                   <label style={fieldStyle}>
                     Email
                     <input
+                      className="tiq-focus-ring"
                       type="email"
                       value={requestEmail}
                       onChange={(event) => setRequestEmail(event.target.value)}
@@ -846,6 +848,7 @@ function UpgradeContent({
                 <label style={fieldStyle}>
                   Team or league
                   <input
+                    className="tiq-focus-ring"
                     value={requestOrganization}
                     onChange={(event) => setRequestOrganization(event.target.value)}
                     placeholder="Optional"
@@ -855,6 +858,7 @@ function UpgradeContent({
                 <label style={fieldStyle}>
                   What are you trying to do first?
                   <textarea
+                    className="tiq-focus-ring"
                     value={requestGoal}
                     onChange={(event) => setRequestGoal(event.target.value)}
                     placeholder="Example: compare a lineup, prep for a match, or run league standings."
@@ -1383,7 +1387,8 @@ const inputStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 14,
   fontWeight: 750,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
 }
 
 const textareaStyle: CSSProperties = {

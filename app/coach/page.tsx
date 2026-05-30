@@ -567,30 +567,30 @@ function CoachContent() {
           <form onSubmit={handleAddStudent} style={formGridStyle}>
             <label style={fieldStyle}>
               Player name
-              <input value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Add a student" style={inputStyle} />
+              <input className="tiq-focus-ring" value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Add a student" style={inputStyle} />
             </label>
             <label style={fieldStyle}>
               Development path
-              <select value={studentIdentity} onChange={(event) => setStudentIdentity(event.target.value)} style={inputStyle}>
+              <select className="tiq-focus-ring" value={studentIdentity} onChange={(event) => setStudentIdentity(event.target.value)} style={inputStyle}>
                 <option value="relentless-competitor-4-0">Relentless Competitor</option>
                 <option value="smart-attacker-4-0-to-4-5">Smart Attacker</option>
               </select>
             </label>
             <label style={fieldStyle}>
               Level / group
-              <input value={studentLevel} onChange={(event) => setStudentLevel(event.target.value)} placeholder="4.0, varsity, clinic..." style={inputStyle} />
+              <input className="tiq-focus-ring" value={studentLevel} onChange={(event) => setStudentLevel(event.target.value)} placeholder="4.0, varsity, clinic..." style={inputStyle} />
             </label>
             <label style={fieldStyle}>
               Player email
-              <input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="Optional account email" style={inputStyle} />
+              <input className="tiq-focus-ring" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="Optional account email" style={inputStyle} />
             </label>
             <label style={fieldStyle}>
               Cell phone
-              <input inputMode="tel" value={studentPhone} onChange={(event) => setStudentPhone(event.target.value)} placeholder="Optional text setup" style={inputStyle} />
+              <input className="tiq-focus-ring" inputMode="tel" value={studentPhone} onChange={(event) => setStudentPhone(event.target.value)} placeholder="Optional text setup" style={inputStyle} />
             </label>
             <label style={fieldStyle}>
               Contact
-              <select value={contactPreference} onChange={(event) => setContactPreference(event.target.value as CoachStudentLink['contactPreference'])} style={inputStyle}>
+              <select className="tiq-focus-ring" value={contactPreference} onChange={(event) => setContactPreference(event.target.value as CoachStudentLink['contactPreference'])} style={inputStyle}>
                 <option value="in_app">TenAceIQ IM</option>
                 <option value="text">Text</option>
                 <option value="both">IM + text</option>
@@ -698,7 +698,7 @@ function CoachContent() {
           <form onSubmit={handleCreateAssignment} style={formGridStyle}>
             <label style={fieldStyle}>
               Student
-              <select value={assignmentStudentId} onChange={(event) => setAssignmentStudentId(event.target.value)} style={inputStyle}>
+              <select className="tiq-focus-ring" value={assignmentStudentId} onChange={(event) => setAssignmentStudentId(event.target.value)} style={inputStyle}>
                 <option value="">Choose student</option>
                 {savedStudents.map((student) => (
                   <option key={student.id} value={student.id}>{student.playerName}</option>
@@ -707,7 +707,7 @@ function CoachContent() {
             </label>
             <label style={fieldStyle}>
               Template
-              <select value={assignmentTemplateId} onChange={(event) => handleAssignmentTemplateChange(event.target.value)} style={inputStyle}>
+              <select className="tiq-focus-ring" value={assignmentTemplateId} onChange={(event) => handleAssignmentTemplateChange(event.target.value)} style={inputStyle}>
                 {COACH_ASSIGNMENT_TEMPLATES.map((template) => (
                   <option key={template.id} value={template.id}>{template.title}</option>
                 ))}
@@ -715,15 +715,15 @@ function CoachContent() {
             </label>
             <label style={fieldStyle}>
               Assignment
-              <input value={assignmentTitle} onChange={(event) => setAssignmentTitle(event.target.value)} placeholder="Example: 60 serve targets" style={inputStyle} />
+              <input className="tiq-focus-ring" value={assignmentTitle} onChange={(event) => setAssignmentTitle(event.target.value)} placeholder="Example: 60 serve targets" style={inputStyle} />
             </label>
             <label style={fieldStyle}>
               Focus
-              <input value={assignmentFocus} onChange={(event) => setAssignmentFocus(event.target.value)} placeholder="Serve, return, movement..." style={inputStyle} />
+              <input className="tiq-focus-ring" value={assignmentFocus} onChange={(event) => setAssignmentFocus(event.target.value)} placeholder="Serve, return, movement..." style={inputStyle} />
             </label>
             <label style={fieldStyle}>
               Due date
-              <input type="date" value={assignmentDueDate} onChange={(event) => setAssignmentDueDate(event.target.value)} style={inputStyle} />
+              <input className="tiq-focus-ring" type="date" value={assignmentDueDate} onChange={(event) => setAssignmentDueDate(event.target.value)} style={inputStyle} />
             </label>
             <button type="submit" disabled={workspaceLoading || !assignmentStudentId || !assignmentTitle.trim()} style={primaryButtonStyle}>
               {workspaceLoading ? 'Saving...' : 'Create assignment'}
@@ -811,11 +811,11 @@ function CoachContent() {
             <div style={sessionStepGridStyle}>
               <label style={fieldStyle}>
                 Date / time
-                <input value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} placeholder="Tue 4:30 PM" style={inputStyle} />
+                <input className="tiq-focus-ring" value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} placeholder="Tue 4:30 PM" style={inputStyle} />
               </label>
               <label style={fieldStyle}>
                 Lesson focus
-                <input value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
+                <input className="tiq-focus-ring" value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
               </label>
             </div>
             <p style={studentNextStyle}>{lessonMessage}</p>
@@ -1687,7 +1687,8 @@ const inputStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 800,
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   padding: '0 11px',
 }
 

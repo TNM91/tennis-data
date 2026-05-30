@@ -251,6 +251,7 @@ function ExploreLeaguesContent() {
                 Search leagues
               </label>
               <input
+                className="tiq-focus-ring"
                 id="explore-league-search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -365,7 +366,7 @@ function FilterSelect({
   return (
     <div style={searchGroupStyle}>
       <label htmlFor={id} style={labelStyle}>{label}</label>
-      <select id={id} value={value} onChange={(event) => onChange(event.target.value)} style={inputStyle}>
+      <select className="tiq-focus-ring" id={id} value={value} onChange={(event) => onChange(event.target.value)} style={inputStyle}>
         <option value="all">All</option>
         {options.map((option) => (
           <option key={option} value={option}>
@@ -630,7 +631,8 @@ const inputStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground-strong)',
-  outline: 'none',
+  outline: '2px solid transparent',
+  outlineOffset: 2,
   colorScheme: 'dark',
 }
 

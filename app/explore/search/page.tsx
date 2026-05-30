@@ -367,6 +367,7 @@ function ExploreSearchContent() {
             <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
               <span style={searchLabelStyle}>Search by</span>
               <select
+                className="tiq-focus-ring"
                 value={scope}
                 onChange={(event) => {
                   const nextScope = event.target.value as SearchScope
@@ -389,6 +390,7 @@ function ExploreSearchContent() {
               <div style={getSearchInputWrapStyle()}>
                 <SearchIcon />
                 <input
+                  className="tiq-focus-ring"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={selectedScopeGuide.placeholder}
@@ -856,7 +858,7 @@ function FilterSelect({
   return (
     <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
       <span style={searchLabelStyle}>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} style={getSearchSelectStyle()}>
+      <select className="tiq-focus-ring" value={value} onChange={(event) => onChange(event.target.value)} style={getSearchSelectStyle()}>
         <option value="all" style={getSearchOptionStyle()}>All</option>
         {options.map((option) => (
           <option key={option} value={option} style={getSearchOptionStyle()}>
@@ -1063,7 +1065,8 @@ function getSearchSelectStyle(): CSSProperties {
     color: 'var(--foreground-strong)',
     fontSize: 14,
     fontWeight: 700,
-    outline: 'none',
+    outline: '2px solid transparent',
+    outlineOffset: 2,
     boxShadow: 'var(--home-control-shadow)',
     colorScheme: 'dark',
     appearance: 'none',
@@ -1104,7 +1107,8 @@ function getSearchInputStyle(): CSSProperties {
     background: 'transparent',
     color: 'var(--foreground-strong)',
     fontSize: 15,
-    outline: 'none',
+    outline: '2px solid transparent',
+    outlineOffset: 2,
   }
 }
 
