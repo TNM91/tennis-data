@@ -41,12 +41,14 @@ describe('Player Development public cleanup', () => {
       'PlayerGoalCheckIn',
       'PlayerWeeklyActionPlan',
       'PlayerFocusDecisionPage',
+      'PlayerProgressionCard',
       'PlayerMatchOnePager',
       'PlayerSoloTraining',
       'PlayerPartnerTraining',
       'PlayerOffCourtTraining',
       'ModuleTestCard',
       'CoachReadinessAdapter',
+      'CoachProgressionRules',
       'CoachOneHourPlans',
     ]) {
       expect(systemSource).toContain(expected)
@@ -54,6 +56,8 @@ describe('Player Development public cleanup', () => {
 
     expect(systemSource).toContain('One week. One habit. One proof note.')
     expect(systemSource).toContain('Pick the page that solves this week')
+    expect(systemSource).toContain('Know when to repeat, progress, or test in a match')
+    expect(systemSource).toContain('Use the same progression language as the player')
     expect(systemSource).toContain('Before, during, after')
     expect(systemSource).toContain('Adjust the lesson to how the player feels')
     expect(systemSource).toContain('data-core-page')

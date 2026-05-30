@@ -895,6 +895,9 @@
 .focusDecisionPage,
 .focusDecisionHero,
 .focusDecisionGrid,
+.playerProgressionCard,
+.progressionHero,
+.progressionStageGrid,
 .matchOnePager,
 .matchCardHero,
 .matchCardGrid,
@@ -937,6 +940,9 @@
 .coachReadinessAdapter,
 .coachReadinessHero,
 .coachFeelingGrid,
+.coachProgressionRules,
+.progressionRuleGrid,
+.progressionCoachLinks,
 .coachHourPlans,
 .coachPlanBlocks,
 .lessonGrid,
@@ -1467,6 +1473,7 @@
 .playerCheckInHero,
 .weeklyActionHero,
 .focusDecisionHero,
+.progressionHero,
 .matchCardHero,
 .playerTrainingIntro {
   display: grid;
@@ -1490,6 +1497,10 @@
 .actionStepGrid span,
 .focusDecisionHero span,
 .focusDecisionGrid span,
+.progressionHero span,
+.progressionStageGrid span,
+.progressionRuleGrid span,
+.progressionCoachLinks span,
 .matchCardHero span,
 .matchCardGrid span,
 .goalLoopGrid span,
@@ -1510,6 +1521,10 @@
 .actionStepGrid strong,
 .focusDecisionHero strong,
 .focusDecisionGrid strong,
+.progressionHero strong,
+.progressionStageGrid strong,
+.progressionRuleGrid strong,
+.progressionCoachLinks strong,
 .matchCardHero strong,
 .matchCardGrid strong,
 .goalLoopGrid strong,
@@ -1526,6 +1541,7 @@
 .playerCheckInHero strong,
 .weeklyActionHero strong,
 .focusDecisionHero strong,
+.progressionHero strong,
 .matchCardHero strong,
 .playerTrainingIntro strong {
   font-size: clamp(1.15rem, 2.4vw, 1.62rem);
@@ -1536,6 +1552,10 @@
 .actionStepGrid p,
 .focusDecisionHero p,
 .focusDecisionGrid p,
+.progressionHero p,
+.progressionStageGrid p,
+.progressionRuleGrid p,
+.progressionCoachLinks p,
 .matchCardHero p,
 .matchCardGrid p,
 .goalLoopGrid p,
@@ -1553,6 +1573,9 @@
 .goalLoopGrid,
 .actionStepGrid,
 .focusDecisionGrid,
+.progressionStageGrid,
+.progressionRuleGrid,
+.progressionCoachLinks,
 .matchCardGrid,
 .playerTrainingGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1566,6 +1589,14 @@
   color: var(--foreground-strong);
 }
 
+.progressionStageGrid b {
+  color: var(--foreground-strong);
+}
+
+.progressionCoachLinks {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .matchCardGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1573,6 +1604,9 @@
 .goalLoopGrid article,
 .actionStepGrid article,
 .focusDecisionGrid article,
+.progressionStageGrid article,
+.progressionRuleGrid article,
+.progressionCoachLinks article,
 .matchCardGrid section,
 .playerTrainingGrid article,
 .coachHourPlans article,
@@ -3422,6 +3456,10 @@
 .printBook .actionStepGrid article,
 .printBook .focusDecisionHero,
 .printBook .focusDecisionGrid article,
+.printBook .progressionHero,
+.printBook .progressionStageGrid article,
+.printBook .progressionRuleGrid article,
+.printBook .progressionCoachLinks article,
 .printBook .matchCardHero,
 .printBook .matchCardGrid section,
 .printBook .matchCardGrid section > div,
@@ -3447,6 +3485,10 @@
 .printBook .actionStepGrid strong,
 .printBook .focusDecisionHero strong,
 .printBook .focusDecisionGrid strong,
+.printBook .progressionHero strong,
+.printBook .progressionStageGrid strong,
+.printBook .progressionRuleGrid strong,
+.printBook .progressionCoachLinks strong,
 .printBook .matchCardHero strong,
 .printBook .matchCardGrid strong,
 .printBook .goalLoopGrid strong,
@@ -3468,6 +3510,10 @@
 .printBook .actionStepGrid p,
 .printBook .focusDecisionHero p,
 .printBook .focusDecisionGrid p,
+.printBook .progressionHero p,
+.printBook .progressionStageGrid p,
+.printBook .progressionRuleGrid p,
+.printBook .progressionCoachLinks p,
 .printBook .matchCardHero p,
 .printBook .matchCardGrid p,
 .printBook .quickCheckStrip span,
@@ -3493,6 +3539,10 @@
 .printBook .actionStepGrid span,
 .printBook .focusDecisionHero span,
 .printBook .focusDecisionGrid span,
+.printBook .progressionHero span,
+.printBook .progressionStageGrid span,
+.printBook .progressionRuleGrid span,
+.printBook .progressionCoachLinks span,
 .printBook .matchCardHero span,
 .printBook .matchCardGrid span,
 .printBook .goalLoopGrid span,
@@ -3531,6 +3581,9 @@
   .goalLoopGrid,
   .actionStepGrid,
   .focusDecisionGrid,
+  .progressionStageGrid,
+  .progressionRuleGrid,
+  .progressionCoachLinks,
   .matchCardGrid,
   .quickCheckStrip,
   .playerTrainingGrid,
@@ -3589,6 +3642,9 @@
   .goalLoopGrid,
   .actionStepGrid,
   .focusDecisionGrid,
+  .progressionStageGrid,
+  .progressionRuleGrid,
+  .progressionCoachLinks,
   .matchCardGrid,
   .matchCardFooter,
   .quickCheckStrip,
@@ -3782,6 +3838,8 @@
   .printBook .playerCheckInSheet,
   .printBook .weeklyActionPlan,
   .printBook .focusDecisionPage,
+  .printBook .playerProgressionCard,
+  .printBook .coachProgressionRules,
   .printBook .matchOnePager,
   .printBook .playerTrainingSheet,
   .printBook .identityProfileBoard,
@@ -3851,6 +3909,10 @@
   .printBook .actionStepGrid article,
   .printBook .focusDecisionHero,
   .printBook .focusDecisionGrid article,
+  .printBook .progressionHero,
+  .printBook .progressionStageGrid article,
+  .printBook .progressionRuleGrid article,
+  .printBook .progressionCoachLinks article,
   .printBook .matchCardHero,
   .printBook .matchCardGrid section,
   .printBook .matchCardGrid section > div,
@@ -3880,6 +3942,10 @@
   .printBook .actionStepGrid p,
   .printBook .focusDecisionHero p,
   .printBook .focusDecisionGrid p,
+  .printBook .progressionHero p,
+  .printBook .progressionStageGrid p,
+  .printBook .progressionRuleGrid p,
+  .printBook .progressionCoachLinks p,
   .printBook .matchCardHero p,
   .printBook .matchCardGrid p,
   .printBook .quickCheckStrip span,

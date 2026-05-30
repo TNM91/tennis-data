@@ -248,6 +248,11 @@ function WorkbookPreview({
         <PlayerFocusDecisionPage identity={identity} />
       </WorkbookPage>
 
+      <WorkbookPage core footer="Progression card">
+        <PageHeader label="Progression" title="Know when to repeat, progress, or test in a match" />
+        <PlayerProgressionCard identity={identity} />
+      </WorkbookPage>
+
       <WorkbookPage core footer="Match card">
         <PageHeader label="Match card" title="Before, during, after" />
         <PlayerMatchOnePager identity={identity} />
@@ -795,6 +800,49 @@ function PlayerFocusDecisionPage({ identity }: { identity: PlayerDevelopmentIden
         rows={identity.sections.slice(0, 5).map((section) => section.title)}
       />
       <QuickCheckStrip labels={['One focus only', 'Drill chosen', 'Test chosen', 'Proof target clear']} />
+    </div>
+  )
+}
+
+const progressionStages = [
+  ['Learn the cue', 'You can say the cue before the ball starts.', 'Repeat if you still need the coach to remind you.'],
+  ['Repeat clean reps', 'You can do it without score and recover after the shot.', 'Progress if you can do it three times in a row.'],
+  ['Add pressure', 'You can do it with score, fatigue, or a tougher feed.', 'Stay here if it disappears when the point matters.'],
+  ['Match proof', 'You can point to one moment from a real match.', 'Move on only when you have proof you can explain.'],
+] as const
+
+function PlayerProgressionCard({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const moduleRows = identity.weeks.slice(0, 4).map((week) => `Module ${week.week}: ${week.title}`)
+
+  return (
+    <div className={styles.playerProgressionCard}>
+      <div className={styles.progressionHero}>
+        <TiqFeatureIcon name="reports" size="lg" variant="surface" />
+        <div>
+          <span>How you move forward</span>
+          <strong>Do not chase a new page until the current habit shows up under pressure.</strong>
+          <p>Use this card after practice or a match. It tells you whether to repeat, make it harder, or bring it to your coach.</p>
+        </div>
+      </div>
+      <div className={styles.progressionStageGrid}>
+        {progressionStages.map(([stage, proof, rule], index) => (
+          <article key={stage}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <strong>{stage}</strong>
+            <p>{proof}</p>
+            <p><b>Rule:</b> {rule}</p>
+          </article>
+        ))}
+      </div>
+      <TrackerTable
+        columns={['Current focus', 'Stage today', 'Proof I have', 'Next move']}
+        rows={moduleRows}
+      />
+      <QuickCheckStrip labels={['Cue clear', 'Clean reps', 'Pressure tested', 'Match proof']} />
+      <div className={styles.twoColumn}>
+        <ReflectionLines label="I should repeat because" rows={4} />
+        <ReflectionLines label="I am ready to progress because" rows={4} />
+      </div>
     </div>
   )
 }
@@ -1748,6 +1796,11 @@ function CoachPlannerPreview({
         <CoachReadinessAdapter identity={identity} />
       </WorkbookPage>
 
+      <WorkbookPage footer="Progression rules">
+        <PageHeader label="Coach guide" title="Use the same progression language as the player" />
+        <CoachProgressionRules identity={identity} />
+      </WorkbookPage>
+
       <WorkbookPage footer="Lesson plans 1-4">
         <PageHeader label="Coach guide" title="One-hour lesson plans: Modules 1-4" />
         <CoachOneHourPlans identity={identity} lessons={identity.coachLessons.slice(0, 4)} />
@@ -1864,6 +1917,54 @@ function CoachReadinessAdapter({ identity }: { identity: PlayerDevelopmentIdenti
       <div className={styles.twoColumn}>
         <TrackerTable columns={['Module option', 'Use today?']} rows={moduleRows} />
         <ReflectionLines label="Today I will simplify the lesson by" rows={5} />
+      </div>
+    </div>
+  )
+}
+
+function CoachProgressionRules({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const coachRules = [
+    ['Repeat', 'The player cannot name the cue or loses the habit without reminders.', 'Lower the feed, shorten the rep, and protect one clear success.'],
+    ['Progress', 'The player owns the cue and repeats the habit in a clean drill.', 'Add score, a recovery demand, or a tougher ball.'],
+    ['Pressure', 'The habit works in drill reps but breaks when the point matters.', 'Keep the same focus and make the pressure test more specific.'],
+    ['Transfer', 'The player brings match proof and can explain the moment.', 'Connect the habit to the next pattern, opponent, or match plan.'],
+  ] as const
+  const rows = identity.weeks.slice(0, 4).map((week) => `Module ${week.week}: ${week.title}`)
+
+  return (
+    <div className={styles.coachProgressionRules}>
+      <div className={styles.progressionHero}>
+        <TiqFeatureIcon name="schedule" size="lg" variant="surface" />
+        <div>
+          <span>Coach-player alignment</span>
+          <strong>The player workbook and lesson plan should agree on the next move.</strong>
+          <p>Use the player progression card before you choose volume, pressure, or a new module. Easy alignment beats extra instruction.</p>
+        </div>
+      </div>
+      <div className={styles.progressionRuleGrid}>
+        {coachRules.map(([decision, evidence, action]) => (
+          <article key={decision}>
+            <span>{decision}</span>
+            <strong>{evidence}</strong>
+            <p>{action}</p>
+          </article>
+        ))}
+      </div>
+      <TrackerTable
+        columns={['Player evidence', 'Coach decision', 'Lesson adjustment', 'Homework']}
+        rows={rows}
+      />
+      <div className={styles.progressionCoachLinks}>
+        <article>
+          <span>If the player feels tight</span>
+          <strong>Stay at the same stage and simplify the cue.</strong>
+          <p>Do not progress just because the page is next. Make the current action playable.</p>
+        </article>
+        <article>
+          <span>If the player feels ready</span>
+          <strong>Use score before you add another technical idea.</strong>
+          <p>The next test should prove the habit survives pressure, not just that the player understands it.</p>
+        </article>
       </div>
     </div>
   )
