@@ -59,7 +59,7 @@ describe('League result workspace mobile layout guards', () => {
     expect(styleBlock(teamSource, 'lineScoreText')).toContain("maxWidth: '100%'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'btnPrimary')).toContain("color: 'var(--foreground-strong)'")
-    expect(styleBlock(teamSource, 'btnPrimary')).toContain('rgba(155,225,29,0.28)')
+    expect(styleBlock(teamSource, 'btnPrimary')).toContain('color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)')
     expect(styleBlock(teamSource, 'lineCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'scorekeeperTile')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'pill')).toContain("whiteSpace: 'normal'")

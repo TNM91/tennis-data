@@ -24,16 +24,10 @@ describe('Captain lineup projection mobile layout guards', () => {
   it('keeps header, hero, workflow, and filter shells mobile-safe', () => {
     for (const styleName of [
       'pageStyle',
-      'headerStyle',
-      'headerInner',
-      'navStyle',
-      'heroShell',
-      'heroButtonRowStyle',
-      'heroMetricGridBaseStyle',
-      'heroMetricCardStyle',
-      'quickStartCard',
-      'workflowListStyle',
-      'workflowRowStyle',
+      'toolControlShell',
+      'toolControlHeaderStyle',
+      'toolControlButtonRowStyle',
+      'captainReadCard',
       'contentWrap',
       'surfaceCardStrong',
       'surfaceCard',
@@ -44,15 +38,12 @@ describe('Captain lineup projection mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
-    expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
-    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('toolControlShellResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('toolControlShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('filterGridResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(functionBlock('navStyleResponsive')).toContain('minWidth: 0')
     expect(styleBlock('orbOne')).toContain("width: 'min(100%, 360px)'")
     expect(styleBlock('orbTwo')).toContain("width: 'min(100%, 320px)'")
-    expect(styleBlock('navLink')).toContain("overflowWrap: 'anywhere'")
-    expect(styleBlock('heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('toolControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps projection cards, roster grids, pills, and list rows from forcing overflow', () => {
@@ -97,18 +88,7 @@ describe('Captain lineup projection mobile layout guards', () => {
   it('keeps dense ranking rows and the footer mobile-safe', () => {
     expect(source).toContain("gap: 8, flexWrap: 'wrap', minWidth: 0")
 
-    for (const styleName of [
-      'footerStyle',
-      'footerInner',
-      'footerRow',
-      'footerBrandLink',
-      'footerLinks',
-    ]) {
-      expect(styleBlock(styleName)).toContain('minWidth: 0')
-    }
-
-    expect(functionBlock('footerRowResponsive')).toContain('minWidth: 0')
-    expect(functionBlock('footerLinksResponsive')).toContain('minWidth: 0')
-    expect(styleBlock('footerBottom')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('listCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('listMetaStyle')).toContain("overflowWrap: 'anywhere'")
   })
 })

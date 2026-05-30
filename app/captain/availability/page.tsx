@@ -1143,6 +1143,7 @@ const responseTrack: CSSProperties = {
   borderRadius: 999,
   background: 'rgba(148, 163, 184, 0.22)',
   border: '1px solid rgba(148, 163, 184, 0.16)',
+  minWidth: 0,
 }
 
 const responseFill: CSSProperties = {

@@ -24,12 +24,10 @@ describe('Captain analytics mobile layout guards', () => {
   it('keeps hero, metrics, and builder grids mobile-safe', () => {
     for (const styleName of [
       'pageWrap',
-      'heroShell',
-      'heroButtonRowStyle',
-      'heroMetricGridBaseStyle',
-      'heroMetricCardStyle',
-      'quickStartCard',
-      'workflowRowStyle',
+      'toolControlShell',
+      'toolControlHeaderStyle',
+      'toolControlButtonRowStyle',
+      'captainReadCard',
       'contentWrap',
       'decisionBoardStyle',
       'decisionMetricGridStyle',
@@ -42,13 +40,12 @@ describe('Captain analytics mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
-    expect(styleBlock('pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))'")
+    expect(styleBlock('pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))'")
     expect(source).not.toContain("calc(100% - 48px)")
-    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('toolControlShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('builderLayoutResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(styleBlock('heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(styleBlock('heroTextStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('toolControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('signalNoteStyle')).toContain("lineHeight: 1.5")
   })
 
   it('keeps controls, toggles, cards, and player labels from forcing overflow', () => {

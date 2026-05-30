@@ -24,16 +24,11 @@ describe('Captain lineup availability mobile layout guards', () => {
   it('keeps header, hero, workflow, and filter shells mobile-safe', () => {
     for (const styleName of [
       'pageStyle',
-      'headerStyle',
-      'headerInner',
-      'navStyle',
-      'heroShell',
-      'heroButtonRowStyle',
-      'heroMetricGridBaseStyle',
+      'toolControlShell',
+      'toolControlHeaderStyle',
+      'toolControlButtonRowStyle',
       'heroMetricCardStyle',
-      'quickStartCard',
-      'workflowListStyle',
-      'workflowRowStyle',
+      'captainReadCard',
       'contentWrap',
       'surfaceCardStrong',
       'surfaceCard',
@@ -43,15 +38,13 @@ describe('Captain lineup availability mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
-    expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
-    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('toolControlShellResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('toolControlShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(functionBlock('metricsGridResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(functionBlock('filtersGridResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(functionBlock('navStyleResponsive')).toContain('minWidth: 0')
     expect(styleBlock('orbOne')).toContain("width: 'min(100%, 360px)'")
     expect(styleBlock('orbTwo')).toContain("width: 'min(100%, 320px)'")
-    expect(styleBlock('navLink')).toContain("overflowWrap: 'anywhere'")
-    expect(styleBlock('heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('toolControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps metrics, readiness panels, pills, and bulk actions from forcing overflow', () => {
@@ -90,11 +83,6 @@ describe('Captain lineup availability mobile layout guards', () => {
       'primaryButton',
       'ghostButton',
       'inputStyle',
-      'footerStyle',
-      'footerInner',
-      'footerRow',
-      'footerBrandLink',
-      'footerLinks',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -109,6 +97,5 @@ describe('Captain lineup availability mobile layout guards', () => {
     expect(source).not.toContain("width: '320px'")
     expect(styleBlock('playerTopStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('statusButtonStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(styleBlock('footerBottom')).toContain("overflowWrap: 'anywhere'")
   })
 })

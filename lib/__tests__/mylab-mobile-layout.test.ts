@@ -58,8 +58,8 @@ describe('My Lab mobile layout guards', () => {
   it('keeps My Lab filters, feed, and follow cards from forcing horizontal overflow', () => {
     for (const styleName of [
       'filterRowStyle',
-      'labRoutineCopyStyle',
-      'labPlaybookCopyStyle',
+      'quickStartTextStyle',
+      'quickStartButtonRowStyle',
       'searchResultsStyle',
       'searchResultItemStyle',
       'feedListStyle',
@@ -120,11 +120,9 @@ describe('My Lab mobile layout guards', () => {
     expect(styleBlock('feedLinkStyle')).toContain("maxWidth: '100%'")
     expect(source).toContain('<div style={matchupQueueCopyStyle}>')
     expect(source).toContain('<div style={workshopRowCopyStyle}>')
-    expect(source).toContain('<div style={labRoutineCopyStyle}>')
-    expect(source).toContain('<div style={labPlaybookCopyStyle}>')
     expect(source).toContain('<div style={compactSignalCopyStyle}>')
-    expect(styleBlock('labRoutineCopyStyle')).toContain("maxWidth: '100%'")
-    expect(styleBlock('labPlaybookCopyStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('quickStartTextStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('quickStartButtonRowStyle')).toContain('minWidth: 0')
     expect(styleBlock('matchupQueueCopyStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('matchupQueueNameStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('matchupQueueMetaStyle')).toContain("maxWidth: '100%'")

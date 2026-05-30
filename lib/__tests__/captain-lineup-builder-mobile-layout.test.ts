@@ -15,11 +15,9 @@ describe('Captain lineup builder mobile layout guards', () => {
   it('keeps the hero, form shells, and workflow rows from forcing mobile overflow', () => {
     for (const styleName of [
       'pageWrap',
-      'heroButtonRowStyle',
-      'heroMetricGridStyle',
-      'heroMetricCardStyle',
-      'workflowListStyle',
-      'workflowRowStyle',
+      'builderControlShellStyle',
+      'builderControlHeaderStyle',
+      'builderControlRowStyle',
       'builderLayoutResponsive',
       'columnStyle',
       'surfaceCardStrong',
@@ -33,15 +31,14 @@ describe('Captain lineup builder mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
-    expect(styleBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(styleBlock('heroShellResponsive')).toContain("'minmax(0, 1.3fr) minmax(0, 0.9fr)'")
-    expect(styleBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))'")
+    expect(styleBlock('builderControlShellStyle')).toContain('minWidth: 0')
+    expect(styleBlock('builderControlRowStyle')).toContain("gridTemplateColumns: isSmallMobile")
+    expect(styleBlock('builderControlRowStyle')).toContain("? 'minmax(0, 1fr)'")
     expect(styleBlock('builderLayoutResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(styleBlock('builderLayoutResponsive')).toContain("'repeat(3, minmax(0, 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr 1fr'")
     expect(source).not.toContain("gridTemplateColumns: '1fr'")
-    expect(styleBlock('workflowRowStyle')).toContain("gridTemplateColumns: 'minmax(0, 42px) minmax(0, 1fr)'")
     expect(source).not.toContain("gridTemplateColumns: '42px minmax(0, 1fr)'")
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")

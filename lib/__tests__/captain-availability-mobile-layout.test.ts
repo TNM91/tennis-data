@@ -24,25 +24,23 @@ describe('Captain availability mobile layout guards', () => {
   it('keeps the hero and selector controls from forcing mobile overflow', () => {
     for (const styleName of [
       'pageWrap',
-      'heroShell',
+      'availabilityControlShell',
+      'availabilityControlHeader',
       'selectorPanel',
-      'heroBadgeRow',
-      'badgeBase',
-      'quickStartCard',
-      'statusGrid',
-      'statusCard',
-      'responseMeterShell',
-      'responseMeterTop',
+      'captainReadCard',
+      'metricGrid',
+      'metricCard',
+      'responseTrack',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
-    expect(styleBlock('pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))'")
-    expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
-    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(styleBlock('pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))'")
+    expect(functionBlock('availabilityControlShellResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('availabilityControlShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('selectorPanelResponsive')).toContain('minWidth: 0')
     expect(styleBlock('selectorPanel')).toContain("flexWrap: 'wrap'")
-    expect(styleBlock('statusGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))'")
+    expect(functionBlock('metricGridResponsive')).toContain("isMobile ? 'repeat(2, minmax(0, 1fr))'")
     expect(styleBlock('selectStyle')).toContain("flex: '1 1 min(100%, 220px)'")
     expect(styleBlock('selectStyle')).toContain('minWidth: 0')
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")

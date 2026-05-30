@@ -24,41 +24,32 @@ describe('Captain messaging mobile layout guards', () => {
   it('keeps hero, workflow, and command surfaces mobile-safe', () => {
     for (const styleName of [
       'pageContentStyle',
-      'heroShell',
-      'heroButtonRowStyle',
+      'messageControlShell',
+      'messageControlHeaderStyle',
+      'messageControlButtonRowStyle',
       'heroStatusShell',
       'heroStatusButtonRow',
-      'heroMetricGridBaseStyle',
-      'heroMetricCardStyle',
-      'quickStartCard',
-      'workflowListStyle',
-      'workflowRowStyle',
       'contentWrap',
       'surfaceCardStrong',
       'surfaceCard',
-      'teamRoomSurfaceStyle',
       'messagePlaybookSurfaceStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
 
-    expect(functionBlock('heroShellResponsive')).toContain('minWidth: 0')
-    expect(functionBlock('heroShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
-    expect(functionBlock('heroMetricGridStyle')).toContain('minWidth: 0')
-    expect(functionBlock('heroMetricGridStyle')).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
+    expect(functionBlock('messageControlShellResponsive')).toContain('minWidth: 0')
+    expect(functionBlock('messageControlShellResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(functionBlock('twoColumnGridResponsive')).toContain('minWidth: 0')
     expect(functionBlock('twoColumnGridResponsive')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
-    expect(styleBlock('heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('messageControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps playbook, handoff, composer, and form controls from forcing overflow', () => {
     for (const styleName of [
       'messagePlaybookGridStyle',
       'messagePlaybookCardStyle',
-      'teamRoomGridStyle',
-      'teamRoomStepStyle',
       'builderHandoffGridStyle',
       'builderHandoffCardBaseStyle',
       'filtersGridStyle',

@@ -5667,6 +5667,7 @@ const quickStartTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.45,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
