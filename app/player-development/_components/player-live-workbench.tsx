@@ -179,6 +179,7 @@ export default function PlayerLiveWorkbench({
       ? drillOptions.filter((drill) => drill.workType === workType)
       : drillOptions
   const activeDrill = visibleDrills.find((drill) => drill.id === activeDrillId) ?? visibleDrills[0]
+  const activeDrillSteps = getDrillActionSteps(activeDrill.summary)
   const recentSessions = sessions.slice(0, 4)
   const progress = getProgressSummary(sessions, playableFocuses)
   const activeAccess = accessModes[accessMode]
@@ -496,10 +497,17 @@ export default function PlayerLiveWorkbench({
             <span>{workTypeLabels[activeDrill.workType]} / {contextLabels[activeDrill.context]}</span>
             <h3>{activeDrill.title}</h3>
             <p>{activeDrill.summary}</p>
+            <div className={styles.liveDrillSteps} aria-label="Drill actions">
+              {activeDrillSteps.map((step, index) => (
+                <div key={`${activeDrill.id}-${step}`}>
+                  <span>{index + 1}</span>
+                  <strong>{step}</strong>
+                </div>
+              ))}
+            </div>
             <div className={styles.liveMicroPlan}>
-              <span>Target</span>
+              <span>Track</span>
               <strong>{activeFocus.tracker[0] ?? 'Proof rating'}</strong>
-              <p>Win the drill by showing the habit, not just by liking the outcome.</p>
             </div>
             <div className={styles.liveActionGuide}>
               <strong>Time</strong>
@@ -507,7 +515,7 @@ export default function PlayerLiveWorkbench({
             </div>
             <DrillTimer drillId={activeDrill.id} targetSeconds={activeDrill.timerSeconds} key={activeDrill.id} />
             <div className={styles.liveActionGuide}>
-              <strong>Proof</strong>
+              <strong>Score this</strong>
               <p>{activeDrill.proof}</p>
             </div>
             <div className={styles.liveDrillChoices}>
@@ -523,14 +531,14 @@ export default function PlayerLiveWorkbench({
               ))}
             </div>
             <div className={styles.liveActionLinks}>
-              <a className="button-primary" href={activeDrill.href}>Open guide section</a>
+              <a className="button-primary" href={activeDrill.href}>Guide</a>
               <a className="button-secondary" href="/mylab#coach-assignments">Send to coach</a>
             </div>
           </article>
 
           <aside className={styles.liveTracker} aria-label="Quick tracking">
             <span>3. Submit</span>
-            <strong>Rate it, add one tiny note, save.</strong>
+            <strong>Score and save.</strong>
             <div className={styles.liveFeelingGrid} aria-label="How do you feel right now?">
               {(Object.keys(feelingLabels) as PlayerFeeling[]).map((feeling) => (
                 <button
@@ -559,7 +567,7 @@ export default function PlayerLiveWorkbench({
               value={draft.note}
               maxLength={220}
               onChange={(event) => setDraft({ ...draft, note: event.target.value })}
-              placeholder="Tiny note: what helped, what broke, what to repeat."
+              placeholder="Optional: what helped, what to repeat."
               aria-label="Tiny tracking note"
             />
             <label className={styles.liveShareToggle}>
@@ -847,6 +855,26 @@ function formatClock(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+function getDrillActionSteps(summary: string) {
+  const cleaned = summary
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => shortenDrillStep(item.replace(/[.!?]+$/, '').trim()))
+    .filter(Boolean)
+    .slice(0, 3)
+
+  return cleaned.length ? cleaned : ['Start the drill', 'Track the target', 'Score the work']
+}
+
+function shortenDrillStep(step: string) {
+  if (step.length <= 64) return step
+  const colonIndex = step.indexOf(':')
+  if (colonIndex > 8 && colonIndex < 64) return step.slice(0, colonIndex).trim()
+  const commaIndex = step.indexOf(',')
+  if (commaIndex > 12 && commaIndex < 64) return step.slice(0, commaIndex).trim()
+  return `${step.slice(0, 61).trim()}...`
 }
 
 function getProgressSummary(sessions: SavedSession[], focuses: LiveFocus[]) {

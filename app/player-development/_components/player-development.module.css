@@ -618,10 +618,44 @@
 
 .liveContextGrid,
 .liveFeelingGrid,
-.liveDrillChoices {
+.liveDrillChoices,
+.liveDrillSteps {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.liveDrillSteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.liveDrillSteps div {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: 14px;
+  background: rgba(155, 225, 29, 0.07);
+  padding: 10px;
+}
+
+.liveDrillSteps span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(155, 225, 29, 0.18);
+  color: var(--brand-green-3);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.liveDrillSteps strong {
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  line-height: 1.25;
+  text-align: left;
 }
 
 .liveLaneTabs button,
@@ -4775,7 +4809,7 @@
 
   .liveFocusButton span,
   .liveCurrentGoal p,
-  .liveMicroPlan p,
+  .liveActionCard > p,
   .liveTimerPanel p,
   .liveActionLinks :global(.button-secondary) {
     display: none;
@@ -4797,6 +4831,7 @@
   .liveLaneColumn,
   .liveActionCard,
   .liveTracker,
+  .liveDrillSteps div,
   .liveTimerPanel {
     gap: 9px;
   }
@@ -4834,7 +4869,16 @@
     font-size: 1.2rem;
   }
 
-  .liveActionCard > p,
+  .liveDrillSteps {
+    grid-template-columns: 1fr;
+  }
+
+  .liveDrillSteps div {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    padding: 9px;
+  }
+
   .liveActionGuide p,
   .liveTracker small {
     font-size: 0.82rem;
