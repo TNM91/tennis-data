@@ -243,6 +243,11 @@ function WorkbookPreview({
         <PlayerWeeklyActionPlan identity={identity} />
       </WorkbookPage>
 
+      <WorkbookPage footer="Match card">
+        <PageHeader label="Match card" title="Before, during, after" />
+        <PlayerMatchOnePager identity={identity} />
+      </WorkbookPage>
+
       <WorkbookPage footer="Identity">
         <PageHeader label="Identity page" title="Define how you win" />
         <div className={styles.identityBlueprint}>
@@ -736,6 +741,80 @@ function PlayerWeeklyActionPlan({ identity }: { identity: PlayerDevelopmentIdent
       <div className={styles.twoColumn}>
         <ReflectionLines label="The one habit I am training this week" rows={4} />
         <ReflectionLines label="The proof I will bring back" rows={4} />
+      </div>
+    </div>
+  )
+}
+
+function PlayerMatchOnePager({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const isRelentless = identity.slug.includes('relentless')
+  const preMatch = isRelentless
+    ? [
+        ['Identity cue', identity.mantra],
+        ['Serve plan', 'Call wide, body, or T before the toss.'],
+        ['First three games', 'Move feet after contact and watch where the opponent gets rushed.'],
+      ]
+    : [
+        ['Identity cue', identity.mantra],
+        ['Serve plan', 'Choose the +1 ball you are trying to create.'],
+        ['First three games', 'Build crosscourt before changing line or closing forward.'],
+      ]
+  const duringMatch = isRelentless
+    ? [
+        ['If you get tight', 'Breathe, name the target, play with margin.'],
+        ['If legs get heavy', 'Recover before watching and make the next ball neutral.'],
+        ['If you miss attacking', 'Go back to earning green balls before accelerating.'],
+      ]
+    : [
+        ['If you get tight', 'Build one more ball before trying to finish.'],
+        ['If you rush forward', 'Split after the approach before choosing the volley.'],
+        ['If errors stack', 'Use placement and court position before extra speed.'],
+      ]
+  const recapRows = [
+    'Score and opponent',
+    'Best identity moment',
+    'Moment I lost the plan',
+    'One thing to train next',
+  ]
+
+  return (
+    <div className={styles.matchOnePager}>
+      <div className={styles.matchCardHero}>
+        <TiqFeatureIcon name="reports" size="lg" variant="surface" />
+        <div>
+          <span>Carry this to matches</span>
+          <strong>Prepare simply. Reset quickly. Recap before the lesson fades.</strong>
+          <p>Use this one page on match day. The goal is not a long journal. The goal is one clear next action.</p>
+        </div>
+      </div>
+      <div className={styles.matchCardGrid}>
+        <section>
+          <span>Before match</span>
+          {preMatch.map(([label, text]) => (
+            <div key={label}>
+              <strong>{label}</strong>
+              <p>{text}</p>
+            </div>
+          ))}
+        </section>
+        <section>
+          <span>During match</span>
+          {duringMatch.map(([label, text]) => (
+            <div key={label}>
+              <strong>{label}</strong>
+              <p>{text}</p>
+            </div>
+          ))}
+        </section>
+        <section>
+          <span>Post-match recap</span>
+          <p>Do this within five minutes. Do not wait until the story changes.</p>
+          <TrackerTable columns={['Recap item', 'Your note']} rows={recapRows} />
+        </section>
+      </div>
+      <div className={styles.matchCardFooter}>
+        <ReflectionLines label="My next practice should start with" rows={4} />
+        <QrAction href={`/player-development/${identity.slug}/workbook`} label="Save match recap" mode="player-plus" />
       </div>
     </div>
   )
@@ -1599,6 +1678,11 @@ function CoachPlannerPreview({
         </div>
       </WorkbookPage>
 
+      <WorkbookPage footer="Readiness adapter">
+        <PageHeader label="Coach guide" title="Adjust the lesson to how the player feels" />
+        <CoachReadinessAdapter identity={identity} />
+      </WorkbookPage>
+
       <WorkbookPage footer="Lesson plans 1-4">
         <PageHeader label="Coach guide" title="One-hour lesson plans: Modules 1-4" />
         <CoachOneHourPlans identity={identity} lessons={identity.coachLessons.slice(0, 4)} />
@@ -1679,6 +1763,43 @@ function CoachPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity })
         ))}
       </div>
       <TrackerTable columns={['Coach decision', 'Repeat if', 'Progress if', 'Transfer if']} rows={identity.metrics.map((metric) => metric.skill)} />
+    </div>
+  )
+}
+
+function CoachReadinessAdapter({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const feelingRows = [
+    ['Confident', 'Keep the main drill hard and make the pressure test honest.', 'Raise the scoring standard. Ask for specific proof.'],
+    ['Tight', 'Simplify to routine, breath, target, and first clean decision.', 'Shorten instruction. Repeat the first successful pattern.'],
+    ['Tired', 'Train shape, recovery, and decision quality without chasing speed.', 'Use shorter bursts and more reset language.'],
+    ['Confused', 'Pick one cue and one visible outcome. Remove extra corrections.', 'Ask the player to explain the rep before adding volume.'],
+  ] as const
+  const moduleRows = identity.weeks.slice(0, 4).map((week) => `Module ${week.week}: ${week.title}`)
+
+  return (
+    <div className={styles.coachReadinessAdapter}>
+      <div className={styles.coachReadinessHero}>
+        <TiqFeatureIcon name="schedule" size="lg" variant="surface" />
+        <div>
+          <span>Use the player check-in first</span>
+          <strong>The same lesson should feel different when the player is tight, tired, confident, or confused.</strong>
+          <p>Start from the player workbook: goal, work, proof, next step. Then choose the lesson tone that fits today.</p>
+        </div>
+      </div>
+      <div className={styles.coachFeelingGrid}>
+        {feelingRows.map(([feeling, lessonMove, coachMove]) => (
+          <article key={feeling}>
+            <span>{feeling}</span>
+            <strong>{lessonMove}</strong>
+            <p>{coachMove}</p>
+          </article>
+        ))}
+      </div>
+      <TrackerTable columns={['Player says', 'Coach adjusts', 'Still test this', 'Assignment']} rows={['I feel ready', 'I feel tight', 'I feel tired', 'I feel unsure']} />
+      <div className={styles.twoColumn}>
+        <TrackerTable columns={['Module option', 'Use today?']} rows={moduleRows} />
+        <ReflectionLines label="Today I will simplify the lesson by" rows={5} />
+      </div>
     </div>
   )
 }

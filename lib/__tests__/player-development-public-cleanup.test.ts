@@ -40,16 +40,20 @@ describe('Player Development public cleanup', () => {
       'TodayLessonSheet',
       'PlayerGoalCheckIn',
       'PlayerWeeklyActionPlan',
+      'PlayerMatchOnePager',
       'PlayerSoloTraining',
       'PlayerPartnerTraining',
       'PlayerOffCourtTraining',
       'ModuleTestCard',
+      'CoachReadinessAdapter',
       'CoachOneHourPlans',
     ]) {
       expect(systemSource).toContain(expected)
     }
 
     expect(systemSource).toContain('One week. One habit. One proof note.')
+    expect(systemSource).toContain('Before, during, after')
+    expect(systemSource).toContain('Adjust the lesson to how the player feels')
     expect(systemSource).toContain('One-hour lesson plans: Modules 1-4')
     expect(systemSource).toContain('One-hour lesson plans: Modules 5-8')
     expect(existsSync(join(process.cwd(), 'scripts/verify-player-development-print.mjs'))).toBe(true)
