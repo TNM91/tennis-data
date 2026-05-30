@@ -1,5 +1,6 @@
-import Link from 'next/link'
 import type { CSSProperties } from 'react'
+import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
+import type { ProductUsageEventSurface } from '@/lib/product-usage-events'
 
 type TrustTone = 'info' | 'good' | 'warn' | 'danger'
 
@@ -14,12 +15,28 @@ export default function TiqTrustStrip({
   signals,
   actionHref,
   actionLabel = 'Report issue',
+  actionEvent,
+  actionSurface = 'data_assist',
 }: {
   label?: string
   signals: TiqTrustSignal[]
   actionHref?: string
   actionLabel?: string
+  actionEvent?: ProductLinkEvent
+  actionSurface?: ProductUsageEventSurface
 }) {
+  const event = actionEvent ?? (actionHref
+    ? {
+        eventName: 'data_issue_reported' as const,
+        surface: actionSurface,
+        metadata: {
+          action: 'report_issue',
+          trustLabel: label,
+          href: actionHref,
+        },
+      }
+    : undefined)
+
   return (
     <div style={trustRowStyle} aria-label={label}>
       {signals.map((signal) => (
@@ -29,9 +46,14 @@ export default function TiqTrustStrip({
         </span>
       ))}
       {actionHref ? (
-        <Link href={actionHref} style={actionChipStyle}>
+        <TrackedProductLink
+          href={actionHref}
+          style={actionChipStyle}
+          ariaLabel={`${actionLabel}: ${label}`}
+          event={event}
+        >
           {actionLabel}
-        </Link>
+        </TrackedProductLink>
       ) : null}
     </div>
   )

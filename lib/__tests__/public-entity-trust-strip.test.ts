@@ -8,8 +8,12 @@ describe('public entity trust strips', () => {
   it('provides a compact reusable trust strip with source, freshness, confidence, status, and issue reporting', () => {
     const source = read('app/components/tiq-trust-strip.tsx')
 
+    expect(source).toContain("import TrackedProductLink")
     expect(source).toContain("label: 'Source' | 'Freshness' | 'Confidence' | 'Status'")
     expect(source).toContain("actionLabel = 'Report issue'")
+    expect(source).toContain("eventName: 'data_issue_reported'")
+    expect(source).toContain("metadata: {")
+    expect(source).toContain("trustLabel: label")
     expect(source).toContain('aria-label={label}')
     expect(source).toContain('actionHref')
   })
