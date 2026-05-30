@@ -83,6 +83,8 @@ describe('universal search result model', () => {
   it('routes private action results through signup or upgrade intent', () => {
     expect(source).toContain("requiredPlan: 'captain'")
     expect(source).toContain("requiredPlan: 'player_plus'")
+    expect(source).toContain("href: '/league-coordinator/tournaments'")
+    expect(source).toContain("requiredPlan: 'full_court'")
     expect(source).toContain('getPlanUnlockHref(item.requiredPlan, destinationHref)')
     expect(source).toContain('getPlanSignupHref(item.requiredPlan, upgradeHref)')
   })

@@ -139,8 +139,9 @@ const results: SearchResult[] = [
     group: 'Actions',
     title: 'Create a tournament',
     detail: 'Open Tournament Desk when it is time to run divisions, draws, courts, and results.',
-    href: '/tournaments',
+    href: '/league-coordinator/tournaments',
     keywords: ['create tournament', 'run tournament', 'draws', 'entries', 'court schedule'],
+    requiredPlan: 'full_court',
   },
   {
     group: 'Actions',
