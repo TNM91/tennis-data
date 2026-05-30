@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import DataTrustPanel from '@/app/components/data-trust-panel'
+import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { loadTiqAwardsForSource, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import {
@@ -259,6 +260,16 @@ function TournamentPublicInner() {
           { label: 'Confidence', value: 'Higher after scorebook and awards review' },
           { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
         ]}
+      />
+      <TiqTrustStrip
+        label={`${record.name} compact data trust signals`}
+        signals={[
+          { label: 'Source', value: source === 'cloud' ? 'Tournament Desk' : 'Device preview', tone: source === 'cloud' ? 'good' : 'warn' },
+          { label: 'Freshness', value: source === 'cloud' ? 'Cloud record loaded' : 'Pending sync', tone: source === 'cloud' ? 'good' : 'warn' },
+          { label: 'Confidence', value: summary?.completedMatches ? 'Results reviewed' : 'Limited until scores', tone: summary?.completedMatches ? 'good' : 'warn' },
+          { label: 'Status', value: record.isPublic ? 'Public / reviewable' : 'Director view', tone: record.isPublic ? 'good' : 'info' },
+        ]}
+        actionHref={`/data-assist?intent=report-issue&context=${encodeURIComponent(`Tournament ${record.name}`)}`}
       />
 
       <section style={playerRailStyle} aria-label="Match-day actions">

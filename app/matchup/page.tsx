@@ -11,6 +11,7 @@ import JsonLd from '@/app/components/json-ld'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
+import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { DATA_ASSIST_STORY, MATCHUP_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -2308,6 +2309,16 @@ function DemoMatchupCard() {
         </div>
       </div>
       <p style={emptyStateText}>Watch item: second-serve pressure.</p>
+      <TiqTrustStrip
+        label="Sample matchup data trust signals"
+        signals={[
+          { label: 'Source', value: 'TIQ demo', tone: 'info' },
+          { label: 'Freshness', value: 'Preview', tone: 'info' },
+          { label: 'Confidence', value: 'Medium', tone: 'warn' },
+          { label: 'Status', value: 'Reviewable', tone: 'good' },
+        ]}
+        actionHref="/data-assist?intent=report-issue&context=Matchup%20demo"
+      />
       <div style={exploreNavRow}>
         <Link href="/explore/players" style={miniGhostButton}>Compare this player</Link>
         <Link href="/teams" style={miniGhostButton}>Scout this team</Link>
