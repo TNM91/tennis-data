@@ -19,7 +19,7 @@ describe('public landing preview cards', () => {
     expect(tournamentsSource).toContain('TiqTournamentDrawCard')
     expect(tournamentsSource).toContain('TiqWorkspacePreview')
     expect(tournamentsSource).toContain('TiqActionCard')
-    expect(tournamentsSource).toContain("const tournamentDeskHref = '/join?plan=full_court&next=/league-coordinator/tournaments'")
+    expect(tournamentsSource).toContain("const tournamentDeskHref = '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments'")
     expect(tournamentsSource).toContain('href={tournamentDeskHref}')
     expect(tournamentsSource).toContain('href: tournamentDeskHref')
     expect(tournamentsSource).toContain('Find tournaments')

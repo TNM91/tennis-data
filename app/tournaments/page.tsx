@@ -20,7 +20,7 @@ export const metadata: Metadata = buildRouteMetadata({
   path: '/tournaments',
 })
 
-const tournamentDeskHref = '/join?plan=full_court&next=/league-coordinator/tournaments'
+const tournamentDeskHref = '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments'
 
 export default function TournamentsPage() {
   return (
