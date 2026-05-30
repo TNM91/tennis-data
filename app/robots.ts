@@ -21,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
         '/join',
         '/forget-password',
         '/reset-password',
+        '/tournaments/*/preferences',
         '/upgrade',
       ],
     },

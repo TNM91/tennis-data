@@ -60,6 +60,7 @@ describe('public sitemap alignment', () => {
       '/join',
       '/forget-password',
       '/reset-password',
+      '/tournaments/*/preferences',
       '/upgrade',
     ]) {
       expect(robotsSource).toContain(`'${path}`)

@@ -155,7 +155,7 @@ function TournamentPreferencesInner() {
           </label>
           <label style={toggleStyle}>
             <input type="checkbox" checked={smsOptIn} onChange={(event) => setSmsOptIn(event.target.checked)} />
-            <span>
+            <span style={toggleCopyStyle}>
               <strong>{smsOptIn ? 'Alerts on' : 'Alerts off'}</strong>
               <small>{smsOptIn ? 'Court alerts, rules, schedule changes, and recaps may arrive by text.' : 'Save this way to stop tournament texts.'}</small>
             </span>
@@ -346,6 +346,13 @@ const toggleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 850,
+}
+
+const toggleCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  lineHeight: 1.35,
 }
 
 const complianceNoteStyle: CSSProperties = {

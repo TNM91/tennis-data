@@ -18,6 +18,7 @@ const noindexRouteFiles = [
   'app/join/layout.tsx',
   'app/forget-password/layout.tsx',
   'app/reset-password/layout.tsx',
+  'app/tournaments/[id]/preferences/layout.tsx',
   'app/upgrade/layout.tsx',
   'app/preview-home/page.tsx',
   'app/tactics/page.tsx',
@@ -31,10 +32,11 @@ describe('public and private indexing boundaries', () => {
     expect(robotsSource).toContain("'/profile'")
     expect(robotsSource).toContain("'/preview-home'")
     expect(robotsSource).toContain("'/tactics'")
+    expect(robotsSource).toContain("'/tournaments/*/preferences'")
     expect(robotsSource).toContain("'/upgrade'")
 
     expect(robotsSource).not.toContain("'/coaches'")
-    expect(robotsSource).not.toContain("'/tournaments'")
+    expect(robotsSource).not.toContain("'/tournaments',")
     expect(robotsSource).not.toContain("'/resources'")
     expect(robotsSource).not.toContain("'/data-assist'")
   })
