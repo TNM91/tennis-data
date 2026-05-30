@@ -27,4 +27,13 @@ describe('Matchup product events', () => {
     expect(matchupSource).toContain("location: 'matchup_upgrade_prompt'")
     expect(matchupSource).toContain('confidence: projection.confidenceLabel')
   })
+
+  it('makes the public demo explain free preview and Player unlock value', () => {
+    expect(matchupSource).toContain('const matchupPreviewTiers')
+    expect(matchupSource).toContain('Matchup preview access')
+    expect(matchupSource).toContain('Free preview')
+    expect(matchupSource).toContain('Rating gap, recent form signal, and one watch item')
+    expect(matchupSource).toContain('Player unlock')
+    expect(matchupSource).toContain('My Lab adds full notes, split detail, confidence, upset risk, history, and saved takeaways.')
+  })
 })

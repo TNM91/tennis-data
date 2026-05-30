@@ -2309,6 +2309,15 @@ function DemoMatchupCard() {
         </div>
       </div>
       <p style={emptyStateText}>Watch item: second-serve pressure.</p>
+      <div style={demoTierGridStyle} aria-label="Matchup preview access">
+        {matchupPreviewTiers.map((tier) => (
+          <div key={tier.title} style={demoTierCardStyle}>
+            <span style={demoTierLabelStyle}>{tier.label}</span>
+            <strong style={demoTierTitleStyle}>{tier.title}</strong>
+            <p style={demoTierTextStyle}>{tier.body}</p>
+          </div>
+        ))}
+      </div>
       <TiqTrustStrip
         label="Sample matchup data trust signals"
         signals={[
@@ -2500,6 +2509,19 @@ function SwapSidesButton({ onClick }: { onClick: () => void }) {
     </button>
   )
 }
+
+const matchupPreviewTiers = [
+  {
+    label: 'Free preview',
+    title: 'See the quick read',
+    body: 'Rating gap, recent form signal, and one watch item help you prepare before picking a plan.',
+  },
+  {
+    label: 'Player unlock',
+    title: 'Save the full read',
+    body: 'My Lab adds full notes, split detail, confidence, upset risk, history, and saved takeaways.',
+  },
+] as const
 
 function SelectField({
   label,
@@ -3203,6 +3225,48 @@ const demoMetricStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 850,
   minWidth: 0,
+}
+
+const demoTierGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const demoTierCardStyle: CSSProperties = {
+  borderRadius: '14px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: '12px',
+  display: 'grid',
+  gap: '6px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const demoTierLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  lineHeight: 1,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+}
+
+const demoTierTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  lineHeight: 1.25,
+  fontWeight: 900,
+}
+
+const demoTierTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  fontWeight: 650,
 }
 
 const resetButton: CSSProperties = {
