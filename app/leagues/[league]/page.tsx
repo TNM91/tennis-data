@@ -8,6 +8,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import DataTrustPanel from '@/app/components/data-trust-panel'
+import PublicDetailState from '@/app/components/public-detail-state'
 import FollowButton from '@/app/components/follow-button'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import {
@@ -708,7 +709,22 @@ export default function LeagueDetailPage() {
 
         <article style={panelCard} id="league-teams">
           {loading ? (
-            <div style={stateBox}>Loading season data...</div>
+            <PublicDetailState
+              eyebrow="League Office context"
+              title="Opening season context."
+              titleAs="h2"
+              body="Checking teams, schedules, scorecards, standings, and correction paths for this league segment."
+              signals={[
+                { label: 'Source', value: 'Schedules, scorecards, standings' },
+                { label: 'Freshness', value: 'Latest reviewed rows first' },
+                { label: 'Status', value: 'Data Assist can review gaps' },
+              ]}
+              actions={[
+                { href: '/leagues', label: 'Find Leagues' },
+                { href: '/league-coordinator', label: 'Open League Office' },
+                { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
+              ]}
+            />
           ) : error ? (
             <div style={errorBox}>{error}</div>
           ) : validRows.length === 0 ? (

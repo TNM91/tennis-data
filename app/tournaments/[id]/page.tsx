@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import DataTrustPanel from '@/app/components/data-trust-panel'
+import PublicDetailState from '@/app/components/public-detail-state'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { loadTiqAwardsForSource, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -179,12 +180,20 @@ function TournamentPublicInner() {
   if (loading) {
     return (
       <main style={pageStyle}>
-        <section style={heroStyle}>
-          <span aria-hidden="true" style={watermarkStyle} />
-          <div style={eyebrowStyle}>Tournament</div>
-          <h1 style={titleStyle}>Opening tournament details.</h1>
-          <p style={textStyle}>Checking divisions, schedule, entries, and results.</p>
-        </section>
+        <PublicDetailState
+          eyebrow="Tournament"
+          title="Opening tournament details."
+          body="Checking divisions, entries, draws, court schedule, results, and player notification paths."
+          signals={[
+            { label: 'Source', value: 'Tournament Desk and director updates' },
+            { label: 'Freshness', value: 'Live event record' },
+            { label: 'Status', value: 'Players can report issues' },
+          ]}
+          actions={[
+            { href: '/tournaments', label: 'Find Tournaments' },
+            { href: '/league-coordinator/tournaments', label: 'Open Tournament Desk' },
+          ]}
+        />
       </main>
     )
   }
@@ -192,13 +201,20 @@ function TournamentPublicInner() {
   if (!record) {
     return (
       <main style={pageStyle}>
-        <section style={heroStyle}>
-          <span aria-hidden="true" style={watermarkStyle} />
-          <div style={eyebrowStyle}>Tournament</div>
-          <h1 style={titleStyle}>Bracket unavailable.</h1>
-          <p style={textStyle}>{error || 'This tournament is private, unpublished, or no longer exists.'}</p>
-          <Link href="/league-coordinator/tournaments" style={primaryButtonStyle}>Open Tournament Desk</Link>
-        </section>
+        <PublicDetailState
+          eyebrow="Tournament"
+          title="Bracket unavailable."
+          body={error || 'This tournament is private, unpublished, or no longer exists.'}
+          signals={[
+            { label: 'Source', value: 'Tournament Desk lookup' },
+            { label: 'Freshness', value: 'Checked now' },
+            { label: 'Status', value: 'Needs director publish or review' },
+          ]}
+          actions={[
+            { href: '/tournaments', label: 'Find Tournaments' },
+            { href: '/league-coordinator/tournaments', label: 'Open Tournament Desk' },
+          ]}
+        />
       </main>
     )
   }

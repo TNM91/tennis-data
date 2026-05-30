@@ -17,6 +17,28 @@ describe('public loading state polish', () => {
     expect(fallbackSource).toContain('slugifyForId')
   })
 
+  it('uses semantic public detail states instead of raw detail-page loading copy', () => {
+    const detailStateSource = read('app/components/public-detail-state.tsx')
+    const teamDetailSource = read('app/teams/[team]/page.tsx')
+    const leagueDetailSource = read('app/leagues/[league]/page.tsx')
+    const tournamentDetailSource = read('app/tournaments/[id]/page.tsx')
+
+    expect(detailStateSource).toContain('aria-labelledby={titleId}')
+    expect(detailStateSource).toContain('aria-describedby={bodyId}')
+    expect(detailStateSource).toContain("titleAs?: 'h1' | 'h2'")
+    expect(detailStateSource).toContain('<dl style={signalGridStyle}')
+    expect(detailStateSource).toContain('aria-label={`${title} actions`}')
+    expect(teamDetailSource).toContain('Opening team context.')
+    expect(teamDetailSource).toContain('Rosters, scorecards, team summaries')
+    expect(teamDetailSource).not.toContain('Loading team page...')
+    expect(leagueDetailSource).toContain('Opening season context.')
+    expect(leagueDetailSource).toContain('titleAs="h2"')
+    expect(leagueDetailSource).not.toContain('Loading season data...')
+    expect(tournamentDetailSource).toContain('Opening tournament details.')
+    expect(tournamentDetailSource).toContain('Bracket unavailable.')
+    expect(tournamentDetailSource).toContain('Needs director publish or review')
+  })
+
   it('keeps the Players directory loading view useful instead of raw loading copy', () => {
     const playersSource = read('app/players/page.tsx')
 

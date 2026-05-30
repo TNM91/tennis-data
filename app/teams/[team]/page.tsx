@@ -21,6 +21,7 @@ import {
 } from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
 import DataTrustPanel from '@/app/components/data-trust-panel'
+import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
@@ -1221,29 +1222,21 @@ function TeamPageContent() {
   if (loading) {
     return (
       <section style={pageContent}>
-        <section style={dynamicHeroShell}>
-          <span aria-hidden="true" style={watermarkStyle} />
-          <div>
-            <p style={eyebrow}>Team Intelligence</p>
-            <h1 style={dynamicHeroTitle}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '50%',
-                  border: '2px solid rgba(155,225,29,0.2)',
-                  borderTopColor: '#9be11d',
-                  animation: 'tenaceiq-spin 0.7s linear infinite',
-                  verticalAlign: 'middle',
-                  marginRight: '12px',
-                }}
-              />
-              Loading team page...
-            </h1>
-            <p style={heroText}>Pulling roster, matches, and lineup options.</p>
-          </div>
-        </section>
+        <PublicDetailState
+          eyebrow="Team Intelligence"
+          title="Opening team context."
+          body="Pulling roster, recent matches, league scope, and Captain Tools paths so this team page starts with useful tennis context."
+          signals={[
+            { label: 'Source', value: 'Rosters, scorecards, team summaries' },
+            { label: 'Freshness', value: 'Recent matches first' },
+            { label: 'Status', value: 'Reviewable through Data Assist' },
+          ]}
+          actions={[
+            { href: '/teams', label: 'Find Teams' },
+            { href: '/captain', label: 'Open Captain Tools' },
+            { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
+          ]}
+        />
       </section>
     )
   }
