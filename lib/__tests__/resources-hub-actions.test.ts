@@ -28,6 +28,7 @@ describe('Resources hub actions', () => {
     expect(source).toContain("return '/data-assist?intent=report-issue&context=Resources%20hub'")
     expect(source).toContain("return '/data-assist?intent=request-review&context=Resources%20hub'")
     expect(source).toContain("return '/data-assist?intent=upload-source&context=Resources%20hub'")
+    expect(source).toContain('context="Resources trust strip"')
   })
 
   it('uses q search params to prioritize matching resource paths', () => {

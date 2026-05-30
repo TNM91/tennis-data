@@ -178,6 +178,7 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
             body="Every tennis read should make source, freshness, confidence, and review status visible enough that players and organizers know what to do next."
           />
           <TrustStrip
+            context="Resources trust strip"
             signals={[
               { label: 'Source', value: 'USTA / TIQ / user upload', tone: 'info' },
               { label: 'Freshness', value: 'Last refreshed shown', tone: 'info' },

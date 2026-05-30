@@ -12,6 +12,7 @@ describe('public landing preview cards', () => {
     expect(coachesSource).toContain('TiqCoachAssignmentCard')
     expect(coachesSource).toContain("eventName: 'coach_hub_clicked'")
     expect(coachesSource).toContain("eventName: 'coach_assignment_preview_clicked'")
+    expect(coachesSource).toContain('context="Coaches trust strip"')
     expect(coachesSource).not.toContain('ProductPreviewGrid')
   })
 

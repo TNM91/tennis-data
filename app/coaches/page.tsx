@@ -102,6 +102,7 @@ export default function CoachesPage() {
             body="Future coach profiles can show verified email, coaching location, adult/youth availability, certifications if provided, Safe Play or background-check status where applicable, and clear not-verified labels."
           />
           <TrustStrip
+            context="Coaches trust strip"
             signals={[
               { label: 'Source', value: 'Coach profile', tone: 'info' },
               { label: 'Freshness', value: 'Owner updated', tone: 'info' },
