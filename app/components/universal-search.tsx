@@ -147,8 +147,9 @@ const results: SearchResult[] = [
     group: 'Actions',
     title: 'Create a league',
     detail: 'Open League Office for schedules, standings, results, corrections, and messages.',
-    href: '/leagues',
+    href: '/league-coordinator',
     keywords: ['create league', 'league office', 'ladder', 'season', 'organizer'],
+    requiredPlan: 'league',
   },
   {
     group: 'Actions',

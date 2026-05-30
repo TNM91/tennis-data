@@ -85,6 +85,8 @@ describe('universal search result model', () => {
     expect(source).toContain("requiredPlan: 'player_plus'")
     expect(source).toContain("href: '/league-coordinator/tournaments'")
     expect(source).toContain("requiredPlan: 'full_court'")
+    expect(source).toContain("href: '/league-coordinator'")
+    expect(source).toContain("requiredPlan: 'league'")
     expect(source).toContain('getPlanUnlockHref(item.requiredPlan, destinationHref)')
     expect(source).toContain('getPlanSignupHref(item.requiredPlan, upgradeHref)')
   })
