@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import styles from './player-development.module.css'
 
 type TrainingRow = string[]
@@ -23,6 +23,7 @@ type DrillOption = {
   workType: WorkType
   context: TrainingContext
   duration: string
+  timerSeconds: number
   proof: string
   href: string
 }
@@ -36,6 +37,7 @@ type SavedSession = {
   drillTitle: string
   rating: number
   note: string
+  elapsedSeconds: number
   sharedWithCoach: boolean
   completedAt: string
 }
@@ -91,7 +93,7 @@ export default function PlayerLiveWorkbench({
   const [workType, setWorkType] = useState<WorkType>('court')
   const [activeDrillId, setActiveDrillId] = useState('')
   const [draft, setDraft] = useState(emptyDraft)
-  const storageKey = `tenaceiq:train-today:${identitySlug}`
+  const storageKey = `tenaceiq:level-up:${identitySlug}`
   const [sessions, setSessions] = useState<SavedSession[]>(() => readSavedSessions(storageKey))
 
   const activeFocus = playableFocuses.find((focus) => focus.id === activeFocusId) ?? playableFocuses[0]
@@ -139,6 +141,7 @@ export default function PlayerLiveWorkbench({
       drillTitle: activeDrill.title,
       rating: draft.rating,
       note: draft.note.trim(),
+      elapsedSeconds: getTimerSeconds(activeDrill.id),
       sharedWithCoach: draft.sharedWithCoach,
       completedAt: new Date().toISOString(),
     }
@@ -154,12 +157,12 @@ export default function PlayerLiveWorkbench({
     <section className={styles.liveWorkbench} aria-labelledby="live-workbench-title">
       <div className={styles.liveWorkbenchHero}>
         <div>
-          <span>Train today</span>
+          <span>Level Up</span>
           <h2 id="live-workbench-title">What do you want to level up right now?</h2>
           <p>{identityTitle.replace(/^The /, '')}: {mantra}</p>
         </div>
         <div className={styles.liveHeroActions}>
-          <a className="button-primary" href="#train-today-flow">Start training</a>
+          <a className="button-primary" href="#level-up-flow">Start level up</a>
           <a className="button-secondary" href="/mylab#coach-assignments">Coach challenges</a>
         </div>
       </div>
@@ -182,7 +185,14 @@ export default function PlayerLiveWorkbench({
         </article>
       </div>
 
-      <div id="train-today-flow" className={styles.liveTrainingFlow}>
+      <div className={styles.liveModeStrip} aria-label="Phone first training steps">
+        <span>Pick focus</span>
+        <span>Choose setup</span>
+        <span>Start timer</span>
+        <span>Rate and save</span>
+      </div>
+
+      <div id="level-up-flow" className={styles.liveTrainingFlow}>
         <div className={styles.liveStepPanel}>
           <span>1. Focus</span>
           <strong>Choose today&apos;s target.</strong>
@@ -248,6 +258,7 @@ export default function PlayerLiveWorkbench({
               <strong>Time</strong>
               <p>{activeDrill.duration}</p>
             </div>
+            <DrillTimer drillId={activeDrill.id} targetSeconds={activeDrill.timerSeconds} key={activeDrill.id} />
             <div className={styles.liveActionGuide}>
               <strong>Proof</strong>
               <p>{activeDrill.proof}</p>
@@ -337,12 +348,60 @@ export default function PlayerLiveWorkbench({
           {recentSessions.map((session) => (
             <article key={session.id}>
               <strong>{session.focusTitle}: {session.drillTitle}</strong>
-              <p>{session.rating}/5 {session.sharedWithCoach ? 'shared with coach' : 'private'}{session.note ? ` - ${session.note}` : ''}</p>
+              <p>{session.rating}/5 {formatClock(session.elapsedSeconds)} {session.sharedWithCoach ? 'shared with coach' : 'private'}{session.note ? ` - ${session.note}` : ''}</p>
             </article>
           ))}
         </div>
       ) : null}
     </section>
+  )
+}
+
+function DrillTimer({ drillId, targetSeconds }: { drillId: string; targetSeconds: number }) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(() => getTimerSeconds(drillId))
+  const [running, setRunning] = useState(false)
+  const progress = targetSeconds > 0 ? Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100)) : 0
+  const targetLabel = targetSeconds > 0 ? formatClock(targetSeconds) : 'Open'
+
+  useEffect(() => {
+    if (!running) return
+
+    const id = window.setInterval(() => {
+      setElapsedSeconds((current) => {
+        const next = current + 1
+        window.sessionStorage.setItem(timerStorageKey(drillId), String(next))
+        return next
+      })
+    }, 1000)
+
+    return () => window.clearInterval(id)
+  }, [drillId, running])
+
+  function resetTimer() {
+    setRunning(false)
+    setElapsedSeconds(0)
+    window.sessionStorage.removeItem(timerStorageKey(drillId))
+  }
+
+  return (
+    <div className={styles.liveTimerPanel}>
+      <div>
+        <span>Timer</span>
+        <strong>{formatClock(elapsedSeconds)}</strong>
+        <p>Goal: {targetLabel}. Use this for fitness blocks, timed reps, or focused serve baskets.</p>
+      </div>
+      <div className={styles.liveTimerTrack} aria-hidden="true">
+        <i style={{ width: `${progress}%` }} />
+      </div>
+      <div className={styles.liveTimerActions}>
+        <button type="button" className="button-primary" onClick={() => setRunning((value) => !value)}>
+          {running ? 'Pause' : 'Start'}
+        </button>
+        <button type="button" className="button-secondary" onClick={resetTimer}>
+          Reset
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -359,15 +418,15 @@ function buildDrillOptions(
   const coachTitle = focus?.drills[0] ?? soloTool[0]
 
   return [
-    drill(`${focusId}-alone-court`, soloTool[0], soloTool[1], 'court', 'alone', '12-20 minutes', `Rate ${tracker.toLowerCase()} 0-5 and record reps or targets made.`, '#solo-training'),
-    drill(`${focusId}-partner-court`, partnerTool[0], partnerTool[1], 'court', 'partner', '15-25 minutes', `Rate ${tracker.toLowerCase()} 0-5 and note the constraint score.`, '#partner-training'),
-    drill(`${focusId}-singles-court`, `${coachTitle} pressure set`, `Start every point with the ${focus?.cue.toLowerCase() ?? 'focus cue'} and score the drill to 7. Reset after every miss.`, 'court', 'singles', '15 minutes', `Rate whether the habit showed up under score pressure.`, '#match-card'),
-    drill(`${focusId}-doubles-court`, partnerTool[0], `${partnerTool[1]} Add a partner call before the serve or return and review one communication cue after each game.`, 'court', 'doubles', '15-25 minutes', 'Rate partner clarity, first move, and recovery after the ball.', '#partner-training'),
-    drill(`${focusId}-coach-court`, `Coach challenge: ${coachTitle}`, `Complete the coach-assigned version of this focus, then send the rating and note back through My Lab.`, 'court', 'coach', 'Coach assigned', 'Rate completion honestly and write the one cue your coach should know.', '/mylab#coach-assignments'),
-    drill(`${focusId}-alone-physical`, physicalTool[0], physicalTool[1], 'physical', 'alone', '8-15 minutes', `Rate body readiness and ${tracker.toLowerCase()} after the block.`, '#performance-upgrade'),
-    drill(`${focusId}-coach-physical`, `Coach challenge: ${physicalTool[0]}`, `${physicalTool[1]} Send the readiness score back if this was assigned.`, 'physical', 'coach', '8-15 minutes', 'Rate readiness 0-5 and note any limitation before the next lesson.', '/mylab#coach-assignments'),
-    drill(`${focusId}-mental`, mentalTool[0], mentalTool[1], 'mental', 'alone', '5 minutes', 'Rate routine clarity 0-5 and write the next cue only if it helps.', '#off-court-work'),
-    drill(`${focusId}-coach-mental`, 'Coach challenge reflection', `Use the coach assignment prompt, write one proof, one leak, and one request for the next lesson.`, 'mental', 'coach', '3-5 minutes', 'Rate plan clarity and share the recap when linked.', '/mylab#coach-assignments'),
+    drill(`${focusId}-alone-court`, soloTool[0], soloTool[1], 'court', 'alone', '12-20 minutes', 900, `Rate ${tracker.toLowerCase()} 0-5 and record reps or targets made.`, '#solo-training'),
+    drill(`${focusId}-partner-court`, partnerTool[0], partnerTool[1], 'court', 'partner', '15-25 minutes', 1200, `Rate ${tracker.toLowerCase()} 0-5 and note the constraint score.`, '#partner-training'),
+    drill(`${focusId}-singles-court`, `${coachTitle} pressure set`, `Start every point with the ${focus?.cue.toLowerCase() ?? 'focus cue'} and score the drill to 7. Reset after every miss.`, 'court', 'singles', '15 minutes', 900, `Rate whether the habit showed up under score pressure.`, '#match-card'),
+    drill(`${focusId}-doubles-court`, partnerTool[0], `${partnerTool[1]} Add a partner call before the serve or return and review one communication cue after each game.`, 'court', 'doubles', '15-25 minutes', 1200, 'Rate partner clarity, first move, and recovery after the ball.', '#partner-training'),
+    drill(`${focusId}-coach-court`, `Coach challenge: ${coachTitle}`, `Complete the coach-assigned version of this focus, then send the rating and note back through My Lab.`, 'court', 'coach', 'Coach assigned', 900, 'Rate completion honestly and write the one cue your coach should know.', '/mylab#coach-assignments'),
+    drill(`${focusId}-alone-physical`, physicalTool[0], physicalTool[1], 'physical', 'alone', '8-15 minutes', 600, `Rate body readiness and ${tracker.toLowerCase()} after the block.`, '#performance-upgrade'),
+    drill(`${focusId}-coach-physical`, `Coach challenge: ${physicalTool[0]}`, `${physicalTool[1]} Send the readiness score back if this was assigned.`, 'physical', 'coach', '8-15 minutes', 600, 'Rate readiness 0-5 and note any limitation before the next lesson.', '/mylab#coach-assignments'),
+    drill(`${focusId}-mental`, mentalTool[0], mentalTool[1], 'mental', 'alone', '5 minutes', 300, 'Rate routine clarity 0-5 and write the next cue only if it helps.', '#off-court-work'),
+    drill(`${focusId}-coach-mental`, 'Coach challenge reflection', `Use the coach assignment prompt, write one proof, one leak, and one request for the next lesson.`, 'mental', 'coach', '3-5 minutes', 240, 'Rate plan clarity and share the recap when linked.', '/mylab#coach-assignments'),
   ]
 }
 
@@ -378,10 +437,11 @@ function drill(
   workType: WorkType,
   context: TrainingContext,
   duration: string,
+  timerSeconds: number,
   proof: string,
   href: string,
 ): DrillOption {
-  return { id, title, summary, workType, context, duration, proof, href }
+  return { id, title, summary, workType, context, duration, timerSeconds, proof, href }
 }
 
 function pickRow(rows: TrainingRow[], focusId: string, fallback: string): TrainingRow {
@@ -425,6 +485,23 @@ function readSavedSessions(storageKey: string): SavedSession[] {
   } catch {
     return []
   }
+}
+
+function timerStorageKey(drillId: string) {
+  return `tenaceiq:level-up-timer:${drillId}`
+}
+
+function getTimerSeconds(drillId: string) {
+  if (typeof window === 'undefined') return 0
+  const saved = window.sessionStorage.getItem(timerStorageKey(drillId))
+  const parsed = saved ? Number.parseInt(saved, 10) : 0
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function formatClock(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
 function getProgressSummary(sessions: SavedSession[], focuses: LiveFocus[]) {

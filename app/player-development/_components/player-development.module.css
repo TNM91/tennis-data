@@ -315,11 +315,38 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.liveModeStrip {
+  position: sticky;
+  top: 8px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 16px;
+  background: rgba(5, 13, 19, 0.88);
+  padding: 8px;
+  backdrop-filter: blur(16px);
+}
+
+.liveModeStrip span {
+  display: grid;
+  min-height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-align: center;
+}
+
 .liveCoachLoop article,
 .liveProgressPanel article,
 .liveStepPanel,
 .liveCurrentGoal,
 .liveActionCard,
+.liveTimerPanel,
 .liveTracker,
 .liveRecentList,
 .liveRecentList article {
@@ -331,6 +358,7 @@
 .liveLaneColumn,
 .liveStepPanel,
 .liveActionCard,
+.liveTimerPanel,
 .liveTracker,
 .liveRecentList,
 .liveCoachLoop article,
@@ -429,6 +457,62 @@
 .liveActionGuide {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: 10px;
+}
+
+.liveTimerPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.liveTimerPanel span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 7px 10px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.liveTimerPanel strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--foreground-strong);
+  font-size: clamp(2.1rem, 7vw, 4.6rem);
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.liveTimerPanel p {
+  margin: 7px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.87rem;
+  line-height: 1.45;
+}
+
+.liveTimerTrack {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.liveTimerTrack i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-green-2), #74beff);
+  transition: width 0.3s ease;
+}
+
+.liveTimerActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .liveActionLinks {
@@ -4224,7 +4308,8 @@
   }
 
   .liveCoachLoop,
-  .liveProgressPanel {
+  .liveProgressPanel,
+  .liveModeStrip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4325,7 +4410,8 @@
   }
 
   .liveCoachLoop,
-  .liveProgressPanel {
+  .liveProgressPanel,
+  .liveModeStrip {
     grid-template-columns: 1fr;
   }
 
