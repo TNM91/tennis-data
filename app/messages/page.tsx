@@ -2088,7 +2088,7 @@ const primaryButtonStyle: CSSProperties = {
   padding: '0 16px',
   borderRadius: 999,
   border: '1px solid rgba(155,225,29,0.34)',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.26), rgba(34,211,238,0.13))',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   color: 'var(--foreground-strong)',
   fontWeight: 950,
   textDecoration: 'none',
