@@ -155,6 +155,193 @@
   margin-top: 24px;
 }
 
+.missionDashboard,
+.performanceUpgrade {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--card-border-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  border-radius: var(--radius-lg);
+  padding: clamp(20px, 3vw, 28px);
+}
+
+.missionHero,
+.performanceUpgradeHero,
+.performanceSafetyNote,
+.codexAssistBox,
+.habitRewardStrip,
+.playerToolCard,
+.movementEngine,
+.matchPerformanceLink {
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.missionHero,
+.performanceUpgradeHero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.missionGrid,
+.performanceGrowthGrid,
+.movementEngineGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.missionGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.performanceGrowthGrid,
+.movementEngineGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.missionGrid article,
+.performanceGrowthGrid article {
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.missionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.missionHero span,
+.missionGrid span,
+.performanceUpgradeHero span,
+.performanceGrowthGrid span,
+.movementEngine span,
+.performanceSafetyNote span,
+.codexAssistBox span,
+.playerToolCard span,
+.matchPerformanceLink span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 7px 10px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.missionHero h2,
+.performanceUpgradeHero strong,
+.missionGrid strong,
+.performanceGrowthGrid strong,
+.movementEngine strong,
+.performanceSafetyNote strong,
+.codexAssistBox strong,
+.playerToolCard h3,
+.playerToolCard strong,
+.matchPerformanceLink strong {
+  display: block;
+  margin: 7px 0 0;
+  color: var(--foreground-strong);
+  line-height: 1.12;
+}
+
+.missionHero h2 {
+  font-size: clamp(1.45rem, 3vw, 2.25rem);
+}
+
+.missionHero p,
+.missionGrid p,
+.performanceUpgradeHero p,
+.performanceGrowthGrid p,
+.movementEngine p,
+.performanceSafetyNote p,
+.codexAssistBox p,
+.codexAssistBox small,
+.playerToolCard p,
+.playerToolCard li,
+.matchPerformanceLink p {
+  margin: 7px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.86rem;
+  line-height: 1.42;
+}
+
+.performancePlan,
+.playerToolCard {
+  display: grid;
+  gap: 10px;
+}
+
+.movementEngine {
+  display: grid;
+  gap: 12px;
+}
+
+.playerToolCard h3 {
+  margin: 0;
+}
+
+.playerToolCard ol {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.habitRewardStrip {
+  display: grid;
+  gap: 10px;
+}
+
+.habitRewardStrip > strong {
+  color: var(--foreground-strong);
+}
+
+.habitRewardStrip > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.habitRewardStrip span {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.habitRewardStrip i {
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  border: 1px solid rgba(155, 225, 29, 0.42);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.codexAssistBox {
+  border-color: rgba(155, 225, 29, 0.24);
+  background:
+    radial-gradient(circle at 0 0, rgba(155, 225, 29, 0.12), transparent 34%),
+    rgba(255, 255, 255, 0.045);
+}
+
 .heroPanel {
   display: grid;
   gap: 16px;
@@ -910,6 +1097,7 @@
 .playerTrainingSheet,
 .playerTrainingIntro,
 .playerTrainingGrid,
+.offCourtExerciseGrid,
 .identityProfileBoard,
 .triggerSheet,
 .triggerGrid,
@@ -1550,6 +1738,7 @@
 .goalLoopGrid span,
 .playerTrainingIntro span,
 .playerTrainingGrid span,
+.offCourtExerciseGrid span,
 .coachPlanHeader span,
 .coachPlanBlocks span,
 .coachPlanFooter span {
@@ -1576,6 +1765,7 @@
 .goalLoopGrid strong,
 .playerTrainingIntro strong,
 .playerTrainingGrid strong,
+.offCourtExerciseGrid strong,
 .coachPlanHeader strong,
 .coachPlanBlocks strong {
   display: block;
@@ -1610,6 +1800,7 @@
 .goalLoopGrid p,
 .playerTrainingIntro p,
 .playerTrainingGrid p,
+.offCourtExerciseGrid p,
 .coachPlanHeader p,
 .coachPlanBlocks p,
 .coachPlanFooter p {
@@ -1627,7 +1818,8 @@
 .progressionCoachLinks,
 .toolBeltRouteGrid,
 .matchCardGrid,
-.playerTrainingGrid {
+.playerTrainingGrid,
+.offCourtExerciseGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
@@ -1664,6 +1856,7 @@
 .toolBeltRouteGrid article,
 .matchCardGrid section,
 .playerTrainingGrid article,
+.offCourtExerciseGrid article,
 .coachHourPlans article,
 .coachPlanBlocks section,
 .coachPlanFooter {
@@ -3518,6 +3711,15 @@
 .printBook .progressionCoachLinks article,
 .printBook .toolBeltHero,
 .printBook .toolBeltRouteGrid article,
+.printBook .performanceUpgradeHero,
+.printBook .performanceGrowthGrid article,
+.printBook .movementEngine,
+.printBook .movementEngineGrid article,
+.printBook .performanceSafetyNote,
+.printBook .codexAssistBox,
+.printBook .habitRewardStrip,
+.printBook .playerToolCard,
+.printBook .matchPerformanceLink,
 .printBook .matchCardHero,
 .printBook .matchCardGrid section,
 .printBook .matchCardGrid section > div,
@@ -3525,6 +3727,7 @@
 .printBook .goalLoopGrid article,
 .printBook .playerTrainingIntro,
 .printBook .playerTrainingGrid article,
+.printBook .offCourtExerciseGrid article,
 .printBook .coachReadinessHero,
 .printBook .coachFeelingGrid article,
 .printBook .coachHourPlans article,
@@ -3549,12 +3752,22 @@
 .printBook .progressionCoachLinks strong,
 .printBook .toolBeltHero strong,
 .printBook .toolBeltRouteGrid strong,
+.printBook .performanceUpgradeHero strong,
+.printBook .performanceGrowthGrid strong,
+.printBook .movementEngine strong,
+.printBook .performanceSafetyNote strong,
+.printBook .codexAssistBox strong,
+.printBook .habitRewardStrip > strong,
+.printBook .playerToolCard strong,
+.printBook .playerToolCard h3,
+.printBook .matchPerformanceLink strong,
 .printBook .quickRatingStrip strong,
 .printBook .matchCardHero strong,
 .printBook .matchCardGrid strong,
 .printBook .goalLoopGrid strong,
 .printBook .playerTrainingIntro strong,
 .printBook .playerTrainingGrid strong,
+.printBook .offCourtExerciseGrid strong,
 .printBook .coachReadinessHero strong,
 .printBook .coachFeelingGrid strong,
 .printBook .coachPlanHeader strong,
@@ -3577,6 +3790,15 @@
 .printBook .progressionCoachLinks p,
 .printBook .toolBeltHero p,
 .printBook .toolBeltRouteGrid p,
+.printBook .performanceUpgradeHero p,
+.printBook .performanceGrowthGrid p,
+.printBook .movementEngine p,
+.printBook .performanceSafetyNote p,
+.printBook .codexAssistBox p,
+.printBook .codexAssistBox small,
+.printBook .playerToolCard p,
+.printBook .playerToolCard li,
+.printBook .matchPerformanceLink p,
 .printBook .quickRatingStrip span,
 .printBook .matchCardHero p,
 .printBook .matchCardGrid p,
@@ -3584,6 +3806,7 @@
 .printBook .goalLoopGrid p,
 .printBook .playerTrainingIntro p,
 .printBook .playerTrainingGrid p,
+.printBook .offCourtExerciseGrid p,
 .printBook .coachReadinessHero p,
 .printBook .coachFeelingGrid p,
 .printBook .coachPlanHeader p,
@@ -3609,11 +3832,19 @@
 .printBook .progressionCoachLinks span,
 .printBook .toolBeltHero span,
 .printBook .toolBeltRouteGrid span,
+.printBook .performanceUpgradeHero span,
+.printBook .performanceGrowthGrid span,
+.printBook .movementEngine span,
+.printBook .performanceSafetyNote span,
+.printBook .codexAssistBox span,
+.printBook .playerToolCard span,
+.printBook .matchPerformanceLink span,
 .printBook .matchCardHero span,
 .printBook .matchCardGrid span,
 .printBook .goalLoopGrid span,
 .printBook .playerTrainingIntro span,
 .printBook .playerTrainingGrid span,
+.printBook .offCourtExerciseGrid span,
 .printBook .coachReadinessHero span,
 .printBook .coachFeelingGrid span,
 .printBook .coachPlanHeader span,
@@ -3658,9 +3889,13 @@
   .progressionRuleGrid,
   .progressionCoachLinks,
   .toolBeltRouteGrid,
+  .missionGrid,
+  .performanceGrowthGrid,
+  .movementEngineGrid,
   .matchCardGrid,
   .quickCheckStrip,
   .playerTrainingGrid,
+  .offCourtExerciseGrid,
   .identityProfileBoard,
   .triggerGrid,
   .coachQuestionGrid,
@@ -3721,10 +3956,14 @@
   .progressionRuleGrid,
   .progressionCoachLinks,
   .toolBeltRouteGrid,
+  .missionGrid,
+  .performanceGrowthGrid,
+  .movementEngineGrid,
   .matchCardGrid,
   .matchCardFooter,
   .quickCheckStrip,
   .playerTrainingGrid,
+  .offCourtExerciseGrid,
   .workbookGrid,
   .phaseMap,
   .packetIndexGrid,
@@ -3778,7 +4017,9 @@
     grid-template-columns: 1fr;
   }
 
-  .packetIndexHero {
+  .packetIndexHero,
+  .missionHero,
+  .performanceUpgradeHero {
     grid-template-columns: 1fr;
   }
 
@@ -3835,6 +4076,7 @@
   .identitySelector,
   .sheetPanel,
   .integrationPanel,
+  .missionDashboard,
   .shell > :global(.surface-card) {
     display: none;
   }
@@ -3916,6 +4158,13 @@
   .printBook .focusDecisionPage,
   .printBook .playerProgressionCard,
   .printBook .toolBeltMenu,
+  .printBook .performanceUpgrade,
+  .printBook .performancePlan,
+  .printBook .performanceGrowthGrid,
+  .printBook .movementEngine,
+  .printBook .movementEngineGrid,
+  .printBook .habitRewardStrip,
+  .printBook .codexAssistBox,
   .printBook .coachProgressionRules,
   .printBook .matchOnePager,
   .printBook .playerTrainingSheet,
@@ -3993,6 +4242,15 @@
   .printBook .progressionCoachLinks article,
   .printBook .toolBeltHero,
   .printBook .toolBeltRouteGrid article,
+  .printBook .performanceUpgradeHero,
+  .printBook .performanceGrowthGrid article,
+  .printBook .movementEngine,
+  .printBook .movementEngineGrid article,
+  .printBook .performanceSafetyNote,
+  .printBook .codexAssistBox,
+  .printBook .habitRewardStrip,
+  .printBook .playerToolCard,
+  .printBook .matchPerformanceLink,
   .printBook .matchCardHero,
   .printBook .matchCardGrid section,
   .printBook .matchCardGrid section > div,
@@ -4000,6 +4258,7 @@
   .printBook .goalLoopGrid article,
   .printBook .playerTrainingIntro,
   .printBook .playerTrainingGrid article,
+  .printBook .offCourtExerciseGrid article,
   .printBook .coachReadinessHero,
   .printBook .coachFeelingGrid article,
   .printBook .coachHourPlans article,
@@ -4028,6 +4287,15 @@
   .printBook .progressionCoachLinks p,
   .printBook .toolBeltHero p,
   .printBook .toolBeltRouteGrid p,
+  .printBook .performanceUpgradeHero p,
+  .printBook .performanceGrowthGrid p,
+  .printBook .movementEngine p,
+  .printBook .performanceSafetyNote p,
+  .printBook .codexAssistBox p,
+  .printBook .codexAssistBox small,
+  .printBook .playerToolCard p,
+  .printBook .playerToolCard li,
+  .printBook .matchPerformanceLink p,
   .printBook .quickRatingStrip span,
   .printBook .matchCardHero p,
   .printBook .matchCardGrid p,
@@ -4035,6 +4303,7 @@
   .printBook .goalLoopGrid p,
   .printBook .playerTrainingIntro p,
   .printBook .playerTrainingGrid p,
+  .printBook .offCourtExerciseGrid p,
   .printBook .coachReadinessHero p,
   .printBook .coachFeelingGrid p,
   .printBook .coachPlanHeader p,

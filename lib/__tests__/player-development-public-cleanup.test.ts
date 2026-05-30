@@ -47,15 +47,22 @@ describe('Player Development public cleanup', () => {
       'PlayerSoloTraining',
       'PlayerPartnerTraining',
       'PlayerOffCourtTraining',
+      'PlayerPerformanceUpgrade',
+      'PlayerAtHomePerformanceTraining',
       'ModuleTestCard',
       'CoachReadinessAdapter',
       'CoachProgressionRules',
       'CoachOneHourPlans',
       'QuickRatingStrip',
+      'HabitRewardStrip',
+      'CodexAssistBox',
+      'PlayerMissionDashboard',
     ]) {
       expect(systemSource).toContain(expected)
     }
 
+    expect(systemSource).toContain('Start today&apos;s mission')
+    expect(systemSource).toContain('Coach / Lesson Plan')
     expect(systemSource).toContain('One week. One habit. One proof note.')
     expect(systemSource).toContain('Pick the tool that solves this week')
     expect(systemSource).toContain('This is a tool belt.')
@@ -63,6 +70,17 @@ describe('Player Development public cleanup', () => {
     expect(systemSource).toContain('Defense')
     expect(systemSource).toContain('Neutral')
     expect(systemSource).toContain('Offense')
+    expect(systemSource).toContain('Performance Upgrade')
+    expect(systemSource).toContain('Level up the engine that supports your game.')
+    expect(systemSource).toContain('At-home performance')
+    expect(systemSource).toContain('Jump rope rhythm builder')
+    expect(systemSource).toContain('Cone recover + shadow swing')
+    expect(systemSource).toContain('wall sit')
+    expect(systemSource).toContain('Post-play mobility reset')
+    expect(systemSource).toContain('Reward the habit')
+    expect(systemSource).toContain('Cue')
+    expect(systemSource).toContain('Routine')
+    expect(systemSource).toContain('Track')
     expect(systemSource).toContain('Know when to repeat, progress, or test in a match')
     expect(systemSource).toContain('Use the same progression language as the player')
     expect(systemSource).toContain('Before, during, after')
@@ -77,6 +95,8 @@ describe('Player Development public cleanup', () => {
     expect(systemSource).toContain('One-hour lesson plans: Modules 5-8')
     expect(systemSource).not.toContain('Green-yellow-red rally')
     expect(systemSource).not.toContain('earned green balls')
+    expect(systemSource).not.toContain('BodyToolkit')
+    expect(systemSource).not.toContain('Body Toolbelt')
     expect(existsSync(join(process.cwd(), 'scripts/verify-player-development-print.mjs'))).toBe(true)
   })
 })

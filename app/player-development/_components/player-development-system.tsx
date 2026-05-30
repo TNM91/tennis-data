@@ -51,10 +51,10 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
                 </p>
                 <div className={styles.actions}>
                   <Link className="button-primary" href={`/player-development/${identity.slug}/workbook`}>
-                    Open workbook
+                    Start today&apos;s mission
                   </Link>
                   <Link className="button-secondary" href={`/player-development/${identity.slug}/coach-planner`}>
-                    Open coach planner
+                    Coach / Lesson Plan
                   </Link>
                 </div>
               </div>
@@ -109,6 +109,7 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
           identitySlug={identity.slug}
         />
 
+        {focus === 'overview' || focus === 'workbook' ? <PlayerMissionDashboard identity={identity} /> : null}
         <WorkbookPreview identity={identity} active={focus === 'workbook'} printActive={workbookPrintActive} />
         <CoachPlannerPreview identity={identity} active={focus === 'coach'} printActive={coachPrintActive} />
 
@@ -178,6 +179,52 @@ function PlanCard({ icon, title, items }: { icon: TiqFeatureIconName; title: str
   )
 }
 
+function PlayerMissionDashboard({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const primaryModule = identity.weeks[0]
+  const primaryFocus = identity.sections[0]
+
+  return (
+    <section className={styles.missionDashboard} aria-labelledby="mission-dashboard-title">
+      <div className={styles.missionHero}>
+        <TiqFeatureIcon name="matchPrep" size="lg" variant="surface" />
+        <div>
+          <span>Today&apos;s player mission</span>
+          <h2 id="mission-dashboard-title">Use one tool today. Prove one habit.</h2>
+          <p>{identity.mantra}</p>
+        </div>
+      </div>
+      <div className={styles.missionGrid}>
+        <article>
+          <span>Current focus</span>
+          <strong>{primaryFocus?.title ?? 'Choose one habit'}</strong>
+          <p>{primaryFocus?.cue ?? 'Pick the habit that changes the next match fastest.'}</p>
+        </article>
+        <article>
+          <span>Today&apos;s cue</span>
+          <strong>When the habit breaks, reset before the next ball.</strong>
+          <p>Make the cue visible before practice, not after the mistake.</p>
+        </article>
+        <article>
+          <span>Tool to use</span>
+          <strong>{primaryModule?.title ?? 'Weekly action plan'}</strong>
+          <p>{primaryModule?.pressureGame ?? 'Test the habit under score, fatigue, or a missed ball.'}</p>
+        </article>
+        <article>
+          <span>Reward</span>
+          <strong>Check the rep when you respond like the player you are becoming.</strong>
+          <p>Reward the controlled behavior, not only the point result.</p>
+        </article>
+      </div>
+      <div className={styles.missionActions}>
+        <Link className="button-primary" href="#weekly-action-plan">Start today</Link>
+        <Link className="button-secondary" href="#toolbelt">Pick a tool</Link>
+        <Link className="button-secondary" href="#match-card">Match mode</Link>
+        <Link className="button-secondary" href="#performance-upgrade">Performance upgrade</Link>
+      </div>
+    </section>
+  )
+}
+
 function WorkbookPreview({
   identity,
   active,
@@ -239,11 +286,13 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage core footer="Weekly action plan">
+        <div id="weekly-action-plan" />
         <PageHeader label="Start here" title="Your one-week action plan" />
         <PlayerWeeklyActionPlan identity={identity} />
       </WorkbookPage>
 
       <WorkbookPage core footer="Focus decision">
+        <div id="toolbelt" />
         <PageHeader label="Tool belt" title="Pick the tool that solves this week" />
         <PlayerFocusDecisionPage identity={identity} />
       </WorkbookPage>
@@ -254,6 +303,7 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage core footer="Match card">
+        <div id="match-card" />
         <PageHeader label="Match card" title="Before, during, after" />
         <PlayerMatchOnePager identity={identity} />
       </WorkbookPage>
@@ -360,6 +410,17 @@ function WorkbookPreview({
       <WorkbookPage footer="Off-court work">
         <PageHeader label="Player practice" title="Off-court work that changes match habits" />
         <PlayerOffCourtTraining identity={identity} />
+      </WorkbookPage>
+
+      <WorkbookPage core footer="Performance upgrade">
+        <div id="performance-upgrade" />
+        <PageHeader label="Performance upgrade" title="Level up the engine that supports your game" />
+        <PlayerPerformanceUpgrade identity={identity} />
+      </WorkbookPage>
+
+      <WorkbookPage footer="At-home performance">
+        <PageHeader label="At-home performance" title="Strength, conditioning, mobility, and recovery" />
+        <PlayerAtHomePerformanceTraining identity={identity} />
       </WorkbookPage>
 
       <WorkbookPage footer="Focus selector">
@@ -513,7 +574,8 @@ function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity
   const sections = [
     ['Start here', 'Write the plan goal and rate where you are today.'],
     ['Tool belt', 'Choose the tool that matches what you want to improve.'],
-    ['Training menu', 'Find self, partner, singles, doubles, and off-court work.'],
+    ['Training menu', 'Find solo, partner, performance, match, and off-court work.'],
+    ['Performance Upgrade', 'Choose the movement, strength, conditioning, or recovery tool that supports this week\'s habit.'],
     ['Modules', 'Use the module only when it supports this week\'s goal.'],
     ['Player+ companion', 'Update goals, quick check-ins, and coach assignment status.'],
   ] as const
@@ -537,7 +599,7 @@ function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity
           </article>
         ))}
       </div>
-      <TrackerTable columns={['If I need', 'Go to', 'Use it for', 'Quick check-in']} rows={['Plan goal', 'Tool belt', 'Self drill', 'Partner / doubles drill', 'Off-court habit']} />
+      <TrackerTable columns={['If I need', 'Go to', 'Use it for', 'Quick check-in']} rows={['Plan goal', 'Tool belt', 'Self drill', 'Partner / doubles drill', 'Performance upgrade', 'Off-court habit']} />
     </div>
   )
 }
@@ -639,14 +701,33 @@ function getPlayerTrainingMenus(identity: PlayerDevelopmentIdentity) {
       ? [
           ['Match note in five minutes', 'Write one proof, one leak, and one next practice focus within five minutes after play.'],
           ['Pressure breath routine', 'Practice the same breath, target call, and reset phrase before ten imagined pressure points.'],
-          ['Legs-late finisher', 'Short interval set: 20 seconds work, 20 seconds reset, then write whether posture stayed calm.'],
           ['Opponent plan card', 'Before a match, write the opponent style and the first three-game adjustment.'],
+          ['Coach handoff note', 'Bring one question, one proof note, and one habit request to the next lesson.'],
         ]
       : [
           ['Pattern notebook', 'Write the pattern that earned short balls and the ball you were trying to create.'],
           ['Balance audit', 'After match play, list three attacks: earned, forced, or rushed.'],
-          ['Forward-close mobility', 'Practice split, close, and recover footwork with a clear finish cue.'],
           ['First-strike plan card', 'Before play, choose serve target, first ball, and recovery cue.'],
+          ['Coach handoff note', 'Bring one question, one proof note, and one habit request to the next lesson.'],
+        ],
+    performance: isRelentless
+      ? [
+          ['Dynamic warm-up', '6-8 minutes before tennis: march or jog, arm circles, side shuffle, crossover steps, knee hug to lunge, lateral lunge, split-step bounce, first-step rhythm, and optional jump rope 60-90 seconds. Track body ready 0-5.'],
+          ['Jump rope rhythm builder', '3-5 rounds: jump rope 30 sec, rest 20 sec, then split-step + first move x6. Keep shoulders relaxed and breathing calm. Track rhythm and light feet 0-5.'],
+          ['Cone recover + shadow swing', 'Set one home cone and two wide cones. Move to a cone, shadow forehand or backhand, recover to home before watching the imaginary result. Do 3 rounds of 6 reps. Track recovery after contact 0-5.'],
+          ['Lower-body recovery circuit', '2-3 rounds: split squat x8 each side, lateral lunge x8 each side, wall sit 30-45 sec, calf raise x12, split-step bounce x10, shadow hit + recover x8. Track leg durability 0-5.'],
+          ['Shoulder + core support', '2-3 rounds: band row x12, band external rotation x10 each side, dead bug x8 each side, side plank 20-30 sec each side, serve-routine shadow x8. Track serve routine clarity 0-5.'],
+          ['Tennis conditioning finisher', '8 minutes: 20 sec work / 20 sec reset. Rotate jump rope, cone shuffle, shadow forehand/backhand recover, skater stick, fast march or mountain climber, serve routine shadow, and wide-ball recover. Track posture under fatigue 0-5.'],
+          ['Post-play mobility reset', '6-10 minutes after play: hip flexor, hamstring, calf, figure-four glute, thoracic open book, child pose side reach, shoulder cross-body, and five slow breaths. Track tension before/after 0-5.'],
+        ]
+      : [
+          ['Dynamic warm-up', '6-8 minutes before tennis: march or jog, arm circles, side shuffle, crossover steps, knee hug to lunge, lateral lunge, split-step bounce, first-step rhythm, and optional jump rope 60-90 seconds. Track body ready 0-5.'],
+          ['Jump rope rhythm builder', '3-5 rounds: jump rope 30 sec, rest 20 sec, then split-step + first move x6. Keep the rhythm light and controlled. Track light feet 0-5.'],
+          ['Cone close + recover', 'Set one home cone, one short-ball cone, and one recovery cone. Move forward, shadow approach, close, split, then recover. Do 3 rounds of 5 reps. Track forward-close balance 0-5.'],
+          ['Forward-close strength', '2-3 rounds: split squat x8 each side, step-up x8 each side, glute bridge x12, wall sit 30-45 sec, calf raise x12, approach-shadow close x8. Track forward balance 0-5.'],
+          ['Core + balance circuit', '2-3 rounds: single-leg RDL x6 each side, dead bug x8 each side, side plank 20-30 sec each side, wall sit with quiet upper body 30 sec, decision shadow x8. Track attack control 0-5.'],
+          ['First-strike conditioning', '8 minutes: serve +1 shadow, jump rope, recovery step, lateral cone shuffle, split-step, and short-ball close in 20/20 intervals. Track clarity under fatigue 0-5.'],
+          ['Post-play mobility reset', '6-10 minutes after play: hip flexor, hamstring, calf, glute, thoracic rotation, shoulder stretch, and slow breathing. Track tension before/after 0-5.'],
         ],
   }
 }
@@ -683,7 +764,7 @@ function PlayerGoalCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }
                 : step === 'Rate'
                   ? 'Use numbers first. Save writing for what actually matters.'
                   : step === 'Choose'
-                    ? 'Use the tool belt: self, partner, doubles, match, or off-court.'
+                    ? 'Use the tool belt: solo, partner, doubles, match, performance, or off-court.'
                     : 'Do the smallest useful action before adding more goals.'}
             </p>
           </article>
@@ -691,6 +772,7 @@ function PlayerGoalCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }
       </div>
       <QuickRatingStrip labels={['Plan clarity', 'Effort', 'Execution', 'Pressure', 'Confidence']} />
       <TrackerTable columns={['Quick check-in', '0-5 rating', 'Tool to use next', 'Tiny note if needed']} rows={rows} />
+      <HabitRewardStrip labels={['I rated it honestly', 'I chose the next useful tool', 'I kept the note small enough to act on']} />
       <div className={styles.twoColumn}>
         <ReflectionLines label="Plan goal" rows={3} />
         <ReflectionLines label="Small overall note if needed" rows={3} />
@@ -700,17 +782,18 @@ function PlayerGoalCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }
 }
 
 function PlayerWeeklyActionPlan({ identity }: { identity: PlayerDevelopmentIdentity }) {
-  const { solo, partner, offCourt } = getPlayerTrainingMenus(identity)
+  const { solo, partner, offCourt, performance } = getPlayerTrainingMenus(identity)
   const primaryModule = identity.weeks[0]
   const actions = [
     ['Choose', 'Circle one habit that would change your next match fastest.', identity.sections[0]?.title ?? 'Movement'],
     ['Train', 'Do one court action twice this week.', solo[0]?.[0] ?? 'Solo training'],
-    ['Test', 'Make it survive score, fatigue, or a missed ball.', primaryModule?.pressureGame ?? 'Pressure test'],
-    ['Show', 'Write proof a coach or partner can understand.', primaryModule?.accountability ?? 'Evidence note'],
+    ['Upgrade', 'Pick one at-home performance block that supports the habit.', performance[1]?.[0] ?? 'Performance Upgrade'],
+    ['Show', 'Bring one 0-5 proof rating back to your coach or My Lab.', primaryModule?.accountability ?? 'Evidence note'],
   ] as const
   const guideRows = [
     `Solo: ${solo[0]?.[0] ?? 'Court work'}`,
     `Partner: ${partner[0]?.[0] ?? 'Hitting drill'}`,
+    `Performance: ${performance[1]?.[0] ?? 'Movement engine'}`,
     `Off court: ${offCourt[0]?.[0] ?? 'Match note'}`,
     `Module: ${primaryModule ? `${primaryModule.week} - ${primaryModule.title}` : 'Choose one module'}`,
   ]
@@ -737,8 +820,13 @@ function PlayerWeeklyActionPlan({ identity }: { identity: PlayerDevelopmentIdent
         ))}
       </div>
       <TrackerTable columns={['This week', 'My choice', 'Done?', 'Proof']} rows={guideRows} />
-      <QuickRatingStrip labels={['Goal clear', 'On-court work', 'Off-court work', 'Match ready']} />
+      <QuickRatingStrip labels={['Goal clear', 'On-court work', 'Performance work', 'Match ready']} />
       <QuickCheckStrip labels={['Picked one habit', 'Court work done', 'Off-court work done', 'Proof written']} />
+      <HabitRewardStrip labels={['I responded before reacting', 'I made the next rep clearer', 'I brought proof to my coach']} />
+      <CodexAssistBox
+        title="Build this week's loop"
+        prompt="Turn this week's tennis goal into one cue, one routine, one reward, and one proof note."
+      />
       <div className={styles.twoColumn}>
         <ReflectionLines label="The one habit I am training this week" rows={4} />
         <ReflectionLines label="Small note if needed" rows={4} />
@@ -751,18 +839,18 @@ function PlayerFocusDecisionPage({ identity }: { identity: PlayerDevelopmentIden
   const isRelentless = identity.slug.includes('relentless')
   const choices = isRelentless
     ? [
-        ['Serve breaks under pressure', 'Self drill: serve target reps', 'Call wide, body, or T before the toss. Rate routine clarity 0-5.'],
-        ['Feet stop after contact', 'Self or partner drill: recovery lanes', 'Recover before watching the result. Rate recovery 0-5.'],
-        ['You attack too early', 'Partner drill: offense-neutral-defense rally', 'Call defend, neutral, or offense before contact. Rate decision quality 0-5.'],
-        ['You rush when stretched', 'Match card + off-court reset', 'Hit high-margin defense, recover, breathe, then play the next ball. Rate calm 0-5.'],
-        ['Doubles feels reactive', 'Partner drill: doubles first move', 'Call serve location and first move before the point starts. Rate communication 0-5.'],
+        ['Serve breaks under pressure', 'Self drill + shoulder/core support', 'Call wide, body, or T before the toss. Add shoulder + core support. Rate routine clarity 0-5.'],
+        ['Feet stop after contact', 'Recovery lanes + cone recover', 'Recover before watching the result. Add cone recover + shadow swing. Rate recovery 0-5.'],
+        ['You attack too early', 'Offense-neutral-defense rally + mobility reset', 'Call defend, neutral, or offense before contact. Add post-play mobility reset. Rate decision quality 0-5.'],
+        ['You rush when stretched', 'Match card + jump rope rhythm', 'Hit high-margin defense, recover, breathe, then play the next ball. Add jump rope rhythm. Rate calm 0-5.'],
+        ['Legs die late', 'Late-game footwork + wall sit durability', 'Use score pressure on court. Add lower-body recovery circuit. Rate posture under fatigue 0-5.'],
       ]
     : [
-        ['You force line changes', 'Partner drill: crosscourt earn-and-change', 'Build crosscourt depth before changing direction. Rate patience 0-5.'],
-        ['Serve does not create a first ball', 'Self drill: serve plus-one shadow', 'Name the +1 target before the serve. Rate first-ball clarity 0-5.'],
-        ['Returns start neutral or worse', 'Partner drill: return step-in game', 'Step in on second serves and recover after depth. Rate return intent 0-5.'],
-        ['You approach and stop', 'Partner drill: short-ball close', 'Close, split, then choose the finish. Rate forward movement 0-5.'],
-        ['Attacks become panic swings', 'Match card + off-court balance audit', 'Reset when the attack is not earned. Rate decision quality 0-5.'],
+        ['You force line changes', 'Crosscourt earn-and-change + mobility reset', 'Build crosscourt depth before changing direction. Add post-play mobility reset. Rate patience 0-5.'],
+        ['Serve does not create a first ball', 'Serve plus-one shadow + shoulder/core support', 'Name the +1 target before the serve. Add shoulder + core support. Rate first-ball clarity 0-5.'],
+        ['Returns start neutral or worse', 'Return step-in game + jump rope rhythm', 'Step in on second serves and recover after depth. Add jump rope rhythm. Rate return intent 0-5.'],
+        ['You approach and stop', 'Short-ball close + cone close', 'Close, split, then choose the finish. Add cone close + recover. Rate forward movement 0-5.'],
+        ['Attacks become panic swings', 'Match card + core/balance circuit', 'Reset when the attack is not earned. Add core + balance circuit. Rate decision quality 0-5.'],
       ]
 
   return (
@@ -790,6 +878,11 @@ function PlayerFocusDecisionPage({ identity }: { identity: PlayerDevelopmentIden
         rows={identity.sections.slice(0, 5).map((section) => section.title)}
       />
       <QuickCheckStrip labels={['One focus only', 'Tool chosen', 'Rating done', 'Next action clear']} />
+      <HabitRewardStrip labels={['I picked one useful tool', 'I trained the habit, not just the score', 'I made the next rep clearer']} />
+      <CodexAssistBox
+        title="Choose one court tool"
+        prompt="Help me choose one court tool and one Performance Upgrade that match the leak I circled."
+      />
     </div>
   )
 }
@@ -908,6 +1001,15 @@ function PlayerMatchOnePager({ identity }: { identity: PlayerDevelopmentIdentity
         <QrAction href="/mylab" label="Save check-in" mode="player-plus" />
       </div>
       <QuickCheckStrip labels={['Cue chosen', 'Plan used', 'Reset used', 'Check-in done']} />
+      <div className={styles.matchPerformanceLink}>
+        <span>Physical support for next match</span>
+        <strong>Choose one: jump rope rhythm, cone recovery, wall sit durability, mobility reset, or shoulder + core support.</strong>
+      </div>
+      <HabitRewardStrip labels={['I used my plan', 'I reset before reacting', 'I know the next practice mission']} />
+      <CodexAssistBox
+        title="Build next practice"
+        prompt="Based on my score, pressure rating, and next practice note, give me one 20-minute practice mission with one court tool and one Performance Upgrade."
+      />
     </div>
   )
 }
@@ -941,10 +1043,138 @@ function PlayerOffCourtTraining({ identity }: { identity: PlayerDevelopmentIdent
 
   return (
     <PlayerTrainingSheet
-      intro="Use these away from the court so the next practice starts with a clearer mind and a better match habit."
+      intro="Use these away from the court so the next practice starts with a clearer plan, calmer mind, and better match habit."
       rows={offCourt}
-      tableRows={['Match note', 'Routine rehearsal', 'Fitness habit', 'Opponent plan']}
+      tableRows={['Match note', 'Routine rehearsal', 'Opponent plan', 'Coach handoff']}
     />
+  )
+}
+
+function PlayerPerformanceUpgrade({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const isRelentless = identity.slug.includes('relentless')
+  const upgradeRows = [
+    'Light feet before first ball',
+    isRelentless ? 'Recovery after contact' : 'Forward-close balance',
+    'Posture under fatigue',
+    'Tension before/after play',
+  ]
+  const movementTools = isRelentless
+    ? [
+        {
+          title: 'Jump rope rhythm',
+          useWhen: 'Your feet feel flat or slow before the first ball.',
+          cue: 'Light feet, quiet shoulders, ready breath.',
+          routine: ['Jump rope 30 sec', 'Rest 20 sec', 'Split-step + first move x6'],
+          reward: 'Check the rep when your feet feel ready before the ball.',
+          track: 'Light feet 0-5.',
+        },
+        {
+          title: 'Cone recover + shadow swing',
+          useWhen: 'You hit and watch instead of recovering after contact.',
+          cue: 'Hit, recover, then look.',
+          routine: ['Set one home cone and two wide cones', 'Move, shadow swing, recover home', 'Do 3 rounds of 6 controlled reps'],
+          reward: 'Check the rep when recovery happens before the imaginary result.',
+          track: 'Recovery after contact 0-5.',
+        },
+      ]
+    : [
+        {
+          title: 'Jump rope rhythm',
+          useWhen: 'You need cleaner split-step timing before returns or first strikes.',
+          cue: 'Light feet before the decision.',
+          routine: ['Jump rope 30 sec', 'Rest 20 sec', 'Split-step + first move x6'],
+          reward: 'Check the rep when the first move feels organized.',
+          track: 'Light feet 0-5.',
+        },
+        {
+          title: 'Cone close + recover',
+          useWhen: 'You approach and stop instead of closing, splitting, and recovering.',
+          cue: 'Close, split, choose.',
+          routine: ['Set home, short-ball, and recovery cones', 'Move forward, shadow approach, close, split', 'Do 3 rounds of 5 balanced reps'],
+          reward: 'Check the rep when you finish balanced.',
+          track: 'Forward-close balance 0-5.',
+        },
+      ]
+
+  return (
+    <div className={styles.performanceUpgrade}>
+      <div className={styles.performanceUpgradeHero}>
+        <TiqFeatureIcon name="matchPrep" size="lg" variant="surface" />
+        <div>
+          <span>Performance Upgrade</span>
+          <strong>Level up the engine that supports your game.</strong>
+          <p>Pick one at-home performance tool that supports this week&apos;s tennis habit: cue, routine, reward, proof.</p>
+        </div>
+      </div>
+      <div className={styles.performanceGrowthGrid}>
+        <article>
+          <span>Movement engine</span>
+          <strong>Court-ready movement</strong>
+          <p>Use jump rope, cone recovery, and shadow swings to make the first move and recovery after contact easier to repeat.</p>
+        </article>
+        <article>
+          <span>Match-ready conditioning</span>
+          <strong>Leg durability</strong>
+          <p>Use wall sits, split squats, lateral lunges, and short 20/20 intervals so posture stays organized when points get long.</p>
+        </article>
+        <article>
+          <span>Mobility</span>
+          <strong>Move well before adding speed</strong>
+          <p>Use hip, ankle, hamstring, glute, thoracic, and shoulder resets so the next session starts cleaner.</p>
+        </article>
+        <article>
+          <span>Recovery</span>
+          <strong>Calm the body after play</strong>
+          <p>Use post-play stretching and breathing to notice tension before and after, then rate the change 0-5.</p>
+        </article>
+      </div>
+      <div className={styles.movementEngine}>
+        <span>Movement engine</span>
+        <strong>Choose one tool. Keep it short enough to repeat.</strong>
+        <div className={styles.movementEngineGrid}>
+          {movementTools.map((tool) => <PlayerToolCard key={tool.title} {...tool} />)}
+        </div>
+      </div>
+      <div className={styles.performancePlan}>
+        <TrackerTable columns={['Tennis habit', 'Performance Upgrade', 'Routine', '0-5 proof']} rows={upgradeRows} />
+        <QuickRatingStrip labels={['Body ready', 'Light feet', 'Leg durability', 'Recovery']} />
+        <HabitRewardStrip
+          labels={[
+            'I supported the habit I want on court',
+            'I moved with control',
+            'I finished with proof',
+          ]}
+        />
+      </div>
+      <CodexAssistBox
+        title="Choose my Performance Upgrade"
+        prompt="Based on my current tennis habit, choose one Performance Upgrade from jump rope rhythm, cone recovery, shadow swings, wall sit durability, strength circuit, conditioning finisher, or mobility reset. Give me one cue, one routine, one reward, and one proof rating."
+      />
+      <div className={styles.performanceSafetyNote}>
+        <span>Training guardrails</span>
+        <strong>Control before intensity.</strong>
+        <p>
+          Move well before adding speed. Stop if pain changes your movement. Choose control before intensity. Jump rope should be light and quiet, not max effort. Cone drills should stay controlled before they get fast. Shadow swings should finish balanced. Wall sits should challenge the legs without changing posture or causing pain. For young players, strength work should be technique-first and supervised. The goal is better tennis habits, not max lifting.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function PlayerAtHomePerformanceTraining({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const { performance } = getPlayerTrainingMenus(identity)
+
+  return (
+    <PlayerTrainingSheet
+      intro="Use these at home, on a driveway, in a garage, or beside the court so your movement supports the habit you are trying to show in matches. Pick one Performance Upgrade that matches this week's tennis goal."
+      rows={performance}
+      tableRows={['Dynamic warm-up', 'Jump rope rhythm', 'Cone recovery', 'Strength circuit', 'Wall sit durability', 'Conditioning finisher', 'Mobility reset']}
+    >
+      <CodexAssistBox
+        title="Choose my at-home block"
+        prompt="I want one at-home Performance Upgrade that connects to my tennis goal. Give me one cue, one routine, one reward, and one proof rating."
+      />
+    </PlayerTrainingSheet>
   )
 }
 
@@ -954,8 +1184,12 @@ function PlayerToolBeltMenu({ identity }: { identity: PlayerDevelopmentIdentity 
     ['I need reps alone', 'Use solo work: serve basket, wall, shadow, recovery, or routine reps.', 'Solo training'],
     ['I have a partner', 'Use rally constraints, feed drills, serve/return games, or pressure sets.', 'Hitting partner'],
     ['I need doubles work', 'Use communication, first move, poach timing, and partner-position drills.', 'Doubles tools'],
+    ['My feet feel heavy', 'Use jump rope rhythm or dynamic warm-up to build light feet.', 'Performance Upgrade'],
+    ['I hit and watch', 'Use cone recovery and shadow swings to recover before watching.', 'Performance Upgrade'],
+    ['My legs die late', 'Use wall sit durability or a conditioning finisher to keep posture organized.', 'Performance Upgrade'],
+    ['I feel tight after play', 'Use the post-play mobility reset and rate tension before/after.', 'Performance Upgrade'],
     ['I am preparing for a match', 'Use the pre-match, during-match, and post-match quick check-in card.', 'Match card'],
-    ['I am away from court', 'Use routine rehearsal, match notes, fitness habits, and opponent plans.', 'Off-court work'],
+    ['I need a plan note', 'Use routine rehearsal, opponent planning, coach handoff, and mental reset.', 'Off-court work'],
   ] as const
 
   return (
@@ -1000,10 +1234,12 @@ function PlayerTrainingSheet({
   intro,
   rows,
   tableRows,
+  children,
 }: {
   intro: string
   rows: string[][]
   tableRows: string[]
+  children?: React.ReactNode
 }) {
   return (
     <div className={styles.playerTrainingSheet}>
@@ -1021,9 +1257,11 @@ function PlayerTrainingSheet({
           </article>
         ))}
       </div>
+      {children}
       <TrackerTable columns={['Work block', 'Reps or score', '0-5 rating', 'Tiny note']} rows={tableRows} />
       <QuickRatingStrip labels={['Effort', 'Control', 'Decision', 'Pressure']} />
       <QuickCheckStrip labels={['Done', 'Hard', 'Showed in match', 'Bring to coach']} />
+      <HabitRewardStrip labels={['I picked one useful block', 'I trained with control', 'I connected the work to match proof']} />
       <ReflectionLines label="Small note before the next session" rows={3} />
     </div>
   )
@@ -1039,6 +1277,75 @@ function QuickRatingStrip({ labels }: { labels: string[] }) {
         </span>
       ))}
     </div>
+  )
+}
+
+function HabitRewardStrip({ labels }: { labels: string[] }) {
+  return (
+    <div className={styles.habitRewardStrip}>
+      <strong>Reward the habit</strong>
+      <div>
+        {labels.map((label) => (
+          <span key={label}><i /> {label}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CodexAssistBox({ title, prompt }: { title: string; prompt: string }) {
+  return (
+    <aside className={styles.codexAssistBox}>
+      <span>Codex assist</span>
+      <strong>{title}</strong>
+      <p>{prompt}</p>
+      <small>Use this to reduce the work to one clear cue, routine, reward, and proof.</small>
+    </aside>
+  )
+}
+
+function PlayerToolCard({
+  title,
+  useWhen,
+  cue,
+  routine,
+  reward,
+  track,
+}: {
+  title: string
+  useWhen: string
+  cue: string
+  routine: string[]
+  reward: string
+  track: string
+}) {
+  return (
+    <article className={styles.playerToolCard}>
+      <span>Tool card</span>
+      <h3>{title}</h3>
+      <div>
+        <strong>Use this when</strong>
+        <p>{useWhen}</p>
+      </div>
+      <div>
+        <strong>Cue</strong>
+        <p>{cue}</p>
+      </div>
+      <div>
+        <strong>Routine</strong>
+        <ol>
+          {routine.map((step) => <li key={step}>{step}</li>)}
+        </ol>
+      </div>
+      <div>
+        <strong>Reward</strong>
+        <p>{reward}</p>
+      </div>
+      <div>
+        <strong>Track</strong>
+        <p>{track}</p>
+      </div>
+    </article>
   )
 }
 
@@ -2016,6 +2323,11 @@ function CoachProgressionRules({ identity }: { identity: PlayerDevelopmentIdenti
           <span>If the player feels ready</span>
           <strong>Use score before you add another technical idea.</strong>
           <p>The next test should prove the habit survives pressure, not just that the player understands it.</p>
+        </article>
+        <article>
+          <span>Performance Upgrade</span>
+          <strong>Add one physical support tool only when it supports the court habit.</strong>
+          <p>Examples: cone recovery for hit-and-watch, wall sit durability for late-match posture, jump rope rhythm for flat feet, mobility reset for tightness after play.</p>
         </article>
       </div>
     </div>
