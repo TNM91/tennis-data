@@ -16,6 +16,7 @@ type LiveFocus = {
 type WorkType = 'court' | 'physical' | 'mental'
 type TrainingContext = 'alone' | 'partner' | 'singles' | 'doubles' | 'coach'
 type PlayerFeeling = 'ready' | 'tight' | 'tired' | 'nervous'
+type AccessMode = 'coach_invited' | 'player_plus' | 'free_preview'
 
 type DrillOption = {
   id: string
@@ -38,6 +39,7 @@ type SavedSession = {
   drillTitle: string
   rating: number
   feeling: PlayerFeeling
+  accessMode: AccessMode
   note: string
   elapsedSeconds: number
   sharedWithCoach: boolean
@@ -76,6 +78,27 @@ const feelingLabels: Record<PlayerFeeling, string> = {
   nervous: 'Nervous',
 }
 
+const accessModes: Record<AccessMode, { label: string; title: string; copy: string; action: string }> = {
+  coach_invited: {
+    label: 'Coach invite',
+    title: 'Included through your coach',
+    copy: 'Use assigned challenges, rate the work, and share quick recaps back to the coach who invited you.',
+    action: 'Coach can review shared work',
+  },
+  player_plus: {
+    label: 'Player+',
+    title: 'Full self-guided Level Up',
+    copy: 'Use Level Up without a coach invite, save history across devices, and unlock trends, recommendations, and My Lab progress.',
+    action: 'Player owns the full plan',
+  },
+  free_preview: {
+    label: 'Free preview',
+    title: 'Try the on-court flow',
+    copy: 'Explore a limited local session. Coach syncing and full history unlock through a coach invite or Player+.',
+    action: 'Local-only sample',
+  },
+}
+
 const emptyDraft = {
   rating: null as number | null,
   feeling: 'ready' as PlayerFeeling,
@@ -101,6 +124,7 @@ export default function PlayerLiveWorkbench({
   const [activeFocusId, setActiveFocusId] = useState(defaultFocusId)
   const [context, setContext] = useState<TrainingContext>('alone')
   const [workType, setWorkType] = useState<WorkType>('court')
+  const [accessMode, setAccessMode] = useState<AccessMode>('coach_invited')
   const [activeDrillId, setActiveDrillId] = useState('')
   const [draft, setDraft] = useState(emptyDraft)
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
@@ -121,6 +145,7 @@ export default function PlayerLiveWorkbench({
   const activeDrill = visibleDrills.find((drill) => drill.id === activeDrillId) ?? visibleDrills[0]
   const recentSessions = sessions.slice(0, 4)
   const progress = getProgressSummary(sessions, playableFocuses)
+  const activeAccess = accessModes[accessMode]
 
   function chooseFocus(focusId: string) {
     setActiveFocusId(focusId)
@@ -140,6 +165,23 @@ export default function PlayerLiveWorkbench({
     setActiveDrillId('')
   }
 
+  function chooseAccessMode(nextMode: AccessMode) {
+    setAccessMode(nextMode)
+    if (nextMode === 'coach_invited') {
+      setDraft({ ...draft, sharedWithCoach: true })
+      setContext('coach')
+    }
+    if (nextMode === 'player_plus') {
+      setDraft({ ...draft, sharedWithCoach: false })
+      if (context === 'coach') setContext('alone')
+    }
+    if (nextMode === 'free_preview') {
+      setDraft({ ...draft, sharedWithCoach: false })
+      if (context === 'coach') setContext('alone')
+    }
+    setActiveDrillId('')
+  }
+
   function saveSession() {
     if (!activeFocus || !activeDrill || draft.rating === null) return
 
@@ -152,6 +194,7 @@ export default function PlayerLiveWorkbench({
       drillTitle: activeDrill.title,
       rating: draft.rating,
       feeling: draft.feeling,
+      accessMode,
       note: draft.note.trim(),
       elapsedSeconds: getTimerSeconds(activeDrill.id),
       sharedWithCoach: draft.sharedWithCoach,
@@ -196,6 +239,27 @@ export default function PlayerLiveWorkbench({
           <strong>Saved history, trends, and recommendations.</strong>
           <p>Player+ turns quick logs into My Lab progress, match evidence, and next-focus intelligence.</p>
         </article>
+      </div>
+
+      <div className={styles.liveAccessPanel} aria-label="Choose Level Up access path">
+        <div>
+          <span>Access path</span>
+          <strong>{activeAccess.title}</strong>
+          <p>{activeAccess.copy}</p>
+        </div>
+        <div className={styles.liveAccessGrid}>
+          {(Object.keys(accessModes) as AccessMode[]).map((mode) => (
+            <button
+              type="button"
+              key={mode}
+              data-active={accessMode === mode ? 'true' : 'false'}
+              onClick={() => chooseAccessMode(mode)}
+            >
+              <span>{accessModes[mode].label}</span>
+              <strong>{accessModes[mode].action}</strong>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className={styles.liveModeStrip} aria-label="Phone first training steps">
@@ -336,10 +400,11 @@ export default function PlayerLiveWorkbench({
             <label className={styles.liveShareToggle}>
               <input
                 type="checkbox"
-                checked={draft.sharedWithCoach}
+                checked={accessMode === 'coach_invited' ? draft.sharedWithCoach : false}
+                disabled={accessMode !== 'coach_invited'}
                 onChange={(event) => setDraft({ ...draft, sharedWithCoach: event.target.checked })}
               />
-              <span>Share this recap with my coach when linked</span>
+              <span>{accessMode === 'coach_invited' ? 'Share this recap with my coach when linked' : 'Coach sharing unlocks when invited by a coach'}</span>
             </label>
             <button type="button" className="button-primary" disabled={draft.rating === null} onClick={saveSession}>
               Save training log
@@ -356,11 +421,17 @@ export default function PlayerLiveWorkbench({
             <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
             <p>
               {lastSavedSession.rating}/5, {formatClock(lastSavedSession.elapsedSeconds)}, feeling {feelingLabels[lastSavedSession.feeling].toLowerCase()}.
-              {lastSavedSession.sharedWithCoach ? ' Ready to sync to your coach when linked.' : ' Kept private for now.'}
+              {lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
+                ? ' Ready to sync to your coach when linked.'
+                : lastSavedSession.accessMode === 'player_plus'
+                  ? ' Ready for Player+ history and trends.'
+                  : ' Kept as a local preview for now.'}
             </p>
           </div>
           <div className={styles.liveSavedActions}>
-            <a className="button-primary" href="/mylab#coach-assignments">Open My Lab</a>
+            <a className="button-primary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
+              {lastSavedSession.accessMode === 'player_plus' ? 'Unlock Player+' : 'Open My Lab'}
+            </a>
             <button type="button" className="button-secondary" onClick={() => setLastSavedSession(null)}>
               Keep training
             </button>
@@ -396,8 +467,8 @@ export default function PlayerLiveWorkbench({
           <span>Player+ unlock</span>
           <strong>Turn on-court logs into a shared development plan.</strong>
           <p>
-            Free keeps the coach link and basic challenges usable. Player+ should unlock saved history across devices,
-            trend charts, recommendations, calendar-linked lessons, and coach-visible progress.
+            Coach-invited players get assigned Level Up work through the coach tier. Players without an invite use Player+
+            for full self-guided history, trends, recommendations, calendar-linked lessons, and progress ownership.
           </p>
         </div>
         <div className={styles.liveUnlockGrid}>
@@ -414,7 +485,7 @@ export default function PlayerLiveWorkbench({
           {recentSessions.map((session) => (
             <article key={session.id}>
               <strong>{session.focusTitle}: {session.drillTitle}</strong>
-              <p>{session.rating}/5 {formatClock(session.elapsedSeconds)} {feelingLabels[session.feeling] ?? 'Ready'} {session.sharedWithCoach ? 'shared with coach' : 'private'}{session.note ? ` - ${session.note}` : ''}</p>
+              <p>{session.rating}/5 {formatClock(session.elapsedSeconds)} {feelingLabels[session.feeling] ?? 'Ready'} {accessModes[session.accessMode]?.label ?? 'Level Up'} {session.sharedWithCoach ? 'shared with coach' : 'private'}{session.note ? ` - ${session.note}` : ''}</p>
             </article>
           ))}
         </div>

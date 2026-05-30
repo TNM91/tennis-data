@@ -236,6 +236,7 @@
 
 .liveFocusButton,
 .liveLaneTabs button,
+.liveAccessGrid button,
 .liveContextGrid button,
 .liveDrillChoices button,
 .liveFeelingGrid button,
@@ -250,6 +251,7 @@
 
 .liveFocusButton:hover,
 .liveLaneTabs button:hover,
+.liveAccessGrid button:hover,
 .liveContextGrid button:hover,
 .liveDrillChoices button:hover,
 .liveFeelingGrid button:hover,
@@ -269,6 +271,7 @@
 
 .liveFocusButton[data-active='true'],
 .liveLaneTabs button[data-active='true'],
+.liveAccessGrid button[data-active='true'],
 .liveContextGrid button[data-active='true'],
 .liveDrillChoices button[data-active='true'],
 .liveFeelingGrid button[data-active='true'],
@@ -302,6 +305,7 @@
 .liveCurrentGoal,
 .liveActionCard,
 .liveTracker,
+.liveAccessPanel,
 .liveSavedBanner,
 .liveUnlockPanel,
 .liveRecentList {
@@ -353,6 +357,7 @@
 .liveActionCard,
 .liveTimerPanel,
 .liveTracker,
+.liveAccessPanel,
 .liveSavedBanner,
 .liveUnlockPanel,
 .liveRecentList,
@@ -367,6 +372,7 @@
 .liveActionCard,
 .liveTimerPanel,
 .liveTracker,
+.liveAccessPanel,
 .liveSavedBanner,
 .liveUnlockPanel,
 .liveRecentList,
@@ -385,6 +391,7 @@
 .liveCurrentGoal span,
 .liveActionCard > span,
 .liveTracker > span,
+.liveAccessPanel > div > span,
 .liveWorkbenchHero span,
 .liveStepPanel > span,
 .liveCoachLoop span,
@@ -409,6 +416,7 @@
 .liveActionCard h3,
 .liveActionGuide strong,
 .liveTracker strong,
+.liveAccessPanel > div > strong,
 .liveStepPanel > strong,
 .liveCoachLoop strong,
 .liveProgressPanel strong,
@@ -429,6 +437,7 @@
 .liveCurrentGoal p,
 .liveActionCard p,
 .liveActionGuide p,
+.liveAccessPanel > div > p,
 .liveCoachLoop p,
 .liveProgressPanel p,
 .liveSavedBanner p,
@@ -445,6 +454,40 @@
 .liveLaneTabs {
   display: grid;
   gap: 8px;
+}
+
+.liveAccessPanel {
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+  align-items: stretch;
+}
+
+.liveAccessGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.liveAccessGrid button {
+  display: grid;
+  gap: 6px;
+  min-height: 92px;
+  border-radius: 14px;
+  padding: 12px;
+  text-align: left;
+}
+
+.liveAccessGrid button span {
+  color: var(--brand-green-3);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.liveAccessGrid button strong {
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  line-height: 1.18;
 }
 
 .liveContextGrid,
@@ -4392,6 +4435,7 @@
 
   .liveCoachLoop,
   .liveProgressPanel,
+  .liveAccessPanel,
   .liveSavedBanner,
   .liveUnlockPanel,
   .liveModeStrip {
@@ -4496,6 +4540,8 @@
 
   .liveCoachLoop,
   .liveProgressPanel,
+  .liveAccessPanel,
+  .liveAccessGrid,
   .liveSavedBanner,
   .liveUnlockPanel,
   .liveModeStrip {
