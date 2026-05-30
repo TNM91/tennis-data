@@ -141,17 +141,24 @@ export default function PlayerLiveWorkbench({
   const studentLinkId = searchParams.get('studentLinkId')?.trim() ?? ''
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
   const assignmentFocus = searchParams.get('assignmentFocus')?.trim() || searchParams.get('focus')?.trim() || ''
+  const assignmentWorkType = normalizeAssignmentWorkType(searchParams.get('workType'))
   const hasCoachAssignment = Boolean(assignmentId || studentLinkId || searchParams.get('coach') === '1')
   const playableFocuses = useMemo(
     () => focuses.filter((focus) => focus.id !== 'accountability'),
     [focuses],
   )
   const defaultFocusId = playableFocuses.find((focus) => focus.id.includes('serve'))?.id ?? playableFocuses[0]?.id ?? 'focus'
-  const [activeFocusId, setActiveFocusId] = useState(defaultFocusId)
-  const [context, setContext] = useState<TrainingContext>('alone')
-  const [workType, setWorkType] = useState<WorkType>('court')
+  const assignmentFocusMatch = useMemo(
+    () => findAssignmentFocus(playableFocuses, assignmentFocus),
+    [assignmentFocus, playableFocuses],
+  )
+  const initialFocusId = assignmentFocusMatch?.id ?? defaultFocusId
+  const initialWorkType = hasCoachAssignment ? assignmentWorkType ?? 'court' : 'court'
+  const [activeFocusId, setActiveFocusId] = useState(initialFocusId)
+  const [context, setContext] = useState<TrainingContext>(hasCoachAssignment ? 'coach' : 'alone')
+  const [workType, setWorkType] = useState<WorkType>(initialWorkType)
   const [accessMode, setAccessMode] = useState<AccessMode>('coach_invited')
-  const [activeDrillId, setActiveDrillId] = useState('')
+  const [activeDrillId, setActiveDrillId] = useState(hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : '')
   const [draft, setDraft] = useState(emptyDraft)
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
@@ -177,15 +184,16 @@ export default function PlayerLiveWorkbench({
   useEffect(() => {
     if (!hasCoachAssignment) return
 
-    const focusMatch = findAssignmentFocus(playableFocuses, assignmentFocus)
+    const nextFocusId = assignmentFocusMatch?.id ?? defaultFocusId
+    const nextWorkType = assignmentWorkType ?? 'court'
     setAccessMode('coach_invited')
     setContext('coach')
-    setWorkType('court')
+    setWorkType(nextWorkType)
     setDraft((current) => ({ ...current, sharedWithCoach: true }))
     setSyncState({ status: 'idle', message: 'Coach challenge loaded. Rate and save after the work.' })
-    if (focusMatch) setActiveFocusId(focusMatch.id)
-    setActiveDrillId('')
-  }, [assignmentFocus, hasCoachAssignment, playableFocuses])
+    setActiveFocusId(nextFocusId)
+    setActiveDrillId(`${nextFocusId}-coach-${nextWorkType}`)
+  }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment])
 
   useEffect(() => {
     let active = true
@@ -369,7 +377,7 @@ export default function PlayerLiveWorkbench({
           <div>
             <span>Coach challenge loaded</span>
             <strong>{assignmentTitle || activeDrill.title}</strong>
-            <p>Do the work, rate it 0-5, add one tiny note if it helps, and save. When linked, this marks the assignment complete for your coach.</p>
+            <p>{workTypeLabels[workType]} is ready. Do the work, rate it 0-5, add one tiny note if it helps, and save. When linked, this marks the assignment complete for your coach.</p>
           </div>
           <a className="button-secondary" href="/mylab#coach-assignments">Back to My Lab</a>
         </div>
@@ -787,6 +795,10 @@ function findAssignmentFocus(focuses: LiveFocus[], assignmentFocus: string) {
     const title = focus.title.toLowerCase()
     return normalized.includes(focus.id.toLowerCase()) || normalized.includes(title.replace(' development', '')) || title.includes(normalized)
   }) ?? null
+}
+
+function normalizeAssignmentWorkType(value: string | null): WorkType | null {
+  return value === 'physical' || value === 'mental' || value === 'court' ? value : null
 }
 
 function mergeSessions(remoteSessions: SavedSession[], localSessions: SavedSession[]) {

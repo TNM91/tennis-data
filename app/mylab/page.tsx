@@ -4050,14 +4050,39 @@ function buildAssignmentLevelUpHref(
   coachLink: CoachStudentLink | undefined,
 ) {
   const identitySlug = coachLink?.identitySlug || 'relentless-competitor-4-0'
+  const summary = getCoachAssignmentSummary(assignment.assignment)
   const params = new URLSearchParams({
     assignmentId: assignment.id,
     studentLinkId: assignment.studentLinkId,
     coach: '1',
     assignmentTitle: assignment.title,
+    workType: inferAssignmentLevelUpWorkType(assignment, summary),
   })
   if (assignment.focus) params.set('assignmentFocus', assignment.focus)
   return `/level-up/${encodeURIComponent(identitySlug)}?${params.toString()}`
+}
+
+function inferAssignmentLevelUpWorkType(
+  assignment: CoachAssignment,
+  summary: ReturnType<typeof getCoachAssignmentSummary>,
+): 'court' | 'physical' | 'mental' {
+  const text = [
+    assignment.title,
+    assignment.focus,
+    summary.detail,
+    summary.prompt,
+    summary.expectedEvidence,
+    summary.volume,
+    ...summary.tracker,
+  ].join(' ').toLowerCase()
+
+  if (/\b(fitness|conditioning|stretch|stretching|mobility|warm[- ]?up|shoulder|hips?|core|agility|sprint|jump|ladder|strength|recovery|body)\b/.test(text)) {
+    return 'physical'
+  }
+  if (/\b(mental|mindset|routine|breath|breathing|reflect|reflection|journal|note|confidence|focus cue|reset|habit|identity|visualize|visualization)\b/.test(text)) {
+    return 'mental'
+  }
+  return 'court'
 }
 
 function buildPlayerAssignmentActionPlan(
