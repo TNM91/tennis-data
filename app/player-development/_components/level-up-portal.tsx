@@ -436,6 +436,15 @@ function LevelUpCardTile({
 }) {
   const [rating, setRating] = useState(3)
   const [note, setNote] = useState('')
+  const [savedRating, setSavedRating] = useState<number | null>(null)
+  const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
+
+  function completeCard() {
+    onComplete(card.id, rating, note)
+    setSavedRating(rating)
+    setNote('')
+  }
+
   return (
     <article className={styles.levelUpCardTile}>
       <div>
@@ -468,13 +477,15 @@ function LevelUpCardTile({
       </details>
       <details className={styles.completionLogger}>
         <summary>Log proof</summary>
+        <p>Tap the number first. Add a short note only if it changes the next rep.</p>
         <div>
           {[0, 1, 2, 3, 4, 5].map((value) => (
             <button key={value} type="button" data-active={rating === value ? 'true' : 'false'} onClick={() => setRating(value)}>{value}</button>
           ))}
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder="Tiny note if needed." aria-label={`Note for ${card.title}`} />
-        <button type="button" className="button-secondary" onClick={() => onComplete(card.id, rating, note)}>Complete</button>
+        <button type="button" className="button-secondary" onClick={completeCard}>{shownSavedRating === null ? 'Complete' : `Saved ${shownSavedRating}/5`}</button>
+        {shownSavedRating !== null ? <small className={styles.completionSavedMessage}>Saved. Pick another card or run it again.</small> : null}
       </details>
       <div className={styles.levelUpCardActions}>
         <a className="button-primary" href={startHref}>Start</a>

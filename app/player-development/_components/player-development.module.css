@@ -1138,6 +1138,13 @@
   gap: 8px;
 }
 
+.completionLogger p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
 .completionLogger summary {
   width: fit-content;
   cursor: pointer;
@@ -1150,6 +1157,16 @@
 
 .completionLogger > button {
   width: fit-content;
+}
+
+.completionSavedMessage {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 850;
 }
 
 .levelUpAssignmentControls {
