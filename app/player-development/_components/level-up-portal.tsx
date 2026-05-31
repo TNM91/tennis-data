@@ -81,7 +81,6 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [selectedIntent, setSelectedIntent] = useState('Recommended')
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [completions, logCompletion] = useLevelUpCompletions()
-  const completedCardIds = completions.map((completion) => completion.cardId)
   const completionSummaryByCardId = useMemo(() => buildCompletionSummaryByCardId(completions), [completions])
   const recommendations = useMemo(
     () => recommendLevelUpCards({
@@ -90,11 +89,10 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       availableEquipment: filters.equipment === 'all' ? undefined : [filters.equipment],
       preferredSetting: filters.setting === 'all' ? undefined : filters.setting,
       timeAvailable: filters.duration === 'under-10' ? 10 : undefined,
-      completedCardIds,
       favoriteCardIds: favorites,
       limit: 18,
     }),
-    [completedCardIds, favorites, filters.duration, filters.equipment, filters.setting, identitySlug, profile.focusTags],
+    [favorites, filters.duration, filters.equipment, filters.setting, identitySlug, profile.focusTags],
   )
   const recommendationByCardId = new Map(recommendations.map((recommendation) => [recommendation.cardId, recommendation]))
   const filteredCards = LEVEL_UP_CARDS.filter((card) => cardMatchesFilters(card, filters))
@@ -448,6 +446,7 @@ function LevelUpCardTile({
   const [loggerOpen, setLoggerOpen] = useState(false)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
+  const notePrompt = getProofNotePrompt(rating)
 
   function openLogger() {
     setLoggerOpen(true)
@@ -539,9 +538,9 @@ function LevelUpCardTile({
           <strong>{proofGuidance.title}</strong>
           <small>{proofGuidance.detail}</small>
         </div>
-        <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder="Tiny note if needed." aria-label={`Note for ${card.title}`} />
+        <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder={notePrompt} aria-label={`Note for ${card.title}`} />
         <button type="button" className="button-secondary" onClick={completeCard}>{shownSavedRating === null ? 'Save proof' : `Saved ${shownSavedRating}/5`}</button>
-        {shownSavedRating !== null ? <small className={styles.completionSavedMessage}>Saved. Pick another card or run it again.</small> : null}
+        {shownSavedRating !== null ? <small className={styles.completionSavedMessage}>Saved. Next: {proofGuidance.title}</small> : null}
       </details>
       <div className={styles.levelUpCardActions}>
         <a className="button-primary" href={startHref}>Start</a>
@@ -686,6 +685,12 @@ function getProofRatingGuidance(rating: number, card: LevelUpCard) {
     title: 'Progress the challenge.',
     detail: card.progression,
   }
+}
+
+function getProofNotePrompt(rating: number) {
+  if (rating <= 1) return 'What got in the way?'
+  if (rating <= 3) return 'What cue should you repeat?'
+  return 'What made it work?'
 }
 
 function getCardProofStandard(card: LevelUpCard) {
