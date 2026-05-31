@@ -458,6 +458,7 @@ function LevelUpCardTile({
   const commonMiss = getCardCommonMiss(card)
   const doseGuide = getCardDoseGuide(card)
   const transferGuide = getCardTransferGuide(card)
+  const coachLens = getCardCoachLens(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
 
   function openLogger() {
@@ -558,6 +559,11 @@ function LevelUpCardTile({
           <span>Use it in points</span>
           <strong>{transferGuide.moment}</strong>
           <small><b>Try next:</b> {transferGuide.action}</small>
+        </div>
+        <div className={styles.levelUpCoachLens}>
+          <span>Coach lens</span>
+          <strong>{coachLens.watch}</strong>
+          <small><b>Ask:</b> {coachLens.ask}</small>
         </div>
         <div className={styles.levelUpPlanScale}>
           <p><b>Level up:</b> {card.progression}</p>
@@ -1472,6 +1478,83 @@ function getCardTransferGuide(card: LevelUpCard) {
   return {
     moment: 'In the first live point where this habit naturally appears.',
     action: 'look for the cue once, score it honestly, and bring that proof to the next practice.',
+  }
+}
+
+function getCardCoachLens(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      watch: 'Does the player recover before reacting to the shot result?',
+      ask: 'Which ball made you want to watch instead of recover?',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      watch: 'Does the routine stay the same after misses and pressure scores?',
+      ask: 'Which target stayed clear when the score felt loud?',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      watch: 'Does the player recover into a first-ball plan after the serve?',
+      ask: 'Which serve target gave you the cleanest plus-one look?',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      watch: 'Does the return job get chosen before the ball is already on the player?',
+      ask: 'Which return job felt clear earliest?',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      watch: 'Does the player buy time from defense instead of forcing offense?',
+      ask: 'When did height or shape help you get back to neutral?',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      watch: 'Does the attack start from balance and finish ready for the next ball?',
+      ask: 'Which attack felt controlled enough to repeat under pressure?',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      watch: 'Does the call happen early enough for the partner to act?',
+      ask: 'Which call made your partner move sooner?',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      watch: 'Does the reset happen before the next point starts?',
+      ask: 'What trigger needed the reset most today?',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      watch: 'Does tennis posture and decision quality survive the tired block?',
+      ask: 'When did the body start changing the decision?',
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      watch: 'Does the reset improve readiness without becoming extra intensity?',
+      ask: 'What felt more playable after the reset?',
+    }
+  }
+
+  return {
+    watch: 'Does the proof score match a visible tennis habit?',
+    ask: 'What would make this habit easier to repeat next practice?',
   }
 }
 
