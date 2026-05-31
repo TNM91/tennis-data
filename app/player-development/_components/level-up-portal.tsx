@@ -32,6 +32,7 @@ type IntentPreset = {
 type CompletionSummary = {
   count: number
   lastRating?: number
+  previousRating?: number
 }
 
 const emptyFilters: FilterState = {
@@ -663,7 +664,18 @@ function RecommendedReasonPill({ reason }: { reason: string }) {
 function CompletionSummaryPill({ summary }: { summary: CompletionSummary }) {
   const rating = typeof summary.lastRating === 'number' ? `${summary.lastRating}/5` : 'logged'
   const label = summary.count === 1 ? '1 log' : `${summary.count} logs`
-  return <small className={styles.completionSummaryPill}>Last proof {rating} - {label}</small>
+  const trend = getProofTrendLabel(summary)
+  return <small className={styles.completionSummaryPill}>Last proof {rating} - {trend} - {label}</small>
+}
+
+function getProofTrendLabel(summary: CompletionSummary) {
+  if (summary.count < 2 || typeof summary.lastRating !== 'number' || typeof summary.previousRating !== 'number') {
+    return 'first look'
+  }
+
+  if (summary.lastRating > summary.previousRating) return 'improving'
+  if (summary.lastRating === summary.previousRating) return 'holding'
+  return 'rebuild'
 }
 
 function getProofRatingGuidance(rating: number, card: LevelUpCard) {
@@ -916,6 +928,7 @@ function buildCompletionSummaryByCardId(completions: LevelUpCompletion[]) {
         lastRating: completion.proofRating,
       })
     } else {
+      if (current.count === 1) current.previousRating = completion.proofRating
       current.count += 1
     }
   }
