@@ -672,6 +672,22 @@
   text-align: left;
 }
 
+.liveSetupActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
+.liveSetupActions span {
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
 .liveDrillChoices button {
   display: grid;
   gap: 5px;
@@ -4964,6 +4980,11 @@
     min-height: 38px;
     padding: 8px 10px;
     font-size: 0.82rem;
+  }
+
+  .liveSetupActions {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .liveDrillChoices button {

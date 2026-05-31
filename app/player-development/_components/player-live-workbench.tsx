@@ -283,7 +283,7 @@ export default function PlayerLiveWorkbench({
     if (nextContext === 'doubles') setWorkType('court')
     setActiveDrillId('')
     setScoringDrillId('')
-    setEditingStep('work')
+    showActivity()
   }
 
   function chooseWorkType(nextWorkType: WorkType) {
@@ -349,6 +349,14 @@ export default function PlayerLiveWorkbench({
     setScoringDrillId(activeDrill.id)
     window.setTimeout(() => {
       trackerRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
+  }
+
+  function showActivity() {
+    setEditingStep(null)
+    setScoringDrillId('')
+    window.setTimeout(() => {
+      activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     }, 0)
   }
 
@@ -539,6 +547,12 @@ export default function PlayerLiveWorkbench({
               </button>
             ))}
           </div>
+          <div className={styles.liveSetupActions}>
+            <span>Selected: {contextLabels[context]}</span>
+            <button type="button" className="button-primary" onClick={showActivity}>
+              Start activity
+            </button>
+          </div>
         </div>
 
         <div className={styles.liveWorkbenchBody} data-flow-state={editingStep ?? 'drill'} data-scoring={scoringDrillId === activeDrill.id ? 'true' : 'false'}>
@@ -575,7 +589,7 @@ export default function PlayerLiveWorkbench({
               ))}
             </div>
             <div className={styles.liveMicroPlan}>
-              <span>Track</span>
+              <span>Watch</span>
               <strong>{activeFocus.tracker[0] ?? 'Proof rating'}</strong>
             </div>
             <div className={styles.liveActionGuide}>
