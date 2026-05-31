@@ -713,6 +713,13 @@
   padding-top: 10px;
 }
 
+.liveScoreGuide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
 .liveTimerPanel {
   display: grid;
   gap: 12px;
@@ -4809,6 +4816,17 @@
     display: none;
   }
 
+  .liveWorkbench:has(.liveWorkbenchBody[data-scoring='true']) .liveCompactSummary,
+  .liveWorkbenchBody[data-scoring='true'] .liveActionCard,
+  .liveWorkbenchBody[data-scoring='true'] .liveLaneColumn {
+    display: none;
+  }
+
+  .liveWorkbenchBody[data-scoring='true'] .liveTracker {
+    min-height: calc(100svh - 88px);
+    align-content: center;
+  }
+
   .liveFocusRail {
     display: flex;
     margin: 0 -2px;
@@ -4927,6 +4945,10 @@
   .liveMicroPlan,
   .liveActionGuide {
     padding: 9px;
+  }
+
+  .liveScoreGuide {
+    grid-template-columns: 1fr;
   }
 
   .liveTimerPanel strong {

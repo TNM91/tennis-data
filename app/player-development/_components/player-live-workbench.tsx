@@ -166,6 +166,7 @@ export default function PlayerLiveWorkbench({
   const [editingStep, setEditingStep] = useState<EditingStep>(hasCoachAssignment ? null : 'focus')
   const [draft, setDraft] = useState(emptyDraft)
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
+  const [scoringDrillId, setScoringDrillId] = useState('')
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
   const storageKey = `tenaceiq:level-up:${identitySlug}`
   const [sessions, setSessions] = useState<SavedSession[]>(() => readSavedSessions(storageKey))
@@ -199,6 +200,7 @@ export default function PlayerLiveWorkbench({
     setSyncState({ status: 'idle', message: 'Coach challenge loaded. Rate and save after the work.' })
     setActiveFocusId(nextFocusId)
     setActiveDrillId(`${nextFocusId}-coach-${nextWorkType}`)
+    setScoringDrillId('')
     setEditingStep(null)
   }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment])
 
@@ -264,6 +266,7 @@ export default function PlayerLiveWorkbench({
     setActiveDrillId('')
     setDraft(emptyDraft)
     setSyncState({ status: 'idle', message: '' })
+    setScoringDrillId('')
     setEditingStep('setup')
   }
 
@@ -272,12 +275,14 @@ export default function PlayerLiveWorkbench({
     if (nextContext === 'coach') setWorkType('court')
     if (nextContext === 'doubles') setWorkType('court')
     setActiveDrillId('')
+    setScoringDrillId('')
     setEditingStep('work')
   }
 
   function chooseWorkType(nextWorkType: WorkType) {
     setWorkType(nextWorkType)
     setActiveDrillId('')
+    setScoringDrillId('')
     setEditingStep(null)
   }
 
@@ -296,6 +301,7 @@ export default function PlayerLiveWorkbench({
       if (context === 'coach') setContext('alone')
     }
     setActiveDrillId('')
+    setScoringDrillId('')
   }
 
   function saveSession() {
@@ -328,9 +334,17 @@ export default function PlayerLiveWorkbench({
     void syncLevelUpSession(nextSession)
   }
 
+  function goToScore() {
+    setScoringDrillId(activeDrill.id)
+    window.setTimeout(() => {
+      trackerRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
+  }
+
   function repeatActivity() {
     setLastSavedSession(null)
     setDraft(emptyDraft)
+    setScoringDrillId('')
     activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }
 
@@ -338,6 +352,7 @@ export default function PlayerLiveWorkbench({
     setLastSavedSession(null)
     setDraft(emptyDraft)
     setActiveDrillId('')
+    setScoringDrillId('')
     setEditingStep('focus')
     window.setTimeout(() => {
       document.getElementById('level-up-flow')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -515,7 +530,7 @@ export default function PlayerLiveWorkbench({
           </div>
         </div>
 
-        <div className={styles.liveWorkbenchBody} data-flow-state={editingStep ?? 'drill'}>
+        <div className={styles.liveWorkbenchBody} data-flow-state={editingStep ?? 'drill'} data-scoring={scoringDrillId === activeDrill.id ? 'true' : 'false'}>
           <div className={styles.liveLaneColumn} data-collapsed={editingStep !== 'work' ? 'true' : 'false'}>
             <div className={styles.liveCurrentGoal}>
               <span>Current plan</span>
@@ -560,11 +575,16 @@ export default function PlayerLiveWorkbench({
               drillId={activeDrill.id}
               targetSeconds={activeDrill.timerSeconds}
               key={activeDrill.id}
-              onDone={() => trackerRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })}
+              onDone={goToScore}
             />
-            <div className={styles.liveActionGuide}>
-              <strong>Score this</strong>
-              <p>{activeDrill.proof}</p>
+            <div className={`${styles.liveActionGuide} ${styles.liveScoreGuide}`}>
+              <div>
+                <strong>Score this</strong>
+                <p>{activeDrill.proof}</p>
+              </div>
+              <button type="button" className="button-primary" onClick={goToScore}>
+                Score now
+              </button>
             </div>
             <div className={styles.liveDrillChoices}>
               {visibleDrills.map((drill) => (
@@ -572,7 +592,10 @@ export default function PlayerLiveWorkbench({
                   type="button"
                   key={drill.id}
                   data-active={drill.id === activeDrill.id ? 'true' : 'false'}
-                  onClick={() => setActiveDrillId(drill.id)}
+                  onClick={() => {
+                    setActiveDrillId(drill.id)
+                    setScoringDrillId('')
+                  }}
                 >
                   {drill.title}
                 </button>
