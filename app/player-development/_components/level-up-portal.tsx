@@ -459,6 +459,7 @@ function LevelUpCardTile({
   const doseGuide = getCardDoseGuide(card)
   const transferGuide = getCardTransferGuide(card)
   const coachLens = getCardCoachLens(card)
+  const readinessCheck = getCardReadinessCheck(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
 
   function openLogger() {
@@ -544,6 +545,11 @@ function LevelUpCardTile({
           <ul>
             {getCardQualityChecks(card).map((check) => <li key={check}>{check}</li>)}
           </ul>
+        </div>
+        <div className={styles.levelUpReadinessCheck}>
+          <span>Before you start</span>
+          <strong>{readinessCheck.check}</strong>
+          <small><b>Ready means:</b> {readinessCheck.readyMeans}</small>
         </div>
         <div className={styles.levelUpCommonMiss}>
           <span>Common miss</span>
@@ -1248,6 +1254,83 @@ function getCardQualityChecks(card: LevelUpCard) {
     'Count only reps that match the tennis habit.',
     'Log one proof score before adding more work.',
   ]
+}
+
+function getCardReadinessCheck(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      check: 'Pick the exact ready spot before the first rep.',
+      readyMeans: 'you know where your feet should finish after contact.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      check: 'Choose one serve target and one breath rhythm.',
+      readyMeans: 'the target is named before the motion starts.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      check: 'Name the serve target and the first-ball shape together.',
+      readyMeans: 'the plus-one is planned before the serve begins.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      check: 'Choose the return job before the server begins.',
+      readyMeans: 'your feet support a decision you already made.',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      check: 'Decide that neutral is a win before starting.',
+      readyMeans: 'height, shape, and recovery matter more than a highlight ball.',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      check: 'Pick the balance cue before you attack.',
+      readyMeans: 'you can finish forward and still be ready for the next ball.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      check: 'Agree on the first call before the point or rep starts.',
+      readyMeans: 'both partners know the word and the move it triggers.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      check: 'Choose the reset cue before pressure shows up.',
+      readyMeans: 'one breath and one short intention are enough.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      check: 'Notice posture and breathing before the timer starts.',
+      readyMeans: 'you can move with control before adding fatigue.',
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      check: 'Score readiness before the reset begins.',
+      readyMeans: 'the goal is calmer movement, not more intensity.',
+    }
+  }
+
+  return {
+    check: 'Name the one tennis habit you want to see.',
+    readyMeans: 'the first rep has a cue, a proof score, and a reason.',
+  }
 }
 
 function getCardCommonMiss(card: LevelUpCard) {

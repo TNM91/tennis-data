@@ -762,7 +762,8 @@
 .levelUpCommonMiss,
 .levelUpDoseGuide,
 .levelUpTransferGuide,
-.levelUpCoachLens {
+.levelUpCoachLens,
+.levelUpReadinessCheck {
   display: grid;
   gap: 5px;
   margin-top: 9px;
@@ -791,10 +792,17 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
+.levelUpReadinessCheck {
+  border-color: rgba(155, 225, 29, 0.15);
+  border-left-color: rgba(155, 225, 29, 0.55);
+  background: rgba(155, 225, 29, 0.055);
+}
+
 .levelUpCommonMiss span,
 .levelUpDoseGuide span,
 .levelUpTransferGuide span,
-.levelUpCoachLens span {
+.levelUpCoachLens span,
+.levelUpReadinessCheck span {
   color: var(--muted);
   font-size: 0.64rem;
   font-weight: 950;
@@ -805,7 +813,8 @@
 .levelUpCommonMiss strong,
 .levelUpDoseGuide strong,
 .levelUpTransferGuide strong,
-.levelUpCoachLens strong {
+.levelUpCoachLens strong,
+.levelUpReadinessCheck strong {
   color: var(--foreground-strong);
   font-size: 0.82rem;
   line-height: 1.28;
@@ -814,7 +823,8 @@
 .levelUpCommonMiss small,
 .levelUpDoseGuide small,
 .levelUpTransferGuide small,
-.levelUpCoachLens small {
+.levelUpCoachLens small,
+.levelUpReadinessCheck small {
   color: var(--muted-strong);
   font-size: 0.78rem;
   line-height: 1.32;
@@ -823,7 +833,8 @@
 .levelUpCommonMiss b,
 .levelUpDoseGuide b,
 .levelUpTransferGuide b,
-.levelUpCoachLens b {
+.levelUpCoachLens b,
+.levelUpReadinessCheck b {
   color: var(--brand-green-3);
 }
 
