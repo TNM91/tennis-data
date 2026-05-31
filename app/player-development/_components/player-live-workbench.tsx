@@ -152,7 +152,9 @@ export default function PlayerLiveWorkbench({
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
   const assignmentFocus = searchParams.get('assignmentFocus')?.trim() || searchParams.get('focus')?.trim() || ''
   const assignmentWorkType = normalizeAssignmentWorkType(searchParams.get('workType'))
+  const requestedContext = normalizeTrainingContext(searchParams.get('context'))
   const hasCoachAssignment = Boolean(assignmentId || studentLinkId || searchParams.get('coach') === '1')
+  const hasQuickStart = !hasCoachAssignment && Boolean(searchParams.get('focus') || searchParams.get('workType') || searchParams.get('context'))
   const playableFocuses = useMemo(
     () => focuses.filter((focus) => focus.id !== 'accountability'),
     [focuses],
@@ -163,13 +165,13 @@ export default function PlayerLiveWorkbench({
     [assignmentFocus, playableFocuses],
   )
   const initialFocusId = assignmentFocusMatch?.id ?? defaultFocusId
-  const initialWorkType = hasCoachAssignment ? assignmentWorkType ?? 'court' : 'court'
+  const initialWorkType = assignmentWorkType ?? 'court'
   const [activeFocusId, setActiveFocusId] = useState(initialFocusId)
-  const [context, setContext] = useState<TrainingContext>(hasCoachAssignment ? 'coach' : 'alone')
+  const [context, setContext] = useState<TrainingContext>(hasCoachAssignment ? 'coach' : requestedContext ?? 'alone')
   const [workType, setWorkType] = useState<WorkType>(initialWorkType)
   const [accessMode, setAccessMode] = useState<AccessMode>('coach_invited')
   const [activeDrillId, setActiveDrillId] = useState(hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : '')
-  const [editingStep, setEditingStep] = useState<EditingStep>(hasCoachAssignment ? null : 'focus')
+  const [editingStep, setEditingStep] = useState<EditingStep>(hasCoachAssignment || hasQuickStart ? null : 'focus')
   const [draft, setDraft] = useState(emptyDraft)
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
   const [scoringDrillId, setScoringDrillId] = useState('')
@@ -212,7 +214,7 @@ export default function PlayerLiveWorkbench({
   }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment])
 
   useEffect(() => {
-    if (!hasCoachAssignment) return
+    if (!hasCoachAssignment && !hasQuickStart) return
     if (typeof window === 'undefined') return
     if (!window.matchMedia('(max-width: 860px)').matches) return
 
@@ -221,7 +223,7 @@ export default function PlayerLiveWorkbench({
     }, 180)
 
     return () => window.clearTimeout(id)
-  }, [activeDrill.id, hasCoachAssignment])
+  }, [activeDrill.id, hasCoachAssignment, hasQuickStart])
 
   useEffect(() => {
     if (!lastSavedSession) return
@@ -883,7 +885,7 @@ function drill(
 
 function pickRow(rows: TrainingRow[], focusId: string, fallback: string): TrainingRow {
   const keyword = focusId === 'strokes' ? 'attack' : focusId
-  return rows.find(([title, text]) => `${title} ${text}`.toLowerCase().includes(keyword)) ?? rows[0] ?? [fallback, 'Do one focused block and rate the proof 0-5.']
+  return rows.find(([title, text]) => `${title} ${text}`.toLowerCase().includes(keyword)) ?? [fallback, 'Do one focused block and rate the proof 0-5.']
 }
 
 function pickPerformanceTool(focusId: string, rows: TrainingRow[]): TrainingRow {
@@ -956,6 +958,10 @@ function findAssignmentFocus(focuses: LiveFocus[], assignmentFocus: string) {
 
 function normalizeAssignmentWorkType(value: string | null): WorkType | null {
   return value === 'physical' || value === 'mental' || value === 'court' ? value : null
+}
+
+function normalizeTrainingContext(value: string | null): TrainingContext | null {
+  return value === 'alone' || value === 'partner' || value === 'singles' || value === 'doubles' || value === 'coach' ? value : null
 }
 
 function mergeSessions(remoteSessions: SavedSession[], localSessions: SavedSession[]) {

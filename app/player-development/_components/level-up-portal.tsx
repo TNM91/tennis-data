@@ -107,7 +107,6 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const featuredModules = LEVEL_UP_MODULES.filter((module) => profile.featuredModuleIds.includes(module.id))
   const todayModule = featuredModules[0] ?? LEVEL_UP_MODULES[0]
   const todayCard = identityCards[0] ?? LEVEL_UP_CARDS[0]
-  const startHref = `/level-up/${identitySlug}#level-up-flow`
   const activeFilterCount = countActiveFilters(filters)
   const visibleAllCards = showAllCards ? filteredCards : filteredCards.slice(0, 12)
   const startCards = (activeFilterCount ? filteredCards : identityCards).slice(0, 3)
@@ -129,7 +128,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           favorite={favorites.includes(todayCard.id)}
           onFavorite={toggleFavorite}
           onComplete={logCompletion}
-          startHref={startHref}
+          startHref={buildCardStartHref(identitySlug, todayCard)}
         />
       </section>
 
@@ -153,7 +152,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         favorites={favorites}
         onFavorite={toggleFavorite}
         onComplete={logCompletion}
-        startHref={startHref}
+        identitySlug={identitySlug}
       />
 
       <LevelUpFilters
@@ -174,13 +173,13 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         }}
       />
 
-      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} defaultOpen />
-      <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
-      <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
-      <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
-      <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
-      <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Tap Favorite on a card to pin it here." startHref={startHref} defaultOpen={favoriteCards.length > 0} />
-      <LevelUpSmartRail title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Log a proof score to build this rail." startHref={startHref} />
+      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} defaultOpen />
+      <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Tap Favorite on a card to pin it here." identitySlug={identitySlug} defaultOpen={favoriteCards.length > 0} />
+      <LevelUpSmartRail title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Log a proof score to build this rail." identitySlug={identitySlug} />
 
       <section className={styles.levelUpModuleGrid} aria-label="Level Up modules">
         <div className={styles.levelUpRailHeader}>
@@ -207,7 +206,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
               favorite={favorites.includes(card.id)}
               onFavorite={toggleFavorite}
               onComplete={logCompletion}
-              startHref={startHref}
+              startHref={buildCardStartHref(identitySlug, card)}
             />
           ))}
         </div>
@@ -252,7 +251,7 @@ function LevelUpStartList({
   favorites,
   onFavorite,
   onComplete,
-  startHref,
+  identitySlug,
 }: {
   startListRef: RefObject<HTMLElement | null>
   intent: string
@@ -261,7 +260,7 @@ function LevelUpStartList({
   favorites: string[]
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
-  startHref: string
+  identitySlug: string
 }) {
   return (
     <section ref={startListRef} id="level-up-start-here" className={styles.levelUpStartList} aria-label="Start here">
@@ -279,7 +278,7 @@ function LevelUpStartList({
             favorite={favorites.includes(card.id)}
             onFavorite={onFavorite}
             onComplete={onComplete}
-            startHref={startHref}
+            startHref={buildCardStartHref(identitySlug, card)}
           />
         ))}
       </div>
@@ -317,7 +316,7 @@ function LevelUpSmartRail({
   onFavorite,
   onComplete,
   emptyText,
-  startHref,
+  identitySlug,
   defaultOpen,
 }: {
   title: string
@@ -327,7 +326,7 @@ function LevelUpSmartRail({
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
   emptyText?: string
-  startHref: string
+  identitySlug: string
   defaultOpen?: boolean
 }) {
   const id = title === 'Favorites' ? 'favorites' : undefined
@@ -348,7 +347,7 @@ function LevelUpSmartRail({
               favorite={favorites.includes(card.id)}
               onFavorite={onFavorite}
               onComplete={onComplete}
-              startHref={startHref}
+              startHref={buildCardStartHref(identitySlug, card)}
             />
           ))}
         </div>
@@ -569,6 +568,55 @@ function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {
   window.requestAnimationFrame(() => {
     startListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   })
+}
+
+function buildCardStartHref(identitySlug: string, card: LevelUpCard) {
+  const workType = getCardWorkType(card)
+  const context = getCardContext(card, workType)
+  const focus = getCardFocus(identitySlug, card)
+  const params = new URLSearchParams({
+    focus,
+    workType,
+    context,
+    card: card.id,
+  })
+
+  return `/level-up/${identitySlug}?${params.toString()}#level-up-flow`
+}
+
+function getCardWorkType(card: LevelUpCard) {
+  if (card.category === 'mental-routine') return 'mental'
+  if (['strength-stability', 'conditioning', 'mobility-stretch', 'recovery-reset'].includes(card.category)) return 'physical'
+  return 'court'
+}
+
+function getCardContext(card: LevelUpCard, workType: string) {
+  if (workType !== 'court') return 'alone'
+  if (card.category === 'doubles-drill' || card.tags.includes('doubles') || card.tags.includes('doubles-communication')) return 'doubles'
+  if (card.category === 'partner-drill' || card.equipment.includes('partner')) return 'partner'
+  return 'alone'
+}
+
+function getCardFocus(identitySlug: string, card: LevelUpCard) {
+  const text = `${card.title} ${card.category} ${card.tags.join(' ')}`.toLowerCase()
+  let focus = 'movement'
+
+  if (text.includes('doubles') || text.includes('partner-first')) focus = 'doubles'
+  else if (text.includes('serve')) focus = 'serve'
+  else if (text.includes('return')) focus = 'return'
+  else if (text.includes('conditioning') || text.includes('strength') || text.includes('mobility') || text.includes('recovery-reset')) focus = 'conditioning'
+  else if (text.includes('forehand') || text.includes('backhand') || text.includes('strokes') || text.includes('crosscourt') || text.includes('attack')) focus = 'strokes'
+
+  if (identitySlug === 'relentless-competitor-4-0' && focus === 'return') return 'strokes'
+  if (identitySlug === 'smart-attacker-4-0-to-4-5') {
+    if (focus === 'serve') return 'serve-plus-one'
+    if (focus === 'return') return 'return-pressure'
+    if (focus === 'doubles') return 'net-close'
+    if (focus === 'conditioning') return 'transition-defense'
+    if (focus === 'strokes') return 'patterns'
+  }
+
+  return focus
 }
 
 function unique(items: string[]) {
