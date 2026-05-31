@@ -620,6 +620,22 @@ export default function PlayerLiveWorkbench({
               {activeDrill.sourceCard ? <p>{activeDrill.sourceCard.reward}</p> : null}
             </div>
             {activeDrill.sourceCard ? (
+              <div className={styles.liveQualityGrid} aria-label="Quality standards for this activity">
+                <div>
+                  <span>Work block</span>
+                  <strong>{getCardWorkBlock(activeDrill.sourceCard)}</strong>
+                </div>
+                <div>
+                  <span>Counts when</span>
+                  <strong>{getCardQualityStandard(activeDrill.sourceCard)}</strong>
+                </div>
+                <div>
+                  <span>Fix first</span>
+                  <strong>{getCardCommonMiss(activeDrill.sourceCard)}</strong>
+                </div>
+              </div>
+            ) : null}
+            {activeDrill.sourceCard ? (
               <div className={styles.liveAdjustmentPanel}>
                 <div>
                   <span>Level up</span>
@@ -1078,6 +1094,49 @@ function getDrillActionSteps(summary: string) {
     .slice(0, 3)
 
   return cleaned.length ? cleaned : ['Start the drill', 'Track the target', 'Score the work']
+}
+
+function getCardWorkBlock(card: LevelUpCard) {
+  if (card.tags.includes('jump-rope')) return '4 x 30 seconds with 30 seconds reset.'
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) return '3 rounds of 6 serves or shadows.'
+  if (card.tags.includes('recovery-after-contact')) return '3 rounds of 8 reps, reset after every rep.'
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) return 'Use it for 6 pressure points or misses.'
+  if (card.tags.includes('wall-work') || card.tags.includes('wall')) return '3 x 2-minute wall blocks with recovery rule.'
+  if (card.tags.includes('doubles') || card.tags.includes('doubles-communication')) return 'Play 2 service games with the call before each point.'
+  if (card.category === 'strength-stability') return '2-3 clean sets. Stop before posture breaks.'
+  if (card.category === 'conditioning') return 'Short intervals. Rest when tennis posture fades.'
+  if (card.category === 'mobility-stretch' || card.category === 'recovery-reset') return '45 seconds each side, slow and controlled.'
+  return `${card.durationMinutes} minutes of clean reps.`
+}
+
+function getCardQualityStandard(card: LevelUpCard) {
+  if (card.tags.includes('recover-before-watching')) return 'You recover before judging whether the shot was good.'
+  if (card.tags.includes('recovery-after-contact')) return 'Finish, recover, then read with balanced feet.'
+  if (card.tags.includes('leg-durability')) return 'Breathing stays steady and shoulders stay quiet.'
+  if (card.tags.includes('light-feet')) return 'Landings stay quiet and the first move is controlled.'
+  if (card.tags.includes('serve-target')) return 'Target is called before the motion starts.'
+  if (card.tags.includes('serve-plus-one')) return 'Serve target and next-ball idea match.'
+  if (card.tags.includes('return-intent')) return 'Return job is chosen before the toss.'
+  if (card.tags.includes('defense-to-neutral')) return 'Ball shape buys time and recovery happens immediately.'
+  if (card.tags.includes('attack-balance')) return 'You attack from balance, not hope.'
+  if (card.tags.includes('doubles-communication')) return 'Partner can hear the plan before the ball is live.'
+  if (card.category === 'mental-routine') return 'The next point starts with a cue, not a replay.'
+  if (card.category === 'mobility-stretch' || card.category === 'recovery-reset') return 'Range improves without forcing or changing posture.'
+  return 'The cue shows up without needing a reminder.'
+}
+
+function getCardCommonMiss(card: LevelUpCard) {
+  if (card.tags.includes('recover-before-watching')) return 'Watching the shot before moving back to ready.'
+  if (card.tags.includes('leg-durability')) return 'Knees collapse, breath stops, or shoulders climb.'
+  if (card.tags.includes('jump-rope') || card.tags.includes('light-feet')) return 'Chasing speed while landings get loud.'
+  if (card.tags.includes('serve')) return 'Rushing into the motion before naming the target.'
+  if (card.tags.includes('return')) return 'Reacting late because the return job was vague.'
+  if (card.tags.includes('defense-to-neutral')) return 'Trying to win from defense instead of resetting neutral.'
+  if (card.tags.includes('attack-balance')) return 'Closing fast but hitting off-balance.'
+  if (card.tags.includes('doubles')) return 'Moving first and explaining the plan later.'
+  if (card.category === 'strength-stability' || card.category === 'conditioning') return 'Adding effort after posture quality drops.'
+  if (card.category === 'mobility-stretch' || card.category === 'recovery-reset') return 'Forcing range instead of breathing through control.'
+  return 'Adding volume before the habit is clean.'
 }
 
 function shortenDrillStep(step: string) {
