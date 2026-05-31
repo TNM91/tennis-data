@@ -740,6 +740,7 @@
   background:
     linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 34%),
     var(--surface);
+  scroll-margin-top: 12px;
 }
 
 .levelUpFilterSummary {

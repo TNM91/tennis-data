@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type RefObject } from 'react'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity, recommendLevelUpCards } from '@/lib/level-up/recommendations'
@@ -70,6 +70,7 @@ const intentPresets = [
 
 export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPortalProps) {
   const profile = getLevelUpProfileForIdentity(identitySlug)
+  const startListRef = useRef<HTMLElement>(null)
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
   const [showAllCards, setShowAllCards] = useState(false)
   const [selectedIntent, setSelectedIntent] = useState('Recommended')
@@ -140,10 +141,12 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           setSelectedIntent(preset.label)
           setFilters(preset.filters)
           setShowAllCards(false)
+          scrollToStartList(startListRef)
         }}
       />
 
       <LevelUpStartList
+        startListRef={startListRef}
         intent={selectedIntent}
         cards={startCards}
         recommendationByCardId={recommendationByCardId}
@@ -161,11 +164,13 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           setSelectedIntent('Custom')
           setFilters(nextFilters)
           setShowAllCards(false)
+          scrollToStartList(startListRef)
         }}
         onReset={() => {
           setSelectedIntent('Recommended')
           setFilters(emptyFilters)
           setShowAllCards(false)
+          scrollToStartList(startListRef)
         }}
       />
 
@@ -240,6 +245,7 @@ function LevelUpIntentPresets({ activeIntent, onApply }: { activeIntent: string;
 }
 
 function LevelUpStartList({
+  startListRef,
   intent,
   cards,
   recommendationByCardId,
@@ -248,6 +254,7 @@ function LevelUpStartList({
   onComplete,
   startHref,
 }: {
+  startListRef: RefObject<HTMLElement | null>
   intent: string
   cards: LevelUpCard[]
   recommendationByCardId: Map<string | undefined, LevelUpRecommendation>
@@ -257,7 +264,7 @@ function LevelUpStartList({
   startHref: string
 }) {
   return (
-    <section className={styles.levelUpStartList} aria-label="Start here">
+    <section ref={startListRef} id="level-up-start-here" className={styles.levelUpStartList} aria-label="Start here">
       <div className={styles.levelUpRailHeader}>
         <span>Start here</span>
         <h2>{intent === 'Recommended' ? 'Three strong places to begin.' : `${intent}: three good matches.`}</h2>
@@ -556,6 +563,12 @@ function cardMatchesFilters(card: LevelUpCard, filters: FilterState) {
 
 function countActiveFilters(filters: FilterState) {
   return Object.values(filters).filter((value) => value !== 'all').length
+}
+
+function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {
+  window.requestAnimationFrame(() => {
+    startListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
 }
 
 function unique(items: string[]) {
