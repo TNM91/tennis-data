@@ -7,6 +7,9 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import TiqCourt from '@/components/tactical/TiqCourt'
 import { courtSpots, courtZones } from '@/components/tactical/coordinates'
 import type { DrillOverlay } from '@/components/tactical/types'
+import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
+import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
+import { getLevelUpProfileForIdentity } from '@/lib/level-up/recommendations'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
   PLAYER_DEVELOPMENT_DIAGRAMS,
@@ -49,11 +52,14 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
                 <p className={styles.kicker}>TenAceIQ Player Development System</p>
                 <h1>{identity.title}</h1>
                 <p className={styles.heroText}>
-                  A premium workbook and coach planner for {identity.ratingBand.toLowerCase()}: {identity.promise}
+                  A Level Up portal, printable companion, and coach lesson plan for {identity.ratingBand.toLowerCase()}: {identity.promise}
                 </p>
                 <div className={styles.actions}>
-                  <Link className="button-primary" href={`/player-development/${identity.slug}/workbook`}>
-                    Start today&apos;s mission
+                  <Link className="button-primary" href={`/player-development/${identity.slug}/level-up`}>
+                    Start Level Up Portal
+                  </Link>
+                  <Link className="button-secondary" href={`/player-development/${identity.slug}/workbook`}>
+                    Player workbook
                   </Link>
                   <Link className="button-secondary" href={`/player-development/${identity.slug}/coach-planner`}>
                     Coach / Lesson Plan
@@ -86,12 +92,12 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
                 <p className={styles.kicker}>Player Development</p>
                 <h2 id="structure-title">Turn match goals into court work.</h2>
                 <p>
-                  Use workbook paths, coach planner sheets, weekly goals, match evidence, and My Lab check-ins to keep improvement moving between matches and lessons.
+                  Use the Level Up portal, printable workbook companion, coach planner, weekly goals, match evidence, and My Lab check-ins to keep improvement moving between matches and lessons.
                 </p>
               </div>
               <div className={styles.planGrid}>
                 <PlanCard icon="myLab" title="My Lab connection" items={['Choose a goal', 'Save match evidence', 'Track the next read']} />
-                <PlanCard icon="reports" title="Workbook path" items={['Identity page', 'Training menu', 'Module sheets', 'Recap and notes']} />
+                <PlanCard icon="reports" title="Level Up portal" items={['Recommended modules', 'Favorites', 'Proof history', 'Coach assignments']} />
                 <PlanCard icon="schedule" title="Coach planner" items={['Lesson template', 'Cues', 'Homework', 'Evaluation tracking']} />
               </div>
             </section>
@@ -111,6 +117,7 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
           identitySlug={identity.slug}
         />
 
+        {focus === 'overview' ? <LevelUpOverviewPanel identity={identity} /> : null}
         {focus === 'overview' || focus === 'workbook' ? <PlayerMissionDashboard identity={identity} /> : null}
         <WorkbookPreview identity={identity} active={focus === 'workbook'} printActive={workbookPrintActive} />
         <CoachPlannerPreview identity={identity} active={focus === 'coach'} printActive={coachPrintActive} />
@@ -178,6 +185,37 @@ function PlanCard({ icon, title, items }: { icon: TiqFeatureIconName; title: str
         ))}
       </ul>
     </article>
+  )
+}
+
+function LevelUpOverviewPanel({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const profile = getLevelUpProfileForIdentity(identity.slug)
+  const modules = LEVEL_UP_MODULES.filter((module) => profile.featuredModuleIds.includes(module.id)).slice(0, 3)
+  const cards = LEVEL_UP_CARDS.filter((card) => profile.starterCardIds.includes(card.id)).slice(0, 3)
+
+  return (
+    <section className={styles.levelUpOverviewPanel} aria-labelledby="level-up-overview-title">
+      <div className={styles.sectionHead}>
+        <p className={styles.kicker}>Level Up Portal</p>
+        <h2 id="level-up-overview-title">Recommended for this identity.</h2>
+        <p>{profile.recommendationCopy}</p>
+      </div>
+      <div className={styles.levelUpOverviewGrid}>
+        <article>
+          <span>Top modules</span>
+          {modules.map((module) => <strong key={module.id}>{module.title}</strong>)}
+        </article>
+        <article>
+          <span>Starter cards</span>
+          {cards.map((card) => <strong key={card.id}>{card.title}</strong>)}
+        </article>
+        <article>
+          <span>Daily use</span>
+          <p>Coach-assigned tools, identity recommendations, favorites, and proof history live in the portal.</p>
+          <Link className="button-primary" href={`/player-development/${identity.slug}/level-up`}>Open Level Up Portal</Link>
+        </article>
+      </div>
+    </section>
   )
 }
 
@@ -288,6 +326,18 @@ function WorkbookPreview({
       <WorkbookPage core footer="Packet index">
         <PageHeader label="Packet index" title="How to use this workbook" />
         <WorkbookPacketIndex identity={identity} />
+      </WorkbookPage>
+
+      <WorkbookPage core footer="Level Up Portal companion">
+        <PageHeader label="Level Up Portal Companion" title="The field guide plus the card library" />
+        <div className={styles.tiqPromptBlock}>
+          <span>Digital-first training</span>
+          <p>
+            The workbook gives you the plan. The Level Up Portal gives you the card library: coach-assigned tools,
+            identity recommendations, favorites, and proof history.
+          </p>
+          <QrAction href={`/player-development/${identity.slug}/level-up`} label="Open Level Up Portal" mode="player-plus" />
+        </div>
       </WorkbookPage>
 
       <WorkbookPage core footer="Today's lesson">
@@ -593,7 +643,7 @@ function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity
   const sections = [
     ['Start here', 'Write the plan goal and rate where you are today.'],
     ['Tool belt', 'Choose the tool that matches what you want to improve.'],
-    ['Training menu', 'Find solo, partner, performance, match, and off-court work.'],
+    ['Training menu', 'Find solo, partner, performance, match, doubles, and off-court work.'],
     ['Performance Upgrade', 'Choose the movement, strength, conditioning, or recovery tool that supports this week\'s habit.'],
     ['Modules', 'Use the module only when it supports this week\'s goal.'],
     ['Player+ companion', 'Update goals, quick check-ins, and coach assignment status.'],

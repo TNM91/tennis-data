@@ -460,6 +460,262 @@
   font-weight: 850;
 }
 
+.levelUpPortalApp {
+  display: grid;
+  gap: 14px;
+}
+
+.levelUpOverviewPanel,
+.levelUpHero,
+.levelUpTodayMission,
+.levelUpRail,
+.levelUpModuleGrid,
+.levelUpCardGrid,
+.coachAssignmentPanel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--card-border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(16px, 3vw, 24px);
+}
+
+.levelUpOverviewGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpOverviewGrid article {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 13px;
+}
+
+.levelUpOverviewGrid span {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpOverviewGrid strong {
+  color: var(--foreground-strong);
+}
+
+.levelUpHero {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.42fr);
+  align-items: end;
+}
+
+.levelUpHeroCopy,
+.levelUpHeroPanel,
+.levelUpRailHeader,
+.levelUpCardTile,
+.levelUpModuleTile,
+.coachAssignmentPanel > div:first-child,
+.assignmentCard {
+  display: grid;
+  gap: 9px;
+}
+
+.levelUpHeroCopy > span,
+.levelUpRailHeader span,
+.levelUpTodayMission span,
+.levelUpCardTile > div:first-child span,
+.levelUpModuleTile span,
+.coachAssignmentPanel span,
+.assignmentCard span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpHero h1,
+.levelUpTodayMission h2,
+.levelUpRailHeader h2,
+.coachAssignmentPanel h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  letter-spacing: 0;
+}
+
+.levelUpHero h1 {
+  font-size: clamp(2rem, 5vw, 4.6rem);
+  line-height: 0.95;
+}
+
+.levelUpHero p,
+.levelUpHero small,
+.levelUpTodayMission p,
+.levelUpCardTile p,
+.levelUpModuleTile p,
+.coachAssignmentPanel p,
+.assignmentCard p,
+.levelUpRail > p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.42;
+}
+
+.levelUpHeroPanel,
+.levelUpSafetyNote,
+.assignmentCard {
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 14px;
+}
+
+.levelUpTodayMission {
+  grid-template-columns: minmax(0, 0.8fr) minmax(280px, 1.2fr);
+}
+
+.levelUpSafetyNote {
+  color: var(--muted-strong);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.levelUpFilters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 12px;
+}
+
+.levelUpFilterGroup {
+  display: grid;
+  gap: 5px;
+}
+
+.levelUpFilterGroup span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpFilterGroup select,
+.levelUpAssignmentControls select,
+.levelUpAssignmentControls input,
+.levelUpAssignmentControls textarea,
+.completionLogger input {
+  min-height: 40px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--foreground);
+  padding: 8px 10px;
+}
+
+.levelUpRailGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpCardTile,
+.levelUpModuleTile {
+  align-content: start;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 13px;
+}
+
+.levelUpCardTile h3,
+.levelUpModuleTile h3 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: 1.04rem;
+  line-height: 1.15;
+}
+
+.levelUpCardMeta,
+.levelUpCardActions,
+.completionLogger > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.levelUpCardMeta span,
+.reasonPill,
+.equipmentPill,
+.durationPill {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--muted-strong);
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: capitalize;
+}
+
+.reasonPill {
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+}
+
+.favoriteButton,
+.assignButton,
+.completionLogger button {
+  appearance: none;
+  min-height: 36px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 6px 10px;
+  font-weight: 900;
+}
+
+.favoriteButton[data-active='true'],
+.completionLogger button[data-active='true'] {
+  border-color: rgba(155, 225, 29, 0.52);
+  background: rgba(155, 225, 29, 0.13);
+  color: var(--foreground-strong);
+}
+
+.completionLogger {
+  display: grid;
+  gap: 8px;
+}
+
+.levelUpAssignmentControls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .missionHero,
 .liveWorkbenchHero,
 .performanceUpgradeHero,
@@ -4878,7 +5134,13 @@
   .levelUpPortalLanes,
   .levelUpCardRail,
   .levelUpModuleRail,
-  .levelUpLibraryGrid {
+  .levelUpLibraryGrid,
+  .levelUpHero,
+  .levelUpOverviewGrid,
+  .levelUpTodayMission,
+  .levelUpFilters,
+  .levelUpRailGrid,
+  .levelUpAssignmentControls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4977,6 +5239,12 @@
   .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid,
+  .levelUpHero,
+  .levelUpOverviewGrid,
+  .levelUpTodayMission,
+  .levelUpFilters,
+  .levelUpRailGrid,
+  .levelUpAssignmentControls,
   .performanceUpgradeHero {
     grid-template-columns: 1fr;
   }
@@ -5009,7 +5277,8 @@
   .levelUpPortalLanes,
   .levelUpCardRail,
   .levelUpModuleRail,
-  .levelUpLibraryGrid {
+  .levelUpLibraryGrid,
+  .levelUpRailGrid {
     display: flex;
     gap: 8px;
     margin-inline: -2px;
@@ -5021,7 +5290,8 @@
   .levelUpPortalLanes article,
   .levelUpCardRail article,
   .levelUpModuleRail article,
-  .levelUpLibraryGrid a {
+  .levelUpLibraryGrid a,
+  .levelUpRailGrid article {
     flex: 0 0 min(78vw, 292px);
     scroll-snap-align: start;
   }

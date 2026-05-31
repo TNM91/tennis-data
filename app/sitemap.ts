@@ -49,6 +49,7 @@ const routes: RouteConfig[] = [
 const playerDevelopmentRoutes: RouteConfig[] = PLAYER_DEVELOPMENT_IDENTITIES.flatMap((identity) => [
   { path: `/level-up/${identity.slug}`, changeFrequency: 'weekly', priority: 0.72 },
   { path: `/player-development/${identity.slug}`, changeFrequency: 'monthly', priority: 0.58 },
+  { path: `/player-development/${identity.slug}/level-up`, changeFrequency: 'weekly', priority: 0.72 },
   { path: `/player-development/${identity.slug}/workbook`, changeFrequency: 'monthly', priority: 0.52 },
   { path: `/player-development/${identity.slug}/coach-planner`, changeFrequency: 'monthly', priority: 0.52 },
 ])

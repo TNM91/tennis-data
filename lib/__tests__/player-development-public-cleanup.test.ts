@@ -64,7 +64,10 @@ describe('Player Development public cleanup', () => {
       expect(systemSource).toContain(expected)
     }
 
-    expect(systemSource).toContain('Start today&apos;s mission')
+    expect(systemSource).toContain('Start Level Up Portal')
+    expect(systemSource).toContain('/player-development/${identity.slug}/level-up')
+    expect(systemSource).toContain('LevelUpOverviewPanel')
+    expect(systemSource).toContain('Open Level Up Portal')
     expect(systemSource).toContain('Coach / Lesson Plan')
     expect(systemSource).toContain('One week. One habit. One proof note.')
     expect(systemSource).toContain('Pick the tool that solves this week')
