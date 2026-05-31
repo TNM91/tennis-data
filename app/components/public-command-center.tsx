@@ -93,9 +93,9 @@ export const homeActionCards: PublicActionCard[] = [
   },
   {
     title: 'Improve Your Game',
-    body: 'Open My Lab, choose a goal, use workbook paths, and connect match evidence to progress.',
-    href: '/mylab',
-    cta: 'Open My Lab',
+    body: 'Open Level Up, choose what you want to improve, run a training card, and connect the proof to your progress.',
+    href: '/level-up',
+    cta: 'Open Level Up',
     meta: 'Player',
   },
   {

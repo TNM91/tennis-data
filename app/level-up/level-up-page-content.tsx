@@ -4,11 +4,17 @@ import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import PlayerLiveWorkbench from '@/app/player-development/_components/player-live-workbench'
 import styles from '@/app/player-development/_components/player-development.module.css'
+import { LEVEL_UP_CARDS, LEVEL_UP_MODULES, getRecommendedLevelUpCards } from '@/lib/level-up/level-up-cards'
 import { PLAYER_DEVELOPMENT_IDENTITIES, type PlayerDevelopmentIdentity } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
 
 export default function LevelUpPageContent({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const trainingMenus = getPlayerTrainingMenus(identity)
+  const recommendedCards = getRecommendedLevelUpCards(identity.slug, 6)
+  const identityModules = LEVEL_UP_MODULES.filter((module) => module.identitySlugs?.includes(identity.slug))
+  const recommendedModules = (identityModules.length ? identityModules : LEVEL_UP_MODULES).slice(0, 3)
+  const favoritePreview = recommendedCards.slice(0, 3)
+  const libraryPacks = [...new Set(LEVEL_UP_CARDS.map((card) => card.pack))].slice(0, 8)
 
   return (
     <SiteShell active="/mylab">
@@ -22,7 +28,6 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           <div className={styles.levelUpRouteActions} aria-label="Level Up shortcuts">
             <Link className="button-primary" href="#level-up-flow">Start now</Link>
             <Link className="button-secondary" href="/mylab#coach-assignments">Coach work</Link>
-            <Link className="button-secondary" href={`/player-development/${identity.slug}/workbook`}>Workbook</Link>
           </div>
         </section>
 
@@ -41,6 +46,65 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
               >
                 {item.title.replace(/^The /, '')}
               </Link>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.levelUpPortal} aria-labelledby="level-up-portal-title">
+          <div className={styles.levelUpPortalHeader}>
+            <div>
+              <span>Level Up Portal</span>
+              <h2 id="level-up-portal-title">Your tennis training hub.</h2>
+              <p>Coach assigned work, identity recommendations, favorites, and Level Up Cards live here. Pick what you need, do it on court, rate it, and keep moving.</p>
+            </div>
+            <div className={styles.levelUpPortalStats} aria-label="Level Up library stats">
+              <strong>{LEVEL_UP_CARDS.length}</strong>
+              <span>cards ready</span>
+            </div>
+          </div>
+
+          <div className={styles.levelUpPortalLanes}>
+            <article>
+              <span>Coach Assigned</span>
+              <strong>Your coach work comes first.</strong>
+              <p>Coach-invited players complete assigned cards and send simple proof back to the coach.</p>
+              <Link className="button-secondary" href="/mylab#coach-assignments">Open assignments</Link>
+            </article>
+            <article>
+              <span>Favorites</span>
+              <strong>Player+ quick starts.</strong>
+              <p>Pin the cards you repeat most often so training starts in one tap.</p>
+              <div className={styles.levelUpMiniList}>
+                {favoritePreview.map((card) => <small key={card.id}>{card.title}</small>)}
+              </div>
+            </article>
+            <article>
+              <span>Recommended for Your Player Identity</span>
+              <strong>{identity.title.replace(/^The /, '')}</strong>
+              <p>{identity.mantra}</p>
+              <div className={styles.levelUpMiniList}>
+                {recommendedCards.slice(0, 4).map((card) => <small key={card.id}>{card.title}</small>)}
+              </div>
+            </article>
+          </div>
+
+          <div className={styles.levelUpModuleRail} aria-label="Recommended Level Up modules">
+            {recommendedModules.map((module) => (
+              <article key={module.id}>
+                <span>{module.durationLabel}</span>
+                <strong>{module.title}</strong>
+                <p>{module.description}</p>
+                <small>Proof: {module.proof}</small>
+              </article>
+            ))}
+          </div>
+
+          <div className={styles.levelUpLibraryGrid} aria-label="Level Up Library packs">
+            {libraryPacks.map((pack) => (
+              <a key={pack} href="#level-up-flow">
+                <strong>{pack}</strong>
+                <span>{LEVEL_UP_CARDS.filter((card) => card.pack === pack).length} cards</span>
+              </a>
             ))}
           </div>
         </section>

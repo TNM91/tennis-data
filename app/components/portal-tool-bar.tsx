@@ -82,7 +82,7 @@ const portalLanes: PortalLane[] = [
     tasks: [
       { title: 'Coach Hub', detail: 'Review students, assignments, due work, and coach feedback.', metric: 'Coach', href: '/coach', icon: 'scenarioBuilder', requiredRoute: '/coach' },
       { title: 'Tactical Studio', detail: 'Map the drill or pattern before assigning it.', metric: 'Coach', href: '/tactics', icon: 'matchPrep', requiredRoute: '/coach' },
-      { title: 'Development paths', detail: 'Open workbook paths and identity-based coach planners.', metric: 'Coach', href: '/player-development', icon: 'reports', requiredRoute: '/coach' },
+      { title: 'Level Up library', detail: 'Assign training modules and keep player work aligned.', metric: 'Coach', href: '/level-up', icon: 'reports', requiredRoute: '/coach' },
       { title: 'Coach-player messages', detail: 'Keep lesson follow-up tied to player goals and assignments.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/coach' },
     ],
   },

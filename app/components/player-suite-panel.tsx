@@ -27,10 +27,10 @@ const SUITE_STEPS: Record<PlayerSuiteStep, PlayerSuiteConfig> = {
     icon: 'myLab',
   },
   development: {
-    label: 'Open development path',
-    title: 'Player Development',
-    body: 'Use branded workbook paths, coach planner sheets, and weekly check-ins to turn goals into court work.',
-    href: '/player-development',
+    label: 'Open Level Up',
+    title: 'Level Up',
+    body: 'Choose a focus, run a training card, log a quick proof score, and keep your coach aligned.',
+    href: '/level-up',
     icon: 'matchPrep',
   },
   refresh: {

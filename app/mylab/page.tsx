@@ -3650,7 +3650,7 @@ function PlayerDevelopmentPathPanel({
               {linkedPlayerName ? `${linkedPlayerName}: choose this week's work` : "Choose this week's work"}
             </h3>
             <p style={sectionTextStyle}>
-              Print the workbook, bring a sheet to your coach, then use My Lab to keep the goal and weekly evidence connected.
+              Open Level Up, run the next training card, then use My Lab to keep the goal and weekly evidence connected.
             </p>
           </div>
         </div>
@@ -3670,12 +3670,12 @@ function PlayerDevelopmentPathPanel({
         <div style={developmentCheckInCardStyle}>
           <div style={metricLabelStyle}>Current My Lab goal</div>
           <div style={developmentIdentityTitleStyle}>{currentGoal || 'Set one weekly focus'}</div>
-          <div style={metricNoteStyle}>Use the workbook recap after practice or a match, then update this goal.</div>
+          <div style={metricNoteStyle}>Use Level Up after practice or a match, then update this goal.</div>
         </div>
       </div>
 
       <div style={developmentActionRowStyle}>
-        <Link href={`/player-development/${primaryIdentity.slug}/workbook`} style={miniActionLinkStyle}>Print workbook</Link>
+        <Link href={`/level-up/${primaryIdentity.slug}`} style={miniActionLinkStyle}>Level Up now</Link>
         <Link href="/player-development" style={miniActionLinkStyle}>Open paths</Link>
         <Link href={`/player-development/${primaryIdentity.slug}/coach-planner`} style={miniActionLinkStyle}>Coach planner</Link>
         <Link href="#goal-progress" style={miniActionLinkStyle}>Update My Lab goal</Link>
@@ -3997,17 +3997,17 @@ function PlayerCoachAssignmentsPanel({
                 >
                   Request first assignment
                 </Link>
-                <Link href="/player-development" style={miniActionLinkStyle}>Open workbook paths</Link>
+                <Link href="/level-up" style={miniActionLinkStyle}>Open Level Up</Link>
               </div>
             </>
           ) : (
             <>
               <strong>No live coach assignments yet.</strong>
               <span>
-                Print the workbook now, then accept a coach invite when you want assigned check-ins and coach feedback. Player+ adds self-guided history and trends.
+                Use Level Up now, then accept a coach invite when you want assigned check-ins and coach feedback. Player+ adds the full library, favorites, history, and trends.
               </span>
               <div style={developmentActionRowStyle}>
-                <Link href="/player-development" style={miniActionLinkStyle}>Open workbook paths</Link>
+                <Link href="/level-up" style={miniActionLinkStyle}>Open Level Up</Link>
                 <Link href="/pricing#coach" style={miniActionLinkStyle}>See Coach tools</Link>
               </div>
             </>
@@ -4116,7 +4116,7 @@ function buildPlayerAssignmentCheckInDraft(
 ) {
   const actionPlan = buildPlayerAssignmentActionPlan(assignment, summary, dueLabel)
   const doTarget = actionPlan.find((item) => item.label === 'Do')?.value || assignment.focus || assignment.title
-  const trackTarget = actionPlan.find((item) => item.label === 'Track')?.value || summary?.expectedEvidence || 'reps, score, success rate, or workbook proof'
+  const trackTarget = actionPlan.find((item) => item.label === 'Track')?.value || summary?.expectedEvidence || 'reps, score, success rate, or Level Up proof'
   const sendBackTarget = actionPlan.find((item) => item.label === 'Send back')?.value || 'One clear result and one next question for your coach.'
 
   return {

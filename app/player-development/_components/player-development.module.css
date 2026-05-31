@@ -271,6 +271,149 @@
   color: var(--foreground-strong);
 }
 
+.levelUpPortal {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--card-border-soft);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.1), transparent 32%),
+    var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(14px, 2.4vw, 22px);
+}
+
+.levelUpPortalHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.levelUpPortalHeader > div:first-child {
+  display: grid;
+  gap: 8px;
+}
+
+.levelUpPortalHeader span,
+.levelUpPortalLanes span,
+.levelUpModuleRail span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpPortalHeader h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.45rem, 3vw, 2.35rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.levelUpPortalHeader p,
+.levelUpPortalLanes p,
+.levelUpModuleRail p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.42;
+}
+
+.levelUpPortalStats {
+  min-width: 118px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  text-align: right;
+}
+
+.levelUpPortalStats strong {
+  display: block;
+  color: var(--foreground-strong);
+  font-size: 2rem;
+  line-height: 0.95;
+}
+
+.levelUpPortalStats span {
+  margin-top: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-strong);
+  padding: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.levelUpPortalLanes,
+.levelUpModuleRail,
+.levelUpLibraryGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.levelUpPortalLanes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.levelUpModuleRail {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.levelUpLibraryGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.levelUpPortalLanes article,
+.levelUpModuleRail article,
+.levelUpLibraryGrid a {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 13px;
+  text-decoration: none;
+}
+
+.levelUpPortalLanes strong,
+.levelUpModuleRail strong,
+.levelUpLibraryGrid strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+  line-height: 1.18;
+}
+
+.levelUpMiniList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.levelUpMiniList small,
+.levelUpModuleRail small,
+.levelUpLibraryGrid span {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--muted-strong);
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
 .missionHero,
 .liveWorkbenchHero,
 .performanceUpgradeHero,
@@ -4681,7 +4824,14 @@
   .liveUnlockPanel,
   .levelUpRouteHeader,
   .levelUpIdentityStrip,
+  .levelUpPortalHeader,
   .liveModeStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpPortalLanes,
+  .levelUpModuleRail,
+  .levelUpLibraryGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4775,6 +4925,10 @@
   .liveWorkbenchHero,
   .levelUpRouteHeader,
   .levelUpIdentityStrip,
+  .levelUpPortalHeader,
+  .levelUpPortalLanes,
+  .levelUpModuleRail,
+  .levelUpLibraryGrid,
   .performanceUpgradeHero {
     grid-template-columns: 1fr;
   }
@@ -4790,6 +4944,41 @@
 
   .levelUpRouteHeader {
     padding: 12px;
+  }
+
+  .levelUpPortal {
+    padding: 12px;
+  }
+
+  .levelUpPortalStats {
+    display: none;
+  }
+
+  .levelUpPortalHeader p {
+    display: none;
+  }
+
+  .levelUpPortalLanes,
+  .levelUpModuleRail,
+  .levelUpLibraryGrid {
+    display: flex;
+    gap: 8px;
+    margin-inline: -2px;
+    overflow-x: auto;
+    padding: 0 2px 2px;
+    scroll-snap-type: x proximity;
+  }
+
+  .levelUpPortalLanes article,
+  .levelUpModuleRail article,
+  .levelUpLibraryGrid a {
+    flex: 0 0 min(78vw, 292px);
+    scroll-snap-align: start;
+  }
+
+  .levelUpPortalLanes p,
+  .levelUpModuleRail p {
+    display: none;
   }
 
   .levelUpRouteCopy h1 {
@@ -5140,6 +5329,7 @@
   .integrationPanel,
   .missionDashboard,
   .liveWorkbench,
+  .levelUpPortal,
   .shell > :global(.surface-card) {
     display: none;
   }
