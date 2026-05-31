@@ -628,33 +628,36 @@
 .liveDrillSteps {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
 }
 
 .liveDrillSteps div {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   border: 1px solid rgba(155, 225, 29, 0.18);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(155, 225, 29, 0.07);
-  padding: 10px;
+  padding: 9px;
 }
 
 .liveDrillSteps span {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: rgba(155, 225, 29, 0.18);
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.14);
   color: var(--brand-green-3);
-  font-size: 0.72rem;
+  padding: 4px 7px;
+  font-size: 0.62rem;
   font-weight: 950;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .liveDrillSteps strong {
   color: var(--foreground-strong);
-  font-size: 0.82rem;
-  line-height: 1.25;
+  font-size: 0.8rem;
+  line-height: 1.2;
   text-align: left;
 }
 
@@ -4908,7 +4911,7 @@
   .liveTracker,
   .liveDrillSteps div,
   .liveTimerPanel {
-    gap: 9px;
+    gap: 8px;
   }
 
   .liveStepPanel,
@@ -4919,8 +4922,8 @@
   .liveTimerPanel,
   .liveAssignmentBanner,
   .liveSavedBanner {
-    padding: 11px;
-    border-radius: 14px;
+    padding: 10px;
+    border-radius: 13px;
   }
 
   .liveTracker {
@@ -4978,7 +4981,7 @@
   .liveDrillSteps div {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    padding: 9px;
+    padding: 8px;
   }
 
   .liveActionGuide p,
@@ -4989,7 +4992,7 @@
 
   .liveMicroPlan,
   .liveActionGuide {
-    padding: 9px;
+    padding: 8px;
   }
 
   .liveScoreGuide {

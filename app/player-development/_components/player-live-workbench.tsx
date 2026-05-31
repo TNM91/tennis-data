@@ -569,7 +569,7 @@ export default function PlayerLiveWorkbench({
             <div className={styles.liveDrillSteps} aria-label="Drill actions">
               {activeDrillSteps.map((step, index) => (
                 <div key={`${activeDrill.id}-${step}`}>
-                  <span>{index + 1}</span>
+                  <span>{getActionStepLabel(index)}</span>
                   <strong>{step}</strong>
                 </div>
               ))}
@@ -973,6 +973,10 @@ function shortenDrillStep(step: string) {
   const commaIndex = step.indexOf(',')
   if (commaIndex > 12 && commaIndex < 64) return step.slice(0, commaIndex).trim()
   return `${step.slice(0, 61).trim()}...`
+}
+
+function getActionStepLabel(index: number) {
+  return ['Do', 'Track', 'Score'][index] ?? 'Next'
 }
 
 function getProgressSummary(sessions: SavedSession[], focuses: LiveFocus[]) {
