@@ -483,6 +483,10 @@ function LevelUpCardTile({
         <span>Avoid</span>
         <strong>{getCardAvoidCue(card)}</strong>
       </div>
+      <div className={styles.levelUpCoachHandoff}>
+        <span>Coach handoff</span>
+        <strong>{getCardCoachHandoff(card)}</strong>
+      </div>
       {reason ? <RecommendedReasonPill reason={reason} /> : null}
       {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}
       <div className={styles.levelUpDoNow}>
@@ -767,6 +771,50 @@ function getCardAvoidCue(card: LevelUpCard) {
   }
 
   return 'Do not add volume until the cue is clear.'
+}
+
+function getCardCoachHandoff(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return 'Tell your coach when recovery happened before watching and when it disappeared.'
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return 'Bring your clearest target, your proof score, and the pressure score where routine changed.'
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return 'Share which serve target created the cleanest first ball.'
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return 'Bring the return job that felt clearest and the one that felt rushed.'
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return 'Share the trigger that needed the reset and whether the next point started cleaner.'
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return 'Tell your coach whether the reset ball bought time or turned into panic.'
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return 'Share whether your best attacks came from balance or from rushing.'
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return 'Bring the partner call that helped the first move happen sooner.'
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return 'Share when posture changed and whether decision quality stayed clear.'
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return 'Tell your coach what felt better after the reset and what still felt limited.'
+  }
+
+  return 'Bring one proof score, one cue that helped, and one question for the next lesson.'
 }
 
 function getCardSetupLabel(card: LevelUpCard) {
