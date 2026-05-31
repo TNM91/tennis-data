@@ -140,6 +140,7 @@ export default function PlayerLiveWorkbench({
   const searchParams = useSearchParams()
   const activityRef = useRef<HTMLElement | null>(null)
   const trackerRef = useRef<HTMLElement | null>(null)
+  const savedRef = useRef<HTMLDivElement | null>(null)
   const assignmentId = searchParams.get('assignmentId')?.trim() ?? ''
   const studentLinkId = searchParams.get('studentLinkId')?.trim() ?? ''
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
@@ -212,6 +213,18 @@ export default function PlayerLiveWorkbench({
 
     return () => window.clearTimeout(id)
   }, [activeDrill.id, hasCoachAssignment])
+
+  useEffect(() => {
+    if (!lastSavedSession) return
+    if (typeof window === 'undefined') return
+    if (!window.matchMedia('(max-width: 860px)').matches) return
+
+    const id = window.setTimeout(() => {
+      savedRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 80)
+
+    return () => window.clearTimeout(id)
+  }, [lastSavedSession])
 
   useEffect(() => {
     let active = true
@@ -313,6 +326,22 @@ export default function PlayerLiveWorkbench({
     setDraft(emptyDraft)
     setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing now...' })
     void syncLevelUpSession(nextSession)
+  }
+
+  function repeatActivity() {
+    setLastSavedSession(null)
+    setDraft(emptyDraft)
+    activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
+
+  function pickNewFocus() {
+    setLastSavedSession(null)
+    setDraft(emptyDraft)
+    setActiveDrillId('')
+    setEditingStep('focus')
+    window.setTimeout(() => {
+      document.getElementById('level-up-flow')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
   }
 
   async function syncLevelUpSession(session: SavedSession) {
@@ -599,7 +628,7 @@ export default function PlayerLiveWorkbench({
               <span>{accessMode === 'coach_invited' ? 'Share this recap with my coach when linked' : 'Coach sharing unlocks when invited by a coach'}</span>
             </label>
             <button type="button" className="button-primary" disabled={draft.rating === null} onClick={saveSession}>
-              {syncState.status === 'syncing' ? 'Saving...' : 'Save training log'}
+              {syncState.status === 'syncing' ? 'Saving...' : draft.rating === null ? 'Pick rating' : `Save ${draft.rating}/5`}
             </button>
             <small>{draft.rating === null ? 'Pick a 0-5 rating before saving.' : 'It saves locally first, then syncs when your access path is connected.'}</small>
           </aside>
@@ -607,7 +636,7 @@ export default function PlayerLiveWorkbench({
       </div>
 
       {lastSavedSession ? (
-        <div className={styles.liveSavedBanner} role="status">
+        <div ref={savedRef} className={styles.liveSavedBanner} role="status">
           <div>
             <span>Saved</span>
             <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
@@ -622,12 +651,15 @@ export default function PlayerLiveWorkbench({
             </p>
           </div>
           <div className={styles.liveSavedActions}>
-            <a className="button-primary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
-              {lastSavedSession.accessMode === 'player_plus' ? 'Unlock Player+' : 'Open My Lab'}
-            </a>
-            <button type="button" className="button-secondary" onClick={() => setLastSavedSession(null)}>
-              Keep training
+            <button type="button" className="button-primary" onClick={repeatActivity}>
+              Repeat
             </button>
+            <button type="button" className="button-secondary" onClick={pickNewFocus}>
+              New focus
+            </button>
+            <a className="button-secondary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
+              {lastSavedSession.accessMode === 'player_plus' ? 'Player+' : 'My Lab'}
+            </a>
           </div>
         </div>
       ) : null}

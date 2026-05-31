@@ -4868,6 +4868,21 @@
     scroll-margin-top: 12px;
   }
 
+  .liveSavedBanner {
+    scroll-margin-top: 12px;
+  }
+
+  .liveSavedActions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .liveSavedActions :global(.button-primary),
+  .liveSavedActions :global(.button-secondary) {
+    min-width: 0;
+    padding-inline: 10px;
+  }
+
   .liveActionCard {
     scroll-margin-top: 12px;
   }
