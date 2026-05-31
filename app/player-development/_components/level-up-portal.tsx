@@ -434,10 +434,19 @@ function LevelUpCardTile({
   onComplete: (cardId: string, rating: number, note: string) => void
   startHref: string
 }) {
+  const cardRef = useRef<HTMLElement>(null)
   const [rating, setRating] = useState(3)
   const [note, setNote] = useState('')
   const [savedRating, setSavedRating] = useState<number | null>(null)
+  const [loggerOpen, setLoggerOpen] = useState(false)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
+
+  function openLogger() {
+    setLoggerOpen(true)
+    window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }
 
   function completeCard() {
     onComplete(card.id, rating, note)
@@ -446,7 +455,7 @@ function LevelUpCardTile({
   }
 
   return (
-    <article className={styles.levelUpCardTile}>
+    <article ref={cardRef} className={styles.levelUpCardTile}>
       <div>
         <span>{card.pack}</span>
         <h3>{card.title}</h3>
@@ -475,7 +484,7 @@ function LevelUpCardTile({
         </div>
         {card.safetyNote ? <small>{card.safetyNote}</small> : null}
       </details>
-      <details className={styles.completionLogger}>
+      <details className={styles.completionLogger} open={loggerOpen} onToggle={(event) => setLoggerOpen(event.currentTarget.open)}>
         <summary>Log proof</summary>
         <p>Tap the number first. Add a short note only if it changes the next rep.</p>
         <div>
@@ -489,6 +498,7 @@ function LevelUpCardTile({
       </details>
       <div className={styles.levelUpCardActions}>
         <a className="button-primary" href={startHref}>Start</a>
+        <button type="button" className={styles.scoreButton} onClick={openLogger}>Score</button>
         <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
       </div>
     </article>

@@ -1114,6 +1114,7 @@
 
 .favoriteButton,
 .assignButton,
+.scoreButton,
 .completionLogger button {
   appearance: none;
   min-height: 36px;
@@ -1127,6 +1128,8 @@
 }
 
 .favoriteButton[data-active='true'],
+.scoreButton:hover,
+.scoreButton:focus-visible,
 .completionLogger button[data-active='true'] {
   border-color: rgba(155, 225, 29, 0.52);
   background: rgba(155, 225, 29, 0.13);
