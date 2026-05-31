@@ -776,6 +776,10 @@
   gap: 8px;
 }
 
+.liveTimerActions button[data-action='done'] {
+  grid-column: 1 / -1;
+}
+
 .liveActionLinks {
   display: flex;
   flex-wrap: wrap;
@@ -4858,6 +4862,10 @@
   .liveSavedBanner {
     padding: 11px;
     border-radius: 14px;
+  }
+
+  .liveTracker {
+    scroll-margin-top: 12px;
   }
 
   .liveActionCard {

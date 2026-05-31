@@ -139,6 +139,7 @@ export default function PlayerLiveWorkbench({
 }: PlayerLiveWorkbenchProps) {
   const searchParams = useSearchParams()
   const activityRef = useRef<HTMLElement | null>(null)
+  const trackerRef = useRef<HTMLElement | null>(null)
   const assignmentId = searchParams.get('assignmentId')?.trim() ?? ''
   const studentLinkId = searchParams.get('studentLinkId')?.trim() ?? ''
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
@@ -526,7 +527,12 @@ export default function PlayerLiveWorkbench({
               <strong>Time</strong>
               <p>{activeDrill.duration}</p>
             </div>
-            <DrillTimer drillId={activeDrill.id} targetSeconds={activeDrill.timerSeconds} key={activeDrill.id} />
+            <DrillTimer
+              drillId={activeDrill.id}
+              targetSeconds={activeDrill.timerSeconds}
+              key={activeDrill.id}
+              onDone={() => trackerRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })}
+            />
             <div className={styles.liveActionGuide}>
               <strong>Score this</strong>
               <p>{activeDrill.proof}</p>
@@ -549,7 +555,7 @@ export default function PlayerLiveWorkbench({
             </div>
           </article>
 
-          <aside className={styles.liveTracker} aria-label="Quick tracking">
+          <aside ref={trackerRef} className={styles.liveTracker} aria-label="Quick tracking">
             <span>3. Submit</span>
             <strong>Score and save.</strong>
             <div className={styles.liveFeelingGrid} aria-label="How do you feel right now?">
@@ -681,7 +687,7 @@ export default function PlayerLiveWorkbench({
   )
 }
 
-function DrillTimer({ drillId, targetSeconds }: { drillId: string; targetSeconds: number }) {
+function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targetSeconds: number; onDone: () => void }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(() => getTimerSeconds(drillId))
   const [running, setRunning] = useState(false)
   const progress = targetSeconds > 0 ? Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100)) : 0
@@ -708,6 +714,11 @@ function DrillTimer({ drillId, targetSeconds }: { drillId: string; targetSeconds
     window.sessionStorage.removeItem(timerStorageKey(drillId))
   }
 
+  function finishTimer() {
+    setRunning(false)
+    onDone()
+  }
+
   return (
     <div className={styles.liveTimerPanel} data-timer-state={timerState}>
       <div>
@@ -725,6 +736,11 @@ function DrillTimer({ drillId, targetSeconds }: { drillId: string; targetSeconds
         <button type="button" className="button-secondary" onClick={resetTimer}>
           Reset
         </button>
+        {elapsedSeconds > 0 ? (
+          <button type="button" className="button-primary" data-action="done" onClick={finishTimer}>
+            Done
+          </button>
+        ) : null}
       </div>
     </div>
   )
