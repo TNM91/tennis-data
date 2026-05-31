@@ -454,6 +454,7 @@ function LevelUpCardTile({
   const proofGuidance = getProofRatingGuidance(rating, card)
   const notePrompt = getProofNotePrompt(rating)
   const repFeedback = getCardRepFeedback(card, rating)
+  const coachableNote = getCoachableNotePrompt(card, rating)
   const commonMiss = getCardCommonMiss(card)
   const doseGuide = getCardDoseGuide(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
@@ -580,6 +581,11 @@ function LevelUpCardTile({
           <span>{repFeedback.label}</span>
           <strong>{repFeedback.title}</strong>
           <small>{repFeedback.detail}</small>
+        </div>
+        <div className={styles.levelUpCoachableNote}>
+          <span>Worth noting</span>
+          <strong>{coachableNote.title}</strong>
+          <small>{coachableNote.prompt}</small>
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder={notePrompt} aria-label={`Note for ${card.title}`} />
         <button type="button" className="button-secondary" onClick={completeCard}>{shownSavedRating === null ? 'Save proof' : `Saved ${shownSavedRating}/5`}</button>
@@ -791,6 +797,93 @@ function getProofNotePrompt(rating: number) {
   if (rating <= 1) return 'What got in the way?'
   if (rating <= 3) return 'What cue should you repeat?'
   return 'What made it work?'
+}
+
+function getCoachableNotePrompt(card: LevelUpCard, rating: number) {
+  const focus = getCardNoteFocus(card)
+
+  if (rating <= 1) {
+    return {
+      title: 'Name the blocker.',
+      prompt: focus.low,
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Name the repeat cue.',
+      prompt: focus.mid,
+    }
+  }
+
+  return {
+    title: 'Name what transferred.',
+    prompt: focus.high,
+  }
+}
+
+function getCardNoteFocus(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      low: 'Write where recovery disappeared: finish, first step, or ready spot.',
+      mid: 'Write the cue that made recovery show up before watching.',
+      high: 'Write what made the recovery automatic today.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      low: 'Write what changed first: target, breath, tempo, or pressure.',
+      mid: 'Write the routine word or target you should repeat next time.',
+      high: 'Write which target and routine felt most repeatable.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      low: 'Write whether the serve target or first-ball plan was unclear.',
+      mid: 'Write the pattern that almost connected.',
+      high: 'Write the serve plus-one pattern you would use in a point.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      low: 'Write whether the decision was late or the feet were late.',
+      mid: 'Write the return job that should be repeated.',
+      high: 'Write which intent held up best under pace.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      low: 'Write which call was late or unclear.',
+      mid: 'Write the one call your partner responded to best.',
+      high: 'Write the call and first move you want to keep.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      low: 'Write when quality changed: posture, breath, legs, or decision.',
+      mid: 'Write the cue that kept tennis posture playable.',
+      high: 'Write how long quality held before it faded.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      low: 'Write the trigger that pulled you into the last point.',
+      mid: 'Write the short reset cue that got you back.',
+      high: 'Write the moment you reset before the next point started.',
+    }
+  }
+
+  return {
+    low: 'Write the one thing that blocked the tennis habit.',
+    mid: 'Write the cue you should repeat next session.',
+    high: 'Write what worked and where it showed up.',
+  }
 }
 
 function getCardRepFeedback(card: LevelUpCard, rating: number) {

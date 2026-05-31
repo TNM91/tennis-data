@@ -1504,7 +1504,8 @@
 }
 
 .levelUpProofNextStep,
-.levelUpRepFeedback {
+.levelUpRepFeedback,
+.levelUpCoachableNote {
   display: grid;
   gap: 4px;
   border: 1px solid rgba(155, 225, 29, 0.2);
@@ -1518,8 +1519,14 @@
   background: rgba(116, 190, 255, 0.055);
 }
 
+.levelUpCoachableNote {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .levelUpProofNextStep span,
-.levelUpRepFeedback span {
+.levelUpRepFeedback span,
+.levelUpCoachableNote span {
   color: var(--brand-green-3);
   font-size: 0.66rem;
   font-weight: 950;
@@ -1528,14 +1535,16 @@
 }
 
 .levelUpProofNextStep strong,
-.levelUpRepFeedback strong {
+.levelUpRepFeedback strong,
+.levelUpCoachableNote strong {
   color: var(--foreground-strong);
   font-size: 0.88rem;
   line-height: 1.2;
 }
 
 .levelUpProofNextStep small,
-.levelUpRepFeedback small {
+.levelUpRepFeedback small,
+.levelUpCoachableNote small {
   color: var(--muted-strong);
   font-size: 0.76rem;
   line-height: 1.32;
