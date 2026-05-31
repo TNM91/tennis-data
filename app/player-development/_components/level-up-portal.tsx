@@ -187,7 +187,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           <h2>Curated blocks coaches can assign.</h2>
         </div>
         <div className={styles.levelUpRailGrid}>
-          {featuredModules.map((module) => <LevelUpModuleTile key={module.id} module={module} />)}
+          {featuredModules.map((module) => <LevelUpModuleTile key={module.id} module={module} identitySlug={identitySlug} />)}
         </div>
       </section>
 
@@ -420,13 +420,31 @@ function LevelUpCardTile({
   )
 }
 
-function LevelUpModuleTile({ module }: { module: LevelUpModule }) {
+function LevelUpModuleTile({ module, identitySlug }: { module: LevelUpModule; identitySlug: string }) {
+  const moduleCards = module.cardIds
+    .map((cardId) => LEVEL_UP_CARDS.find((card) => card.id === cardId))
+    .filter(Boolean)
+    .slice(0, 4) as LevelUpCard[]
+  const firstCard = moduleCards[0]
+
   return (
     <article className={styles.levelUpModuleTile}>
       <span>{module.durationLabel}</span>
       <h3>{module.title}</h3>
+      <strong>{module.subtitle}</strong>
       <p>{module.description}</p>
+      {moduleCards.length ? (
+        <ol className={styles.levelUpModuleCards}>
+          {moduleCards.map((card) => (
+            <li key={card.id}>
+              <b>{card.title}</b>
+              <small>{card.proof}</small>
+            </li>
+          ))}
+        </ol>
+      ) : null}
       <small>Proof: {module.proof}</small>
+      {firstCard ? <a className="button-primary" href={buildCardStartHref(identitySlug, firstCard)}>Start module</a> : null}
     </article>
   )
 }
