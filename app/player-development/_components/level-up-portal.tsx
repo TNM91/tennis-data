@@ -37,6 +37,7 @@ const emptyFilters: FilterState = {
 export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPortalProps) {
   const profile = getLevelUpProfileForIdentity(identitySlug)
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
+  const [showAllCards, setShowAllCards] = useState(false)
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [completions, logCompletion] = useLevelUpCompletions()
   const [assignmentCardId, setAssignmentCardId] = useState('')
@@ -74,6 +75,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const todayModule = featuredModules[0] ?? LEVEL_UP_MODULES[0]
   const todayCard = identityCards[0] ?? LEVEL_UP_CARDS[0]
   const startHref = `/level-up/${identitySlug}#level-up-flow`
+  const activeFilterCount = countActiveFilters(filters)
+  const visibleAllCards = showAllCards ? filteredCards : filteredCards.slice(0, 12)
 
   return (
     <section className={styles.levelUpPortalApp} aria-labelledby="level-up-portal-title">
@@ -100,7 +103,19 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
 
       <LevelUpSafetyNote />
 
-      <LevelUpFilters filters={filters} onChange={setFilters} />
+      <LevelUpFilters
+        filters={filters}
+        resultCount={filteredCards.length}
+        activeFilterCount={activeFilterCount}
+        onChange={(nextFilters) => {
+          setFilters(nextFilters)
+          setShowAllCards(false)
+        }}
+        onReset={() => {
+          setFilters(emptyFilters)
+          setShowAllCards(false)
+        }}
+      />
 
       <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} coachMode onAssign={setAssignmentCardId} startHref={startHref} />
       <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
@@ -141,9 +156,10 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         <div className={styles.levelUpRailHeader}>
           <span>All Cards</span>
           <h2>{filteredCards.length} tools match your filters.</h2>
+          <p>Showing {visibleAllCards.length}. Start with the top matches, then expand only if you need the full library.</p>
         </div>
         <div className={styles.levelUpRailGrid}>
-          {filteredCards.map((card) => (
+          {visibleAllCards.map((card) => (
             <LevelUpCardTile
               key={card.id}
               card={card}
@@ -157,6 +173,15 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
             />
           ))}
         </div>
+        {filteredCards.length > visibleAllCards.length ? (
+          <button type="button" className={styles.levelUpShowMoreButton} onClick={() => setShowAllCards(true)}>
+            Show all {filteredCards.length} cards
+          </button>
+        ) : showAllCards && filteredCards.length > 12 ? (
+          <button type="button" className={styles.levelUpShowMoreButton} onClick={() => setShowAllCards(false)}>
+            Show fewer cards
+          </button>
+        ) : null}
       </section>
     </section>
   )
@@ -299,7 +324,19 @@ function LevelUpModuleTile({ module }: { module: LevelUpModule }) {
   )
 }
 
-function LevelUpFilters({ filters, onChange }: { filters: FilterState; onChange: (filters: FilterState) => void }) {
+function LevelUpFilters({
+  filters,
+  resultCount,
+  activeFilterCount,
+  onChange,
+  onReset,
+}: {
+  filters: FilterState
+  resultCount: number
+  activeFilterCount: number
+  onChange: (filters: FilterState) => void
+  onReset: () => void
+}) {
   const options = useMemo(() => ({
     category: unique(LEVEL_UP_CARDS.map((card) => card.category)),
     pack: unique(LEVEL_UP_CARDS.map((card) => card.pack)),
@@ -312,6 +349,11 @@ function LevelUpFilters({ filters, onChange }: { filters: FilterState; onChange:
 
   return (
     <section className={styles.levelUpFilters} aria-label="Level Up filters">
+      <div className={styles.levelUpFilterSummary}>
+        <span>{activeFilterCount ? `${activeFilterCount} filters active` : 'No filters active'}</span>
+        <strong>{resultCount} matching cards</strong>
+        <button type="button" onClick={onReset}>Reset</button>
+      </div>
       <FilterSelect label="category" value={filters.category} options={options.category} onChange={(value) => onChange({ ...filters, category: value })} />
       <FilterSelect label="pack" value={filters.pack} options={options.pack} onChange={(value) => onChange({ ...filters, pack: value })} />
       <FilterSelect label="setting" value={filters.setting} options={options.setting} onChange={(value) => onChange({ ...filters, setting: value })} />
@@ -433,6 +475,10 @@ function cardMatchesFilters(card: LevelUpCard, filters: FilterState) {
   if (filters.level !== 'all' && card.level !== filters.level) return false
   if (filters.tag !== 'all' && !card.tags.includes(filters.tag)) return false
   return true
+}
+
+function countActiveFilters(filters: FilterState) {
+  return Object.values(filters).filter((value) => value !== 'all').length
 }
 
 function unique(items: string[]) {

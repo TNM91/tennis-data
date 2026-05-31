@@ -607,6 +607,49 @@
   padding: 12px;
 }
 
+.levelUpFilterSummary {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  grid-column: span 2;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: 12px;
+  background: rgba(155, 225, 29, 0.06);
+  padding: 10px;
+}
+
+.levelUpFilterSummary span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpFilterSummary strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+}
+
+.levelUpFilterSummary button,
+.levelUpShowMoreButton {
+  appearance: none;
+  width: fit-content;
+  min-height: 36px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 6px 12px;
+  font-weight: 900;
+}
+
+.levelUpShowMoreButton {
+  justify-self: center;
+  margin-top: 2px;
+}
+
 .levelUpFilterGroup {
   display: grid;
   gap: 5px;
@@ -5144,6 +5187,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .levelUpFilterSummary {
+    grid-column: span 2;
+  }
+
   .liveWorkbenchBody {
     grid-template-columns: 1fr;
   }
@@ -5247,6 +5294,10 @@
   .levelUpAssignmentControls,
   .performanceUpgradeHero {
     grid-template-columns: 1fr;
+  }
+
+  .levelUpFilterSummary {
+    grid-column: span 1;
   }
 
   .levelUpRouteActions,
