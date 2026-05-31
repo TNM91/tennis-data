@@ -79,9 +79,9 @@ type PlayerLiveWorkbenchProps = {
 }
 
 const workTypeLabels: Record<WorkType, string> = {
-  court: 'Court drills',
-  physical: 'Physical',
-  mental: 'Mind / habit',
+  court: 'On court',
+  physical: 'Off court: body',
+  mental: 'Off court: mind',
 }
 
 const contextLabels: Record<TrainingContext, string> = {
@@ -93,9 +93,9 @@ const contextLabels: Record<TrainingContext, string> = {
 }
 
 const contextOptionsByWorkType: Record<WorkType, TrainingContext[]> = {
-  court: ['alone', 'partner', 'singles', 'doubles', 'coach'],
-  physical: ['alone', 'coach'],
-  mental: ['alone', 'coach'],
+  court: ['alone', 'partner', 'singles', 'doubles'],
+  physical: ['alone'],
+  mental: ['alone'],
 }
 
 const feelingLabels: Record<PlayerFeeling, string> = {
@@ -455,6 +455,16 @@ export default function PlayerLiveWorkbench({
         </div>
       </div>
 
+      {!hasCoachAssignment ? (
+        <div className={styles.liveCoachChallengeEntry}>
+          <div>
+            <span>Coach challenges</span>
+            <strong>Assigned work lives separately.</strong>
+          </div>
+          <a className="button-secondary" href="/mylab#coach-assignments">Open</a>
+        </div>
+      ) : null}
+
       <div className={styles.liveCoachLoop} aria-label="Coach linked training loop">
         <article>
           <span>Coach invite</span>
@@ -506,10 +516,10 @@ export default function PlayerLiveWorkbench({
       </div>
 
       <div className={styles.liveModeStrip} aria-label="Phone first training steps">
-        <span>Pick focus</span>
-        <span>Pick work</span>
-        <span>Choose setup</span>
-        <span>Start timer</span>
+        <span>Focus</span>
+        <span>On / Off court</span>
+        <span>Setup</span>
+        <span>Go</span>
       </div>
 
       <div id="level-up-flow" className={styles.liveTrainingFlow}>
@@ -529,6 +539,10 @@ export default function PlayerLiveWorkbench({
                 <span>{focus.cue}</span>
               </button>
             ))}
+            <a className={styles.liveFocusButton} href="/mylab#coach-assignments">
+              <strong>Coach challenges</strong>
+              <span>Go to assigned modules from your linked coach.</span>
+            </a>
           </div>
         </div>
 
@@ -558,7 +572,7 @@ export default function PlayerLiveWorkbench({
         <div className={styles.liveWorkbenchBody} data-flow-state={editingStep ?? 'drill'} data-scoring={scoringDrillId === activeDrill.id ? 'true' : 'false'}>
           <div className={styles.liveLaneColumn} data-collapsed={editingStep !== 'work' ? 'true' : 'false'}>
             <div className={styles.liveCurrentGoal}>
-              <span>2. Work</span>
+              <span>2. On court / off court</span>
               <strong>{activeFocus.title}</strong>
               <p>{activeFocus.cue}</p>
             </div>

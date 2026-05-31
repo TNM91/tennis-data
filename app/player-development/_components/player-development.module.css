@@ -378,6 +378,7 @@
   border-radius: 14px;
   padding: 12px;
   text-align: left;
+  text-decoration: none;
 }
 
 .liveFocusButton[data-active='true'],
@@ -419,6 +420,7 @@
 .liveAccessPanel,
 .liveAssignmentBanner,
 .liveSavedBanner,
+.liveCoachChallengeEntry,
 .liveUnlockPanel,
 .liveRecentList {
   display: grid;
@@ -472,6 +474,7 @@
 .liveAccessPanel,
 .liveAssignmentBanner,
 .liveSavedBanner,
+.liveCoachChallengeEntry,
 .liveUnlockPanel,
 .liveRecentList,
 .liveRecentList article {
@@ -488,6 +491,7 @@
 .liveAccessPanel,
 .liveAssignmentBanner,
 .liveSavedBanner,
+.liveCoachChallengeEntry,
 .liveUnlockPanel,
 .liveRecentList,
 .liveCoachLoop article,
@@ -507,6 +511,7 @@
 .liveTracker > span,
 .liveAccessPanel > div > span,
 .liveAssignmentBanner span,
+.liveCoachChallengeEntry span,
 .liveWorkbenchHero span,
 .liveStepPanel > span,
 .liveCoachLoop span,
@@ -533,6 +538,7 @@
 .liveTracker strong,
 .liveAccessPanel > div > strong,
 .liveAssignmentBanner strong,
+.liveCoachChallengeEntry strong,
 .liveStepPanel > strong,
 .liveCoachLoop strong,
 .liveProgressPanel strong,
@@ -555,6 +561,7 @@
 .liveActionGuide p,
 .liveAccessPanel > div > p,
 .liveAssignmentBanner p,
+.liveCoachChallengeEntry p,
 .liveCoachLoop p,
 .liveProgressPanel p,
 .liveSavedBanner p,
@@ -585,6 +592,11 @@
   background:
     linear-gradient(90deg, rgba(155, 225, 29, 0.12), transparent 40%),
     rgba(255, 255, 255, 0.055);
+}
+
+.liveCoachChallengeEntry {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
 }
 
 .liveAccessGrid {
@@ -4808,11 +4820,11 @@
   .liveCompactSummary {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
+    gap: 6px;
     border: 1px solid rgba(155, 225, 29, 0.24);
-    border-radius: 14px;
-    background: rgba(155, 225, 29, 0.08);
-    padding: 11px;
+    border-radius: 12px;
+    background: rgba(155, 225, 29, 0.06);
+    padding: 9px;
   }
 
   .liveCompactSummary span {
@@ -4839,23 +4851,22 @@
   .liveCompactEdits {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    gap: 5px;
   }
 
   .liveCompactEdits button {
     appearance: none;
-    min-height: 34px;
-    border: 1px solid rgba(116, 190, 255, 0.18);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.045);
+    min-height: 30px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
     color: var(--foreground);
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     font-weight: 900;
   }
 
   .liveCompactEdits button[data-active='true'] {
-    border-color: rgba(155, 225, 29, 0.56);
-    background: rgba(155, 225, 29, 0.13);
+    box-shadow: inset 0 -2px 0 rgba(155, 225, 29, 0.76);
     color: var(--foreground-strong);
   }
 
@@ -4878,8 +4889,8 @@
   }
 
   .liveWorkbenchBody[data-flow-state='work'] .liveLaneColumn {
-    min-height: calc(100svh - 122px);
-    align-content: center;
+    min-height: 0;
+    align-content: start;
   }
 
   .liveWorkbenchBody[data-scoring='true'] .liveTracker {
@@ -4893,6 +4904,17 @@
     overflow-x: auto;
     padding-bottom: 2px;
     scroll-snap-type: x proximity;
+  }
+
+  .liveCoachChallengeEntry {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: 12px;
+  }
+
+  .liveCoachChallengeEntry strong {
+    display: none;
   }
 
   .liveFocusButton {
