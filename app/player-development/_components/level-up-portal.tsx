@@ -203,7 +203,14 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           <h2>Curated blocks coaches can assign.</h2>
         </div>
         <div className={styles.levelUpRailGrid}>
-          {featuredModules.map((module) => <LevelUpModuleTile key={module.id} module={module} identitySlug={identitySlug} />)}
+          {featuredModules.map((module) => (
+            <LevelUpModuleTile
+              key={module.id}
+              module={module}
+              identitySlug={identitySlug}
+              completionSummaryByCardId={completionSummaryByCardId}
+            />
+          ))}
         </div>
       </section>
 
@@ -510,12 +517,23 @@ function LevelUpCardTile({
   )
 }
 
-function LevelUpModuleTile({ module, identitySlug }: { module: LevelUpModule; identitySlug: string }) {
+function LevelUpModuleTile({
+  module,
+  identitySlug,
+  completionSummaryByCardId,
+}: {
+  module: LevelUpModule
+  identitySlug: string
+  completionSummaryByCardId: Map<string, CompletionSummary>
+}) {
   const moduleCards = module.cardIds
     .map((cardId) => LEVEL_UP_CARDS.find((card) => card.id === cardId))
     .filter(Boolean)
     .slice(0, 4) as LevelUpCard[]
-  const firstCard = moduleCards[0]
+  const completedCount = moduleCards.filter((card) => completionSummaryByCardId.has(card.id)).length
+  const nextCard = moduleCards.find((card) => !completionSummaryByCardId.has(card.id)) ?? moduleCards[0]
+  const progressLabel = moduleCards.length ? `${completedCount}/${moduleCards.length} logged` : 'No cards yet'
+  const moduleActionLabel = completedCount > 0 && completedCount < moduleCards.length ? 'Continue module' : completedCount === moduleCards.length ? 'Repeat module' : 'Start module'
 
   return (
     <article className={styles.levelUpModuleTile}>
@@ -523,18 +541,22 @@ function LevelUpModuleTile({ module, identitySlug }: { module: LevelUpModule; id
       <h3>{module.title}</h3>
       <strong>{module.subtitle}</strong>
       <p>{module.description}</p>
+      <div className={styles.levelUpModuleProgress}>
+        <small>{progressLabel}</small>
+        {nextCard ? <b>Next up: {nextCard.title}</b> : null}
+      </div>
       {moduleCards.length ? (
         <ol className={styles.levelUpModuleCards}>
           {moduleCards.map((card) => (
-            <li key={card.id}>
+            <li key={card.id} data-complete={completionSummaryByCardId.has(card.id) ? 'true' : 'false'}>
               <b>{card.title}</b>
-              <small>{card.proof}</small>
+              <small>{completionSummaryByCardId.has(card.id) ? `Logged ${completionSummaryByCardId.get(card.id)?.lastRating ?? ''}/5` : card.proof}</small>
             </li>
           ))}
         </ol>
       ) : null}
       <small>Proof: {module.proof}</small>
-      {firstCard ? <a className="button-primary" href={buildCardStartHref(identitySlug, firstCard)}>Start module</a> : null}
+      {nextCard ? <a className="button-primary" href={buildCardStartHref(identitySlug, nextCard)}>{moduleActionLabel}</a> : null}
     </article>
   )
 }
