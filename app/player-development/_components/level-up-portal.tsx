@@ -481,6 +481,11 @@ function LevelUpCardTile({
         <EquipmentPill equipment={card.equipment.join(', ')} />
       </div>
       <p><b>Proof:</b> {card.proof}</p>
+      <div className={styles.levelUpPurposeStrip} aria-label={`Training purpose for ${card.title}`}>
+        <span><b>Builds</b>{getCardPurposeLabel(card)}</span>
+        <span><b>Best setting</b>{getCardSettingLabel(card)}</span>
+        <span><b>Coach sees</b>{getCardCoachSignal(card)}</span>
+      </div>
       <div className={styles.levelUpTrainingStandards} aria-label={`Training standards for ${card.title}`}>
         <span>Train clean</span>
         <div>
@@ -830,6 +835,99 @@ function getCardProofStandard(card: LevelUpCard) {
   }
 
   return 'You can repeat the cue without needing a coach reminder.'
+}
+
+function getCardPurposeLabel(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return 'Recovery before watching'
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return 'Serve routine clarity'
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return 'Serve plus-one pattern'
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return 'Return intent'
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return 'Defense back to neutral'
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return 'Attack with balance'
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return 'Doubles first move'
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return 'Between-point reset'
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return 'Posture under fatigue'
+  }
+
+  if (card.tags.includes('wall-work')) {
+    return 'Wall reps that transfer'
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return 'Recovery readiness'
+  }
+
+  if (card.category === 'strength-stability') {
+    return 'Tennis posture strength'
+  }
+
+  return card.tags[0]?.replaceAll('-', ' ') ?? 'Tennis habit'
+}
+
+function getCardSettingLabel(card: LevelUpCard) {
+  if (card.setting.includes('court')) return 'Court'
+  if (card.setting.includes('wall')) return 'Wall'
+  if (card.setting.includes('home')) return 'Home'
+  if (card.setting.includes('gym')) return 'Gym'
+  if (card.setting.includes('match-day')) return 'Match day'
+  return formatLabel(card.setting[0] ?? 'anywhere')
+}
+
+function getCardCoachSignal(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return 'Recovery showed up'
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return 'Target stayed clear'
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return 'First ball had a plan'
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return 'Return job was chosen'
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return 'Partner heard the plan'
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return 'Quality held late'
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return 'Reset beat the replay'
+  }
+
+  return 'Proof score plus one cue'
 }
 
 function getCardAvoidCue(card: LevelUpCard) {

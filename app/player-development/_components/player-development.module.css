@@ -1243,6 +1243,33 @@
   text-transform: uppercase;
 }
 
+.levelUpPurposeStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.levelUpPurposeStrip span {
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: 10px;
+  background: rgba(155, 225, 29, 0.06);
+  color: var(--foreground-strong);
+  padding: 8px;
+  font-size: 0.74rem;
+  font-weight: 850;
+  line-height: 1.22;
+}
+
+.levelUpPurposeStrip b {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.61rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .levelUpTrainingStandards {
   display: grid;
   gap: 6px;
@@ -6255,6 +6282,10 @@
   }
 
   .levelUpRunStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpPurposeStrip {
     grid-template-columns: 1fr;
   }
 
