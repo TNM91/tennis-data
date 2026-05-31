@@ -143,6 +143,16 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         }}
       />
 
+      <LevelUpStartList
+        intent={selectedIntent}
+        cards={startCards}
+        recommendationByCardId={recommendationByCardId}
+        favorites={favorites}
+        onFavorite={toggleFavorite}
+        onComplete={logCompletion}
+        startHref={startHref}
+      />
+
       <LevelUpFilters
         filters={filters}
         resultCount={filteredCards.length}
@@ -157,16 +167,6 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           setFilters(emptyFilters)
           setShowAllCards(false)
         }}
-      />
-
-      <LevelUpStartList
-        intent={selectedIntent}
-        cards={startCards}
-        recommendationByCardId={recommendationByCardId}
-        favorites={favorites}
-        onFavorite={toggleFavorite}
-        onComplete={logCompletion}
-        startHref={startHref}
       />
 
       <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} defaultOpen />
@@ -434,21 +434,24 @@ function LevelUpFilters({
   }), [])
 
   return (
-    <section className={styles.levelUpFilters} aria-label="Level Up filters">
-      <div className={styles.levelUpFilterSummary}>
-        <span>{activeFilterCount ? `${activeFilterCount} filters active` : 'No filters active'}</span>
-        <strong>{resultCount} matching cards</strong>
-        <button type="button" onClick={onReset}>Reset</button>
+    <details className={styles.levelUpFilters} aria-label="Level Up filters">
+      <summary className={styles.levelUpFilterSummary}>
+        <span>{activeFilterCount ? `${activeFilterCount} filters active` : 'Optional'}</span>
+        <strong>Advanced filters</strong>
+        <small>{resultCount} matching cards</small>
+      </summary>
+      <div className={styles.levelUpFilterControls}>
+        <FilterSelect label="category" value={filters.category} options={options.category} onChange={(value) => onChange({ ...filters, category: value })} />
+        <FilterSelect label="pack" value={filters.pack} options={options.pack} onChange={(value) => onChange({ ...filters, pack: value })} />
+        <FilterSelect label="setting" value={filters.setting} options={options.setting} onChange={(value) => onChange({ ...filters, setting: value })} />
+        <FilterSelect label="equipment" value={filters.equipment} options={options.equipment} onChange={(value) => onChange({ ...filters, equipment: value })} />
+        <FilterSelect label="duration" value={filters.duration} options={['under-10']} onChange={(value) => onChange({ ...filters, duration: value })} />
+        <FilterSelect label="intensity" value={filters.intensity} options={options.intensity} onChange={(value) => onChange({ ...filters, intensity: value })} />
+        <FilterSelect label="level" value={filters.level} options={options.level} onChange={(value) => onChange({ ...filters, level: value })} />
+        <FilterSelect label="tag" value={filters.tag} options={options.tag} onChange={(value) => onChange({ ...filters, tag: value })} />
+        <button type="button" onClick={onReset}>Reset filters</button>
       </div>
-      <FilterSelect label="category" value={filters.category} options={options.category} onChange={(value) => onChange({ ...filters, category: value })} />
-      <FilterSelect label="pack" value={filters.pack} options={options.pack} onChange={(value) => onChange({ ...filters, pack: value })} />
-      <FilterSelect label="setting" value={filters.setting} options={options.setting} onChange={(value) => onChange({ ...filters, setting: value })} />
-      <FilterSelect label="equipment" value={filters.equipment} options={options.equipment} onChange={(value) => onChange({ ...filters, equipment: value })} />
-      <FilterSelect label="duration" value={filters.duration} options={['under-10']} onChange={(value) => onChange({ ...filters, duration: value })} />
-      <FilterSelect label="intensity" value={filters.intensity} options={options.intensity} onChange={(value) => onChange({ ...filters, intensity: value })} />
-      <FilterSelect label="level" value={filters.level} options={options.level} onChange={(value) => onChange({ ...filters, level: value })} />
-      <FilterSelect label="tag" value={filters.tag} options={options.tag} onChange={(value) => onChange({ ...filters, tag: value })} />
-    </section>
+    </details>
   )
 }
 
