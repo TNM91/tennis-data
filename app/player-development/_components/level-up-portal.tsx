@@ -665,7 +665,8 @@ function CompletionSummaryPill({ summary }: { summary: CompletionSummary }) {
   const rating = typeof summary.lastRating === 'number' ? `${summary.lastRating}/5` : 'logged'
   const label = summary.count === 1 ? '1 log' : `${summary.count} logs`
   const trend = getProofTrendLabel(summary)
-  return <small className={styles.completionSummaryPill}>Last proof {rating} - {trend} - {label}</small>
+  const action = getProofTrendAction(trend)
+  return <small className={styles.completionSummaryPill}>Last proof {rating} - {trend}: {action} - {label}</small>
 }
 
 function getProofTrendLabel(summary: CompletionSummary) {
@@ -676,6 +677,13 @@ function getProofTrendLabel(summary: CompletionSummary) {
   if (summary.lastRating > summary.previousRating) return 'improving'
   if (summary.lastRating === summary.previousRating) return 'holding'
   return 'rebuild'
+}
+
+function getProofTrendAction(trend: string) {
+  if (trend === 'improving') return 'raise the challenge'
+  if (trend === 'holding') return 'repeat clean'
+  if (trend === 'rebuild') return 'scale down'
+  return 'log again'
 }
 
 function getProofRatingGuidance(rating: number, card: LevelUpCard) {
