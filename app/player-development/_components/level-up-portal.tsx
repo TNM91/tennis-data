@@ -475,6 +475,10 @@ function LevelUpCardTile({
         <EquipmentPill equipment={card.equipment.join(', ')} />
       </div>
       <p><b>Proof:</b> {card.proof}</p>
+      <div className={styles.levelUpProofTarget}>
+        <span>Counts when</span>
+        <strong>{getCardProofStandard(card)}</strong>
+      </div>
       {reason ? <RecommendedReasonPill reason={reason} /> : null}
       {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}
       <div className={styles.levelUpDoNow}>
@@ -671,6 +675,50 @@ function getProofRatingGuidance(rating: number, card: LevelUpCard) {
     title: 'Progress the challenge.',
     detail: card.progression,
   }
+}
+
+function getCardProofStandard(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return 'You move back to ready before judging the shot.'
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return 'You call the target and keep the same routine under score pressure.'
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return 'The serve target and first-ball plan match.'
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return 'You choose the return job before the toss and recover after contact.'
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return 'You reset before the next point starts, not after the next mistake.'
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return 'The defensive ball buys time and your recovery stays balanced.'
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return 'You attack from balance and finish ready for the next ball.'
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return 'Your partner can hear the plan and see the first move.'
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return 'Movement quality stays controlled as the work gets harder.'
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return 'You finish calmer, controlled, and ready for the next session.'
+  }
+
+  return 'You can repeat the cue without needing a coach reminder.'
 }
 
 function getCardSetupLabel(card: LevelUpCard) {
