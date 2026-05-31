@@ -1919,6 +1919,35 @@
   font-size: 0.82rem;
 }
 
+.liveProofRubric {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.liveProofRubric div {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 8px;
+}
+
+.liveProofRubric span {
+  color: var(--brand-green-3);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.liveProofRubric strong {
+  color: var(--foreground-strong);
+  font-size: 0.76rem;
+  line-height: 1.18;
+}
+
 .liveMicroPlan {
   border: 1px solid rgba(155, 225, 29, 0.2);
   border-radius: 14px;
@@ -6351,6 +6380,7 @@
   .liveActionCard,
   .liveTracker,
   .liveQualityGrid,
+  .liveProofRubric,
   .liveDrillSteps div,
   .liveTimerPanel {
     gap: 8px;
@@ -6426,6 +6456,10 @@
   }
 
   .liveQualityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .liveProofRubric {
     grid-template-columns: 1fr;
   }
 

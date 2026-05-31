@@ -693,6 +693,14 @@ export default function PlayerLiveWorkbench({
           <aside ref={trackerRef} className={styles.liveTracker} aria-label="Quick tracking">
             <span>3. Submit</span>
             <strong>Score and save.</strong>
+            <div className={styles.liveProofRubric} aria-label="Proof rating guide">
+              {getLiveProofRubric(activeDrill.sourceCard).map((item) => (
+                <div key={item.value}>
+                  <span>{item.value}</span>
+                  <strong>{item.label}</strong>
+                </div>
+              ))}
+            </div>
             <div className={styles.liveFeelingGrid} aria-label="How do you feel right now?">
               {(Object.keys(feelingLabels) as PlayerFeeling[]).map((feeling) => (
                 <button
@@ -1137,6 +1145,45 @@ function getCardCommonMiss(card: LevelUpCard) {
   if (card.category === 'strength-stability' || card.category === 'conditioning') return 'Adding effort after posture quality drops.'
   if (card.category === 'mobility-stretch' || card.category === 'recovery-reset') return 'Forcing range instead of breathing through control.'
   return 'Adding volume before the habit is clean.'
+}
+
+function getLiveProofRubric(card?: LevelUpCard) {
+  const proof = card?.proof.toLowerCase() ?? ''
+
+  if (proof.includes('serve') || card?.tags.some((tag) => tag.includes('serve'))) {
+    return [
+      { value: '0-1', label: 'No target or routine yet' },
+      { value: '3', label: 'Routine showed up sometimes' },
+      { value: '5', label: 'Target and routine stayed clear' },
+    ]
+  }
+  if (proof.includes('recovery') || card?.tags.includes('recovery-after-contact')) {
+    return [
+      { value: '0-1', label: 'Watched before recovering' },
+      { value: '3', label: 'Recovered on some reps' },
+      { value: '5', label: 'Recovered before judging' },
+    ]
+  }
+  if (proof.includes('fatigue') || card?.tags.includes('leg-durability') || card?.tags.includes('conditioning')) {
+    return [
+      { value: '0-1', label: 'Posture broke quickly' },
+      { value: '3', label: 'Held form part of the block' },
+      { value: '5', label: 'Quality held under fatigue' },
+    ]
+  }
+  if (proof.includes('doubles') || card?.tags.some((tag) => tag.includes('doubles') || tag.includes('partner'))) {
+    return [
+      { value: '0-1', label: 'Plan was unclear' },
+      { value: '3', label: 'Call helped sometimes' },
+      { value: '5', label: 'Partner could act on it' },
+    ]
+  }
+
+  return [
+    { value: '0-1', label: 'Habit did not show up yet' },
+    { value: '3', label: 'Showed up sometimes' },
+    { value: '5', label: 'Automatic enough today' },
+  ]
 }
 
 function shortenDrillStep(step: string) {
