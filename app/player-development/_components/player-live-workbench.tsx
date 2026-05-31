@@ -608,7 +608,9 @@ export default function PlayerLiveWorkbench({
                     setScoringDrillId('')
                   }}
                 >
-                  {drill.title}
+                  <strong>{drill.title}</strong>
+                  <span>{drill.duration}</span>
+                  <small>{shortenDrillStep(drill.proof)}</small>
                 </button>
               ))}
             </div>

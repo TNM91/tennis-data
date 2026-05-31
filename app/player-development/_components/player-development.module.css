@@ -670,8 +670,39 @@
 }
 
 .liveDrillChoices button {
+  display: grid;
+  gap: 5px;
   border-radius: 12px;
   font-size: 0.82rem;
+}
+
+.liveDrillChoices button strong,
+.liveDrillChoices button span,
+.liveDrillChoices button small {
+  display: block;
+  min-width: 0;
+  text-align: left;
+}
+
+.liveDrillChoices button strong {
+  color: var(--foreground-strong);
+  font-size: 0.84rem;
+  line-height: 1.14;
+}
+
+.liveDrillChoices button span {
+  color: var(--brand-green-3);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.liveDrillChoices button small {
+  color: var(--muted-strong);
+  font-size: 0.73rem;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .liveFeelingGrid button {
@@ -4930,6 +4961,10 @@
     min-height: 38px;
     padding: 8px 10px;
     font-size: 0.82rem;
+  }
+
+  .liveDrillChoices button {
+    min-height: 76px;
   }
 
   .liveActionCard h3 {
