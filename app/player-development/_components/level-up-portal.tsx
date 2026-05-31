@@ -453,6 +453,7 @@ function LevelUpCardTile({
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
   const notePrompt = getProofNotePrompt(rating)
+  const nextPractice = getCardNextPractice(card, shownSavedRating)
 
   function openLogger() {
     setLoggerOpen(true)
@@ -497,6 +498,13 @@ function LevelUpCardTile({
       </div>
       {reason ? <RecommendedReasonPill reason={reason} /> : null}
       {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}
+      {nextPractice ? (
+        <div className={styles.levelUpNextPractice}>
+          <span>Next practice</span>
+          <strong>{nextPractice.title}</strong>
+          <small>{nextPractice.detail}</small>
+        </div>
+      ) : null}
       <div className={styles.levelUpDoNow}>
         <span>Do now</span>
         <strong>{card.cue}</strong>
@@ -754,6 +762,30 @@ function getProofNotePrompt(rating: number) {
   if (rating <= 1) return 'What got in the way?'
   if (rating <= 3) return 'What cue should you repeat?'
   return 'What made it work?'
+}
+
+function getCardNextPractice(card: LevelUpCard, rating: number | null) {
+  if (rating === null) return null
+
+  const proofName = card.proof.replace(' 0-5', '').toLowerCase()
+  if (rating <= 1) {
+    return {
+      title: 'Shrink the drill.',
+      detail: `Next time: ${card.regression} Score ${proofName} again before adding volume.`,
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Repeat the same standard.',
+      detail: `Run the same card again and chase one cleaner cue: ${card.cue}`,
+    }
+  }
+
+  return {
+    title: 'Raise the challenge.',
+    detail: `Next time: ${card.progression} Keep the proof honest, not just harder.`,
+  }
 }
 
 function getCardProofStandard(card: LevelUpCard) {
