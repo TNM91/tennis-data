@@ -482,6 +482,11 @@ function LevelUpCardTile({
         <strong>{card.cue}</strong>
         <small>{card.routine[0]}</small>
       </div>
+      <div className={styles.levelUpRunStrip} aria-label={`How to run ${card.title}`}>
+        <span><b>Set</b>{getCardSetupLabel(card)}</span>
+        <span><b>Do</b>{card.durationMinutes} min controlled block</span>
+        <span><b>Score</b>{card.proof.replace(' 0-5', '')}</span>
+      </div>
       <details className={styles.levelUpCardPlan}>
         <summary>View plan</summary>
         <div className={styles.levelUpPlanCue}>
@@ -666,6 +671,20 @@ function getProofRatingGuidance(rating: number, card: LevelUpCard) {
     title: 'Progress the challenge.',
     detail: card.progression,
   }
+}
+
+function getCardSetupLabel(card: LevelUpCard) {
+  const usefulEquipment = card.equipment.filter((item) => item !== 'none')
+
+  if (!usefulEquipment.length) return 'No gear needed'
+  if (usefulEquipment.includes('partner')) return 'Partner and one clear rule'
+  if (usefulEquipment.includes('cones')) return 'Cones or court markers'
+  if (usefulEquipment.includes('wall')) return 'Wall space and target'
+  if (usefulEquipment.includes('jump-rope')) return 'Rope and quiet landings'
+  if (usefulEquipment.includes('resistance-band')) return 'Band and control'
+  if (usefulEquipment.includes('basket')) return 'Basket and target'
+
+  return `${formatLabel(usefulEquipment[0])} ready`
 }
 
 function EquipmentPill({ equipment }: { equipment: string }) {
