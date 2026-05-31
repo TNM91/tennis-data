@@ -191,6 +191,9 @@ export default function PortalToolBar() {
   }, [authResolved, userId])
 
   if (isPortalHidden(pathname)) return null
+  const publicVisitor = !authenticated
+  const showPublicTasks = !(publicVisitor && isMobile)
+  const visibleTasks = publicVisitor ? (showPublicTasks ? activeLane.tasks.slice(0, 4) : []) : activeLane.tasks
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -198,8 +201,6 @@ export default function PortalToolBar() {
     if (query.trim()) params.set('q', query.trim())
     router.push(`/explore/search?${params.toString()}`)
   }
-
-  if (!authenticated) return null
 
   const headline = authenticated
     ? firstName
@@ -216,7 +217,7 @@ export default function PortalToolBar() {
         zIndex: 25,
         width: '100%',
         boxSizing: 'border-box',
-        padding: isMobile ? '14px 8px 10px' : '18px 16px 12px',
+        padding: publicVisitor ? (isMobile ? '10px 8px 8px' : '10px 16px 8px') : isMobile ? '14px 8px 10px' : '18px 16px 12px',
         overflow: 'clip',
       }}
     >
@@ -225,9 +226,9 @@ export default function PortalToolBar() {
           width: 'min(1280px, 100%)',
           margin: '0 auto',
           display: 'grid',
-          gap: isMobile ? 14 : 16,
-          padding: isSmallMobile ? 16 : isMobile ? 18 : 20,
-          borderRadius: isSmallMobile ? 24 : 28,
+          gap: publicVisitor ? 10 : isMobile ? 14 : 16,
+          padding: publicVisitor ? (isSmallMobile ? 12 : 14) : isSmallMobile ? 16 : isMobile ? 18 : 20,
+          borderRadius: publicVisitor ? (isSmallMobile ? 18 : 20) : isSmallMobile ? 24 : 28,
           border: '1px solid rgba(116,190,255,0.15)',
           background: portalSurfaceBackground,
           color: 'var(--foreground)',
@@ -238,8 +239,8 @@ export default function PortalToolBar() {
         }}
       >
         <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
-          <div style={portalTitleStyle}>{headline}</div>
-          <p style={portalSubtitleStyle}>
+          <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
+          <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
             {authenticated ? 'What do we want to work on today?' : 'Start with the tennis map, then unlock the workspace that saves your week.'}
           </p>
         </div>
@@ -247,10 +248,12 @@ export default function PortalToolBar() {
         <nav
           aria-label="Choose a TenAceIQ workspace"
           style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(5, minmax(0, 1fr))',
+            display: publicVisitor && isMobile ? 'flex' : 'grid',
+            gridTemplateColumns: publicVisitor && isMobile ? undefined : isMobile ? 'minmax(0, 1fr)' : 'repeat(5, minmax(0, 1fr))',
             gap: 10,
             minWidth: 0,
+            overflowX: publicVisitor && isMobile ? 'auto' : undefined,
+            paddingBottom: publicVisitor && isMobile ? 2 : undefined,
           }}
         >
           {portalLanes.map((lane) => (
@@ -262,6 +265,8 @@ export default function PortalToolBar() {
               authenticated={authenticated}
               accessPending={accessPending}
               profileLinked={profileLinked}
+              compact={publicVisitor}
+              mobileCompact={publicVisitor && isMobile}
             />
           ))}
         </nav>
@@ -275,7 +280,7 @@ export default function PortalToolBar() {
             minWidth: 0,
           }}
         >
-          <label style={searchShellStyle}>
+          <label style={{ ...searchShellStyle, ...(publicVisitor ? compactSearchShellStyle : null) }}>
             <SearchIcon />
             <input
               value={query}
@@ -285,32 +290,35 @@ export default function PortalToolBar() {
               style={searchInputStyle}
             />
           </label>
-          <button type="submit" style={searchButtonStyle}>
+          <button type="submit" style={{ ...searchButtonStyle, ...(publicVisitor ? compactSearchButtonStyle : null) }}>
             Search
           </button>
         </form>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
-            gap: 10,
-            minWidth: 0,
-          }}
-        >
-          {activeLane.tasks.map((task) => (
-            <PortalTaskCard
-              key={task.title}
-              task={task}
-              access={access}
-              authenticated={authenticated}
-              accessPending={accessPending}
-              accent={activeAccent}
-              active={isPortalTaskActive(pathname, task.href)}
-              profileLinked={profileLinked}
-            />
-          ))}
-        </div>
+        {visibleTasks.length > 0 ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
+              gap: 10,
+              minWidth: 0,
+            }}
+          >
+            {visibleTasks.map((task) => (
+              <PortalTaskCard
+                key={task.title}
+                task={task}
+                access={access}
+                authenticated={authenticated}
+                accessPending={accessPending}
+                accent={activeAccent}
+                active={isPortalTaskActive(pathname, task.href)}
+                profileLinked={profileLinked}
+                compact={publicVisitor}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   )
@@ -323,6 +331,8 @@ function PortalLaneCard({
   authenticated,
   accessPending,
   profileLinked,
+  compact,
+  mobileCompact,
 }: {
   lane: PortalLane
   active: boolean
@@ -330,6 +340,8 @@ function PortalLaneCard({
   authenticated: boolean
   accessPending: boolean
   profileLinked: boolean
+  compact?: boolean
+  mobileCompact?: boolean
 }) {
   const target = getPortalLaneTarget({
     laneId: lane.id,
@@ -348,6 +360,8 @@ function PortalLaneCard({
       aria-current={active ? 'page' : undefined}
       style={{
         ...laneCardStyle,
+        ...(compact ? compactLaneCardStyle : null),
+        ...(mobileCompact ? compactMobileLaneCardStyle : null),
         borderColor: active ? accent : 'rgba(116,190,255,0.15)',
         background: active ? portalActiveCardBackground : 'rgba(255,255,255,0.045)',
         boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(116,190,255,0.08)' : undefined,
@@ -377,6 +391,7 @@ function PortalTaskCard({
   accent,
   active,
   profileLinked,
+  compact,
 }: {
   task: PortalLane['tasks'][number]
   access: ProductAccessState
@@ -385,6 +400,7 @@ function PortalTaskCard({
   accent: string
   active: boolean
   profileLinked: boolean
+  compact?: boolean
 }) {
   const target = getPortalTaskTarget({
     href: task.href,
@@ -403,6 +419,7 @@ function PortalTaskCard({
       title={task.detail}
       style={{
         ...taskCardStyle,
+        ...(compact ? compactTaskCardStyle : null),
         ...(active ? getActiveTaskCardStyle(accent) : null),
       }}
     >
@@ -464,6 +481,16 @@ const portalSubtitleStyle: CSSProperties = {
   fontWeight: 700,
 }
 
+const publicPortalTitleStyle: CSSProperties = {
+  fontSize: 'clamp(1.15rem, 2.2vw, 1.55rem)',
+  lineHeight: 1.08,
+}
+
+const publicPortalSubtitleStyle: CSSProperties = {
+  fontSize: 13,
+  lineHeight: 1.35,
+}
+
 const laneCardStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '42px minmax(0, 1fr)',
@@ -476,6 +503,18 @@ const laneCardStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   minWidth: 0,
+}
+
+const compactLaneCardStyle: CSSProperties = {
+  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gap: 8,
+  minHeight: 58,
+  padding: 9,
+  borderRadius: 8,
+}
+
+const compactMobileLaneCardStyle: CSSProperties = {
+  flex: '0 0 154px',
 }
 
 const laneCopyStyle: CSSProperties = {
@@ -530,6 +569,11 @@ const searchShellStyle: CSSProperties = {
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
+const compactSearchShellStyle: CSSProperties = {
+  minHeight: 46,
+  borderRadius: 8,
+}
+
 const searchInputStyle: CSSProperties = {
   width: '100%',
   minWidth: 0,
@@ -553,6 +597,11 @@ const searchButtonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
+const compactSearchButtonStyle: CSSProperties = {
+  minHeight: 46,
+  padding: '0 18px',
+}
+
 const taskCardStyle: CSSProperties = {
   display: 'grid',
   placeItems: 'center',
@@ -566,6 +615,12 @@ const taskCardStyle: CSSProperties = {
   textDecoration: 'none',
   minWidth: 0,
   textAlign: 'center',
+}
+
+const compactTaskCardStyle: CSSProperties = {
+  minHeight: 56,
+  padding: '8px 6px',
+  borderRadius: 8,
 }
 
 const taskIconShellStyle: CSSProperties = {
