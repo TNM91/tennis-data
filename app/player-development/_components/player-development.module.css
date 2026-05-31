@@ -731,6 +731,34 @@
   line-height: 1.35;
 }
 
+.levelUpQualityChecks {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+  border: 1px solid rgba(155, 225, 29, 0.14);
+  border-radius: 10px;
+  background: rgba(155, 225, 29, 0.055);
+  padding: 8px;
+}
+
+.levelUpQualityChecks span {
+  color: var(--brand-green-3);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpQualityChecks ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted-strong);
+  font-size: 0.8rem;
+  line-height: 1.32;
+}
+
 .levelUpPlanScale {
   display: grid;
   gap: 5px;

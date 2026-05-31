@@ -533,6 +533,12 @@ function LevelUpCardTile({
         <ol>
           {card.routine.slice(0, 3).map((step) => <li key={step}>{step}</li>)}
         </ol>
+        <div className={styles.levelUpQualityChecks}>
+          <span>Quality checks</span>
+          <ul>
+            {getCardQualityChecks(card).map((check) => <li key={check}>{check}</li>)}
+          </ul>
+        </div>
         <div className={styles.levelUpPlanScale}>
           <p><b>Level up:</b> {card.progression}</p>
           <p><b>Scale down:</b> {card.regression}</p>
@@ -928,6 +934,94 @@ function getCardCoachSignal(card: LevelUpCard) {
   }
 
   return 'Proof score plus one cue'
+}
+
+function getCardQualityChecks(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return [
+      'Finish balanced before you look for the result.',
+      'Recover through the target spot, not around it.',
+      'Start the next rep from a real ready position.',
+    ]
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return [
+      'Call the target before the motion starts.',
+      'Keep the same breath and tempo after a miss.',
+      'Score routine clarity separately from serve makes.',
+    ]
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return [
+      'Name the serve target and expected plus-one before starting.',
+      'Recover into the first-ball position after the serve.',
+      'Count the rep only when the first ball matches the plan.',
+    ]
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return [
+      'Choose the return job before the server tosses.',
+      'Use active feet without jumping early.',
+      'Recover after contact before judging the return.',
+    ]
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return [
+      'Use height or shape to buy time.',
+      'Recover before changing direction again.',
+      'Do not turn stretched defense into a low-percentage attack.',
+    ]
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return [
+      'Attack only from a balanced contact.',
+      'Close with control instead of rushing the last steps.',
+      'Finish ready for the next ball, not admiring the shot.',
+    ]
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return [
+      'Make the call early enough for your partner to move.',
+      'Use one clear word or phrase, not a long explanation.',
+      'Reset together after confusion before the next point.',
+    ]
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return [
+      'Turn away from the last point before planning the next one.',
+      'Use one breath and one short cue.',
+      'Step back in only when the next intention is clear.',
+    ]
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return [
+      'Keep posture cleaner than the clock.',
+      'Stop the block when movement quality changes.',
+      'Connect the tired body to one tennis decision.',
+    ]
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return [
+      'Move slowly enough to stay relaxed.',
+      'Do not force range or chase discomfort.',
+      'Finish with a simple readiness score.',
+    ]
+  }
+
+  return [
+    'Start with the cue, not the clock.',
+    'Count only reps that match the tennis habit.',
+    'Log one proof score before adding more work.',
+  ]
 }
 
 function getCardAvoidCue(card: LevelUpCard) {
