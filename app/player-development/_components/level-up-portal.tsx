@@ -469,6 +469,11 @@ function LevelUpCardTile({
       <p><b>Proof:</b> {card.proof}</p>
       {reason ? <RecommendedReasonPill reason={reason} /> : null}
       {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}
+      <div className={styles.levelUpDoNow}>
+        <span>Do now</span>
+        <strong>{card.cue}</strong>
+        <small>{card.routine[0]}</small>
+      </div>
       <details className={styles.levelUpCardPlan}>
         <summary>View plan</summary>
         <div className={styles.levelUpPlanCue}>
