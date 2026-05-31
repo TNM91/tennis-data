@@ -2,6 +2,8 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
+import type { LevelUpCard } from '@/lib/level-up/level-up-types'
 import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
 
@@ -31,6 +33,7 @@ type DrillOption = {
   timerSeconds: number
   proof: string
   href: string
+  sourceCard?: LevelUpCard
 }
 
 type SavedSession = {
@@ -152,6 +155,8 @@ export default function PlayerLiveWorkbench({
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
   const assignmentFocus = searchParams.get('assignmentFocus')?.trim() || searchParams.get('focus')?.trim() || ''
   const assignmentWorkType = normalizeAssignmentWorkType(searchParams.get('workType'))
+  const requestedCardId = searchParams.get('card')?.trim() ?? ''
+  const requestedCard = LEVEL_UP_CARDS.find((card) => card.id === requestedCardId)
   const requestedContext = normalizeTrainingContext(searchParams.get('context'))
   const hasCoachAssignment = Boolean(assignmentId || studentLinkId || searchParams.get('coach') === '1')
   const hasQuickStart = !hasCoachAssignment && Boolean(searchParams.get('focus') || searchParams.get('workType') || searchParams.get('context'))
@@ -165,12 +170,13 @@ export default function PlayerLiveWorkbench({
     [assignmentFocus, playableFocuses],
   )
   const initialFocusId = assignmentFocusMatch?.id ?? defaultFocusId
-  const initialWorkType = assignmentWorkType ?? 'court'
+  const initialWorkType = assignmentWorkType ?? (requestedCard ? getCardLiveWorkType(requestedCard) : 'court')
+  const initialContext = requestedContext ?? (requestedCard ? getCardLiveContext(requestedCard, initialWorkType) : 'alone')
   const [activeFocusId, setActiveFocusId] = useState(initialFocusId)
-  const [context, setContext] = useState<TrainingContext>(hasCoachAssignment ? 'coach' : requestedContext ?? 'alone')
+  const [context, setContext] = useState<TrainingContext>(hasCoachAssignment ? 'coach' : initialContext)
   const [workType, setWorkType] = useState<WorkType>(initialWorkType)
   const [accessMode, setAccessMode] = useState<AccessMode>('coach_invited')
-  const [activeDrillId, setActiveDrillId] = useState(hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : '')
+  const [activeDrillId, setActiveDrillId] = useState(hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : requestedCard ? `card-${requestedCard.id}` : '')
   const [editingStep, setEditingStep] = useState<EditingStep>(hasCoachAssignment || hasQuickStart ? null : 'focus')
   const [draft, setDraft] = useState(emptyDraft)
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
@@ -181,8 +187,11 @@ export default function PlayerLiveWorkbench({
 
   const activeFocus = playableFocuses.find((focus) => focus.id === activeFocusId) ?? playableFocuses[0]
   const drillOptions = useMemo(
-    () => buildDrillOptions(activeFocus, { solo, partner, offCourt, performance }),
-    [activeFocus, solo, partner, offCourt, performance],
+    () => {
+      const baseOptions = buildDrillOptions(activeFocus, { solo, partner, offCourt, performance })
+      return requestedCard ? [buildCardDrillOption(requestedCard, identitySlug), ...baseOptions] : baseOptions
+    },
+    [activeFocus, identitySlug, partner, performance, requestedCard, solo, offCourt],
   )
   const filteredDrills = drillOptions.filter((drill) => drill.workType === workType && drill.context === context)
   const visibleDrills = filteredDrills.length
@@ -191,7 +200,7 @@ export default function PlayerLiveWorkbench({
       ? drillOptions.filter((drill) => drill.workType === workType)
       : drillOptions
   const activeDrill = visibleDrills.find((drill) => drill.id === activeDrillId) ?? visibleDrills[0]
-  const activeDrillSteps = getDrillActionSteps(activeDrill.summary)
+  const activeDrillSteps = activeDrill.sourceCard?.routine.slice(0, 3).map(shortenDrillStep) ?? getDrillActionSteps(activeDrill.summary)
   const contextOptions = contextOptionsByWorkType[workType]
   const recentSessions = sessions.slice(0, 4)
   const progress = getProgressSummary(sessions, playableFocuses)
@@ -605,8 +614,9 @@ export default function PlayerLiveWorkbench({
               ))}
             </div>
             <div className={styles.liveMicroPlan}>
-              <span>Watch</span>
-              <strong>{activeFocus.tracker[0] ?? 'Proof rating'}</strong>
+              <span>{activeDrill.sourceCard ? 'Cue' : 'Watch'}</span>
+              <strong>{activeDrill.sourceCard?.cue ?? activeFocus.tracker[0] ?? 'Proof rating'}</strong>
+              {activeDrill.sourceCard ? <p>{activeDrill.sourceCard.reward}</p> : null}
             </div>
             <div className={styles.liveActionGuide}>
               <strong>Time</strong>
@@ -822,7 +832,7 @@ function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targe
       <div>
         <span>Timer</span>
         <strong>{formatClock(elapsedSeconds)}</strong>
-        <p>Goal: {targetLabel}. Use this for fitness blocks, timed reps, or focused serve baskets.</p>
+        <p>Goal: {targetLabel}. Use this for the work block. Keep quality clean before adding speed.</p>
       </div>
       <div className={styles.liveTimerTrack} aria-hidden="true">
         <i style={{ width: `${progress}%` }} />
@@ -879,8 +889,39 @@ function drill(
   timerSeconds: number,
   proof: string,
   href: string,
+  sourceCard?: LevelUpCard,
 ): DrillOption {
-  return { id, title, summary, workType, context, duration, timerSeconds, proof, href }
+  return { id, title, summary, workType, context, duration, timerSeconds, proof, href, sourceCard }
+}
+
+function buildCardDrillOption(card: LevelUpCard, identitySlug: string): DrillOption {
+  const workType = getCardLiveWorkType(card)
+  const context = getCardLiveContext(card, workType)
+  return drill(
+    `card-${card.id}`,
+    card.title,
+    card.tennisGoal,
+    workType,
+    context,
+    `${card.durationMinutes} minutes`,
+    card.durationMinutes * 60,
+    card.proof,
+    `/player-development/${identitySlug}/level-up#all-cards`,
+    card,
+  )
+}
+
+function getCardLiveWorkType(card: LevelUpCard): WorkType {
+  if (card.category === 'mental-routine') return 'mental'
+  if (['strength-stability', 'conditioning', 'mobility-stretch', 'recovery-reset'].includes(card.category)) return 'physical'
+  return 'court'
+}
+
+function getCardLiveContext(card: LevelUpCard, workType: WorkType): TrainingContext {
+  if (workType !== 'court') return 'alone'
+  if (card.category === 'doubles-drill' || card.tags.includes('doubles') || card.tags.includes('doubles-communication')) return 'doubles'
+  if (card.category === 'partner-drill' || card.equipment.includes('partner')) return 'partner'
+  return 'alone'
 }
 
 function pickRow(rows: TrainingRow[], focusId: string, fallback: string): TrainingRow {
