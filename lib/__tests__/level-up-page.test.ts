@@ -48,7 +48,12 @@ describe('Level Up page', () => {
     expect(contentSource).toContain('Favorites')
     expect(contentSource).toContain('Recommended for Your Player Identity')
     expect(contentSource).toContain('Your tennis training hub.')
+    expect(contentSource).toContain('LevelUpTrainingCard')
+    expect(contentSource).toContain('quickStartCards')
+    expect(contentSource).toContain('Proof: {card.proof}')
+    expect(contentSource).toContain('formatCardList')
     expect(developmentStylesSource).toContain('.levelUpPortal')
+    expect(developmentStylesSource).toContain('.levelUpCardRail')
     expect(developmentStylesSource).toContain('.levelUpLibraryGrid')
   })
 

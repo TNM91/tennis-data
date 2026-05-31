@@ -298,6 +298,7 @@
 
 .levelUpPortalHeader span,
 .levelUpPortalLanes span,
+.levelUpCardRail span,
 .levelUpModuleRail span {
   display: inline-flex;
   width: fit-content;
@@ -322,6 +323,7 @@
 
 .levelUpPortalHeader p,
 .levelUpPortalLanes p,
+.levelUpCardRail p,
 .levelUpModuleRail p {
   margin: 0;
   color: var(--muted-strong);
@@ -355,6 +357,7 @@
 }
 
 .levelUpPortalLanes,
+.levelUpCardRail,
 .levelUpModuleRail,
 .levelUpLibraryGrid {
   display: grid;
@@ -369,11 +372,16 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.levelUpCardRail {
+  grid-template-columns: repeat(5, minmax(184px, 1fr));
+}
+
 .levelUpLibraryGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .levelUpPortalLanes article,
+.levelUpCardRail article,
 .levelUpModuleRail article,
 .levelUpLibraryGrid a {
   display: grid;
@@ -389,11 +397,48 @@
 }
 
 .levelUpPortalLanes strong,
+.levelUpCardRail strong,
 .levelUpModuleRail strong,
 .levelUpLibraryGrid strong {
   color: var(--foreground-strong);
   font-size: 1rem;
   line-height: 1.18;
+}
+
+.levelUpCardRail article {
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+}
+
+.levelUpCardRail dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.levelUpCardRail dl div {
+  display: grid;
+  gap: 2px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 7px;
+}
+
+.levelUpCardRail dt {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpCardRail dd {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.18;
+  text-transform: capitalize;
 }
 
 .levelUpMiniList {
@@ -403,6 +448,7 @@
 }
 
 .levelUpMiniList small,
+.levelUpCardRail small,
 .levelUpModuleRail small,
 .levelUpLibraryGrid span {
   width: fit-content;
@@ -4830,6 +4876,7 @@
   }
 
   .levelUpPortalLanes,
+  .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4927,6 +4974,7 @@
   .levelUpIdentityStrip,
   .levelUpPortalHeader,
   .levelUpPortalLanes,
+  .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid,
   .performanceUpgradeHero {
@@ -4959,6 +5007,7 @@
   }
 
   .levelUpPortalLanes,
+  .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid {
     display: flex;
@@ -4970,6 +5019,7 @@
   }
 
   .levelUpPortalLanes article,
+  .levelUpCardRail article,
   .levelUpModuleRail article,
   .levelUpLibraryGrid a {
     flex: 0 0 min(78vw, 292px);
@@ -4977,6 +5027,7 @@
   }
 
   .levelUpPortalLanes p,
+  .levelUpCardRail p,
   .levelUpModuleRail p {
     display: none;
   }

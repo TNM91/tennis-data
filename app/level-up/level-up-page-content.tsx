@@ -5,6 +5,7 @@ import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import PlayerLiveWorkbench from '@/app/player-development/_components/player-live-workbench'
 import styles from '@/app/player-development/_components/player-development.module.css'
 import { LEVEL_UP_CARDS, LEVEL_UP_MODULES, getRecommendedLevelUpCards } from '@/lib/level-up/level-up-cards'
+import type { LevelUpCard } from '@/lib/level-up/level-up-types'
 import { PLAYER_DEVELOPMENT_IDENTITIES, type PlayerDevelopmentIdentity } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
 
@@ -15,6 +16,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   const recommendedModules = (identityModules.length ? identityModules : LEVEL_UP_MODULES).slice(0, 3)
   const favoritePreview = recommendedCards.slice(0, 3)
   const libraryPacks = [...new Set(LEVEL_UP_CARDS.map((card) => card.pack))].slice(0, 8)
+  const quickStartCards = recommendedCards.slice(0, 5)
 
   return (
     <SiteShell active="/mylab">
@@ -88,6 +90,12 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             </article>
           </div>
 
+          <div className={styles.levelUpCardRail} aria-label="Recommended quick start cards">
+            {quickStartCards.map((card) => (
+              <LevelUpTrainingCard key={card.id} card={card} />
+            ))}
+          </div>
+
           <div className={styles.levelUpModuleRail} aria-label="Recommended Level Up modules">
             {recommendedModules.map((module) => (
               <article key={module.id}>
@@ -124,4 +132,36 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
       </main>
     </SiteShell>
   )
+}
+
+function LevelUpTrainingCard({ card }: { card: LevelUpCard }) {
+  return (
+    <article>
+      <div>
+        <span>{card.pack}</span>
+        <strong>{card.title}</strong>
+        <p>{card.useWhen}</p>
+      </div>
+      <dl>
+        <div>
+          <dt>Time</dt>
+          <dd>{card.durationMinutes} min</dd>
+        </div>
+        <div>
+          <dt>Where</dt>
+          <dd>{formatCardList(card.setting)}</dd>
+        </div>
+        <div>
+          <dt>Need</dt>
+          <dd>{formatCardList(card.equipment)}</dd>
+        </div>
+      </dl>
+      <small>Proof: {card.proof}</small>
+      <a className="button-primary" href="#level-up-flow">Start</a>
+    </article>
+  )
+}
+
+function formatCardList(items: string[]) {
+  return items.map((item) => item.replaceAll('-', ' ')).join(', ')
 }
