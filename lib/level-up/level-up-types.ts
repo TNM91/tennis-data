@@ -75,6 +75,9 @@ export type LevelUpModule = {
   title: string
   subtitle: string
   description: string
+  useWhen?: string
+  sessionPlan?: string[]
+  successCriteria?: string
   level: LevelUpLevel
   durationLabel: string
   cardIds: string[]

@@ -581,6 +581,30 @@ function LevelUpModuleTile({
       <h3>{module.title}</h3>
       <strong>{module.subtitle}</strong>
       <p>{module.description}</p>
+      {module.useWhen || module.sessionPlan?.length || module.successCriteria ? (
+        <details className={styles.levelUpModuleGuide}>
+          <summary>How to use this module</summary>
+          {module.useWhen ? (
+            <div>
+              <span>Use when</span>
+              <p>{module.useWhen}</p>
+            </div>
+          ) : null}
+          {module.sessionPlan?.length ? (
+            <ol>
+              {module.sessionPlan.slice(0, 3).map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          ) : null}
+          {module.successCriteria ? (
+            <div>
+              <span>Done when</span>
+              <p>{module.successCriteria}</p>
+            </div>
+          ) : null}
+        </details>
+      ) : null}
       <div className={styles.levelUpModuleProgress}>
         <small>{progressLabel}</small>
         {nextCard ? <b>Next up: {nextCard.title}</b> : null}
