@@ -479,6 +479,10 @@ function LevelUpCardTile({
         <span>Counts when</span>
         <strong>{getCardProofStandard(card)}</strong>
       </div>
+      <div className={styles.levelUpAvoidCue}>
+        <span>Avoid</span>
+        <strong>{getCardAvoidCue(card)}</strong>
+      </div>
       {reason ? <RecommendedReasonPill reason={reason} /> : null}
       {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}
       <div className={styles.levelUpDoNow}>
@@ -719,6 +723,50 @@ function getCardProofStandard(card: LevelUpCard) {
   }
 
   return 'You can repeat the cue without needing a coach reminder.'
+}
+
+function getCardAvoidCue(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return 'Do not hit and watch. Recover first, then read.'
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return 'Do not rush into the motion without naming the target.'
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return 'Do not treat the serve and next ball as separate reps.'
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return 'Do not wait to decide until the ball is already on you.'
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return 'Do not rehearse the last miss while the next point starts.'
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return 'Do not turn every stretched ball into a low-percentage attack.'
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return 'Do not attack faster than your balance can support.'
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return 'Do not make your partner guess the first move.'
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return 'Do not chase max effort after posture breaks.'
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return 'Do not force range or turn the reset into a workout.'
+  }
+
+  return 'Do not add volume until the cue is clear.'
 }
 
 function getCardSetupLabel(card: LevelUpCard) {
