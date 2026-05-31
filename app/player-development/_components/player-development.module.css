@@ -759,7 +759,8 @@
   line-height: 1.32;
 }
 
-.levelUpCommonMiss {
+.levelUpCommonMiss,
+.levelUpDoseGuide {
   display: grid;
   gap: 5px;
   margin-top: 9px;
@@ -770,7 +771,14 @@
   padding: 8px;
 }
 
-.levelUpCommonMiss span {
+.levelUpDoseGuide {
+  border-color: rgba(155, 225, 29, 0.13);
+  border-left-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.045);
+}
+
+.levelUpCommonMiss span,
+.levelUpDoseGuide span {
   color: var(--muted);
   font-size: 0.64rem;
   font-weight: 950;
@@ -778,19 +786,22 @@
   text-transform: uppercase;
 }
 
-.levelUpCommonMiss strong {
+.levelUpCommonMiss strong,
+.levelUpDoseGuide strong {
   color: var(--foreground-strong);
   font-size: 0.82rem;
   line-height: 1.28;
 }
 
-.levelUpCommonMiss small {
+.levelUpCommonMiss small,
+.levelUpDoseGuide small {
   color: var(--muted-strong);
   font-size: 0.78rem;
   line-height: 1.32;
 }
 
-.levelUpCommonMiss b {
+.levelUpCommonMiss b,
+.levelUpDoseGuide b {
   color: var(--brand-green-3);
 }
 

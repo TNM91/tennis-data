@@ -455,6 +455,7 @@ function LevelUpCardTile({
   const notePrompt = getProofNotePrompt(rating)
   const repFeedback = getCardRepFeedback(card, rating)
   const commonMiss = getCardCommonMiss(card)
+  const doseGuide = getCardDoseGuide(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
 
   function openLogger() {
@@ -545,6 +546,11 @@ function LevelUpCardTile({
           <span>Common miss</span>
           <strong>{commonMiss.miss}</strong>
           <small><b>Fast fix:</b> {commonMiss.fix}</small>
+        </div>
+        <div className={styles.levelUpDoseGuide}>
+          <span>Enough for today</span>
+          <strong>{doseGuide.target}</strong>
+          <small><b>Stop when:</b> {doseGuide.stopRule}</small>
         </div>
         <div className={styles.levelUpPlanScale}>
           <p><b>Level up:</b> {card.progression}</p>
@@ -1213,6 +1219,83 @@ function getCardCommonMiss(card: LevelUpCard) {
   return {
     miss: 'The rep gets completed, but the tennis habit is not obvious.',
     fix: 'Restart with one cue and count only reps that match the proof.',
+  }
+}
+
+function getCardDoseGuide(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      target: '2-3 short rounds where recovery happens before watching.',
+      stopRule: 'your ready spot disappears or you start rushing the finish.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      target: '12-18 serves or shadows with one target and the same routine.',
+      stopRule: 'you are counting makes but no longer scoring routine clarity.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      target: '8-12 planned serve plus-one patterns with a reset between reps.',
+      stopRule: 'the first ball is no longer connected to the serve target.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      target: '3 rounds of 6 return starts with the job called early.',
+      stopRule: 'you start reacting late instead of choosing the return job.',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      target: '10-16 wide-ball reps where height, shape, and recovery stay clean.',
+      stopRule: 'neutral resets turn into panic attacks or balance breaks.',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      target: '8-12 attack reps where balance and recovery count more than winners.',
+      stopRule: 'you rush the close or finish stuck after contact.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      target: 'One short game or 10 reps where the call happens before the first move.',
+      stopRule: 'the call gets late, long, or ignored by either partner.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      target: 'Use the reset for 5-8 points, including after a miss and after a good point.',
+      stopRule: 'the routine becomes a speech instead of one breath and one cue.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      target: '2-4 controlled rounds where tennis posture still looks playable.',
+      stopRule: 'pain changes movement, posture breaks, or breathing takes over the drill.',
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      target: '5-8 quiet minutes with a before-and-after readiness score.',
+      stopRule: 'you force range, chase discomfort, or turn the reset into conditioning.',
+    }
+  }
+
+  return {
+    target: `${card.durationMinutes} minutes or 2 clean rounds with one proof score.`,
+    stopRule: 'the cue is gone and you are only finishing reps.',
   }
 }
 
