@@ -447,6 +447,7 @@ function LevelUpCardTile({
   const [savedRating, setSavedRating] = useState<number | null>(null)
   const [loggerOpen, setLoggerOpen] = useState(false)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
+  const proofGuidance = getProofRatingGuidance(rating, card)
 
   function openLogger() {
     setLoggerOpen(true)
@@ -513,8 +514,13 @@ function LevelUpCardTile({
             <button key={value} type="button" data-active={rating === value ? 'true' : 'false'} onClick={() => setRating(value)}>{value}</button>
           ))}
         </div>
+        <div className={styles.levelUpProofNextStep}>
+          <span>Next rep</span>
+          <strong>{proofGuidance.title}</strong>
+          <small>{proofGuidance.detail}</small>
+        </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder="Tiny note if needed." aria-label={`Note for ${card.title}`} />
-        <button type="button" className="button-secondary" onClick={completeCard}>{shownSavedRating === null ? 'Complete' : `Saved ${shownSavedRating}/5`}</button>
+        <button type="button" className="button-secondary" onClick={completeCard}>{shownSavedRating === null ? 'Save proof' : `Saved ${shownSavedRating}/5`}</button>
         {shownSavedRating !== null ? <small className={styles.completionSavedMessage}>Saved. Pick another card or run it again.</small> : null}
       </details>
       <div className={styles.levelUpCardActions}>
@@ -639,6 +645,27 @@ function CompletionSummaryPill({ summary }: { summary: CompletionSummary }) {
   const rating = typeof summary.lastRating === 'number' ? `${summary.lastRating}/5` : 'logged'
   const label = summary.count === 1 ? '1 log' : `${summary.count} logs`
   return <small className={styles.completionSummaryPill}>Last proof {rating} - {label}</small>
+}
+
+function getProofRatingGuidance(rating: number, card: LevelUpCard) {
+  if (rating <= 1) {
+    return {
+      title: 'Scale it down.',
+      detail: card.regression,
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Repeat before moving on.',
+      detail: `Run one more clean block with this cue: ${card.cue}`,
+    }
+  }
+
+  return {
+    title: 'Progress the challenge.',
+    detail: card.progression,
+  }
 }
 
 function EquipmentPill({ equipment }: { equipment: string }) {

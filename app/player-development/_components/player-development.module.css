@@ -1251,6 +1251,35 @@
   line-height: 1.22;
 }
 
+.levelUpProofNextStep {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 12px;
+  background: rgba(155, 225, 29, 0.08);
+  padding: 9px;
+}
+
+.levelUpProofNextStep span {
+  color: var(--brand-green-3);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpProofNextStep strong {
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.levelUpProofNextStep small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
 .completionLogger summary {
   width: fit-content;
   cursor: pointer;
