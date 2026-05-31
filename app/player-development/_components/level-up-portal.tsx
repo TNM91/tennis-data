@@ -23,6 +23,12 @@ type FilterState = {
   tag: string
 }
 
+type IntentPreset = {
+  label: string
+  filters: FilterState
+  copy: string
+}
+
 const emptyFilters: FilterState = {
   category: 'all',
   pack: 'all',
@@ -60,17 +66,15 @@ const intentPresets = [
     filters: { ...emptyFilters, tag: 'light-feet' },
     copy: 'Footwork, first-step, and recovery habits.',
   },
-] satisfies { label: string; filters: FilterState; copy: string }[]
+] satisfies IntentPreset[]
 
 export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPortalProps) {
   const profile = getLevelUpProfileForIdentity(identitySlug)
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
   const [showAllCards, setShowAllCards] = useState(false)
+  const [selectedIntent, setSelectedIntent] = useState('Recommended')
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [completions, logCompletion] = useLevelUpCompletions()
-  const [assignmentCardId, setAssignmentCardId] = useState('')
-  const [coachNote, setCoachNote] = useState('')
-  const [proofRequired, setProofRequired] = useState('Recovery after contact 0-5')
   const completedCardIds = completions.map((completion) => completion.cardId)
   const recommendations = useMemo(
     () => recommendLevelUpCards({
@@ -105,6 +109,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const startHref = `/level-up/${identitySlug}#level-up-flow`
   const activeFilterCount = countActiveFilters(filters)
   const visibleAllCards = showAllCards ? filteredCards : filteredCards.slice(0, 12)
+  const startCards = (activeFilterCount ? filteredCards : identityCards).slice(0, 3)
 
   return (
     <section className={styles.levelUpPortalApp} aria-labelledby="level-up-portal-title">
@@ -123,8 +128,6 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           favorite={favorites.includes(todayCard.id)}
           onFavorite={toggleFavorite}
           onComplete={logCompletion}
-          coachMode
-          onAssign={setAssignmentCardId}
           startHref={startHref}
         />
       </section>
@@ -132,8 +135,10 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       <LevelUpSafetyNote />
 
       <LevelUpIntentPresets
-        onApply={(nextFilters) => {
-          setFilters(nextFilters)
+        activeIntent={selectedIntent}
+        onApply={(preset) => {
+          setSelectedIntent(preset.label)
+          setFilters(preset.filters)
           setShowAllCards(false)
         }}
       />
@@ -143,16 +148,28 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         resultCount={filteredCards.length}
         activeFilterCount={activeFilterCount}
         onChange={(nextFilters) => {
+          setSelectedIntent('Custom')
           setFilters(nextFilters)
           setShowAllCards(false)
         }}
         onReset={() => {
+          setSelectedIntent('Recommended')
           setFilters(emptyFilters)
           setShowAllCards(false)
         }}
       />
 
-      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} coachMode onAssign={setAssignmentCardId} startHref={startHref} />
+      <LevelUpStartList
+        intent={selectedIntent}
+        cards={startCards}
+        recommendationByCardId={recommendationByCardId}
+        favorites={favorites}
+        onFavorite={toggleFavorite}
+        onComplete={logCompletion}
+        startHref={startHref}
+      />
+
+      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
       <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
       <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
       <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
@@ -170,23 +187,6 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         </div>
       </section>
 
-      <section className={styles.coachAssignmentPanel} aria-label="Coach assignment mode">
-        <div>
-          <span>Coach Assignment Mode</span>
-          <h2>Assign one tool that supports the player&apos;s current tennis habit.</h2>
-          <p>Do not assign a workout just to add work.</p>
-        </div>
-        <div className={styles.levelUpAssignmentControls}>
-          <select value={assignmentCardId} onChange={(event) => setAssignmentCardId(event.target.value)} aria-label="Choose card to assign">
-            <option value="">Choose card</option>
-            {filteredCards.slice(0, 30).map((card) => <option key={card.id} value={card.id}>{card.title}</option>)}
-          </select>
-          <input value={proofRequired} onChange={(event) => setProofRequired(event.target.value)} aria-label="Proof required" />
-          <textarea value={coachNote} onChange={(event) => setCoachNote(event.target.value)} placeholder="Coach note, one sentence." aria-label="Coach note" />
-        </div>
-        <AssignmentCard card={LEVEL_UP_CARDS.find((card) => card.id === assignmentCardId)} proofRequired={proofRequired} coachNote={coachNote} />
-      </section>
-
       <section id="all-cards" className={styles.levelUpCardGrid} aria-label="All cards">
         <div className={styles.levelUpRailHeader}>
           <span>All Cards</span>
@@ -202,8 +202,6 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
               favorite={favorites.includes(card.id)}
               onFavorite={toggleFavorite}
               onComplete={logCompletion}
-              coachMode
-              onAssign={setAssignmentCardId}
               startHref={startHref}
             />
           ))}
@@ -222,7 +220,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   )
 }
 
-function LevelUpIntentPresets({ onApply }: { onApply: (filters: FilterState) => void }) {
+function LevelUpIntentPresets({ activeIntent, onApply }: { activeIntent: string; onApply: (preset: IntentPreset) => void }) {
   return (
     <section className={styles.levelUpIntentPresets} aria-label="Quick Level Up intents">
       <div>
@@ -231,10 +229,51 @@ function LevelUpIntentPresets({ onApply }: { onApply: (filters: FilterState) => 
       </div>
       <div>
         {intentPresets.map((preset) => (
-          <button key={preset.label} type="button" onClick={() => onApply(preset.filters)}>
+          <button key={preset.label} type="button" data-active={activeIntent === preset.label ? 'true' : 'false'} onClick={() => onApply(preset)}>
             <strong>{preset.label}</strong>
             <span>{preset.copy}</span>
           </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function LevelUpStartList({
+  intent,
+  cards,
+  recommendationByCardId,
+  favorites,
+  onFavorite,
+  onComplete,
+  startHref,
+}: {
+  intent: string
+  cards: LevelUpCard[]
+  recommendationByCardId: Map<string | undefined, LevelUpRecommendation>
+  favorites: string[]
+  onFavorite: (cardId: string) => void
+  onComplete: (cardId: string, rating: number, note: string) => void
+  startHref: string
+}) {
+  return (
+    <section className={styles.levelUpStartList} aria-label="Start here">
+      <div className={styles.levelUpRailHeader}>
+        <span>Start here</span>
+        <h2>{intent === 'Recommended' ? 'Three strong places to begin.' : `${intent}: three good matches.`}</h2>
+        <p>Pick one card, run it, then log a number. You do not need to browse the whole library first.</p>
+      </div>
+      <div className={styles.levelUpRailGrid}>
+        {cards.map((card) => (
+          <LevelUpCardTile
+            key={card.id}
+            card={card}
+            reason={recommendationByCardId.get(card.id)?.reason}
+            favorite={favorites.includes(card.id)}
+            onFavorite={onFavorite}
+            onComplete={onComplete}
+            startHref={startHref}
+          />
         ))}
       </div>
     </section>
@@ -270,8 +309,6 @@ function LevelUpSmartRail({
   favorites,
   onFavorite,
   onComplete,
-  coachMode,
-  onAssign,
   emptyText,
   startHref,
 }: {
@@ -281,8 +318,6 @@ function LevelUpSmartRail({
   favorites: string[]
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
-  coachMode?: boolean
-  onAssign?: (cardId: string) => void
   emptyText?: string
   startHref: string
 }) {
@@ -303,8 +338,6 @@ function LevelUpSmartRail({
               favorite={favorites.includes(card.id)}
               onFavorite={onFavorite}
               onComplete={onComplete}
-              coachMode={coachMode}
-              onAssign={onAssign}
               startHref={startHref}
             />
           ))}
@@ -320,8 +353,6 @@ function LevelUpCardTile({
   favorite,
   onFavorite,
   onComplete,
-  coachMode,
-  onAssign,
   startHref,
 }: {
   card: LevelUpCard
@@ -329,8 +360,6 @@ function LevelUpCardTile({
   favorite: boolean
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
-  coachMode?: boolean
-  onAssign?: (cardId: string) => void
   startHref: string
 }) {
   const [rating, setRating] = useState(3)
@@ -349,19 +378,19 @@ function LevelUpCardTile({
       </div>
       <p><b>Proof:</b> {card.proof}</p>
       {reason ? <RecommendedReasonPill reason={reason} /> : null}
-      <div className={styles.completionLogger}>
+      <details className={styles.completionLogger}>
+        <summary>Log proof</summary>
         <div>
           {[0, 1, 2, 3, 4, 5].map((value) => (
             <button key={value} type="button" data-active={rating === value ? 'true' : 'false'} onClick={() => setRating(value)}>{value}</button>
           ))}
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder="Tiny note if needed." aria-label={`Note for ${card.title}`} />
-      </div>
+        <button type="button" className="button-secondary" onClick={() => onComplete(card.id, rating, note)}>Complete</button>
+      </details>
       <div className={styles.levelUpCardActions}>
         <a className="button-primary" href={startHref}>Start</a>
         <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
-        <button type="button" className="button-secondary" onClick={() => onComplete(card.id, rating, note)}>Complete</button>
-        {coachMode ? <button type="button" className="button-secondary" onClick={() => onAssign?.(card.id)}>Assign</button> : null}
       </div>
     </article>
   )
@@ -446,18 +475,6 @@ function EquipmentPill({ equipment }: { equipment: string }) {
 
 function DurationPill({ minutes }: { minutes: number }) {
   return <span className={styles.durationPill}>{minutes} min</span>
-}
-
-function AssignmentCard({ card, proofRequired, coachNote }: { card?: LevelUpCard; proofRequired: string; coachNote: string }) {
-  if (!card) return <p>Choose a card to preview the assignment.</p>
-  return (
-    <article className={styles.assignmentCard}>
-      <span>Mock assignment</span>
-      <strong>{card.title}</strong>
-      <p>{coachNote || 'No coach note yet.'}</p>
-      <small>Proof required: {proofRequired}</small>
-    </article>
-  )
 }
 
 function LevelUpSafetyNote() {

@@ -469,6 +469,7 @@
 .levelUpHero,
 .levelUpTodayMission,
 .levelUpIntentPresets,
+.levelUpStartList,
 .levelUpRail,
 .levelUpModuleGrid,
 .levelUpCardGrid,
@@ -647,7 +648,8 @@
 }
 
 .levelUpIntentPresets button:hover,
-.levelUpIntentPresets button:focus-visible {
+.levelUpIntentPresets button:focus-visible,
+.levelUpIntentPresets button[data-active='true'] {
   border-color: rgba(155, 225, 29, 0.42);
   background: rgba(155, 225, 29, 0.08);
 }
@@ -666,6 +668,13 @@
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.035);
   padding: 12px;
+}
+
+.levelUpStartList {
+  border-color: rgba(155, 225, 29, 0.24);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 34%),
+    var(--surface);
 }
 
 .levelUpFilterSummary {
@@ -812,6 +821,20 @@
 .completionLogger {
   display: grid;
   gap: 8px;
+}
+
+.completionLogger summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--brand-green-3);
+  font-size: 0.76rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.completionLogger > button {
+  width: fit-content;
 }
 
 .levelUpAssignmentControls {
@@ -5243,6 +5266,7 @@
   .levelUpOverviewGrid,
   .levelUpTodayMission,
   .levelUpIntentPresets,
+  .levelUpStartList,
   .levelUpFilters,
   .levelUpRailGrid,
   .levelUpAssignmentControls {
@@ -5356,6 +5380,7 @@
   .levelUpOverviewGrid,
   .levelUpTodayMission,
   .levelUpIntentPresets,
+  .levelUpStartList,
   .levelUpFilters,
   .levelUpRailGrid,
   .levelUpAssignmentControls,
