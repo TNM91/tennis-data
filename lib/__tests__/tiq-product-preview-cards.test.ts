@@ -62,4 +62,15 @@ describe('TIQ product preview cards', () => {
     expect(commandCenterSource).not.toContain('borderRadius: 22')
     expect(commandCenterSource).not.toContain('borderRadius: 28')
   })
+
+  it('turns the homepage hero panel into an action board instead of an empty court frame', () => {
+    expect(commandCenterSource).toContain('const heroBoardActions')
+    expect(commandCenterSource).toContain('Portal board')
+    expect(commandCenterSource).toContain('Start with the tennis job.')
+    expect(commandCenterSource).toContain('Find, prepare, improve, lead, run, or fix data.')
+    expect(commandCenterSource).toContain('heroBoardGridStyle')
+    expect(commandCenterSource).toContain('heroBoardActionStyle')
+    expect(commandCenterSource).toContain('aria-label="TenAceIQ portal board preview"')
+    expect(commandCenterSource).not.toContain('<div style={miniCourtStyle} aria-hidden="true">')
+  })
 })

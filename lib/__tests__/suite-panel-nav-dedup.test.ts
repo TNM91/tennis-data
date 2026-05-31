@@ -69,6 +69,8 @@ describe('suite panel navigation deduplication', () => {
     expect(portal).toContain('Plan practice')
     expect(portal).toContain("const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'")
     expect(portal).toContain('href: dataAssistPortalHref')
+    expect(portal).toContain('if (!authenticated) return null')
+    expect(portal).not.toContain("if (!authenticated && pathname !== '/') return null")
     expect(portal).not.toContain('<h1 style={portalTitleStyle}>')
     expect(myLab).toContain('<h1 style={sectionTitleStyle}>{welcomeLine}</h1>')
     expect(captain).toContain('<h1 style={scopeTitleStyle}>Choose the week.</h1>')

@@ -204,6 +204,13 @@ export const previewCards: PreviewCard[] = [
   },
 ]
 
+const heroBoardActions = [
+  { label: 'Find', detail: 'Player, team, coach, event', href: '/explore' },
+  { label: 'Prep', detail: 'Matchup and scouting', href: '/matchup' },
+  { label: 'Lead', detail: 'Team week and lineups', href: '/teams' },
+  { label: 'Run', detail: 'Tournament or season', href: '/tournaments' },
+] as const
+
 export function PublicPageShell({ active, children }: { active?: string; children: ReactNode }) {
   return <SiteShell active={active}>{children}</SiteShell>
 }
@@ -248,13 +255,35 @@ export function CommandHero({
         ) : null}
       </div>
       <div style={heroPanelStyle}>
-        <div style={miniCourtStyle} aria-hidden="true">
-          <span />
-          <span />
-          <span />
+        <div style={heroPanelHeaderStyle}>
+          <span style={panelKickerStyle}>Portal board</span>
+          <strong style={panelTitleStyle}>Start with the tennis job.</strong>
+          <p style={panelCopyStyle}>Search is the front door. These shortcuts take visitors straight to the next useful move.</p>
         </div>
-        <strong>What tennis thing do you need help with today?</strong>
-        <p>Find the tennis landscape, prepare for the next match, improve your game, lead a team, run an event, or fix the data behind the read.</p>
+        <div style={miniCourtStyle} aria-label="TenAceIQ portal board preview">
+          <span aria-hidden="true" style={courtNetStyle} />
+          <span aria-hidden="true" style={courtServiceLineStyle('top')} />
+          <span aria-hidden="true" style={courtServiceLineStyle('bottom')} />
+          <div style={courtBoardStyle}>
+            <span style={courtBoardKickerStyle}>Today</span>
+            <strong style={courtBoardTitleStyle}>Find, prepare, improve, lead, run, or fix data.</strong>
+          </div>
+        </div>
+        <div style={heroBoardGridStyle}>
+          {heroBoardActions.map((action) => (
+            <TrackedProductLink
+              key={action.label}
+              href={action.href}
+              style={heroBoardActionStyle}
+              ariaLabel={`${action.label}: ${action.detail}`}
+              event={getPublicLinkEvent(action.label, action.href, 'hero-board')}
+            >
+              <span style={heroBoardActionLabelStyle}>{action.label}</span>
+              <span style={heroBoardActionDetailStyle}>{action.detail}</span>
+            </TrackedProductLink>
+          ))}
+        </div>
+        <p style={panelFooterStyle}>More Tennis. Less Chaos. means the next click should already feel obvious.</p>
       </div>
     </section>
   )
@@ -446,8 +475,8 @@ const heroCopyStyle: CSSProperties = {
 
 const heroPanelStyle: CSSProperties = {
   display: 'grid',
-  alignContent: 'space-between',
-  gap: 16,
+  alignContent: 'start',
+  gap: 14,
   minWidth: 0,
   padding: 22,
   borderRadius: 8,
@@ -456,6 +485,37 @@ const heroPanelStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 760,
+}
+
+const heroPanelHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const panelKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const panelTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.05,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const panelCopyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 720,
 }
 
 const eyebrowStyle: CSSProperties = {
@@ -635,11 +695,112 @@ const storyCardStyle: CSSProperties = {
 
 const miniCourtStyle: CSSProperties = {
   position: 'relative',
-  minHeight: 180,
+  minHeight: 176,
   borderRadius: 8,
   border: '2px solid rgba(155,225,29,0.44)',
-  background: 'linear-gradient(135deg, rgba(32,75,52,0.76), rgba(12,40,48,0.72))',
+  background:
+    'linear-gradient(135deg, rgba(32,75,52,0.82), rgba(12,40,48,0.74)), radial-gradient(circle at 18% 24%, rgba(255,255,255,0.12), transparent 26%)',
   overflow: 'hidden',
+}
+
+const courtNetStyle: CSSProperties = {
+  position: 'absolute',
+  left: '50%',
+  top: 0,
+  bottom: 0,
+  width: 2,
+  transform: 'translateX(-50%)',
+  background: 'rgba(255,255,255,0.34)',
+}
+
+function courtServiceLineStyle(position: 'top' | 'bottom'): CSSProperties {
+  return {
+    position: 'absolute',
+    left: '12%',
+    right: '12%',
+    top: position === 'top' ? '34%' : undefined,
+    bottom: position === 'bottom' ? '34%' : undefined,
+    height: 2,
+    background: 'rgba(255,255,255,0.24)',
+  }
+}
+
+const courtBoardStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 14,
+  display: 'grid',
+  alignContent: 'end',
+  gap: 8,
+  padding: 14,
+  borderRadius: 8,
+  border: '1px solid rgba(255,255,255,0.18)',
+  background: 'linear-gradient(180deg, transparent 4%, rgba(3,7,18,0.22) 56%, rgba(3,7,18,0.72) 100%)',
+  color: 'var(--foreground-strong)',
+}
+
+const courtBoardKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  padding: '4px 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  lineHeight: 1,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const courtBoardTitleStyle: CSSProperties = {
+  fontSize: 18,
+  lineHeight: 1.14,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const heroBoardGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const heroBoardActionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minHeight: 74,
+  padding: 12,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(7,17,33,0.74)',
+  color: 'var(--shell-copy-muted)',
+  textDecoration: 'none',
+  minWidth: 0,
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const heroBoardActionLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.1,
+  fontWeight: 950,
+}
+
+const heroBoardActionDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const panelFooterStyle: CSSProperties = {
+  margin: 0,
+  paddingTop: 2,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 780,
 }
 
 const trustWrapStyle: CSSProperties = {
