@@ -768,7 +768,13 @@ function CompletionSummaryPill({ summary }: { summary: CompletionSummary }) {
   const label = summary.count === 1 ? '1 log' : `${summary.count} logs`
   const trend = getProofTrendLabel(summary)
   const action = getProofTrendAction(trend)
-  return <small className={styles.completionSummaryPill}>Last proof {rating} - {trend}: {action} - {label}</small>
+  const prescription = getProofProgressPrescription(summary)
+  return (
+    <small className={styles.completionSummaryPill}>
+      <span>Last proof {rating} - {trend}: {action} - {label}</span>
+      <strong>{prescription}</strong>
+    </small>
+  )
 }
 
 function getProofTrendLabel(summary: CompletionSummary) {
@@ -786,6 +792,19 @@ function getProofTrendAction(trend: string) {
   if (trend === 'holding') return 'repeat clean'
   if (trend === 'rebuild') return 'scale down'
   return 'log again'
+}
+
+function getProofProgressPrescription(summary: CompletionSummary) {
+  if (typeof summary.lastRating !== 'number') return 'Log one honest score before changing the card.'
+  if (summary.lastRating <= 1) return 'Next session: shrink the setup and chase one clean cue.'
+  if (summary.lastRating <= 3) return 'Next session: repeat the same card before adding difficulty.'
+  if (typeof summary.previousRating === 'number' && summary.lastRating > summary.previousRating) {
+    return 'Next session: raise only one variable and keep proof honest.'
+  }
+  if (typeof summary.previousRating === 'number' && summary.lastRating < summary.previousRating) {
+    return 'Next session: scale down and rebuild the habit first.'
+  }
+  return 'Next session: protect the habit, then add one small challenge.'
 }
 
 function getSessionReadLabel(summaryByCardId: Map<string, CompletionSummary>) {
