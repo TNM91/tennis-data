@@ -453,6 +453,7 @@ function LevelUpCardTile({
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
   const notePrompt = getProofNotePrompt(rating)
+  const repFeedback = getCardRepFeedback(card, rating)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
 
   function openLogger() {
@@ -562,6 +563,11 @@ function LevelUpCardTile({
           <span>Next rep</span>
           <strong>{proofGuidance.title}</strong>
           <small>{proofGuidance.detail}</small>
+        </div>
+        <div className={styles.levelUpRepFeedback}>
+          <span>{repFeedback.label}</span>
+          <strong>{repFeedback.title}</strong>
+          <small>{repFeedback.detail}</small>
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder={notePrompt} aria-label={`Note for ${card.title}`} />
         <button type="button" className="button-secondary" onClick={completeCard}>{shownSavedRating === null ? 'Save proof' : `Saved ${shownSavedRating}/5`}</button>
@@ -773,6 +779,109 @@ function getProofNotePrompt(rating: number) {
   if (rating <= 1) return 'What got in the way?'
   if (rating <= 3) return 'What cue should you repeat?'
   return 'What made it work?'
+}
+
+function getCardRepFeedback(card: LevelUpCard, rating: number) {
+  const focus = getCardFeedbackFocus(card)
+
+  if (rating <= 1) {
+    return {
+      label: 'Fix first',
+      title: focus.lowTitle,
+      detail: focus.lowDetail,
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      label: 'Repeat cue',
+      title: focus.midTitle,
+      detail: focus.midDetail,
+    }
+  }
+
+  return {
+    label: 'Protect it',
+    title: focus.highTitle,
+    detail: focus.highDetail,
+  }
+}
+
+function getCardFeedbackFocus(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      lowTitle: 'Slow the finish and recover first.',
+      lowDetail: 'Remove the result-watching. Count only reps where your feet return to ready before your eyes judge the ball.',
+      midTitle: 'Make the recovery target obvious.',
+      midDetail: 'Use the same cone, line, or ready spot every rep so the habit has one place to land.',
+      highTitle: 'Keep recovery honest under speed.',
+      highDetail: 'Add pace only if the ready position still happens before the imaginary next ball.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      lowTitle: 'Separate target from outcome.',
+      lowDetail: 'Call one target, run one routine, then score clarity before caring about make or miss.',
+      midTitle: 'Repeat the same pre-serve rhythm.',
+      midDetail: 'Use the same breath and tempo for the next five reps, especially after a miss.',
+      highTitle: 'Add pressure without changing tempo.',
+      highDetail: 'Start at 30-30 or use a smaller target while keeping the same routine.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      lowTitle: 'Name the plus-one before serving.',
+      lowDetail: 'The rep does not count if the serve and first ball feel like two separate drills.',
+      midTitle: 'Match serve target to first-ball shape.',
+      midDetail: 'Repeat the pattern until the first move after serve is automatic.',
+      highTitle: 'Make the return less predictable.',
+      highDetail: 'Keep the same plan, but let the return vary slightly so the pattern transfers.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      lowTitle: 'Decide before the toss.',
+      lowDetail: 'Pick block, drive, or height early. Late decisions turn return reps into guessing.',
+      midTitle: 'Recover after contact.',
+      midDetail: 'Keep the intent, then get back to ready before judging the return.',
+      highTitle: 'Add score pressure to the same job.',
+      highDetail: 'Start points at 30-30 and protect the chosen return job.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      lowTitle: 'Quality beats the clock.',
+      lowDetail: 'Shorten the work block until posture, breathing, and control stay clean.',
+      midTitle: 'Hold one tennis decision while tired.',
+      midDetail: 'Pair the body work with one cue such as recover, target, or neutral ball.',
+      highTitle: 'Extend time only if posture holds.',
+      highDetail: 'Add one round, not max effort. The goal is tennis quality under fatigue.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      lowTitle: 'Stop replaying the last point.',
+      lowDetail: 'Turn away, breathe, and name the next intention before stepping back in.',
+      midTitle: 'Use fewer words.',
+      midDetail: 'Make the reset a short cue you can actually use between points.',
+      highTitle: 'Use it after a good point too.',
+      highDetail: 'The reset is stronger when it works after winners, misses, and messy points.',
+    }
+  }
+
+  return {
+    lowTitle: 'Shrink the rep until the cue appears.',
+    lowDetail: 'Make the setup easier and count only the reps that match the proof.',
+    midTitle: 'Repeat the cue before adding volume.',
+    midDetail: 'One cleaner rep is more useful than ten rushed reps.',
+    highTitle: 'Raise one variable at a time.',
+    highDetail: 'Add pace, time, or pressure, but not all three at once.',
+  }
 }
 
 function getCardNextPractice(card: LevelUpCard, rating: number | null) {

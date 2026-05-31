@@ -1457,7 +1457,8 @@
   line-height: 1.22;
 }
 
-.levelUpProofNextStep {
+.levelUpProofNextStep,
+.levelUpRepFeedback {
   display: grid;
   gap: 4px;
   border: 1px solid rgba(155, 225, 29, 0.2);
@@ -1466,7 +1467,13 @@
   padding: 9px;
 }
 
-.levelUpProofNextStep span {
+.levelUpRepFeedback {
+  border-color: rgba(116, 190, 255, 0.18);
+  background: rgba(116, 190, 255, 0.055);
+}
+
+.levelUpProofNextStep span,
+.levelUpRepFeedback span {
   color: var(--brand-green-3);
   font-size: 0.66rem;
   font-weight: 950;
@@ -1474,13 +1481,15 @@
   text-transform: uppercase;
 }
 
-.levelUpProofNextStep strong {
+.levelUpProofNextStep strong,
+.levelUpRepFeedback strong {
   color: var(--foreground-strong);
   font-size: 0.88rem;
   line-height: 1.2;
 }
 
-.levelUpProofNextStep small {
+.levelUpProofNextStep small,
+.levelUpRepFeedback small {
   color: var(--muted-strong);
   font-size: 0.76rem;
   line-height: 1.32;
