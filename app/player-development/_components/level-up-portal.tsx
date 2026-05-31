@@ -141,6 +141,14 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
 
       <LevelUpSafetyNote />
 
+      <LevelUpSessionDock
+        intent={selectedIntent}
+        activeFilterCount={activeFilterCount}
+        visibleStartCount={startCards.length}
+        favoriteCount={favorites.length}
+        completionCount={completions.length}
+      />
+
       <LevelUpIntentPresets
         activeIntent={selectedIntent}
         onApply={(preset) => {
@@ -249,6 +257,44 @@ function LevelUpIntentPresets({ activeIntent, onApply }: { activeIntent: string;
         ))}
       </div>
     </section>
+  )
+}
+
+function LevelUpSessionDock({
+  intent,
+  activeFilterCount,
+  visibleStartCount,
+  favoriteCount,
+  completionCount,
+}: {
+  intent: string
+  activeFilterCount: number
+  visibleStartCount: number
+  favoriteCount: number
+  completionCount: number
+}) {
+  const filterLabel = activeFilterCount === 1 ? '1 filter' : `${activeFilterCount} filters`
+  const logLabel = completionCount === 1 ? '1 proof' : `${completionCount} proofs`
+  const favoriteLabel = favoriteCount === 1 ? '1 favorite' : `${favoriteCount} favorites`
+
+  return (
+    <nav className={styles.levelUpSessionDock} aria-label="Level Up session shortcuts">
+      <div>
+        <span>Now</span>
+        <strong>{intent}</strong>
+        <small>{visibleStartCount} ready cards</small>
+      </div>
+      <div className={styles.levelUpSessionStats} aria-label="Session status">
+        <small>{filterLabel}</small>
+        <small>{logLabel}</small>
+        <small>{favoriteLabel}</small>
+      </div>
+      <div className={styles.levelUpSessionActions}>
+        <a href="#level-up-start-here">Start</a>
+        <a href="#level-up-filters">Filters</a>
+        <a href="#all-cards">Library</a>
+      </div>
+    </nav>
   )
 }
 
@@ -491,7 +537,7 @@ function LevelUpFilters({
   }), [])
 
   return (
-    <details className={styles.levelUpFilters} aria-label="Level Up filters">
+    <details id="level-up-filters" className={styles.levelUpFilters} aria-label="Level Up filters">
       <summary className={styles.levelUpFilterSummary}>
         <span>{activeFilterCount ? `${activeFilterCount} filters active` : 'Optional'}</span>
         <strong>Advanced filters</strong>
