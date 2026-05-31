@@ -92,6 +92,12 @@ const contextLabels: Record<TrainingContext, string> = {
   coach: 'Coach challenge',
 }
 
+const contextOptionsByWorkType: Record<WorkType, TrainingContext[]> = {
+  court: ['alone', 'partner', 'singles', 'doubles', 'coach'],
+  physical: ['alone', 'coach'],
+  mental: ['alone', 'coach'],
+}
+
 const feelingLabels: Record<PlayerFeeling, string> = {
   ready: 'Ready',
   tight: 'Tight',
@@ -184,6 +190,7 @@ export default function PlayerLiveWorkbench({
       : drillOptions
   const activeDrill = visibleDrills.find((drill) => drill.id === activeDrillId) ?? visibleDrills[0]
   const activeDrillSteps = getDrillActionSteps(activeDrill.summary)
+  const contextOptions = contextOptionsByWorkType[workType]
   const recentSessions = sessions.slice(0, 4)
   const progress = getProgressSummary(sessions, playableFocuses)
   const activeAccess = accessModes[accessMode]
@@ -267,7 +274,7 @@ export default function PlayerLiveWorkbench({
     setDraft(emptyDraft)
     setSyncState({ status: 'idle', message: '' })
     setScoringDrillId('')
-    setEditingStep('setup')
+    setEditingStep('work')
   }
 
   function chooseContext(nextContext: TrainingContext) {
@@ -280,10 +287,14 @@ export default function PlayerLiveWorkbench({
   }
 
   function chooseWorkType(nextWorkType: WorkType) {
+    const nextContextOptions = contextOptionsByWorkType[nextWorkType]
     setWorkType(nextWorkType)
+    if (!nextContextOptions.includes(context)) {
+      setContext(hasCoachAssignment ? 'coach' : nextContextOptions[0])
+    }
     setActiveDrillId('')
     setScoringDrillId('')
-    setEditingStep(null)
+    setEditingStep(hasCoachAssignment ? null : 'setup')
   }
 
   function chooseAccessMode(nextMode: AccessMode) {
@@ -427,11 +438,11 @@ export default function PlayerLiveWorkbench({
           <button type="button" data-active={editingStep === 'focus' ? 'true' : 'false'} onClick={() => setEditingStep('focus')}>
             Focus
           </button>
-          <button type="button" data-active={editingStep === 'setup' ? 'true' : 'false'} onClick={() => setEditingStep('setup')}>
-            Setup
-          </button>
           <button type="button" data-active={editingStep === 'work' ? 'true' : 'false'} onClick={() => setEditingStep('work')}>
             Work
+          </button>
+          <button type="button" data-active={editingStep === 'setup' ? 'true' : 'false'} onClick={() => setEditingStep('setup')}>
+            Setup
           </button>
         </div>
       </div>
@@ -488,9 +499,9 @@ export default function PlayerLiveWorkbench({
 
       <div className={styles.liveModeStrip} aria-label="Phone first training steps">
         <span>Pick focus</span>
+        <span>Pick work</span>
         <span>Choose setup</span>
         <span>Start timer</span>
-        <span>Rate and save</span>
       </div>
 
       <div id="level-up-flow" className={styles.liveTrainingFlow}>
@@ -514,10 +525,10 @@ export default function PlayerLiveWorkbench({
         </div>
 
         <div className={styles.liveStepPanel} data-collapsed={editingStep !== 'setup' ? 'true' : 'false'}>
-          <span>2. Setup</span>
-          <strong>How are you training?</strong>
+          <span>3. Setup</span>
+          <strong>Who is training with you?</strong>
           <div className={styles.liveContextGrid} aria-label="Choose training setup">
-            {(Object.keys(contextLabels) as TrainingContext[]).map((key) => (
+            {contextOptions.map((key) => (
               <button
                 type="button"
                 key={key}
@@ -533,7 +544,7 @@ export default function PlayerLiveWorkbench({
         <div className={styles.liveWorkbenchBody} data-flow-state={editingStep ?? 'drill'} data-scoring={scoringDrillId === activeDrill.id ? 'true' : 'false'}>
           <div className={styles.liveLaneColumn} data-collapsed={editingStep !== 'work' ? 'true' : 'false'}>
             <div className={styles.liveCurrentGoal}>
-              <span>Current plan</span>
+              <span>2. Work</span>
               <strong>{activeFocus.title}</strong>
               <p>{activeFocus.cue}</p>
             </div>

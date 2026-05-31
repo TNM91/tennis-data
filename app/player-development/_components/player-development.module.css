@@ -4822,6 +4822,16 @@
     display: none;
   }
 
+  .liveWorkbenchBody[data-flow-state='work'] .liveActionCard,
+  .liveWorkbenchBody[data-flow-state='work'] .liveTracker {
+    display: none;
+  }
+
+  .liveWorkbenchBody[data-flow-state='work'] .liveLaneColumn {
+    min-height: calc(100svh - 122px);
+    align-content: center;
+  }
+
   .liveWorkbenchBody[data-scoring='true'] .liveTracker {
     min-height: calc(100svh - 88px);
     align-content: center;
