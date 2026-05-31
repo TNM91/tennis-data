@@ -475,17 +475,20 @@ function LevelUpCardTile({
         <EquipmentPill equipment={card.equipment.join(', ')} />
       </div>
       <p><b>Proof:</b> {card.proof}</p>
-      <div className={styles.levelUpProofTarget}>
-        <span>Counts when</span>
-        <strong>{getCardProofStandard(card)}</strong>
-      </div>
-      <div className={styles.levelUpAvoidCue}>
-        <span>Avoid</span>
-        <strong>{getCardAvoidCue(card)}</strong>
-      </div>
-      <div className={styles.levelUpCoachHandoff}>
-        <span>Coach handoff</span>
-        <strong>{getCardCoachHandoff(card)}</strong>
+      <div className={styles.levelUpTrainingStandards} aria-label={`Training standards for ${card.title}`}>
+        <span>Train clean</span>
+        <div>
+          <b>Counts when</b>
+          <strong>{getCardProofStandard(card)}</strong>
+        </div>
+        <div>
+          <b>Avoid</b>
+          <strong>{getCardAvoidCue(card)}</strong>
+        </div>
+        <div>
+          <b>Coach handoff</b>
+          <strong>{getCardCoachHandoff(card)}</strong>
+        </div>
       </div>
       {reason ? <RecommendedReasonPill reason={reason} /> : null}
       {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}

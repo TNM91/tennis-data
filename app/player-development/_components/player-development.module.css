@@ -1189,16 +1189,17 @@
   text-transform: uppercase;
 }
 
-.levelUpProofTarget {
+.levelUpTrainingStandards {
   display: grid;
-  gap: 4px;
+  gap: 6px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
   border-left: 3px solid rgba(155, 225, 29, 0.52);
-  background: rgba(116, 190, 255, 0.055);
-  border-radius: 10px;
-  padding: 8px 9px;
+  border-radius: 12px;
+  background: rgba(116, 190, 255, 0.045);
+  padding: 9px;
 }
 
-.levelUpProofTarget span {
+.levelUpTrainingStandards > span {
   color: var(--brand-green-3);
   font-size: 0.62rem;
   font-weight: 950;
@@ -1206,53 +1207,24 @@
   text-transform: uppercase;
 }
 
-.levelUpProofTarget strong {
-  color: var(--foreground-strong);
-  font-size: 0.82rem;
-  line-height: 1.28;
-}
-
-.levelUpAvoidCue {
+.levelUpTrainingStandards div {
   display: grid;
-  gap: 4px;
-  border: 1px solid rgba(255, 195, 87, 0.18);
-  border-radius: 10px;
-  background: rgba(255, 195, 87, 0.055);
-  padding: 8px 9px;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 6px;
 }
 
-.levelUpAvoidCue span {
-  color: #ffd48b;
+.levelUpTrainingStandards b {
+  color: var(--muted);
   font-size: 0.62rem;
   font-weight: 950;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.levelUpAvoidCue strong {
-  color: var(--foreground-strong);
-  font-size: 0.8rem;
-  line-height: 1.28;
-}
-
-.levelUpCoachHandoff {
-  display: grid;
-  gap: 4px;
-  border: 1px solid rgba(116, 190, 255, 0.18);
-  border-radius: 10px;
-  background: rgba(116, 190, 255, 0.065);
-  padding: 8px 9px;
-}
-
-.levelUpCoachHandoff span {
-  color: #9bd8ff;
-  font-size: 0.62rem;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.levelUpCoachHandoff strong {
+.levelUpTrainingStandards strong {
   color: var(--foreground-strong);
   font-size: 0.8rem;
   line-height: 1.28;
@@ -6073,6 +6045,11 @@
 
   .levelUpRunStrip {
     grid-template-columns: 1fr;
+  }
+
+  .levelUpTrainingStandards div {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 
   .levelUpPortalStats {
