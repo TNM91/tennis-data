@@ -13,6 +13,8 @@ type CardSeed = {
   identitySlugs?: string[]
 }
 
+type CardContentEnhancement = Partial<Pick<LevelUpCard, 'useWhen' | 'tennisGoal' | 'cue' | 'routine' | 'reward' | 'proof' | 'progression' | 'regression' | 'safetyNote'>>
+
 const identityMap: Record<string, string[]> = {
   serve: ['relentless-competitor-4-0'],
   movement: ['relentless-competitor-4-0'],
@@ -30,14 +32,106 @@ function identitySlugsFor(tags: string[]) {
   return [...new Set(tags.flatMap((tag) => identityMap[tag] ?? []))]
 }
 
+const cardContentEnhancements: Record<string, CardContentEnhancement> = {
+  'cone-recover-shadow-swing': {
+    useWhen: 'Use this when you finish shots and catch yourself watching instead of recovering.',
+    tennisGoal: 'Build the habit of recovering before judging the shot so you are ready for the next ball.',
+    cue: 'Hit, hold your finish, then recover before you look.',
+    routine: ['Set two cones for your recovery lane.', 'Shadow a controlled swing and call recover.', 'Move back through the cone gate before watching the imaginary ball.', 'Repeat 3 rounds and score how automatic the recovery felt.'],
+    reward: 'You leave with a visible after-contact habit you can use on every rally ball.',
+    proof: 'Recovered before watching 0-5',
+    progression: 'Add a second shadow ball or shorten the recovery window only after the finish stays balanced.',
+    regression: 'Remove the swing and rehearse split, recover, and balance first.',
+  },
+  'jump-rope-rhythm-builder': {
+    useWhen: 'Use this before practice when your feet feel heavy or your timing feels late.',
+    tennisGoal: 'Build light, quiet foot rhythm that supports split-step timing and first move quality.',
+    cue: 'Quiet feet, tall posture, soft landings.',
+    routine: ['Jump lightly for 30 seconds.', 'Rest and shadow a split-step plus first move.', 'Repeat 4 rounds without chasing speed.', 'Score rhythm, posture, and control.'],
+    reward: 'You start the court session with better rhythm instead of waiting for rallies to wake your feet up.',
+    proof: 'Light feet and quiet landings 0-5',
+    safetyNote: 'Jump rope should stay light and quiet. Stop if landings change your movement quality.',
+  },
+  'wall-sit-leg-durability': {
+    useWhen: 'Use this when late points make your legs stand up or your posture break.',
+    tennisGoal: 'Connect leg durability to staying low, balanced, and decision-ready late in games.',
+    cue: 'Strong legs, quiet shoulders, steady breathing.',
+    routine: ['Hold a controlled wall sit for 20-40 seconds.', 'Stand, breathe, and shadow two recovery steps.', 'Repeat 3 rounds with clean posture.', 'Score whether posture held under fatigue.'],
+    reward: 'You get a simple leg check that ties directly to late-match posture.',
+    proof: 'Posture under leg fatigue 0-5',
+    safetyNote: 'Keep the hold technique-first. Stop if pain changes posture or movement.',
+  },
+  'serve-target-call': {
+    useWhen: 'Use this when your serve plan gets vague or pressure makes you rush.',
+    tennisGoal: 'Make every serve rep start with a clear target, routine, and recovery intention.',
+    cue: 'Call it before you start the motion.',
+    routine: ['Choose body, wide, or T.', 'Say the target out loud.', 'Run the same breath and bounce routine.', 'Serve or shadow, then score target clarity before the next rep.'],
+    reward: 'Your serve practice becomes decision training instead of random reps.',
+    proof: 'Serve target clarity 0-5',
+    progression: 'Add score pressure by starting each round at 30-30.',
+    regression: 'Shadow the routine without hitting until the target call feels automatic.',
+  },
+  'three-step-reset': {
+    useWhen: 'Use this after errors, double faults, or rushed points.',
+    tennisGoal: 'Build a between-point routine that helps you return to the next playable ball.',
+    cue: 'Breathe, name it, choose the next target.',
+    routine: ['Turn away from the last point.', 'Take one slow breath.', 'Name the next intention in five words or fewer.', 'Pick the next target and start the point.'],
+    reward: 'You practice responding to pressure instead of carrying it into the next ball.',
+    proof: 'Reset used before next point 0-5',
+  },
+  'wide-ball-neutralizer': {
+    useWhen: 'Use this when wide balls turn into panic shots or rushed misses.',
+    tennisGoal: 'Train the wide-ball response that gets you from defense back to neutral.',
+    cue: 'Height, depth, recover.',
+    routine: ['Start outside the singles line.', 'Shadow or hit a high crosscourt neutral ball.', 'Recover behind the baseline cone.', 'Score whether you defended without rushing the change of direction.'],
+    reward: 'You get a reliable defensive pattern for balls that pull you off court.',
+    proof: 'Defense to neutral response 0-5',
+  },
+  'post-play-mobility-reset': {
+    useWhen: 'Use this after practice, matches, or conditioning blocks.',
+    tennisGoal: 'Bring the body back toward control so the next session starts cleaner.',
+    cue: 'Slow down, breathe, re-check range.',
+    routine: ['Pick hips, calves, shoulders, or back.', 'Move slowly for 45 seconds each side.', 'Breathe through the reset without forcing range.', 'Re-check how ready you feel.'],
+    reward: 'You finish training with a simple recovery habit instead of just stopping.',
+    proof: 'Post-play reset quality 0-5',
+    safetyNote: 'Static resets belong after play or recovery blocks. Do not force range.',
+  },
+  'serve-1-shadow': {
+    useWhen: 'Use this when your serve and first ball feel disconnected.',
+    tennisGoal: 'Link serve target to the next-ball intention before adding live points.',
+    cue: 'Serve target creates the first move.',
+    routine: ['Call the serve target.', 'Shadow the serve finish.', 'Shadow the expected plus-one ball.', 'Recover and rate whether the two actions matched.'],
+    reward: 'You stop thinking of the serve as one isolated shot.',
+    proof: 'Serve plus-one connection 0-5',
+  },
+  'return-step-in-game': {
+    useWhen: 'Use this when return games start passive or unclear.',
+    tennisGoal: 'Choose return position and intent before the server starts the point.',
+    cue: 'Step in with a job.',
+    routine: ['Choose block, drive, or height.', 'Start with active feet before the toss.', 'Return with the chosen shape.', 'Recover and score whether the intent showed up.'],
+    reward: 'You turn returns into planned starts instead of reactions.',
+    proof: 'Return intent 0-5',
+  },
+  'partner-first-move-call': {
+    useWhen: 'Use this when doubles points start with both players guessing.',
+    tennisGoal: 'Make the first move visible between partners before the serve or return.',
+    cue: 'Say the first move before the point starts.',
+    routine: ['Call serve or return direction.', 'Partner calls first move.', 'Play the point with that first move in mind.', 'Score communication before discussing the result.'],
+    reward: 'Your doubles team gets alignment before the ball is live.',
+    proof: 'Partner first-move clarity 0-5',
+  },
+}
+
 function makeCard(seed: CardSeed): LevelUpCard {
+  const id = slugify(seed.title)
   const duration = seed.durationMinutes ?? (seed.category === 'mental-routine' ? 4 : seed.category === 'mobility-stretch' ? 8 : 10)
   const level = seed.level ?? 'starter'
   const intensity = seed.intensity ?? (seed.category === 'mobility-stretch' || seed.category === 'mental-routine' ? 'low' : 'medium')
   const identitySlugs = seed.identitySlugs ?? identitySlugsFor(seed.tags)
+  const content = cardContentEnhancements[id] ?? {}
 
   return {
-    id: slugify(seed.title),
+    id,
     title: seed.title,
     category: seed.category,
     pack: seed.pack,
@@ -48,19 +142,50 @@ function makeCard(seed: CardSeed): LevelUpCard {
     intensity,
     assignable: true,
     favoriteable: true,
-    useWhen: `Use this when ${seed.tags.includes('match-day') ? 'you are preparing for match pressure' : seed.tags.includes('recovery') ? 'your body needs a reset' : 'this skill needs focused reps'}.`,
-    tennisGoal: `Build a tennis-specific ${seed.tags[0]?.replaceAll('-', ' ') ?? 'development'} habit that transfers to practice or match play.`,
-    cue: seed.tags.includes('match-day') ? 'Before the next point or match block.' : 'Before the main work starts.',
-    routine: buildRoutine(seed),
-    reward: 'You finish with one repeatable habit and a clear proof score.',
-    proof: `${seed.tags[0]?.replaceAll('-', ' ') ?? seed.title} 0-5`,
+    useWhen: content.useWhen ?? buildUseWhen(seed),
+    tennisGoal: content.tennisGoal ?? buildTennisGoal(seed),
+    cue: content.cue ?? buildCue(seed),
+    routine: content.routine ?? buildRoutine(seed),
+    reward: content.reward ?? buildReward(seed),
+    proof: content.proof ?? buildProof(seed),
     ratingLabels: ['Cue', 'Routine', 'Reward', 'Proof'],
-    progression: level === 'advanced' ? 'Add score pressure or shorter rest.' : 'Add one round or a target score when it feels clean.',
-    regression: 'Cut the reps in half and keep the cue clean.',
-    safetyNote: seed.category === 'strength-stability' || seed.category === 'conditioning' ? 'Stop if pain changes your movement quality.' : undefined,
+    progression: content.progression ?? buildProgression(seed, level),
+    regression: content.regression ?? buildRegression(seed),
+    safetyNote: content.safetyNote ?? buildSafetyNote(seed),
     tags: seed.tags,
     identitySlugs: identitySlugs.length ? identitySlugs : undefined,
   }
+}
+
+function buildUseWhen(seed: CardSeed) {
+  if (seed.tags.includes('match-day')) return 'Use this before or during match day when you need a simple routine you can trust.'
+  if (seed.tags.includes('recovery') || seed.category === 'recovery-reset') return 'Use this after play when your body and attention need to come back to neutral.'
+  if (seed.category === 'serve-return') return 'Use this when serve or return reps need a clearer job than just getting the ball in.'
+  if (seed.category === 'partner-drill') return 'Use this when you have a partner and want a constraint that makes the rally purposeful.'
+  if (seed.category === 'doubles-drill') return 'Use this when doubles communication or first movement needs to be clearer.'
+  if (seed.category === 'conditioning') return 'Use this when you want conditioning that still connects to tennis posture and decisions.'
+  if (seed.category === 'strength-stability') return 'Use this when off-court strength needs to support balance, posture, or repeatable movement.'
+  return 'Use this when the skill needs focused reps and a simple proof score.'
+}
+
+function buildTennisGoal(seed: CardSeed) {
+  if (seed.tags.includes('serve')) return 'Build a serve habit that connects target, routine, recovery, and the next ball.'
+  if (seed.tags.includes('return')) return 'Build a return habit that starts the point with clear intent and recovery.'
+  if (seed.tags.includes('doubles')) return 'Build a doubles habit your partner can see, hear, and move with.'
+  if (seed.tags.includes('pressure')) return 'Build a pressure response that helps the next point start clean.'
+  if (seed.tags.includes('movement') || seed.tags.includes('light-feet')) return 'Build movement quality that helps you arrive balanced and recover on time.'
+  if (seed.tags.includes('conditioning')) return 'Build fatigue tolerance without losing posture, balance, or decision quality.'
+  return `Build a tennis-specific ${seed.tags[0]?.replaceAll('-', ' ') ?? 'development'} habit that transfers to practice or match play.`
+}
+
+function buildCue(seed: CardSeed) {
+  if (seed.tags.includes('serve')) return 'Target first, routine second, swing third.'
+  if (seed.tags.includes('return')) return 'Choose the return job before the toss.'
+  if (seed.tags.includes('pressure')) return 'Slow down before the next point speeds up.'
+  if (seed.tags.includes('doubles')) return 'Call the first move before the ball is live.'
+  if (seed.tags.includes('light-feet')) return 'Land quiet and move with control.'
+  if (seed.category === 'mobility-stretch' || seed.category === 'recovery-reset') return 'Move slowly and re-check readiness.'
+  return seed.tags.includes('match-day') ? 'Before the next point or match block.' : 'One cue, clean reps, honest score.'
 }
 
 function buildRoutine(seed: CardSeed) {
@@ -77,6 +202,45 @@ function buildRoutine(seed: CardSeed) {
     return ['Set the constraint.', 'Play the rep.', 'Call the cue out loud.', 'Score the habit before changing drills.']
   }
   return ['Set the space.', 'Do 6-10 clean reps.', 'Reset posture and breathing.', 'Repeat for 3 rounds and score the proof.']
+}
+
+function buildReward(seed: CardSeed) {
+  if (seed.category === 'mental-routine') return 'You finish with a routine you can use before the next point, not a long journal entry.'
+  if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') return 'You finish with shared language and one measurable habit to carry into points.'
+  if (seed.category === 'conditioning' || seed.category === 'strength-stability') return 'You finish with body work that has a clear tennis reason behind it.'
+  return 'You finish with one repeatable habit and a clear proof score.'
+}
+
+function buildProof(seed: CardSeed) {
+  if (seed.tags.includes('serve-target')) return 'Serve target clarity 0-5'
+  if (seed.tags.includes('serve-routine')) return 'Serve routine clarity 0-5'
+  if (seed.tags.includes('recovery-after-contact')) return 'Recovery after contact 0-5'
+  if (seed.tags.includes('pressure-reset')) return 'Reset used before next point 0-5'
+  if (seed.tags.includes('doubles-communication')) return 'Doubles communication clarity 0-5'
+  if (seed.tags.includes('leg-durability')) return 'Posture under fatigue 0-5'
+  if (seed.tags.includes('mobility')) return 'Readiness after reset 0-5'
+  return `${seed.tags[0]?.replaceAll('-', ' ') ?? seed.title} 0-5`
+}
+
+function buildProgression(seed: CardSeed, level: LevelUpLevel) {
+  if (seed.category === 'serve-return' || seed.category === 'mental-routine') return 'Add score pressure only after the routine stays the same for three clean reps.'
+  if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') return 'Add a score target or narrower constraint when the communication stays clear.'
+  if (level === 'advanced') return 'Add score pressure or shorter rest while keeping the proof score honest.'
+  return 'Add one round or a target score when it feels clean.'
+}
+
+function buildRegression(seed: CardSeed) {
+  if (seed.category === 'serve-return') return 'Shadow the pattern first, then add the ball.'
+  if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') return 'Remove scoring and rehearse the cue with slower feeds.'
+  if (seed.category === 'conditioning' || seed.category === 'strength-stability') return 'Cut the work in half and keep posture clean.'
+  return 'Cut the reps in half and keep the cue clean.'
+}
+
+function buildSafetyNote(seed: CardSeed) {
+  if (seed.category === 'conditioning') return 'Choose control before intensity. Stop if fatigue changes your movement quality.'
+  if (seed.category === 'strength-stability') return 'Technique first. Stop if pain changes posture or movement.'
+  if (seed.category === 'mobility-stretch' || seed.category === 'recovery-reset') return 'Move slowly. Do not force range.'
+  return undefined
 }
 
 const CARD_SEEDS: CardSeed[] = [
