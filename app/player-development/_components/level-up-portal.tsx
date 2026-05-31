@@ -29,6 +29,11 @@ type IntentPreset = {
   copy: string
 }
 
+type CompletionSummary = {
+  count: number
+  lastRating?: number
+}
+
 const emptyFilters: FilterState = {
   category: 'all',
   pack: 'all',
@@ -77,6 +82,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [completions, logCompletion] = useLevelUpCompletions()
   const completedCardIds = completions.map((completion) => completion.cardId)
+  const completionSummaryByCardId = useMemo(() => buildCompletionSummaryByCardId(completions), [completions])
   const recommendations = useMemo(
     () => recommendLevelUpCards({
       identitySlug,
@@ -126,6 +132,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           card={todayCard}
           reason={recommendationByCardId.get(todayCard.id)?.reason}
           favorite={favorites.includes(todayCard.id)}
+          completionSummary={completionSummaryByCardId.get(todayCard.id)}
           onFavorite={toggleFavorite}
           onComplete={logCompletion}
           startHref={buildCardStartHref(identitySlug, todayCard)}
@@ -149,6 +156,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         intent={selectedIntent}
         cards={startCards}
         recommendationByCardId={recommendationByCardId}
+        completionSummaryByCardId={completionSummaryByCardId}
         favorites={favorites}
         onFavorite={toggleFavorite}
         onComplete={logCompletion}
@@ -173,13 +181,13 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         }}
       />
 
-      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} defaultOpen />
-      <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Tap Favorite on a card to pin it here." identitySlug={identitySlug} defaultOpen={favoriteCards.length > 0} />
-      <LevelUpSmartRail title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Log a proof score to build this rail." identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} defaultOpen />
+      <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Tap Favorite on a card to pin it here." identitySlug={identitySlug} defaultOpen={favoriteCards.length > 0} />
+      <LevelUpSmartRail title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Log a proof score to build this rail." identitySlug={identitySlug} />
 
       <section className={styles.levelUpModuleGrid} aria-label="Level Up modules">
         <div className={styles.levelUpRailHeader}>
@@ -204,6 +212,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
               card={card}
               reason={recommendationByCardId.get(card.id)?.reason}
               favorite={favorites.includes(card.id)}
+              completionSummary={completionSummaryByCardId.get(card.id)}
               onFavorite={toggleFavorite}
               onComplete={logCompletion}
               startHref={buildCardStartHref(identitySlug, card)}
@@ -248,6 +257,7 @@ function LevelUpStartList({
   intent,
   cards,
   recommendationByCardId,
+  completionSummaryByCardId,
   favorites,
   onFavorite,
   onComplete,
@@ -257,6 +267,7 @@ function LevelUpStartList({
   intent: string
   cards: LevelUpCard[]
   recommendationByCardId: Map<string | undefined, LevelUpRecommendation>
+  completionSummaryByCardId: Map<string, CompletionSummary>
   favorites: string[]
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
@@ -276,6 +287,7 @@ function LevelUpStartList({
             card={card}
             reason={recommendationByCardId.get(card.id)?.reason}
             favorite={favorites.includes(card.id)}
+            completionSummary={completionSummaryByCardId.get(card.id)}
             onFavorite={onFavorite}
             onComplete={onComplete}
             startHref={buildCardStartHref(identitySlug, card)}
@@ -312,6 +324,7 @@ function LevelUpSmartRail({
   title,
   cards,
   recommendationByCardId,
+  completionSummaryByCardId,
   favorites,
   onFavorite,
   onComplete,
@@ -322,6 +335,7 @@ function LevelUpSmartRail({
   title: string
   cards: LevelUpCard[]
   recommendationByCardId: Map<string | undefined, LevelUpRecommendation>
+  completionSummaryByCardId: Map<string, CompletionSummary>
   favorites: string[]
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
@@ -345,6 +359,7 @@ function LevelUpSmartRail({
               card={card}
               reason={recommendationByCardId.get(card.id)?.reason}
               favorite={favorites.includes(card.id)}
+              completionSummary={completionSummaryByCardId.get(card.id)}
               onFavorite={onFavorite}
               onComplete={onComplete}
               startHref={buildCardStartHref(identitySlug, card)}
@@ -360,6 +375,7 @@ function LevelUpCardTile({
   card,
   reason,
   favorite,
+  completionSummary,
   onFavorite,
   onComplete,
   startHref,
@@ -367,6 +383,7 @@ function LevelUpCardTile({
   card: LevelUpCard
   reason?: string
   favorite: boolean
+  completionSummary?: CompletionSummary
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
   startHref: string
@@ -387,6 +404,7 @@ function LevelUpCardTile({
       </div>
       <p><b>Proof:</b> {card.proof}</p>
       {reason ? <RecommendedReasonPill reason={reason} /> : null}
+      {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}
       <details className={styles.levelUpCardPlan}>
         <summary>View plan</summary>
         <div className={styles.levelUpPlanCue}>
@@ -514,6 +532,12 @@ function RecommendedReasonPill({ reason }: { reason: string }) {
   return <small className={styles.reasonPill}>{reason}</small>
 }
 
+function CompletionSummaryPill({ summary }: { summary: CompletionSummary }) {
+  const rating = typeof summary.lastRating === 'number' ? `${summary.lastRating}/5` : 'logged'
+  const label = summary.count === 1 ? '1 log' : `${summary.count} logs`
+  return <small className={styles.completionSummaryPill}>Last proof {rating} - {label}</small>
+}
+
 function EquipmentPill({ equipment }: { equipment: string }) {
   return <span className={styles.equipmentPill}>{formatLabel(equipment)}</span>
 }
@@ -579,6 +603,22 @@ function readCompletions(): LevelUpCompletion[] {
   } catch {
     return []
   }
+}
+
+function buildCompletionSummaryByCardId(completions: LevelUpCompletion[]) {
+  const summaryByCardId = new Map<string, CompletionSummary>()
+  for (const completion of completions) {
+    const current = summaryByCardId.get(completion.cardId)
+    if (!current) {
+      summaryByCardId.set(completion.cardId, {
+        count: 1,
+        lastRating: completion.proofRating,
+      })
+    } else {
+      current.count += 1
+    }
+  }
+  return summaryByCardId
 }
 
 function cardMatchesFilters(card: LevelUpCard, filters: FilterState) {
