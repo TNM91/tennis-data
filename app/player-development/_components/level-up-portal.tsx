@@ -34,6 +34,34 @@ const emptyFilters: FilterState = {
   tag: 'all',
 }
 
+const intentPresets = [
+  {
+    label: '10 min quick win',
+    filters: { ...emptyFilters, duration: 'under-10' },
+    copy: 'Short, useful, and easy to log.',
+  },
+  {
+    label: 'On court now',
+    filters: { ...emptyFilters, setting: 'court' },
+    copy: 'Use this when you are already at the court.',
+  },
+  {
+    label: 'At home / no gear',
+    filters: { ...emptyFilters, setting: 'home', equipment: 'none' },
+    copy: 'No court and no setup required.',
+  },
+  {
+    label: 'Reset pressure',
+    filters: { ...emptyFilters, tag: 'pressure-reset' },
+    copy: 'Between-point and late-game reset tools.',
+  },
+  {
+    label: 'Move better',
+    filters: { ...emptyFilters, tag: 'light-feet' },
+    copy: 'Footwork, first-step, and recovery habits.',
+  },
+] satisfies { label: string; filters: FilterState; copy: string }[]
+
 export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPortalProps) {
   const profile = getLevelUpProfileForIdentity(identitySlug)
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
@@ -102,6 +130,13 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       </section>
 
       <LevelUpSafetyNote />
+
+      <LevelUpIntentPresets
+        onApply={(nextFilters) => {
+          setFilters(nextFilters)
+          setShowAllCards(false)
+        }}
+      />
 
       <LevelUpFilters
         filters={filters}
@@ -183,6 +218,25 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           </button>
         ) : null}
       </section>
+    </section>
+  )
+}
+
+function LevelUpIntentPresets({ onApply }: { onApply: (filters: FilterState) => void }) {
+  return (
+    <section className={styles.levelUpIntentPresets} aria-label="Quick Level Up intents">
+      <div>
+        <span>Choose fast</span>
+        <strong>What can you do right now?</strong>
+      </div>
+      <div>
+        {intentPresets.map((preset) => (
+          <button key={preset.label} type="button" onClick={() => onApply(preset.filters)}>
+            <strong>{preset.label}</strong>
+            <span>{preset.copy}</span>
+          </button>
+        ))}
+      </div>
     </section>
   )
 }

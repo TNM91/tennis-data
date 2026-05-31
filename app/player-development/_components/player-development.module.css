@@ -468,6 +468,7 @@
 .levelUpOverviewPanel,
 .levelUpHero,
 .levelUpTodayMission,
+.levelUpIntentPresets,
 .levelUpRail,
 .levelUpModuleGrid,
 .levelUpCardGrid,
@@ -595,6 +596,66 @@
   color: var(--muted-strong);
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.levelUpIntentPresets {
+  grid-template-columns: minmax(0, 0.34fr) minmax(0, 1fr);
+  align-items: center;
+}
+
+.levelUpIntentPresets > div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.levelUpIntentPresets > div:last-child {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.levelUpIntentPresets > div:first-child span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpIntentPresets strong {
+  color: var(--foreground-strong);
+  line-height: 1.16;
+}
+
+.levelUpIntentPresets button {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 92px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 11px;
+  text-align: left;
+}
+
+.levelUpIntentPresets button:hover,
+.levelUpIntentPresets button:focus-visible {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.levelUpIntentPresets button span {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.25;
 }
 
 .levelUpFilters {
@@ -5181,6 +5242,7 @@
   .levelUpHero,
   .levelUpOverviewGrid,
   .levelUpTodayMission,
+  .levelUpIntentPresets,
   .levelUpFilters,
   .levelUpRailGrid,
   .levelUpAssignmentControls {
@@ -5189,6 +5251,10 @@
 
   .levelUpFilterSummary {
     grid-column: span 2;
+  }
+
+  .levelUpIntentPresets > div:last-child {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .liveWorkbenchBody {
@@ -5289,6 +5355,7 @@
   .levelUpHero,
   .levelUpOverviewGrid,
   .levelUpTodayMission,
+  .levelUpIntentPresets,
   .levelUpFilters,
   .levelUpRailGrid,
   .levelUpAssignmentControls,
@@ -5298,6 +5365,18 @@
 
   .levelUpFilterSummary {
     grid-column: span 1;
+  }
+
+  .levelUpIntentPresets > div:last-child {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+
+  .levelUpIntentPresets button {
+    min-width: 176px;
+    scroll-snap-align: start;
   }
 
   .levelUpRouteActions,
