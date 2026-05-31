@@ -760,7 +760,8 @@
 }
 
 .levelUpCommonMiss,
-.levelUpDoseGuide {
+.levelUpDoseGuide,
+.levelUpTransferGuide {
   display: grid;
   gap: 5px;
   margin-top: 9px;
@@ -777,8 +778,15 @@
   background: rgba(155, 225, 29, 0.045);
 }
 
+.levelUpTransferGuide {
+  border-color: rgba(116, 190, 255, 0.14);
+  border-left-color: rgba(116, 190, 255, 0.5);
+  background: rgba(116, 190, 255, 0.05);
+}
+
 .levelUpCommonMiss span,
-.levelUpDoseGuide span {
+.levelUpDoseGuide span,
+.levelUpTransferGuide span {
   color: var(--muted);
   font-size: 0.64rem;
   font-weight: 950;
@@ -787,21 +795,24 @@
 }
 
 .levelUpCommonMiss strong,
-.levelUpDoseGuide strong {
+.levelUpDoseGuide strong,
+.levelUpTransferGuide strong {
   color: var(--foreground-strong);
   font-size: 0.82rem;
   line-height: 1.28;
 }
 
 .levelUpCommonMiss small,
-.levelUpDoseGuide small {
+.levelUpDoseGuide small,
+.levelUpTransferGuide small {
   color: var(--muted-strong);
   font-size: 0.78rem;
   line-height: 1.32;
 }
 
 .levelUpCommonMiss b,
-.levelUpDoseGuide b {
+.levelUpDoseGuide b,
+.levelUpTransferGuide b {
   color: var(--brand-green-3);
 }
 

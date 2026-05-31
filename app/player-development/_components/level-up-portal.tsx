@@ -457,6 +457,7 @@ function LevelUpCardTile({
   const coachableNote = getCoachableNotePrompt(card, rating)
   const commonMiss = getCardCommonMiss(card)
   const doseGuide = getCardDoseGuide(card)
+  const transferGuide = getCardTransferGuide(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
 
   function openLogger() {
@@ -552,6 +553,11 @@ function LevelUpCardTile({
           <span>Enough for today</span>
           <strong>{doseGuide.target}</strong>
           <small><b>Stop when:</b> {doseGuide.stopRule}</small>
+        </div>
+        <div className={styles.levelUpTransferGuide}>
+          <span>Use it in points</span>
+          <strong>{transferGuide.moment}</strong>
+          <small><b>Try next:</b> {transferGuide.action}</small>
         </div>
         <div className={styles.levelUpPlanScale}>
           <p><b>Level up:</b> {card.progression}</p>
@@ -1389,6 +1395,83 @@ function getCardDoseGuide(card: LevelUpCard) {
   return {
     target: `${card.durationMinutes} minutes or 2 clean rounds with one proof score.`,
     stopRule: 'the cue is gone and you are only finishing reps.',
+  }
+}
+
+function getCardTransferGuide(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      moment: 'After any ball you like, miss, or feel proud of.',
+      action: 'finish the swing, recover to ready, then let yourself watch the result.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      moment: 'Before first serves, second serves, and pressure serves.',
+      action: 'call the target quietly and run the same breath before caring about the score.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      moment: 'When your serve earns a predictable first ball.',
+      action: 'start the point with a serve target and one plus-one shape already chosen.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      moment: 'Before the server starts the toss.',
+      action: 'choose block, drive, height, or depth early enough that your feet can support it.',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      moment: 'When you are stretched, late, or outside the singles line.',
+      action: 'use height and recovery to earn neutral before trying to change direction.',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      moment: 'When a shorter ball invites you forward.',
+      action: 'attack from balance and finish ready instead of treating the first attack as the last shot.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      moment: 'Before serve, return, middle balls, and switches.',
+      action: 'make one early call your partner can act on without a discussion.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      moment: 'After misses, winners, long points, and tight-score points.',
+      action: 'turn away, breathe once, name the next intention, and step back in.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      moment: 'Late in games, long rallies, or after a hard movement sequence.',
+      action: 'notice whether posture and decision quality stay playable when legs get loud.',
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      moment: 'After practice, after matches, or before the next training day.',
+      action: 'use the readiness score to choose whether tomorrow should be build, repeat, or recover.',
+    }
+  }
+
+  return {
+    moment: 'In the first live point where this habit naturally appears.',
+    action: 'look for the cue once, score it honestly, and bring that proof to the next practice.',
   }
 }
 
