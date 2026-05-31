@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
-import type { LevelUpCard } from '@/lib/level-up/level-up-types'
+import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
 
@@ -350,6 +350,7 @@ export default function PlayerLiveWorkbench({
     const nextSessions = [nextSession, ...sessions].slice(0, 40)
     setSessions(nextSessions)
     window.localStorage.setItem(storageKey, JSON.stringify(nextSessions))
+    if (activeDrill.sourceCard) appendPortalCompletion(activeDrill.sourceCard, nextSession)
     setLastSavedSession(nextSession)
     setDraft(emptyDraft)
     setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing now...' })
@@ -909,6 +910,31 @@ function buildCardDrillOption(card: LevelUpCard, identitySlug: string): DrillOpt
     `/player-development/${identitySlug}/level-up#all-cards`,
     card,
   )
+}
+
+function appendPortalCompletion(card: LevelUpCard, session: SavedSession) {
+  const key = 'tiq-level-up-completions'
+  let existing: LevelUpCompletion[] = []
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || '[]')
+    existing = Array.isArray(parsed) ? parsed : []
+  } catch {
+    existing = []
+  }
+
+  const next: LevelUpCompletion = {
+    id: session.id,
+    playerId: 'local-player',
+    cardId: card.id,
+    completedAt: session.completedAt,
+    proofRating: session.rating,
+    note: session.note,
+    durationMinutes: Math.max(1, Math.round(session.elapsedSeconds / 60)) || card.durationMinutes,
+    assignmentId: session.assignmentId,
+  }
+
+  window.localStorage.setItem(key, JSON.stringify([next, ...existing.filter((completion) => completion.id !== next.id)].slice(0, 40)))
 }
 
 function getCardLiveWorkType(card: LevelUpCard): WorkType {
