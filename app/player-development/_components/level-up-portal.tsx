@@ -115,6 +115,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const activeFilterCount = countActiveFilters(filters)
   const visibleAllCards = showAllCards ? filteredCards : filteredCards.slice(0, 12)
   const startCards = (activeFilterCount ? filteredCards : identityCards).slice(0, 3)
+  const sessionRead = getSessionReadLabel(completionSummaryByCardId)
 
   return (
     <section className={styles.levelUpPortalApp} aria-labelledby="level-up-portal-title">
@@ -146,6 +147,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         visibleStartCount={startCards.length}
         favoriteCount={favorites.length}
         completionCount={completions.length}
+        sessionRead={sessionRead}
       />
 
       <LevelUpIntentPresets
@@ -272,12 +274,14 @@ function LevelUpSessionDock({
   visibleStartCount,
   favoriteCount,
   completionCount,
+  sessionRead,
 }: {
   intent: string
   activeFilterCount: number
   visibleStartCount: number
   favoriteCount: number
   completionCount: number
+  sessionRead: string
 }) {
   const filterLabel = activeFilterCount === 1 ? '1 filter' : `${activeFilterCount} filters`
   const logLabel = completionCount === 1 ? '1 proof' : `${completionCount} proofs`
@@ -294,6 +298,7 @@ function LevelUpSessionDock({
         <small>{filterLabel}</small>
         <small>{logLabel}</small>
         <small>{favoriteLabel}</small>
+        <small>{sessionRead}</small>
       </div>
       <div className={styles.levelUpSessionActions}>
         <a href="#level-up-start-here">Start</a>
@@ -684,6 +689,20 @@ function getProofTrendAction(trend: string) {
   if (trend === 'holding') return 'repeat clean'
   if (trend === 'rebuild') return 'scale down'
   return 'log again'
+}
+
+function getSessionReadLabel(summaryByCardId: Map<string, CompletionSummary>) {
+  const trends = [...summaryByCardId.values()].map((summary) => getProofTrendLabel(summary))
+  if (!trends.length) return 'No proof yet'
+
+  const improving = trends.filter((trend) => trend === 'improving').length
+  const rebuild = trends.filter((trend) => trend === 'rebuild').length
+  const holding = trends.filter((trend) => trend === 'holding').length
+
+  if (improving > 0 && improving >= rebuild && improving >= holding) return `${improving} improving`
+  if (rebuild > 0 && rebuild >= holding) return `${rebuild} rebuild`
+  if (holding > 0) return `${holding} holding`
+  return 'Build proof'
 }
 
 function getProofRatingGuidance(rating: number, card: LevelUpCard) {
