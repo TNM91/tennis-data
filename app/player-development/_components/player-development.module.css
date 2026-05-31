@@ -645,6 +645,81 @@
   line-height: 1.42;
 }
 
+.levelUpCardPlan {
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 9px;
+}
+
+.levelUpCardPlan summary {
+  cursor: pointer;
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+  font-weight: 900;
+  list-style: none;
+}
+
+.levelUpCardPlan summary::-webkit-details-marker {
+  display: none;
+}
+
+.levelUpCardPlan[open] summary {
+  margin-bottom: 8px;
+}
+
+.levelUpPlanCue {
+  display: grid;
+  gap: 4px;
+  border-radius: 10px;
+  background: rgba(155, 225, 29, 0.08);
+  padding: 8px;
+}
+
+.levelUpPlanCue span {
+  color: var(--brand-green-3);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpPlanCue strong {
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.levelUpCardPlan ol {
+  display: grid;
+  gap: 6px;
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.levelUpPlanScale {
+  display: grid;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.levelUpPlanScale p,
+.levelUpCardPlan small {
+  color: var(--muted-strong);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.levelUpCardPlan small {
+  display: block;
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  padding-top: 8px;
+}
+
 .levelUpHeroPanel,
 .levelUpSafetyNote,
 .assignmentCard {

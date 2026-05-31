@@ -387,6 +387,21 @@ function LevelUpCardTile({
       </div>
       <p><b>Proof:</b> {card.proof}</p>
       {reason ? <RecommendedReasonPill reason={reason} /> : null}
+      <details className={styles.levelUpCardPlan}>
+        <summary>View plan</summary>
+        <div className={styles.levelUpPlanCue}>
+          <span>Cue</span>
+          <strong>{card.cue}</strong>
+        </div>
+        <ol>
+          {card.routine.slice(0, 3).map((step) => <li key={step}>{step}</li>)}
+        </ol>
+        <div className={styles.levelUpPlanScale}>
+          <p><b>Level up:</b> {card.progression}</p>
+          <p><b>Scale down:</b> {card.regression}</p>
+        </div>
+        {card.safetyNote ? <small>{card.safetyNote}</small> : null}
+      </details>
       <details className={styles.completionLogger}>
         <summary>Log proof</summary>
         <div>
