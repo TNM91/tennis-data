@@ -759,6 +759,41 @@
   line-height: 1.32;
 }
 
+.levelUpCommonMiss {
+  display: grid;
+  gap: 5px;
+  margin-top: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-left: 3px solid rgba(116, 190, 255, 0.38);
+  border-radius: 10px;
+  background: rgba(116, 190, 255, 0.045);
+  padding: 8px;
+}
+
+.levelUpCommonMiss span {
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpCommonMiss strong {
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  line-height: 1.28;
+}
+
+.levelUpCommonMiss small {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.32;
+}
+
+.levelUpCommonMiss b {
+  color: var(--brand-green-3);
+}
+
 .levelUpPlanScale {
   display: grid;
   gap: 5px;

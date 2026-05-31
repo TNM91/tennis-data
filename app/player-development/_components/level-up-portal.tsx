@@ -454,6 +454,7 @@ function LevelUpCardTile({
   const proofGuidance = getProofRatingGuidance(rating, card)
   const notePrompt = getProofNotePrompt(rating)
   const repFeedback = getCardRepFeedback(card, rating)
+  const commonMiss = getCardCommonMiss(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
 
   function openLogger() {
@@ -539,6 +540,11 @@ function LevelUpCardTile({
           <ul>
             {getCardQualityChecks(card).map((check) => <li key={check}>{check}</li>)}
           </ul>
+        </div>
+        <div className={styles.levelUpCommonMiss}>
+          <span>Common miss</span>
+          <strong>{commonMiss.miss}</strong>
+          <small><b>Fast fix:</b> {commonMiss.fix}</small>
         </div>
         <div className={styles.levelUpPlanScale}>
           <p><b>Level up:</b> {card.progression}</p>
@@ -1131,6 +1137,83 @@ function getCardQualityChecks(card: LevelUpCard) {
     'Count only reps that match the tennis habit.',
     'Log one proof score before adding more work.',
   ]
+}
+
+function getCardCommonMiss(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      miss: 'You hit, watch, and arrive late to the next ready spot.',
+      fix: 'Say recover out loud and make the ready spot the finish line for every rep.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      miss: 'The serve rep starts before the target and routine are clear.',
+      fix: 'Pause long enough to call the target, then keep the same breath after misses and makes.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      miss: 'The serve and first ball become two disconnected actions.',
+      fix: 'Name both shots before starting: serve target first, plus-one shape second.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      miss: 'You react to the serve without choosing the return job first.',
+      fix: 'Pick block, drive, or height before the toss and judge the rep by intent, not outcome.',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      miss: 'A stretched ball turns into a rushed winner attempt.',
+      fix: 'Use height, shape, and recovery to earn neutral before changing direction.',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      miss: 'You attack faster than your balance can support.',
+      fix: 'Make the first close step controlled and finish ready for the next ball.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      miss: 'The call comes after your partner already had to guess.',
+      fix: 'Use one early call before the point or first move, then reset together after confusion.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      miss: 'The last point keeps playing in your head as the next point starts.',
+      fix: 'Turn away, exhale, and name one next intention before stepping back in.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      miss: 'The clock keeps running after tennis posture breaks.',
+      fix: 'Shorten the interval and protect posture before adding time, speed, or another round.',
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      miss: 'The reset turns into forced stretching or extra work.',
+      fix: 'Move slowly, breathe, and stop at controlled range without chasing discomfort.',
+    }
+  }
+
+  return {
+    miss: 'The rep gets completed, but the tennis habit is not obvious.',
+    fix: 'Restart with one cue and count only reps that match the proof.',
+  }
 }
 
 function getCardAvoidCue(card: LevelUpCard) {
