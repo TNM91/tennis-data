@@ -763,7 +763,8 @@
 .levelUpDoseGuide,
 .levelUpTransferGuide,
 .levelUpCoachLens,
-.levelUpReadinessCheck {
+.levelUpReadinessCheck,
+.levelUpTrainingOptions {
   display: grid;
   gap: 5px;
   margin-top: 9px;
@@ -798,11 +799,18 @@
   background: rgba(155, 225, 29, 0.055);
 }
 
+.levelUpTrainingOptions {
+  border-color: rgba(116, 190, 255, 0.14);
+  border-left-color: rgba(116, 190, 255, 0.44);
+  background: rgba(116, 190, 255, 0.045);
+}
+
 .levelUpCommonMiss span,
 .levelUpDoseGuide span,
 .levelUpTransferGuide span,
 .levelUpCoachLens span,
-.levelUpReadinessCheck span {
+.levelUpReadinessCheck span,
+.levelUpTrainingOptions > span {
   color: var(--muted);
   font-size: 0.64rem;
   font-weight: 950;
@@ -810,11 +818,21 @@
   text-transform: uppercase;
 }
 
+.levelUpTrainingOptions div {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 6px;
+}
+
 .levelUpCommonMiss strong,
 .levelUpDoseGuide strong,
 .levelUpTransferGuide strong,
 .levelUpCoachLens strong,
-.levelUpReadinessCheck strong {
+.levelUpReadinessCheck strong,
+.levelUpTrainingOptions strong {
   color: var(--foreground-strong);
   font-size: 0.82rem;
   line-height: 1.28;
@@ -824,7 +842,8 @@
 .levelUpDoseGuide small,
 .levelUpTransferGuide small,
 .levelUpCoachLens small,
-.levelUpReadinessCheck small {
+.levelUpReadinessCheck small,
+.levelUpTrainingOptions small {
   color: var(--muted-strong);
   font-size: 0.78rem;
   line-height: 1.32;
@@ -6415,6 +6434,11 @@
   }
 
   .levelUpTrainingStandards div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .levelUpTrainingOptions div {
     grid-template-columns: 1fr;
     gap: 2px;
   }

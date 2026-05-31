@@ -460,6 +460,7 @@ function LevelUpCardTile({
   const transferGuide = getCardTransferGuide(card)
   const coachLens = getCardCoachLens(card)
   const readinessCheck = getCardReadinessCheck(card)
+  const trainingOptions = getCardTrainingOptions(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
 
   function openLogger() {
@@ -550,6 +551,17 @@ function LevelUpCardTile({
           <span>Before you start</span>
           <strong>{readinessCheck.check}</strong>
           <small><b>Ready means:</b> {readinessCheck.readyMeans}</small>
+        </div>
+        <div className={styles.levelUpTrainingOptions}>
+          <span>Run it today</span>
+          <div>
+            <strong>Solo</strong>
+            <small>{trainingOptions.solo}</small>
+          </div>
+          <div>
+            <strong>With someone</strong>
+            <small>{trainingOptions.partner}</small>
+          </div>
         </div>
         <div className={styles.levelUpCommonMiss}>
           <span>Common miss</span>
@@ -1330,6 +1342,83 @@ function getCardReadinessCheck(card: LevelUpCard) {
   return {
     check: 'Name the one tennis habit you want to see.',
     readyMeans: 'the first rep has a cue, a proof score, and a reason.',
+  }
+}
+
+function getCardTrainingOptions(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      solo: 'Shadow the contact, recover to the ready spot, then score whether you moved before watching.',
+      partner: 'Have a partner call recover after contact or feed one ball while you finish through the recovery spot.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      solo: 'Serve or shadow in small batches, calling the target before every rep.',
+      partner: 'Ask a partner to track whether your target call and routine stay the same after misses.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      solo: 'Shadow serve plus-one patterns with one target and one first-ball shape.',
+      partner: 'Serve to a partner return and play only the plus-one ball before resetting.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      solo: 'Use shadow returns or wall starts and call block, drive, height, or depth before moving.',
+      partner: 'Have a server or feeder vary pace while you call the return job early.',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      solo: 'Shadow wide-ball recovery from outside the singles line with height and reset as the goal.',
+      partner: 'Ask for wide feeds and count only reps that buy time and recover to neutral.',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      solo: 'Shadow short-ball attacks and freeze the finish in a balanced ready position.',
+      partner: 'Use cooperative short feeds and play one extra ball after the attack to prove recovery.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      solo: 'Walk the first move and say the call out loud before each shadow rep.',
+      partner: 'Run short point starts where the call must happen before the first move.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      solo: 'Rehearse the reset after imaginary misses, winners, and tight scores.',
+      partner: 'Play short games where each point must start with the reset cue.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      solo: 'Use timed rounds and score posture before adding another round.',
+      partner: 'Have a partner call the tennis decision after the tired block so the body work transfers.',
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      solo: 'Run the reset quietly and compare readiness before and after.',
+      partner: 'Use it after hitting and share only the readiness score and one movement note.',
+    }
+  }
+
+  return {
+    solo: 'Run the smallest version of the card and score the proof before adding volume.',
+    partner: 'Ask a partner to watch for the proof behavior, not just the drill result.',
   }
 }
 
