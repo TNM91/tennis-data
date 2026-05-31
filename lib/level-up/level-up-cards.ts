@@ -160,6 +160,11 @@ function makeCard(seed: CardSeed): LevelUpCard {
 function buildUseWhen(seed: CardSeed) {
   if (seed.tags.includes('match-day')) return 'Use this before or during match day when you need a simple routine you can trust.'
   if (seed.tags.includes('recovery') || seed.category === 'recovery-reset') return 'Use this after play when your body and attention need to come back to neutral.'
+  if (seed.tags.includes('wall')) return 'Use this when you have a wall and want reps that include recovery, not just contact.'
+  if (seed.tags.includes('jump-rope')) return 'Use this when you need light feet before tennis work or a short conditioning block.'
+  if (seed.tags.includes('attack')) return 'Use this when attacking gets rushed and you need balance before the finish.'
+  if (seed.tags.includes('defense')) return 'Use this when defense turns into panic and you need a calmer neutral ball.'
+  if (seed.tags.includes('consistency')) return 'Use this when you need rally discipline before changing direction or pace.'
   if (seed.category === 'serve-return') return 'Use this when serve or return reps need a clearer job than just getting the ball in.'
   if (seed.category === 'partner-drill') return 'Use this when you have a partner and want a constraint that makes the rally purposeful.'
   if (seed.category === 'doubles-drill') return 'Use this when doubles communication or first movement needs to be clearer.'
@@ -179,13 +184,19 @@ function buildTennisGoal(seed: CardSeed) {
 }
 
 function buildCue(seed: CardSeed) {
+  if (seed.tags.includes('recovery-after-contact') || seed.tags.includes('recovery')) return 'Finish, recover, then read the next ball.'
   if (seed.tags.includes('serve')) return 'Target first, routine second, swing third.'
   if (seed.tags.includes('return')) return 'Choose the return job before the toss.'
   if (seed.tags.includes('pressure')) return 'Slow down before the next point speeds up.'
   if (seed.tags.includes('doubles')) return 'Call the first move before the ball is live.'
+  if (seed.tags.includes('wall')) return 'Hit, recover, and reset the feet before the next ball.'
+  if (seed.tags.includes('attack')) return 'Close with balance before you choose the finish.'
+  if (seed.tags.includes('defense')) return 'Height, depth, recover, then breathe.'
+  if (seed.tags.includes('conditioning')) return 'Keep tennis posture when fatigue shows up.'
+  if (seed.tags.includes('balance')) return 'Stick the finish before adding speed.'
   if (seed.tags.includes('light-feet')) return 'Land quiet and move with control.'
   if (seed.category === 'mobility-stretch' || seed.category === 'recovery-reset') return 'Move slowly and re-check readiness.'
-  return seed.tags.includes('match-day') ? 'Before the next point or match block.' : 'One cue, clean reps, honest score.'
+  return seed.tags.includes('match-day') ? 'Prepare the same way before pressure starts.' : 'One tennis job, clean reps, honest score.'
 }
 
 function buildRoutine(seed: CardSeed) {
@@ -198,17 +209,31 @@ function buildRoutine(seed: CardSeed) {
   if (seed.category === 'serve-return') {
     return ['Call the target.', 'Run the routine.', 'Hit or shadow the rep.', 'Recover and score the proof.']
   }
+  if (seed.category === 'movement-engine') {
+    return ['Set the cone, line, or shadow lane.', 'Do 6 clean reps with the cue.', 'Recover to a balanced ready position.', 'Rest briefly, repeat 3 rounds, then score the proof.']
+  }
+  if (seed.category === 'conditioning') {
+    return ['Set a short work window.', 'Move with tennis posture, not max speed.', 'Rest before movement quality breaks.', 'Score whether decisions stayed clear under fatigue.']
+  }
+  if (seed.category === 'strength-stability') {
+    return ['Choose the controlled version first.', 'Do 6-8 technique-first reps each side.', 'Reset posture and breathing between sets.', 'Score control, balance, and tennis posture.']
+  }
+  if (seed.category === 'solo-drill') {
+    return ['Pick the target or wall rule.', 'Hit a short block of clean reps.', 'Recover before watching the result.', 'Score whether the habit showed up.']
+  }
   if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') {
     return ['Set the constraint.', 'Play the rep.', 'Call the cue out loud.', 'Score the habit before changing drills.']
   }
-  return ['Set the space.', 'Do 6-10 clean reps.', 'Reset posture and breathing.', 'Repeat for 3 rounds and score the proof.']
+  return ['Choose one tennis job.', 'Do 6-10 clean reps.', 'Reset posture and breathing.', 'Repeat for 3 rounds and score the proof.']
 }
 
 function buildReward(seed: CardSeed) {
   if (seed.category === 'mental-routine') return 'You finish with a routine you can use before the next point, not a long journal entry.'
+  if (seed.category === 'movement-engine') return 'You finish with movement that connects contact, recovery, and the next ready position.'
+  if (seed.category === 'solo-drill') return 'You finish with reps that have a target, a recovery habit, and a score you can compare later.'
   if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') return 'You finish with shared language and one measurable habit to carry into points.'
   if (seed.category === 'conditioning' || seed.category === 'strength-stability') return 'You finish with body work that has a clear tennis reason behind it.'
-  return 'You finish with one repeatable habit and a clear proof score.'
+  return 'You finish with one repeatable tennis habit and a proof score you can track.'
 }
 
 function buildProof(seed: CardSeed) {
@@ -266,7 +291,9 @@ function buildRegression(seed: CardSeed) {
   if (seed.category === 'serve-return') return 'Shadow the pattern first, then add the ball.'
   if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') return 'Remove scoring and rehearse the cue with slower feeds.'
   if (seed.category === 'conditioning' || seed.category === 'strength-stability') return 'Cut the work in half and keep posture clean.'
-  return 'Cut the reps in half and keep the cue clean.'
+  if (seed.category === 'movement-engine') return 'Walk the pattern first, then add tennis speed only when balance stays clean.'
+  if (seed.category === 'solo-drill') return 'Shorten the target area or slow the feed until contact and recovery both hold.'
+  return 'Cut the reps in half and keep the tennis job clean.'
 }
 
 function buildSafetyNote(seed: CardSeed) {

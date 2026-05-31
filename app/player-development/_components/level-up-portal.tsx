@@ -487,6 +487,10 @@ function LevelUpCardTile({
           <span>Cue</span>
           <strong>{card.cue}</strong>
         </div>
+        <div className={styles.levelUpPlanGoal}>
+          <span>Why it matters</span>
+          <p>{card.tennisGoal}</p>
+        </div>
         <ol>
           {card.routine.slice(0, 3).map((step) => <li key={step}>{step}</li>)}
         </ol>

@@ -682,8 +682,26 @@
   padding: 8px;
 }
 
+.levelUpPlanGoal {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  border: 1px solid rgba(116, 190, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 8px;
+}
+
 .levelUpPlanCue span {
   color: var(--brand-green-3);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpPlanGoal span {
+  color: var(--muted);
   font-size: 0.66rem;
   font-weight: 950;
   letter-spacing: 0.08em;
@@ -694,6 +712,13 @@
   color: var(--foreground-strong);
   font-size: 0.88rem;
   line-height: 1.25;
+}
+
+.levelUpPlanGoal p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .levelUpCardPlan ol {
