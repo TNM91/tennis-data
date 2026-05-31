@@ -619,6 +619,19 @@ export default function PlayerLiveWorkbench({
               <strong>{activeDrill.sourceCard?.cue ?? activeFocus.tracker[0] ?? 'Proof rating'}</strong>
               {activeDrill.sourceCard ? <p>{activeDrill.sourceCard.reward}</p> : null}
             </div>
+            {activeDrill.sourceCard ? (
+              <div className={styles.liveAdjustmentPanel}>
+                <div>
+                  <span>Level up</span>
+                  <p>{activeDrill.sourceCard.progression}</p>
+                </div>
+                <div>
+                  <span>Scale down</span>
+                  <p>{activeDrill.sourceCard.regression}</p>
+                </div>
+                {activeDrill.sourceCard.safetyNote ? <small>{activeDrill.sourceCard.safetyNote}</small> : null}
+              </div>
+            ) : null}
             <div className={styles.liveActionGuide}>
               <strong>Time</strong>
               <p>{activeDrill.duration}</p>
