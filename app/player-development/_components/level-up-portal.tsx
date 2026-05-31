@@ -169,12 +169,12 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         startHref={startHref}
       />
 
-      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
+      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} defaultOpen />
       <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
       <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
       <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
       <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} startHref={startHref} />
-      <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Tap Favorite on a card to pin it here." startHref={startHref} />
+      <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Tap Favorite on a card to pin it here." startHref={startHref} defaultOpen={favoriteCards.length > 0} />
       <LevelUpSmartRail title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Log a proof score to build this rail." startHref={startHref} />
 
       <section className={styles.levelUpModuleGrid} aria-label="Level Up modules">
@@ -311,6 +311,7 @@ function LevelUpSmartRail({
   onComplete,
   emptyText,
   startHref,
+  defaultOpen,
 }: {
   title: string
   cards: LevelUpCard[]
@@ -320,14 +321,16 @@ function LevelUpSmartRail({
   onComplete: (cardId: string, rating: number, note: string) => void
   emptyText?: string
   startHref: string
+  defaultOpen?: boolean
 }) {
   const id = title === 'Favorites' ? 'favorites' : undefined
   return (
-    <section id={id} className={styles.levelUpRail} aria-label={title}>
-      <div className={styles.levelUpRailHeader}>
+    <details id={id} className={styles.levelUpRail} aria-label={title} open={defaultOpen}>
+      <summary className={styles.levelUpRailSummary}>
         <span>{title}</span>
-        <h2>{title}</h2>
-      </div>
+        <strong>{title}</strong>
+        <small>{cards.length ? `${cards.length} cards` : 'Empty'}</small>
+      </summary>
       {cards.length ? (
         <div className={styles.levelUpRailGrid}>
           {cards.map((card) => (
@@ -343,7 +346,7 @@ function LevelUpSmartRail({
           ))}
         </div>
       ) : <p>{emptyText ?? 'No cards in this rail yet.'}</p>}
-    </section>
+    </details>
   )
 }
 

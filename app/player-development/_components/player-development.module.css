@@ -525,6 +525,7 @@
 .levelUpHeroCopy,
 .levelUpHeroPanel,
 .levelUpRailHeader,
+.levelUpRailSummary,
 .levelUpCardTile,
 .levelUpModuleTile,
 .coachAssignmentPanel > div:first-child,
@@ -535,6 +536,7 @@
 
 .levelUpHeroCopy > span,
 .levelUpRailHeader span,
+.levelUpRailSummary span,
 .levelUpTodayMission span,
 .levelUpCardTile > div:first-child span,
 .levelUpModuleTile span,
@@ -560,6 +562,41 @@
   margin: 0;
   color: var(--foreground-strong);
   letter-spacing: 0;
+}
+
+.levelUpRailSummary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.levelUpRailSummary::-webkit-details-marker {
+  display: none;
+}
+
+.levelUpRailSummary span {
+  grid-column: 1 / -1;
+}
+
+.levelUpRailSummary strong {
+  color: var(--foreground-strong);
+  font-size: clamp(1rem, 2vw, 1.22rem);
+  line-height: 1.15;
+}
+
+.levelUpRailSummary small {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--muted-strong);
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.levelUpRail[open] .levelUpRailSummary {
+  margin-bottom: 10px;
 }
 
 .levelUpHero h1 {
