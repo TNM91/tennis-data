@@ -1233,6 +1233,24 @@
   line-height: 1.35;
 }
 
+.levelUpProofScale {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.levelUpProofScale span {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted-strong);
+  padding: 7px;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.22;
+}
+
 .completionLogger summary {
   width: fit-content;
   cursor: pointer;
@@ -5922,6 +5940,10 @@
     min-width: 0;
     min-height: 38px;
     padding-inline: 8px;
+  }
+
+  .levelUpProofScale {
+    grid-template-columns: 1fr;
   }
 
   .levelUpPortalStats {

@@ -503,6 +503,11 @@ function LevelUpCardTile({
       <details className={styles.completionLogger} open={loggerOpen} onToggle={(event) => setLoggerOpen(event.currentTarget.open)}>
         <summary>Log proof</summary>
         <p>Tap the number first. Add a short note only if it changes the next rep.</p>
+        <div className={styles.levelUpProofScale} aria-label={`Proof scale for ${card.title}`}>
+          <span>0: not yet</span>
+          <span>3: showed up sometimes</span>
+          <span>5: automatic today</span>
+        </div>
         <div>
           {[0, 1, 2, 3, 4, 5].map((value) => (
             <button key={value} type="button" data-active={rating === value ? 'true' : 'false'} onClick={() => setRating(value)}>{value}</button>
