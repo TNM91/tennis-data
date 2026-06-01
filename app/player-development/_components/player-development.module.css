@@ -2425,6 +2425,11 @@
   margin-top: -2px;
 }
 
+.levelUpFinishRecap button[data-next-card='true'] {
+  border-color: rgba(116, 190, 255, 0.42);
+  background: rgba(116, 190, 255, 0.12);
+}
+
 .levelUpCopyFallback {
   width: 100%;
   resize: vertical;

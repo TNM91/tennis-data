@@ -865,6 +865,10 @@ function LevelUpCardTile({
     })
   }
 
+  function pickNextCard() {
+    document.getElementById('level-up-start-here')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   async function copyCoachUpdate() {
     if (savedRating === null || !savedProofAction) return
 
@@ -1082,6 +1086,7 @@ function LevelUpCardTile({
               <em>{finishRecap.proof}</em>
               <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy recap', 'Recap copied')}</button>
               <button type="button" onClick={repeatActivity}>Run again</button>
+              <button type="button" data-next-card="true" onClick={pickNextCard}>Pick next card</button>
               {coachUpdateCopyStatus === 'blocked' ? (
                 <textarea
                   className={styles.levelUpCopyFallback}
