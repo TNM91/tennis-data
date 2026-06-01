@@ -719,6 +719,7 @@ function LevelUpCardTile({
   const nextPractice = getCardNextPractice(card, shownSavedRating)
   const sessionStandard = getCardSessionStandard(card)
   const proofAnchors = getCardProofAnchors(card)
+  const repLadder = getCardRepLadder(card)
   const targetSeconds = Math.max(60, card.durationMinutes * 60)
   const timerProgress = Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100))
   const cleanRepTarget = getCleanRepTarget(card)
@@ -874,6 +875,15 @@ function LevelUpCardTile({
               <strong>{sessionStandard.stop}</strong>
             </div>
           </div>
+          <div className={styles.levelUpActivityRepLadder} aria-label={`Rep ladder for ${card.title}`}>
+            <span>Rep ladder</span>
+            {repLadder.map((step) => (
+              <div key={step.label}>
+                <b>{step.label}</b>
+                <strong>{step.action}</strong>
+              </div>
+            ))}
+          </div>
           <div className={styles.levelUpActivityTimer} data-timer-state={timerRunning ? 'running' : elapsedSeconds > 0 ? 'paused' : 'ready'}>
             <span>Timer</span>
             <strong>{formatTimer(elapsedSeconds)}</strong>
@@ -927,46 +937,50 @@ function LevelUpCardTile({
           </div>
         </div>
       ) : null}
-      <p><b>Proof:</b> {card.proof}</p>
-      <div className={styles.levelUpPurposeStrip} aria-label={`Training purpose for ${card.title}`}>
-        <span><b>Builds</b>{getCardPurposeLabel(card)}</span>
-        <span><b>Best setting</b>{getCardSettingLabel(card)}</span>
-        <span><b>Coach sees</b>{getCardCoachSignal(card)}</span>
-      </div>
-      <div className={styles.levelUpTrainingStandards} aria-label={`Training standards for ${card.title}`}>
-        <span>Train clean</span>
-        <div>
-          <b>Counts when</b>
-          <strong>{getCardProofStandard(card)}</strong>
-        </div>
-        <div>
-          <b>Avoid</b>
-          <strong>{getCardAvoidCue(card)}</strong>
-        </div>
-        <div>
-          <b>Coach handoff</b>
-          <strong>{getCardCoachHandoff(card)}</strong>
-        </div>
-      </div>
-      {reason ? <RecommendedReasonPill reason={reason} /> : null}
-      {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}
-      {nextPractice ? (
-        <div className={styles.levelUpNextPractice}>
-          <span>Next practice</span>
-          <strong>{nextPractice.title}</strong>
-          <small>{nextPractice.detail}</small>
-        </div>
+      {!activityOpen ? (
+        <>
+          <p><b>Proof:</b> {card.proof}</p>
+          <div className={styles.levelUpPurposeStrip} aria-label={`Training purpose for ${card.title}`}>
+            <span><b>Builds</b>{getCardPurposeLabel(card)}</span>
+            <span><b>Best setting</b>{getCardSettingLabel(card)}</span>
+            <span><b>Coach sees</b>{getCardCoachSignal(card)}</span>
+          </div>
+          <div className={styles.levelUpTrainingStandards} aria-label={`Training standards for ${card.title}`}>
+            <span>Train clean</span>
+            <div>
+              <b>Counts when</b>
+              <strong>{getCardProofStandard(card)}</strong>
+            </div>
+            <div>
+              <b>Avoid</b>
+              <strong>{getCardAvoidCue(card)}</strong>
+            </div>
+            <div>
+              <b>Coach handoff</b>
+              <strong>{getCardCoachHandoff(card)}</strong>
+            </div>
+          </div>
+          {reason ? <RecommendedReasonPill reason={reason} /> : null}
+          {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}
+          {nextPractice ? (
+            <div className={styles.levelUpNextPractice}>
+              <span>Next practice</span>
+              <strong>{nextPractice.title}</strong>
+              <small>{nextPractice.detail}</small>
+            </div>
+          ) : null}
+          <div className={styles.levelUpDoNow}>
+            <span>Do now</span>
+            <strong>{card.cue}</strong>
+            <small>{card.routine[0]}</small>
+          </div>
+          <div className={styles.levelUpRunStrip} aria-label={`How to run ${card.title}`}>
+            <span><b>Set</b>{getCardSetupLabel(card)}</span>
+            <span><b>Do</b>{card.durationMinutes} min controlled block</span>
+            <span><b>Score</b>{card.proof.replace(' 0-5', '')}</span>
+          </div>
+        </>
       ) : null}
-      <div className={styles.levelUpDoNow}>
-        <span>Do now</span>
-        <strong>{card.cue}</strong>
-        <small>{card.routine[0]}</small>
-      </div>
-      <div className={styles.levelUpRunStrip} aria-label={`How to run ${card.title}`}>
-        <span><b>Set</b>{getCardSetupLabel(card)}</span>
-        <span><b>Do</b>{card.durationMinutes} min controlled block</span>
-        <span><b>Score</b>{card.proof.replace(' 0-5', '')}</span>
-      </div>
       <details className={styles.levelUpCardPlan}>
         <summary>View plan</summary>
         <div className={styles.levelUpPlanCue}>
@@ -1875,6 +1889,94 @@ function getCardSessionStandard(card: LevelUpCard) {
     counts: 'The rep counts when the proof behavior is obvious.',
     stop: doseGuide.stopRule,
   }
+}
+
+function getCardRepLadder(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return [
+      { label: 'Find it', action: 'Shadow one contact and recover before you look.' },
+      { label: 'Repeat it', action: 'Stack three clean recoveries from the same finish.' },
+      { label: 'Pressure it', action: 'Add a target or score call while recovery stays first.' },
+    ]
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return [
+      { label: 'Find it', action: 'Call target, breathe, and serve at half pace.' },
+      { label: 'Repeat it', action: 'Keep the same routine for five balls, makes or misses.' },
+      { label: 'Pressure it', action: 'Play 30-30 or second-serve score with the same target call.' },
+    ]
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return [
+      { label: 'Find it', action: 'Name serve location and first-ball shape before starting.' },
+      { label: 'Repeat it', action: 'Run the same pattern until the plus-one job is obvious.' },
+      { label: 'Pressure it', action: 'Add a point start where only planned plus-ones count.' },
+    ]
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return [
+      { label: 'Find it', action: 'Choose block, drive, or height before the toss.' },
+      { label: 'Repeat it', action: 'Score only returns where intent was early.' },
+      { label: 'Pressure it', action: 'Start points with one return job and recover after contact.' },
+    ]
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return [
+      { label: 'Find it', action: 'Accept neutral as the win before the rep starts.' },
+      { label: 'Repeat it', action: 'Send height and depth, then recover balanced.' },
+      { label: 'Pressure it', action: 'Add a live ball after the reset and defend the next shot.' },
+    ]
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return [
+      { label: 'Find it', action: 'Move forward only as fast as balance allows.' },
+      { label: 'Repeat it', action: 'Finish the attack and hold ready posture.' },
+      { label: 'Pressure it', action: 'Add a pass or recovery ball after the close.' },
+    ]
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return [
+      { label: 'Find it', action: 'Say the call early enough for your partner to move.' },
+      { label: 'Repeat it', action: 'Run three points where call and first move match.' },
+      { label: 'Pressure it', action: 'Play 30-30 and keep the call short under score.' },
+    ]
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return [
+      { label: 'Find it', action: 'Use the reset word before the next point starts.' },
+      { label: 'Repeat it', action: 'Pair breath, target, and first intention for three points.' },
+      { label: 'Pressure it', action: 'Use it after a miss, winner, and long rally.' },
+    ]
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return [
+      { label: 'Find it', action: 'Start controlled enough that posture stays quiet.' },
+      { label: 'Repeat it', action: 'Hold quality through the middle of the block.' },
+      { label: 'Pressure it', action: 'Add one tennis decision only if posture stays clean.' },
+    ]
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return [
+      { label: 'Find it', action: 'Move slowly enough to notice the first tight spot.' },
+      { label: 'Repeat it', action: 'Breathe through the reset without forcing range.' },
+      { label: 'Pressure it', action: 'Recheck readiness and pick the next light habit.' },
+    ]
+  }
+
+  return [
+    { label: 'Find it', action: 'Make the cue obvious on one clean rep.' },
+    { label: 'Repeat it', action: 'Stack the same habit without changing the drill.' },
+    { label: 'Pressure it', action: 'Add one challenge while the proof stays visible.' },
+  ]
 }
 
 function getCardProofAnchors(card: LevelUpCard) {
