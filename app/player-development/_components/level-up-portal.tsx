@@ -362,9 +362,13 @@ function LevelUpCoachAssignmentBanner({
   identitySlug: string
   completionSummary?: CompletionSummary
 }) {
-  const statusLabel = completionSummary ? `Logged ${completionSummary.lastRating ?? 'proof'}/5` : 'Assigned'
+  const readyToSend = Boolean(completionSummary)
+  const statusLabel = readyToSend ? 'Ready to send' : 'Assigned'
+  const proofLabel = typeof completionSummary?.lastRating === 'number' ? `${completionSummary.lastRating}/5 proof` : 'Proof needed'
+  const primaryActionHref = readyToSend ? '#recently-completed' : buildCardStartHref(identitySlug, card)
+  const primaryActionLabel = readyToSend ? 'Review coach update' : 'Start coach challenge'
   return (
-    <section className={styles.levelUpCoachAssignmentBanner} aria-label="Coach assignment">
+    <section className={styles.levelUpCoachAssignmentBanner} aria-label="Coach assignment" data-status={readyToSend ? 'ready' : 'assigned'}>
       <div>
         <span>Coach challenge</span>
         <h2>{card.title}</h2>
@@ -372,6 +376,7 @@ function LevelUpCoachAssignmentBanner({
       </div>
       <div className={styles.levelUpCoachAssignmentMeta}>
         <span>{statusLabel}</span>
+        <span>{proofLabel}</span>
         <span>Due {formatAssignmentDueDate(assignment.dueAt)}</span>
         <span>{card.durationMinutes} min</span>
         <span>{module.title}</span>
@@ -381,7 +386,7 @@ function LevelUpCoachAssignmentBanner({
         <strong>{assignment.proofRequired ?? card.proof}</strong>
         <small>Score 0-5, add one tiny note only if it changes the next practice.</small>
       </div>
-      <a className="button-primary" href={buildCardStartHref(identitySlug, card)}>Start coach challenge</a>
+      <a className="button-primary" href={primaryActionHref}>{primaryActionLabel}</a>
     </section>
   )
 }

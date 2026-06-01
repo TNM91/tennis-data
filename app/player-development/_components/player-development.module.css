@@ -1079,6 +1079,13 @@
     rgba(5, 13, 19, 0.94);
 }
 
+.levelUpCoachAssignmentBanner[data-status='ready'] {
+  border-color: rgba(52, 255, 136, 0.36);
+  background:
+    linear-gradient(135deg, rgba(52, 255, 136, 0.1), transparent 44%),
+    rgba(5, 13, 19, 0.94);
+}
+
 .levelUpCoachAssignmentBanner h2 {
   font-size: clamp(1.15rem, 2vw, 1.55rem);
   line-height: 1.1;
@@ -1095,6 +1102,12 @@
   flex-wrap: wrap;
   gap: 7px;
   align-items: center;
+}
+
+.levelUpCoachAssignmentBanner[data-status='ready'] .levelUpCoachAssignmentMeta span:first-child {
+  border-color: rgba(52, 255, 136, 0.34);
+  background: rgba(52, 255, 136, 0.12);
+  color: #bcffd3;
 }
 
 .levelUpCoachAssignmentProof {
