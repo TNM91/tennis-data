@@ -709,7 +709,7 @@ function LevelUpCardTile({
   const [bankedCleanRepCount, setBankedCleanRepCount] = useState(0)
   const [repeatPlan, setRepeatPlan] = useState<{ title: string; detail: string } | null>(null)
   const [finishRecap, setFinishRecap] = useState<{ title: string; detail: string; proof: string } | null>(null)
-  const [coachUpdateCopied, setCoachUpdateCopied] = useState(false)
+  const [coachUpdateCopyStatus, setCoachUpdateCopyStatus] = useState<'idle' | 'copied' | 'blocked'>('idle')
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
   const notePrompt = getProofNotePrompt(rating)
@@ -814,7 +814,7 @@ function LevelUpCardTile({
     onComplete(card.id, rating, proofNote)
     setSavedRating(rating)
     setSavedProofNote(proofNote)
-    setCoachUpdateCopied(false)
+    setCoachUpdateCopyStatus('idle')
     setNote('')
   }
 
@@ -830,7 +830,7 @@ function LevelUpCardTile({
     setSavedProofNote('')
     setRepeatPlan(nextRepeatPlan)
     setFinishRecap(null)
-    setCoachUpdateCopied(false)
+    setCoachUpdateCopyStatus('idle')
     setLoggerOpen(false)
     setActivityOpen(true)
     window.requestAnimationFrame(() => {
@@ -870,9 +870,9 @@ function LevelUpCardTile({
 
     try {
       await window.navigator.clipboard?.writeText(savedCoachUpdate)
-      setCoachUpdateCopied(true)
+      setCoachUpdateCopyStatus('copied')
     } catch {
-      setCoachUpdateCopied(false)
+      setCoachUpdateCopyStatus('blocked')
     }
   }
 
@@ -1080,7 +1080,7 @@ function LevelUpCardTile({
               <strong>{finishRecap.title}</strong>
               <small>{finishRecap.detail}</small>
               <em>{finishRecap.proof}</em>
-              <button type="button" onClick={copyCoachUpdate}>{coachUpdateCopied ? 'Recap copied' : 'Copy recap'}</button>
+              <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy recap', 'Recap copied')}</button>
               <button type="button" onClick={repeatActivity}>Run again</button>
             </div>
           ) : null}
@@ -1249,7 +1249,7 @@ function LevelUpCardTile({
             </div>
             <div className={styles.completionSavedActions}>
               <button type="button" data-primary="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(savedRating)}</button>
-              <button type="button" onClick={copyCoachUpdate}>{coachUpdateCopied ? 'Coach update copied' : 'Copy coach update'}</button>
+              <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy coach update', 'Coach update copied')}</button>
               <button type="button" onClick={finishActivity}>Done for now</button>
             </div>
           </div>
@@ -1473,6 +1473,12 @@ function getAfterScorePrimaryButton(rating: number) {
   if (rating <= 1) return 'Scale down & repeat'
   if (rating <= 3) return 'Repeat clean'
   return 'Level up repeat'
+}
+
+function getCopyStatusLabel(status: 'idle' | 'copied' | 'blocked', idleLabel: string, copiedLabel: string) {
+  if (status === 'copied') return copiedLabel
+  if (status === 'blocked') return 'Copy unavailable'
+  return idleLabel
 }
 
 function getAfterScoreRepeatPlan(card: LevelUpCard, rating: number) {
