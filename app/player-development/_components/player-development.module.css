@@ -1806,6 +1806,7 @@
 
 .levelUpActivitySteps div,
 .levelUpActivityCue,
+.levelUpActivityFixNow,
 .levelUpActivityStandard,
 .levelUpActivityRepLadder,
 .levelUpActivityScoreGuide {
@@ -1817,7 +1818,8 @@
 }
 
 .levelUpActivitySteps b,
-.levelUpActivityCue span {
+.levelUpActivityCue span,
+.levelUpActivityFixNow span {
   display: block;
   color: var(--brand-green-3);
   font-size: 0.62rem;
@@ -1837,6 +1839,41 @@
 .levelUpActivityCue {
   display: grid;
   gap: 4px;
+}
+
+.levelUpActivityFixNow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  border-color: rgba(255, 210, 116, 0.22);
+  background:
+    linear-gradient(135deg, rgba(255, 210, 116, 0.08), transparent 45%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.levelUpActivityFixNow > span {
+  grid-column: 1 / -1;
+  color: #ffd274;
+}
+
+.levelUpActivityFixNow div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.levelUpActivityFixNow b {
+  color: #ffd274;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpActivityFixNow strong {
+  color: var(--foreground-strong);
+  font-size: 0.8rem;
+  line-height: 1.28;
 }
 
 .levelUpActivityStandard,
@@ -7308,6 +7345,10 @@
   }
 
   .levelUpActivitySteps {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpActivityFixNow {
     grid-template-columns: 1fr;
   }
 

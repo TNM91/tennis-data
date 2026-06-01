@@ -861,6 +861,17 @@ function LevelUpCardTile({
             <strong>{card.cue}</strong>
             <small>{getCardAvoidCue(card)}</small>
           </div>
+          <div className={styles.levelUpActivityFixNow} aria-label={`Quick correction for ${card.title}`}>
+            <span>Fix now</span>
+            <div>
+              <b>If this shows up</b>
+              <strong>{commonMiss.miss}</strong>
+            </div>
+            <div>
+              <b>Do this next rep</b>
+              <strong>{commonMiss.fix}</strong>
+            </div>
+          </div>
           <div className={styles.levelUpActivityStandard} aria-label={`Session standard for ${card.title}`}>
             <div>
               <span>Before</span>
