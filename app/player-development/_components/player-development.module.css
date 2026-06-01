@@ -2709,6 +2709,35 @@
   line-height: 1.32;
 }
 
+.levelUpSavedActionStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.levelUpSavedActionStrip span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(5, 15, 30, 0.3);
+  color: var(--foreground-strong);
+  padding: 7px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+.levelUpSavedActionStrip b {
+  color: var(--brand-blue-2);
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .levelUpAfterScoreNext {
   display: grid;
   gap: 4px;

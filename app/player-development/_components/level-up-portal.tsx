@@ -1224,6 +1224,20 @@ function LevelUpCardTile({
             <span>Proof saved</span>
             <strong>{savedRating}/5 - {savedProofAction.title}</strong>
             <small>{savedProofAction.detail}</small>
+            <div className={styles.levelUpSavedActionStrip} aria-label={`Saved proof action strip for ${card.title}`}>
+              <span>
+                <b>Saved</b>
+                {savedRating}/5
+              </span>
+              <span>
+                <b>Next</b>
+                {getAfterScorePrimaryButton(savedRating)}
+              </span>
+              <span>
+                <b>Share</b>
+                {coachUpdateCopyStatus === 'copied' ? 'Copied' : coachUpdateCopyStatus === 'blocked' ? 'Manual copy' : 'Ready'}
+              </span>
+            </div>
             {savedProofSnapshot ? (
               <div className={styles.levelUpProofSnapshot} aria-label={`Proof snapshot for ${card.title}`}>
                 <span>Proof snapshot</span>
