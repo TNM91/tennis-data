@@ -163,6 +163,8 @@ describe('Level Up page', () => {
     expect(playerDevelopmentPortalSource).toContain('Decision: repeat clean')
     expect(playerDevelopmentPortalSource).toContain('Decision: level up')
     expect(playerDevelopmentPortalSource).toContain('Decision: log proof')
+    expect(playerDevelopmentPortalSource).toContain('buildAdaptiveCardReason')
+    expect(playerDevelopmentPortalSource).toContain("nextBestRep.decision.replace('Decision: ', '')")
     expect(playerDevelopmentPortalSource).toContain('Log proof')
     expect(playerDevelopmentPortalSource).toContain('Advanced filters')
     expect(playerDevelopmentPortalSource).toContain('levelUpFilterControls')

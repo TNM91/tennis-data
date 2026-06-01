@@ -608,7 +608,7 @@ function LevelUpStartList({
           <LevelUpCardTile
             key={card.id}
             card={card}
-            reason={recommendationByCardId.get(card.id)?.reason}
+            reason={card.id === nextBestRep.card.id ? buildAdaptiveCardReason(nextBestRep) : recommendationByCardId.get(card.id)?.reason}
             favorite={favorites.includes(card.id)}
             completionSummary={completionSummaryByCardId.get(card.id)}
             onFavorite={onFavorite}
@@ -1732,6 +1732,10 @@ function buildAdaptiveStartCards({
   ))
 
   return startCards.slice(0, 3)
+}
+
+function buildAdaptiveCardReason(nextBestRep: NextBestRep) {
+  return `${nextBestRep.decision.replace('Decision: ', '')}. ${nextBestRep.signal}`
 }
 
 function buildTrainingPulse({
