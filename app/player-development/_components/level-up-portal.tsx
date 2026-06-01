@@ -38,6 +38,7 @@ type CompletionSummary = {
 type NextBestRep = {
   card: LevelUpCard
   label: string
+  decision: string
   title: string
   detail: string
   proof: string
@@ -404,6 +405,7 @@ function LevelUpNextBestRepPanel({ nextBestRep, identitySlug }: { nextBestRep: N
     <section className={styles.levelUpNextBestRep} aria-label="Next best rep">
       <div>
         <span>{nextBestRep.label}</span>
+        <i>{nextBestRep.decision}</i>
         <h2>{nextBestRep.title}</h2>
         <p>{nextBestRep.detail}</p>
         <small>{nextBestRep.signal}</small>
@@ -597,6 +599,7 @@ function LevelUpStartList({
       <div className={styles.levelUpAdaptiveStartHint} aria-label="Adaptive next card">
         <span>{nextBestRep.label}</span>
         <strong>{nextBestRep.card.title}</strong>
+        <i>{nextBestRep.decision}</i>
         <b>{nextBestRep.signal}</b>
         <small>{nextBestRep.detail}</small>
       </div>
@@ -1668,6 +1671,7 @@ function buildNextBestRep({
       return {
         card: recentCard,
         label: 'Scale down next',
+        decision: 'Decision: scale down',
         title: 'Shrink the setup and get one clean rep.',
         detail: recentCard.regression ?? `Make the setup easier and protect this cue: ${recentCard.cue}`,
         proof: recentCard.proof,
@@ -1679,6 +1683,7 @@ function buildNextBestRep({
       return {
         card: recentCard,
         label: 'Repeat next',
+        decision: 'Decision: repeat clean',
         title: 'Same card, cleaner proof.',
         detail: `Repeat this before adding difficulty. Cue to protect: ${recentCard.cue}`,
         proof: recentCard.proof,
@@ -1690,6 +1695,7 @@ function buildNextBestRep({
     return {
       card: unloggedCard ?? recentCard,
       label: 'Level up next',
+      decision: 'Decision: level up',
       title: unloggedCard ? 'Add one new connected habit.' : 'Raise one variable, not all of them.',
       detail: unloggedCard ? `You proved ${recentCard.title}. Now connect it to ${unloggedCard.title}.` : recentCard.progression ?? `Raise one variable while keeping this cue: ${recentCard.cue}`,
       proof: (unloggedCard ?? recentCard).proof,
@@ -1700,6 +1706,7 @@ function buildNextBestRep({
   return {
     card: todayCard,
     label: 'Start here',
+    decision: 'Decision: log proof',
     title: 'Log one honest proof score.',
     detail: 'Run the first card, score 0-5, and let the next recommendation get sharper.',
     proof: todayCard.proof,
