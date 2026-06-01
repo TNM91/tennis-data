@@ -449,11 +449,13 @@ function LevelUpCardTile({
   const [rating, setRating] = useState(3)
   const [note, setNote] = useState('')
   const [savedRating, setSavedRating] = useState<number | null>(null)
+  const [savedProofNote, setSavedProofNote] = useState('')
   const [loggerOpen, setLoggerOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [timerRunning, setTimerRunning] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [cleanRepCount, setCleanRepCount] = useState(0)
+  const [coachUpdateCopied, setCoachUpdateCopied] = useState(false)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
   const notePrompt = getProofNotePrompt(rating)
@@ -506,8 +508,11 @@ function LevelUpCardTile({
   }
 
   function completeCard() {
-    onComplete(card.id, rating, note.trim() || activityProofNote)
+    const proofNote = note.trim() || activityProofNote
+    onComplete(card.id, rating, proofNote)
     setSavedRating(rating)
+    setSavedProofNote(proofNote)
+    setCoachUpdateCopied(false)
     setNote('')
   }
 
@@ -516,6 +521,8 @@ function LevelUpCardTile({
     setElapsedSeconds(0)
     setCleanRepCount(0)
     setSavedRating(null)
+    setSavedProofNote('')
+    setCoachUpdateCopied(false)
     setLoggerOpen(false)
     setActivityOpen(true)
     window.requestAnimationFrame(() => {
@@ -530,6 +537,26 @@ function LevelUpCardTile({
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
+  }
+
+  async function copyCoachUpdate() {
+    if (savedRating === null || !savedProofAction) return
+    const update = buildCoachUpdate({
+      card,
+      rating: savedRating,
+      note: savedProofNote || activityProofNote,
+      cleanRepCount,
+      cleanRepTarget,
+      elapsedSeconds,
+      nextAction: savedProofAction.title,
+    })
+
+    try {
+      await window.navigator.clipboard?.writeText(update)
+      setCoachUpdateCopied(true)
+    } catch {
+      setCoachUpdateCopied(false)
+    }
   }
 
   return (
@@ -752,6 +779,7 @@ function LevelUpCardTile({
             <strong>{savedRating}/5 - {savedProofAction.title}</strong>
             <small>{savedProofAction.detail}</small>
             <div className={styles.completionSavedActions}>
+              <button type="button" onClick={copyCoachUpdate}>{coachUpdateCopied ? 'Coach update copied' : 'Copy coach update'}</button>
               <button type="button" onClick={repeatActivity}>Repeat card</button>
               <button type="button" onClick={finishActivity}>Done for now</button>
             </div>
@@ -2151,6 +2179,27 @@ function getSavedProofAction(card: LevelUpCard, rating: number) {
     title: 'Level up one variable.',
     detail: `${card.progression} Keep the same proof score so harder still means better.`,
   }
+}
+
+function buildCoachUpdate({
+  card,
+  rating,
+  note,
+  cleanRepCount,
+  cleanRepTarget,
+  elapsedSeconds,
+  nextAction,
+}: {
+  card: LevelUpCard
+  rating: number
+  note: string
+  cleanRepCount: number
+  cleanRepTarget: number
+  elapsedSeconds: number
+  nextAction: string
+}) {
+  const noteLine = note ? ` Note: ${note}` : ''
+  return `${card.title}: proof ${rating}/5, ${cleanRepCount}/${cleanRepTarget} clean reps, ${formatTimer(elapsedSeconds)}. Next: ${nextAction}${noteLine}`
 }
 
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {
