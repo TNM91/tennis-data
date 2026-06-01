@@ -453,6 +453,7 @@ function LevelUpCardTile({
   const [activityOpen, setActivityOpen] = useState(false)
   const [timerRunning, setTimerRunning] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [cleanRepCount, setCleanRepCount] = useState(0)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
   const notePrompt = getProofNotePrompt(rating)
@@ -467,6 +468,8 @@ function LevelUpCardTile({
   const nextPractice = getCardNextPractice(card, shownSavedRating)
   const targetSeconds = Math.max(60, card.durationMinutes * 60)
   const timerProgress = Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100))
+  const cleanRepTarget = getCleanRepTarget(card)
+  const cleanRepProgress = Math.min(100, Math.round((cleanRepCount / cleanRepTarget) * 100))
 
   useEffect(() => {
     if (!timerRunning) return undefined
@@ -559,6 +562,19 @@ function LevelUpCardTile({
               }}>
                 Reset
               </button>
+            </div>
+          </div>
+          <div className={styles.levelUpActivityRepCounter} data-rep-state={cleanRepCount >= cleanRepTarget ? 'complete' : cleanRepCount > 0 ? 'counting' : 'ready'}>
+            <span>Clean reps</span>
+            <strong>{cleanRepCount}/{cleanRepTarget}</strong>
+            <small>Tap +1 only when the proof behavior showed up.</small>
+            <div className={styles.levelUpActivityTimerTrack} aria-hidden="true">
+              <i style={{ width: `${cleanRepProgress}%` }} />
+            </div>
+            <div className={styles.levelUpActivityRepActions}>
+              <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1 clean</button>
+              <button type="button" onClick={() => setCleanRepCount((count) => Math.max(count - 1, 0))}>Undo</button>
+              <button type="button" onClick={() => setCleanRepCount(0)}>Reset reps</button>
             </div>
           </div>
           <div className={styles.levelUpActivityActions}>
@@ -2050,6 +2066,13 @@ function formatTimer(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
+function getCleanRepTarget(card: LevelUpCard) {
+  if (card.durationMinutes <= 5) return 5
+  if (card.durationMinutes <= 10) return 8
+  if (card.durationMinutes <= 15) return 10
+  return 12
 }
 
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {

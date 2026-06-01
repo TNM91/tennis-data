@@ -1421,12 +1421,27 @@
   padding: 10px;
 }
 
+.levelUpActivityRepCounter {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px;
+}
+
 .levelUpActivityTimer[data-timer-state='running'] {
   border-color: rgba(155, 225, 29, 0.38);
   background: rgba(155, 225, 29, 0.08);
 }
 
-.levelUpActivityTimer span {
+.levelUpActivityRepCounter[data-rep-state='complete'] {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.1);
+}
+
+.levelUpActivityTimer span,
+.levelUpActivityRepCounter span {
   color: var(--brand-green-3);
   font-size: 0.62rem;
   font-weight: 950;
@@ -1434,14 +1449,16 @@
   text-transform: uppercase;
 }
 
-.levelUpActivityTimer strong {
+.levelUpActivityTimer strong,
+.levelUpActivityRepCounter strong {
   color: var(--foreground-strong);
   font-size: clamp(2.3rem, 8vw, 4rem);
   line-height: 0.95;
   letter-spacing: 0;
 }
 
-.levelUpActivityTimer small {
+.levelUpActivityTimer small,
+.levelUpActivityRepCounter small {
   color: var(--muted-strong);
   font-size: 0.76rem;
   line-height: 1.3;
@@ -1467,7 +1484,14 @@
   gap: 7px;
 }
 
-.levelUpActivityTimerActions button {
+.levelUpActivityRepActions {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 1fr;
+  gap: 7px;
+}
+
+.levelUpActivityTimerActions button,
+.levelUpActivityRepActions button {
   min-height: 40px;
   cursor: pointer;
   border: 1px solid rgba(116, 190, 255, 0.18);
@@ -1478,7 +1502,8 @@
   font-weight: 900;
 }
 
-.levelUpActivityTimerActions button:first-child {
+.levelUpActivityTimerActions button:first-child,
+.levelUpActivityRepActions button:first-child {
   border-color: rgba(155, 225, 29, 0.5);
   background: var(--brand-green-2);
   color: #061221;
@@ -6638,6 +6663,10 @@
   }
 
   .levelUpActivitySteps {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpActivityRepActions {
     grid-template-columns: 1fr;
   }
 
