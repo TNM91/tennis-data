@@ -477,6 +477,7 @@
 .levelUpHero,
 .levelUpCoachAssignmentBanner,
 .levelUpTodayDashboard,
+.levelUpNextBestRep,
 .levelUpTodayMission,
 .levelUpSessionDock,
 .levelUpIntentPresets,
@@ -1067,6 +1068,72 @@
   background:
     linear-gradient(135deg, rgba(155, 225, 29, 0.07), transparent 42%),
     var(--surface);
+}
+
+.levelUpNextBestRep {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.46fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-color: rgba(116, 190, 255, 0.2);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 42%),
+    rgba(5, 13, 19, 0.92);
+}
+
+.levelUpNextBestRep span,
+.levelUpNextBestRepCard span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpNextBestRep h2 {
+  margin: 7px 0 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.2rem, 2.2vw, 1.72rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.levelUpNextBestRep p {
+  margin: 6px 0 0;
+  color: var(--muted-strong);
+  line-height: 1.42;
+}
+
+.levelUpNextBestRepCard {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+}
+
+.levelUpNextBestRepCard strong {
+  color: var(--foreground-strong);
+  font-size: 0.96rem;
+  line-height: 1.18;
+}
+
+.levelUpNextBestRepCard small {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.32;
+}
+
+.levelUpNextBestRep :global(.button-primary) {
+  min-width: 150px;
+  min-height: 44px;
+  text-decoration: none;
 }
 
 .levelUpCoachAssignmentBanner {
@@ -6802,6 +6869,7 @@
   .levelUpHero,
   .levelUpOverviewGrid,
   .levelUpCoachAssignmentBanner,
+  .levelUpNextBestRep,
   .levelUpTodayDashboardGrid,
   .levelUpTodayMission,
   .levelUpSessionDock,
@@ -7011,6 +7079,14 @@
   }
 
   .levelUpCoachAssignmentBanner :global(.button-primary) {
+    width: 100%;
+  }
+
+  .levelUpNextBestRep {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpNextBestRep :global(.button-primary) {
     width: 100%;
   }
 

@@ -35,6 +35,14 @@ type CompletionSummary = {
   previousRating?: number
 }
 
+type NextBestRep = {
+  card: LevelUpCard
+  label: string
+  title: string
+  detail: string
+  proof: string
+}
+
 const emptyFilters: FilterState = {
   category: 'all',
   pack: 'all',
@@ -123,6 +131,13 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const startCards = (activeFilterCount ? filteredCards : identityCards).slice(0, 3)
   const sessionRead = getSessionReadLabel(completionSummaryByCardId)
   const recentProofRead = getRecentProofRead(completions, recentCard)
+  const nextBestRep = buildNextBestRep({
+    recentCard,
+    recentCompletion: completions[0],
+    identityCards,
+    todayCard,
+    completionSummaryByCardId,
+  })
 
   return (
     <section className={styles.levelUpPortalApp} aria-labelledby="level-up-portal-title">
@@ -147,6 +162,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         completionCount={completions.length}
         identitySlug={identitySlug}
       />
+
+      <LevelUpNextBestRepPanel nextBestRep={nextBestRep} identitySlug={identitySlug} />
 
       <section id="today-mission" className={styles.levelUpTodayMission} aria-label="Today's Mission">
         <div>
@@ -345,6 +362,24 @@ function LevelUpTodayDashboard({
           <small>{recentCard ? `Last card: ${recentCard.title}` : 'Log one score to create your trend.'}</small>
         </a>
       </div>
+    </section>
+  )
+}
+
+function LevelUpNextBestRepPanel({ nextBestRep, identitySlug }: { nextBestRep: NextBestRep; identitySlug: string }) {
+  return (
+    <section className={styles.levelUpNextBestRep} aria-label="Next best rep">
+      <div>
+        <span>{nextBestRep.label}</span>
+        <h2>{nextBestRep.title}</h2>
+        <p>{nextBestRep.detail}</p>
+      </div>
+      <div className={styles.levelUpNextBestRepCard}>
+        <span>Start this card</span>
+        <strong>{nextBestRep.card.title}</strong>
+        <small>{nextBestRep.proof}</small>
+      </div>
+      <a className="button-primary" href={buildCardStartHref(identitySlug, nextBestRep.card)}>Start next rep</a>
     </section>
   )
 }
@@ -1229,6 +1264,59 @@ function getRecentProofRead(completions: LevelUpCompletion[], recentCard?: Level
   if (recentCompletion.proofRating <= 1) return `${recentCompletion.proofRating}/5 - scale down`
   if (recentCompletion.proofRating <= 3) return `${recentCompletion.proofRating}/5 - repeat clean`
   return `${recentCompletion.proofRating}/5 - level up`
+}
+
+function buildNextBestRep({
+  recentCard,
+  recentCompletion,
+  identityCards,
+  todayCard,
+  completionSummaryByCardId,
+}: {
+  recentCard?: LevelUpCard
+  recentCompletion?: LevelUpCompletion
+  identityCards: LevelUpCard[]
+  todayCard: LevelUpCard
+  completionSummaryByCardId: Map<string, CompletionSummary>
+}): NextBestRep {
+  if (recentCard && typeof recentCompletion?.proofRating === 'number') {
+    if (recentCompletion.proofRating <= 1) {
+      return {
+        card: recentCard,
+        label: 'Scale down next',
+        title: 'Shrink the setup and get one clean rep.',
+        detail: recentCard.regression ?? `Make the setup easier and protect this cue: ${recentCard.cue}`,
+        proof: recentCard.proof,
+      }
+    }
+
+    if (recentCompletion.proofRating <= 3) {
+      return {
+        card: recentCard,
+        label: 'Repeat next',
+        title: 'Same card, cleaner proof.',
+        detail: `Repeat this before adding difficulty. Cue to protect: ${recentCard.cue}`,
+        proof: recentCard.proof,
+      }
+    }
+
+    const unloggedCard = identityCards.find((card) => !completionSummaryByCardId.has(card.id))
+    return {
+      card: unloggedCard ?? recentCard,
+      label: 'Level up next',
+      title: unloggedCard ? 'Add one new connected habit.' : 'Raise one variable, not all of them.',
+      detail: unloggedCard ? `You proved ${recentCard.title}. Now connect it to ${unloggedCard.title}.` : recentCard.progression ?? `Raise one variable while keeping this cue: ${recentCard.cue}`,
+      proof: (unloggedCard ?? recentCard).proof,
+    }
+  }
+
+  return {
+    card: todayCard,
+    label: 'Start here',
+    title: 'Log one honest proof score.',
+    detail: 'Run the first card, score 0-5, and let the next recommendation get sharper.',
+    proof: todayCard.proof,
+  }
 }
 
 function buildMockCoachAssignment(card: LevelUpCard, module: LevelUpModule): LevelUpAssignment {
