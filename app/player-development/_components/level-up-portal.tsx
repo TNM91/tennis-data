@@ -411,11 +411,11 @@ function LevelUpNextBestRepPanel({ nextBestRep, identitySlug }: { nextBestRep: N
         <small>{nextBestRep.signal}</small>
       </div>
       <div className={styles.levelUpNextBestRepCard}>
-        <span>Start this card</span>
+        <span>Suggested card</span>
         <strong>{nextBestRep.card.title}</strong>
-        <small>{nextBestRep.proof}</small>
+        <small>Proof target: {nextBestRep.proof}</small>
       </div>
-      <a className="button-primary" href={buildCardStartHref(identitySlug, nextBestRep.card)}>Start next rep</a>
+      <a className="button-primary" href={buildCardStartHref(identitySlug, nextBestRep.card)}>Start card</a>
     </section>
   )
 }
