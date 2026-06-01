@@ -593,6 +593,8 @@ function LevelUpCardTile({
   const readinessCheck = getCardReadinessCheck(card)
   const trainingOptions = getCardTrainingOptions(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
+  const sessionStandard = getCardSessionStandard(card)
+  const proofAnchors = getCardProofAnchors(card)
   const targetSeconds = Math.max(60, card.durationMinutes * 60)
   const timerProgress = Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100))
   const cleanRepTarget = getCleanRepTarget(card)
@@ -724,6 +726,20 @@ function LevelUpCardTile({
             <strong>{card.cue}</strong>
             <small>{getCardAvoidCue(card)}</small>
           </div>
+          <div className={styles.levelUpActivityStandard} aria-label={`Session standard for ${card.title}`}>
+            <div>
+              <span>Before</span>
+              <strong>{sessionStandard.before}</strong>
+            </div>
+            <div>
+              <span>Counts</span>
+              <strong>{sessionStandard.counts}</strong>
+            </div>
+            <div>
+              <span>Stop</span>
+              <strong>{sessionStandard.stop}</strong>
+            </div>
+          </div>
           <div className={styles.levelUpActivityTimer} data-timer-state={timerRunning ? 'running' : elapsedSeconds > 0 ? 'paused' : 'ready'}>
             <span>Timer</span>
             <strong>{formatTimer(elapsedSeconds)}</strong>
@@ -759,6 +775,21 @@ function LevelUpCardTile({
           <div className={styles.levelUpActivityActions}>
             <button type="button" className={styles.scoreButton} onClick={openLogger}>Score now</button>
             <a className="button-secondary" href={startHref}>Open guided flow</a>
+          </div>
+          <div className={styles.levelUpActivityScoreGuide} aria-label={`Proof anchors for ${card.title}`}>
+            <span>Score honestly</span>
+            <div>
+              <b>0-1</b>
+              <strong>{proofAnchors.low}</strong>
+            </div>
+            <div>
+              <b>2-3</b>
+              <strong>{proofAnchors.mid}</strong>
+            </div>
+            <div>
+              <b>4-5</b>
+              <strong>{proofAnchors.high}</strong>
+            </div>
           </div>
         </div>
       ) : null}
@@ -1426,6 +1457,184 @@ function getCardNextPractice(card: LevelUpCard, rating: number | null) {
   return {
     title: 'Raise the challenge.',
     detail: `Next time: ${card.progression} Keep the proof honest, not just harder.`,
+  }
+}
+
+function getCardSessionStandard(card: LevelUpCard) {
+  const doseGuide = getCardDoseGuide(card)
+
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      before: 'Pick the recovery spot and say recover before the first rep.',
+      counts: 'The rep counts only if your feet return before you watch.',
+      stop: 'Stop when the finish gets rushed or the ready spot gets vague.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      before: 'Choose one target family and one breath rhythm.',
+      counts: 'The rep counts when the target call happens before the motion.',
+      stop: 'Stop when makes and misses replace routine clarity.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      before: 'Name the serve location and the plus-one shape together.',
+      counts: 'The rep counts when the first ball matches the serve plan.',
+      stop: 'Stop when the plus-one becomes a random second drill.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      before: 'Choose the return job before the server starts.',
+      counts: 'The rep counts when intent and recovery both show up.',
+      stop: 'Stop when you are guessing instead of choosing early.',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      before: 'Decide that neutral is a win for this block.',
+      counts: 'The rep counts when height, depth, and recovery buy time.',
+      stop: 'Stop when defense turns into rushed hero-ball attempts.',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      before: 'Choose the balance cue before closing or attacking.',
+      counts: 'The rep counts when you attack and still recover ready.',
+      stop: 'Stop when speed beats balance.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      before: 'Agree on the call and the first move before the point.',
+      counts: 'The rep counts when the partner can act without guessing.',
+      stop: 'Stop when calls get late, long, or ignored.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      before: 'Pick one reset word before pressure appears.',
+      counts: 'The rep counts when the next point starts with a clear intention.',
+      stop: 'Stop when the reset becomes a speech.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      before: 'Check posture and breathing before starting the clock.',
+      counts: 'The rep counts when tennis posture survives the work.',
+      stop: doseGuide.stopRule,
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      before: 'Take one readiness score before the reset.',
+      counts: 'The rep counts when movement feels calmer and controlled.',
+      stop: doseGuide.stopRule,
+    }
+  }
+
+  return {
+    before: 'Name the one tennis habit you want to see.',
+    counts: 'The rep counts when the proof behavior is obvious.',
+    stop: doseGuide.stopRule,
+  }
+}
+
+function getCardProofAnchors(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      low: 'You watched first or missed the ready spot.',
+      mid: 'Recovery showed up, but needed reminders.',
+      high: 'Recovery happened before watching without a reminder.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      low: 'Targets got vague or routine changed after misses.',
+      mid: 'The routine showed up for some reps.',
+      high: 'Target, breath, and tempo stayed clear under pressure.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      low: 'Serve and first ball were disconnected.',
+      mid: 'The pattern connected sometimes.',
+      high: 'Serve target created a clear first-ball job.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      low: 'You reacted late or guessed.',
+      mid: 'Intent appeared, but recovery was uneven.',
+      high: 'Intent was early and recovery followed contact.',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      low: 'The wide ball created panic or rushed attack.',
+      mid: 'You bought time on some balls.',
+      high: 'You defended, recovered, and earned neutral repeatedly.',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      low: 'Attack speed beat balance.',
+      mid: 'Balance held on some reps.',
+      high: 'Attack, finish, and recovery stayed connected.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      low: 'Partner had to guess.',
+      mid: 'Calls were clear sometimes.',
+      high: 'Call and first move were early and connected.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      low: 'The last point carried into the next one.',
+      mid: 'Reset worked sometimes.',
+      high: 'Reset happened before the next point started.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      low: 'Quality changed before the block ended.',
+      mid: 'Posture held for part of the work.',
+      high: 'Posture, breath, and decision stayed playable.',
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      low: 'You forced range or rushed.',
+      mid: 'Movement calmed down in spots.',
+      high: 'You finished controlled and more ready.',
+    }
+  }
+
+  return {
+    low: 'The habit did not show up yet.',
+    mid: 'The habit appeared with reminders.',
+    high: 'The habit was repeatable today.',
   }
 }
 
