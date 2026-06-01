@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity, recommendLevelUpCards } from '@/lib/level-up/recommendations'
@@ -451,6 +451,8 @@ function LevelUpCardTile({
   const [savedRating, setSavedRating] = useState<number | null>(null)
   const [loggerOpen, setLoggerOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [timerRunning, setTimerRunning] = useState(false)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
   const notePrompt = getProofNotePrompt(rating)
@@ -463,6 +465,23 @@ function LevelUpCardTile({
   const readinessCheck = getCardReadinessCheck(card)
   const trainingOptions = getCardTrainingOptions(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
+  const targetSeconds = Math.max(60, card.durationMinutes * 60)
+  const timerProgress = Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100))
+
+  useEffect(() => {
+    if (!timerRunning) return undefined
+    const timer = window.setInterval(() => {
+      setElapsedSeconds((seconds) => {
+        const nextSeconds = Math.min(seconds + 1, targetSeconds)
+        if (nextSeconds >= targetSeconds) {
+          window.clearInterval(timer)
+          setTimerRunning(false)
+        }
+        return nextSeconds
+      })
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [targetSeconds, timerRunning])
 
   function startActivity() {
     setActivityOpen(true)
@@ -522,6 +541,25 @@ function LevelUpCardTile({
             <span>One cue</span>
             <strong>{card.cue}</strong>
             <small>{getCardAvoidCue(card)}</small>
+          </div>
+          <div className={styles.levelUpActivityTimer} data-timer-state={timerRunning ? 'running' : elapsedSeconds > 0 ? 'paused' : 'ready'}>
+            <span>Timer</span>
+            <strong>{formatTimer(elapsedSeconds)}</strong>
+            <small>Target: {card.durationMinutes}:00. Stop early if quality drops.</small>
+            <div className={styles.levelUpActivityTimerTrack} aria-hidden="true">
+              <i style={{ width: `${timerProgress}%` }} />
+            </div>
+            <div className={styles.levelUpActivityTimerActions}>
+              <button type="button" onClick={() => setTimerRunning((running) => !running)}>
+                {timerRunning ? 'Pause' : elapsedSeconds > 0 ? 'Resume' : 'Start timer'}
+              </button>
+              <button type="button" onClick={() => {
+                setTimerRunning(false)
+                setElapsedSeconds(0)
+              }}>
+                Reset
+              </button>
+            </div>
           </div>
           <div className={styles.levelUpActivityActions}>
             <button type="button" className={styles.scoreButton} onClick={openLogger}>Score now</button>
@@ -1909,7 +1947,15 @@ function LevelUpSafetyNote() {
 }
 
 function useLevelUpFavorites(): [string[], (cardId: string) => void] {
-  const [favorites, setFavorites] = useState<string[]>(() => readStringList('tiq-level-up-favorites'))
+  const [favorites, setFavorites] = useState<string[]>([])
+
+  useEffect(() => {
+    const hydrationTimer = window.setTimeout(() => {
+      setFavorites(readStringList('tiq-level-up-favorites'))
+    }, 0)
+    return () => window.clearTimeout(hydrationTimer)
+  }, [])
+
   function toggle(cardId: string) {
     setFavorites((current) => {
       const next = current.includes(cardId) ? current.filter((id) => id !== cardId) : [...current, cardId]
@@ -1921,7 +1967,15 @@ function useLevelUpFavorites(): [string[], (cardId: string) => void] {
 }
 
 function useLevelUpCompletions(): [LevelUpCompletion[], (cardId: string, rating: number, note: string) => void] {
-  const [completions, setCompletions] = useState<LevelUpCompletion[]>(() => readCompletions())
+  const [completions, setCompletions] = useState<LevelUpCompletion[]>([])
+
+  useEffect(() => {
+    const hydrationTimer = window.setTimeout(() => {
+      setCompletions(readCompletions())
+    }, 0)
+    return () => window.clearTimeout(hydrationTimer)
+  }, [])
+
   function log(cardId: string, rating: number, note: string) {
     setCompletions((current) => {
       const next = [{
@@ -1990,6 +2044,12 @@ function cardMatchesFilters(card: LevelUpCard, filters: FilterState) {
 
 function countActiveFilters(filters: FilterState) {
   return Object.values(filters).filter((value) => value !== 'all').length
+}
+
+function formatTimer(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {
