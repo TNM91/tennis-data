@@ -892,6 +892,7 @@ function LevelUpModuleTile({
   const nextCard = moduleCards.find((card) => !completionSummaryByCardId.has(card.id)) ?? moduleCards[0]
   const progressLabel = moduleCards.length ? `${completedCount}/${moduleCards.length} logged` : 'No cards yet'
   const moduleActionLabel = completedCount > 0 && completedCount < moduleCards.length ? 'Continue module' : completedCount === moduleCards.length ? 'Repeat module' : 'Start module'
+  const moduleStages = buildModuleProgressStages(module, moduleCards, completionSummaryByCardId)
 
   return (
     <article className={styles.levelUpModuleTile}>
@@ -927,6 +928,15 @@ function LevelUpModuleTile({
         <small>{progressLabel}</small>
         {nextCard ? <b>Next up: {nextCard.title}</b> : null}
       </div>
+      <div className={styles.levelUpModulePath} aria-label={`${module.title} module progression`}>
+        {moduleStages.map((stage) => (
+          <div key={stage.label} data-active={stage.active ? 'true' : 'false'} data-complete={stage.complete ? 'true' : 'false'}>
+            <span>{stage.label}</span>
+            <strong>{stage.title}</strong>
+            <small>{stage.detail}</small>
+          </div>
+        ))}
+      </div>
       {moduleCards.length ? (
         <ol className={styles.levelUpModuleCards}>
           {moduleCards.map((card) => (
@@ -941,6 +951,34 @@ function LevelUpModuleTile({
       {nextCard ? <a className="button-primary" href={buildCardStartHref(identitySlug, nextCard)}>{moduleActionLabel}</a> : null}
     </article>
   )
+}
+
+function buildModuleProgressStages(
+  module: LevelUpModule,
+  moduleCards: LevelUpCard[],
+  completionSummaryByCardId: Map<string, CompletionSummary>,
+) {
+  const stageLabels = ['Learn', 'Repeat', 'Pressure', 'Prove']
+  const stageDetails = [
+    'Understand the cue.',
+    'Log it clean twice.',
+    'Add one challenge.',
+    'Show it in points.',
+  ]
+  const nextCardIndex = moduleCards.findIndex((card) => !completionSummaryByCardId.has(card.id))
+  const safeActiveIndex = Math.min(nextCardIndex < 0 ? stageLabels.length - 1 : nextCardIndex, stageLabels.length - 1)
+
+  return stageLabels.map((label, index) => {
+    const card = moduleCards[index] ?? moduleCards[moduleCards.length - 1]
+    const complete = card ? completionSummaryByCardId.has(card.id) : false
+    return {
+      label,
+      title: card?.title ?? module.title,
+      detail: index === safeActiveIndex ? 'Do this next.' : complete ? 'Proof logged.' : stageDetails[index],
+      active: index === safeActiveIndex,
+      complete,
+    }
+  })
 }
 
 function LevelUpFilters({
