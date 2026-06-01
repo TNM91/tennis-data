@@ -2389,6 +2389,8 @@
 .reasonPill {
   background: rgba(155, 225, 29, 0.1);
   color: #d8f7a4;
+  line-height: 1.35;
+  text-transform: none;
 }
 
 .completionSummaryPill {
