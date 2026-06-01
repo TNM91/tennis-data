@@ -1111,6 +1111,19 @@
   line-height: 1.42;
 }
 
+.levelUpNextBestRep small {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.08);
+  color: var(--brand-green-3);
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
 .levelUpNextBestRepCard {
   display: grid;
   gap: 7px;
@@ -1581,6 +1594,18 @@
   color: var(--foreground-strong);
   font-size: 0.9rem;
   line-height: 1.18;
+}
+
+.levelUpAdaptiveStartHint b {
+  width: fit-content;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.08);
+  color: var(--brand-green-3);
+  padding: 4px 8px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.15;
 }
 
 .levelUpAdaptiveStartHint small {
