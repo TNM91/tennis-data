@@ -2426,6 +2426,8 @@
 }
 
 .levelUpCopyFallback {
+  width: 100%;
+  resize: vertical;
   margin: 2px 0 0;
   border: 1px solid rgba(116, 190, 255, 0.16);
   border-radius: 10px;
