@@ -2010,6 +2010,60 @@
   background: rgba(155, 225, 29, 0.1);
 }
 
+.levelUpRoundComplete {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(155, 225, 29, 0.32);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.14), transparent 48%),
+    rgba(5, 15, 30, 0.52);
+  padding: 10px;
+}
+
+.levelUpRoundComplete span {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpRoundComplete strong {
+  color: var(--foreground-strong);
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.levelUpRoundComplete small {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.32;
+}
+
+.levelUpRoundComplete div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.levelUpRoundComplete button {
+  min-height: 40px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 7px 10px;
+  font-weight: 900;
+}
+
+.levelUpRoundComplete button:first-child {
+  border-color: rgba(155, 225, 29, 0.5);
+  background: var(--brand-green-2);
+  color: #061221;
+}
+
 .levelUpActivityTimer span,
 .levelUpActivityRepCounter span {
   color: var(--brand-green-3);
@@ -7460,6 +7514,10 @@
   }
 
   .levelUpActivityRepActions {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpRoundComplete div {
     grid-template-columns: 1fr;
   }
 

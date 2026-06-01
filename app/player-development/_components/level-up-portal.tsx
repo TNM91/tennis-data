@@ -725,6 +725,8 @@ function LevelUpCardTile({
   const cleanRepTarget = getCleanRepTarget(card)
   const roundTarget = getCardRoundTarget(card, cleanRepTarget)
   const cleanRepProgress = Math.min(100, Math.round((cleanRepCount / cleanRepTarget) * 100))
+  const roundComplete = cleanRepCount >= cleanRepTarget
+  const roundCompletePrompt = getRoundCompletePrompt(card, cleanRepCount, cleanRepTarget)
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
@@ -951,6 +953,17 @@ function LevelUpCardTile({
               <button type="button" onClick={() => setCleanRepCount(0)}>Reset reps</button>
             </div>
           </div>
+          {roundComplete && savedRating === null ? (
+            <div className={styles.levelUpRoundComplete} aria-label={`Round complete for ${card.title}`}>
+              <span>Round complete</span>
+              <strong>{roundCompletePrompt.title}</strong>
+              <small>{roundCompletePrompt.detail}</small>
+              <div>
+                <button type="button" onClick={openLogger}>Score this round</button>
+                <button type="button" onClick={() => setCleanRepCount(0)}>Repeat round</button>
+              </div>
+            </div>
+          ) : null}
           <div className={styles.levelUpActivityActions}>
             <button type="button" className={styles.scoreButton} onClick={openLogger}>Score now</button>
             <a className="button-secondary" href={startHref}>Open guided flow</a>
@@ -2037,6 +2050,37 @@ function getCardRoundTarget(card: LevelUpCard, cleanRepTarget: number) {
     target: `${cleanTarget} reps where the cue is obvious.`,
     quality: 'The proof behavior shows up without guessing.',
     missResponse: 'Make the setup easier and repeat one cue.',
+  }
+}
+
+function getRoundCompletePrompt(card: LevelUpCard, cleanRepCount: number, cleanRepTarget: number) {
+  const proofName = card.proof.replace(' 0-5', '').toLowerCase()
+  const countLine = `${cleanRepCount}/${cleanRepTarget} clean reps`
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      title: `${countLine}. Score posture before adding work.`,
+      detail: `If ${proofName} stayed playable, save the score. If posture changed, repeat slower.`,
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      title: `${countLine}. Recheck readiness now.`,
+      detail: `Save the score if movement feels calmer. Repeat gently if control still feels rushed.`,
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      title: `${countLine}. Test it under one more point.`,
+      detail: `Score now if the reset beat the replay. Repeat if the last point still followed you.`,
+    }
+  }
+
+  return {
+    title: `${countLine}. Decide before doing more.`,
+    detail: `Score now if ${proofName} was clear. Repeat the round if the habit needed reminders.`,
   }
 }
 
