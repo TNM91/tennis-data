@@ -477,6 +477,17 @@ function LevelUpCardTile({
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
+  const savedCoachUpdate = savedProofAction && savedRating !== null
+    ? buildCoachUpdate({
+      card,
+      rating: savedRating,
+      note: savedProofNote || activityProofNote,
+      cleanRepCount,
+      cleanRepTarget,
+      elapsedSeconds,
+      nextAction: savedProofAction.title,
+    })
+    : ''
 
   useEffect(() => {
     if (!timerRunning) return undefined
@@ -543,18 +554,9 @@ function LevelUpCardTile({
 
   async function copyCoachUpdate() {
     if (savedRating === null || !savedProofAction) return
-    const update = buildCoachUpdate({
-      card,
-      rating: savedRating,
-      note: savedProofNote || activityProofNote,
-      cleanRepCount,
-      cleanRepTarget,
-      elapsedSeconds,
-      nextAction: savedProofAction.title,
-    })
 
     try {
-      await window.navigator.clipboard?.writeText(update)
+      await window.navigator.clipboard?.writeText(savedCoachUpdate)
       setCoachUpdateCopied(true)
     } catch {
       setCoachUpdateCopied(false)
@@ -780,6 +782,10 @@ function LevelUpCardTile({
             <span>Proof saved</span>
             <strong>{savedRating}/5 - {savedProofAction.title}</strong>
             <small>{savedProofAction.detail}</small>
+            <div className={styles.coachUpdatePreview}>
+              <span>Coach update</span>
+              <p>{savedCoachUpdate}</p>
+            </div>
             <div className={styles.completionSavedActions}>
               <button type="button" onClick={copyCoachUpdate}>{coachUpdateCopied ? 'Coach update copied' : 'Copy coach update'}</button>
               <button type="button" onClick={repeatActivity}>Repeat card</button>

@@ -1872,6 +1872,23 @@
   line-height: 1.32;
 }
 
+.coachUpdatePreview {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(5, 15, 30, 0.34);
+  padding: 8px;
+}
+
+.coachUpdatePreview p {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .completionSavedActions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
