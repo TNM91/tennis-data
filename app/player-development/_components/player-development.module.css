@@ -2425,6 +2425,18 @@
   margin-top: -2px;
 }
 
+.levelUpCopyFallback {
+  margin: 2px 0 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(5, 15, 30, 0.34);
+  color: var(--foreground);
+  padding: 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .favoriteButton,
 .assignButton,
 .scoreButton,

@@ -1082,6 +1082,9 @@ function LevelUpCardTile({
               <em>{finishRecap.proof}</em>
               <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy recap', 'Recap copied')}</button>
               <button type="button" onClick={repeatActivity}>Run again</button>
+              {coachUpdateCopyStatus === 'blocked' ? (
+                <p className={styles.levelUpCopyFallback}>{savedCoachUpdate}</p>
+              ) : null}
             </div>
           ) : null}
           {nextPractice ? (
