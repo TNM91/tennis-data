@@ -2409,6 +2409,18 @@
   font-weight: 900;
 }
 
+.levelUpFinishRecap button {
+  width: fit-content;
+  min-height: 34px;
+  cursor: pointer;
+  border: 1px solid rgba(155, 225, 29, 0.42);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.14);
+  color: var(--foreground-strong);
+  padding: 6px 11px;
+  font-weight: 950;
+}
+
 .favoriteButton,
 .assignButton,
 .scoreButton,

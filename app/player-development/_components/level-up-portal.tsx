@@ -1080,6 +1080,7 @@ function LevelUpCardTile({
               <strong>{finishRecap.title}</strong>
               <small>{finishRecap.detail}</small>
               <em>{finishRecap.proof}</em>
+              <button type="button" onClick={repeatActivity}>Run again</button>
             </div>
           ) : null}
           {nextPractice ? (
