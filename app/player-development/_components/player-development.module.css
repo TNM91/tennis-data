@@ -1304,12 +1304,118 @@
   padding: 13px;
 }
 
+.levelUpCardTileActive {
+  grid-column: 1 / -1;
+  border-color: rgba(155, 225, 29, 0.34);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 38%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.levelUpCardTileActive .levelUpPurposeStrip,
+.levelUpCardTileActive .levelUpTrainingStandards {
+  display: none;
+}
+
 .levelUpCardTile h3,
 .levelUpModuleTile h3 {
   margin: 0;
   color: var(--foreground-strong);
   font-size: 1.04rem;
   line-height: 1.15;
+}
+
+.levelUpActivityMode {
+  display: grid;
+  gap: 9px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  border-radius: 14px;
+  background: rgba(6, 18, 33, 0.72);
+  padding: 10px;
+}
+
+.levelUpActivityHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 8px;
+  align-items: center;
+}
+
+.levelUpActivityHeader span {
+  color: var(--brand-green-3);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpActivityHeader strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.levelUpActivityHeader button {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  min-height: 34px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 6px 10px;
+  font-weight: 900;
+}
+
+.levelUpActivitySteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.levelUpActivitySteps div,
+.levelUpActivityCue {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.15);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 9px;
+}
+
+.levelUpActivitySteps b,
+.levelUpActivityCue span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpActivitySteps strong,
+.levelUpActivityCue strong {
+  display: block;
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.levelUpActivityCue {
+  display: grid;
+  gap: 4px;
+}
+
+.levelUpActivityCue small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.levelUpActivityActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
 }
 
 .levelUpDoNow {
@@ -6444,6 +6550,25 @@
     grid-template-columns: 1fr;
   }
 
+  .levelUpActivityMode {
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .levelUpActivityHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpActivityHeader button {
+    grid-row: auto;
+    grid-column: auto;
+    width: fit-content;
+  }
+
+  .levelUpActivitySteps {
+    grid-template-columns: 1fr;
+  }
+
   .levelUpPurposeStrip {
     grid-template-columns: 1fr;
   }
@@ -6486,6 +6611,10 @@
   .levelUpRailGrid article {
     flex: 0 0 min(78vw, 292px);
     scroll-snap-align: start;
+  }
+
+  .levelUpRailGrid article[data-activity='true'] {
+    flex-basis: min(92vw, 420px);
   }
 
   .levelUpPortalLanes p,

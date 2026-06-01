@@ -450,6 +450,7 @@ function LevelUpCardTile({
   const [note, setNote] = useState('')
   const [savedRating, setSavedRating] = useState<number | null>(null)
   const [loggerOpen, setLoggerOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
   const notePrompt = getProofNotePrompt(rating)
@@ -463,10 +464,18 @@ function LevelUpCardTile({
   const trainingOptions = getCardTrainingOptions(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
 
+  function startActivity() {
+    setActivityOpen(true)
+    window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
   function openLogger() {
+    setActivityOpen(true)
     setLoggerOpen(true)
     window.requestAnimationFrame(() => {
-      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
 
@@ -477,7 +486,7 @@ function LevelUpCardTile({
   }
 
   return (
-    <article ref={cardRef} className={styles.levelUpCardTile}>
+    <article ref={cardRef} className={`${styles.levelUpCardTile} ${activityOpen ? styles.levelUpCardTileActive : ''}`} data-activity={activityOpen ? 'true' : 'false'}>
       <div>
         <span>{card.pack}</span>
         <h3>{card.title}</h3>
@@ -488,6 +497,38 @@ function LevelUpCardTile({
         <span>{card.intensity}</span>
         <EquipmentPill equipment={card.equipment.join(', ')} />
       </div>
+      {activityOpen ? (
+        <div className={styles.levelUpActivityMode} aria-label={`Active drill mode for ${card.title}`}>
+          <div className={styles.levelUpActivityHeader}>
+            <span>Active drill</span>
+            <strong>Do this now. Log one honest score.</strong>
+            <button type="button" onClick={() => setActivityOpen(false)}>Collapse</button>
+          </div>
+          <div className={styles.levelUpActivitySteps}>
+            <div>
+              <b>Set</b>
+              <strong>{getCardSetupLabel(card)}</strong>
+            </div>
+            <div>
+              <b>Work</b>
+              <strong>{getCardDoseGuide(card).target}</strong>
+            </div>
+            <div>
+              <b>Score</b>
+              <strong>{getCardProofStandard(card)}</strong>
+            </div>
+          </div>
+          <div className={styles.levelUpActivityCue}>
+            <span>One cue</span>
+            <strong>{card.cue}</strong>
+            <small>{getCardAvoidCue(card)}</small>
+          </div>
+          <div className={styles.levelUpActivityActions}>
+            <button type="button" className={styles.scoreButton} onClick={openLogger}>Score now</button>
+            <a className="button-secondary" href={startHref}>Open guided flow</a>
+          </div>
+        </div>
+      ) : null}
       <p><b>Proof:</b> {card.proof}</p>
       <div className={styles.levelUpPurposeStrip} aria-label={`Training purpose for ${card.title}`}>
         <span><b>Builds</b>{getCardPurposeLabel(card)}</span>
@@ -622,7 +663,7 @@ function LevelUpCardTile({
         {shownSavedRating !== null ? <small className={styles.completionSavedMessage}>Saved. Next: {proofGuidance.title}</small> : null}
       </details>
       <div className={styles.levelUpCardActions}>
-        <a className="button-primary" href={startHref}>Start</a>
+        <button type="button" className="button-primary" onClick={startActivity}>Start</button>
         <button type="button" className={styles.scoreButton} onClick={openLogger}>Score</button>
         <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
       </div>
