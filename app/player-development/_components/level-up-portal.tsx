@@ -707,6 +707,7 @@ function LevelUpCardTile({
   const [roundNumber, setRoundNumber] = useState(1)
   const [completedRoundCount, setCompletedRoundCount] = useState(0)
   const [bankedCleanRepCount, setBankedCleanRepCount] = useState(0)
+  const [repeatPlan, setRepeatPlan] = useState<{ title: string; detail: string } | null>(null)
   const [coachUpdateCopied, setCoachUpdateCopied] = useState(false)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
@@ -791,6 +792,7 @@ function LevelUpCardTile({
 
   function startActivity() {
     setActivityOpen(true)
+    setRepeatPlan(null)
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
@@ -815,6 +817,7 @@ function LevelUpCardTile({
   }
 
   function repeatActivity() {
+    const nextRepeatPlan = savedRating === null ? null : getAfterScoreRepeatPlan(card, savedRating)
     setTimerRunning(false)
     setElapsedSeconds(0)
     setCleanRepCount(0)
@@ -823,6 +826,7 @@ function LevelUpCardTile({
     setBankedCleanRepCount(0)
     setSavedRating(null)
     setSavedProofNote('')
+    setRepeatPlan(nextRepeatPlan)
     setCoachUpdateCopied(false)
     setLoggerOpen(false)
     setActivityOpen(true)
@@ -888,6 +892,13 @@ function LevelUpCardTile({
             </div>
             <button type="button" onClick={openLogger}>{savedRating === null ? 'Score' : 'Review'}</button>
           </div>
+          {repeatPlan ? (
+            <div className={styles.levelUpRepeatPlan} aria-label={`Repeat plan for ${card.title}`}>
+              <span>Repeat plan</span>
+              <strong>{repeatPlan.title}</strong>
+              <small>{repeatPlan.detail}</small>
+            </div>
+          ) : null}
           <div className={styles.levelUpRoundTarget} aria-label={`Round target for ${card.title}`}>
             <span>Win round {roundNumber}</span>
             <div>
@@ -1441,6 +1452,27 @@ function getAfterScorePrimaryButton(rating: number) {
   if (rating <= 1) return 'Scale down & repeat'
   if (rating <= 3) return 'Repeat clean'
   return 'Level up repeat'
+}
+
+function getAfterScoreRepeatPlan(card: LevelUpCard, rating: number) {
+  if (rating <= 1) {
+    return {
+      title: 'Shrink the setup before chasing more reps.',
+      detail: card.regression ?? 'Make the setup easier and chase one clean cue before adding more.',
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Same card. Cleaner cue.',
+      detail: `Repeat the setup and score only this cue: ${card.cue}`,
+    }
+  }
+
+  return {
+    title: 'Raise one variable, not three.',
+    detail: card.progression ?? 'Add one small challenge while keeping the same proof score honest.',
+  }
 }
 
 function getProofTrendLabel(summary: CompletionSummary) {

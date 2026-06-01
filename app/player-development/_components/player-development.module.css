@@ -2423,6 +2423,7 @@
 .levelUpProofNextStep,
 .levelUpRepFeedback,
 .levelUpCoachableNote,
+.levelUpRepeatPlan,
 .levelUpScoreDecision,
 .levelUpActivityRecap {
   display: grid;
@@ -2436,6 +2437,13 @@
 .levelUpRepFeedback {
   border-color: rgba(116, 190, 255, 0.18);
   background: rgba(116, 190, 255, 0.055);
+}
+
+.levelUpRepeatPlan {
+  border-color: rgba(255, 210, 116, 0.28);
+  background:
+    linear-gradient(135deg, rgba(255, 210, 116, 0.1), transparent 48%),
+    rgba(255, 255, 255, 0.04);
 }
 
 .levelUpRoundBank {
@@ -2553,6 +2561,7 @@
 .levelUpProofNextStep span,
 .levelUpRepFeedback span,
 .levelUpCoachableNote span,
+.levelUpRepeatPlan span,
 .levelUpScoreDecision span,
 .levelUpActivityRecap span {
   color: var(--brand-green-3);
@@ -2565,6 +2574,7 @@
 .levelUpProofNextStep strong,
 .levelUpRepFeedback strong,
 .levelUpCoachableNote strong,
+.levelUpRepeatPlan strong,
 .levelUpScoreDecision strong,
 .levelUpActivityRecap strong {
   color: var(--foreground-strong);
@@ -2575,6 +2585,7 @@
 .levelUpProofNextStep small,
 .levelUpRepFeedback small,
 .levelUpCoachableNote small,
+.levelUpRepeatPlan small,
 .levelUpScoreDecision small,
 .levelUpActivityRecap small {
   color: var(--muted-strong);
