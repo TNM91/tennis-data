@@ -1735,7 +1735,16 @@ function buildAdaptiveStartCards({
 }
 
 function buildAdaptiveCardReason(nextBestRep: NextBestRep) {
-  return `${nextBestRep.decision.replace('Decision: ', '')}. ${nextBestRep.signal}`
+  return `${formatAdaptiveDecisionReason(nextBestRep.decision)} ${nextBestRep.signal}`
+}
+
+function formatAdaptiveDecisionReason(decision: string) {
+  const action = decision.replace('Decision: ', '')
+  if (action === 'log proof') return 'Log proof first.'
+  if (action === 'repeat clean') return 'Repeat clean next.'
+  if (action === 'scale down') return 'Scale down next.'
+  if (action === 'level up') return 'Level up next.'
+  return `${action.charAt(0).toUpperCase()}${action.slice(1)} next.`
 }
 
 function buildTrainingPulse({
