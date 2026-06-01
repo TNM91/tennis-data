@@ -727,6 +727,7 @@ function LevelUpCardTile({
   const cleanRepProgress = Math.min(100, Math.round((cleanRepCount / cleanRepTarget) * 100))
   const roundComplete = cleanRepCount >= cleanRepTarget
   const roundCompletePrompt = getRoundCompletePrompt(card, cleanRepCount, cleanRepTarget)
+  const roundResetCue = getRoundResetCue(card)
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
@@ -958,6 +959,10 @@ function LevelUpCardTile({
               <span>Round complete</span>
               <strong>{roundCompletePrompt.title}</strong>
               <small>{roundCompletePrompt.detail}</small>
+              <div className={styles.levelUpRoundReset}>
+                <b>Reset first</b>
+                <strong>{roundResetCue}</strong>
+              </div>
               <div>
                 <button type="button" onClick={openLogger}>Score this round</button>
                 <button type="button" onClick={() => setCleanRepCount(0)}>Repeat round</button>
@@ -2082,6 +2087,46 @@ function getRoundCompletePrompt(card: LevelUpCard, cleanRepCount: number, cleanR
     title: `${countLine}. Decide before doing more.`,
     detail: `Score now if ${proofName} was clear. Repeat the round if the habit needed reminders.`,
   }
+}
+
+function getRoundResetCue(card: LevelUpCard) {
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return 'Walk back to ready, say recover first, then decide score or repeat.'
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target') || card.tags.includes('serve-plus-one')) {
+    return 'Step off, breathe once, call the next target before touching the ball.'
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return 'Look across the net, choose the return job, then restart.'
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return 'Reset posture and remind yourself neutral is enough.'
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return 'Check balance before speed. The next attack must finish ready.'
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return 'Make one short partner call before the next round.'
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return 'Use the reset word, breathe out, then start the next point plan.'
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return 'Stand tall, slow the breath, and only repeat if posture is still clean.'
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return 'Recheck range without forcing it. Control decides the next round.'
+  }
+
+  return 'Take one breath, name the cue, then score or repeat.'
 }
 
 function getCardRepLadder(card: LevelUpCard) {

@@ -2047,6 +2047,29 @@
   gap: 7px;
 }
 
+.levelUpRoundReset {
+  grid-template-columns: 1fr !important;
+  gap: 3px;
+  border: 1px solid rgba(255, 210, 116, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 210, 116, 0.07);
+  padding: 8px;
+}
+
+.levelUpRoundReset b {
+  color: #ffd274;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpRoundReset strong {
+  color: var(--foreground-strong);
+  font-size: 0.8rem;
+  line-height: 1.28;
+}
+
 .levelUpRoundComplete button {
   min-height: 40px;
   cursor: pointer;
