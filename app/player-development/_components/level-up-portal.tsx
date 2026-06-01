@@ -472,6 +472,7 @@ function LevelUpCardTile({
   const cleanRepProgress = Math.min(100, Math.round((cleanRepCount / cleanRepTarget) * 100))
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
+  const savedProofAction = shownSavedRating === null ? null : getSavedProofAction(card, shownSavedRating)
 
   useEffect(() => {
     if (!timerRunning) return undefined
@@ -724,7 +725,13 @@ function LevelUpCardTile({
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder={notePrompt} aria-label={`Note for ${card.title}`} />
         <button type="button" className="button-secondary" onClick={completeCard}>{shownSavedRating === null ? 'Save proof' : `Saved ${shownSavedRating}/5`}</button>
-        {shownSavedRating !== null ? <small className={styles.completionSavedMessage}>Saved. Next: {proofGuidance.title}</small> : null}
+        {savedProofAction ? (
+          <div className={styles.completionSavedMessage}>
+            <span>Proof saved</span>
+            <strong>{shownSavedRating}/5 - {savedProofAction.title}</strong>
+            <small>{savedProofAction.detail}</small>
+          </div>
+        ) : null}
       </details>
       <div className={styles.levelUpCardActions}>
         <button type="button" className="button-primary" onClick={startActivity}>Start</button>
@@ -2098,6 +2105,27 @@ function getActivitySuggestedRating(cleanRepCount: number, cleanRepTarget: numbe
 function getActivityProofNote(cleanRepCount: number, cleanRepTarget: number, elapsedSeconds: number) {
   if (cleanRepCount === 0 && elapsedSeconds === 0) return ''
   return `Activity: ${cleanRepCount}/${cleanRepTarget} clean reps in ${formatTimer(elapsedSeconds)}.`
+}
+
+function getSavedProofAction(card: LevelUpCard, rating: number) {
+  if (rating <= 1) {
+    return {
+      title: 'Scale down next.',
+      detail: `${card.regression} Keep the proof honest before adding more reps.`,
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Repeat this card.',
+      detail: `Run the same setup again and chase one cleaner cue: ${card.cue}`,
+    }
+  }
+
+  return {
+    title: 'Level up one variable.',
+    detail: `${card.progression} Keep the same proof score so harder still means better.`,
+  }
 }
 
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {

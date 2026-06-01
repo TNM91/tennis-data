@@ -1844,13 +1844,32 @@
 }
 
 .completionSavedMessage {
-  width: fit-content;
-  border-radius: 999px;
-  background: rgba(155, 225, 29, 0.1);
-  color: #d8f7a4;
-  padding: 5px 8px;
-  font-size: 0.72rem;
-  font-weight: 850;
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  border-radius: 12px;
+  background: rgba(155, 225, 29, 0.08);
+  padding: 9px;
+}
+
+.completionSavedMessage span {
+  color: var(--brand-green-3);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.completionSavedMessage strong {
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.completionSavedMessage small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.32;
 }
 
 .levelUpAssignmentControls {
