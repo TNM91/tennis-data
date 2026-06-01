@@ -2438,6 +2438,20 @@
   background: rgba(116, 190, 255, 0.055);
 }
 
+.levelUpRoundBank {
+  display: block;
+  width: fit-content;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.09);
+  color: var(--brand-green-3);
+  padding: 4px 8px;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
 .levelUpCoachableNote {
   border-color: rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
