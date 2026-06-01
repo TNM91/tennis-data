@@ -405,7 +405,7 @@ function LevelUpNextBestRepPanel({ nextBestRep, identitySlug }: { nextBestRep: N
     <section className={styles.levelUpNextBestRep} aria-label="Next best rep">
       <div>
         <span>{nextBestRep.label}</span>
-        <i>{nextBestRep.decision}</i>
+        <i>{formatAdaptiveDecisionBadge(nextBestRep.decision)}</i>
         <h2>{nextBestRep.title}</h2>
         <p>{nextBestRep.detail}</p>
         <small>{nextBestRep.signal}</small>
@@ -599,7 +599,7 @@ function LevelUpStartList({
       <div className={styles.levelUpAdaptiveStartHint} aria-label="Adaptive next card">
         <span>{nextBestRep.label}</span>
         <strong>{nextBestRep.card.title}</strong>
-        <i>{nextBestRep.decision}</i>
+        <i>{formatAdaptiveDecisionBadge(nextBestRep.decision)}</i>
         <b>{nextBestRep.signal}</b>
         <small>{nextBestRep.detail}</small>
       </div>
@@ -1736,6 +1736,10 @@ function buildAdaptiveStartCards({
 
 function buildAdaptiveCardReason(nextBestRep: NextBestRep) {
   return `${formatAdaptiveDecisionReason(nextBestRep.decision)} ${nextBestRep.signal}`
+}
+
+function formatAdaptiveDecisionBadge(decision: string) {
+  return formatAdaptiveDecisionReason(decision).replace(/\.$/, '')
 }
 
 function formatAdaptiveDecisionReason(decision: string) {
