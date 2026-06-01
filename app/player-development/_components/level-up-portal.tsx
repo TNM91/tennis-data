@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity, recommendLevelUpCards } from '@/lib/level-up/recommendations'
-import type { LevelUpCard, LevelUpCompletion, LevelUpModule, LevelUpRecommendation } from '@/lib/level-up/level-up-types'
+import type { LevelUpAssignment, LevelUpCard, LevelUpCompletion, LevelUpModule, LevelUpRecommendation } from '@/lib/level-up/level-up-types'
 import styles from './player-development.module.css'
 
 type LevelUpPortalProps = {
@@ -115,6 +115,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const todayModule = featuredModules[0] ?? LEVEL_UP_MODULES[0]
   const todayCard = identityCards[0] ?? LEVEL_UP_CARDS[0]
   const coachChallengeCard = identityCards[1] ?? todayCard
+  const coachAssignment = buildMockCoachAssignment(coachChallengeCard, todayModule)
   const quickStartCard = favoriteCards[0] ?? quickWins[0] ?? todayCard
   const recentCard = completedCards[0]
   const activeFilterCount = countActiveFilters(filters)
@@ -126,6 +127,14 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   return (
     <section className={styles.levelUpPortalApp} aria-labelledby="level-up-portal-title">
       <LevelUpHero identityTitle={identityTitle} recommendationCopy={profile.recommendationCopy} />
+
+      <LevelUpCoachAssignmentBanner
+        assignment={coachAssignment}
+        card={coachChallengeCard}
+        module={todayModule}
+        identitySlug={identitySlug}
+        completionSummary={completionSummaryByCardId.get(coachChallengeCard.id)}
+      />
 
       <LevelUpTodayDashboard
         coachChallengeCard={coachChallengeCard}
@@ -336,6 +345,43 @@ function LevelUpTodayDashboard({
           <small>{recentCard ? `Last card: ${recentCard.title}` : 'Log one score to create your trend.'}</small>
         </a>
       </div>
+    </section>
+  )
+}
+
+function LevelUpCoachAssignmentBanner({
+  assignment,
+  card,
+  module,
+  identitySlug,
+  completionSummary,
+}: {
+  assignment: LevelUpAssignment
+  card: LevelUpCard
+  module: LevelUpModule
+  identitySlug: string
+  completionSummary?: CompletionSummary
+}) {
+  const statusLabel = completionSummary ? `Logged ${completionSummary.lastRating ?? 'proof'}/5` : 'Assigned'
+  return (
+    <section className={styles.levelUpCoachAssignmentBanner} aria-label="Coach assignment">
+      <div>
+        <span>Coach challenge</span>
+        <h2>{card.title}</h2>
+        <p>{assignment.coachNote}</p>
+      </div>
+      <div className={styles.levelUpCoachAssignmentMeta}>
+        <span>{statusLabel}</span>
+        <span>Due {formatAssignmentDueDate(assignment.dueAt)}</span>
+        <span>{card.durationMinutes} min</span>
+        <span>{module.title}</span>
+      </div>
+      <div className={styles.levelUpCoachAssignmentProof}>
+        <span>Proof required</span>
+        <strong>{assignment.proofRequired ?? card.proof}</strong>
+        <small>Score 0-5, add one tiny note only if it changes the next practice.</small>
+      </div>
+      <a className="button-primary" href={buildCardStartHref(identitySlug, card)}>Start coach challenge</a>
     </section>
   )
 }
@@ -1112,6 +1158,29 @@ function getRecentProofRead(completions: LevelUpCompletion[], recentCard?: Level
   if (recentCompletion.proofRating <= 1) return `${recentCompletion.proofRating}/5 - scale down`
   if (recentCompletion.proofRating <= 3) return `${recentCompletion.proofRating}/5 - repeat clean`
   return `${recentCompletion.proofRating}/5 - level up`
+}
+
+function buildMockCoachAssignment(card: LevelUpCard, module: LevelUpModule): LevelUpAssignment {
+  return {
+    id: `mock-coach-${card.id}`,
+    playerId: 'local-player',
+    coachId: 'linked-coach',
+    cardId: card.id,
+    moduleId: module.id,
+    assignedAt: '2026-06-01T12:00:00.000Z',
+    dueAt: '2026-06-03T23:59:59.000Z',
+    coachNote: 'Coach assigned one tool that supports your current tennis habit. Run it clean, score it honestly, and send the proof back.',
+    proofRequired: card.proof,
+    status: 'assigned',
+  }
+}
+
+function formatAssignmentDueDate(dueAt?: string) {
+  if (!dueAt) return 'this week'
+  const date = new Date(dueAt)
+  if (Number.isNaN(date.getTime())) return 'this week'
+  const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][date.getUTCMonth()]
+  return `${month} ${date.getUTCDate()}`
 }
 
 function getProofRatingGuidance(rating: number, card: LevelUpCard) {
