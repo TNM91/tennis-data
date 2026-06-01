@@ -46,7 +46,7 @@ const emptyFilters: FilterState = {
   tag: 'all',
 }
 
-const STORED_STATE_HYDRATION_DELAY_MS = 250
+const STORED_STATE_HYDRATION_DELAY_MS = 2000
 
 const intentPresets = [
   {
