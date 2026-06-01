@@ -475,6 +475,7 @@
 
 .levelUpOverviewPanel,
 .levelUpHero,
+.levelUpTodayDashboard,
 .levelUpTodayMission,
 .levelUpSessionDock,
 .levelUpIntentPresets,
@@ -533,6 +534,7 @@
 
 .levelUpHeroCopy,
 .levelUpHeroPanel,
+.levelUpTodayDashboardHeader,
 .levelUpRailHeader,
 .levelUpRailSummary,
 .levelUpCardTile,
@@ -545,6 +547,8 @@
 }
 
 .levelUpHeroCopy > span,
+.levelUpTodayDashboardHeader span,
+.levelUpTodayDashboardGrid span,
 .levelUpRailHeader span,
 .levelUpRailSummary span,
 .levelUpTodayMission span,
@@ -566,6 +570,7 @@
 }
 
 .levelUpHero h1,
+.levelUpTodayDashboard h2,
 .levelUpTodayMission h2,
 .levelUpRailHeader h2,
 .coachAssignmentPanel h2 {
@@ -640,6 +645,7 @@
 
 .levelUpHero p,
 .levelUpHero small,
+.levelUpTodayDashboard p,
 .levelUpTodayMission p,
 .levelUpCardTile p,
 .levelUpModuleTile p,
@@ -1003,6 +1009,52 @@
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.045);
   padding: 14px;
+}
+
+.levelUpTodayDashboard {
+  gap: 12px;
+  border-color: rgba(155, 225, 29, 0.24);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.07), transparent 42%),
+    var(--surface);
+}
+
+.levelUpTodayDashboardGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpTodayDashboardGrid a {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 132px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 12px;
+  text-decoration: none;
+}
+
+.levelUpTodayDashboardGrid a:first-child,
+.levelUpTodayDashboardGrid a:hover,
+.levelUpTodayDashboardGrid a:focus-visible {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.levelUpTodayDashboardGrid strong {
+  color: var(--foreground-strong);
+  font-size: 0.96rem;
+  line-height: 1.16;
+}
+
+.levelUpTodayDashboardGrid small {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.32;
 }
 
 .levelUpTodayMission {
@@ -6503,6 +6555,7 @@
   .levelUpLibraryGrid,
   .levelUpHero,
   .levelUpOverviewGrid,
+  .levelUpTodayDashboardGrid,
   .levelUpTodayMission,
   .levelUpSessionDock,
   .levelUpIntentPresets,
@@ -6621,6 +6674,7 @@
   .levelUpLibraryGrid,
   .levelUpHero,
   .levelUpOverviewGrid,
+  .levelUpTodayDashboardGrid,
   .levelUpTodayMission,
   .levelUpSessionDock,
   .levelUpIntentPresets,

@@ -114,14 +114,30 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const featuredModules = LEVEL_UP_MODULES.filter((module) => profile.featuredModuleIds.includes(module.id))
   const todayModule = featuredModules[0] ?? LEVEL_UP_MODULES[0]
   const todayCard = identityCards[0] ?? LEVEL_UP_CARDS[0]
+  const coachChallengeCard = identityCards[1] ?? todayCard
+  const quickStartCard = favoriteCards[0] ?? quickWins[0] ?? todayCard
+  const recentCard = completedCards[0]
   const activeFilterCount = countActiveFilters(filters)
   const visibleAllCards = showAllCards ? filteredCards : filteredCards.slice(0, 12)
   const startCards = (activeFilterCount ? filteredCards : identityCards).slice(0, 3)
   const sessionRead = getSessionReadLabel(completionSummaryByCardId)
+  const recentProofRead = getRecentProofRead(completions, recentCard)
 
   return (
     <section className={styles.levelUpPortalApp} aria-labelledby="level-up-portal-title">
       <LevelUpHero identityTitle={identityTitle} recommendationCopy={profile.recommendationCopy} />
+
+      <LevelUpTodayDashboard
+        coachChallengeCard={coachChallengeCard}
+        todayModule={todayModule}
+        todayCard={todayCard}
+        quickStartCard={quickStartCard}
+        recentCard={recentCard}
+        recentProofRead={recentProofRead}
+        favoriteCount={favorites.length}
+        completionCount={completions.length}
+        identitySlug={identitySlug}
+      />
 
       <section id="today-mission" className={styles.levelUpTodayMission} aria-label="Today's Mission">
         <div>
@@ -198,7 +214,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
       <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
       <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Tap Favorite on a card to pin it here." identitySlug={identitySlug} defaultOpen={favoriteCards.length > 0} />
-      <LevelUpSmartRail title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Log a proof score to build this rail." identitySlug={identitySlug} />
+      <LevelUpSmartRail id="recently-completed" title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Log a proof score to build this rail." identitySlug={identitySlug} />
 
       <section className={styles.levelUpModuleGrid} aria-label="Level Up modules">
         <div className={styles.levelUpRailHeader}>
@@ -265,6 +281,60 @@ function LevelUpIntentPresets({ activeIntent, onApply }: { activeIntent: string;
             <span>{preset.copy}</span>
           </button>
         ))}
+      </div>
+    </section>
+  )
+}
+
+function LevelUpTodayDashboard({
+  coachChallengeCard,
+  todayModule,
+  todayCard,
+  quickStartCard,
+  recentCard,
+  recentProofRead,
+  favoriteCount,
+  completionCount,
+  identitySlug,
+}: {
+  coachChallengeCard: LevelUpCard
+  todayModule: LevelUpModule
+  todayCard: LevelUpCard
+  quickStartCard: LevelUpCard
+  recentCard?: LevelUpCard
+  recentProofRead: string
+  favoriteCount: number
+  completionCount: number
+  identitySlug: string
+}) {
+  return (
+    <section className={styles.levelUpTodayDashboard} aria-label="Today dashboard">
+      <div className={styles.levelUpTodayDashboardHeader}>
+        <span>Today</span>
+        <h2>Open, choose, start.</h2>
+        <p>One coach challenge, one recommended mission, one fast start, and one proof read.</p>
+      </div>
+      <div className={styles.levelUpTodayDashboardGrid}>
+        <a href={buildCardStartHref(identitySlug, coachChallengeCard)}>
+          <span>Coach challenge</span>
+          <strong>{coachChallengeCard.title}</strong>
+          <small>{coachChallengeCard.proof}</small>
+        </a>
+        <a href="#today-mission">
+          <span>Recommended</span>
+          <strong>{todayModule.title}</strong>
+          <small>Start with {todayCard.title}.</small>
+        </a>
+        <a href={buildCardStartHref(identitySlug, quickStartCard)}>
+          <span>{favoriteCount ? 'Favorite start' : 'Quick start'}</span>
+          <strong>{quickStartCard.title}</strong>
+          <small>{quickStartCard.durationMinutes} min - {quickStartCard.setting.join(', ')}</small>
+        </a>
+        <a href={completionCount ? '#recently-completed' : '#level-up-start-here'}>
+          <span>Proof trend</span>
+          <strong>{recentProofRead}</strong>
+          <small>{recentCard ? `Last card: ${recentCard.title}` : 'Log one score to create your trend.'}</small>
+        </a>
       </div>
     </section>
   )
@@ -380,6 +450,7 @@ function LevelUpHero({ identityTitle, recommendationCopy }: { identityTitle: str
 }
 
 function LevelUpSmartRail({
+  id,
   title,
   cards,
   recommendationByCardId,
@@ -391,6 +462,7 @@ function LevelUpSmartRail({
   identitySlug,
   defaultOpen,
 }: {
+  id?: string
   title: string
   cards: LevelUpCard[]
   recommendationByCardId: Map<string | undefined, LevelUpRecommendation>
@@ -402,9 +474,9 @@ function LevelUpSmartRail({
   identitySlug: string
   defaultOpen?: boolean
 }) {
-  const id = title === 'Favorites' ? 'favorites' : undefined
+  const railId = id ?? (title === 'Favorites' ? 'favorites' : undefined)
   return (
-    <details id={id} className={styles.levelUpRail} aria-label={title} open={defaultOpen}>
+    <details id={railId} className={styles.levelUpRail} aria-label={title} open={defaultOpen}>
       <summary className={styles.levelUpRailSummary}>
         <span>{title}</span>
         <strong>{title}</strong>
@@ -992,6 +1064,16 @@ function getSessionReadLabel(summaryByCardId: Map<string, CompletionSummary>) {
   if (rebuild > 0 && rebuild >= holding) return `${rebuild} rebuild`
   if (holding > 0) return `${holding} holding`
   return 'Build proof'
+}
+
+function getRecentProofRead(completions: LevelUpCompletion[], recentCard?: LevelUpCard) {
+  const recentCompletion = completions[0]
+  if (!recentCompletion || !recentCard) return 'No proof yet'
+  if (typeof recentCompletion.proofRating !== 'number') return 'Proof logged'
+
+  if (recentCompletion.proofRating <= 1) return `${recentCompletion.proofRating}/5 - scale down`
+  if (recentCompletion.proofRating <= 3) return `${recentCompletion.proofRating}/5 - repeat clean`
+  return `${recentCompletion.proofRating}/5 - level up`
 }
 
 function getProofRatingGuidance(rating: number, card: LevelUpCard) {
