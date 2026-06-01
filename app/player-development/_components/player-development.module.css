@@ -1872,6 +1872,30 @@
   line-height: 1.32;
 }
 
+.completionSavedActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 3px;
+}
+
+.completionSavedActions button {
+  min-height: 38px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 7px 10px;
+  font-weight: 900;
+}
+
+.completionSavedActions button:first-child {
+  border-color: rgba(155, 225, 29, 0.48);
+  background: var(--brand-green-2);
+  color: #061221;
+}
+
 .levelUpAssignmentControls {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -6695,6 +6719,10 @@
   }
 
   .levelUpActivityRepActions {
+    grid-template-columns: 1fr;
+  }
+
+  .completionSavedActions {
     grid-template-columns: 1fr;
   }
 

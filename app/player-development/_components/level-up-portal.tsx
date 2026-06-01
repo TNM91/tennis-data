@@ -472,7 +472,7 @@ function LevelUpCardTile({
   const cleanRepProgress = Math.min(100, Math.round((cleanRepCount / cleanRepTarget) * 100))
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
-  const savedProofAction = shownSavedRating === null ? null : getSavedProofAction(card, shownSavedRating)
+  const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
 
   useEffect(() => {
     if (!timerRunning) return undefined
@@ -509,6 +509,27 @@ function LevelUpCardTile({
     onComplete(card.id, rating, note.trim() || activityProofNote)
     setSavedRating(rating)
     setNote('')
+  }
+
+  function repeatActivity() {
+    setTimerRunning(false)
+    setElapsedSeconds(0)
+    setCleanRepCount(0)
+    setSavedRating(null)
+    setLoggerOpen(false)
+    setActivityOpen(true)
+    window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
+  function finishActivity() {
+    setTimerRunning(false)
+    setLoggerOpen(false)
+    setActivityOpen(false)
+    window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
   }
 
   return (
@@ -724,12 +745,16 @@ function LevelUpCardTile({
           <small>{coachableNote.prompt}</small>
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder={notePrompt} aria-label={`Note for ${card.title}`} />
-        <button type="button" className="button-secondary" onClick={completeCard}>{shownSavedRating === null ? 'Save proof' : `Saved ${shownSavedRating}/5`}</button>
+        <button type="button" className="button-secondary" onClick={completeCard}>{savedRating === null ? 'Save proof' : `Saved ${savedRating}/5`}</button>
         {savedProofAction ? (
           <div className={styles.completionSavedMessage}>
             <span>Proof saved</span>
-            <strong>{shownSavedRating}/5 - {savedProofAction.title}</strong>
+            <strong>{savedRating}/5 - {savedProofAction.title}</strong>
             <small>{savedProofAction.detail}</small>
+            <div className={styles.completionSavedActions}>
+              <button type="button" onClick={repeatActivity}>Repeat card</button>
+              <button type="button" onClick={finishActivity}>Done for now</button>
+            </div>
           </div>
         ) : null}
       </details>
