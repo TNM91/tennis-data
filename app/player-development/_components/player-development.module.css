@@ -478,6 +478,7 @@
 .levelUpCoachAssignmentBanner,
 .levelUpTodayDashboard,
 .levelUpNextBestRep,
+.levelUpTrainingPulse,
 .levelUpTodayMission,
 .levelUpSessionDock,
 .levelUpIntentPresets,
@@ -1134,6 +1135,73 @@
   min-width: 150px;
   min-height: 44px;
   text-decoration: none;
+}
+
+.levelUpTrainingPulse {
+  grid-template-columns: minmax(0, 0.52fr) minmax(0, 1fr);
+  align-items: center;
+  border-color: rgba(116, 190, 255, 0.18);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.055), transparent 40%),
+    rgba(5, 13, 19, 0.9);
+}
+
+.levelUpTrainingPulse span,
+.levelUpPulseGrid span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  background: rgba(155, 225, 29, 0.09);
+  color: #d8f7a4;
+  padding: 5px 8px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpTrainingPulse h2 {
+  margin: 7px 0 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.12rem, 2vw, 1.5rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.levelUpTrainingPulse p {
+  margin: 6px 0 0;
+  color: var(--muted-strong);
+  line-height: 1.42;
+}
+
+.levelUpPulseGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.levelUpPulseGrid article {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+}
+
+.levelUpPulseGrid strong {
+  color: var(--foreground-strong);
+  font-size: 0.96rem;
+  line-height: 1.12;
+}
+
+.levelUpPulseGrid small {
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  line-height: 1.25;
 }
 
 .levelUpCoachAssignmentBanner {
@@ -6870,6 +6938,7 @@
   .levelUpOverviewGrid,
   .levelUpCoachAssignmentBanner,
   .levelUpNextBestRep,
+  .levelUpTrainingPulse,
   .levelUpTodayDashboardGrid,
   .levelUpTodayMission,
   .levelUpSessionDock,
@@ -7088,6 +7157,14 @@
 
   .levelUpNextBestRep :global(.button-primary) {
     width: 100%;
+  }
+
+  .levelUpTrainingPulse {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpPulseGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .levelUpProofScale {

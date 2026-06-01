@@ -43,6 +43,14 @@ type NextBestRep = {
   proof: string
 }
 
+type TrainingPulse = {
+  proofCount: number
+  averageProofLabel: string
+  strongestArea: string
+  attentionArea: string
+  coachRead: string
+}
+
 const emptyFilters: FilterState = {
   category: 'all',
   pack: 'all',
@@ -138,6 +146,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     todayCard,
     completionSummaryByCardId,
   })
+  const trainingPulse = buildTrainingPulse({ completions, identityCards })
 
   return (
     <section className={styles.levelUpPortalApp} aria-labelledby="level-up-portal-title">
@@ -164,6 +173,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       />
 
       <LevelUpNextBestRepPanel nextBestRep={nextBestRep} identitySlug={identitySlug} />
+
+      <LevelUpTrainingPulsePanel pulse={trainingPulse} />
 
       <section id="today-mission" className={styles.levelUpTodayMission} aria-label="Today's Mission">
         <div>
@@ -380,6 +391,40 @@ function LevelUpNextBestRepPanel({ nextBestRep, identitySlug }: { nextBestRep: N
         <small>{nextBestRep.proof}</small>
       </div>
       <a className="button-primary" href={buildCardStartHref(identitySlug, nextBestRep.card)}>Start next rep</a>
+    </section>
+  )
+}
+
+function LevelUpTrainingPulsePanel({ pulse }: { pulse: TrainingPulse }) {
+  return (
+    <section className={styles.levelUpTrainingPulse} aria-label="Training pulse">
+      <div>
+        <span>Training pulse</span>
+        <h2>Keep the work aligned.</h2>
+        <p>{pulse.coachRead}</p>
+      </div>
+      <div className={styles.levelUpPulseGrid}>
+        <article>
+          <span>Proofs</span>
+          <strong>{pulse.proofCount}</strong>
+          <small>Logged scores</small>
+        </article>
+        <article>
+          <span>Average</span>
+          <strong>{pulse.averageProofLabel}</strong>
+          <small>Recent proof quality</small>
+        </article>
+        <article>
+          <span>Strongest</span>
+          <strong>{pulse.strongestArea}</strong>
+          <small>Most proven area</small>
+        </article>
+        <article>
+          <span>Needs reps</span>
+          <strong>{pulse.attentionArea}</strong>
+          <small>Under-trained next</small>
+        </article>
+      </div>
     </section>
   )
 }
@@ -1317,6 +1362,88 @@ function buildNextBestRep({
     detail: 'Run the first card, score 0-5, and let the next recommendation get sharper.',
     proof: todayCard.proof,
   }
+}
+
+function buildTrainingPulse({
+  completions,
+  identityCards,
+}: {
+  completions: LevelUpCompletion[]
+  identityCards: LevelUpCard[]
+}): TrainingPulse {
+  if (!completions.length) {
+    const starterArea = identityCards[0] ? getTrainingAreaLabel(identityCards[0]) : 'Identity habit'
+    return {
+      proofCount: 0,
+      averageProofLabel: 'No score',
+      strongestArea: 'Not proven yet',
+      attentionArea: starterArea,
+      coachRead: 'Log one proof score so your coach and your next practice have a real signal.',
+    }
+  }
+
+  const ratedCompletions = completions.filter((completion) => typeof completion.proofRating === 'number')
+  const averageProof = ratedCompletions.length
+    ? ratedCompletions.reduce((total, completion) => total + (completion.proofRating ?? 0), 0) / ratedCompletions.length
+    : 0
+  const areaCounts = new Map<string, number>()
+
+  for (const completion of completions) {
+    const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === completion.cardId)
+    if (!card) continue
+    const area = getTrainingAreaLabel(card)
+    areaCounts.set(area, (areaCounts.get(area) ?? 0) + 1)
+  }
+
+  const strongestArea = [...areaCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Proof habit'
+  const attentionArea = getUndertrainedArea(identityCards, areaCounts)
+
+  return {
+    proofCount: completions.length,
+    averageProofLabel: ratedCompletions.length ? `${averageProof.toFixed(1)}/5` : 'Logged',
+    strongestArea,
+    attentionArea,
+    coachRead: buildCoachPulseRead(averageProof, strongestArea, attentionArea),
+  }
+}
+
+function getUndertrainedArea(identityCards: LevelUpCard[], areaCounts: Map<string, number>) {
+  const identityAreas = unique(identityCards.map((card) => getTrainingAreaLabel(card)))
+  if (!identityAreas.length) return 'Identity habit'
+  return identityAreas
+    .map((area) => ({ area, count: areaCounts.get(area) ?? 0 }))
+    .sort((a, b) => a.count - b.count || a.area.localeCompare(b.area))[0]?.area ?? identityAreas[0]
+}
+
+function buildCoachPulseRead(averageProof: number, strongestArea: string, attentionArea: string) {
+  if (!averageProof) return `You have proof in ${strongestArea}. Add ${attentionArea} next so the plan stays balanced.`
+  if (averageProof < 2) return `Scale the work down. Keep ${strongestArea} simple and rebuild ${attentionArea} with one clean cue.`
+  if (averageProof < 4) return `You are building. Protect ${strongestArea}, then add a clean ${attentionArea} rep before browsing.`
+  return `Quality is trending up. Keep ${strongestArea} sharp and level up ${attentionArea} with one harder variable.`
+}
+
+function getTrainingAreaLabel(card: LevelUpCard) {
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target') || card.tags.includes('serve-plus-one') || card.category === 'serve-return') {
+    return 'Serve / return'
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move') || card.category === 'doubles-drill') {
+    return 'Doubles'
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points') || card.category === 'mental-routine') {
+    return 'Mind / routine'
+  }
+
+  if (['movement-engine', 'strength-stability', 'conditioning', 'mobility-stretch', 'recovery-reset'].includes(card.category)) {
+    return 'Body'
+  }
+
+  if (card.tags.includes('match-day') || card.category === 'match-prep') {
+    return 'Match day'
+  }
+
+  return 'Court habits'
 }
 
 function buildMockCoachAssignment(card: LevelUpCard, module: LevelUpModule): LevelUpAssignment {
