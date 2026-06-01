@@ -602,6 +602,8 @@ function LevelUpCardTile({
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
+  const activeFocusState = savedRating !== null ? 'saved' : loggerOpen ? 'scoring' : timerRunning ? 'running' : elapsedSeconds > 0 || cleanRepCount > 0 ? 'working' : 'ready'
+  const activeFocusLabel = getActiveFocusLabel(activeFocusState)
   const savedCoachUpdate = savedProofAction && savedRating !== null
     ? buildCoachUpdate({
       card,
@@ -701,11 +703,19 @@ function LevelUpCardTile({
         <EquipmentPill equipment={card.equipment.join(', ')} />
       </div>
       {activityOpen ? (
-        <div className={styles.levelUpActivityMode} aria-label={`Active drill mode for ${card.title}`}>
+        <div className={styles.levelUpActivityMode} aria-label={`Active drill mode for ${card.title}`} data-focus-state={activeFocusState}>
           <div className={styles.levelUpActivityHeader}>
             <span>Active drill</span>
             <strong>Do this now. Log one honest score.</strong>
             <button type="button" onClick={() => setActivityOpen(false)}>Collapse</button>
+          </div>
+          <div className={styles.levelUpActivityFocusBar} aria-label={`Current work state for ${card.title}`}>
+            <div>
+              <span>{activeFocusLabel}</span>
+              <strong>{formatTimer(elapsedSeconds)} - {cleanRepCount}/{cleanRepTarget} clean</strong>
+              <small>{card.proof}</small>
+            </div>
+            <button type="button" onClick={openLogger}>{savedRating === null ? 'Score' : 'Review'}</button>
           </div>
           <div className={styles.levelUpActivitySteps}>
             <div>
@@ -931,11 +941,16 @@ function LevelUpCardTile({
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder={notePrompt} aria-label={`Note for ${card.title}`} />
         <button type="button" className="button-secondary" onClick={completeCard}>{savedRating === null ? 'Save proof' : `Saved ${savedRating}/5`}</button>
-        {savedProofAction ? (
+        {savedProofAction && savedRating !== null ? (
           <div className={styles.completionSavedMessage}>
             <span>Proof saved</span>
             <strong>{savedRating}/5 - {savedProofAction.title}</strong>
             <small>{savedProofAction.detail}</small>
+            <div className={styles.levelUpAfterScoreNext}>
+              <span>Next move</span>
+              <strong>{getAfterScorePrimaryAction(savedRating)}</strong>
+              <small>{getAfterScoreDetail(card, savedRating)}</small>
+            </div>
             <div className={styles.coachUpdatePreview}>
               <span>Coach update</span>
               <p>{savedCoachUpdate}</p>
@@ -1140,6 +1155,26 @@ function CompletionSummaryPill({ summary }: { summary: CompletionSummary }) {
       <strong>{prescription}</strong>
     </small>
   )
+}
+
+function getActiveFocusLabel(state: string) {
+  if (state === 'saved') return 'Proof saved'
+  if (state === 'scoring') return 'Scoring'
+  if (state === 'running') return 'Timer running'
+  if (state === 'working') return 'Work in progress'
+  return 'Ready'
+}
+
+function getAfterScorePrimaryAction(rating: number) {
+  if (rating <= 1) return 'Scale down and repeat one clean cue.'
+  if (rating <= 3) return 'Repeat this card before adding difficulty.'
+  return 'Level up one variable next.'
+}
+
+function getAfterScoreDetail(card: LevelUpCard, rating: number) {
+  if (rating <= 1) return card.regression
+  if (rating <= 3) return `Keep the same setup and chase this cue again: ${card.cue}`
+  return card.progression
 }
 
 function getProofTrendLabel(summary: CompletionSummary) {
