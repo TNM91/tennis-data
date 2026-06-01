@@ -1284,7 +1284,7 @@ function LevelUpCardTile({
             <div className={styles.completionSavedActions}>
               <button type="button" data-primary="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(savedRating)}</button>
               <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy coach update', 'Coach update copied')}</button>
-              <button type="button" onClick={finishActivity}>Done for now</button>
+              <button type="button" data-finish="true" onClick={finishActivity}>Finish recap</button>
             </div>
           </div>
         ) : null}
