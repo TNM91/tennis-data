@@ -723,6 +723,7 @@ function LevelUpCardTile({
   const targetSeconds = Math.max(60, card.durationMinutes * 60)
   const timerProgress = Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100))
   const cleanRepTarget = getCleanRepTarget(card)
+  const roundTarget = getCardRoundTarget(card, cleanRepTarget)
   const cleanRepProgress = Math.min(100, Math.round((cleanRepCount / cleanRepTarget) * 100))
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
@@ -849,6 +850,21 @@ function LevelUpCardTile({
               <small>{card.proof}</small>
             </div>
             <button type="button" onClick={openLogger}>{savedRating === null ? 'Score' : 'Review'}</button>
+          </div>
+          <div className={styles.levelUpRoundTarget} aria-label={`Round target for ${card.title}`}>
+            <span>Win this round</span>
+            <div>
+              <b>Target</b>
+              <strong>{roundTarget.target}</strong>
+            </div>
+            <div>
+              <b>Quality</b>
+              <strong>{roundTarget.quality}</strong>
+            </div>
+            <div>
+              <b>If missed</b>
+              <strong>{roundTarget.missResponse}</strong>
+            </div>
           </div>
           <div className={styles.levelUpActivitySteps}>
             <div>
@@ -1931,6 +1947,96 @@ function getCardSessionStandard(card: LevelUpCard) {
     before: 'Name the one tennis habit you want to see.',
     counts: 'The rep counts when the proof behavior is obvious.',
     stop: doseGuide.stopRule,
+  }
+}
+
+function getCardRoundTarget(card: LevelUpCard, cleanRepTarget: number) {
+  const cleanTarget = Math.max(2, Math.ceil(cleanRepTarget / 2))
+
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      target: `${cleanTarget} recoveries before watching.`,
+      quality: 'Finish, recover, then read the result.',
+      missResponse: 'Slow the finish and shrink the recovery distance.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return {
+      target: `${cleanTarget} serves with target called first.`,
+      quality: 'Same breath and tempo after makes and misses.',
+      missResponse: 'Pause, call the target again, then serve.',
+    }
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return {
+      target: `${cleanTarget} serve plus-one patterns that match.`,
+      quality: 'Serve location creates the first-ball job.',
+      missResponse: 'Name both shots before the next rep.',
+    }
+  }
+
+  if (card.tags.includes('return-intent')) {
+    return {
+      target: `${cleanTarget} returns with intent chosen early.`,
+      quality: 'Return job and recovery both show up.',
+      missResponse: 'Choose one simpler return job before the toss.',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      target: `${cleanTarget} balls that buy time back to neutral.`,
+      quality: 'Height, depth, and recovery beat panic.',
+      missResponse: 'Aim bigger and accept neutral as the win.',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      target: `${cleanTarget} attacks that finish balanced.`,
+      quality: 'Speed never beats posture or recovery.',
+      missResponse: 'Take one smaller first step and finish tall.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      target: `${cleanTarget} points where the call creates movement.`,
+      quality: 'Short call, early move, partner can act.',
+      missResponse: 'Make the next call earlier and shorter.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      target: `${cleanTarget} resets before the next point starts.`,
+      quality: 'Breath, word, and intention are clear.',
+      missResponse: 'Use fewer words and start the next point.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      target: `${cleanTarget} clean efforts with posture intact.`,
+      quality: 'Quiet shoulders, steady breathing, playable legs.',
+      missResponse: 'Cut the pace before posture changes.',
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      target: `${cleanTarget} controlled positions without forcing range.`,
+      quality: 'Movement gets calmer, not more aggressive.',
+      missResponse: 'Back off range and breathe through control.',
+    }
+  }
+
+  return {
+    target: `${cleanTarget} reps where the cue is obvious.`,
+    quality: 'The proof behavior shows up without guessing.',
+    missResponse: 'Make the setup easier and repeat one cue.',
   }
 }
 
