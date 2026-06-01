@@ -2457,6 +2457,45 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
+.levelUpQuickNotes {
+  display: grid;
+  gap: 6px;
+}
+
+.levelUpQuickNotes > span {
+  color: var(--brand-green-3);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpQuickNotes div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.levelUpQuickNotes button {
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 7px 9px;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.levelUpQuickNotes button:hover,
+.levelUpQuickNotes button:focus-visible {
+  border-color: rgba(155, 225, 29, 0.52);
+  background: rgba(155, 225, 29, 0.1);
+  color: var(--foreground-strong);
+}
+
 .levelUpActivityRecap {
   border-color: rgba(155, 225, 29, 0.24);
   background: rgba(155, 225, 29, 0.07);

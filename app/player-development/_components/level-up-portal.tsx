@@ -733,6 +733,13 @@ function LevelUpCardTile({
   const roundResetCue = getRoundResetCue(card)
   const totalCleanRepCount = bankedCleanRepCount + cleanRepCount
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
+  const quickProofNotes = getQuickProofNotes({
+    card,
+    rating,
+    commonMiss,
+    completedRoundCount,
+    totalCleanRepCount,
+  })
   const activityProofNote = getActivityProofNote({
     cleanRepCount,
     cleanRepTarget,
@@ -1159,6 +1166,14 @@ function LevelUpCardTile({
           <span>Worth noting</span>
           <strong>{coachableNote.title}</strong>
           <small>{coachableNote.prompt}</small>
+        </div>
+        <div className={styles.levelUpQuickNotes} aria-label={`Quick notes for ${card.title}`}>
+          <span>Tap a note</span>
+          <div>
+            {quickProofNotes.map((quickNote) => (
+              <button key={quickNote} type="button" onClick={() => setNote(quickNote)}>{quickNote}</button>
+            ))}
+          </div>
         </div>
         <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder={notePrompt} aria-label={`Note for ${card.title}`} />
         <button type="button" className="button-secondary" onClick={completeCard}>{savedRating === null ? 'Save proof' : `Saved ${savedRating}/5`}</button>
@@ -1692,6 +1707,51 @@ function getProofNotePrompt(rating: number) {
   if (rating <= 1) return 'What got in the way?'
   if (rating <= 3) return 'What cue should you repeat?'
   return 'What made it work?'
+}
+
+function getQuickProofNotes({
+  card,
+  rating,
+  commonMiss,
+  completedRoundCount,
+  totalCleanRepCount,
+}: {
+  card: LevelUpCard
+  rating: number
+  commonMiss: { miss: string; fix: string }
+  completedRoundCount: number
+  totalCleanRepCount: number
+}) {
+  const proofLabel = card.proof.replace(' 0-5', '')
+  const repsNote = totalCleanRepCount > 0
+    ? `${totalCleanRepCount} clean reps${completedRoundCount > 0 ? ` across ${completedRoundCount + 1} rounds` : ''}.`
+    : `Cue to watch: ${card.cue}`
+
+  if (rating <= 1) {
+    return [
+      truncateProofNote(`Blocker: ${commonMiss.miss}`),
+      truncateProofNote(`Scale down: ${card.regression}`),
+      truncateProofNote(`Coach eyes on ${proofLabel.toLowerCase()}.`),
+    ]
+  }
+
+  if (rating <= 3) {
+    return [
+      truncateProofNote(`Repeat cue: ${card.cue}`),
+      truncateProofNote(repsNote),
+      truncateProofNote(`Fast fix: ${commonMiss.fix}`),
+    ]
+  }
+
+  return [
+    truncateProofNote(`Worked: ${card.cue}`),
+    truncateProofNote(repsNote),
+    truncateProofNote(`Progress: ${card.progression}`),
+  ]
+}
+
+function truncateProofNote(note: string) {
+  return note.length > 116 ? `${note.slice(0, 113).trim()}...` : note
 }
 
 function getCoachableNotePrompt(card: LevelUpCard, rating: number) {
