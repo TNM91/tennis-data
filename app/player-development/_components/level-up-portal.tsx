@@ -728,6 +728,13 @@ function LevelUpCardTile({
   const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
   const savedScoreDecision = savedRating === null ? null : getScoreDecision(card, savedRating)
+  const savedProofSnapshot = savedRating === null ? null : buildProofSnapshot({
+    card,
+    rating: savedRating,
+    cleanRepCount,
+    cleanRepTarget,
+    elapsedSeconds,
+  })
   const activeFocusState = savedRating !== null ? 'saved' : loggerOpen ? 'scoring' : timerRunning ? 'running' : elapsedSeconds > 0 || cleanRepCount > 0 ? 'working' : 'ready'
   const activeFocusLabel = getActiveFocusLabel(activeFocusState)
   const savedCoachUpdate = savedProofAction && savedRating !== null
@@ -1096,6 +1103,23 @@ function LevelUpCardTile({
             <span>Proof saved</span>
             <strong>{savedRating}/5 - {savedProofAction.title}</strong>
             <small>{savedProofAction.detail}</small>
+            {savedProofSnapshot ? (
+              <div className={styles.levelUpProofSnapshot} aria-label={`Proof snapshot for ${card.title}`}>
+                <span>Proof snapshot</span>
+                <div>
+                  <b>Score</b>
+                  <strong>{savedProofSnapshot.score}</strong>
+                </div>
+                <div>
+                  <b>Rep signal</b>
+                  <strong>{savedProofSnapshot.repSignal}</strong>
+                </div>
+                <div>
+                  <b>Coach ask</b>
+                  <strong>{savedProofSnapshot.coachAsk}</strong>
+                </div>
+              </div>
+            ) : null}
             <div className={styles.levelUpAfterScoreNext}>
               <span>Next move</span>
               <strong>{getAfterScorePrimaryAction(savedRating)}</strong>
@@ -3061,6 +3085,45 @@ function getScoreDecision(card: LevelUpCard, rating: number) {
     title: 'Progress one variable only.',
     detail: `Add pressure, time, or target difficulty. Keep ${proofName} as the score that matters.`,
   }
+}
+
+function buildProofSnapshot({
+  card,
+  rating,
+  cleanRepCount,
+  cleanRepTarget,
+  elapsedSeconds,
+}: {
+  card: LevelUpCard
+  rating: number
+  cleanRepCount: number
+  cleanRepTarget: number
+  elapsedSeconds: number
+}) {
+  const proofName = card.proof.replace(' 0-5', '')
+  const repSignal = cleanRepCount > 0 || elapsedSeconds > 0
+    ? `${cleanRepCount}/${cleanRepTarget} clean in ${formatTimer(elapsedSeconds)}`
+    : 'Score saved without timed reps'
+
+  return {
+    score: `${rating}/5 ${proofName}`,
+    repSignal,
+    coachAsk: getProofSnapshotCoachAsk(card, rating),
+  }
+}
+
+function getProofSnapshotCoachAsk(card: LevelUpCard, rating: number) {
+  const focus = getCardPurposeLabel(card).toLowerCase()
+
+  if (rating <= 1) {
+    return `Help me scale ${focus} down.`
+  }
+
+  if (rating <= 3) {
+    return `Watch whether ${focus} repeats without reminders.`
+  }
+
+  return `Confirm when I should add pressure to ${focus}.`
 }
 
 function buildCoachUpdate({

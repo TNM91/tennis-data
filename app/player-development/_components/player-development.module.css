@@ -2342,6 +2342,48 @@
     rgba(255, 255, 255, 0.04);
 }
 
+.levelUpProofSnapshot {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 4px;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 48%),
+    rgba(5, 15, 30, 0.34);
+  padding: 8px;
+}
+
+.levelUpProofSnapshot > span {
+  grid-column: 1 / -1;
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpProofSnapshot div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.levelUpProofSnapshot b {
+  color: var(--brand-blue-2);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpProofSnapshot strong {
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  line-height: 1.28;
+}
+
 .levelUpProofNextStep span,
 .levelUpRepFeedback span,
 .levelUpCoachableNote span,
@@ -7319,6 +7361,10 @@
   }
 
   .levelUpProofScale {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpProofSnapshot {
     grid-template-columns: 1fr;
   }
 
