@@ -315,6 +315,7 @@ describe('Level Up page', () => {
     expect(playerDevelopmentPortalSource).toContain('savedProofNote')
     expect(playerDevelopmentPortalSource).toContain('Copy coach update')
     expect(playerDevelopmentPortalSource).toContain('Coach update copied')
+    expect(playerDevelopmentPortalSource).toContain('STORED_STATE_HYDRATION_DELAY_MS')
     expect(playerDevelopmentPortalSource).toContain('repeatActivity')
     expect(playerDevelopmentPortalSource).toContain('finishActivity')
     expect(playerDevelopmentPortalSource).toContain('Repeat card')

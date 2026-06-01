@@ -46,6 +46,8 @@ const emptyFilters: FilterState = {
   tag: 'all',
 }
 
+const STORED_STATE_HYDRATION_DELAY_MS = 250
+
 const intentPresets = [
   {
     label: '10 min quick win',
@@ -2038,7 +2040,7 @@ function useLevelUpFavorites(): [string[], (cardId: string) => void] {
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
       setFavorites(readStringList('tiq-level-up-favorites'))
-    }, 0)
+    }, STORED_STATE_HYDRATION_DELAY_MS)
     return () => window.clearTimeout(hydrationTimer)
   }, [])
 
@@ -2058,7 +2060,7 @@ function useLevelUpCompletions(): [LevelUpCompletion[], (cardId: string, rating:
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
       setCompletions(readCompletions())
-    }, 0)
+    }, STORED_STATE_HYDRATION_DELAY_MS)
     return () => window.clearTimeout(hydrationTimer)
   }, [])
 
