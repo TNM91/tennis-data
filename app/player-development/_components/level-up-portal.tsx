@@ -704,6 +704,7 @@ function LevelUpCardTile({
   const [timerRunning, setTimerRunning] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [cleanRepCount, setCleanRepCount] = useState(0)
+  const [roundNumber, setRoundNumber] = useState(1)
   const [coachUpdateCopied, setCoachUpdateCopied] = useState(false)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
@@ -797,11 +798,20 @@ function LevelUpCardTile({
     setTimerRunning(false)
     setElapsedSeconds(0)
     setCleanRepCount(0)
+    setRoundNumber(1)
     setSavedRating(null)
     setSavedProofNote('')
     setCoachUpdateCopied(false)
     setLoggerOpen(false)
     setActivityOpen(true)
+    window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
+  function repeatRound() {
+    setCleanRepCount(0)
+    setRoundNumber((round) => round + 1)
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
@@ -849,13 +859,13 @@ function LevelUpCardTile({
           <div className={styles.levelUpActivityFocusBar} aria-label={`Current work state for ${card.title}`}>
             <div>
               <span>{activeFocusLabel}</span>
-              <strong>{formatTimer(elapsedSeconds)} - {cleanRepCount}/{cleanRepTarget} clean</strong>
+              <strong>Round {roundNumber}: {formatTimer(elapsedSeconds)} - {cleanRepCount}/{cleanRepTarget} clean</strong>
               <small>{card.proof}</small>
             </div>
             <button type="button" onClick={openLogger}>{savedRating === null ? 'Score' : 'Review'}</button>
           </div>
           <div className={styles.levelUpRoundTarget} aria-label={`Round target for ${card.title}`}>
-            <span>Win this round</span>
+            <span>Win round {roundNumber}</span>
             <div>
               <b>Target</b>
               <strong>{roundTarget.target}</strong>
@@ -965,7 +975,7 @@ function LevelUpCardTile({
               </div>
               <div>
                 <button type="button" onClick={openLogger}>Score this round</button>
-                <button type="button" onClick={() => setCleanRepCount(0)}>Repeat round</button>
+                <button type="button" onClick={repeatRound}>Repeat round</button>
               </div>
             </div>
           ) : null}
