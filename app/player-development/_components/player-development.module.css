@@ -2366,6 +2366,49 @@
   line-height: 1.32;
 }
 
+.levelUpFinishRecap {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(116, 190, 255, 0.22);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 50%),
+    rgba(255, 255, 255, 0.04);
+  padding: 9px;
+}
+
+.levelUpFinishRecap span {
+  color: var(--brand-green-3);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpFinishRecap strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.18;
+}
+
+.levelUpFinishRecap small,
+.levelUpFinishRecap em {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  font-style: normal;
+  line-height: 1.32;
+}
+
+.levelUpFinishRecap em {
+  width: fit-content;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.08);
+  color: var(--brand-green-3);
+  padding: 4px 8px;
+  font-weight: 900;
+}
+
 .favoriteButton,
 .assignButton,
 .scoreButton,

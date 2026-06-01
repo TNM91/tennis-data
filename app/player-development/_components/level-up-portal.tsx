@@ -708,6 +708,7 @@ function LevelUpCardTile({
   const [completedRoundCount, setCompletedRoundCount] = useState(0)
   const [bankedCleanRepCount, setBankedCleanRepCount] = useState(0)
   const [repeatPlan, setRepeatPlan] = useState<{ title: string; detail: string } | null>(null)
+  const [finishRecap, setFinishRecap] = useState<{ title: string; detail: string; proof: string } | null>(null)
   const [coachUpdateCopied, setCoachUpdateCopied] = useState(false)
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
   const proofGuidance = getProofRatingGuidance(rating, card)
@@ -793,6 +794,7 @@ function LevelUpCardTile({
   function startActivity() {
     setActivityOpen(true)
     setRepeatPlan(null)
+    setFinishRecap(null)
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
@@ -827,6 +829,7 @@ function LevelUpCardTile({
     setSavedRating(null)
     setSavedProofNote('')
     setRepeatPlan(nextRepeatPlan)
+    setFinishRecap(null)
     setCoachUpdateCopied(false)
     setLoggerOpen(false)
     setActivityOpen(true)
@@ -849,6 +852,14 @@ function LevelUpCardTile({
     setTimerRunning(false)
     setLoggerOpen(false)
     setActivityOpen(false)
+    if (savedRating !== null) {
+      setFinishRecap(buildFinishRecap({
+        card,
+        rating: savedRating,
+        completedRoundCount,
+        totalCleanRepCount,
+      }))
+    }
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
@@ -1063,6 +1074,14 @@ function LevelUpCardTile({
           </div>
           {reason ? <RecommendedReasonPill reason={reason} /> : null}
           {completionSummary ? <CompletionSummaryPill summary={completionSummary} /> : null}
+          {finishRecap ? (
+            <div className={styles.levelUpFinishRecap} aria-label={`Finished session recap for ${card.title}`}>
+              <span>Session saved</span>
+              <strong>{finishRecap.title}</strong>
+              <small>{finishRecap.detail}</small>
+              <em>{finishRecap.proof}</em>
+            </div>
+          ) : null}
           {nextPractice ? (
             <div className={styles.levelUpNextPractice}>
               <span>Next practice</span>
@@ -1472,6 +1491,45 @@ function getAfterScoreRepeatPlan(card: LevelUpCard, rating: number) {
   return {
     title: 'Raise one variable, not three.',
     detail: card.progression ?? 'Add one small challenge while keeping the same proof score honest.',
+  }
+}
+
+function buildFinishRecap({
+  card,
+  rating,
+  completedRoundCount,
+  totalCleanRepCount,
+}: {
+  card: LevelUpCard
+  rating: number
+  completedRoundCount: number
+  totalCleanRepCount: number
+}) {
+  const proofName = card.proof.replace(' 0-5', '')
+  const proof = totalCleanRepCount > 0
+    ? `${rating}/5 ${proofName} - ${totalCleanRepCount} clean reps${completedRoundCount > 0 ? ` across ${completedRoundCount + 1} rounds` : ''}`
+    : `${rating}/5 ${proofName}`
+
+  if (rating <= 1) {
+    return {
+      title: 'Next time: shrink it.',
+      detail: card.regression ?? 'Make the setup easier and chase one clean cue before adding more.',
+      proof,
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Next time: repeat clean.',
+      detail: `Start with the same cue: ${card.cue}`,
+      proof,
+    }
+  }
+
+  return {
+    title: 'Next time: level up one piece.',
+    detail: card.progression ?? 'Add one small challenge while keeping the same proof score honest.',
+    proof,
   }
 }
 
