@@ -143,7 +143,6 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const recentCard = completedCards[0]
   const activeFilterCount = countActiveFilters(filters)
   const visibleAllCards = showAllCards ? filteredCards : filteredCards.slice(0, 12)
-  const startCards = (activeFilterCount ? filteredCards : identityCards).slice(0, 3)
   const sessionRead = getSessionReadLabel(completionSummaryByCardId)
   const recentProofRead = getRecentProofRead(completions, recentCard)
   const nextBestRep = buildNextBestRep({
@@ -152,6 +151,12 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     identityCards,
     todayCard,
     completionSummaryByCardId,
+  })
+  const startCards = buildAdaptiveStartCards({
+    activeFilterCount,
+    filteredCards,
+    identityCards,
+    nextBestCard: nextBestRep.card,
   })
   const trainingPulse = buildTrainingPulse({ completions, identityCards })
   const coachUpdateDigest = buildCoachUpdateDigest({
@@ -240,6 +245,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         onFavorite={toggleFavorite}
         onComplete={logCompletion}
         identitySlug={identitySlug}
+        nextBestRep={nextBestRep}
       />
 
       <LevelUpFilters
@@ -566,6 +572,7 @@ function LevelUpStartList({
   onFavorite,
   onComplete,
   identitySlug,
+  nextBestRep,
 }: {
   startListRef: RefObject<HTMLElement | null>
   intent: string
@@ -576,6 +583,7 @@ function LevelUpStartList({
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
   identitySlug: string
+  nextBestRep: NextBestRep
 }) {
   return (
     <section ref={startListRef} id="level-up-start-here" className={styles.levelUpStartList} aria-label="Start here">
@@ -583,6 +591,11 @@ function LevelUpStartList({
         <span>Start here</span>
         <h2>{intent === 'Recommended' ? 'Three strong places to begin.' : `${intent}: three good matches.`}</h2>
         <p>Pick one card, run it, then log a number. You do not need to browse the whole library first.</p>
+      </div>
+      <div className={styles.levelUpAdaptiveStartHint} aria-label="Adaptive next card">
+        <span>{nextBestRep.label}</span>
+        <strong>{nextBestRep.card.title}</strong>
+        <small>{nextBestRep.detail}</small>
       </div>
       <div className={styles.levelUpRailGrid}>
         {cards.map((card) => (
@@ -1685,6 +1698,26 @@ function buildNextBestRep({
     detail: 'Run the first card, score 0-5, and let the next recommendation get sharper.',
     proof: todayCard.proof,
   }
+}
+
+function buildAdaptiveStartCards({
+  activeFilterCount,
+  filteredCards,
+  identityCards,
+  nextBestCard,
+}: {
+  activeFilterCount: number
+  filteredCards: LevelUpCard[]
+  identityCards: LevelUpCard[]
+  nextBestCard: LevelUpCard
+}) {
+  if (activeFilterCount) return filteredCards.slice(0, 3)
+
+  const startCards = [nextBestCard, ...identityCards].filter((card, index, cards) => (
+    cards.findIndex((candidate) => candidate.id === card.id) === index
+  ))
+
+  return startCards.slice(0, 3)
 }
 
 function buildTrainingPulse({

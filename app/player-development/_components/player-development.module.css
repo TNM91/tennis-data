@@ -1553,6 +1553,42 @@
   scroll-margin-top: 12px;
 }
 
+.levelUpAdaptiveStartHint {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 46%),
+    rgba(5, 15, 30, 0.36);
+  padding: 9px;
+}
+
+.levelUpAdaptiveStartHint span {
+  width: fit-content;
+  border: 1px solid rgba(116, 190, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--brand-blue-2);
+  padding: 4px 8px;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpAdaptiveStartHint strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.18;
+}
+
+.levelUpAdaptiveStartHint small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
 .levelUpFilterSummary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
