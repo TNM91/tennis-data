@@ -459,6 +459,7 @@ describe('Level Up page', () => {
     expect(playerDevelopmentPortalSource).toContain("coachUpdateCopyStatus === 'blocked'")
     expect(playerDevelopmentPortalSource).toContain('levelUpCopyFallback')
     expect(playerDevelopmentPortalSource).toContain('Manual coach recap')
+    expect(playerDevelopmentPortalSource).toContain('Manual active coach update')
     expect(playerDevelopmentPortalSource).toContain('readOnly')
     expect(playerDevelopmentPortalSource).toContain('currentTarget.select()')
     expect(playerDevelopmentPortalSource).toContain("setCoachUpdateCopyStatus('blocked')")

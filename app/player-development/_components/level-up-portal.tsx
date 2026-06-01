@@ -1271,6 +1271,16 @@ function LevelUpCardTile({
               <span>Coach update</span>
               <p>{savedCoachUpdate}</p>
             </div>
+            {coachUpdateCopyStatus === 'blocked' ? (
+              <textarea
+                className={styles.levelUpCopyFallback}
+                value={savedCoachUpdate}
+                readOnly
+                rows={4}
+                aria-label={`Manual active coach update for ${card.title}`}
+                onFocus={(event) => event.currentTarget.select()}
+              />
+            ) : null}
             <div className={styles.completionSavedActions}>
               <button type="button" data-primary="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(savedRating)}</button>
               <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy coach update', 'Coach update copied')}</button>
