@@ -2690,7 +2690,7 @@
   font-weight: 900;
 }
 
-.completionSavedActions button:first-child {
+.completionSavedActions button[data-primary='true'] {
   border-color: rgba(155, 225, 29, 0.48);
   background: var(--brand-green-2);
   color: #061221;

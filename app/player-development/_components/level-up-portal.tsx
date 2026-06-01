@@ -1216,8 +1216,8 @@ function LevelUpCardTile({
               <p>{savedCoachUpdate}</p>
             </div>
             <div className={styles.completionSavedActions}>
+              <button type="button" data-primary="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(savedRating)}</button>
               <button type="button" onClick={copyCoachUpdate}>{coachUpdateCopied ? 'Coach update copied' : 'Copy coach update'}</button>
-              <button type="button" onClick={repeatActivity}>Repeat card</button>
               <button type="button" onClick={finishActivity}>Done for now</button>
             </div>
           </div>
@@ -1435,6 +1435,12 @@ function getAfterScoreDetail(card: LevelUpCard, rating: number) {
   if (rating <= 1) return card.regression
   if (rating <= 3) return `Keep the same setup and chase this cue again: ${card.cue}`
   return card.progression
+}
+
+function getAfterScorePrimaryButton(rating: number) {
+  if (rating <= 1) return 'Scale down & repeat'
+  if (rating <= 3) return 'Repeat clean'
+  return 'Level up repeat'
 }
 
 function getProofTrendLabel(summary: CompletionSummary) {
