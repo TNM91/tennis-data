@@ -470,6 +470,8 @@ function LevelUpCardTile({
   const timerProgress = Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100))
   const cleanRepTarget = getCleanRepTarget(card)
   const cleanRepProgress = Math.min(100, Math.round((cleanRepCount / cleanRepTarget) * 100))
+  const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
+  const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
 
   useEffect(() => {
     if (!timerRunning) return undefined
@@ -496,13 +498,14 @@ function LevelUpCardTile({
   function openLogger() {
     setActivityOpen(true)
     setLoggerOpen(true)
+    setRating(suggestedRating)
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
 
   function completeCard() {
-    onComplete(card.id, rating, note)
+    onComplete(card.id, rating, note.trim() || activityProofNote)
     setSavedRating(rating)
     setNote('')
   }
@@ -702,6 +705,13 @@ function LevelUpCardTile({
           <strong>{proofGuidance.title}</strong>
           <small>{proofGuidance.detail}</small>
         </div>
+        {cleanRepCount > 0 || elapsedSeconds > 0 ? (
+          <div className={styles.levelUpActivityRecap}>
+            <span>Activity recap</span>
+            <strong>{cleanRepCount}/{cleanRepTarget} clean reps - {formatTimer(elapsedSeconds)}</strong>
+            <small>Suggested proof: {suggestedRating}/5. Edit the score if the habit felt different.</small>
+          </div>
+        ) : null}
         <div className={styles.levelUpRepFeedback}>
           <span>{repFeedback.label}</span>
           <strong>{repFeedback.title}</strong>
@@ -2073,6 +2083,21 @@ function getCleanRepTarget(card: LevelUpCard) {
   if (card.durationMinutes <= 10) return 8
   if (card.durationMinutes <= 15) return 10
   return 12
+}
+
+function getActivitySuggestedRating(cleanRepCount: number, cleanRepTarget: number, elapsedSeconds: number) {
+  const repRatio = cleanRepCount / cleanRepTarget
+  if (repRatio >= 1) return 5
+  if (repRatio >= 0.75) return 4
+  if (repRatio >= 0.5) return 3
+  if (cleanRepCount > 0) return 2
+  if (elapsedSeconds > 0) return 1
+  return 3
+}
+
+function getActivityProofNote(cleanRepCount: number, cleanRepTarget: number, elapsedSeconds: number) {
+  if (cleanRepCount === 0 && elapsedSeconds === 0) return ''
+  return `Activity: ${cleanRepCount}/${cleanRepTarget} clean reps in ${formatTimer(elapsedSeconds)}.`
 }
 
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {
