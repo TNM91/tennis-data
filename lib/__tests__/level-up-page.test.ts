@@ -151,6 +151,8 @@ describe('Level Up page', () => {
     expect(playerDevelopmentPortalSource).not.toContain('Coach Assignment Mode')
     expect(playerDevelopmentPortalSource).toContain('LevelUpStartList')
     expect(playerDevelopmentPortalSource).toContain('Start here')
+    expect(playerDevelopmentPortalSource).toContain('Next best rep')
+    expect(playerDevelopmentPortalSource).toContain('Suggested next card')
     expect(playerDevelopmentPortalSource).toContain('buildAdaptiveStartCards')
     expect(playerDevelopmentPortalSource).toContain('nextBestCard')
     expect(playerDevelopmentPortalSource).toContain('levelUpAdaptiveStartHint')

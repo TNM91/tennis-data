@@ -404,7 +404,7 @@ function LevelUpNextBestRepPanel({ nextBestRep, identitySlug }: { nextBestRep: N
   return (
     <section className={styles.levelUpNextBestRep} aria-label="Next best rep">
       <div>
-        <span>{nextBestRep.label}</span>
+        <span>Next best rep</span>
         <i>{formatAdaptiveDecisionBadge(nextBestRep.decision)}</i>
         <h2>{nextBestRep.title}</h2>
         <p>{nextBestRep.detail}</p>
@@ -597,7 +597,7 @@ function LevelUpStartList({
         <p>Pick one card, run it, then log a number. You do not need to browse the whole library first.</p>
       </div>
       <div className={styles.levelUpAdaptiveStartHint} aria-label="Adaptive next card">
-        <span>{nextBestRep.label}</span>
+        <span>Suggested next card</span>
         <strong>{nextBestRep.card.title}</strong>
         <i>{formatAdaptiveDecisionBadge(nextBestRep.decision)}</i>
         <b>{nextBestRep.signal}</b>
