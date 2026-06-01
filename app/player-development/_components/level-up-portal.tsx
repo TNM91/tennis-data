@@ -727,6 +727,7 @@ function LevelUpCardTile({
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const activityProofNote = getActivityProofNote(cleanRepCount, cleanRepTarget, elapsedSeconds)
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
+  const savedScoreDecision = savedRating === null ? null : getScoreDecision(card, savedRating)
   const activeFocusState = savedRating !== null ? 'saved' : loggerOpen ? 'scoring' : timerRunning ? 'running' : elapsedSeconds > 0 || cleanRepCount > 0 ? 'working' : 'ready'
   const activeFocusLabel = getActiveFocusLabel(activeFocusState)
   const savedCoachUpdate = savedProofAction && savedRating !== null
@@ -1100,6 +1101,13 @@ function LevelUpCardTile({
               <strong>{getAfterScorePrimaryAction(savedRating)}</strong>
               <small>{getAfterScoreDetail(card, savedRating)}</small>
             </div>
+            {savedScoreDecision ? (
+              <div className={styles.levelUpScoreDecision}>
+                <span>Decision</span>
+                <strong>{savedScoreDecision.title}</strong>
+                <small>{savedScoreDecision.detail}</small>
+              </div>
+            ) : null}
             <div className={styles.coachUpdatePreview}>
               <span>Coach update</span>
               <p>{savedCoachUpdate}</p>
@@ -3029,6 +3037,29 @@ function getSavedProofAction(card: LevelUpCard, rating: number) {
   return {
     title: 'Level up one variable.',
     detail: `${card.progression} Keep the same proof score so harder still means better.`,
+  }
+}
+
+function getScoreDecision(card: LevelUpCard, rating: number) {
+  const proofName = card.proof.replace(' 0-5', '').toLowerCase()
+
+  if (rating <= 1) {
+    return {
+      title: 'Shrink it before you repeat.',
+      detail: `Make the setup easier until ${proofName} appears once without a reminder.`,
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Repeat before you progress.',
+      detail: `Run one more block with the same cue. Do not add speed until ${proofName} is cleaner.`,
+    }
+  }
+
+  return {
+    title: 'Progress one variable only.',
+    detail: `Add pressure, time, or target difficulty. Keep ${proofName} as the score that matters.`,
   }
 }
 
