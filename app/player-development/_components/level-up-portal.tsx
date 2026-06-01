@@ -51,6 +51,13 @@ type TrainingPulse = {
   coachRead: string
 }
 
+type CoachUpdateDigest = {
+  status: string
+  proofLine: string
+  coachAsk: string
+  shareText: string
+}
+
 const emptyFilters: FilterState = {
   category: 'all',
   pack: 'all',
@@ -147,6 +154,12 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     completionSummaryByCardId,
   })
   const trainingPulse = buildTrainingPulse({ completions, identityCards })
+  const coachUpdateDigest = buildCoachUpdateDigest({
+    recentCard,
+    recentCompletion: completions[0],
+    trainingPulse,
+    nextBestRep,
+  })
 
   return (
     <section className={styles.levelUpPortalApp} aria-labelledby="level-up-portal-title">
@@ -175,6 +188,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       <LevelUpNextBestRepPanel nextBestRep={nextBestRep} identitySlug={identitySlug} />
 
       <LevelUpTrainingPulsePanel pulse={trainingPulse} />
+
+      <LevelUpCoachUpdatePanel digest={coachUpdateDigest} />
 
       <section id="today-mission" className={styles.levelUpTodayMission} aria-label="Today's Mission">
         <div>
@@ -425,6 +440,35 @@ function LevelUpTrainingPulsePanel({ pulse }: { pulse: TrainingPulse }) {
           <small>Under-trained next</small>
         </article>
       </div>
+    </section>
+  )
+}
+
+function LevelUpCoachUpdatePanel({ digest }: { digest: CoachUpdateDigest }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copyUpdate() {
+    try {
+      await window.navigator.clipboard?.writeText(digest.shareText)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <section className={styles.levelUpCoachUpdate} aria-label="Coach update">
+      <div>
+        <span>Coach update</span>
+        <h2>{digest.status}</h2>
+        <p>{digest.coachAsk}</p>
+      </div>
+      <div className={styles.levelUpCoachUpdatePreview}>
+        <span>Shareable recap</span>
+        <strong>{digest.proofLine}</strong>
+        <small>{digest.shareText}</small>
+      </div>
+      <button type="button" onClick={copyUpdate}>{copied ? 'Copied' : 'Copy update'}</button>
     </section>
   )
 }
@@ -1444,6 +1488,39 @@ function getTrainingAreaLabel(card: LevelUpCard) {
   }
 
   return 'Court habits'
+}
+
+function buildCoachUpdateDigest({
+  recentCard,
+  recentCompletion,
+  trainingPulse,
+  nextBestRep,
+}: {
+  recentCard?: LevelUpCard
+  recentCompletion?: LevelUpCompletion
+  trainingPulse: TrainingPulse
+  nextBestRep: NextBestRep
+}): CoachUpdateDigest {
+  if (!recentCard || typeof recentCompletion?.proofRating !== 'number') {
+    return {
+      status: 'No proof sent yet.',
+      proofLine: 'Run one card, score 0-5, then send the short update.',
+      coachAsk: 'Start with the next best rep so your coach has a real signal to react to.',
+      shareText: `I am starting Level Up with ${nextBestRep.card.title}. Proof target: ${nextBestRep.proof}.`,
+    }
+  }
+
+  const note = recentCompletion.note?.trim()
+  const noteText = note ? ` Note: ${note}` : ''
+  const nextLine = `Next: ${nextBestRep.card.title} (${nextBestRep.label}).`
+  const shareText = `${recentCard.title}: ${recentCompletion.proofRating}/5 proof.${noteText} ${nextLine} Pulse: ${trainingPulse.strongestArea} strongest, ${trainingPulse.attentionArea} needs reps.`
+
+  return {
+    status: recentCompletion.proofRating >= 4 ? 'Ready to send a strong update.' : 'Send the honest signal.',
+    proofLine: `${recentCard.title}: ${recentCompletion.proofRating}/5 - ${recentCard.proof}`,
+    coachAsk: `Ask your coach to confirm whether ${trainingPulse.attentionArea.toLowerCase()} should be the next lesson focus.`,
+    shareText,
+  }
 }
 
 function buildMockCoachAssignment(card: LevelUpCard, module: LevelUpModule): LevelUpAssignment {
