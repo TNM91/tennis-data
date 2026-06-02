@@ -1036,107 +1036,58 @@ function LevelUpCardTile({
               <small>{repeatPlan.detail}</small>
             </div>
           ) : null}
-          <div className={styles.levelUpRoundTarget} aria-label={`Round target for ${card.title}`}>
-            <span>Win round {roundNumber}</span>
+          <div className={styles.levelUpActivityCommand} aria-label={`Do this round for ${card.title}`}>
+            <span>Do this round</span>
+            <strong>{card.routine[1] ?? card.cue}</strong>
+            <small>{roundTarget.target} Score only what you can see.</small>
             <div>
-              <b>Target</b>
-              <strong>{roundTarget.target}</strong>
+              <b>Cue</b>
+              <strong>{card.cue}</strong>
             </div>
             <div>
-              <b>Quality</b>
+              <b>Clean rep</b>
               <strong>{roundTarget.quality}</strong>
             </div>
             <div>
-              <b>If missed</b>
-              <strong>{roundTarget.missResponse}</strong>
-            </div>
-          </div>
-          <div className={styles.levelUpActivitySteps}>
-            <div>
-              <b>Set</b>
-              <strong>{getCardSetupLabel(card)}</strong>
-            </div>
-            <div>
-              <b>Work</b>
-              <strong>{getCardDoseGuide(card).target}</strong>
-            </div>
-            <div>
-              <b>Score</b>
-              <strong>{getCardProofStandard(card)}</strong>
-            </div>
-          </div>
-          <div className={styles.levelUpActivityCue}>
-            <span>One cue</span>
-            <strong>{card.cue}</strong>
-            <small>{getCardAvoidCue(card)}</small>
-          </div>
-          <div className={styles.levelUpActivityFixNow} aria-label={`Quick correction for ${card.title}`}>
-            <span>Fix now</span>
-            <div>
-              <b>If this shows up</b>
-              <strong>{commonMiss.miss}</strong>
-            </div>
-            <div>
-              <b>Do this next rep</b>
+              <b>Fix</b>
               <strong>{commonMiss.fix}</strong>
             </div>
           </div>
-          <div className={styles.levelUpActivityStandard} aria-label={`Session standard for ${card.title}`}>
-            <div>
-              <span>Before</span>
-              <strong>{sessionStandard.before}</strong>
-            </div>
-            <div>
-              <span>Counts</span>
-              <strong>{sessionStandard.counts}</strong>
-            </div>
-            <div>
-              <span>Stop</span>
-              <strong>{sessionStandard.stop}</strong>
-            </div>
-          </div>
-          <div className={styles.levelUpActivityRepLadder} aria-label={`Rep ladder for ${card.title}`}>
-            <span>Rep ladder</span>
-            {repLadder.map((step) => (
-              <div key={step.label}>
-                <b>{step.label}</b>
-                <strong>{step.action}</strong>
+          <div className={styles.levelUpActivityWorkGrid}>
+            <div className={styles.levelUpActivityTimer} data-timer-state={timerRunning ? 'running' : elapsedSeconds > 0 ? 'paused' : 'ready'}>
+              <span>Timer</span>
+              <strong>{formatTimer(elapsedSeconds)}</strong>
+              <small>Target: {card.durationMinutes}:00. Stop early if quality drops.</small>
+              <div className={styles.levelUpActivityTimerTrack} aria-hidden="true">
+                <i style={{ width: `${timerProgress}%` }} />
               </div>
-            ))}
-          </div>
-          <div className={styles.levelUpActivityTimer} data-timer-state={timerRunning ? 'running' : elapsedSeconds > 0 ? 'paused' : 'ready'}>
-            <span>Timer</span>
-            <strong>{formatTimer(elapsedSeconds)}</strong>
-            <small>Target: {card.durationMinutes}:00. Stop early if quality drops.</small>
-            <div className={styles.levelUpActivityTimerTrack} aria-hidden="true">
-              <i style={{ width: `${timerProgress}%` }} />
+              <div className={styles.levelUpActivityTimerActions}>
+                <button type="button" onClick={() => setTimerRunning((running) => !running)}>
+                  {timerRunning ? 'Pause' : elapsedSeconds > 0 ? 'Resume' : 'Start timer'}
+                </button>
+                <button type="button" onClick={() => {
+                  setTimerRunning(false)
+                  setElapsedSeconds(0)
+                }}>
+                  Reset
+                </button>
+              </div>
             </div>
-            <div className={styles.levelUpActivityTimerActions}>
-              <button type="button" onClick={() => setTimerRunning((running) => !running)}>
-                {timerRunning ? 'Pause' : elapsedSeconds > 0 ? 'Resume' : 'Start timer'}
-              </button>
-              <button type="button" onClick={() => {
-                setTimerRunning(false)
-                setElapsedSeconds(0)
-              }}>
-                Reset
-              </button>
-            </div>
-          </div>
-          <div className={styles.levelUpActivityRepCounter} data-rep-state={cleanRepCount >= cleanRepTarget ? 'complete' : cleanRepCount > 0 ? 'counting' : 'ready'}>
-            <span>Clean reps</span>
-            <strong>{cleanRepCount}/{cleanRepTarget}</strong>
-            <small>Tap +1 only when the proof behavior showed up.</small>
-            {completedRoundCount > 0 ? (
-              <em className={styles.levelUpRoundBank}>{completedRoundCount} round banked - {totalCleanRepCount} total clean reps</em>
-            ) : null}
-            <div className={styles.levelUpActivityTimerTrack} aria-hidden="true">
-              <i style={{ width: `${cleanRepProgress}%` }} />
-            </div>
-            <div className={styles.levelUpActivityRepActions}>
-              <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1 clean</button>
-              <button type="button" onClick={() => setCleanRepCount((count) => Math.max(count - 1, 0))}>Undo</button>
-              <button type="button" onClick={() => setCleanRepCount(0)}>Reset reps</button>
+            <div className={styles.levelUpActivityRepCounter} data-rep-state={cleanRepCount >= cleanRepTarget ? 'complete' : cleanRepCount > 0 ? 'counting' : 'ready'}>
+              <span>Clean reps</span>
+              <strong>{cleanRepCount}/{cleanRepTarget}</strong>
+              <small>Tap +1 only when the proof behavior showed up.</small>
+              {completedRoundCount > 0 ? (
+                <em className={styles.levelUpRoundBank}>{completedRoundCount} round banked - {totalCleanRepCount} total clean reps</em>
+              ) : null}
+              <div className={styles.levelUpActivityTimerTrack} aria-hidden="true">
+                <i style={{ width: `${cleanRepProgress}%` }} />
+              </div>
+              <div className={styles.levelUpActivityRepActions}>
+                <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1 clean</button>
+                <button type="button" onClick={() => setCleanRepCount((count) => Math.max(count - 1, 0))}>Undo</button>
+                <button type="button" onClick={() => setCleanRepCount(0)}>Reset reps</button>
+              </div>
             </div>
           </div>
           {roundComplete && savedRating === null ? (
@@ -1158,21 +1109,92 @@ function LevelUpCardTile({
             <button type="button" className={styles.scoreButton} onClick={openLogger}>Score now</button>
             <a className="button-secondary" href={startHref}>Open guided flow</a>
           </div>
-          <div className={styles.levelUpActivityScoreGuide} aria-label={`Proof anchors for ${card.title}`}>
-            <span>Score honestly</span>
-            <div>
-              <b>0-1</b>
-              <strong>{proofAnchors.low}</strong>
+          <details className={styles.levelUpActivityGuide}>
+            <summary>Need the drill guide?</summary>
+            <div className={styles.levelUpRoundTarget} aria-label={`Round target for ${card.title}`}>
+              <span>Win round {roundNumber}</span>
+              <div>
+                <b>Target</b>
+                <strong>{roundTarget.target}</strong>
+              </div>
+              <div>
+                <b>Quality</b>
+                <strong>{roundTarget.quality}</strong>
+              </div>
+              <div>
+                <b>If missed</b>
+                <strong>{roundTarget.missResponse}</strong>
+              </div>
             </div>
-            <div>
-              <b>2-3</b>
-              <strong>{proofAnchors.mid}</strong>
+            <div className={styles.levelUpActivitySteps}>
+              <div>
+                <b>Set</b>
+                <strong>{getCardSetupLabel(card)}</strong>
+              </div>
+              <div>
+                <b>Work</b>
+                <strong>{getCardDoseGuide(card).target}</strong>
+              </div>
+              <div>
+                <b>Score</b>
+                <strong>{getCardProofStandard(card)}</strong>
+              </div>
             </div>
-            <div>
-              <b>4-5</b>
-              <strong>{proofAnchors.high}</strong>
+            <div className={styles.levelUpActivityCue}>
+              <span>One cue</span>
+              <strong>{card.cue}</strong>
+              <small>{getCardAvoidCue(card)}</small>
             </div>
-          </div>
+            <div className={styles.levelUpActivityFixNow} aria-label={`Quick correction for ${card.title}`}>
+              <span>Fix now</span>
+              <div>
+                <b>If this shows up</b>
+                <strong>{commonMiss.miss}</strong>
+              </div>
+              <div>
+                <b>Do this next rep</b>
+                <strong>{commonMiss.fix}</strong>
+              </div>
+            </div>
+            <div className={styles.levelUpActivityStandard} aria-label={`Session standard for ${card.title}`}>
+              <div>
+                <span>Before</span>
+                <strong>{sessionStandard.before}</strong>
+              </div>
+              <div>
+                <span>Counts</span>
+                <strong>{sessionStandard.counts}</strong>
+              </div>
+              <div>
+                <span>Stop</span>
+                <strong>{sessionStandard.stop}</strong>
+              </div>
+            </div>
+            <div className={styles.levelUpActivityRepLadder} aria-label={`Rep ladder for ${card.title}`}>
+              <span>Rep ladder</span>
+              {repLadder.map((step) => (
+                <div key={step.label}>
+                  <b>{step.label}</b>
+                  <strong>{step.action}</strong>
+                </div>
+              ))}
+            </div>
+            <div className={styles.levelUpActivityScoreGuide} aria-label={`Proof anchors for ${card.title}`}>
+              <span>Score honestly</span>
+              <div>
+                <b>0-1</b>
+                <strong>{proofAnchors.low}</strong>
+              </div>
+              <div>
+                <b>2-3</b>
+                <strong>{proofAnchors.mid}</strong>
+              </div>
+              <div>
+                <b>4-5</b>
+                <strong>{proofAnchors.high}</strong>
+              </div>
+            </div>
+          </details>
         </div>
       ) : null}
       {!activityOpen ? (
