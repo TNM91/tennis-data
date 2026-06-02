@@ -79,6 +79,12 @@ type NetConfidenceLadderItem = {
   standard: string
 }
 
+type NetConfidenceFixItem = {
+  problem: string
+  card: LevelUpCard
+  fix: string
+}
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -762,6 +768,8 @@ function LevelUpNetConfidenceLadder({
   items: NetConfidenceLadderItem[]
   onStartCard: (cardId: string) => void
 }) {
+  const fixes = buildNetConfidenceFixes(items)
+
   return (
     <section className={styles.levelUpNetLadder} aria-label="Net confidence ladder">
       <div className={styles.levelUpRailHeader}>
@@ -776,6 +784,16 @@ function LevelUpNetConfidenceLadder({
             <b>{item.label}</b>
             <strong>{item.card.title}</strong>
             <small>{item.standard}</small>
+          </button>
+        ))}
+      </div>
+      <div className={styles.levelUpNetFixGrid} aria-label="Net confidence quick fixes">
+        <span>Quick fix</span>
+        {fixes.map((item) => (
+          <button key={item.problem} type="button" onClick={() => onStartCard(item.card.id)}>
+            <strong>{item.problem}</strong>
+            <small>{item.fix}</small>
+            <b>{item.card.title}</b>
           </button>
         ))}
       </div>
@@ -2459,6 +2477,35 @@ function buildNetConfidenceLadder(): NetConfidenceLadderItem[] {
   ]
 
   return ladder.filter((item): item is NetConfidenceLadderItem => Boolean(item.card))
+}
+
+function buildNetConfidenceFixes(items: NetConfidenceLadderItem[]): NetConfidenceFixItem[] {
+  const byCardId = new Map(items.map((item) => [item.card.id, item.card]))
+  const fallback = items[0]?.card
+  const fixes = [
+    {
+      problem: 'I approach and stop',
+      card: byCardId.get('short-ball-close-split') ?? fallback,
+      fix: 'Train the close after contact before worrying about the volley result.',
+    },
+    {
+      problem: 'I am late to split',
+      card: byCardId.get('volley-ready-split') ?? fallback,
+      fix: 'Remove pace and score only close plus split timing.',
+    },
+    {
+      problem: 'My volley has no target',
+      card: byCardId.get('volley-punch-target') ?? fallback,
+      fix: 'Call the target first so the volley has a job.',
+    },
+    {
+      problem: 'I swing at the volley',
+      card: byCardId.get('reaction-volley-wall') ?? byCardId.get('volley-punch-target') ?? fallback,
+      fix: 'Shorten the touch and reset hands in front after every ball.',
+    },
+  ]
+
+  return fixes.filter((item): item is NetConfidenceFixItem => Boolean(item.card))
 }
 
 function buildSessionBuilderPlan({

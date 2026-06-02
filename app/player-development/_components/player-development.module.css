@@ -1684,6 +1684,17 @@
   gap: 9px;
 }
 
+.levelUpNetFixGrid {
+  display: grid;
+  grid-template-columns: auto repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  align-items: stretch;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 9px;
+}
+
 .levelUpNetLadderGrid button {
   display: grid;
   align-content: start;
@@ -1701,8 +1712,40 @@
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
+.levelUpNetFixGrid > span {
+  display: grid;
+  min-height: 100%;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--brand-blue-2);
+  padding: 8px 10px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpNetFixGrid button {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  font: inherit;
+  padding: 9px;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
 .levelUpNetLadderGrid button:hover,
-.levelUpNetLadderGrid button:focus-visible {
+.levelUpNetLadderGrid button:focus-visible,
+.levelUpNetFixGrid button:hover,
+.levelUpNetFixGrid button:focus-visible {
   border-color: rgba(155, 225, 29, 0.44);
   background: rgba(155, 225, 29, 0.08);
   transform: translateY(-1px);
@@ -1736,11 +1779,28 @@
   line-height: 1.14;
 }
 
+.levelUpNetFixGrid strong {
+  color: var(--foreground-strong);
+  font-size: 0.84rem;
+  line-height: 1.16;
+}
+
 .levelUpNetLadderGrid small,
+.levelUpNetFixGrid small,
 .levelUpNetLadderCue {
   color: var(--muted-strong);
   font-size: 0.76rem;
   line-height: 1.3;
+}
+
+.levelUpNetFixGrid b {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.09);
+  color: #d8f7a4;
+  padding: 5px 8px;
+  font-size: 0.68rem;
+  line-height: 1.15;
 }
 
 .levelUpNetLadderCue {
@@ -8326,6 +8386,7 @@
   .levelUpSessionBuilderControls,
   .levelUpSessionBuilderGrid,
   .levelUpNetLadderGrid,
+  .levelUpNetFixGrid,
   .levelUpReturnTrainingGrid,
   .levelUpTodayPlanGrid,
   .levelUpTodayMission,
@@ -8458,6 +8519,7 @@
   .levelUpSessionBuilderControls,
   .levelUpSessionBuilderGrid,
   .levelUpNetLadderGrid,
+  .levelUpNetFixGrid,
   .levelUpTodayPlanGrid,
   .levelUpTodayMission,
   .levelUpSessionDock,
