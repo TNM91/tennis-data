@@ -33,6 +33,10 @@ import {
   getCoachSessionPreset,
 } from '@/lib/coach-workspace'
 import type { LevelUpSession } from '@/lib/level-up-sessions'
+import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
+import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
+import { getLevelUpProfileForIdentity } from '@/lib/level-up/recommendations'
+import type { LevelUpCard, LevelUpModule } from '@/lib/level-up/level-up-types'
 import { getPlayerDevelopmentIdentity } from '@/lib/player-development'
 
 const FIRST_ASSIGNMENT_STARTERS = [
@@ -93,6 +97,7 @@ function CoachContent() {
   const [assignmentTemplateId, setAssignmentTemplateId] = useState(COACH_ASSIGNMENT_TEMPLATES[0]?.id ?? '')
   const [assignmentPresetId, setAssignmentPresetId] = useState('')
   const [assignmentStarterId, setAssignmentStarterId] = useState('')
+  const [assignmentLevelUpCardId, setAssignmentLevelUpCardId] = useState('')
   const [contactStudentId, setContactStudentId] = useState('')
   const [lessonDateTime, setLessonDateTime] = useState('')
   const [lessonFocus, setLessonFocus] = useState('')
@@ -226,6 +231,19 @@ function CoachContent() {
     const starterAssignment = assignmentStarterId
       ? FIRST_ASSIGNMENT_STARTERS.find((starter) => starter.id === assignmentStarterId) ?? null
       : null
+    const levelUpCard = assignmentLevelUpCardId
+      ? LEVEL_UP_CARDS.find((card) => card.id === assignmentLevelUpCardId) ?? null
+      : buildCoachLevelUpAssignmentCards(
+          savedStudents.find((student) => student.id === assignmentStudentId) ?? null,
+          assignmentTitle,
+          assignmentFocus,
+          assignmentTemplateId,
+          assignmentStarterId,
+        )[0] ?? null
+    const levelUpModule = levelUpCard ? findLevelUpModuleForCard(levelUpCard) : null
+    const levelUpTracker = levelUpCard
+      ? [levelUpCard.proof, levelUpCard.cue, levelUpCard.reward].filter(Boolean)
+      : null
     setWorkspaceLoading(true)
     setWorkspaceMessage('')
 
@@ -260,6 +278,18 @@ function CoachContent() {
                     expectedEvidence: starterAssignment.evidence,
                   }
                 : {}),
+              ...(levelUpCard
+                ? {
+                    cardId: levelUpCard.id,
+                    moduleId: levelUpModule?.id,
+                    levelUpCardTitle: levelUpCard.title,
+                    levelUpModuleTitle: levelUpModule?.title,
+                    proofRequired: levelUpCard.proof,
+                    expectedEvidence: starterAssignment?.evidence ?? levelUpCard.proof,
+                    tracker: presetAssignment?.tracker ?? levelUpTracker,
+                    portalHref: `/player-development/${savedStudents.find((student) => student.id === assignmentStudentId)?.identitySlug ?? 'relentless-competitor-4-0'}/level-up?card=${levelUpCard.id}`,
+                  }
+                : {}),
               source: 'coach-portal',
               createdFrom: starterAssignment ? 'first-assignment-starter' : presetAssignment ? 'session-preset' : 'one-hour-lesson-frame',
             },
@@ -281,6 +311,7 @@ function CoachContent() {
       setAssignmentDueDate('')
       setAssignmentPresetId('')
       setAssignmentStarterId('')
+      setAssignmentLevelUpCardId('')
       setWorkspaceMessage('Assignment created. Send it now so the player knows exactly what to do next.')
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not create assignment.')
@@ -323,6 +354,7 @@ function CoachContent() {
     setAssignmentFocus(template.focus)
     setAssignmentPresetId('')
     setAssignmentStarterId('')
+    setAssignmentLevelUpCardId(getCoachAssignmentShortcutCardId(`${template.id} ${template.title} ${template.focus}`))
   }
 
   function useSessionPresetForAssignment() {
@@ -331,6 +363,7 @@ function CoachContent() {
     setAssignmentFocus(presetAssignment.focus)
     setAssignmentPresetId(sessionPresetId)
     setAssignmentStarterId('')
+    setAssignmentLevelUpCardId(getCoachAssignmentShortcutCardId(`${presetAssignment.title} ${presetAssignment.focus} ${presetAssignment.detail}`))
     setWorkspaceMessage('Session preset loaded into the assignment form. Choose a student and due date, then create the Level Up follow-through.')
   }
 
@@ -342,6 +375,7 @@ function CoachContent() {
     setAssignmentDueDate(getDateInputDaysFromNow(7))
     setAssignmentPresetId('')
     setAssignmentStarterId(starter.id)
+    setAssignmentLevelUpCardId(getFirstAssignmentStarterCardId(starter.id))
     setWorkspaceMessage(`${starter.title} loaded. Expected evidence: ${starter.evidence}`)
   }
 
@@ -391,6 +425,22 @@ function CoachContent() {
   const selectedContactStudent = useMemo(
     () => savedStudents.find((student) => student.id === contactStudentId) ?? savedStudents[0] ?? null,
     [contactStudentId, savedStudents],
+  )
+  const selectedAssignmentStudent = useMemo(
+    () => savedStudents.find((student) => student.id === assignmentStudentId) ?? savedStudents[0] ?? null,
+    [assignmentStudentId, savedStudents],
+  )
+  const suggestedLevelUpAssignmentCards = useMemo(
+    () => buildCoachLevelUpAssignmentCards(selectedAssignmentStudent, assignmentTitle, assignmentFocus, assignmentTemplateId, assignmentStarterId),
+    [assignmentFocus, assignmentStarterId, assignmentTemplateId, assignmentTitle, selectedAssignmentStudent],
+  )
+  const selectedLevelUpAssignmentCard = useMemo(
+    () => LEVEL_UP_CARDS.find((card) => card.id === assignmentLevelUpCardId) ?? suggestedLevelUpAssignmentCards[0] ?? null,
+    [assignmentLevelUpCardId, suggestedLevelUpAssignmentCards],
+  )
+  const selectedLevelUpAssignmentModule = useMemo(
+    () => (selectedLevelUpAssignmentCard ? findLevelUpModuleForCard(selectedLevelUpAssignmentCard) : null),
+    [selectedLevelUpAssignmentCard],
   )
   const lessonMessage = useMemo(
     () => buildLessonConfirmMessage(selectedContactStudent?.playerName ?? 'your lesson', lessonDateTime, lessonFocus),
@@ -738,6 +788,46 @@ function CoachContent() {
               Due date
               <input className="tiq-focus-ring" type="date" value={assignmentDueDate} onChange={(event) => setAssignmentDueDate(event.target.value)} style={inputStyle} />
             </label>
+            <div style={levelUpAssignmentPickerStyle}>
+              <label style={fieldStyle}>
+                Assign exact Level Up card
+                <select
+                  className="tiq-focus-ring"
+                  value={assignmentLevelUpCardId}
+                  onChange={(event) => setAssignmentLevelUpCardId(event.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">Auto-match best card</option>
+                  {LEVEL_UP_CARDS.filter((card) => card.assignable).map((card) => (
+                    <option key={card.id} value={card.id}>
+                      {card.title} - {card.durationMinutes} min
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div style={levelUpAssignmentSuggestionGridStyle}>
+                {suggestedLevelUpAssignmentCards.slice(0, 4).map((card) => (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={() => setAssignmentLevelUpCardId(card.id)}
+                    style={levelUpAssignmentCardButtonStyle(selectedLevelUpAssignmentCard?.id === card.id)}
+                  >
+                    <strong>{card.title}</strong>
+                    <span>{card.pack} / {card.durationMinutes} min</span>
+                    <em>{card.proof}</em>
+                  </button>
+                ))}
+              </div>
+              {selectedLevelUpAssignmentCard ? (
+                <div style={levelUpAssignmentPreviewStyle}>
+                  <strong>{selectedLevelUpAssignmentCard.title}</strong>
+                  <span>
+                    Portal match: {selectedLevelUpAssignmentModule?.title ?? 'Single card'} / Proof: {selectedLevelUpAssignmentCard.proof}
+                  </span>
+                </div>
+              ) : null}
+            </div>
             <button type="submit" disabled={workspaceLoading || !assignmentStudentId || !assignmentTitle.trim()} style={primaryButtonStyle}>
               {workspaceLoading ? 'Saving...' : 'Create assignment'}
             </button>
@@ -1162,6 +1252,83 @@ type CoachQueueAction = {
   detail: string
   href: string
   tone: 'review' | 'due' | 'setup' | 'assign' | 'steady'
+}
+
+function buildCoachLevelUpAssignmentCards(
+  student: CoachStudentLink | null,
+  title: string,
+  focus: string,
+  templateId: string,
+  starterId: string,
+) {
+  const identitySlug = student?.identitySlug || 'default'
+  const profile = getLevelUpProfileForIdentity(identitySlug)
+  const searchText = `${title} ${focus} ${templateId} ${starterId}`.toLowerCase()
+  const shortcutCardId = getCoachAssignmentShortcutCardId(searchText) || getFirstAssignmentStarterCardId(starterId)
+  const shortcutCard = shortcutCardId ? LEVEL_UP_CARDS.find((card) => card.id === shortcutCardId) : undefined
+  const profileCards = profile.starterCardIds
+    .map((cardId) => LEVEL_UP_CARDS.find((card) => card.id === cardId))
+    .filter((card): card is LevelUpCard => Boolean(card))
+  const scoredCards = LEVEL_UP_CARDS
+    .filter((card) => card.assignable)
+    .map((card) => ({
+      card,
+      score: scoreCoachAssignmentCard(card, searchText, profile.focusTags, identitySlug),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.card)
+
+  return uniqueLevelUpCards([
+    ...(shortcutCard ? [shortcutCard] : []),
+    ...profileCards,
+    ...scoredCards,
+    ...LEVEL_UP_CARDS.filter((card) => card.assignable && card.durationMinutes <= 10),
+  ]).slice(0, 8)
+}
+
+function scoreCoachAssignmentCard(card: LevelUpCard, searchText: string, focusTags: string[], identitySlug: string) {
+  let score = 0
+  if (card.identitySlugs?.includes(identitySlug)) score += 20
+  if (focusTags.some((tag) => card.tags.includes(tag))) score += 10
+  if (card.tags.some((tag) => searchText.includes(tag.replaceAll('-', ' ')))) score += 18
+  if (searchText.includes(card.pack.toLowerCase())) score += 8
+  if (card.title.toLowerCase().split(/\s+/).some((word) => word.length > 4 && searchText.includes(word))) score += 6
+  if (card.durationMinutes <= 10) score += 3
+  return score
+}
+
+function uniqueLevelUpCards(cards: LevelUpCard[]) {
+  const seen = new Set<string>()
+  return cards.filter((card) => {
+    if (seen.has(card.id)) return false
+    seen.add(card.id)
+    return true
+  })
+}
+
+function findLevelUpModuleForCard(card: LevelUpCard): LevelUpModule | undefined {
+  return LEVEL_UP_MODULES.find((module) => module.cardIds.includes(card.id))
+}
+
+function getFirstAssignmentStarterCardId(starterId: string) {
+  if (starterId === 'movement') return 'split-recover-loop'
+  if (starterId === 'serve') return 'serve-target-ladder'
+  if (starterId === 'decision') return 'defense-neutral-attack-rally'
+  return ''
+}
+
+function getCoachAssignmentShortcutCardId(text: string) {
+  const normalized = text.toLowerCase()
+  if (normalized.includes('return')) return 'return-shadow-split-read'
+  if (normalized.includes('serve target') || normalized.includes('serve routine') || normalized.includes('serve-target')) return 'serve-target-ladder'
+  if (normalized.includes('split') || normalized.includes('recover') || normalized.includes('movement')) return 'split-recover-loop'
+  if (normalized.includes('attack') || normalized.includes('decision')) return 'defense-neutral-attack-rally'
+  if (normalized.includes('doubles') || normalized.includes('partner') || normalized.includes('middle')) return 'serve-location-call'
+  if (normalized.includes('volley') || normalized.includes('net')) return 'first-volley-decision'
+  if (normalized.includes('backhand')) return 'basket-backhand-crosscourt'
+  if (normalized.includes('forehand')) return 'basket-forehand-crosscourt'
+  return ''
 }
 
 function buildCoachQueueActions(
@@ -1779,6 +1946,56 @@ const inputStyle: CSSProperties = {
   outline: '2px solid transparent',
   outlineOffset: 2,
   padding: '0 11px',
+}
+
+const levelUpAssignmentPickerStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.05))',
+}
+
+const levelUpAssignmentSuggestionGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+function levelUpAssignmentCardButtonStyle(active: boolean): CSSProperties {
+  return {
+    display: 'grid',
+    gap: 5,
+    minWidth: 0,
+    textAlign: 'left',
+    border: active ? '1px solid rgba(155,225,29,0.62)' : '1px solid rgba(116,190,255,0.14)',
+    borderRadius: 15,
+    background: active ? 'rgba(155,225,29,0.16)' : 'rgba(8,18,36,0.62)',
+    color: 'var(--foreground-strong)',
+    cursor: 'pointer',
+    padding: 10,
+    fontSize: 12,
+    fontWeight: 850,
+    lineHeight: 1.35,
+  }
+}
+
+const levelUpAssignmentPreviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(5,11,22,0.35)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 820,
+  lineHeight: 1.45,
 }
 
 const primaryButtonStyle: CSSProperties = {
