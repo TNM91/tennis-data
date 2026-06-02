@@ -1787,6 +1787,67 @@
   line-height: 1.32;
 }
 
+.levelUpProgressPath {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.07), transparent 48%),
+    rgba(255, 255, 255, 0.035);
+  padding: 9px;
+}
+
+.levelUpProgressPath > span {
+  width: fit-content;
+  color: var(--brand-green-3);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpProgressPath > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.levelUpProgressPath section {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(5, 15, 30, 0.28);
+  padding: 8px;
+}
+
+.levelUpProgressPath section[data-current='true'] {
+  border-color: rgba(155, 225, 29, 0.38);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.levelUpProgressPath b {
+  color: var(--brand-blue-2);
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpProgressPath strong {
+  color: var(--foreground-strong);
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.levelUpProgressPath small {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  line-height: 1.28;
+}
+
 .levelUpFilterSummary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -8120,6 +8181,10 @@
   }
 
   .levelUpRunStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpProgressPath > div {
     grid-template-columns: 1fr;
   }
 

@@ -674,6 +674,7 @@ function LevelUpStartList({
         <b>{nextBestRep.signal}</b>
         <small>{nextBestRep.detail}</small>
       </div>
+      <LevelUpProgressPath nextBestRep={nextBestRep} />
       <div className={styles.levelUpRailGrid}>
         {cards.map((card) => (
           <LevelUpCardTile
@@ -690,6 +691,25 @@ function LevelUpStartList({
         ))}
       </div>
     </section>
+  )
+}
+
+function LevelUpProgressPath({ nextBestRep }: { nextBestRep: NextBestRep }) {
+  const stages = buildProgressPathStages(nextBestRep)
+
+  return (
+    <div className={styles.levelUpProgressPath} aria-label="Proof to next-card path">
+      <span>Proof path</span>
+      <div>
+        {stages.map((stage) => (
+          <section key={stage.label} data-current={stage.current ? 'true' : 'false'}>
+            <b>{stage.label}</b>
+            <strong>{stage.title}</strong>
+            <small>{stage.detail}</small>
+          </section>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -1981,6 +2001,38 @@ function buildTodayPlan({ startCards }: { startCards: LevelUpCard[] }): TodayPla
 
 function buildAdaptiveCardReason(nextBestRep: NextBestRep) {
   return `${formatAdaptiveDecisionReason(nextBestRep.decision)} ${nextBestRep.signal}`
+}
+
+function buildProgressPathStages(nextBestRep: NextBestRep) {
+  const proofStage = nextBestRep.signal === 'No proof logged yet.'
+    ? {
+      label: '1. Log',
+      title: 'No proof yet',
+      detail: 'Run one card and save a 0-5 score.',
+      current: true,
+    }
+    : {
+      label: '1. Proof',
+      title: nextBestRep.signal.replace('Based on your last proof: ', 'Last proof '),
+      detail: 'That score decides whether to scale, repeat, or level up.',
+      current: false,
+    }
+
+  const readStage = {
+    label: '2. Read',
+    title: formatAdaptiveDecisionBadge(nextBestRep.decision),
+    detail: formatAdaptiveDecisionReason(nextBestRep.decision),
+    current: nextBestRep.signal !== 'No proof logged yet.',
+  }
+
+  const nextStage = {
+    label: '3. Next',
+    title: nextBestRep.card.title,
+    detail: nextBestRep.detail,
+    current: false,
+  }
+
+  return [proofStage, readStage, nextStage]
 }
 
 function formatAdaptiveDecisionBadge(decision: string) {
