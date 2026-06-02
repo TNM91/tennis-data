@@ -105,7 +105,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '6 cards / 30 minutes',
     cardIds: ['return-shadow-split-read', 'return-step-in-game', 'return-depth-lane', 'second-serve-attack-or-build', 'return-plus-one-recover', 'return-30-30-game'],
     tags: ['return-intent', 'return-recovery', 'decision-quality', 'pressure-reset'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'doubles-commander-4-0'],
     proof: 'Return intent 0-5',
   },
   {
@@ -179,7 +179,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 10 minutes',
     cardIds: ['three-step-reset', 'tight-arm-reset', 'closing-game-routine'],
     tags: ['pressure-reset', 'between-points', 'quick-win'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0'],
     proof: 'Reset used 0-5',
   },
   {
@@ -222,7 +222,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '4 cards / 25 minutes',
     cardIds: ['serve-location-call', 'partner-first-move-call', 'poach-timing-shadow', 'middle-ball-rule'],
     tags: ['doubles-communication', 'partner-first-move', 'poach-timing'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'doubles-commander-4-0'],
     proof: 'Partner first move 0-5',
   },
   {

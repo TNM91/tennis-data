@@ -112,6 +112,39 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Consistent Builder because this path builds crosscourt tolerance, recovery, wide-ball reset, match-day readiness, and pressure control.',
   },
+  'doubles-commander-4-0': {
+    identitySlug: 'doubles-commander-4-0',
+    featuredModuleIds: [
+      'doubles-first-move',
+      'return-intent',
+      'serve-pressure-routine',
+      'pressure-reset',
+      'match-day-warm-up',
+      'post-play-mobility-reset',
+    ],
+    starterCardIds: [
+      'serve-location-call',
+      'partner-first-move-call',
+      'doubles-return-first-move',
+      'poach-timing-shadow',
+      'middle-ball-rule',
+      'switch-call-drill',
+      'doubles-30-30-game',
+      'three-step-reset',
+    ],
+    focusTags: [
+      'doubles-communication',
+      'partner-first-move',
+      'poach-timing',
+      'return-intent',
+      'serve-target',
+      'decision-quality',
+      'pressure-reset',
+    ],
+    lanePriority: ['doubles', 'volley', 'return', 'serve', 'movement', 'singles', 'fitness', 'forehand'],
+    recommendationCopy:
+      'Recommended for Doubles Commander because this path builds partner first move, poach timing, middle ownership, return intent, and pressure communication.',
+  },
   default: {
     identitySlug: 'default',
     featuredModuleIds: [
