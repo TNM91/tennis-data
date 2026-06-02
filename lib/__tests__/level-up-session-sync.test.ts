@@ -33,11 +33,14 @@ describe('Level Up session sync', () => {
   })
 
   it('syncs portal proof logs through coach invite, Player+, or local fallback', () => {
-    expect(portalSource).toContain('function useLevelUpCompletions(identitySlug: string)')
+    expect(portalSource).toContain('function useLevelUpCompletions(')
+    expect(portalSource).toContain('assignmentByCardId: Map<string, LevelUpAssignment>')
     expect(portalSource).toContain('supabase.auth.getSession')
     expect(portalSource).toContain('/api/player/level-up-sessions')
+    expect(portalSource).toContain('/api/player/coach-assignments')
     expect(portalSource).toContain("accessMode: 'coach_invited'")
     expect(portalSource).toContain("accessMode: 'player_plus'")
+    expect(portalSource).toContain('assignmentId: assignmentByCardId.get(cardId)?.id')
     expect(portalSource).toContain('Saved locally. Sign in from a coach invite or Player+ to sync proof history.')
     expect(portalSource).toContain('Synced. Your linked coach can use this for the next lesson.')
     expect(portalSource).toContain('Synced to your Level Up history.')

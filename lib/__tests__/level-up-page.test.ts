@@ -141,7 +141,7 @@ describe('Level Up page', () => {
     expect(developmentStylesSource).toContain('.levelUpLibraryGrid')
   })
 
-  it('creates the preferred player-development Level Up portal route with mock v1 tooling', () => {
+  it('creates the preferred player-development Level Up portal route with linked coach challenge tooling', () => {
     expect(existsSync(join(process.cwd(), 'app/player-development/[identity]/level-up/page.tsx'))).toBe(true)
     expect(playerDevelopmentPortalSource).toContain('LevelUpPortal')
     expect(playerDevelopmentPortalSource).toContain('LevelUpTodayDashboard')
@@ -191,7 +191,12 @@ describe('Level Up page', () => {
     expect(playerDevelopmentPortalSource).toContain('Same card, cleaner proof.')
     expect(playerDevelopmentPortalSource).toContain('Log one honest proof score.')
     expect(playerDevelopmentPortalSource).toContain('LevelUpCoachAssignmentBanner')
-    expect(playerDevelopmentPortalSource).toContain('buildMockCoachAssignment')
+    expect(playerDevelopmentPortalSource).toContain('usePlayerCoachChallenges')
+    expect(playerDevelopmentPortalSource).toContain('/api/player/coach-assignments')
+    expect(playerDevelopmentPortalSource).toContain('buildCoachChallengeFromAssignment')
+    expect(playerDevelopmentPortalSource).toContain('buildPreviewCoachChallenge')
+    expect(playerDevelopmentPortalSource).toContain('buildAssignmentByCardId')
+    expect(playerDevelopmentPortalSource).toContain('matchAssignmentCard')
     expect(playerDevelopmentPortalSource).toContain('formatAssignmentDueDate')
     expect(playerDevelopmentPortalSource).toContain('Open, choose, start.')
     expect(playerDevelopmentPortalSource).toContain('Coach challenge')

@@ -5,6 +5,7 @@ import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity, recommendLevelUpCards } from '@/lib/level-up/recommendations'
 import type { LevelUpAssignment, LevelUpCard, LevelUpCompletion, LevelUpModule, LevelUpRecommendation } from '@/lib/level-up/level-up-types'
+import { getCoachAssignmentSummary, type CoachAssignment, type CoachStudentLink } from '@/lib/coach-storage'
 import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
 
@@ -234,6 +235,20 @@ type StartRequest = {
 
 type CompletionLogger = (cardId: string, rating: number, note: string, elapsedSeconds?: number) => void
 
+type CoachChallengeState = {
+  status: 'idle' | 'loading' | 'linked' | 'preview' | 'error'
+  message: string
+}
+
+type LevelUpCoachChallenge = {
+  assignment: LevelUpAssignment
+  source: CoachAssignment | null
+  card: LevelUpCard
+  module: LevelUpModule
+  summary: ReturnType<typeof getCoachAssignmentSummary> | null
+  link?: CoachStudentLink
+}
+
 type CompletionSyncState = {
   status: 'idle' | 'loading' | 'syncing' | 'synced' | 'local' | 'error'
   message: string
@@ -326,7 +341,9 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [startRequest, setStartRequest] = useState<StartRequest>({ cardId: '', signal: 0 })
   const [activeLaneCardId, setActiveLaneCardId] = useState<string | null>(null)
   const [favorites, toggleFavorite] = useLevelUpFavorites()
-  const [completions, logCompletion, completionSyncState] = useLevelUpCompletions(identitySlug)
+  const [coachChallenges, coachChallengeState] = usePlayerCoachChallenges(identitySlug)
+  const assignmentByCardId = useMemo(() => buildAssignmentByCardId(coachChallenges), [coachChallenges])
+  const [completions, logCompletion, completionSyncState] = useLevelUpCompletions(identitySlug, assignmentByCardId)
   const completionSummaryByCardId = useMemo(() => buildCompletionSummaryByCardId(completions), [completions])
   const recommendations = useMemo(
     () => recommendLevelUpCards({
@@ -367,8 +384,16 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const returnTrainingModule = LEVEL_UP_MODULES.find((module) => module.id === 'return-intent')
   const todayModule = featuredModules[0] ?? LEVEL_UP_MODULES[0]
   const todayCard = identityCards[0] ?? LEVEL_UP_CARDS[0]
-  const coachChallengeCard = identityCards[1] ?? todayCard
-  const coachAssignment = buildMockCoachAssignment(coachChallengeCard, todayModule)
+  const previewCoachChallengeCard = identityCards[1] ?? todayCard
+  const previewCoachChallenge = buildPreviewCoachChallenge(previewCoachChallengeCard, todayModule)
+  const activeCoachChallenge = coachChallenges.find((challenge) => challenge.assignment.status === 'assigned') ?? coachChallenges[0] ?? previewCoachChallenge
+  const coachChallengeCard = activeCoachChallenge.card
+  const coachAssignment = activeCoachChallenge.assignment
+  const coachAssignmentModule = activeCoachChallenge.module
+  const coachAssignedCards = uniqueCards([
+    ...coachChallenges.filter((challenge) => challenge.assignment.status !== 'completed').map((challenge) => challenge.card),
+    ...identityCards.slice(0, 3),
+  ]).slice(0, 8)
   const quickStartCard = favoriteCards[0] ?? quickWins[0] ?? todayCard
   const recentCard = completedCards[0]
   const activeFilterCount = countActiveFilters(filters)
@@ -469,9 +494,10 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       <LevelUpCoachAssignmentBanner
         assignment={coachAssignment}
         card={coachChallengeCard}
-        module={todayModule}
+        module={coachAssignmentModule}
         identitySlug={identitySlug}
         completionSummary={completionSummaryByCardId.get(coachChallengeCard.id)}
+        challengeState={coachChallengeState}
         onStartCard={startCardFromPlan}
       />
 
@@ -621,7 +647,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         }}
       />
 
-      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
+      <LevelUpSmartRail title="Coach Assigned" cards={coachAssignedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
       {focusTrainingLanes.map((lane) => (
         <LevelUpSmartRail key={`${lane.key}-rail`} title={lane.ariaLabel} cards={lane.cards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen={lane.defaultOpen} />
       ))}
@@ -1192,6 +1218,7 @@ function LevelUpCoachAssignmentBanner({
   module,
   identitySlug,
   completionSummary,
+  challengeState,
   onStartCard,
 }: {
   assignment: LevelUpAssignment
@@ -1199,6 +1226,7 @@ function LevelUpCoachAssignmentBanner({
   module: LevelUpModule
   identitySlug: string
   completionSummary?: CompletionSummary
+  challengeState: CoachChallengeState
   onStartCard: (cardId: string) => void
 }) {
   const readyToSend = Boolean(completionSummary)
@@ -1209,9 +1237,10 @@ function LevelUpCoachAssignmentBanner({
   return (
     <section className={styles.levelUpCoachAssignmentBanner} aria-label="Coach assignment" data-status={readyToSend ? 'ready' : 'assigned'}>
       <div>
-        <span>Coach challenge</span>
+        <span>{challengeState.status === 'linked' ? 'Coach challenge' : challengeState.status === 'loading' ? 'Checking coach work' : 'Coach challenge preview'}</span>
         <h2>{card.title}</h2>
         <p>{assignment.coachNote}</p>
+        {challengeState.message ? <small>{challengeState.message}</small> : null}
       </div>
       <div className={styles.levelUpCoachAssignmentMeta}>
         <span>{statusLabel}</span>
@@ -4694,19 +4723,156 @@ function buildCoachUpdateDigest({
   }
 }
 
-function buildMockCoachAssignment(card: LevelUpCard, module: LevelUpModule): LevelUpAssignment {
+function buildCoachChallengeFromAssignment(
+  source: CoachAssignment,
+  links: CoachStudentLink[],
+): LevelUpCoachChallenge | null {
+  const card = matchAssignmentCard(source)
+  if (!card) return null
+
+  const assignmentModule = matchAssignmentModule(source, card)
+  const summary = getCoachAssignmentSummary(source.assignment)
+  const link = links.find((candidate) => candidate.id === source.studentLinkId)
+  const dueAt = source.dueDate ? `${source.dueDate}T23:59:59.000Z` : undefined
+  const coachNote = [
+    summary.detail,
+    summary.prompt,
+    source.focus,
+  ].map((item) => item.trim()).filter(Boolean)[0]
+    ?? 'Coach assigned one tool that supports your current tennis habit. Run it clean, score it honestly, and send the proof back.'
+
   return {
-    id: `mock-coach-${card.id}`,
-    playerId: 'local-player',
-    coachId: 'linked-coach',
-    cardId: card.id,
-    moduleId: module.id,
-    assignedAt: '2026-06-01T12:00:00.000Z',
-    dueAt: '2026-06-03T23:59:59.000Z',
-    coachNote: 'Coach assigned one tool that supports your current tennis habit. Run it clean, score it honestly, and send the proof back.',
-    proofRequired: card.proof,
-    status: 'assigned',
+    source,
+    card,
+    module: assignmentModule,
+    summary,
+    link,
+    assignment: {
+      id: source.id,
+      playerId: link?.playerUserId ?? 'linked-player',
+      coachId: link?.coachUserId,
+      cardId: card.id,
+      moduleId: assignmentModule.id,
+      assignedAt: source.updatedAt,
+      dueAt,
+      coachNote,
+      proofRequired: summary.expectedEvidence || card.proof,
+      status: source.status === 'completed' ? 'completed' : 'assigned',
+    },
   }
+}
+
+function buildPreviewCoachChallenge(card: LevelUpCard, module: LevelUpModule): LevelUpCoachChallenge {
+  return {
+    source: null,
+    card,
+    module,
+    summary: null,
+    assignment: {
+      id: `mock-coach-${card.id}`,
+      playerId: 'local-player',
+      coachId: 'linked-coach',
+      cardId: card.id,
+      moduleId: module.id,
+      assignedAt: '2026-06-01T12:00:00.000Z',
+      dueAt: '2026-06-03T23:59:59.000Z',
+      coachNote: 'Coach assigned one tool that supports your current tennis habit. Run it clean, score it honestly, and send the proof back.',
+      proofRequired: card.proof,
+      status: 'assigned',
+    },
+  }
+}
+
+function buildAssignmentByCardId(challenges: LevelUpCoachChallenge[]) {
+  const byCardId = new Map<string, LevelUpAssignment>()
+  for (const challenge of challenges) {
+    if (challenge.assignment.status === 'completed') continue
+    if (!byCardId.has(challenge.card.id)) {
+      byCardId.set(challenge.card.id, challenge.assignment)
+    }
+  }
+  return byCardId
+}
+
+function matchAssignmentCard(assignment: CoachAssignment) {
+  const directCardId = stringFromRecord(assignment.assignment, 'cardId')
+  if (directCardId) {
+    const directCard = LEVEL_UP_CARDS.find((card) => card.id === directCardId)
+    if (directCard) return directCard
+  }
+
+  const starterId = stringFromRecord(assignment.assignment, 'starterId')
+  const templateId = stringFromRecord(assignment.assignment, 'templateId')
+  const shortcutCard = getAssignmentShortcutCard(starterId || templateId || assignment.title)
+  if (shortcutCard) return shortcutCard
+
+  const assignmentText = buildAssignmentSearchText(assignment)
+  const targetedCard = getAssignmentShortcutCard(assignmentText)
+  if (targetedCard) return targetedCard
+
+  return LEVEL_UP_CARDS
+    .map((card) => ({ card, score: scoreAssignmentCard(card, assignmentText) }))
+    .sort((a, b) => b.score - a.score)[0]?.card ?? LEVEL_UP_CARDS[0]
+}
+
+function matchAssignmentModule(assignment: CoachAssignment, card: LevelUpCard) {
+  const directModuleId = stringFromRecord(assignment.assignment, 'moduleId')
+  if (directModuleId) {
+    const directModule = LEVEL_UP_MODULES.find((module) => module.id === directModuleId)
+    if (directModule) return directModule
+  }
+
+  const assignmentText = buildAssignmentSearchText(assignment)
+  return LEVEL_UP_MODULES.find((module) => module.cardIds.includes(card.id))
+    ?? LEVEL_UP_MODULES
+      .map((module) => ({ module, score: scoreTextMatch(`${module.title} ${module.subtitle} ${module.description} ${module.tags.join(' ')}`, assignmentText) }))
+      .sort((a, b) => b.score - a.score)[0]?.module
+    ?? LEVEL_UP_MODULES[0]
+}
+
+function getAssignmentShortcutCard(text: string) {
+  const normalized = text.toLowerCase()
+  const shortcutByNeed: Array<[string[], string]> = [
+    [['serve target', 'target ladder', 'serve routine'], 'serve-target-ladder'],
+    [['split recover', 'split, recover', 'active feet', 'recovery before watching'], 'split-recover-loop'],
+    [['movement', 'first step', 'split step', 'split-step'], 'split-step-rhythm'],
+    [['attack decision', 'build attack', 'shot selection', 'forced attack'], 'defense-neutral-attack-rally'],
+    [['doubles first', 'partner first', 'middle ownership', 'doubles iq'], 'serve-location-call'],
+    [['return', 'return intent', 'return depth'], 'return-shadow-split-read'],
+    [['wide ball', 'defense to neutral'], 'wide-ball-neutralizer'],
+    [['volley', 'net'], 'volley-ready-split'],
+    [['backhand'], 'basket-backhand-crosscourt'],
+    [['forehand'], 'basket-forehand-crosscourt'],
+  ]
+  const match = shortcutByNeed.find(([needles]) => needles.some((needle) => normalized.includes(needle)))
+  return match ? LEVEL_UP_CARDS.find((card) => card.id === match[1]) : undefined
+}
+
+function buildAssignmentSearchText(assignment: CoachAssignment) {
+  const summary = getCoachAssignmentSummary(assignment.assignment)
+  return [
+    assignment.title,
+    assignment.focus,
+    summary.detail,
+    summary.prompt,
+    summary.expectedEvidence,
+    ...summary.tracker,
+  ].join(' ').toLowerCase()
+}
+
+function scoreAssignmentCard(card: LevelUpCard, assignmentText: string) {
+  return scoreTextMatch(`${card.id} ${card.title} ${card.pack} ${card.tennisGoal} ${card.cue} ${card.tags.join(' ')}`, assignmentText)
+}
+
+function scoreTextMatch(candidateText: string, assignmentText: string) {
+  const tokens = unique(assignmentText.split(/[^a-z0-9+]+/).filter((token) => token.length > 2))
+  const candidate = candidateText.toLowerCase()
+  return tokens.reduce((score, token) => score + (candidate.includes(token) ? 1 : 0), 0)
+}
+
+function stringFromRecord(record: Record<string, unknown>, key: string) {
+  const value = record[key]
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function formatAssignmentDueDate(dueAt?: string) {
@@ -6246,6 +6412,73 @@ function LevelUpSyncStatus({ state }: { state: CompletionSyncState }) {
   )
 }
 
+function usePlayerCoachChallenges(identitySlug: string): [LevelUpCoachChallenge[], CoachChallengeState] {
+  const [challenges, setChallenges] = useState<LevelUpCoachChallenge[]>([])
+  const [state, setState] = useState<CoachChallengeState>({ status: 'idle', message: '' })
+
+  useEffect(() => {
+    let active = true
+
+    void (async () => {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) {
+        setState({ status: 'preview', message: 'Sign in from a coach invite to see assigned cards here.' })
+        return
+      }
+
+      try {
+        setState({ status: 'loading', message: 'Checking for coach-assigned work...' })
+        const response = await fetch('/api/player/coach-assignments', {
+          cache: 'no-store',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const json = (await response.json()) as {
+          ok?: boolean
+          coachLinks?: CoachStudentLink[]
+          assignments?: CoachAssignment[]
+          message?: string
+        }
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Coach assignments are not available right now.')
+        }
+        if (!active) return
+
+        const links = json.coachLinks ?? []
+        const linkedChallenges = (json.assignments ?? [])
+          .filter((assignment) => assignment.status === 'assigned' || assignment.status === 'completed')
+          .map((assignment) => buildCoachChallengeFromAssignment(assignment, links))
+          .filter((challenge): challenge is LevelUpCoachChallenge => Boolean(challenge))
+          .filter((challenge) => {
+            const linkIdentity = challenge.link?.identitySlug
+            return !linkIdentity || linkIdentity === identitySlug || challenge.card.identitySlugs?.includes(identitySlug)
+          })
+
+        setChallenges(linkedChallenges)
+        setState({
+          status: linkedChallenges.length ? 'linked' : 'preview',
+          message: linkedChallenges.length
+            ? `${linkedChallenges.length} coach challenge${linkedChallenges.length === 1 ? '' : 's'} ready.`
+            : 'No coach challenge assigned yet. Use the preview mission or ask your coach to assign one.',
+        })
+      } catch (error) {
+        if (active) {
+          setState({
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Coach assignments are not available right now.',
+          })
+        }
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [identitySlug])
+
+  return [challenges, state]
+}
+
 function useLevelUpFavorites(): [string[], (cardId: string) => void] {
   const [favorites, setFavorites] = useState<string[]>([])
 
@@ -6266,7 +6499,10 @@ function useLevelUpFavorites(): [string[], (cardId: string) => void] {
   return [favorites, toggle]
 }
 
-function useLevelUpCompletions(identitySlug: string): [LevelUpCompletion[], CompletionLogger, CompletionSyncState] {
+function useLevelUpCompletions(
+  identitySlug: string,
+  assignmentByCardId: Map<string, LevelUpAssignment>,
+): [LevelUpCompletion[], CompletionLogger, CompletionSyncState] {
   const [completions, setCompletions] = useState<LevelUpCompletion[]>([])
   const [syncState, setSyncState] = useState<CompletionSyncState>({ status: 'idle', message: '' })
 
@@ -6327,6 +6563,7 @@ function useLevelUpCompletions(identitySlug: string): [LevelUpCompletion[], Comp
       proofRating: rating,
       note: note.trim(),
       durationMinutes: card ? Math.max(1, Math.round(elapsedSeconds / 60)) || card.durationMinutes : undefined,
+      assignmentId: assignmentByCardId.get(cardId)?.id,
     }
 
     setCompletions((current) => {
