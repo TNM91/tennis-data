@@ -477,6 +477,7 @@
 .levelUpPortalApp[data-session-focus='active'] .levelUpCoachAssignmentBanner,
 .levelUpPortalApp[data-session-focus='active'] .levelUpTodayDashboard,
 .levelUpPortalApp[data-session-focus='active'] .levelUpSessionBuilder,
+.levelUpPortalApp[data-session-focus='active'] .levelUpReturnTraining,
 .levelUpPortalApp[data-session-focus='active'] .levelUpNextBestRep,
 .levelUpPortalApp[data-session-focus='active'] .levelUpTrainingPulse,
 .levelUpPortalApp[data-session-focus='active'] .levelUpCoachUpdate,
@@ -554,6 +555,7 @@
 .levelUpCoachAssignmentBanner,
 .levelUpTodayDashboard,
 .levelUpSessionBuilder,
+.levelUpReturnTraining,
 .levelUpTodayPlan,
 .levelUpNextBestRep,
 .levelUpTrainingPulse,
@@ -741,6 +743,87 @@
   margin: 0;
   color: var(--muted-strong);
   line-height: 1.42;
+}
+
+.levelUpReturnTrainingGrid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.48fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.levelUpReturnModuleCard,
+.levelUpReturnQuickStarts button {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 42%),
+    rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 13px;
+  text-align: left;
+}
+
+.levelUpReturnModuleCard span,
+.levelUpReturnQuickStarts span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.14);
+  color: var(--brand-green-3);
+  padding: 5px 8px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpReturnModuleCard h3 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: 1.12rem;
+  line-height: 1.15;
+}
+
+.levelUpReturnModuleCard small,
+.levelUpReturnQuickStarts small,
+.levelUpReturnCoachingCue {
+  color: var(--muted-strong);
+  line-height: 1.35;
+}
+
+.levelUpReturnQuickStarts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpReturnQuickStarts button {
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.levelUpReturnQuickStarts button:hover {
+  border-color: rgba(155, 225, 29, 0.44);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.12), transparent 42%),
+    rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.levelUpReturnQuickStarts strong {
+  color: var(--foreground-strong);
+  font-size: 0.98rem;
+  line-height: 1.16;
+}
+
+.levelUpReturnCoachingCue {
+  margin: 0;
+  border-top: 1px solid rgba(116, 190, 255, 0.14);
+  padding-top: 10px;
 }
 
 .levelUpCardPlan {
@@ -8075,6 +8158,7 @@
   .levelUpTodayDashboardGrid,
   .levelUpSessionBuilderControls,
   .levelUpSessionBuilderGrid,
+  .levelUpReturnTrainingGrid,
   .levelUpTodayPlanGrid,
   .levelUpTodayMission,
   .levelUpSessionDock,
@@ -8175,6 +8259,11 @@
   }
 
   .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpReturnTrainingGrid,
+  .levelUpReturnQuickStarts {
     grid-template-columns: 1fr;
   }
 
