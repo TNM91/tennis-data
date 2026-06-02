@@ -412,6 +412,10 @@ function CoachContent() {
     () => assignments.filter(assignmentNeedsCoachReview),
     [assignments],
   )
+  const assignmentProofById = useMemo(
+    () => buildAssignmentProofMap(levelUpSessions),
+    [levelUpSessions],
+  )
   const activeAssignmentsCount = assignments.filter((assignment) => assignment.status === 'assigned').length
   const reviewedAssignmentsCount = assignments.filter((assignment) => Boolean(getCoachAssignmentReview(assignment.assignment))).length
   const recentLevelUpSessions = useMemo(() => levelUpSessions.slice(0, 3), [levelUpSessions])
@@ -927,6 +931,9 @@ function CoachContent() {
                 const assignmentSummary = getCoachAssignmentSummary(assignment.assignment)
                 const dueState = getCoachAssignmentDueState(assignment.dueDate)
                 const student = savedStudents.find((candidate) => candidate.id === assignment.studentLinkId)
+                const levelUpProof = assignmentProofById.get(assignment.id)
+                const reviewReady = Boolean(playerCheckIn || levelUpProof)
+                const proofReviewDraft = levelUpProof ? buildLevelUpProofReviewDraft(levelUpProof, assignment) : null
                 return (
                   <article key={assignment.id} id={`coach-assignment-${assignment.id}`} style={assignmentCardStyle}>
                     <div style={assignmentTopStyle}>
@@ -971,6 +978,18 @@ function CoachContent() {
                         ) : null}
                       </div>
                     ) : null}
+                    {levelUpProof ? (
+                      <div style={levelUpProofStyle}>
+                        <div style={assignmentTopStyle}>
+                          <strong>Level Up proof received</strong>
+                          <span style={proofScoreBadgeStyle(levelUpProof.rating)}>{levelUpProof.rating}/5</span>
+                        </div>
+                        <span>{levelUpProof.drillTitle}: {levelUpProof.focusTitle}</span>
+                        <em>{formatClock(levelUpProof.elapsedSeconds)} / {levelUpProof.feeling}</em>
+                        {levelUpProof.note ? <small>{levelUpProof.note}</small> : null}
+                        {proofReviewDraft ? <small>Suggested coach response: {proofReviewDraft.note}</small> : null}
+                      </div>
+                    ) : null}
                     {playerCheckIn ? (
                       <div style={checkInReviewStyle}>
                         <strong>Player recap</strong>
@@ -989,7 +1008,7 @@ function CoachContent() {
                         {coachReview.note ? <span>{coachReview.note}</span> : null}
                         {coachReview.nextFocus ? <em>Next: {coachReview.nextFocus}</em> : null}
                       </div>
-                    ) : playerCheckIn ? (
+                    ) : reviewReady ? (
                       reviewAssignmentId === assignment.id ? (
                         <div style={reviewFormStyle}>
                           <textarea
@@ -1023,8 +1042,8 @@ function CoachContent() {
                           type="button"
                           onClick={() => {
                             setReviewAssignmentId(assignment.id)
-                            setReviewNote('')
-                            setReviewNextFocus('')
+                            setReviewNote(proofReviewDraft?.note ?? '')
+                            setReviewNextFocus(proofReviewDraft?.nextFocus ?? '')
                           }}
                           style={smallGhostButtonStyle}
                         >
@@ -1227,6 +1246,43 @@ function buildCoachQueueActions(
   }
 
   return actions.slice(0, 3)
+}
+
+function buildAssignmentProofMap(levelUpSessions: LevelUpSession[]) {
+  const proofByAssignmentId = new Map<string, LevelUpSession>()
+
+  for (const session of levelUpSessions) {
+    if (!session.assignmentId) continue
+    const existing = proofByAssignmentId.get(session.assignmentId)
+    if (!existing || Date.parse(session.completedAt) > Date.parse(existing.completedAt)) {
+      proofByAssignmentId.set(session.assignmentId, session)
+    }
+  }
+
+  return proofByAssignmentId
+}
+
+function buildLevelUpProofReviewDraft(session: LevelUpSession, assignment: CoachAssignment) {
+  const base = `${session.drillTitle} came back ${session.rating}/5.`
+
+  if (session.rating >= 4) {
+    return {
+      note: `${base} Good signal: the assigned habit is repeatable enough to test with more pressure next.`,
+      nextFocus: `Add pressure to ${assignment.focus || session.focusTitle}`,
+    }
+  }
+
+  if (session.rating >= 2) {
+    return {
+      note: `${base} Keep the same assignment target and ask for one cleaner proof block before increasing difficulty.`,
+      nextFocus: `Repeat ${session.focusTitle} with cleaner proof`,
+    }
+  }
+
+  return {
+    note: `${base} Scale this down. The next lesson should simplify the cue and rebuild confidence before speed or pressure.`,
+    nextFocus: `Scale down ${assignment.focus || session.focusTitle}`,
+  }
 }
 
 function buildLinkedPlayerCards(
@@ -2106,6 +2162,37 @@ const checkInReviewStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.1)',
   background: 'rgba(5,11,22,0.32)',
   color: 'var(--shell-copy-muted)',
+}
+
+const levelUpProofStyle: CSSProperties = {
+  ...checkInReviewStyle,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.055))',
+}
+
+function proofScoreBadgeStyle(rating: number): CSSProperties {
+  const strong = rating >= 4
+  const repeat = rating >= 2 && rating < 4
+  return {
+    borderRadius: 999,
+    border: strong
+      ? '1px solid rgba(155,225,29,0.42)'
+      : repeat
+        ? '1px solid rgba(255,194,87,0.36)'
+        : '1px solid rgba(255,122,122,0.36)',
+    background: strong
+      ? 'rgba(155,225,29,0.16)'
+      : repeat
+        ? 'rgba(255,194,87,0.12)'
+        : 'rgba(255,122,122,0.12)',
+    color: strong ? 'var(--brand-green)' : repeat ? '#ffc257' : '#ffb2b2',
+    padding: '3px 8px',
+    fontSize: 10,
+    fontWeight: 950,
+    letterSpacing: '.06em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+  }
 }
 
 const assignmentSummaryStyle: CSSProperties = {

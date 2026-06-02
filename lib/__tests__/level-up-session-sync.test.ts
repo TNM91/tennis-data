@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const playerApiSource = readFileSync(join(process.cwd(), 'app/api/player/level-up-sessions/route.ts'), 'utf8')
 const coachApiSource = readFileSync(join(process.cwd(), 'app/api/coach/level-up-sessions/route.ts'), 'utf8')
+const coachPageSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const workbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
 const portalSource = readFileSync(join(process.cwd(), 'app/player-development/_components/level-up-portal.tsx'), 'utf8')
 const authSource = readFileSync(join(process.cwd(), 'lib/player-api-auth.ts'), 'utf8')
@@ -46,5 +47,14 @@ describe('Level Up session sync', () => {
     expect(portalSource).toContain('Synced to your Level Up history.')
     expect(portalSource).toContain('remoteSessionToCompletion')
     expect(portalSource).toContain('mergeCompletions')
+  })
+
+  it('surfaces Level Up proof on coach assignment review cards', () => {
+    expect(coachPageSource).toContain('buildAssignmentProofMap(levelUpSessions)')
+    expect(coachPageSource).toContain('assignmentProofById.get(assignment.id)')
+    expect(coachPageSource).toContain('Level Up proof received')
+    expect(coachPageSource).toContain('buildLevelUpProofReviewDraft')
+    expect(coachPageSource).toContain('setReviewNote(proofReviewDraft?.note')
+    expect(coachPageSource).toContain('setReviewNextFocus(proofReviewDraft?.nextFocus')
   })
 })
