@@ -1391,7 +1391,7 @@ function LevelUpCardTile({
               </span>
               <span>
                 <b>Next</b>
-                {getAfterScorePrimaryButton(savedRating)}
+                {getAfterScorePrimaryButton(card, savedRating)}
               </span>
               <span>
                 <b>Share</b>
@@ -1417,7 +1417,7 @@ function LevelUpCardTile({
             ) : null}
             <div className={styles.levelUpAfterScoreNext}>
               <span>Next move</span>
-              <strong>{getAfterScorePrimaryAction(savedRating)}</strong>
+              <strong>{getAfterScorePrimaryAction(card, savedRating)}</strong>
               <small>{getAfterScoreDetail(card, savedRating)}</small>
             </div>
             {savedScoreDecision ? (
@@ -1442,7 +1442,7 @@ function LevelUpCardTile({
               />
             ) : null}
             <div className={styles.completionSavedActions}>
-              <button type="button" data-primary="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(savedRating)}</button>
+              <button type="button" data-primary="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(card, savedRating)}</button>
               <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy coach update', 'Coach update copied')}</button>
               <button type="button" data-finish="true" onClick={finishActivity}>Finish session</button>
               <button type="button" data-next-card="true" onClick={finishAndPickNext}>Pick next card</button>
@@ -1652,22 +1652,16 @@ function getActiveFocusLabel(state: string) {
   return 'Ready'
 }
 
-function getAfterScorePrimaryAction(rating: number) {
-  if (rating <= 1) return 'Scale down and repeat one clean cue.'
-  if (rating <= 3) return 'Repeat this card before adding difficulty.'
-  return 'Level up one variable next.'
+function getAfterScorePrimaryAction(card: LevelUpCard, rating: number) {
+  return getAfterScoreTennisPrescription(card, rating).title
 }
 
 function getAfterScoreDetail(card: LevelUpCard, rating: number) {
-  if (rating <= 1) return card.regression
-  if (rating <= 3) return `Keep the same setup and chase this cue again: ${card.cue}`
-  return card.progression
+  return getAfterScoreTennisPrescription(card, rating).detail
 }
 
-function getAfterScorePrimaryButton(rating: number) {
-  if (rating <= 1) return 'Scale down & repeat'
-  if (rating <= 3) return 'Repeat clean'
-  return 'Level up repeat'
+function getAfterScorePrimaryButton(card: LevelUpCard, rating: number) {
+  return getAfterScoreTennisPrescription(card, rating).button
 }
 
 function getCopyStatusLabel(status: 'idle' | 'copied' | 'blocked', idleLabel: string, copiedLabel: string) {
@@ -1677,23 +1671,127 @@ function getCopyStatusLabel(status: 'idle' | 'copied' | 'blocked', idleLabel: st
 }
 
 function getAfterScoreRepeatPlan(card: LevelUpCard, rating: number) {
+  const prescription = getAfterScoreTennisPrescription(card, rating)
+
   if (rating <= 1) {
     return {
-      title: 'Shrink the setup before chasing more reps.',
-      detail: card.regression ?? 'Make the setup easier and chase one clean cue before adding more.',
+      title: prescription.repeatTitle,
+      detail: prescription.repeatDetail,
     }
   }
 
   if (rating <= 3) {
     return {
-      title: 'Same card. Cleaner cue.',
-      detail: `Repeat the setup and score only this cue: ${card.cue}`,
+      title: prescription.repeatTitle,
+      detail: prescription.repeatDetail,
     }
   }
 
   return {
-    title: 'Raise one variable, not three.',
-    detail: card.progression ?? 'Add one small challenge while keeping the same proof score honest.',
+    title: prescription.repeatTitle,
+    detail: prescription.repeatDetail,
+  }
+}
+
+function getAfterScoreTennisPrescription(card: LevelUpCard, rating: number) {
+  const habit = getCardPurposeLabel(card).toLowerCase()
+
+  if (rating <= 1) {
+    if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+      return {
+        title: 'Shrink the serve rep.',
+        detail: 'Shadow the serve routine, call one target, and score target clarity before hitting another ball.',
+        button: 'Shadow & score',
+        repeatTitle: 'Serve routine first, ball second.',
+        repeatDetail: 'Remove the result. Call target, breathe, shadow, then save one cleaner proof score.',
+      }
+    }
+
+    if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+      return {
+        title: 'Remove the ball and recover first.',
+        detail: 'Walk the contact, finish, recover sequence until recovery happens before you look.',
+        button: 'Walk it clean',
+        repeatTitle: 'No watching reps.',
+        repeatDetail: 'Slow the rep down and count only finishes where recovery beats watching.',
+      }
+    }
+
+    if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+      return {
+        title: 'Cut the work block in half.',
+        detail: 'Reduce time or reps until posture stays playable and breathing stays controlled.',
+        button: 'Half block',
+        repeatTitle: 'Quality before fatigue.',
+        repeatDetail: 'Run a shorter block and score posture before adding more work.',
+      }
+    }
+
+    return {
+      title: `Scale down ${habit}.`,
+      detail: card.regression ?? 'Make the setup easier and chase one visible cue before adding more.',
+      button: 'Scale down',
+      repeatTitle: 'Shrink the setup before chasing more reps.',
+      repeatDetail: card.regression ?? 'Make the setup easier and chase one clean cue before adding more.',
+    }
+  }
+
+  if (rating <= 3) {
+    if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+      return {
+        title: 'Repeat the reset under one real trigger.',
+        detail: 'Pick the error, double fault, or rushed point that needs the reset and run it again.',
+        button: 'Repeat reset',
+        repeatTitle: 'Same trigger. Cleaner reset.',
+        repeatDetail: 'Repeat the card and score whether the reset happens before the next point starts.',
+      }
+    }
+
+    if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+      return {
+        title: 'Repeat until the neutral ball is clear.',
+        detail: 'Keep height, depth, and recovery as the score. Do not attack until neutral is repeatable.',
+        button: 'Repeat neutral',
+        repeatTitle: 'Defense before attack.',
+        repeatDetail: 'Run one more block and score whether the wide-ball response buys time.',
+      }
+    }
+
+    return {
+      title: `Repeat ${habit} clean.`,
+      detail: `Keep the same setup and chase this cue again: ${card.cue}`,
+      button: 'Repeat clean',
+      repeatTitle: 'Same card. Cleaner cue.',
+      repeatDetail: `Repeat the setup and score only this cue: ${card.cue}`,
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target') || card.tags.includes('serve-plus-one')) {
+    return {
+      title: 'Add one serve pressure layer.',
+      detail: card.progression ?? 'Start the next round at 30-30 while keeping the same target and routine.',
+      button: 'Add pressure',
+      repeatTitle: 'Pressure one serve variable.',
+      repeatDetail: 'Add score pressure, not a new motion, and keep target clarity as the proof.',
+    }
+  }
+
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      title: 'Add one faster recovery window.',
+      detail: card.progression ?? 'Shorten the recovery window only if balance and finish stay clean.',
+      button: 'Speed window',
+      repeatTitle: 'Faster, not messier.',
+      repeatDetail: 'Repeat the same recovery cue with a slightly tighter window and the same proof score.',
+    }
+  }
+
+  return {
+    title: `Level up ${habit}.`,
+    detail: card.progression ?? 'Add one challenge while the proof behavior stays visible.',
+    button: 'Level up',
+    repeatTitle: 'Raise one variable, not three.',
+    repeatDetail: card.progression ?? 'Add one small challenge while keeping the same proof score honest.',
   }
 }
 
@@ -3694,46 +3792,49 @@ function getActivityProofNote({
 }
 
 function getSavedProofAction(card: LevelUpCard, rating: number) {
+  const prescription = getAfterScoreTennisPrescription(card, rating)
+
   if (rating <= 1) {
     return {
-      title: 'Scale down next.',
-      detail: `${card.regression} Keep the proof honest before adding more reps.`,
+      title: prescription.title,
+      detail: prescription.detail,
     }
   }
 
   if (rating <= 3) {
     return {
-      title: 'Repeat this card.',
-      detail: `Run the same setup again and chase one cleaner cue: ${card.cue}`,
+      title: prescription.title,
+      detail: prescription.detail,
     }
   }
 
   return {
-    title: 'Level up one variable.',
-    detail: `${card.progression} Keep the same proof score so harder still means better.`,
+    title: prescription.title,
+    detail: prescription.detail,
   }
 }
 
 function getScoreDecision(card: LevelUpCard, rating: number) {
   const proofName = card.proof.replace(' 0-5', '').toLowerCase()
+  const prescription = getAfterScoreTennisPrescription(card, rating)
 
   if (rating <= 1) {
     return {
-      title: 'Shrink it before you repeat.',
-      detail: `Make the setup easier until ${proofName} appears once without a reminder.`,
+      title: prescription.repeatTitle,
+      detail: `${prescription.repeatDetail} Proof to watch: ${proofName}.`,
     }
   }
 
   if (rating <= 3) {
     return {
-      title: 'Repeat before you progress.',
-      detail: `Run one more block with the same cue. Do not add speed until ${proofName} is cleaner.`,
+      title: prescription.repeatTitle,
+      detail: `${prescription.repeatDetail} Do not add difficulty until ${proofName} is cleaner.`,
     }
   }
 
   return {
-    title: 'Progress one variable only.',
-    detail: `Add pressure, time, or target difficulty. Keep ${proofName} as the score that matters.`,
+    title: prescription.repeatTitle,
+    detail: `${prescription.repeatDetail} Keep ${proofName} as the score that matters.`,
   }
 }
 
