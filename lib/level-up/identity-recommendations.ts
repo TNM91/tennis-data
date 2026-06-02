@@ -181,6 +181,42 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Serve-Forward Finisher because this path builds serve target clarity, plus-one decisions, earned forward closing, first-volley quality, and attack reset.',
   },
+  'defensive-counterpuncher-4-0': {
+    identitySlug: 'defensive-counterpuncher-4-0',
+    featuredModuleIds: [
+      'wide-ball-reset',
+      'recovery-after-contact',
+      'crosscourt-build-before-change',
+      'late-match-legs',
+      'pressure-reset',
+      'wall-work-starter',
+      'post-play-mobility-reset',
+    ],
+    starterCardIds: [
+      'wide-ball-neutralizer',
+      'cone-recover-shadow-swing',
+      'three-cone-baseline-recover',
+      'crosscourt-consistency',
+      'basket-backhand-crosscourt',
+      'wall-depth-builder',
+      'wall-sit-leg-durability',
+      'three-step-reset',
+    ],
+    focusTags: [
+      'wide-ball-reset',
+      'defense-to-neutral',
+      'recovery-after-contact',
+      'recover-before-watching',
+      'crosscourt-build',
+      'backhand',
+      'leg-durability',
+      'pressure-reset',
+      'decision-quality',
+    ],
+    lanePriority: ['movement', 'backhand', 'singles', 'fitness', 'pressure', 'return', 'forehand', 'serve'],
+    recommendationCopy:
+      'Recommended for Defensive Counterpuncher because this path builds wide-ball reset, recovery discipline, rally tolerance, late-point legs, and earned counterattack choices.',
+  },
   'all-court-adapter-4-0': {
     identitySlug: 'all-court-adapter-4-0',
     featuredModuleIds: [
