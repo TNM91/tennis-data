@@ -1678,6 +1678,62 @@
     rgba(5, 13, 19, 0.92);
 }
 
+.levelUpNetToolkitNav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 8px;
+}
+
+.levelUpNetToolkitNav button {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 58px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--foreground);
+  font: inherit;
+  padding: 9px;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.levelUpNetToolkitNav button:hover,
+.levelUpNetToolkitNav button:focus-visible,
+.levelUpNetToolkitNav button[data-active='true'] {
+  border-color: rgba(155, 225, 29, 0.44);
+  background: rgba(155, 225, 29, 0.09);
+}
+
+.levelUpNetToolkitNav button[data-active='true'] {
+  transform: translateY(-1px);
+}
+
+.levelUpNetToolkitNav span {
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.levelUpNetToolkitNav small {
+  color: var(--muted-strong);
+  font-size: 0.68rem;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.levelUpNetToolkitPanel {
+  display: grid;
+  gap: 10px;
+}
+
 .levelUpNetLadderGrid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -8905,6 +8961,18 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .levelUpNetToolkitNav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
+  }
+
+  .levelUpNetToolkitNav button {
+    min-width: 152px;
+    scroll-snap-align: start;
+  }
+
   .levelUpFilters {
     grid-template-columns: 1fr;
   }
@@ -9043,6 +9111,18 @@
   .levelUpAssignmentControls,
   .performanceUpgradeHero {
     grid-template-columns: 1fr;
+  }
+
+  .levelUpNetToolkitNav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
+  }
+
+  .levelUpNetToolkitNav button {
+    min-width: 146px;
+    scroll-snap-align: start;
   }
 
   .levelUpFilters,

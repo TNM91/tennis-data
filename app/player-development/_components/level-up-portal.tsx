@@ -133,6 +133,8 @@ type NetConfidenceMissDecoderItem = {
   card: LevelUpCard
 }
 
+type NetConfidenceToolkitTab = 'start' | 'feed' | 'solo' | 'compete' | 'fix'
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -816,6 +818,7 @@ function LevelUpNetConfidenceLadder({
   items: NetConfidenceLadderItem[]
   onStartCard: (cardId: string) => void
 }) {
+  const [activeTab, setActiveTab] = useState<NetConfidenceToolkitTab>('start')
   const fixes = buildNetConfidenceFixes(items)
   const readinessChecks = buildNetConfidenceReadinessChecks()
   const targetMap = buildNetConfidenceTargetMap()
@@ -824,6 +827,13 @@ function LevelUpNetConfidenceLadder({
   const soloReps = buildNetConfidenceSoloReps()
   const pressureGames = buildNetConfidencePressureGames()
   const missDecoder = buildNetConfidenceMissDecoder(items)
+  const toolkitTabs: Array<{ key: NetConfidenceToolkitTab; label: string; detail: string }> = [
+    { key: 'start', label: 'Start', detail: 'Ladder + readiness' },
+    { key: 'feed', label: 'Feed', detail: 'Partner setup' },
+    { key: 'solo', label: 'Solo', detail: 'No-partner reps' },
+    { key: 'compete', label: 'Compete', detail: 'Pressure games' },
+    { key: 'fix', label: 'Fix a Miss', detail: 'Tap the miss' },
+  ]
 
   return (
     <section className={styles.levelUpNetLadder} aria-label="Net confidence ladder">
@@ -832,108 +842,140 @@ function LevelUpNetConfidenceLadder({
         <h2>Close, split, punch, finish.</h2>
         <p>Use this when the player gets forward but still feels rushed. Train one step at a time before playing live points.</p>
       </div>
-      <div className={styles.levelUpNetLadderGrid}>
-        {items.map((item, index) => (
-          <button key={item.card.id} type="button" onClick={() => onStartCard(item.card.id)}>
-            <span>{index + 1}</span>
-            <b>{item.label}</b>
-            <strong>{item.card.title}</strong>
-            <small>{item.standard}</small>
+      <div className={styles.levelUpNetToolkitNav} aria-label="Net toolkit">
+        {toolkitTabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            aria-pressed={activeTab === tab.key}
+            data-active={activeTab === tab.key}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            <span>{tab.label}</span>
+            <small>{tab.detail}</small>
           </button>
         ))}
       </div>
-      <div className={styles.levelUpNetReadiness} aria-label="Net readiness check">
-        <span>Readiness check</span>
-        <strong>Go live when 3 of 4 are clean.</strong>
-        {readinessChecks.map((item) => (
-          <article key={item.label}>
-            <b>{item.label}</b>
-            <small>{item.standard}</small>
-            <i>{item.watch}</i>
-          </article>
-        ))}
-      </div>
-      <div className={styles.levelUpNetTargetMap} aria-label="First-volley target map">
-        <span>First-volley target map</span>
-        <strong>Do not just volley. Give the first volley a job.</strong>
-        {targetMap.map((item) => (
-          <article key={item.target}>
-            <b>{item.target}</b>
-            <small>{item.useWhen}</small>
-            <em>{item.playerJob}</em>
-            <i>{item.proof}</i>
-          </article>
-        ))}
-      </div>
-      <div className={styles.levelUpNetLiveBridge} aria-label="Net live point bridge">
-        <span>Live point bridge</span>
-        <strong>Earn live points in steps.</strong>
-        {liveBridge.map((item) => (
-          <article key={item.stage}>
-            <b>{item.stage}</b>
-            <small>{item.setup}</small>
-            <em>{item.score}</em>
-            <i>{item.moveOn}</i>
-          </article>
-        ))}
-      </div>
-      <div className={styles.levelUpNetFeedMenu} aria-label="Net feed menu">
-        <span>Feed menu</span>
-        <strong>Tell your partner how to feed the rep.</strong>
-        {feedMenu.map((item) => (
-          <article key={item.feed}>
-            <b>{item.feed}</b>
-            <small>{item.feederJob}</small>
-            <em>{item.playerJob}</em>
-            <i>{item.proof}</i>
-          </article>
-        ))}
-      </div>
-      <div className={styles.levelUpNetSoloReps} aria-label="Net solo reps">
-        <span>No-partner reps</span>
-        <strong>Train the net habit even when you are alone.</strong>
-        {soloReps.map((item) => (
-          <article key={item.rep}>
-            <b>{item.rep}</b>
-            <small>{item.setup}</small>
-            <em>{item.playerJob}</em>
-            <i>{item.proof}</i>
-          </article>
-        ))}
-      </div>
-      <div className={styles.levelUpNetPressureGames} aria-label="Net pressure games">
-        <span>Pressure games</span>
-        <strong>Compete with the habit, not just the score.</strong>
-        {pressureGames.map((item) => (
-          <article key={item.game}>
-            <b>{item.game}</b>
-            <small>{item.setup}</small>
-            <em>{item.winCondition}</em>
-            <i>{item.proof}</i>
-          </article>
-        ))}
-      </div>
-      <div className={styles.levelUpNetMissDecoder} aria-label="Net miss decoder">
-        <span>Miss decoder</span>
-        <strong>Tap the miss. Train the next rep.</strong>
-        {missDecoder.map((item) => (
-          <button key={item.miss} type="button" onClick={() => onStartCard(item.card.id)}>
-            <b>{item.miss}</b>
-            <small>{item.read}</small>
-            <em>{item.fix}</em>
-            <i>{item.card.title}</i>
-          </button>
-        ))}
-      </div>
-      <div className={styles.levelUpNetFixGrid} aria-label="Net confidence quick fixes">
-        <span>Quick fix</span>
-        {fixes.map((item) => (
-          <button key={item.problem} type="button" onClick={() => onStartCard(item.card.id)}>
-            <strong>{item.problem}</strong>
-            <small>{item.fix}</small>
-            <b>{item.card.title}</b>
-          </button>
-        ))}
+      <div className={styles.levelUpNetToolkitPanel} data-active-tab={activeTab}>
+        {activeTab === 'start' ? (
+          <>
+            <div className={styles.levelUpNetLadderGrid}>
+              {items.map((item, index) => (
+                <button key={item.card.id} type="button" onClick={() => onStartCard(item.card.id)}>
+                  <span>{index + 1}</span>
+                  <b>{item.label}</b>
+                  <strong>{item.card.title}</strong>
+                  <small>{item.standard}</small>
+                </button>
+              ))}
+            </div>
+            <div className={styles.levelUpNetReadiness} aria-label="Net readiness check">
+              <span>Readiness check</span>
+              <strong>Go live when 3 of 4 are clean.</strong>
+              {readinessChecks.map((item) => (
+                <article key={item.label}>
+                  <b>{item.label}</b>
+                  <small>{item.standard}</small>
+                  <i>{item.watch}</i>
+                </article>
+              ))}
+            </div>
+            <div className={styles.levelUpNetTargetMap} aria-label="First-volley target map">
+              <span>First-volley target map</span>
+              <strong>Do not just volley. Give the first volley a job.</strong>
+              {targetMap.map((item) => (
+                <article key={item.target}>
+                  <b>{item.target}</b>
+                  <small>{item.useWhen}</small>
+                  <em>{item.playerJob}</em>
+                  <i>{item.proof}</i>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : null}
+        {activeTab === 'feed' ? (
+          <>
+            <div className={styles.levelUpNetLiveBridge} aria-label="Net live point bridge">
+              <span>Live point bridge</span>
+              <strong>Earn live points in steps.</strong>
+              {liveBridge.map((item) => (
+                <article key={item.stage}>
+                  <b>{item.stage}</b>
+                  <small>{item.setup}</small>
+                  <em>{item.score}</em>
+                  <i>{item.moveOn}</i>
+                </article>
+              ))}
+            </div>
+            <div className={styles.levelUpNetFeedMenu} aria-label="Net feed menu">
+              <span>Feed menu</span>
+              <strong>Tell your partner how to feed the rep.</strong>
+              {feedMenu.map((item) => (
+                <article key={item.feed}>
+                  <b>{item.feed}</b>
+                  <small>{item.feederJob}</small>
+                  <em>{item.playerJob}</em>
+                  <i>{item.proof}</i>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : null}
+        {activeTab === 'solo' ? (
+          <div className={styles.levelUpNetSoloReps} aria-label="Net solo reps">
+            <span>No-partner reps</span>
+            <strong>Train the net habit even when you are alone.</strong>
+            {soloReps.map((item) => (
+              <article key={item.rep}>
+                <b>{item.rep}</b>
+                <small>{item.setup}</small>
+                <em>{item.playerJob}</em>
+                <i>{item.proof}</i>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {activeTab === 'compete' ? (
+          <div className={styles.levelUpNetPressureGames} aria-label="Net pressure games">
+            <span>Pressure games</span>
+            <strong>Compete with the habit, not just the score.</strong>
+            {pressureGames.map((item) => (
+              <article key={item.game}>
+                <b>{item.game}</b>
+                <small>{item.setup}</small>
+                <em>{item.winCondition}</em>
+                <i>{item.proof}</i>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {activeTab === 'fix' ? (
+          <>
+            <div className={styles.levelUpNetMissDecoder} aria-label="Net miss decoder">
+              <span>Miss decoder</span>
+              <strong>Tap the miss. Train the next rep.</strong>
+              {missDecoder.map((item) => (
+                <button key={item.miss} type="button" onClick={() => onStartCard(item.card.id)}>
+                  <b>{item.miss}</b>
+                  <small>{item.read}</small>
+                  <em>{item.fix}</em>
+                  <i>{item.card.title}</i>
+                </button>
+              ))}
+            </div>
+            <div className={styles.levelUpNetFixGrid} aria-label="Net confidence quick fixes">
+              <span>Quick fix</span>
+              {fixes.map((item) => (
+                <button key={item.problem} type="button" onClick={() => onStartCard(item.card.id)}>
+                  <strong>{item.problem}</strong>
+                  <small>{item.fix}</small>
+                  <b>{item.card.title}</b>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
       <p className={styles.levelUpNetLadderCue}>
         Net confidence is not a bravery speech. It is arrive balanced, split before the pass, make compact contact, then recover for the next ball.
