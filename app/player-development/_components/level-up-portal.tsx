@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity, recommendLevelUpCards } from '@/lib/level-up/recommendations'
@@ -331,15 +332,22 @@ const intentPresets = [
 
 export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPortalProps) {
   const profile = getLevelUpProfileForIdentity(identitySlug)
+  const searchParams = useSearchParams()
+  const requestedStartCardId = searchParams.get('card') || searchParams.get('startCard') || ''
+  const requestedStartCard = useMemo(
+    () => (requestedStartCardId ? LEVEL_UP_CARDS.find((card) => card.id === requestedStartCardId) : undefined),
+    [requestedStartCardId],
+  )
   const startListRef = useRef<HTMLElement>(null)
+  const directStartHandledRef = useRef('')
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
   const [showAllCards, setShowAllCards] = useState(false)
-  const [selectedIntent, setSelectedIntent] = useState('Recommended')
+  const [selectedIntent, setSelectedIntent] = useState(requestedStartCard ? 'Coach link' : 'Recommended')
   const [sessionMinutes, setSessionMinutes] = useState(20)
   const [sessionFocus, setSessionFocus] = useState<SessionFocus>('movement')
-  const [activeCardTitle, setActiveCardTitle] = useState<string | null>(null)
+  const [activeCardTitle, setActiveCardTitle] = useState<string | null>(requestedStartCard?.title ?? null)
   const [startRequest, setStartRequest] = useState<StartRequest>({ cardId: '', signal: 0 })
-  const [activeLaneCardId, setActiveLaneCardId] = useState<string | null>(null)
+  const [activeLaneCardId, setActiveLaneCardId] = useState<string | null>(requestedStartCard?.id ?? null)
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [coachChallenges, coachChallengeState] = usePlayerCoachChallenges(identitySlug)
   const assignmentByCardId = useMemo(() => buildAssignmentByCardId(coachChallenges), [coachChallenges])
@@ -457,6 +465,28 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const activeLaneCard = activeLaneCardId
     ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
     : undefined
+
+  useEffect(() => {
+    if (!requestedStartCardId || directStartHandledRef.current === requestedStartCardId) return
+
+    const requestedCard = LEVEL_UP_CARDS.find((card) => card.id === requestedStartCardId)
+    if (!requestedCard) return
+
+    let frameRan = false
+    const frame = window.requestAnimationFrame(() => {
+      frameRan = true
+      directStartHandledRef.current = requestedStartCardId
+      setStartRequest((request) => ({ cardId: requestedCard.id, signal: request.signal + 1 }))
+      setActiveLaneCardId(requestedCard.id)
+      setActiveCardTitle(requestedCard.title)
+      setSelectedIntent('Coach link')
+      scrollToStartList(startListRef)
+    })
+
+    return () => {
+      if (!frameRan) window.cancelAnimationFrame(frame)
+    }
+  }, [requestedStartCardId])
 
   function handleActivityChange(cardTitle: string | null) {
     setActiveCardTitle(cardTitle)

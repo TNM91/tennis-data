@@ -66,4 +66,12 @@ describe('Level Up session sync', () => {
     expect(coachPageSource).toContain('moduleId: levelUpModule?.id')
     expect(coachPageSource).toContain('portalHref: `/player-development/${')
   })
+
+  it('opens direct coach assignment card links inside the player portal', () => {
+    expect(portalSource).toContain("searchParams.get('card') || searchParams.get('startCard')")
+    expect(portalSource).toContain('requestedStartCardId')
+    expect(portalSource).toContain('directStartHandledRef')
+    expect(portalSource).toContain('setActiveLaneCardId(requestedCard.id)')
+    expect(portalSource).toContain("setSelectedIntent('Coach link')")
+  })
 })
