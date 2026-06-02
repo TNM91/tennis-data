@@ -105,6 +105,13 @@ type NetConfidenceLiveBridgeItem = {
   moveOn: string
 }
 
+type NetConfidenceFeedMenuItem = {
+  feed: string
+  feederJob: string
+  playerJob: string
+  proof: string
+}
+
 type NetConfidencePressureGame = {
   game: string
   setup: string
@@ -806,6 +813,7 @@ function LevelUpNetConfidenceLadder({
   const readinessChecks = buildNetConfidenceReadinessChecks()
   const targetMap = buildNetConfidenceTargetMap()
   const liveBridge = buildNetConfidenceLiveBridge()
+  const feedMenu = buildNetConfidenceFeedMenu()
   const pressureGames = buildNetConfidencePressureGames()
   const missDecoder = buildNetConfidenceMissDecoder(items)
 
@@ -858,6 +866,18 @@ function LevelUpNetConfidenceLadder({
             <small>{item.setup}</small>
             <em>{item.score}</em>
             <i>{item.moveOn}</i>
+          </article>
+        ))}
+      </div>
+      <div className={styles.levelUpNetFeedMenu} aria-label="Net feed menu">
+        <span>Feed menu</span>
+        <strong>Tell your partner how to feed the rep.</strong>
+        {feedMenu.map((item) => (
+          <article key={item.feed}>
+            <b>{item.feed}</b>
+            <small>{item.feederJob}</small>
+            <em>{item.playerJob}</em>
+            <i>{item.proof}</i>
           </article>
         ))}
       </div>
@@ -2673,6 +2693,29 @@ function buildNetConfidenceLiveBridge(): NetConfidenceLiveBridgeItem[] {
       setup: 'Start the point with approach plus first volley, then play it out.',
       score: 'Score the first-volley decision, not whether you won the point.',
       moveOn: 'Repeat if the decision gets rushed; level up if proof stays 4+.',
+    },
+  ]
+}
+
+function buildNetConfidenceFeedMenu(): NetConfidenceFeedMenuItem[] {
+  return [
+    {
+      feed: 'Predictable volley',
+      feederJob: 'Feed the same first-volley height and direction for one round.',
+      playerJob: 'Close, split, call target, punch compact.',
+      proof: 'Use when timing is not clean yet.',
+    },
+    {
+      feed: 'Two-lane pass',
+      feederJob: 'Alternate controlled pass feeds: line or crosscourt.',
+      playerJob: 'Split before the read and choose a useful first volley.',
+      proof: 'Use when ready split needs pressure.',
+    },
+    {
+      feed: 'Recover ball',
+      feederJob: 'After the first volley, feed one more ball into open space.',
+      playerJob: 'Recover before watching and be ready for the second touch.',
+      proof: 'Use when the player wins the first touch but freezes after.',
     },
   ]
 }
