@@ -1736,7 +1736,7 @@
 
 .levelUpNetTabGuide {
   display: grid;
-  grid-template-columns: auto minmax(190px, 0.85fr) repeat(5, minmax(0, 1fr)) auto;
+  grid-template-columns: auto minmax(190px, 0.85fr) repeat(6, minmax(0, 1fr)) auto;
   gap: 9px;
   align-items: stretch;
   border: 1px solid rgba(155, 225, 29, 0.18);

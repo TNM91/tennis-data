@@ -139,6 +139,7 @@ type NetConfidenceTabGuide = {
   tab: NetConfidenceToolkitTab
   eyebrow: string
   title: string
+  setup: string
   useWhen: string
   doThis: string
   block: string
@@ -841,6 +842,9 @@ function LevelUpNetConfidenceLadder({
   const missDecoder = buildNetConfidenceMissDecoder(items)
   const tabGuides = buildNetConfidenceTabGuides(items)
   const activeGuide = tabGuides.find((guide) => guide.tab === activeTab)
+  const activeGuideCard = activeGuide
+    ? items.find((item) => item.card.id === activeGuide.startCardId)?.card
+    : undefined
   const toolkitTabs: Array<{ key: NetConfidenceToolkitTab; label: string; detail: string }> = [
     { key: 'start', label: 'Start', detail: 'Ladder + readiness' },
     { key: 'feed', label: 'Feed', detail: 'Partner setup' },
@@ -875,13 +879,14 @@ function LevelUpNetConfidenceLadder({
           <div className={styles.levelUpNetTabGuide} aria-label="Net tab guide">
             <span>{activeGuide.eyebrow}</span>
             <strong>{activeGuide.title}</strong>
+            <p><b>Setup:</b> {activeGuide.setup}</p>
             <p><b>Use when:</b> {activeGuide.useWhen}</p>
             <p><b>Do:</b> {activeGuide.doThis}</p>
             <p><b>Block:</b> {activeGuide.block}</p>
             <p><b>Score:</b> {activeGuide.score}</p>
             <p><b>Move on:</b> {activeGuide.moveOn}</p>
             <button type="button" onClick={() => onStartCard(activeGuide.startCardId)}>
-              Start recommended rep
+              Start: {activeGuideCard?.title ?? 'recommended rep'}
             </button>
           </div>
         ) : null}
@@ -2898,6 +2903,7 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       tab: 'start',
       eyebrow: 'First choice',
       title: 'Build the net habit in order.',
+      setup: 'Court space from baseline to service line. No feeder needed for the first round.',
       useWhen: 'You are not sure which net rep to run or confidence feels uneven.',
       doThis: 'Run the ladder from close to split to target call before playing points.',
       block: '3 rounds: close-only, split timing, then target call plus volley.',
@@ -2909,6 +2915,7 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       tab: 'feed',
       eyebrow: 'With a partner',
       title: 'Ask for the feed that matches the miss.',
+      setup: 'One feeder near the baseline or service line. Keep feeds controlled, not heroic.',
       useWhen: 'Someone can feed and you need controlled reps before live play.',
       doThis: 'Tell the feeder the exact ball, then score only the first-volley habit.',
       block: '8 predictable feeds, 8 two-lane reads, then 6 approach points.',
@@ -2920,6 +2927,7 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       tab: 'solo',
       eyebrow: 'Training alone',
       title: 'Get useful reps without a feeder.',
+      setup: 'Wall, fence, or open court space. Use a quiet ball touch or shadow rep.',
       useWhen: 'You have a wall, open space, or five minutes before practice.',
       doThis: 'Shadow the close, freeze the split, say the target, then reset hands.',
       block: '5 shadow closes, 20 wall touches, 5 recover-before-look reps.',
@@ -2931,6 +2939,7 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       tab: 'compete',
       eyebrow: 'Add pressure',
       title: 'Make the net habit survive the score.',
+      setup: 'One opponent or partner. Start every point from approach plus first volley.',
       useWhen: 'The mechanics are clean and you need it to hold up in points.',
       doThis: 'Play the game, but only reward points where the net habit happened.',
       block: 'Play one race to 7, then repeat the same game with a tighter proof rule.',
@@ -2942,6 +2951,7 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       tab: 'fix',
       eyebrow: 'Fix the miss',
       title: 'Turn the last miss into the next rep.',
+      setup: 'Use the last miss as the drill selector. Keep the next block to one correction.',
       useWhen: 'You know what broke: late split, big swing, no target, or watching.',
       doThis: 'Tap the miss, start the linked card, and keep the next block narrow.',
       block: 'Pick one miss, run 5 correction reps, then test it in 3 live points.',
