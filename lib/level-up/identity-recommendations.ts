@@ -348,6 +348,38 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Backhand Stability Builder because this path builds backhand depth, crosscourt tolerance, wide-ball reset, return depth, recovery discipline, and pressure-safe rally decisions.',
   },
+  'net-confidence-builder-4-0': {
+    identitySlug: 'net-confidence-builder-4-0',
+    featuredModuleIds: [
+      'net-confidence-builder',
+      'forward-close',
+      'serve-plus-one-clarity',
+      'attack-balance',
+      'doubles-first-move',
+      'pressure-reset',
+    ],
+    starterCardIds: [
+      'short-ball-close-split',
+      'volley-ready-split',
+      'volley-punch-target',
+      'approach-volley-close',
+      'reaction-volley-wall',
+      'cone-close-recover',
+      'three-step-reset',
+    ],
+    focusTags: [
+      'volley',
+      'forward-close',
+      'split-step',
+      'decision-quality',
+      'attack-balance',
+      'serve-plus-one',
+      'pressure-reset',
+    ],
+    lanePriority: ['volley', 'singles', 'doubles', 'serve', 'movement', 'forehand', 'fitness', 'return'],
+    recommendationCopy:
+      'Recommended for Net Confidence Builder because this path builds close timing, ready split, compact volley contact, first-volley targets, and pressure-safe finishing.',
+  },
   'all-court-adapter-4-0': {
     identitySlug: 'all-court-adapter-4-0',
     featuredModuleIds: [
