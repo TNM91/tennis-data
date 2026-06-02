@@ -98,6 +98,13 @@ type NetConfidenceTargetItem = {
   proof: string
 }
 
+type NetConfidenceLiveBridgeItem = {
+  stage: string
+  setup: string
+  score: string
+  moveOn: string
+}
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -784,6 +791,7 @@ function LevelUpNetConfidenceLadder({
   const fixes = buildNetConfidenceFixes(items)
   const readinessChecks = buildNetConfidenceReadinessChecks()
   const targetMap = buildNetConfidenceTargetMap()
+  const liveBridge = buildNetConfidenceLiveBridge()
 
   return (
     <section className={styles.levelUpNetLadder} aria-label="Net confidence ladder">
@@ -822,6 +830,18 @@ function LevelUpNetConfidenceLadder({
             <small>{item.useWhen}</small>
             <em>{item.playerJob}</em>
             <i>{item.proof}</i>
+          </article>
+        ))}
+      </div>
+      <div className={styles.levelUpNetLiveBridge} aria-label="Net live point bridge">
+        <span>Live point bridge</span>
+        <strong>Earn live points in steps.</strong>
+        {liveBridge.map((item) => (
+          <article key={item.stage}>
+            <b>{item.stage}</b>
+            <small>{item.setup}</small>
+            <em>{item.score}</em>
+            <i>{item.moveOn}</i>
           </article>
         ))}
       </div>
@@ -2590,6 +2610,29 @@ function buildNetConfidenceTargetMap(): NetConfidenceTargetItem[] {
       useWhen: 'Use when the opponent over-recovers or opens the hips early.',
       playerJob: 'Hold shape, punch behind the move, split for the next ball.',
       proof: 'Score: read plus compact contact 0-5',
+    },
+  ]
+}
+
+function buildNetConfidenceLiveBridge(): NetConfidenceLiveBridgeItem[] {
+  return [
+    {
+      stage: '1. Feed',
+      setup: 'Coach or partner feeds the approach and a predictable first volley.',
+      score: 'Score close, split, target call, compact contact.',
+      moveOn: 'Move on after 6 of 8 reps are clean.',
+    },
+    {
+      stage: '2. Read',
+      setup: 'Feeder varies pass direction after the approach, but pace stays controlled.',
+      score: 'Score whether you split before reading and choose the target early.',
+      moveOn: 'Move on when the first volley has a clear job for two rounds.',
+    },
+    {
+      stage: '3. Play',
+      setup: 'Start the point with approach plus first volley, then play it out.',
+      score: 'Score the first-volley decision, not whether you won the point.',
+      moveOn: 'Repeat if the decision gets rushed; level up if proof stays 4+.',
     },
   ]
 }
