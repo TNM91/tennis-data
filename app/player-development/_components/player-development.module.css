@@ -9763,6 +9763,26 @@
     display: none;
   }
 
+  .levelUpStartList,
+  .levelUpRail {
+    contain: inline-size;
+    overflow: hidden;
+  }
+
+  .levelUpRailSummary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    max-width: 100%;
+  }
+
+  .levelUpRailSummary span,
+  .levelUpRailSummary strong {
+    max-width: 100%;
+  }
+
+  .levelUpRailSummary small {
+    justify-self: end;
+  }
+
   .levelUpPortalLanes,
   .levelUpCardRail,
   .levelUpModuleRail,
