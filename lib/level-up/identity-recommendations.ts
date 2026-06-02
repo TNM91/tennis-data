@@ -145,6 +145,42 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Doubles Commander because this path builds partner first move, poach timing, middle ownership, return intent, and pressure communication.',
   },
+  'serve-forward-finisher-4-0': {
+    identitySlug: 'serve-forward-finisher-4-0',
+    featuredModuleIds: [
+      'serve-plus-one-clarity',
+      'serve-pressure-routine',
+      'forward-close',
+      'attack-balance',
+      'shoulder-core-serve-support',
+      'return-intent',
+      'pressure-reset',
+    ],
+    starterCardIds: [
+      'serve-target-call',
+      'serve-target-ladder',
+      'serve-1-shadow',
+      'serve-1-partner',
+      'short-ball-close-split',
+      'approach-volley-close',
+      'volley-ready-split',
+      'volley-punch-target',
+      'three-step-reset',
+    ],
+    focusTags: [
+      'serve-target',
+      'serve-routine',
+      'serve-plus-one',
+      'forward-close',
+      'attack-balance',
+      'volley',
+      'decision-quality',
+      'pressure-reset',
+    ],
+    lanePriority: ['serve', 'volley', 'forehand', 'return', 'singles', 'movement', 'fitness', 'doubles'],
+    recommendationCopy:
+      'Recommended for Serve-Forward Finisher because this path builds serve target clarity, plus-one decisions, earned forward closing, first-volley quality, and attack reset.',
+  },
   'all-court-adapter-4-0': {
     identitySlug: 'all-court-adapter-4-0',
     featuredModuleIds: [

@@ -74,7 +74,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['serve-target-call', 'second-serve-routine-reps', 'double-fault-reset'],
     tags: ['serve-routine', 'serve-target', 'pressure-reset'],
-    identitySlugs: ['relentless-competitor-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'serve-forward-finisher-4-0'],
     proof: 'Serve routine clarity 0-5',
   },
   {
@@ -86,7 +86,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['serve-target-call', 'serve-1-shadow', 'serve-1-partner'],
     tags: ['serve-plus-one', 'serve-target', 'decision-quality'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5', 'all-court-adapter-4-0'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'serve-forward-finisher-4-0', 'all-court-adapter-4-0'],
     proof: 'Serve +1 clarity 0-5',
   },
   {
@@ -136,7 +136,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '4 cards / 25 minutes',
     cardIds: ['basket-forehand-crosscourt', 'defense-neutral-attack-rally', 'single-leg-rdl', 'tight-arm-reset'],
     tags: ['attack-balance', 'decision-quality', 'balance'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5', 'all-court-adapter-4-0'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'serve-forward-finisher-4-0', 'all-court-adapter-4-0'],
     proof: 'Attack balance 0-5',
   },
   {
@@ -146,9 +146,9 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     description: 'Close forward, split before the pass, and recover after contact.',
     level: 'builder',
     durationLabel: '3 cards / 20 minutes',
-    cardIds: ['short-ball-close-split', 'cone-close-recover', 'poach-timing-shadow'],
+    cardIds: ['short-ball-close-split', 'cone-close-recover', 'approach-volley-close'],
     tags: ['forward-close', 'first-step', 'balance'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5', 'all-court-adapter-4-0'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'serve-forward-finisher-4-0', 'all-court-adapter-4-0'],
     proof: 'Forward close 0-5',
   },
   {
@@ -179,7 +179,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 10 minutes',
     cardIds: ['three-step-reset', 'tight-arm-reset', 'closing-game-routine'],
     tags: ['pressure-reset', 'between-points', 'quick-win'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'serve-forward-finisher-4-0', 'all-court-adapter-4-0'],
     proof: 'Reset used 0-5',
   },
   {
@@ -241,7 +241,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '4 cards / 18 minutes',
     cardIds: ['band-external-rotation', 'dead-bug-serve-shadow', 'towel-serve-flow', 'pallof-press'],
     tags: ['shoulder-support', 'core-control', 'serve-routine'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'serve-forward-finisher-4-0'],
     proof: 'Serve support 0-5',
   },
   {
