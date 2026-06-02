@@ -112,6 +112,13 @@ type NetConfidencePressureGame = {
   proof: string
 }
 
+type NetConfidenceMissDecoderItem = {
+  miss: string
+  read: string
+  fix: string
+  card: LevelUpCard
+}
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -800,6 +807,7 @@ function LevelUpNetConfidenceLadder({
   const targetMap = buildNetConfidenceTargetMap()
   const liveBridge = buildNetConfidenceLiveBridge()
   const pressureGames = buildNetConfidencePressureGames()
+  const missDecoder = buildNetConfidenceMissDecoder(items)
 
   return (
     <section className={styles.levelUpNetLadder} aria-label="Net confidence ladder">
@@ -863,6 +871,18 @@ function LevelUpNetConfidenceLadder({
             <em>{item.winCondition}</em>
             <i>{item.proof}</i>
           </article>
+        ))}
+      </div>
+      <div className={styles.levelUpNetMissDecoder} aria-label="Net miss decoder">
+        <span>Miss decoder</span>
+        <strong>Tap the miss. Train the next rep.</strong>
+        {missDecoder.map((item) => (
+          <button key={item.miss} type="button" onClick={() => onStartCard(item.card.id)}>
+            <b>{item.miss}</b>
+            <small>{item.read}</small>
+            <em>{item.fix}</em>
+            <i>{item.card.title}</i>
+          </button>
         ))}
       </div>
       <div className={styles.levelUpNetFixGrid} aria-label="Net confidence quick fixes">
@@ -2678,6 +2698,39 @@ function buildNetConfidencePressureGames(): NetConfidencePressureGame[] {
       proof: 'Track: ready for next ball 0-5',
     },
   ]
+}
+
+function buildNetConfidenceMissDecoder(items: NetConfidenceLadderItem[]): NetConfidenceMissDecoderItem[] {
+  const byCardId = new Map(items.map((item) => [item.card.id, item.card]))
+  const fallback = items[0]?.card
+  const misses = [
+    {
+      miss: 'Volley floated long',
+      read: 'The swing got big or the target was late.',
+      fix: 'Call target early, punch short, recover forward.',
+      card: byCardId.get('volley-punch-target') ?? fallback,
+    },
+    {
+      miss: 'Passed clean',
+      read: 'The split was late or the close stopped short.',
+      fix: 'Remove pace and score close plus split timing.',
+      card: byCardId.get('volley-ready-split') ?? byCardId.get('short-ball-close-split') ?? fallback,
+    },
+    {
+      miss: 'Stuck after contact',
+      read: 'You watched the volley instead of preparing for the next ball.',
+      fix: 'Recover after the volley before judging the result.',
+      card: byCardId.get('approach-volley-close') ?? fallback,
+    },
+    {
+      miss: 'Hands got loud',
+      read: 'The volley became a swing instead of a compact touch.',
+      fix: 'Reset hands in front after every touch.',
+      card: byCardId.get('reaction-volley-wall') ?? byCardId.get('volley-punch-target') ?? fallback,
+    },
+  ]
+
+  return misses.filter((item): item is NetConfidenceMissDecoderItem => Boolean(item.card))
 }
 
 function buildSessionBuilderPlan({
