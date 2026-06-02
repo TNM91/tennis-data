@@ -476,6 +476,7 @@
 .levelUpPortalApp[data-session-focus='active'] .levelUpHero,
 .levelUpPortalApp[data-session-focus='active'] .levelUpCoachAssignmentBanner,
 .levelUpPortalApp[data-session-focus='active'] .levelUpTodayDashboard,
+.levelUpPortalApp[data-session-focus='active'] .levelUpSessionBuilder,
 .levelUpPortalApp[data-session-focus='active'] .levelUpNextBestRep,
 .levelUpPortalApp[data-session-focus='active'] .levelUpTrainingPulse,
 .levelUpPortalApp[data-session-focus='active'] .levelUpCoachUpdate,
@@ -552,6 +553,7 @@
 .levelUpHero,
 .levelUpCoachAssignmentBanner,
 .levelUpTodayDashboard,
+.levelUpSessionBuilder,
 .levelUpTodayPlan,
 .levelUpNextBestRep,
 .levelUpTrainingPulse,
@@ -1490,6 +1492,152 @@
   background:
     linear-gradient(135deg, rgba(155, 225, 29, 0.07), transparent 42%),
     rgba(5, 13, 19, 0.9);
+}
+
+.levelUpSessionBuilder {
+  border-color: rgba(116, 190, 255, 0.2);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 46%),
+    rgba(5, 13, 19, 0.9);
+}
+
+.levelUpSessionBuilderControls {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 10px;
+}
+
+.levelUpSessionBuilderControls > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 9px;
+}
+
+.levelUpSessionBuilderControls span {
+  width: 100%;
+  color: var(--brand-blue-2);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpSessionBuilderControls button {
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  padding: 8px 10px;
+}
+
+.levelUpSessionBuilderControls button[data-active='true'],
+.levelUpSessionBuilderControls button:hover,
+.levelUpSessionBuilderControls button:focus-visible {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.12);
+  color: var(--foreground-strong);
+}
+
+.levelUpSessionBuilderSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: 12px;
+  background: rgba(155, 225, 29, 0.055);
+  padding: 9px;
+}
+
+.levelUpSessionBuilderSummary strong,
+.levelUpSessionBuilderSummary span {
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  font-weight: 950;
+}
+
+.levelUpSessionBuilderSummary small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.levelUpSessionBuilderGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.levelUpSessionBuilderGrid button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  min-width: 0;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  font: inherit;
+  padding: 11px;
+  text-align: left;
+}
+
+.levelUpSessionBuilderGrid button:hover,
+.levelUpSessionBuilderGrid button:focus-visible {
+  border-color: rgba(155, 225, 29, 0.42);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), transparent 42%),
+    rgba(255, 255, 255, 0.055);
+}
+
+.levelUpSessionBuilderGrid span {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.34);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.1);
+  color: var(--brand-green-3);
+  font-weight: 950;
+}
+
+.levelUpSessionBuilderGrid div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.levelUpSessionBuilderGrid b {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpSessionBuilderGrid strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.18;
+}
+
+.levelUpSessionBuilderGrid small {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  line-height: 1.28;
 }
 
 .levelUpTodayPlanGrid {
@@ -7925,6 +8073,8 @@
   .levelUpTrainingPulse,
   .levelUpCoachUpdate,
   .levelUpTodayDashboardGrid,
+  .levelUpSessionBuilderControls,
+  .levelUpSessionBuilderGrid,
   .levelUpTodayPlanGrid,
   .levelUpTodayMission,
   .levelUpSessionDock,
@@ -8046,6 +8196,8 @@
   .levelUpOverviewGrid,
   .levelUpCoachAssignmentBanner,
   .levelUpTodayDashboardGrid,
+  .levelUpSessionBuilderControls,
+  .levelUpSessionBuilderGrid,
   .levelUpTodayPlanGrid,
   .levelUpTodayMission,
   .levelUpSessionDock,

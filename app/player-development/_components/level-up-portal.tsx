@@ -66,6 +66,14 @@ type TodayPlanItem = {
   proof: string
 }
 
+type SessionFocus = 'serve' | 'movement' | 'pressure' | 'fitness' | 'match'
+
+type SessionBuilderItem = {
+  label: string
+  card: LevelUpCard
+  why: string
+}
+
 const emptyFilters: FilterState = {
   category: 'all',
   pack: 'all',
@@ -78,6 +86,16 @@ const emptyFilters: FilterState = {
 }
 
 const STORED_STATE_HYDRATION_DELAY_MS = 2000
+
+const sessionDurationOptions = [10, 20, 30, 45]
+
+const sessionFocusOptions = [
+  { value: 'serve', label: 'Serve', tags: ['serve-routine', 'serve-target', 'serve-plus-one'], copy: 'Build a serve habit you can take into points.' },
+  { value: 'movement', label: 'Movement', tags: ['recovery-after-contact', 'light-feet', 'first-step'], copy: 'Move, recover, and get balanced before the next ball.' },
+  { value: 'pressure', label: 'Pressure', tags: ['pressure-reset', 'between-points', 'decision-quality'], copy: 'Practice the reset before the score gets loud.' },
+  { value: 'fitness', label: 'Fitness', tags: ['leg-durability', 'conditioning', 'posture-under-fatigue'], copy: 'Connect off-court work to tennis posture and legs.' },
+  { value: 'match', label: 'Match prep', tags: ['match-day', 'return-intent', 'crosscourt-build'], copy: 'Warm up the habits you want to trust in play.' },
+] satisfies { value: SessionFocus; label: string; tags: string[]; copy: string }[]
 
 const intentPresets = [
   {
@@ -113,6 +131,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
   const [showAllCards, setShowAllCards] = useState(false)
   const [selectedIntent, setSelectedIntent] = useState('Recommended')
+  const [sessionMinutes, setSessionMinutes] = useState(20)
+  const [sessionFocus, setSessionFocus] = useState<SessionFocus>('movement')
   const [activeCardTitle, setActiveCardTitle] = useState<string | null>(null)
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [completions, logCompletion] = useLevelUpCompletions()
@@ -175,6 +195,14 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     nextBestRep,
   })
   const todayPlan = buildTodayPlan({ startCards })
+  const sessionPlan = buildSessionBuilderPlan({
+    minutes: sessionMinutes,
+    focus: sessionFocus,
+    identityCards,
+    filteredCards,
+    quickWins,
+    nextBestCard: nextBestRep.card,
+  })
 
   function startCardFromPlan(cardId: string) {
     scrollToStartList(startListRef)
@@ -218,6 +246,16 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         recentProofRead={recentProofRead}
         favoriteCount={favorites.length}
         completionCount={completions.length}
+        onStartCard={startCardFromPlan}
+      />
+
+      <LevelUpSessionBuilder
+        minutes={sessionMinutes}
+        focus={sessionFocus}
+        items={sessionPlan}
+        activeCardTitle={activeCardTitle}
+        onMinutesChange={setSessionMinutes}
+        onFocusChange={setSessionFocus}
         onStartCard={startCardFromPlan}
       />
 
@@ -450,6 +488,78 @@ function LevelUpNextBestRepPanel({ nextBestRep, onStartCard }: { nextBestRep: Ne
         <small>Proof target: {nextBestRep.proof}</small>
       </div>
       <button type="button" className="button-primary" onClick={() => onStartCard(nextBestRep.card.id)}>Start card</button>
+    </section>
+  )
+}
+
+function LevelUpSessionBuilder({
+  minutes,
+  focus,
+  items,
+  activeCardTitle,
+  onMinutesChange,
+  onFocusChange,
+  onStartCard,
+}: {
+  minutes: number
+  focus: SessionFocus
+  items: SessionBuilderItem[]
+  activeCardTitle: string | null
+  onMinutesChange: (minutes: number) => void
+  onFocusChange: (focus: SessionFocus) => void
+  onStartCard: (cardId: string) => void
+}) {
+  const focusOption = sessionFocusOptions.find((option) => option.value === focus) ?? sessionFocusOptions[0]
+  const totalMinutes = items.reduce((sum, item) => sum + item.card.durationMinutes, 0)
+
+  return (
+    <section className={styles.levelUpSessionBuilder} aria-label="Build today's session">
+      <div className={styles.levelUpRailHeader}>
+        <span>Build Today&apos;s Session</span>
+        <h2>{activeCardTitle ? 'Stay in the rep you started.' : `${minutes} minutes for ${focusOption.label.toLowerCase()}.`}</h2>
+        <p>{activeCardTitle ? 'When a card is open, keep the screen focused. Score proof, then rebuild the next block.' : focusOption.copy}</p>
+      </div>
+      <div className={styles.levelUpSessionBuilderControls}>
+        <div aria-label="Session length">
+          <span>Time</span>
+          {sessionDurationOptions.map((option) => (
+            <button key={option} type="button" data-active={minutes === option ? 'true' : 'false'} onClick={() => onMinutesChange(option)}>
+              {option} min
+            </button>
+          ))}
+        </div>
+        <div aria-label="Session focus">
+          <span>Focus</span>
+          {sessionFocusOptions.map((option) => (
+            <button key={option.value} type="button" data-active={focus === option.value ? 'true' : 'false'} onClick={() => onFocusChange(option.value)}>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={styles.levelUpSessionBuilderSummary}>
+        <strong>{items.length} cards</strong>
+        <span>{totalMinutes} planned minutes</span>
+        <small>Start with the first card. Add the next only if the proof quality stays clean.</small>
+      </div>
+      <div className={styles.levelUpSessionBuilderGrid}>
+        {items.map((item, index) => (
+          <button
+            key={`${item.label}-${item.card.id}`}
+            type="button"
+            className={item.card.title === activeCardTitle ? styles.levelUpTodayPlanActive : undefined}
+            onClick={() => onStartCard(item.card.id)}
+          >
+            <span>{index + 1}</span>
+            <div>
+              <b>{item.label}</b>
+              <strong>{item.card.title}</strong>
+              <small>{item.why}</small>
+              <small>Proof: {item.card.proof}</small>
+            </div>
+          </button>
+        ))}
+      </div>
     </section>
   )
 }
@@ -1997,6 +2107,76 @@ function buildTodayPlan({ startCards }: { startCards: LevelUpCard[] }): TodayPla
     card,
     proof: card.proof,
   }))
+}
+
+function buildSessionBuilderPlan({
+  minutes,
+  focus,
+  identityCards,
+  filteredCards,
+  quickWins,
+  nextBestCard,
+}: {
+  minutes: number
+  focus: SessionFocus
+  identityCards: LevelUpCard[]
+  filteredCards: LevelUpCard[]
+  quickWins: LevelUpCard[]
+  nextBestCard: LevelUpCard
+}): SessionBuilderItem[] {
+  const focusOption = sessionFocusOptions.find((option) => option.value === focus) ?? sessionFocusOptions[0]
+  const pool = uniqueCards([nextBestCard, ...identityCards, ...filteredCards, ...quickWins])
+  const targetCount = minutes <= 10 ? 2 : minutes <= 20 ? 3 : 4
+  const maxCardMinutes = minutes <= 10 ? 10 : minutes <= 20 ? 12 : 18
+  const labels = minutes <= 10
+    ? ['Start clean', 'Score proof']
+    : minutes <= 20
+      ? ['Warm the habit', 'Train the rep', 'Score under intent']
+      : ['Warm the habit', 'Train the rep', 'Add pressure', 'Score and save']
+
+  const focusCards = pool.filter((card) => card.durationMinutes <= maxCardMinutes && tagsOverlap(card.tags, focusOption.tags))
+  const warmUpCard = findSessionCard(pool, focusOption.tags, ['match-day', 'mobility', 'warm-up', 'light-feet'], maxCardMinutes)
+  const coreCard = focusCards[0] ?? nextBestCard
+  const pressureCard = findSessionCard(pool, focusOption.tags, ['pressure-reset', 'decision-quality', 'between-points'], maxCardMinutes)
+  const quickProofCard = quickWins.find((card) => card.durationMinutes <= 10 && (tagsOverlap(card.tags, focusOption.tags) || card.id === nextBestCard.id))
+  const longerFinishCard = findSessionCard(pool, focusOption.tags, ['conditioning', 'posture-under-fatigue', 'match-day'], maxCardMinutes)
+
+  const candidates = uniqueCards([warmUpCard, coreCard, pressureCard, quickProofCard, longerFinishCard, ...focusCards, nextBestCard])
+    .filter((card) => card.durationMinutes <= maxCardMinutes)
+    .slice(0, targetCount)
+
+  return candidates.map((card, index) => ({
+    label: labels[index] ?? 'Next useful rep',
+    card,
+    why: getSessionBuilderWhy(card, focusOption.label),
+  }))
+}
+
+function findSessionCard(cards: LevelUpCard[], focusTags: string[], preferredTags: string[], maxMinutes: number) {
+  return cards.find((card) => (
+    card.durationMinutes <= maxMinutes
+    && tagsOverlap(card.tags, preferredTags)
+    && (tagsOverlap(card.tags, focusTags) || preferredTags.includes('match-day') || preferredTags.includes('mobility'))
+  ))
+}
+
+function getSessionBuilderWhy(card: LevelUpCard, focusLabel: string) {
+  if (card.durationMinutes <= 10) return `Quick ${focusLabel.toLowerCase()} rep you can finish and rate.`
+  if (card.setting.includes('court')) return `Court-ready work tied to ${card.tennisGoal.toLowerCase()}.`
+  if (card.category === 'strength-stability' || card.category === 'conditioning') return `Physical work connected to ${card.tennisGoal.toLowerCase()}.`
+  return `Builds the ${focusLabel.toLowerCase()} habit without needing a long setup.`
+}
+
+function tagsOverlap(left: string[], right: string[]) {
+  return left.some((tag) => right.includes(tag))
+}
+
+function uniqueCards(cards: Array<LevelUpCard | undefined>) {
+  return cards.filter((card, index, list): card is LevelUpCard => {
+    if (!card) return false
+
+    return list.findIndex((candidate) => candidate?.id === card.id) === index
+  })
 }
 
 function buildAdaptiveCardReason(nextBestRep: NextBestRep) {
