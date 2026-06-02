@@ -1739,6 +1739,17 @@
   padding: 9px;
 }
 
+.levelUpNetSoloReps {
+  display: grid;
+  grid-template-columns: auto minmax(175px, 0.72fr) repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  align-items: stretch;
+  border: 1px solid rgba(155, 225, 29, 0.16);
+  border-radius: 14px;
+  background: rgba(155, 225, 29, 0.04);
+  padding: 9px;
+}
+
 .levelUpNetPressureGames {
   display: grid;
   grid-template-columns: auto minmax(175px, 0.72fr) repeat(3, minmax(0, 1fr));
@@ -1848,6 +1859,20 @@
   text-transform: uppercase;
 }
 
+.levelUpNetSoloReps > span {
+  display: grid;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.11);
+  color: #d8f7a4;
+  padding: 8px 10px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .levelUpNetPressureGames > span {
   display: grid;
   align-items: center;
@@ -1901,6 +1926,14 @@
 }
 
 .levelUpNetFeedMenu > strong {
+  display: grid;
+  align-items: center;
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.levelUpNetSoloReps > strong {
   display: grid;
   align-items: center;
   color: var(--foreground-strong);
@@ -1963,6 +1996,17 @@
   gap: 5px;
   min-width: 0;
   border: 1px solid rgba(155, 225, 29, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 9px;
+}
+
+.levelUpNetSoloReps article {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.13);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   padding: 9px;
@@ -2084,6 +2128,16 @@
   line-height: 1.15;
 }
 
+.levelUpNetSoloReps b {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--brand-blue-2);
+  padding: 4px 7px;
+  font-size: 0.66rem;
+  line-height: 1.15;
+}
+
 .levelUpNetPressureGames b {
   width: fit-content;
   border-radius: 999px;
@@ -2121,6 +2175,7 @@
 .levelUpNetTargetMap small,
 .levelUpNetLiveBridge small,
 .levelUpNetFeedMenu small,
+.levelUpNetSoloReps small,
 .levelUpNetPressureGames small,
 .levelUpNetMissDecoder small,
 .levelUpNetFixGrid small,
@@ -2162,6 +2217,14 @@
   line-height: 1.25;
 }
 
+.levelUpNetSoloReps em {
+  color: var(--foreground-strong);
+  font-size: 0.73rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
 .levelUpNetPressureGames em {
   color: var(--foreground-strong);
   font-size: 0.73rem;
@@ -2196,6 +2259,14 @@
 
 .levelUpNetFeedMenu i {
   color: var(--brand-blue-2);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.levelUpNetSoloReps i {
+  color: var(--brand-green-3);
   font-size: 0.7rem;
   font-style: normal;
   font-weight: 850;
@@ -8819,6 +8890,7 @@
   .levelUpNetTargetMap,
   .levelUpNetLiveBridge,
   .levelUpNetFeedMenu,
+  .levelUpNetSoloReps,
   .levelUpNetPressureGames,
   .levelUpNetMissDecoder,
   .levelUpNetFixGrid,
@@ -8958,6 +9030,7 @@
   .levelUpNetTargetMap,
   .levelUpNetLiveBridge,
   .levelUpNetFeedMenu,
+  .levelUpNetSoloReps,
   .levelUpNetPressureGames,
   .levelUpNetMissDecoder,
   .levelUpNetFixGrid,

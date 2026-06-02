@@ -112,6 +112,13 @@ type NetConfidenceFeedMenuItem = {
   proof: string
 }
 
+type NetConfidenceSoloRep = {
+  rep: string
+  setup: string
+  playerJob: string
+  proof: string
+}
+
 type NetConfidencePressureGame = {
   game: string
   setup: string
@@ -814,6 +821,7 @@ function LevelUpNetConfidenceLadder({
   const targetMap = buildNetConfidenceTargetMap()
   const liveBridge = buildNetConfidenceLiveBridge()
   const feedMenu = buildNetConfidenceFeedMenu()
+  const soloReps = buildNetConfidenceSoloReps()
   const pressureGames = buildNetConfidencePressureGames()
   const missDecoder = buildNetConfidenceMissDecoder(items)
 
@@ -876,6 +884,18 @@ function LevelUpNetConfidenceLadder({
           <article key={item.feed}>
             <b>{item.feed}</b>
             <small>{item.feederJob}</small>
+            <em>{item.playerJob}</em>
+            <i>{item.proof}</i>
+          </article>
+        ))}
+      </div>
+      <div className={styles.levelUpNetSoloReps} aria-label="Net solo reps">
+        <span>No-partner reps</span>
+        <strong>Train the net habit even when you are alone.</strong>
+        {soloReps.map((item) => (
+          <article key={item.rep}>
+            <b>{item.rep}</b>
+            <small>{item.setup}</small>
             <em>{item.playerJob}</em>
             <i>{item.proof}</i>
           </article>
@@ -2716,6 +2736,29 @@ function buildNetConfidenceFeedMenu(): NetConfidenceFeedMenuItem[] {
       feederJob: 'After the first volley, feed one more ball into open space.',
       playerJob: 'Recover before watching and be ready for the second touch.',
       proof: 'Use when the player wins the first touch but freezes after.',
+    },
+  ]
+}
+
+function buildNetConfidenceSoloReps(): NetConfidenceSoloRep[] {
+  return [
+    {
+      rep: 'Shadow close + split',
+      setup: 'Start at the service line, shadow an approach, close two steps, split, freeze.',
+      playerJob: 'Say the target before the freeze: deep middle, short angle, or behind.',
+      proof: 'Score: balanced split and target call 0-5',
+    },
+    {
+      rep: 'Wall touch reset',
+      setup: 'Use a wall for short volley touches from a balanced ready position.',
+      playerJob: 'Touch, reset hands in front, recover one step after every ball.',
+      proof: 'Score: quiet hands and reset 0-5',
+    },
+    {
+      rep: 'Recover before look',
+      setup: 'Shadow the first volley, recover forward, then turn to check the result.',
+      playerJob: 'Train the sequence: contact, recover, then look.',
+      proof: 'Score: recover before watching 0-5',
     },
   ]
 }
