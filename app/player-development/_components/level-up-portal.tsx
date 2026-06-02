@@ -206,6 +206,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         module={todayModule}
         identitySlug={identitySlug}
         completionSummary={completionSummaryByCardId.get(coachChallengeCard.id)}
+        onStartCard={startCardFromPlan}
       />
 
       <LevelUpTodayDashboard
@@ -217,7 +218,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         recentProofRead={recentProofRead}
         favoriteCount={favorites.length}
         completionCount={completions.length}
-        identitySlug={identitySlug}
+        onStartCard={startCardFromPlan}
       />
 
       <LevelUpTodayPlan items={todayPlan} activeCardTitle={activeCardTitle} onStartCard={startCardFromPlan} />
@@ -388,7 +389,7 @@ function LevelUpTodayDashboard({
   recentProofRead,
   favoriteCount,
   completionCount,
-  identitySlug,
+  onStartCard,
 }: {
   coachChallengeCard: LevelUpCard
   todayModule: LevelUpModule
@@ -398,7 +399,7 @@ function LevelUpTodayDashboard({
   recentProofRead: string
   favoriteCount: number
   completionCount: number
-  identitySlug: string
+  onStartCard: (cardId: string) => void
 }) {
   return (
     <section className={styles.levelUpTodayDashboard} aria-label="Today dashboard">
@@ -408,21 +409,21 @@ function LevelUpTodayDashboard({
         <p>One coach challenge, one recommended mission, one fast start, and one proof read.</p>
       </div>
       <div className={styles.levelUpTodayDashboardGrid}>
-        <a href={buildCardStartHref(identitySlug, coachChallengeCard)}>
+        <button type="button" onClick={() => onStartCard(coachChallengeCard.id)}>
           <span>Coach challenge</span>
           <strong>{coachChallengeCard.title}</strong>
           <small>{coachChallengeCard.proof}</small>
-        </a>
+        </button>
         <a href="#today-mission">
           <span>Recommended</span>
           <strong>{todayModule.title}</strong>
           <small>Start with {todayCard.title}.</small>
         </a>
-        <a href={buildCardStartHref(identitySlug, quickStartCard)}>
+        <button type="button" onClick={() => onStartCard(quickStartCard.id)}>
           <span>{favoriteCount ? 'Favorite start' : 'Quick start'}</span>
           <strong>{quickStartCard.title}</strong>
           <small>{quickStartCard.durationMinutes} min - {quickStartCard.setting.join(', ')}</small>
-        </a>
+        </button>
         <a href={completionCount ? '#recently-completed' : '#level-up-start-here'}>
           <span>Proof trend</span>
           <strong>{recentProofRead}</strong>
@@ -551,12 +552,14 @@ function LevelUpCoachAssignmentBanner({
   module,
   identitySlug,
   completionSummary,
+  onStartCard,
 }: {
   assignment: LevelUpAssignment
   card: LevelUpCard
   module: LevelUpModule
   identitySlug: string
   completionSummary?: CompletionSummary
+  onStartCard: (cardId: string) => void
 }) {
   const readyToSend = Boolean(completionSummary)
   const statusLabel = readyToSend ? 'Ready to send' : 'Assigned'
@@ -582,7 +585,11 @@ function LevelUpCoachAssignmentBanner({
         <strong>{assignment.proofRequired ?? card.proof}</strong>
         <small>One assigned tool. One proof score. One update back to coach.</small>
       </div>
-      <a className="button-primary" href={primaryActionHref}>{primaryActionLabel}</a>
+      {readyToSend ? (
+        <a className="button-primary" href={primaryActionHref}>{primaryActionLabel}</a>
+      ) : (
+        <button type="button" className="button-primary" onClick={() => onStartCard(card.id)}>{primaryActionLabel}</button>
+      )}
     </section>
   )
 }

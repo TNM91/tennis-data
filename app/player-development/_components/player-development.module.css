@@ -1428,22 +1428,29 @@
   gap: 10px;
 }
 
-.levelUpTodayDashboardGrid a {
+.levelUpTodayDashboardGrid a,
+.levelUpTodayDashboardGrid button {
   display: grid;
   align-content: start;
   gap: 7px;
   min-height: 132px;
+  cursor: pointer;
   border: 1px solid rgba(116, 190, 255, 0.16);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.045);
   color: var(--foreground);
+  font: inherit;
   padding: 12px;
+  text-align: left;
   text-decoration: none;
 }
 
 .levelUpTodayDashboardGrid a:first-child,
 .levelUpTodayDashboardGrid a:hover,
-.levelUpTodayDashboardGrid a:focus-visible {
+.levelUpTodayDashboardGrid a:focus-visible,
+.levelUpTodayDashboardGrid button:first-child,
+.levelUpTodayDashboardGrid button:hover,
+.levelUpTodayDashboardGrid button:focus-visible {
   border-color: rgba(155, 225, 29, 0.42);
   background: rgba(155, 225, 29, 0.08);
 }
