@@ -105,6 +105,13 @@ type NetConfidenceLiveBridgeItem = {
   moveOn: string
 }
 
+type NetConfidencePressureGame = {
+  game: string
+  setup: string
+  winCondition: string
+  proof: string
+}
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -792,6 +799,7 @@ function LevelUpNetConfidenceLadder({
   const readinessChecks = buildNetConfidenceReadinessChecks()
   const targetMap = buildNetConfidenceTargetMap()
   const liveBridge = buildNetConfidenceLiveBridge()
+  const pressureGames = buildNetConfidencePressureGames()
 
   return (
     <section className={styles.levelUpNetLadder} aria-label="Net confidence ladder">
@@ -842,6 +850,18 @@ function LevelUpNetConfidenceLadder({
             <small>{item.setup}</small>
             <em>{item.score}</em>
             <i>{item.moveOn}</i>
+          </article>
+        ))}
+      </div>
+      <div className={styles.levelUpNetPressureGames} aria-label="Net pressure games">
+        <span>Pressure games</span>
+        <strong>Compete with the habit, not just the score.</strong>
+        {pressureGames.map((item) => (
+          <article key={item.game}>
+            <b>{item.game}</b>
+            <small>{item.setup}</small>
+            <em>{item.winCondition}</em>
+            <i>{item.proof}</i>
           </article>
         ))}
       </div>
@@ -2633,6 +2653,29 @@ function buildNetConfidenceLiveBridge(): NetConfidenceLiveBridgeItem[] {
       setup: 'Start the point with approach plus first volley, then play it out.',
       score: 'Score the first-volley decision, not whether you won the point.',
       moveOn: 'Repeat if the decision gets rushed; level up if proof stays 4+.',
+    },
+  ]
+}
+
+function buildNetConfidencePressureGames(): NetConfidencePressureGame[] {
+  return [
+    {
+      game: 'First Volley 7',
+      setup: 'Play to 7 starting with an approach plus first volley.',
+      winCondition: 'You only earn the point if the first volley had a called target.',
+      proof: 'Track: target call before contact 0-5',
+    },
+    {
+      game: 'No Watch Bonus',
+      setup: 'Play approach points. After every volley, recover before watching the result.',
+      winCondition: 'Earn a bonus point when close, split, volley, recover all happen.',
+      proof: 'Track: recover after volley 0-5',
+    },
+    {
+      game: 'Two-Volley Finish',
+      setup: 'Start at net after a controlled approach. Opponent gets one pass attempt.',
+      winCondition: 'Win by making the first volley useful and being ready for the second.',
+      proof: 'Track: ready for next ball 0-5',
     },
   ]
 }

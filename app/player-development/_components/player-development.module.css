@@ -1728,6 +1728,17 @@
   padding: 9px;
 }
 
+.levelUpNetPressureGames {
+  display: grid;
+  grid-template-columns: auto minmax(175px, 0.72fr) repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  align-items: stretch;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(116, 190, 255, 0.04);
+  padding: 9px;
+}
+
 .levelUpNetLadderGrid button {
   display: grid;
   align-content: start;
@@ -1801,6 +1812,20 @@
   text-transform: uppercase;
 }
 
+.levelUpNetPressureGames > span {
+  display: grid;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--brand-blue-2);
+  padding: 8px 10px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .levelUpNetReadiness > strong {
   display: grid;
   align-items: center;
@@ -1818,6 +1843,14 @@
 }
 
 .levelUpNetLiveBridge > strong {
+  display: grid;
+  align-items: center;
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.levelUpNetPressureGames > strong {
   display: grid;
   align-items: center;
   color: var(--foreground-strong);
@@ -1853,6 +1886,17 @@
   gap: 5px;
   min-width: 0;
   border: 1px solid rgba(116, 190, 255, 0.13);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 9px;
+}
+
+.levelUpNetPressureGames article {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.14);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   padding: 9px;
@@ -1935,6 +1979,16 @@
   line-height: 1.15;
 }
 
+.levelUpNetPressureGames b {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 4px 7px;
+  font-size: 0.66rem;
+  line-height: 1.15;
+}
+
 .levelUpNetLadderGrid strong {
   color: var(--foreground-strong);
   font-size: 0.92rem;
@@ -1951,6 +2005,7 @@
 .levelUpNetReadiness small,
 .levelUpNetTargetMap small,
 .levelUpNetLiveBridge small,
+.levelUpNetPressureGames small,
 .levelUpNetFixGrid small,
 .levelUpNetLadderCue {
   color: var(--muted-strong);
@@ -1982,6 +2037,14 @@
   line-height: 1.25;
 }
 
+.levelUpNetPressureGames em {
+  color: var(--foreground-strong);
+  font-size: 0.73rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
 .levelUpNetTargetMap i {
   color: var(--brand-blue-2);
   font-size: 0.7rem;
@@ -1992,6 +2055,14 @@
 
 .levelUpNetLiveBridge i {
   color: var(--brand-green-3);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.levelUpNetPressureGames i {
+  color: var(--brand-blue-2);
   font-size: 0.7rem;
   font-style: normal;
   font-weight: 850;
@@ -8594,6 +8665,7 @@
   .levelUpNetReadiness,
   .levelUpNetTargetMap,
   .levelUpNetLiveBridge,
+  .levelUpNetPressureGames,
   .levelUpNetFixGrid,
   .levelUpReturnTrainingGrid,
   .levelUpTodayPlanGrid,
@@ -8730,6 +8802,7 @@
   .levelUpNetReadiness,
   .levelUpNetTargetMap,
   .levelUpNetLiveBridge,
+  .levelUpNetPressureGames,
   .levelUpNetFixGrid,
   .levelUpTodayPlanGrid,
   .levelUpTodayMission,
