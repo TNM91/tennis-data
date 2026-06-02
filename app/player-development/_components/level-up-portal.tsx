@@ -141,7 +141,9 @@ type NetConfidenceTabGuide = {
   title: string
   useWhen: string
   doThis: string
+  block: string
   score: string
+  moveOn: string
   startCardId: string
 }
 
@@ -875,7 +877,9 @@ function LevelUpNetConfidenceLadder({
             <strong>{activeGuide.title}</strong>
             <p><b>Use when:</b> {activeGuide.useWhen}</p>
             <p><b>Do:</b> {activeGuide.doThis}</p>
+            <p><b>Block:</b> {activeGuide.block}</p>
             <p><b>Score:</b> {activeGuide.score}</p>
+            <p><b>Move on:</b> {activeGuide.moveOn}</p>
             <button type="button" onClick={() => onStartCard(activeGuide.startCardId)}>
               Start recommended rep
             </button>
@@ -2896,7 +2900,9 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       title: 'Build the net habit in order.',
       useWhen: 'You are not sure which net rep to run or confidence feels uneven.',
       doThis: 'Run the ladder from close to split to target call before playing points.',
+      block: '3 rounds: close-only, split timing, then target call plus volley.',
       score: 'Close, split, target, compact contact 0-5.',
+      moveOn: 'Go to Feed when 3 of 4 readiness checks are clean.',
       startCardId: byCardId.get('short-ball-close-split')?.id ?? fallbackCardId,
     },
     {
@@ -2905,7 +2911,9 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       title: 'Ask for the feed that matches the miss.',
       useWhen: 'Someone can feed and you need controlled reps before live play.',
       doThis: 'Tell the feeder the exact ball, then score only the first-volley habit.',
+      block: '8 predictable feeds, 8 two-lane reads, then 6 approach points.',
       score: '6 of 8 clean before adding pace or direction changes.',
+      moveOn: 'Go to Compete when the target call stays early under variety.',
       startCardId: byCardId.get('approach-volley-close')?.id ?? fallbackCardId,
     },
     {
@@ -2914,7 +2922,9 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       title: 'Get useful reps without a feeder.',
       useWhen: 'You have a wall, open space, or five minutes before practice.',
       doThis: 'Shadow the close, freeze the split, say the target, then reset hands.',
+      block: '5 shadow closes, 20 wall touches, 5 recover-before-look reps.',
       score: 'Balanced freeze and quiet hands 0-5.',
+      moveOn: 'Go to Start or Feed when the body feels organized enough for balls.',
       startCardId: byCardId.get('reaction-volley-wall')?.id ?? fallbackCardId,
     },
     {
@@ -2923,7 +2933,9 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       title: 'Make the net habit survive the score.',
       useWhen: 'The mechanics are clean and you need it to hold up in points.',
       doThis: 'Play the game, but only reward points where the net habit happened.',
+      block: 'Play one race to 7, then repeat the same game with a tighter proof rule.',
       score: 'Decision quality, not just point result 0-5.',
+      moveOn: 'Keep competing if proof is 4+. Drop to Feed if the habit disappears.',
       startCardId: byCardId.get('volley-punch-target')?.id ?? fallbackCardId,
     },
     {
@@ -2932,7 +2944,9 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       title: 'Turn the last miss into the next rep.',
       useWhen: 'You know what broke: late split, big swing, no target, or watching.',
       doThis: 'Tap the miss, start the linked card, and keep the next block narrow.',
+      block: 'Pick one miss, run 5 correction reps, then test it in 3 live points.',
       score: 'Did the fix change the next 5 reps? 0-5.',
+      moveOn: 'Return to the tab where the miss showed up and retest.',
       startCardId: byCardId.get('volley-ready-split')?.id ?? fallbackCardId,
     },
   ]
