@@ -484,7 +484,25 @@
 .levelUpPortalApp[data-session-focus='active'] .levelUpFilters,
 .levelUpPortalApp[data-session-focus='active'] .levelUpModuleGrid,
 .levelUpPortalApp[data-session-focus='active'] .levelUpCardGrid {
-  opacity: 0.48;
+  display: none;
+}
+
+.levelUpPortalApp[data-session-focus='active'] .levelUpRail:not(:has([data-activity='true'])),
+.levelUpPortalApp[data-session-focus='active'] .levelUpTodayMission:not(:has([data-activity='true'])) {
+  display: none;
+}
+
+.levelUpPortalApp[data-session-focus='active'] .levelUpCardTile:not([data-activity='true']) {
+  display: none;
+}
+
+.levelUpPortalApp[data-session-focus='active'] .levelUpStartList {
+  padding-block: 12px;
+}
+
+.levelUpPortalApp[data-session-focus='active'] .levelUpStartList .levelUpRailHeader,
+.levelUpPortalApp[data-session-focus='active'] .levelUpStartList .levelUpAdaptiveStartHint {
+  display: none;
 }
 
 .levelUpActiveSessionBar {
