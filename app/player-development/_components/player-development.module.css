@@ -583,6 +583,7 @@
   max-width: 100%;
   min-width: 0;
   padding: clamp(16px, 3vw, 24px);
+  width: 100%;
 }
 
 .levelUpOverviewGrid {
@@ -685,6 +686,7 @@
   list-style: none;
   max-width: 100%;
   overflow: hidden;
+  width: 100%;
 }
 
 .levelUpRailSummary::-webkit-details-marker {
@@ -9769,9 +9771,12 @@
     display: flex;
     gap: 8px;
     margin-inline: -2px;
+    max-width: 100%;
+    min-width: 0;
     overflow-x: auto;
     padding: 0 2px 2px;
     scroll-snap-type: x proximity;
+    width: 100%;
   }
 
   .levelUpPortalLanes article,

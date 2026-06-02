@@ -65,16 +65,20 @@ for (const viewport of viewports) {
       const metrics = await page.evaluate(() => {
         const doc = document.documentElement
         const body = document.body
+        const isContainedHorizontalScroller = (element) => {
+          const style = window.getComputedStyle(element)
+          const overflowX = style.overflowX
+
+          return (
+            element.scrollWidth > element.clientWidth + 1
+            && (overflowX === 'auto' || overflowX === 'scroll')
+          )
+        }
         const hasHorizontalScrollParent = (element) => {
           let current = element.parentElement
 
           while (current && current !== document.body) {
-            const style = window.getComputedStyle(current)
-            const overflowX = style.overflowX
-            if (
-              current.scrollWidth > current.clientWidth + 1
-              && (overflowX === 'auto' || overflowX === 'scroll')
-            ) {
+            if (isContainedHorizontalScroller(current)) {
               return true
             }
             current = current.parentElement
@@ -88,6 +92,9 @@ for (const viewport of viewports) {
             const style = window.getComputedStyle(element)
             if (rect.width === 0 || rect.height === 0) return false
             if (style.position === 'absolute' || style.position === 'fixed') return false
+            if (isContainedHorizontalScroller(element) && rect.left >= -1 && rect.right <= window.innerWidth + 1) {
+              return false
+            }
             if (hasHorizontalScrollParent(element)) return false
             return rect.right > window.innerWidth + 1 || rect.left < -1
           })
