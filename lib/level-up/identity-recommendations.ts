@@ -145,6 +145,41 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Doubles Commander because this path builds partner first move, poach timing, middle ownership, return intent, and pressure communication.',
   },
+  'all-court-adapter-4-0': {
+    identitySlug: 'all-court-adapter-4-0',
+    featuredModuleIds: [
+      'crosscourt-build-before-change',
+      'return-intent',
+      'serve-plus-one-clarity',
+      'attack-balance',
+      'forward-close',
+      'wide-ball-reset',
+      'pressure-reset',
+    ],
+    starterCardIds: [
+      'defense-neutral-attack-rally',
+      'crosscourt-consistency',
+      'return-depth-lane',
+      'serve-1-shadow',
+      'short-ball-close-split',
+      'approach-volley-close',
+      'wide-ball-neutralizer',
+      'three-step-reset',
+    ],
+    focusTags: [
+      'decision-quality',
+      'crosscourt-build',
+      'return-intent',
+      'serve-plus-one',
+      'attack-balance',
+      'forward-close',
+      'wide-ball-reset',
+      'pressure-reset',
+    ],
+    lanePriority: ['singles', 'return', 'serve', 'forehand', 'backhand', 'volley', 'movement', 'fitness'],
+    recommendationCopy:
+      'Recommended for All-Court Adapter because this path builds decision quality, point-start patterns, transition timing, reset discipline, and match adaptation.',
+  },
   default: {
     identitySlug: 'default',
     featuredModuleIds: [

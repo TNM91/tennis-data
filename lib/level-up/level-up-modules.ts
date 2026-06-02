@@ -86,7 +86,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['serve-target-call', 'serve-1-shadow', 'serve-1-partner'],
     tags: ['serve-plus-one', 'serve-target', 'decision-quality'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'all-court-adapter-4-0'],
     proof: 'Serve +1 clarity 0-5',
   },
   {
@@ -105,7 +105,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '6 cards / 30 minutes',
     cardIds: ['return-shadow-split-read', 'return-step-in-game', 'return-depth-lane', 'second-serve-attack-or-build', 'return-plus-one-recover', 'return-30-30-game'],
     tags: ['return-intent', 'return-recovery', 'decision-quality', 'pressure-reset'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'doubles-commander-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'doubles-commander-4-0', 'all-court-adapter-4-0'],
     proof: 'Return intent 0-5',
   },
   {
@@ -124,7 +124,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 18 minutes',
     cardIds: ['wide-ball-neutralizer', 'drop-step-recovery', 'three-step-reset'],
     tags: ['wide-ball-reset', 'defense-to-neutral', 'pressure-reset'],
-    identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Defense to neutral 0-5',
   },
   {
@@ -136,7 +136,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '4 cards / 25 minutes',
     cardIds: ['basket-forehand-crosscourt', 'defense-neutral-attack-rally', 'single-leg-rdl', 'tight-arm-reset'],
     tags: ['attack-balance', 'decision-quality', 'balance'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'all-court-adapter-4-0'],
     proof: 'Attack balance 0-5',
   },
   {
@@ -148,7 +148,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['short-ball-close-split', 'cone-close-recover', 'poach-timing-shadow'],
     tags: ['forward-close', 'first-step', 'balance'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'all-court-adapter-4-0'],
     proof: 'Forward close 0-5',
   },
   {
@@ -160,7 +160,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['crosscourt-consistency', 'basket-forehand-crosscourt', 'basket-backhand-crosscourt'],
     tags: ['crosscourt-build', 'decision-quality', 'attack-balance'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Crosscourt build 0-5',
   },
   {
@@ -179,7 +179,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 10 minutes',
     cardIds: ['three-step-reset', 'tight-arm-reset', 'closing-game-routine'],
     tags: ['pressure-reset', 'between-points', 'quick-win'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'all-court-adapter-4-0'],
     proof: 'Reset used 0-5',
   },
   {
