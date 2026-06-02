@@ -9766,7 +9766,12 @@
   .levelUpStartList,
   .levelUpRail {
     contain: inline-size;
+    display: block;
     overflow: hidden;
+  }
+
+  .levelUpRail > * {
+    max-width: 100%;
   }
 
   .levelUpRailSummary {
