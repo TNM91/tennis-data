@@ -66,7 +66,7 @@ type TodayPlanItem = {
   proof: string
 }
 
-type SessionFocus = 'serve' | 'movement' | 'pressure' | 'fitness' | 'match'
+type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
   label: string
@@ -92,6 +92,7 @@ const sessionDurationOptions = [10, 20, 30, 45]
 
 const sessionFocusOptions = [
   { value: 'serve', label: 'Serve', tags: ['serve-routine', 'serve-target', 'serve-plus-one'], copy: 'Build a serve habit you can take into points.' },
+  { value: 'return', label: 'Return', tags: ['return-intent', 'return-recovery'], copy: 'Choose the return job early, make contact on purpose, and recover for ball two.' },
   { value: 'movement', label: 'Movement', tags: ['recovery-after-contact', 'light-feet', 'first-step'], copy: 'Move, recover, and get balanced before the next ball.' },
   { value: 'pressure', label: 'Pressure', tags: ['pressure-reset', 'between-points', 'decision-quality'], copy: 'Practice the reset before the score gets loud.' },
   { value: 'fitness', label: 'Fitness', tags: ['leg-durability', 'conditioning', 'posture-under-fatigue'], copy: 'Connect off-court work to tennis posture and legs.' },
@@ -2137,11 +2138,18 @@ function buildSessionBuilderPlan({
       : ['Warm the habit', 'Train the rep', 'Add pressure', 'Score and save']
 
   const focusCards = pool.filter((card) => card.durationMinutes <= maxCardMinutes && tagsOverlap(card.tags, focusOption.tags))
-  const warmUpCard = findSessionCard(pool, focusOption.tags, ['match-day', 'mobility', 'warm-up', 'light-feet'], maxCardMinutes)
-  const coreCard = focusCards[0] ?? nextBestCard
-  const pressureCard = findSessionCard(pool, focusOption.tags, ['pressure-reset', 'decision-quality', 'between-points'], maxCardMinutes)
+  const warmUpCard = findSessionCard(pool, focusOption.tags, ['match-day', 'mobility', 'warm-up', 'light-feet', 'split-step'], maxCardMinutes)
+  const coreCard = focusCards.find((card) => (
+    card.id !== warmUpCard?.id
+    && !card.tags.includes('pressure-reset')
+    && !card.tags.includes('between-points')
+  )) ?? focusCards[0] ?? nextBestCard
+  const pressureCard = findSessionCard(pool, focusOption.tags, ['pressure-reset', 'between-points'], maxCardMinutes)
+    ?? findSessionCard(pool, focusOption.tags, ['decision-quality'], maxCardMinutes)
   const quickProofCard = quickWins.find((card) => card.durationMinutes <= 10 && (tagsOverlap(card.tags, focusOption.tags) || card.id === nextBestCard.id))
-  const longerFinishCard = findSessionCard(pool, focusOption.tags, ['conditioning', 'posture-under-fatigue', 'match-day'], maxCardMinutes)
+  const longerFinishCard = focus === 'return'
+    ? undefined
+    : findSessionCard(pool, focusOption.tags, ['conditioning', 'posture-under-fatigue', 'match-day'], maxCardMinutes)
 
   const candidates = uniqueCards([warmUpCard, coreCard, pressureCard, quickProofCard, longerFinishCard, ...focusCards, nextBestCard])
     .filter((card) => card.durationMinutes <= maxCardMinutes)
@@ -2156,10 +2164,20 @@ function buildSessionBuilderPlan({
 }
 
 function findSessionCard(cards: LevelUpCard[], focusTags: string[], preferredTags: string[], maxMinutes: number) {
-  return cards.find((card) => (
+  const focusedMatch = cards.find((card) => (
     card.durationMinutes <= maxMinutes
     && tagsOverlap(card.tags, preferredTags)
-    && (tagsOverlap(card.tags, focusTags) || preferredTags.includes('match-day') || preferredTags.includes('mobility'))
+    && tagsOverlap(card.tags, focusTags)
+  ))
+
+  if (focusedMatch) return focusedMatch
+
+  return cards.find((card) => (
+    card.durationMinutes <= maxMinutes
+    && (
+      (preferredTags.includes('match-day') && card.tags.includes('match-day'))
+      || (preferredTags.includes('mobility') && card.tags.includes('mobility'))
+    )
   ))
 }
 
