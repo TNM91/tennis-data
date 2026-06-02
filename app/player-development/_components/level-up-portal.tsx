@@ -60,6 +60,13 @@ type CoachUpdateDigest = {
   shareText: string
 }
 
+type TodayPlanItem = {
+  label: string
+  card: LevelUpCard
+  proof: string
+  href: string
+}
+
 const emptyFilters: FilterState = {
   category: 'all',
   pack: 'all',
@@ -107,6 +114,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
   const [showAllCards, setShowAllCards] = useState(false)
   const [selectedIntent, setSelectedIntent] = useState('Recommended')
+  const [activeCardTitle, setActiveCardTitle] = useState<string | null>(null)
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [completions, logCompletion] = useLevelUpCompletions()
   const completionSummaryByCardId = useMemo(() => buildCompletionSummaryByCardId(completions), [completions])
@@ -167,9 +175,27 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     trainingPulse,
     nextBestRep,
   })
+  const todayPlan = buildTodayPlan({
+    identitySlug,
+    coachChallengeCard,
+    nextBestCard: nextBestRep.card,
+    quickStartCard,
+    matchDayCard: matchDayCards[0] ?? todayCard,
+  })
 
   return (
-    <section className={styles.levelUpPortalApp} aria-labelledby="level-up-portal-title">
+    <section
+      className={styles.levelUpPortalApp}
+      aria-labelledby="level-up-portal-title"
+      data-session-focus={activeCardTitle ? 'active' : 'idle'}
+    >
+      {activeCardTitle ? (
+        <div className={styles.levelUpActiveSessionBar} aria-live="polite">
+          <span>On-court mode</span>
+          <strong>{activeCardTitle}</strong>
+          <small>Finish the rep, score proof, then choose the next card.</small>
+        </div>
+      ) : null}
       <LevelUpHero identityTitle={identityTitle} recommendationCopy={profile.recommendationCopy} />
 
       <LevelUpCoachAssignmentBanner
@@ -192,6 +218,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         identitySlug={identitySlug}
       />
 
+      <LevelUpTodayPlan items={todayPlan} activeCardTitle={activeCardTitle} />
+
       <LevelUpNextBestRepPanel nextBestRep={nextBestRep} identitySlug={identitySlug} />
 
       <LevelUpTrainingPulsePanel pulse={trainingPulse} />
@@ -212,6 +240,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           completionSummary={completionSummaryByCardId.get(todayCard.id)}
           onFavorite={toggleFavorite}
           onComplete={logCompletion}
+          onActivityChange={setActiveCardTitle}
           startHref={buildCardStartHref(identitySlug, todayCard)}
         />
       </section>
@@ -246,6 +275,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         favorites={favorites}
         onFavorite={toggleFavorite}
         onComplete={logCompletion}
+        onActivityChange={setActiveCardTitle}
         identitySlug={identitySlug}
         nextBestRep={nextBestRep}
       />
@@ -268,13 +298,13 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         }}
       />
 
-      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} defaultOpen />
-      <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} identitySlug={identitySlug} />
-      <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Tap Favorite on a card to pin it here." identitySlug={identitySlug} defaultOpen={favoriteCards.length > 0} />
-      <LevelUpSmartRail id="recently-completed" title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} emptyText="Log a proof score to build this rail." identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
+      <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Match-Day Tools" cards={matchDayCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
+      <LevelUpSmartRail title="Favorites" cards={favoriteCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} emptyText="Tap Favorite on a card to pin it here." identitySlug={identitySlug} defaultOpen={favoriteCards.length > 0} />
+      <LevelUpSmartRail id="recently-completed" title="Recently Completed" cards={completedCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} emptyText="Log a proof score to build this rail." identitySlug={identitySlug} />
 
       <section className={styles.levelUpModuleGrid} aria-label="Level Up modules">
         <div className={styles.levelUpRailHeader}>
@@ -309,6 +339,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
               completionSummary={completionSummaryByCardId.get(card.id)}
               onFavorite={toggleFavorite}
               onComplete={logCompletion}
+              onActivityChange={setActiveCardTitle}
               startHref={buildCardStartHref(identitySlug, card)}
             />
           ))}
@@ -420,6 +451,34 @@ function LevelUpNextBestRepPanel({ nextBestRep, identitySlug }: { nextBestRep: N
   )
 }
 
+function LevelUpTodayPlan({ items, activeCardTitle }: { items: TodayPlanItem[]; activeCardTitle: string | null }) {
+  return (
+    <section className={styles.levelUpTodayPlan} aria-label="Today's plan">
+      <div className={styles.levelUpRailHeader}>
+        <span>Today&apos;s Plan</span>
+        <h2>{activeCardTitle ? 'Stay with the active card.' : 'One session, three useful reps.'}</h2>
+        <p>{activeCardTitle ? 'The library can wait. Finish the rep, score proof, then pick what comes next.' : 'Start with one assigned or recommended card, then add one quick rep and one match-ready habit if you have time.'}</p>
+      </div>
+      <div className={styles.levelUpTodayPlanGrid}>
+        {items.map((item, index) => (
+          <a
+            key={`${item.label}-${item.card.id}`}
+            href={item.href}
+            className={item.card.title === activeCardTitle ? styles.levelUpTodayPlanActive : undefined}
+          >
+            <span>{index + 1}</span>
+            <div>
+              <b>{item.label}</b>
+              <strong>{item.card.title}</strong>
+              <small>{item.proof}</small>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function LevelUpTrainingPulsePanel({ pulse }: { pulse: TrainingPulse }) {
   return (
     <section className={styles.levelUpTrainingPulse} aria-label="Training pulse">
@@ -518,7 +577,7 @@ function LevelUpCoachAssignmentBanner({
       <div className={styles.levelUpCoachAssignmentProof}>
         <span>Proof required</span>
         <strong>{assignment.proofRequired ?? card.proof}</strong>
-        <small>Score 0-5, add one tiny note only if it changes the next practice.</small>
+        <small>One assigned tool. One proof score. One update back to coach.</small>
       </div>
       <a className="button-primary" href={primaryActionHref}>{primaryActionLabel}</a>
     </section>
@@ -575,6 +634,7 @@ function LevelUpStartList({
   favorites,
   onFavorite,
   onComplete,
+  onActivityChange,
   identitySlug,
   nextBestRep,
 }: {
@@ -586,6 +646,7 @@ function LevelUpStartList({
   favorites: string[]
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
+  onActivityChange?: (cardTitle: string | null) => void
   identitySlug: string
   nextBestRep: NextBestRep
 }) {
@@ -613,6 +674,7 @@ function LevelUpStartList({
             completionSummary={completionSummaryByCardId.get(card.id)}
             onFavorite={onFavorite}
             onComplete={onComplete}
+            onActivityChange={onActivityChange}
             startHref={buildCardStartHref(identitySlug, card)}
           />
         ))}
@@ -652,6 +714,7 @@ function LevelUpSmartRail({
   favorites,
   onFavorite,
   onComplete,
+  onActivityChange,
   emptyText,
   identitySlug,
   defaultOpen,
@@ -664,6 +727,7 @@ function LevelUpSmartRail({
   favorites: string[]
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
+  onActivityChange?: (cardTitle: string | null) => void
   emptyText?: string
   identitySlug: string
   defaultOpen?: boolean
@@ -687,6 +751,7 @@ function LevelUpSmartRail({
               completionSummary={completionSummaryByCardId.get(card.id)}
               onFavorite={onFavorite}
               onComplete={onComplete}
+              onActivityChange={onActivityChange}
               startHref={buildCardStartHref(identitySlug, card)}
             />
           ))}
@@ -703,6 +768,7 @@ function LevelUpCardTile({
   completionSummary,
   onFavorite,
   onComplete,
+  onActivityChange,
   startHref,
 }: {
   card: LevelUpCard
@@ -711,6 +777,7 @@ function LevelUpCardTile({
   completionSummary?: CompletionSummary
   onFavorite: (cardId: string) => void
   onComplete: (cardId: string, rating: number, note: string) => void
+  onActivityChange?: (cardTitle: string | null) => void
   startHref: string
 }) {
   const cardRef = useRef<HTMLElement>(null)
@@ -812,6 +879,7 @@ function LevelUpCardTile({
 
   function startActivity() {
     setActivityOpen(true)
+    onActivityChange?.(card.title)
     setRepeatPlan(null)
     setFinishRecap(null)
     window.requestAnimationFrame(() => {
@@ -821,6 +889,7 @@ function LevelUpCardTile({
 
   function openLogger() {
     setActivityOpen(true)
+    onActivityChange?.(card.title)
     setLoggerOpen(true)
     setRating(suggestedRating)
     window.requestAnimationFrame(() => {
@@ -871,6 +940,7 @@ function LevelUpCardTile({
     setTimerRunning(false)
     setLoggerOpen(false)
     setActivityOpen(false)
+    onActivityChange?.(null)
     if (savedRating !== null) {
       setFinishRecap(buildFinishRecap({
         card,
@@ -916,7 +986,12 @@ function LevelUpCardTile({
           <div className={styles.levelUpActivityHeader}>
             <span>Active drill</span>
             <strong>Do this now. Log one honest score.</strong>
-            <button type="button" onClick={() => setActivityOpen(false)}>Collapse</button>
+            <button type="button" onClick={() => {
+              setActivityOpen(false)
+              onActivityChange?.(null)
+            }}>
+              Collapse
+            </button>
           </div>
           <div className={styles.levelUpActivityFocusBar} aria-label={`Current work state for ${card.title}`}>
             <div>
@@ -1732,6 +1807,42 @@ function buildAdaptiveStartCards({
   ))
 
   return startCards.slice(0, 3)
+}
+
+function buildTodayPlan({
+  identitySlug,
+  coachChallengeCard,
+  nextBestCard,
+  quickStartCard,
+  matchDayCard,
+}: {
+  identitySlug: string
+  coachChallengeCard: LevelUpCard
+  nextBestCard: LevelUpCard
+  quickStartCard: LevelUpCard
+  matchDayCard: LevelUpCard
+}): TodayPlanItem[] {
+  const candidates = [
+    { label: 'Coach or identity start', card: coachChallengeCard },
+    { label: 'Adaptive next rep', card: nextBestCard },
+    { label: 'Quick finish', card: quickStartCard },
+    { label: 'Match-ready habit', card: matchDayCard },
+  ]
+  const seen = new Set<string>()
+
+  return candidates
+    .filter(({ card }) => {
+      if (seen.has(card.id)) return false
+      seen.add(card.id)
+      return true
+    })
+    .slice(0, 3)
+    .map(({ label, card }) => ({
+      label,
+      card,
+      proof: card.proof,
+      href: buildCardStartHref(identitySlug, card),
+    }))
 }
 
 function buildAdaptiveCardReason(nextBestRep: NextBestRep) {
