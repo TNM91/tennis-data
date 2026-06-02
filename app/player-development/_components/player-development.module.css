@@ -2802,17 +2802,48 @@
   gap: 8px;
 }
 
-.completionLogger p {
+.completionLogger p,
+.levelUpLoggerHint {
   margin: 0;
   color: var(--muted-strong);
   font-size: 0.82rem;
   line-height: 1.35;
 }
 
+.completionLogger summary {
+  display: grid;
+  gap: 3px;
+}
+
+.completionLogger summary strong {
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+  line-height: 1.2;
+  text-transform: none;
+}
+
+.levelUpScorePad {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 48%),
+    rgba(5, 15, 30, 0.4);
+  padding: 9px;
+}
+
+.levelUpScorePad .levelUpProofScale,
+.levelUpScorePad .levelUpScoreButtons,
+.levelUpScorePad .levelUpProofNextStep {
+  grid-column: 1 / -1;
+}
+
 .levelUpProofScale {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+  width: 100%;
 }
 
 .levelUpProofScale span {
@@ -2825,6 +2856,76 @@
   font-size: 0.72rem;
   font-weight: 850;
   line-height: 1.22;
+}
+
+.levelUpScoreButtons {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.levelUpScoreButtons button {
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 7px 6px;
+  font-size: 0.95rem;
+}
+
+.levelUpTinyNoteDrawer {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 8px;
+}
+
+.levelUpTinyNoteDrawer summary {
+  cursor: pointer;
+  color: var(--brand-green-3);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.levelUpTinyNoteDrawer[open] > * + * {
+  margin-top: 8px;
+}
+
+.levelUpScoreSaveBar {
+  position: sticky;
+  bottom: 8px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(11, 29, 55, 0.94), rgba(5, 15, 30, 0.96)),
+    rgba(5, 15, 30, 0.92);
+  padding: 7px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+}
+
+.levelUpScoreSaveBar span {
+  min-width: 0;
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.levelUpScoreSaveBar button {
+  min-height: 40px;
+  border-color: rgba(155, 225, 29, 0.5);
+  background: var(--brand-green-2);
+  color: #061221;
+  padding-inline: 13px;
+  font-weight: 950;
 }
 
 .levelUpProofNextStep,
@@ -3001,13 +3102,16 @@
 }
 
 .completionLogger summary {
-  width: fit-content;
   cursor: pointer;
   color: var(--brand-green-3);
   font-size: 0.76rem;
   font-weight: 950;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.completionLogger summary span {
+  width: fit-content;
 }
 
 .completionLogger > button {
