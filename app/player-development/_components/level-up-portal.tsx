@@ -53,6 +53,17 @@ type TrainingPulse = {
   coachRead: string
 }
 
+type LaneProgressItem = {
+  laneKey: string
+  label: string
+  proofCount: number
+  completedCardCount: number
+  totalCardCount: number
+  lastRating?: number
+  nextCard?: LevelUpCard
+  read: string
+}
+
 type CoachUpdateDigest = {
   status: string
   proofLine: string
@@ -383,6 +394,10 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     doublesCards,
     lanePriority: profile.lanePriority,
   })
+  const laneProgress = useMemo(
+    () => buildLaneProgress(focusTrainingLanes, completions, completionSummaryByCardId),
+    [focusTrainingLanes, completions, completionSummaryByCardId],
+  )
   const activeLaneCard = activeLaneCardId
     ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
     : undefined
@@ -455,6 +470,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       ) : null}
 
       <LevelUpLaneChooser lanes={focusTrainingLanes} />
+
+      <LevelUpLaneProgressPanel laneProgress={laneProgress} onStartCard={startCardFromPlan} />
 
       {focusTrainingLanes.map((lane) => (
         <LevelUpFocusTrainingLane
@@ -1596,6 +1613,52 @@ function buildLaneChooserItem(lane: FocusTrainingLane): LaneChooserItem | null {
 
   const item = itemByLaneKey[lane.key]
   return item ? { laneKey: lane.key, ...item } : null
+}
+
+function LevelUpLaneProgressPanel({
+  laneProgress,
+  onStartCard,
+}: {
+  laneProgress: LaneProgressItem[]
+  onStartCard: (cardId: string) => void
+}) {
+  const nextLane = laneProgress[0]
+
+  return (
+    <section className={styles.levelUpLaneProgress} aria-label="Lane progress">
+      <div className={styles.levelUpRailHeader}>
+        <span>Lane progress</span>
+        <h2>{nextLane ? `${nextLane.label} needs the next clean proof.` : 'Build proof across your lanes.'}</h2>
+        <p>Use one honest score per block. The goal is balance across your game, not collecting cards.</p>
+      </div>
+      <div className={styles.levelUpLaneProgressGrid}>
+        {laneProgress.map((item) => {
+          const nextCard = item.nextCard
+
+          return (
+            <article key={item.laneKey} data-empty={item.proofCount === 0 ? 'true' : 'false'}>
+              <div>
+                <span>{item.label}</span>
+                <strong>{item.lastRating === undefined ? 'No proof' : `${item.lastRating}/5`}</strong>
+              </div>
+              <p>{item.read}</p>
+              <small>{item.completedCardCount}/{item.totalCardCount} tools logged</small>
+              <div className={styles.levelUpLaneProgressActions}>
+                <button type="button" onClick={() => scrollToLane(item.laneKey)}>
+                  Open lane
+                </button>
+                {nextCard ? (
+                  <button type="button" onClick={() => onStartCard(nextCard.id)}>
+                    Start {nextCard.title}
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
 }
 
 function LevelUpCardTile({
@@ -4419,6 +4482,69 @@ function formatAdaptiveDecisionReason(decision: string) {
   if (action === 'scale down') return 'Scale down next.'
   if (action === 'level up') return 'Level up next.'
   return `${action.charAt(0).toUpperCase()}${action.slice(1)} next.`
+}
+
+function buildLaneProgress(
+  lanes: FocusTrainingLane[],
+  completions: LevelUpCompletion[],
+  completionSummaryByCardId: Map<string, CompletionSummary>,
+): LaneProgressItem[] {
+  const completionsByCardId = new Map<string, LevelUpCompletion[]>()
+
+  for (const completion of completions) {
+    const list = completionsByCardId.get(completion.cardId) ?? []
+    list.push(completion)
+    completionsByCardId.set(completion.cardId, list)
+  }
+
+  return lanes
+    .map((lane) => {
+      const laneCards = uniqueById(lane.cards)
+      const laneCompletions = laneCards.flatMap((card) => completionsByCardId.get(card.id) ?? [])
+      const completedCardCount = laneCards.filter((card) => completionSummaryByCardId.has(card.id)).length
+      const latestCompletion = laneCompletions
+        .filter((completion) => typeof completion.proofRating === 'number')
+        .sort((left, right) => new Date(right.completedAt).getTime() - new Date(left.completedAt).getTime())[0]
+      const nextCard = laneCards.find((card) => !completionSummaryByCardId.has(card.id)) ?? laneCards[0]
+
+      return {
+        laneKey: lane.key,
+        label: lane.eyebrow.replace(' Training', ''),
+        proofCount: laneCompletions.length,
+        completedCardCount,
+        totalCardCount: laneCards.length,
+        lastRating: latestCompletion?.proofRating,
+        nextCard,
+        read: buildLaneProgressRead(lane, laneCompletions.length, latestCompletion?.proofRating, nextCard),
+      }
+    })
+    .sort((left, right) => (
+      left.proofCount - right.proofCount
+      || (left.lastRating ?? 6) - (right.lastRating ?? 6)
+      || left.label.localeCompare(right.label)
+    ))
+}
+
+function uniqueById(cards: LevelUpCard[]) {
+  const seen = new Set<string>()
+  return cards.filter((card) => {
+    if (seen.has(card.id)) return false
+    seen.add(card.id)
+    return true
+  })
+}
+
+function buildLaneProgressRead(
+  lane: FocusTrainingLane,
+  proofCount: number,
+  lastRating?: number,
+  nextCard?: LevelUpCard,
+) {
+  if (!proofCount) return `No proof logged yet. Start with ${nextCard?.title ?? lane.title} and get one honest score.`
+  if (lastRating === undefined) return `You have work logged here. Add a 0-5 proof score so the next rep is clearer.`
+  if (lastRating <= 2) return `Scale this lane down. Repeat one clean cue before adding pace or pressure.`
+  if (lastRating === 3) return `You are building. Repeat ${nextCard?.title ?? 'the next rep'} and make the proof cleaner.`
+  return `Strong signal. Add one harder variable or keep this lane sharp with ${nextCard?.title ?? 'a focused rep'}.`
 }
 
 function buildTrainingPulse({
