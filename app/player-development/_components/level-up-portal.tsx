@@ -85,6 +85,12 @@ type NetConfidenceFixItem = {
   fix: string
 }
 
+type NetConfidenceReadinessItem = {
+  label: string
+  standard: string
+  watch: string
+}
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -769,6 +775,7 @@ function LevelUpNetConfidenceLadder({
   onStartCard: (cardId: string) => void
 }) {
   const fixes = buildNetConfidenceFixes(items)
+  const readinessChecks = buildNetConfidenceReadinessChecks()
 
   return (
     <section className={styles.levelUpNetLadder} aria-label="Net confidence ladder">
@@ -785,6 +792,17 @@ function LevelUpNetConfidenceLadder({
             <strong>{item.card.title}</strong>
             <small>{item.standard}</small>
           </button>
+        ))}
+      </div>
+      <div className={styles.levelUpNetReadiness} aria-label="Net readiness check">
+        <span>Readiness check</span>
+        <strong>Go live when 3 of 4 are clean.</strong>
+        {readinessChecks.map((item) => (
+          <article key={item.label}>
+            <b>{item.label}</b>
+            <small>{item.standard}</small>
+            <i>{item.watch}</i>
+          </article>
         ))}
       </div>
       <div className={styles.levelUpNetFixGrid} aria-label="Net confidence quick fixes">
@@ -2506,6 +2524,31 @@ function buildNetConfidenceFixes(items: NetConfidenceLadderItem[]): NetConfidenc
   ]
 
   return fixes.filter((item): item is NetConfidenceFixItem => Boolean(item.card))
+}
+
+function buildNetConfidenceReadinessChecks(): NetConfidenceReadinessItem[] {
+  return [
+    {
+      label: 'Close',
+      standard: 'You move through the approach instead of stopping at contact.',
+      watch: 'If you freeze, start Short-Ball Close + Split.',
+    },
+    {
+      label: 'Split',
+      standard: 'You split before the opponent pass or feed, not after it.',
+      watch: 'If the split is late, start Volley Ready Split.',
+    },
+    {
+      label: 'Target',
+      standard: 'You call the first-volley target before contact.',
+      watch: 'If the target is blank, start Volley Punch Target.',
+    },
+    {
+      label: 'Hands',
+      standard: 'Your hands reset in front after every touch.',
+      watch: 'If the swing gets big, start Reaction Volley Wall.',
+    },
+  ]
 }
 
 function buildSessionBuilderPlan({
