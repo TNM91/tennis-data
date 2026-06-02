@@ -170,6 +170,29 @@ type FocusTrainingGroup = {
   cue: string
 }
 
+type FocusTrainingStationTab = {
+  key: string
+  label: string
+  detail: string
+  title: string
+  setup: string
+  block: string
+  score: string
+  say: string
+  resetIf: string
+  startCardId: string
+  proofAnchors: {
+    low: string
+    mid: string
+    high: string
+  }
+}
+
+type FocusTrainingStation = {
+  label: string
+  tabs: FocusTrainingStationTab[]
+}
+
 type FocusTrainingLane = {
   key: string
   ariaLabel: string
@@ -179,6 +202,7 @@ type FocusTrainingLane = {
   module?: LevelUpModule
   cards: LevelUpCard[]
   groups: FocusTrainingGroup[]
+  station?: FocusTrainingStation
   coachingCue: string
   defaultOpen?: boolean
 }
@@ -431,6 +455,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           copy={lane.copy}
           module={lane.module}
           groups={lane.groups}
+          station={lane.station}
           completionSummaryByCardId={completionSummaryByCardId}
           onStartCard={startCardFromPlan}
           coachingCue={lane.coachingCue}
@@ -1357,6 +1382,7 @@ function LevelUpFocusTrainingLane({
   copy,
   module,
   groups,
+  station,
   completionSummaryByCardId,
   onStartCard,
   coachingCue,
@@ -1367,12 +1393,18 @@ function LevelUpFocusTrainingLane({
   copy: string
   module?: LevelUpModule
   groups: FocusTrainingGroup[]
+  station?: FocusTrainingStation
   completionSummaryByCardId: Map<string, CompletionSummary>
   onStartCard: (cardId: string) => void
   coachingCue: string
 }) {
+  const [activeStationTabKey, setActiveStationTabKey] = useState(station?.tabs[0]?.key ?? '')
   const nextCard = groups.find((group) => group.card && !completionSummaryByCardId.has(group.card.id))?.card
     ?? groups.find((group) => group.card)?.card
+  const activeStationTab = station?.tabs.find((tab) => tab.key === activeStationTabKey) ?? station?.tabs[0]
+  const activeStationCard = activeStationTab
+    ? groups.find((group) => group.card?.id === activeStationTab.startCardId)?.card
+    : undefined
 
   return (
     <section className={styles.levelUpFocusTraining} aria-label={ariaLabel}>
@@ -1381,6 +1413,48 @@ function LevelUpFocusTrainingLane({
         <h2>{title}</h2>
         <p>{copy}</p>
       </div>
+      {station && activeStationTab ? (
+        <div className={styles.levelUpLaneStation} aria-label={`${station.label} station`}>
+          <div className={styles.levelUpLaneStationTabs} aria-label={`${station.label} station tabs`}>
+            {station.tabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                aria-pressed={activeStationTab.key === tab.key}
+                data-active={activeStationTab.key === tab.key}
+                onClick={() => setActiveStationTabKey(tab.key)}
+              >
+                <span>{tab.label}</span>
+                <small>{tab.detail}</small>
+              </button>
+            ))}
+          </div>
+          <div className={styles.levelUpLaneStationCard} aria-label={`${station.label} station guide`}>
+            <div className={styles.levelUpLaneStationHeader}>
+              <div>
+                <span>{station.label}</span>
+                <strong>{activeStationTab.title}</strong>
+              </div>
+              <button type="button" onClick={() => onStartCard(activeStationTab.startCardId)}>
+                Start: {activeStationCard?.title ?? 'recommended rep'}
+              </button>
+            </div>
+            <div className={styles.levelUpLaneStationDetails}>
+              <p><b>Setup:</b> {activeStationTab.setup}</p>
+              <p><b>Block:</b> {activeStationTab.block}</p>
+              <p><b>Score:</b> {activeStationTab.score}</p>
+              <p><b>Say:</b> {activeStationTab.say}</p>
+              <p><b>Reset if:</b> {activeStationTab.resetIf}</p>
+            </div>
+            <div className={styles.levelUpLaneStationProof} aria-label={`${station.label} proof anchors`}>
+              <span>Proof anchors</span>
+              <p><b>1-2</b>{activeStationTab.proofAnchors.low}</p>
+              <p><b>3</b>{activeStationTab.proofAnchors.mid}</p>
+              <p><b>4-5</b>{activeStationTab.proofAnchors.high}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className={styles.levelUpReturnTrainingGrid}>
         {module ? (
           <article className={styles.levelUpReturnModuleCard}>
@@ -3127,6 +3201,7 @@ function buildFocusTrainingLanes({
       module: serveTrainingModule,
       cards: serveCards,
       groups: buildServeTrainingGroups(serveCards),
+      station: buildServeTrainingStation(serveCards),
       coachingCue: 'Good serve work is not just baskets. It is target, routine, recovery, then the plus-one decision.',
       defaultOpen: true,
     },
@@ -3139,6 +3214,7 @@ function buildFocusTrainingLanes({
       module: returnTrainingModule,
       cards: returnCards,
       groups: buildReturnTrainingGroups(returnCards),
+      station: buildReturnTrainingStation(returnCards),
       coachingCue: 'Good return work is not just making the serve back. It is job, contact, recovery, then the next decision.',
       defaultOpen: true,
     },
@@ -3150,6 +3226,7 @@ function buildFocusTrainingLanes({
       copy: 'Train split step, first move, recovery after contact, and wide-ball reset with tennis posture.',
       cards: movementCards,
       groups: buildMovementTrainingGroups(movementCards),
+      station: buildMovementTrainingStation(movementCards),
       coachingCue: 'Good movement work is not max speed. It is clean arrival, balanced contact, and recovery before watching.',
     },
     {
@@ -3280,6 +3357,294 @@ function buildMovementTrainingGroups(cards: LevelUpCard[]): FocusTrainingGroup[]
     { label: 'Wide-ball reset', card: byId.get('wide-ball-neutralizer'), cue: 'Buy time with height, then recover to neutral.' },
     { label: 'Cone movement', card: byId.get('four-cone-tennis-star') ?? byId.get('drop-step-recovery'), cue: 'Move with tennis posture before adding speed.' },
   ]
+}
+
+function buildReturnTrainingStation(returnCards: LevelUpCard[]): FocusTrainingStation {
+  const byId = new Map(returnCards.map((card) => [card.id, card]))
+  const fallbackCardId = returnCards[0]?.id ?? 'return-shadow-split-read'
+
+  return {
+    label: 'Return station',
+    tabs: [
+      {
+        key: 'start',
+        label: 'Start',
+        detail: 'Intent + split',
+        title: 'Choose the return job before the toss.',
+        setup: 'No partner needed. Use a wall, open court, or shadow split-read reps.',
+        block: '3 rounds: call the job, split on toss/contact, shadow return, recover for ball two.',
+        score: 'Return job chosen early and recovery after contact 0-5.',
+        say: 'Job first, contact second, recover third.',
+        resetIf: 'You wait to decide until the ball is already on you.',
+        startCardId: byId.get('return-shadow-split-read')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'You reacted late or did not name a return job.',
+          mid: 'The job was clear on some reps, but recovery lagged.',
+          high: 'Intent, contact, and recovery were connected before ball two.',
+        },
+      },
+      {
+        key: 'serve-type',
+        label: 'Serve Type',
+        detail: 'First or second',
+        title: 'Match the return shape to the serve.',
+        setup: 'Partner serves controlled first and second serves, or feeds serve-like balls.',
+        block: '8 first-serve survival returns, 8 second-serve attack/build returns, then 6 mixed calls.',
+        score: 'Serve read and return shape matched 0-5.',
+        say: 'First serve: make it playable. Second serve: choose attack, build, or neutral.',
+        resetIf: 'You swing the same way at every serve.',
+        startCardId: byId.get('second-serve-attack-or-build')?.id ?? byId.get('return-depth-lane')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Serve type did not change the return decision.',
+          mid: 'You adjusted sometimes, but the contact plan was late.',
+          high: 'Serve type, return shape, and recovery matched repeatedly.',
+        },
+      },
+      {
+        key: 'partner',
+        label: 'Partner',
+        detail: 'Depth + ball two',
+        title: 'Return to a lane and be ready for the next ball.',
+        setup: 'Partner serves or feeds. Name crosscourt deep, middle deep, or high neutral.',
+        block: '3 rounds of 8 returns. Count only lane plus recovery, not pretty contact.',
+        score: 'Lane and ball-two readiness 0-5.',
+        say: 'Lane, recover, first move.',
+        resetIf: 'You admire the return instead of getting ready.',
+        startCardId: byId.get('return-depth-lane')?.id ?? byId.get('return-plus-one-recover')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'The ball came back but the next move was late.',
+          mid: 'Lane showed up, but recovery was inconsistent.',
+          high: 'Return lane and ball-two readiness were repeatable.',
+        },
+      },
+      {
+        key: 'pressure',
+        label: 'Pressure',
+        detail: '30-30 reps',
+        title: 'Keep the return job clear when the point matters.',
+        setup: 'Play short games starting at 30-30 or return-only mini points.',
+        block: 'Play 6 pressure returns, reset, then repeat with the same job rule.',
+        score: 'Return intent under pressure 0-5.',
+        say: 'The score does not choose my return job.',
+        resetIf: 'You abandon the plan after one miss.',
+        startCardId: byId.get('return-30-30-game')?.id ?? byId.get('second-serve-attack-or-build')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'The score made the return rushed or vague.',
+          mid: 'Intent appeared, but disappeared after misses.',
+          high: 'The return job stayed clear through 30-30 pressure.',
+        },
+      },
+      {
+        key: 'fix',
+        label: 'Fix a Miss',
+        detail: 'Last miss',
+        title: 'Turn the missed return into one correction.',
+        setup: 'Pick one miss: late split, no lane, rushed swing, or no recovery.',
+        block: 'Run 5 correction reps, then test with 3 mixed serve-like balls.',
+        score: 'Did the miss change in the next block? 0-5.',
+        say: 'One return miss, one fix, next ball ready.',
+        resetIf: 'You try to fix swing, footwork, and target all at once.',
+        startCardId: byId.get('wall-return-recovery')?.id ?? byId.get('return-shadow-split-read')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'The same miss repeated without a clearer plan.',
+          mid: 'The correction worked only on predictable reps.',
+          high: 'The correction held when the serve look changed.',
+        },
+      },
+    ],
+  }
+}
+
+function buildServeTrainingStation(serveCards: LevelUpCard[]): FocusTrainingStation {
+  const byId = new Map(serveCards.map((card) => [card.id, card]))
+  const fallbackCardId = serveCards[0]?.id ?? 'serve-target-call'
+
+  return {
+    label: 'Serve station',
+    tabs: [
+      {
+        key: 'routine',
+        label: 'Routine',
+        detail: 'Same start',
+        title: 'Make the serve routine repeatable before chasing pace.',
+        setup: 'Basket or shadow reps. Pick one target and one breath pattern.',
+        block: '3 sets of 6 serves: target call, breath, bounce tempo, serve, score clarity.',
+        score: 'Routine clarity before and after misses 0-5.',
+        say: 'Same breath, same target, same tempo.',
+        resetIf: 'The routine changes after a miss.',
+        startCardId: byId.get('serve-target-call')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Target and routine changed under frustration.',
+          mid: 'Routine appeared, but only when the ball was going in.',
+          high: 'Routine stayed the same across makes and misses.',
+        },
+      },
+      {
+        key: 'targets',
+        label: 'Targets',
+        detail: 'Wide/body/T',
+        title: 'Serve to a job, not just into the box.',
+        setup: 'Basket plus three target zones: wide, body, and T.',
+        block: 'Call target before every serve. Run 5 reps per target, then 6 mixed calls.',
+        score: 'Target called before motion and shape matched intent 0-5.',
+        say: 'Target first, motion second.',
+        resetIf: 'You serve before naming the target.',
+        startCardId: byId.get('serve-target-ladder')?.id ?? byId.get('serve-target-call')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Target was vague or changed mid-motion.',
+          mid: 'Target was clear, but shape was inconsistent.',
+          high: 'Target call and serve shape matched repeatedly.',
+        },
+      },
+      {
+        key: 'plus-one',
+        label: 'Serve +1',
+        detail: 'First ball',
+        title: 'Connect the serve target to the first-ball job.',
+        setup: 'Shadow at home or use a partner. Name the serve target and plus-one lane.',
+        block: '10 shadow patterns, then 8 serve-plus-one reps if you have a partner.',
+        score: 'Serve target created a clear first-ball job 0-5.',
+        say: 'Serve creates the next ball.',
+        resetIf: 'The plus-one plan is blank after the serve.',
+        startCardId: byId.get('serve-1-shadow')?.id ?? byId.get('serve-1-partner')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Serve and first ball were disconnected.',
+          mid: 'The pattern connected on some targets.',
+          high: 'Target and plus-one lane were connected before the serve.',
+        },
+      },
+      {
+        key: 'pressure',
+        label: 'Pressure',
+        detail: 'Second serve',
+        title: 'Keep the routine when the miss feels expensive.',
+        setup: 'Use second-serve reps or score games starting after a missed first serve.',
+        block: 'Run 12 second serves. After every miss, repeat the same target routine.',
+        score: 'Second-serve routine under pressure 0-5.',
+        say: 'Miss, reset, same routine.',
+        resetIf: 'You rush the next serve after a miss.',
+        startCardId: byId.get('second-serve-routine-reps')?.id ?? byId.get('double-fault-reset')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'The miss changed tempo or target clarity.',
+          mid: 'Reset worked sometimes, but tension changed the motion.',
+          high: 'The next serve kept the same breath, target, and tempo.',
+        },
+      },
+      {
+        key: 'fix',
+        label: 'Fix a Miss',
+        detail: 'Last miss',
+        title: 'Make one serve correction at a time.',
+        setup: 'Pick one miss pattern: no target, rushed tempo, fear of second serve, or no plus-one.',
+        block: 'Run 5 correction reps, then 5 scored reps with the same rule.',
+        score: 'Did the miss pattern change? 0-5.',
+        say: 'One serve miss, one correction.',
+        resetIf: 'You change grip, target, tempo, and swing at the same time.',
+        startCardId: byId.get('double-fault-reset')?.id ?? byId.get('serve-target-call')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'The same miss repeated with no simpler rule.',
+          mid: 'The fix helped when the score was quiet.',
+          high: 'The fix held when you added pressure back.',
+        },
+      },
+    ],
+  }
+}
+
+function buildMovementTrainingStation(movementCards: LevelUpCard[]): FocusTrainingStation {
+  const byId = new Map(movementCards.map((card) => [card.id, card]))
+  const fallbackCardId = movementCards[0]?.id ?? 'cone-recover-shadow-swing'
+
+  return {
+    label: 'Movement station',
+    tabs: [
+      {
+        key: 'warm-up',
+        label: 'Warm Up',
+        detail: 'Split rhythm',
+        title: 'Turn on rhythm before speed.',
+        setup: 'Open court, driveway, or home space. No max effort.',
+        block: '2 minutes rhythm, 10 split freezes, 6 shadow first moves each side.',
+        score: 'Split timing and posture readiness 0-5.',
+        say: 'Quiet split, ready body.',
+        resetIf: 'You get fast before you get balanced.',
+        startCardId: byId.get('split-step-rhythm')?.id ?? byId.get('jump-rope-rhythm-builder')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Split timing was late or posture got tall.',
+          mid: 'Rhythm appeared, but only when the rep was slow.',
+          high: 'Split timing felt ready before the first move.',
+        },
+      },
+      {
+        key: 'first-step',
+        label: 'First Step',
+        detail: 'Go clean',
+        title: 'Make the first move clean before making it fast.',
+        setup: 'Use two cones or lines. Start in tennis posture.',
+        block: '3 rounds of 6 first moves: split, push, stick balance, reset.',
+        score: 'First-step readiness and balance 0-5.',
+        say: 'Split, push, stick.',
+        resetIf: 'The first step crosses over late or the chest pops up.',
+        startCardId: byId.get('four-cone-tennis-star')?.id ?? byId.get('lateral-decel-stick')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'First step was late or off balance.',
+          mid: 'First move improved, but balance leaked on one side.',
+          high: 'First move and stop were controlled both directions.',
+        },
+      },
+      {
+        key: 'recover',
+        label: 'Recover',
+        detail: 'After contact',
+        title: 'Recover before watching the result.',
+        setup: 'Use cones or court lines. Add a shadow swing or real ball.',
+        block: '10 reps: contact, recover to ready, then look. Repeat with a target score.',
+        score: 'Recovery after contact 0-5.',
+        say: 'Contact, recover, then look.',
+        resetIf: 'You watch the shot before moving back to ready.',
+        startCardId: byId.get('cone-recover-shadow-swing')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'You watched first or never found ready again.',
+          mid: 'Recovery happened with reminders.',
+          high: 'Recovery happened before watching without a reminder.',
+        },
+      },
+      {
+        key: 'wide-ball',
+        label: 'Wide Ball',
+        detail: 'Defense to neutral',
+        title: 'Use the wide ball to buy time, not panic.',
+        setup: 'Use cones or a partner feed. Keep the first rounds controlled.',
+        block: '3 rounds of 6: move wide, play height or depth, recover to neutral.',
+        score: 'Wide-ball reset quality 0-5.',
+        say: 'Buy time, recover neutral.',
+        resetIf: 'You try to attack from a defensive body position.',
+        startCardId: byId.get('wide-ball-neutralizer')?.id ?? byId.get('drop-step-recovery')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Wide ball created panic or rushed attack.',
+          mid: 'You bought time on some balls but recovery was late.',
+          high: 'Defense, height/depth, and recovery returned you to neutral.',
+        },
+      },
+      {
+        key: 'fatigue',
+        label: 'Fatigue',
+        detail: 'Quality late',
+        title: 'Keep posture when the legs get tired.',
+        setup: 'Short work blocks only. Stop if pain changes movement.',
+        block: '20-30 seconds work, 20 seconds reset, 3 rounds with a tennis cue.',
+        score: 'Posture and decision under fatigue 0-5.',
+        say: 'Slow enough to stay useful.',
+        resetIf: 'Speed changes posture, balance, or breathing.',
+        startCardId: byId.get('jump-rope-rhythm-builder')?.id ?? byId.get('lateral-decel-stick')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Fatigue changed posture or movement quality quickly.',
+          mid: 'Quality held for part of the block.',
+          high: 'Posture, breath, and tennis decision stayed playable.',
+        },
+      },
+    ],
+  }
 }
 
 function buildForehandTrainingGroups(cards: LevelUpCard[]): FocusTrainingGroup[] {

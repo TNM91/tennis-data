@@ -756,6 +756,184 @@
   gap: 10px;
 }
 
+.levelUpLaneStation {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.06), transparent 46%),
+    rgba(255, 255, 255, 0.035);
+  padding: 9px;
+}
+
+.levelUpLaneStationTabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.levelUpLaneStationTabs button {
+  display: grid;
+  gap: 4px;
+  min-height: 58px;
+  min-width: 0;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--foreground);
+  font: inherit;
+  padding: 9px;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.levelUpLaneStationTabs button:hover,
+.levelUpLaneStationTabs button:focus-visible,
+.levelUpLaneStationTabs button[data-active='true'] {
+  border-color: rgba(155, 225, 29, 0.44);
+  background: rgba(155, 225, 29, 0.09);
+}
+
+.levelUpLaneStationTabs button[data-active='true'] {
+  transform: translateY(-1px);
+}
+
+.levelUpLaneStationTabs span {
+  color: var(--foreground-strong);
+  font-size: 0.8rem;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.levelUpLaneStationTabs small {
+  color: var(--muted-strong);
+  font-size: 0.68rem;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.levelUpLaneStationCard {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(155, 225, 29, 0.16);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.075), transparent 52%),
+    rgba(255, 255, 255, 0.035);
+  padding: 10px;
+}
+
+.levelUpLaneStationHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.levelUpLaneStationHeader > div {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 10px;
+}
+
+.levelUpLaneStationHeader span,
+.levelUpLaneStationProof > span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.14);
+  color: var(--brand-green-3);
+  padding: 5px 8px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpLaneStationHeader strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.levelUpLaneStationHeader button {
+  min-width: 144px;
+  cursor: pointer;
+  border: 1px solid rgba(155, 225, 29, 0.42);
+  border-radius: 12px;
+  background: var(--brand-green-2);
+  color: #061221;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 950;
+  padding: 10px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.levelUpLaneStationHeader button:hover,
+.levelUpLaneStationHeader button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(155, 225, 29, 0.14);
+}
+
+.levelUpLaneStationDetails {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.levelUpLaneStationProof {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  border: 1px solid rgba(116, 190, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(116, 190, 255, 0.04);
+  padding: 8px;
+}
+
+.levelUpLaneStationDetails p,
+.levelUpLaneStationProof p {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid rgba(116, 190, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted-strong);
+  padding: 8px;
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
+.levelUpLaneStationDetails p b {
+  color: var(--brand-blue-2);
+  font-size: 0.64rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.levelUpLaneStationProof p b {
+  display: inline-grid;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.12);
+  color: #d8f7a4;
+  padding: 4px 8px;
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
 .levelUpReturnModuleCard,
 .levelUpReturnQuickStarts button {
   display: grid;
@@ -9133,6 +9311,26 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .levelUpLaneStationTabs {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
+  }
+
+  .levelUpLaneStationTabs button {
+    min-width: 152px;
+    scroll-snap-align: start;
+  }
+
+  .levelUpLaneStationDetails {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpLaneStationProof {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .levelUpFilters {
     grid-template-columns: 1fr;
   }
@@ -9290,6 +9488,24 @@
   .levelUpNetTabGuideDetails,
   .levelUpNetProofAnchors {
     grid-template-columns: 1fr;
+  }
+
+  .levelUpLaneStationHeader,
+  .levelUpLaneStationDetails,
+  .levelUpLaneStationProof {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpLaneStationTabs {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
+  }
+
+  .levelUpLaneStationTabs button {
+    min-width: 146px;
+    scroll-snap-align: start;
   }
 
   .levelUpFilters,
