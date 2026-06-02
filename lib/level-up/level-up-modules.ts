@@ -86,7 +86,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['serve-target-call', 'serve-1-shadow', 'serve-1-partner'],
     tags: ['serve-plus-one', 'serve-target', 'decision-quality'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5', 'serve-forward-finisher-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'serve-forward-finisher-4-0', 'forehand-pressure-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Serve +1 clarity 0-5',
   },
   {
@@ -136,7 +136,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '4 cards / 25 minutes',
     cardIds: ['basket-forehand-crosscourt', 'defense-neutral-attack-rally', 'single-leg-rdl', 'tight-arm-reset'],
     tags: ['attack-balance', 'decision-quality', 'balance'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5', 'serve-forward-finisher-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'serve-forward-finisher-4-0', 'forehand-pressure-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Attack balance 0-5',
   },
   {
@@ -160,7 +160,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['crosscourt-consistency', 'basket-forehand-crosscourt', 'basket-backhand-crosscourt'],
     tags: ['crosscourt-build', 'decision-quality', 'attack-balance'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'return-disruptor-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Crosscourt build 0-5',
   },
   {
@@ -179,7 +179,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 10 minutes',
     cardIds: ['three-step-reset', 'tight-arm-reset', 'closing-game-routine'],
     tags: ['pressure-reset', 'between-points', 'quick-win'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Reset used 0-5',
   },
   {

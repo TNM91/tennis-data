@@ -283,6 +283,38 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Return Disruptor because this path builds split-read timing, return intent, depth lanes, second-serve decisions, recovery after return, and 30-30 return pressure.',
   },
+  'forehand-pressure-builder-4-0': {
+    identitySlug: 'forehand-pressure-builder-4-0',
+    featuredModuleIds: [
+      'crosscourt-build-before-change',
+      'attack-balance',
+      'forward-close',
+      'serve-plus-one-clarity',
+      'return-intent',
+      'pressure-reset',
+    ],
+    starterCardIds: [
+      'basket-forehand-crosscourt',
+      'crosscourt-consistency',
+      'defense-neutral-attack-rally',
+      'short-ball-close-split',
+      'cone-close-recover',
+      'serve-1-shadow',
+      'three-step-reset',
+    ],
+    focusTags: [
+      'forehand',
+      'crosscourt-build',
+      'attack-balance',
+      'decision-quality',
+      'forward-close',
+      'serve-plus-one',
+      'pressure-reset',
+    ],
+    lanePriority: ['forehand', 'singles', 'serve', 'return', 'movement', 'volley', 'fitness', 'backhand'],
+    recommendationCopy:
+      'Recommended for Forehand Pressure Builder because this path builds forehand shape, crosscourt pressure, earned direction changes, attack balance, and short-ball conversion.',
+  },
   'all-court-adapter-4-0': {
     identitySlug: 'all-court-adapter-4-0',
     featuredModuleIds: [
