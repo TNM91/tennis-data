@@ -33,7 +33,9 @@ const identityMap: Record<string, string[]> = {
   'defense-to-neutral': ['consistent-builder-4-0', 'defensive-counterpuncher-4-0'],
   'recovery-after-contact': ['defensive-counterpuncher-4-0'],
   'wall-work': ['consistent-builder-4-0', 'defensive-counterpuncher-4-0'],
-  'match-day': ['consistent-builder-4-0'],
+  'pressure-reset': ['pressure-closer-4-0'],
+  'between-points': ['pressure-closer-4-0'],
+  'match-day': ['consistent-builder-4-0', 'pressure-closer-4-0'],
 }
 
 function slugify(value: string) {
@@ -791,7 +793,7 @@ const CARD_SEEDS: CardSeed[] = [
   { title: 'Serve +1 Conditioning', category: 'conditioning', pack: 'Conditioning Finishers', setting: ['court'], equipment: ['basket'], tags: ['conditioning', 'serve'] },
   { title: 'Return +1 Conditioning', category: 'conditioning', pack: 'Conditioning Finishers', setting: ['court'], equipment: ['partner'], tags: ['conditioning', 'return'] },
   { title: 'Dynamic Tennis Warm-Up', category: 'mobility-stretch', pack: 'Mobility Reset + Stretches', setting: ['court', 'match-day'], equipment: ['none'], tags: ['warm-up', 'match-day'] },
-  { title: 'Five-Minute Match Primer', category: 'match-prep', pack: 'Mobility Reset + Stretches', setting: ['court', 'match-day'], equipment: ['none'], tags: ['match-day', 'warm-up'] },
+  { title: 'Five-Minute Match Primer', category: 'match-prep', pack: 'Mobility Reset + Stretches', setting: ['court', 'match-day'], equipment: ['none'], tags: ['match-day', 'warm-up'], identitySlugs: ['pressure-closer-4-0'] },
   { title: 'Worlds Greatest Stretch', category: 'mobility-stretch', pack: 'Mobility Reset + Stretches', setting: ['home', 'court'], equipment: ['none'], tags: ['mobility', 'stretch'] },
   { title: 'Thoracic Open Book', category: 'mobility-stretch', pack: 'Mobility Reset + Stretches', setting: ['home'], equipment: ['none'], tags: ['mobility', 'recovery'] },
   { title: 'Post-Play Mobility Reset', category: 'recovery-reset', pack: 'Recovery Mode', setting: ['home', 'court', 'match-day'], equipment: ['none'], tags: ['recovery', 'mobility'], identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0'] },
@@ -809,7 +811,7 @@ const CARD_SEEDS: CardSeed[] = [
   { title: 'Second-Serve Attack or Build', category: 'partner-drill', pack: 'Serve + Return', setting: ['court'], equipment: ['partner'], tags: ['return-intent', 'attack-balance', 'decision-quality'] },
   { title: 'Wall Return Recovery', category: 'solo-drill', pack: 'Serve + Return', setting: ['wall'], equipment: ['wall'], tags: ['return-recovery', 'wall-work', 'first-step'] },
   { title: 'Return Plus-One Recover', category: 'partner-drill', pack: 'Serve + Return', setting: ['court'], equipment: ['partner'], tags: ['return-recovery', 'first-step', 'decision-quality'] },
-  { title: 'Return 30-30 Game', category: 'partner-drill', pack: 'Serve + Return', setting: ['court'], equipment: ['partner'], tags: ['return-intent', 'pressure-reset', 'between-points'], intensity: 'high' },
+  { title: 'Return 30-30 Game', category: 'partner-drill', pack: 'Serve + Return', setting: ['court'], equipment: ['partner'], tags: ['return-intent', 'pressure-reset', 'between-points'], intensity: 'high', identitySlugs: ['pressure-closer-4-0'] },
   { title: 'Recover Before Score', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['court', 'match-day'], equipment: ['none'], tags: ['recover-before-watching', 'recovery-after-contact', 'between-points', 'quick-win'], identitySlugs: ['relentless-competitor-4-0', 'defensive-counterpuncher-4-0'] },
   { title: 'Basket Forehand Crosscourt', category: 'solo-drill', pack: 'Solo Court Drills', setting: ['court'], equipment: ['basket'], tags: ['attack', 'forehand', 'crosscourt-build'], identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'all-court-adapter-4-0'] },
   { title: 'Basket Backhand Crosscourt', category: 'solo-drill', pack: 'Solo Court Drills', setting: ['court'], equipment: ['basket'], tags: ['strokes', 'backhand', 'crosscourt-build'], identitySlugs: ['consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'all-court-adapter-4-0'] },
@@ -830,11 +832,11 @@ const CARD_SEEDS: CardSeed[] = [
   { title: 'Middle Ball Rule', category: 'doubles-drill', pack: 'Doubles Tools', setting: ['court'], equipment: ['partner'], tags: ['doubles', 'position', 'doubles-communication', 'decision-quality'], identitySlugs: ['doubles-commander-4-0'] },
   { title: 'Switch Call Drill', category: 'doubles-drill', pack: 'Doubles Tools', setting: ['court'], equipment: ['partner'], tags: ['doubles-communication', 'partner-first-move', 'decision-quality'], identitySlugs: ['doubles-commander-4-0'] },
   { title: 'Doubles 30-30 Game', category: 'doubles-drill', pack: 'Doubles Tools', setting: ['court'], equipment: ['partner'], tags: ['doubles', 'pressure', 'pressure-reset', 'doubles-communication'], intensity: 'high', identitySlugs: ['doubles-commander-4-0'] },
-  { title: 'Three-Step Reset', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['court', 'match-day'], equipment: ['none'], tags: ['pressure', 'mental-routine', 'match-day', 'pressure-reset'], identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'all-court-adapter-4-0'] },
-  { title: 'Double-Fault Reset', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['court', 'match-day'], equipment: ['none'], tags: ['serve', 'pressure', 'pressure-reset'], identitySlugs: ['relentless-competitor-4-0', 'serve-forward-finisher-4-0'] },
-  { title: 'Tight Arm Reset', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['court', 'match-day'], equipment: ['none'], tags: ['pressure', 'breathing'] },
-  { title: 'Closing Game Routine', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['court', 'match-day'], equipment: ['none'], tags: ['pressure', 'match-day'] },
-  { title: 'Post-Match Five-Minute Debrief', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['home', 'match-day'], equipment: ['none'], tags: ['recovery', 'match-day'] },
+  { title: 'Three-Step Reset', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['court', 'match-day'], equipment: ['none'], tags: ['pressure', 'mental-routine', 'match-day', 'pressure-reset'], identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0', 'all-court-adapter-4-0'] },
+  { title: 'Double-Fault Reset', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['court', 'match-day'], equipment: ['none'], tags: ['serve', 'pressure', 'pressure-reset'], identitySlugs: ['relentless-competitor-4-0', 'serve-forward-finisher-4-0', 'pressure-closer-4-0'] },
+  { title: 'Tight Arm Reset', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['court', 'match-day'], equipment: ['none'], tags: ['pressure', 'breathing', 'pressure-reset'], identitySlugs: ['pressure-closer-4-0'] },
+  { title: 'Closing Game Routine', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['court', 'match-day'], equipment: ['none'], tags: ['pressure', 'match-day', 'pressure-reset'], identitySlugs: ['pressure-closer-4-0'] },
+  { title: 'Post-Match Five-Minute Debrief', category: 'mental-routine', pack: 'Pressure + Mental Reset', setting: ['home', 'match-day'], equipment: ['none'], tags: ['recovery', 'match-day', 'pressure-reset'], identitySlugs: ['pressure-closer-4-0'] },
 ]
 
 export const LEVEL_UP_CARDS: LevelUpCard[] = CARD_SEEDS.map(makeCard)

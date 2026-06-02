@@ -217,6 +217,40 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Defensive Counterpuncher because this path builds wide-ball reset, recovery discipline, rally tolerance, late-point legs, and earned counterattack choices.',
   },
+  'pressure-closer-4-0': {
+    identitySlug: 'pressure-closer-4-0',
+    featuredModuleIds: [
+      'pressure-reset',
+      'match-day-warm-up',
+      'serve-pressure-routine',
+      'return-intent',
+      'conditioning-under-fatigue',
+      'post-play-mobility-reset',
+    ],
+    starterCardIds: [
+      'three-step-reset',
+      'tight-arm-reset',
+      'closing-game-routine',
+      'five-minute-match-primer',
+      'serve-target-call',
+      'double-fault-reset',
+      'return-30-30-game',
+      'post-match-five-minute-debrief',
+    ],
+    focusTags: [
+      'pressure-reset',
+      'between-points',
+      'match-day',
+      'serve-routine',
+      'serve-target',
+      'return-intent',
+      'decision-quality',
+      'posture-under-fatigue',
+    ],
+    lanePriority: ['pressure', 'serve', 'return', 'singles', 'fitness', 'movement', 'doubles', 'forehand'],
+    recommendationCopy:
+      'Recommended for Pressure Closer because this path builds reset routines, 30-30 clarity, serve recovery, closing-game behavior, and useful match recaps.',
+  },
   'all-court-adapter-4-0': {
     identitySlug: 'all-court-adapter-4-0',
     featuredModuleIds: [

@@ -74,7 +74,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['serve-target-call', 'second-serve-routine-reps', 'double-fault-reset'],
     tags: ['serve-routine', 'serve-target', 'pressure-reset'],
-    identitySlugs: ['relentless-competitor-4-0', 'serve-forward-finisher-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'serve-forward-finisher-4-0', 'pressure-closer-4-0'],
     proof: 'Serve routine clarity 0-5',
   },
   {
@@ -105,7 +105,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '6 cards / 30 minutes',
     cardIds: ['return-shadow-split-read', 'return-step-in-game', 'return-depth-lane', 'second-serve-attack-or-build', 'return-plus-one-recover', 'return-30-30-game'],
     tags: ['return-intent', 'return-recovery', 'decision-quality', 'pressure-reset'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'doubles-commander-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'doubles-commander-4-0', 'pressure-closer-4-0', 'all-court-adapter-4-0'],
     proof: 'Return intent 0-5',
   },
   {
@@ -179,7 +179,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 10 minutes',
     cardIds: ['three-step-reset', 'tight-arm-reset', 'closing-game-routine'],
     tags: ['pressure-reset', 'between-points', 'quick-win'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0', 'all-court-adapter-4-0'],
     proof: 'Reset used 0-5',
   },
   {
@@ -191,7 +191,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '2 cards / 10 minutes',
     cardIds: ['dynamic-tennis-warm-up', 'five-minute-match-primer'],
     tags: ['match-day', 'warm-up', 'mobility'],
-    identitySlugs: ['consistent-builder-4-0'],
+    identitySlugs: ['consistent-builder-4-0', 'pressure-closer-4-0'],
     proof: 'Match-day ready 0-5',
   },
   {
@@ -203,7 +203,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '2 cards / 10 minutes',
     cardIds: ['post-play-mobility-reset', 'thoracic-open-book'],
     tags: ['mobility', 'stretch', 'recovery'],
-    identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0'],
     proof: 'Recovery reset 0-5',
   },
   {
