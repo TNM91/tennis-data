@@ -75,10 +75,15 @@ type SessionBuilderItem = {
   cue: string
 }
 
-type ReturnTrainingGroup = {
+type FocusTrainingGroup = {
   label: string
   card?: LevelUpCard
   cue: string
+}
+
+type StartRequest = {
+  cardId: string
+  signal: number
 }
 
 const emptyFilters: FilterState = {
@@ -142,6 +147,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [sessionMinutes, setSessionMinutes] = useState(20)
   const [sessionFocus, setSessionFocus] = useState<SessionFocus>('movement')
   const [activeCardTitle, setActiveCardTitle] = useState<string | null>(null)
+  const [startRequest, setStartRequest] = useState<StartRequest>({ cardId: '', signal: 0 })
+  const [activeLaneCardId, setActiveLaneCardId] = useState<string | null>(null)
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [completions, logCompletion] = useLevelUpCompletions()
   const completionSummaryByCardId = useMemo(() => buildCompletionSummaryByCardId(completions), [completions])
@@ -166,6 +173,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const quickWins = filteredCards.filter((card) => card.durationMinutes <= 10).slice(0, 8)
   const performanceCards = filteredCards.filter((card) => ['movement-engine', 'strength-stability', 'conditioning', 'mobility-stretch', 'recovery-reset'].includes(card.category)).slice(0, 8)
   const matchDayCards = filteredCards.filter((card) => card.setting.includes('match-day') || card.tags.includes('match-day')).slice(0, 8)
+  const serveCards = buildServeTrainingCards()
   const returnCards = LEVEL_UP_CARDS.filter((card) => card.tags.includes('return-intent') || card.tags.includes('return-recovery')).slice(0, 8)
   const favoriteCards = LEVEL_UP_CARDS.filter((card) => favorites.includes(card.id)).slice(0, 8)
   const completedCards = completions
@@ -173,6 +181,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     .filter(Boolean)
     .slice(0, 8) as LevelUpCard[]
   const featuredModules = LEVEL_UP_MODULES.filter((module) => profile.featuredModuleIds.includes(module.id))
+  const serveTrainingModule = LEVEL_UP_MODULES.find((module) => module.id === 'serve-pressure-routine')
   const returnTrainingModule = LEVEL_UP_MODULES.find((module) => module.id === 'return-intent')
   const todayModule = featuredModules[0] ?? LEVEL_UP_MODULES[0]
   const todayCard = identityCards[0] ?? LEVEL_UP_CARDS[0]
@@ -213,15 +222,27 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     quickWins,
     nextBestCard: nextBestRep.card,
   })
+  const serveTrainingGroups = buildServeTrainingGroups(serveCards)
   const returnTrainingGroups = buildReturnTrainingGroups(returnCards)
+  const activeLaneCard = activeLaneCardId
+    ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
+    : undefined
+
+  function handleActivityChange(cardTitle: string | null) {
+    setActiveCardTitle(cardTitle)
+    if (cardTitle === null) {
+      setActiveLaneCardId(null)
+    }
+  }
 
   function startCardFromPlan(cardId: string) {
+    setStartRequest((request) => ({ cardId, signal: request.signal + 1 }))
+    setActiveLaneCardId(cardId)
+    const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === cardId)
+    if (card) {
+      setActiveCardTitle(card.title)
+    }
     scrollToStartList(startListRef)
-    window.requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLButtonElement>(`[data-level-up-card-id="${cardId}"] [data-level-up-start-action="true"]`)
-        ?.click()
-    })
   }
 
   return (
@@ -270,12 +291,41 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         onStartCard={startCardFromPlan}
       />
 
+      <LevelUpFocusTrainingLane
+        ariaLabel="Serve Training"
+        eyebrow="Serve Training"
+        title="Serve with a job, not hope."
+        copy="Call the target, run the same routine, connect the first ball, then score the proof."
+        module={serveTrainingModule}
+        groups={serveTrainingGroups}
+        completionSummaryByCardId={completionSummaryByCardId}
+        onStartCard={startCardFromPlan}
+        coachingCue="Good serve work is not just baskets. It is target, routine, recovery, then the plus-one decision."
+      />
+
       <LevelUpReturnTrainingLane
         module={returnTrainingModule}
         groups={returnTrainingGroups}
         completionSummaryByCardId={completionSummaryByCardId}
         onStartCard={startCardFromPlan}
       />
+
+      {activeLaneCard ? (
+        <section className={styles.levelUpLaneActiveCard} aria-label="Active quick-start card">
+          <LevelUpCardTile
+            key={`${activeLaneCard.id}-${startRequest.signal}`}
+            card={activeLaneCard}
+            reason={recommendationByCardId.get(activeLaneCard.id)?.reason}
+            favorite={favorites.includes(activeLaneCard.id)}
+            completionSummary={completionSummaryByCardId.get(activeLaneCard.id)}
+            onFavorite={toggleFavorite}
+            onComplete={logCompletion}
+            onActivityChange={handleActivityChange}
+            startHref={buildCardStartHref(identitySlug, activeLaneCard)}
+            initialActivityOpen
+          />
+        </section>
+      ) : null}
 
       <LevelUpTodayPlan items={todayPlan} activeCardTitle={activeCardTitle} onStartCard={startCardFromPlan} />
 
@@ -358,6 +408,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       />
 
       <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
+      <LevelUpSmartRail title="Serve Training" cards={serveCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
       <LevelUpSmartRail title="Return Training" cards={returnCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
       <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
       <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
@@ -932,19 +983,55 @@ function LevelUpReturnTrainingLane({
   onStartCard,
 }: {
   module?: LevelUpModule
-  groups: ReturnTrainingGroup[]
+  groups: FocusTrainingGroup[]
   completionSummaryByCardId: Map<string, CompletionSummary>
   onStartCard: (cardId: string) => void
+}) {
+  return (
+    <LevelUpFocusTrainingLane
+      ariaLabel="Return Training"
+      eyebrow="Return Training"
+      title="Start the point on purpose."
+      copy="Pick the return job before the toss, make contact with a plan, then recover for ball two."
+      module={module}
+      groups={groups}
+      completionSummaryByCardId={completionSummaryByCardId}
+      onStartCard={onStartCard}
+      coachingCue="Good return work is not just making the serve back. It is job, contact, recovery, then the next decision."
+    />
+  )
+}
+
+function LevelUpFocusTrainingLane({
+  ariaLabel,
+  eyebrow,
+  title,
+  copy,
+  module,
+  groups,
+  completionSummaryByCardId,
+  onStartCard,
+  coachingCue,
+}: {
+  ariaLabel: string
+  eyebrow: string
+  title: string
+  copy: string
+  module?: LevelUpModule
+  groups: FocusTrainingGroup[]
+  completionSummaryByCardId: Map<string, CompletionSummary>
+  onStartCard: (cardId: string) => void
+  coachingCue: string
 }) {
   const nextCard = groups.find((group) => group.card && !completionSummaryByCardId.has(group.card.id))?.card
     ?? groups.find((group) => group.card)?.card
 
   return (
-    <section className={styles.levelUpReturnTraining} aria-label="Return Training">
+    <section className={styles.levelUpFocusTraining} aria-label={ariaLabel}>
       <div className={styles.levelUpRailHeader}>
-        <span>Return Training</span>
-        <h2>Start the point on purpose.</h2>
-        <p>Pick the return job before the toss, make contact with a plan, then recover for ball two.</p>
+        <span>{eyebrow}</span>
+        <h2>{title}</h2>
+        <p>{copy}</p>
       </div>
       <div className={styles.levelUpReturnTrainingGrid}>
         {module ? (
@@ -955,7 +1042,7 @@ function LevelUpReturnTrainingLane({
             <small>Proof: {module.proof}</small>
             {nextCard ? (
               <button type="button" className="button-primary" onClick={() => onStartCard(nextCard.id)}>
-                Start return path
+                Start {eyebrow.toLowerCase()} path
               </button>
             ) : null}
           </article>
@@ -975,7 +1062,7 @@ function LevelUpReturnTrainingLane({
         </div>
       </div>
       <p className={styles.levelUpReturnCoachingCue}>
-        Good return work is not just making the serve back. It is job, contact, recovery, then the next decision.
+        {coachingCue}
       </p>
     </section>
   )
@@ -990,6 +1077,7 @@ function LevelUpCardTile({
   onComplete,
   onActivityChange,
   startHref,
+  initialActivityOpen = false,
 }: {
   card: LevelUpCard
   reason?: string
@@ -999,6 +1087,7 @@ function LevelUpCardTile({
   onComplete: (cardId: string, rating: number, note: string) => void
   onActivityChange?: (cardTitle: string | null) => void
   startHref: string
+  initialActivityOpen?: boolean
 }) {
   const cardRef = useRef<HTMLElement>(null)
   const [rating, setRating] = useState(3)
@@ -1006,7 +1095,7 @@ function LevelUpCardTile({
   const [savedRating, setSavedRating] = useState<number | null>(null)
   const [savedProofNote, setSavedProofNote] = useState('')
   const [loggerOpen, setLoggerOpen] = useState(false)
-  const [activityOpen, setActivityOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(initialActivityOpen)
   const [timerRunning, setTimerRunning] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [cleanRepCount, setCleanRepCount] = useState(0)
@@ -1096,6 +1185,13 @@ function LevelUpCardTile({
     }, 1000)
     return () => window.clearInterval(timer)
   }, [targetSeconds, timerRunning])
+
+  useEffect(() => {
+    if (!initialActivityOpen) return
+    window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [initialActivityOpen])
 
   function startActivity() {
     setActivityOpen(true)
@@ -2240,7 +2336,51 @@ function buildSessionBuilderPlan({
   }))
 }
 
-function buildReturnTrainingGroups(returnCards: LevelUpCard[]): ReturnTrainingGroup[] {
+function buildServeTrainingCards() {
+  const serveCardIds = [
+    'serve-target-call',
+    'second-serve-routine-reps',
+    'serve-1-shadow',
+    'serve-1-partner',
+    'double-fault-reset',
+    'serve-target-ladder',
+    'towel-serve-flow',
+    'serve-location-call',
+  ]
+
+  return serveCardIds
+    .map((cardId) => LEVEL_UP_CARDS.find((card) => card.id === cardId))
+    .filter(Boolean) as LevelUpCard[]
+}
+
+function buildServeTrainingGroups(serveCards: LevelUpCard[]): FocusTrainingGroup[] {
+  const byId = new Map(serveCards.map((card) => [card.id, card]))
+
+  return [
+    {
+      label: 'Target call',
+      card: byId.get('serve-target-call') ?? byId.get('serve-target-ladder'),
+      cue: 'Choose wide, body, or T before every rep.',
+    },
+    {
+      label: 'Second serve',
+      card: byId.get('second-serve-routine-reps') ?? byId.get('double-fault-reset'),
+      cue: 'Score routine commitment separately from makes.',
+    },
+    {
+      label: 'Serve +1',
+      card: byId.get('serve-1-shadow') ?? byId.get('serve-1-partner'),
+      cue: 'Serve target creates the first-ball job.',
+    },
+    {
+      label: 'Pressure reset',
+      card: byId.get('double-fault-reset') ?? byId.get('serve-target-call'),
+      cue: 'Reset after the miss, then repeat the same target routine.',
+    },
+  ]
+}
+
+function buildReturnTrainingGroups(returnCards: LevelUpCard[]): FocusTrainingGroup[] {
   const byId = new Map(returnCards.map((card) => [card.id, card]))
 
   return [
