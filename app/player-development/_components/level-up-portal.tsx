@@ -207,6 +207,14 @@ type FocusTrainingLane = {
   defaultOpen?: boolean
 }
 
+type LaneChooserItem = {
+  laneKey: string
+  label: string
+  need: string
+  action: string
+  cue: string
+}
+
 type StartRequest = {
   cardId: string
   signal: number
@@ -446,9 +454,12 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         <LevelUpNetConfidenceLadder items={netConfidenceLadder} onStartCard={startCardFromPlan} />
       ) : null}
 
+      <LevelUpLaneChooser lanes={focusTrainingLanes} />
+
       {focusTrainingLanes.map((lane) => (
         <LevelUpFocusTrainingLane
           key={lane.key}
+          laneKey={lane.key}
           ariaLabel={lane.ariaLabel}
           eyebrow={lane.eyebrow}
           title={lane.title}
@@ -1376,6 +1387,7 @@ function LevelUpSmartRail({
 }
 
 function LevelUpFocusTrainingLane({
+  laneKey,
   ariaLabel,
   eyebrow,
   title,
@@ -1387,6 +1399,7 @@ function LevelUpFocusTrainingLane({
   onStartCard,
   coachingCue,
 }: {
+  laneKey: string
   ariaLabel: string
   eyebrow: string
   title: string
@@ -1407,7 +1420,7 @@ function LevelUpFocusTrainingLane({
     : undefined
 
   return (
-    <section className={styles.levelUpFocusTraining} aria-label={ariaLabel}>
+    <section id={`level-up-lane-${laneKey}`} className={styles.levelUpFocusTraining} aria-label={ariaLabel}>
       <div className={styles.levelUpRailHeader}>
         <span>{eyebrow}</span>
         <h2>{title}</h2>
@@ -1488,6 +1501,101 @@ function LevelUpFocusTrainingLane({
       </p>
     </section>
   )
+}
+
+function LevelUpLaneChooser({ lanes }: { lanes: FocusTrainingLane[] }) {
+  const items = lanes
+    .map((lane) => buildLaneChooserItem(lane))
+    .filter(Boolean) as LaneChooserItem[]
+
+  if (!items.length) return null
+
+  return (
+    <section className={styles.levelUpLaneChooser} aria-label="Choose what to level up next">
+      <div className={styles.levelUpRailHeader}>
+        <span>Choose your lane</span>
+        <h2>What needs work right now?</h2>
+        <p>Pick the tennis problem first. The next screen gives you the station, proof target, and first rep.</p>
+      </div>
+      <div className={styles.levelUpLaneChooserGrid}>
+        {items.map((item) => (
+          <button
+            key={item.laneKey}
+            type="button"
+            onClick={() => scrollToLane(item.laneKey)}
+          >
+            <span>{item.label}</span>
+            <strong>{item.need}</strong>
+            <small>{item.action}</small>
+            <em>{item.cue}</em>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function scrollToLane(laneKey: string) {
+  document.getElementById(`level-up-lane-${laneKey}`)?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  })
+}
+
+function buildLaneChooserItem(lane: FocusTrainingLane): LaneChooserItem | null {
+  const itemByLaneKey: Record<string, Omit<LaneChooserItem, 'laneKey'>> = {
+    serve: {
+      label: 'Serve',
+      need: 'I need a cleaner point start.',
+      action: 'Choose routine, target, serve +1, pressure, or fix a miss.',
+      cue: 'Target before toss.',
+    },
+    return: {
+      label: 'Return',
+      need: 'I need to start return games with intent.',
+      action: 'Choose serve type, partner work, pressure, or fix a return miss.',
+      cue: 'Job before contact.',
+    },
+    movement: {
+      label: 'Movement',
+      need: 'I need to arrive and recover better.',
+      action: 'Choose warm-up, first step, recovery, wide ball, or fatigue.',
+      cue: 'Contact, recover, then look.',
+    },
+    forehand: {
+      label: 'Forehand',
+      need: 'I need my forehand to build points.',
+      action: 'Find shape, margin, attack-balance, and recovery reps.',
+      cue: 'Shape before speed.',
+    },
+    backhand: {
+      label: 'Backhand',
+      need: 'I need my backhand to hold up.',
+      action: 'Find spacing, depth, crosscourt, and pressure tolerance work.',
+      cue: 'Depth buys time.',
+    },
+    volley: {
+      label: 'Volley',
+      need: 'I need to close and finish simpler.',
+      action: 'Find split, punch, target, and approach-to-volley reps.',
+      cue: 'Close, split, quiet hands.',
+    },
+    singles: {
+      label: 'Singles',
+      need: 'I need a clearer rally job.',
+      action: 'Find build, defend, attack, pressure, and reset patterns.',
+      cue: 'Name the point job.',
+    },
+    doubles: {
+      label: 'Doubles',
+      need: 'I need better first moves with my partner.',
+      action: 'Find serve calls, return calls, poach timing, and middle rules.',
+      cue: 'Call, move, cover.',
+    },
+  }
+
+  const item = itemByLaneKey[lane.key]
+  return item ? { laneKey: lane.key, ...item } : null
 }
 
 function LevelUpCardTile({

@@ -559,6 +559,7 @@
 .levelUpSessionBuilder,
 .levelUpNetLadder,
 .levelUpFocusTraining,
+.levelUpLaneChooser,
 .levelUpLaneActiveCard,
 .levelUpTodayPlan,
 .levelUpCloseLoop,
@@ -762,6 +763,63 @@
   display: grid;
   grid-template-columns: minmax(240px, 0.48fr) minmax(0, 1fr);
   gap: 10px;
+}
+
+.levelUpLaneChooserGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpLaneChooserGrid button {
+  display: grid;
+  gap: 8px;
+  min-height: 138px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 46%),
+    rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  cursor: pointer;
+  padding: 12px;
+  text-align: left;
+}
+
+.levelUpLaneChooserGrid button:hover,
+.levelUpLaneChooserGrid button:focus-visible {
+  border-color: rgba(155, 225, 29, 0.48);
+  outline: none;
+}
+
+.levelUpLaneChooserGrid span {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.14);
+  color: #d8f7a4;
+  padding: 5px 8px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.levelUpLaneChooserGrid strong {
+  color: var(--foreground-strong);
+  font-size: 0.98rem;
+  line-height: 1.12;
+}
+
+.levelUpLaneChooserGrid small,
+.levelUpLaneChooserGrid em {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  font-style: normal;
+  line-height: 1.25;
+}
+
+.levelUpLaneChooserGrid em {
+  color: #d8f7a4;
+  font-weight: 850;
 }
 
 .levelUpLaneStation {
@@ -9268,6 +9326,7 @@
   .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid,
+  .levelUpLaneChooserGrid,
   .levelUpHero,
   .levelUpOverviewGrid,
   .levelUpCoachAssignmentBanner,
@@ -9452,6 +9511,7 @@
   .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid,
+  .levelUpLaneChooserGrid,
   .levelUpHero,
   .levelUpOverviewGrid,
   .levelUpCoachAssignmentBanner,
@@ -9792,6 +9852,7 @@
   .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid,
+  .levelUpLaneChooserGrid,
   .levelUpRailGrid {
     display: flex;
     gap: 8px;
@@ -9808,6 +9869,7 @@
   .levelUpCardRail article,
   .levelUpModuleRail article,
   .levelUpLibraryGrid a,
+  .levelUpLaneChooserGrid button,
   .levelUpRailGrid article {
     flex: 0 0 min(78vw, 292px);
     scroll-snap-align: start;
