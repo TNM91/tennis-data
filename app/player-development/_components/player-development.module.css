@@ -580,6 +580,8 @@
   background: var(--surface);
   box-shadow: var(--shadow-card);
   color: var(--foreground);
+  max-width: 100%;
+  min-width: 0;
   padding: clamp(16px, 3vw, 24px);
 }
 
@@ -681,6 +683,8 @@
   align-items: center;
   cursor: pointer;
   list-style: none;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .levelUpRailSummary::-webkit-details-marker {
@@ -695,6 +699,8 @@
   color: var(--foreground-strong);
   font-size: clamp(1rem, 2vw, 1.22rem);
   line-height: 1.15;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .levelUpRailSummary small {
@@ -3299,6 +3305,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   max-width: 100%;
+  min-width: 0;
 }
 
 .levelUpCardTile,
