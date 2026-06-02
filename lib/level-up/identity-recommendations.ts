@@ -315,6 +315,39 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Forehand Pressure Builder because this path builds forehand shape, crosscourt pressure, earned direction changes, attack balance, and short-ball conversion.',
   },
+  'backhand-stability-builder-4-0': {
+    identitySlug: 'backhand-stability-builder-4-0',
+    featuredModuleIds: [
+      'backhand-stability-builder',
+      'crosscourt-build-before-change',
+      'wide-ball-reset',
+      'wall-work-starter',
+      'return-intent',
+      'pressure-reset',
+    ],
+    starterCardIds: [
+      'basket-backhand-crosscourt',
+      'crosscourt-consistency',
+      'wall-depth-builder',
+      'wide-ball-neutralizer',
+      'return-depth-lane',
+      'recover-before-score',
+      'three-step-reset',
+    ],
+    focusTags: [
+      'backhand',
+      'crosscourt-build',
+      'wide-ball-reset',
+      'defense-to-neutral',
+      'wall-work',
+      'return-recovery',
+      'decision-quality',
+      'pressure-reset',
+    ],
+    lanePriority: ['backhand', 'singles', 'movement', 'return', 'fitness', 'pressure', 'forehand', 'serve'],
+    recommendationCopy:
+      'Recommended for Backhand Stability Builder because this path builds backhand depth, crosscourt tolerance, wide-ball reset, return depth, recovery discipline, and pressure-safe rally decisions.',
+  },
   'all-court-adapter-4-0': {
     identitySlug: 'all-court-adapter-4-0',
     featuredModuleIds: [

@@ -124,7 +124,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 18 minutes',
     cardIds: ['wide-ball-neutralizer', 'drop-step-recovery', 'three-step-reset'],
     tags: ['wide-ball-reset', 'defense-to-neutral', 'pressure-reset'],
-    identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'backhand-stability-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Defense to neutral 0-5',
   },
   {
@@ -160,8 +160,27 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['crosscourt-consistency', 'basket-forehand-crosscourt', 'basket-backhand-crosscourt'],
     tags: ['crosscourt-build', 'decision-quality', 'attack-balance'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'backhand-stability-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Crosscourt build 0-5',
+  },
+  {
+    id: 'backhand-stability-builder',
+    title: 'Backhand Stability Builder',
+    subtitle: 'Make the backhand a rally tool.',
+    description: 'Build backhand depth, crosscourt tolerance, wide-ball reset, and recovery after contact.',
+    useWhen: 'Use this when the backhand side leaks errors, gets short, or turns defensive balls into rushed changes.',
+    sessionPlan: [
+      'Start with basket or wall backhand depth so contact and shape are repeatable.',
+      'Add crosscourt partner reps and score only balls that create recovery time.',
+      'Finish with wide-ball reset or recover-before-score so the player does not admire or escape the backhand.',
+    ],
+    successCriteria: 'The player can use the backhand to hold neutral, recover, and choose the next ball without panic.',
+    level: 'starter',
+    durationLabel: '5 cards / 28 minutes',
+    cardIds: ['basket-backhand-crosscourt', 'crosscourt-consistency', 'wall-depth-builder', 'wide-ball-neutralizer', 'recover-before-score'],
+    tags: ['backhand', 'crosscourt-build', 'wide-ball-reset', 'recovery-after-contact', 'decision-quality'],
+    identitySlugs: ['consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'backhand-stability-builder-4-0'],
+    proof: 'Backhand stability 0-5',
   },
   {
     id: 'pressure-reset',
@@ -179,7 +198,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 10 minutes',
     cardIds: ['three-step-reset', 'tight-arm-reset', 'closing-game-routine'],
     tags: ['pressure-reset', 'between-points', 'quick-win'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'backhand-stability-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Reset used 0-5',
   },
   {
@@ -191,7 +210,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '2 cards / 10 minutes',
     cardIds: ['dynamic-tennis-warm-up', 'five-minute-match-primer'],
     tags: ['match-day', 'warm-up', 'mobility'],
-    identitySlugs: ['consistent-builder-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0'],
+    identitySlugs: ['consistent-builder-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'backhand-stability-builder-4-0'],
     proof: 'Match-day ready 0-5',
   },
   {
@@ -203,7 +222,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '2 cards / 10 minutes',
     cardIds: ['post-play-mobility-reset', 'thoracic-open-book'],
     tags: ['mobility', 'stretch', 'recovery'],
-    identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0', 'backhand-stability-builder-4-0'],
     proof: 'Recovery reset 0-5',
   },
   {
@@ -282,6 +301,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '4 cards / 20 minutes',
     cardIds: ['wall-rally-rhythm', 'wall-depth-builder', 'wall-recovery-rule', 'wall-alternating-fh-bh'],
     tags: ['wall-work', 'recovery-after-contact', 'crosscourt-build'],
+    identitySlugs: ['consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'backhand-stability-builder-4-0'],
     proof: 'Wall work quality 0-5',
   },
   {
