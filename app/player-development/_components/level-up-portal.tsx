@@ -73,6 +73,12 @@ type CloseLoopItem = {
   action: string
 }
 
+type NetConfidenceLadderItem = {
+  label: string
+  card: LevelUpCard
+  standard: string
+}
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -245,6 +251,9 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     matchDayCards,
     nextBestCard: nextBestRep.card,
   })
+  const netConfidenceLadder = identitySlug === 'net-confidence-builder-4-0'
+    ? buildNetConfidenceLadder()
+    : []
   const sessionPlan = buildSessionBuilderPlan({
     minutes: sessionMinutes,
     focus: sessionFocus,
@@ -332,6 +341,10 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         onFocusChange={setSessionFocus}
         onStartCard={startCardFromPlan}
       />
+
+      {netConfidenceLadder.length ? (
+        <LevelUpNetConfidenceLadder items={netConfidenceLadder} onStartCard={startCardFromPlan} />
+      ) : null}
 
       {focusTrainingLanes.map((lane) => (
         <LevelUpFocusTrainingLane
@@ -738,6 +751,37 @@ function LevelUpCloseLoopPanel({
         <strong>{recentProofRead}</strong>
         <small>{recentCard ? `Last proof came from ${recentCard.title}.` : 'No proof yet. Start any card and save a 0-5 score.'}</small>
       </div>
+    </section>
+  )
+}
+
+function LevelUpNetConfidenceLadder({
+  items,
+  onStartCard,
+}: {
+  items: NetConfidenceLadderItem[]
+  onStartCard: (cardId: string) => void
+}) {
+  return (
+    <section className={styles.levelUpNetLadder} aria-label="Net confidence ladder">
+      <div className={styles.levelUpRailHeader}>
+        <span>Net confidence ladder</span>
+        <h2>Close, split, punch, finish.</h2>
+        <p>Use this when the player gets forward but still feels rushed. Train one step at a time before playing live points.</p>
+      </div>
+      <div className={styles.levelUpNetLadderGrid}>
+        {items.map((item, index) => (
+          <button key={item.card.id} type="button" onClick={() => onStartCard(item.card.id)}>
+            <span>{index + 1}</span>
+            <b>{item.label}</b>
+            <strong>{item.card.title}</strong>
+            <small>{item.standard}</small>
+          </button>
+        ))}
+      </div>
+      <p className={styles.levelUpNetLadderCue}>
+        Net confidence is not a bravery speech. It is arrive balanced, split before the pass, make compact contact, then recover for the next ball.
+      </p>
     </section>
   )
 }
@@ -2375,6 +2419,46 @@ function buildCloseLoopItems({
       action: 'Pick next',
     },
   ]
+}
+
+function buildNetConfidenceLadder(): NetConfidenceLadderItem[] {
+  const cards = buildCardsByIds([
+    'short-ball-close-split',
+    'volley-ready-split',
+    'volley-punch-target',
+    'approach-volley-close',
+    'reaction-volley-wall',
+  ])
+  const byId = new Map(cards.map((card) => [card.id, card]))
+  const ladder = [
+    {
+      label: 'Earn the close',
+      card: byId.get('short-ball-close-split'),
+      standard: 'Approach through the short ball, close, and split before watching.',
+    },
+    {
+      label: 'Arrive ready',
+      card: byId.get('volley-ready-split'),
+      standard: 'Split before the pass and keep the hands quiet.',
+    },
+    {
+      label: 'Give the volley a job',
+      card: byId.get('volley-punch-target'),
+      standard: 'Call deep middle, short angle, or behind before contact.',
+    },
+    {
+      label: 'Connect the pattern',
+      card: byId.get('approach-volley-close'),
+      standard: 'Approach, close, split, and make the first volley useful.',
+    },
+    {
+      label: 'Keep hands calm',
+      card: byId.get('reaction-volley-wall'),
+      standard: 'Use wall touches to reset hands without a big swing.',
+    },
+  ]
+
+  return ladder.filter((item): item is NetConfidenceLadderItem => Boolean(item.card))
 }
 
 function buildSessionBuilderPlan({
