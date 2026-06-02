@@ -72,6 +72,7 @@ type SessionBuilderItem = {
   label: string
   card: LevelUpCard
   why: string
+  cue: string
 }
 
 const emptyFilters: FilterState = {
@@ -555,6 +556,7 @@ function LevelUpSessionBuilder({
               <b>{item.label}</b>
               <strong>{item.card.title}</strong>
               <small>{item.why}</small>
+              <small>Cue: {item.cue}</small>
               <small>Proof: {item.card.proof}</small>
             </div>
           </button>
@@ -2148,7 +2150,8 @@ function buildSessionBuilderPlan({
   return candidates.map((card, index) => ({
     label: labels[index] ?? 'Next useful rep',
     card,
-    why: getSessionBuilderWhy(card, focusOption.label),
+    why: getSessionBuilderWhy(card, focusOption.label, labels[index] ?? 'Next useful rep'),
+    cue: getSessionBuilderCue(card, labels[index] ?? 'Next useful rep'),
   }))
 }
 
@@ -2160,11 +2163,51 @@ function findSessionCard(cards: LevelUpCard[], focusTags: string[], preferredTag
   ))
 }
 
-function getSessionBuilderWhy(card: LevelUpCard, focusLabel: string) {
-  if (card.durationMinutes <= 10) return `Quick ${focusLabel.toLowerCase()} rep you can finish and rate.`
-  if (card.setting.includes('court')) return `Court-ready work tied to ${card.tennisGoal.toLowerCase()}.`
-  if (card.category === 'strength-stability' || card.category === 'conditioning') return `Physical work connected to ${card.tennisGoal.toLowerCase()}.`
-  return `Builds the ${focusLabel.toLowerCase()} habit without needing a long setup.`
+function getSessionBuilderWhy(card: LevelUpCard, focusLabel: string, stepLabel: string) {
+  const tennisGoal = sentenceCase(cleanSentenceFragment(card.tennisGoal))
+
+  if (stepLabel === 'Warm the habit' || stepLabel === 'Start clean') {
+    if (card.tags.includes('match-day') || card.tags.includes('light-feet')) return `Prepare the body and first step before asking for speed.`
+    if (card.tags.includes('mobility')) return `Open the range you need before the tennis work starts.`
+    return `Start the ${focusLabel.toLowerCase()} block with one clean habit, not volume.`
+  }
+
+  if (stepLabel === 'Train the rep') {
+    if (card.setting.includes('court')) return `Train the exact tennis action: ${tennisGoal}.`
+    if (card.category === 'strength-stability' || card.category === 'conditioning') return `Build the physical base behind ${cleanSentenceFragment(card.tennisGoal)}.`
+    return `Make the ${focusLabel.toLowerCase()} cue repeatable before adding pressure.`
+  }
+
+  if (stepLabel === 'Add pressure' || stepLabel === 'Score under intent') {
+    if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) return `Practice the reset while the score or fatigue would normally rush you.`
+    if (card.tags.includes('decision-quality')) return `Make the choice earlier, then live with the result.`
+    return `Add a consequence so the habit has to hold up.`
+  }
+
+  if (card.durationMinutes <= 10) return `Finish with a short proof rep you can score honestly.`
+  return `Close the ${focusLabel.toLowerCase()} block with one number and one useful next step.`
+}
+
+function cleanSentenceFragment(value: string) {
+  return value.trim().replace(/[.?!]+$/, '').toLowerCase()
+}
+
+function sentenceCase(value: string) {
+  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value
+}
+
+function getSessionBuilderCue(card: LevelUpCard, stepLabel: string) {
+  const firstRoutineStep = card.routine[0]?.replace(/\.$/, '')
+
+  if (stepLabel === 'Score and save' || stepLabel === 'Score proof') return `Score ${card.proof}; note only what changes the next practice.`
+  if (card.tags.includes('recovery-after-contact')) return 'Recover before you watch the ball.'
+  if (card.tags.includes('serve-routine')) return 'Call the target, breathe, then start the motion.'
+  if (card.tags.includes('pressure-reset')) return 'Name the score, reset the breath, choose the next ball.'
+  if (card.tags.includes('light-feet')) return 'Quiet feet, balanced head, ready split.'
+  if (card.tags.includes('leg-durability')) return 'Stay low without letting posture collapse.'
+  if (firstRoutineStep) return firstRoutineStep
+
+  return card.cue
 }
 
 function tagsOverlap(left: string[], right: string[]) {
