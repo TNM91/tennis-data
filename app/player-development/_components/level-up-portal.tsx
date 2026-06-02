@@ -81,6 +81,18 @@ type FocusTrainingGroup = {
   cue: string
 }
 
+type FocusTrainingLane = {
+  ariaLabel: string
+  eyebrow: string
+  title: string
+  copy: string
+  module?: LevelUpModule
+  cards: LevelUpCard[]
+  groups: FocusTrainingGroup[]
+  coachingCue: string
+  defaultOpen?: boolean
+}
+
 type StartRequest = {
   cardId: string
   signal: number
@@ -175,6 +187,12 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const matchDayCards = filteredCards.filter((card) => card.setting.includes('match-day') || card.tags.includes('match-day')).slice(0, 8)
   const serveCards = buildServeTrainingCards()
   const returnCards = LEVEL_UP_CARDS.filter((card) => card.tags.includes('return-intent') || card.tags.includes('return-recovery')).slice(0, 8)
+  const movementCards = buildCardsByIds(['cone-recover-shadow-swing', 'split-step-rhythm', 'wide-ball-neutralizer', 'drop-step-recovery', 'four-cone-tennis-star', 'lateral-decel-stick', 'crossover-recovery-lane', 'jump-rope-rhythm-builder'])
+  const forehandCards = buildCardsByIds(['basket-forehand-crosscourt', 'crosscourt-consistency', 'defense-neutral-attack-rally', 'short-ball-close-split', 'cone-close-recover', 'wall-rally-rhythm'])
+  const backhandCards = buildCardsByIds(['basket-backhand-crosscourt', 'crosscourt-consistency', 'wall-alternating-fh-bh', 'wall-depth-builder', 'drop-step-recovery', 'wide-ball-neutralizer'])
+  const volleyCards = buildCardsByIds(['volley-ready-split', 'volley-punch-target', 'approach-volley-close', 'reaction-volley-wall', 'poach-timing-shadow', 'middle-ball-rule'])
+  const singlesCards = buildCardsByIds(['crosscourt-consistency', 'defense-neutral-attack-rally', 'wide-ball-neutralizer', '30-30-pressure-game', 'three-step-reset', 'closing-game-routine'])
+  const doublesCards = buildCardsByIds(['serve-location-call', 'doubles-return-first-move', 'partner-first-move-call', 'poach-timing-shadow', 'middle-ball-rule', 'switch-call-drill', 'doubles-30-30-game'])
   const favoriteCards = LEVEL_UP_CARDS.filter((card) => favorites.includes(card.id)).slice(0, 8)
   const completedCards = completions
     .map((completion) => LEVEL_UP_CARDS.find((card) => card.id === completion.cardId))
@@ -222,8 +240,18 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     quickWins,
     nextBestCard: nextBestRep.card,
   })
-  const serveTrainingGroups = buildServeTrainingGroups(serveCards)
-  const returnTrainingGroups = buildReturnTrainingGroups(returnCards)
+  const focusTrainingLanes = buildFocusTrainingLanes({
+    serveTrainingModule,
+    returnTrainingModule,
+    serveCards,
+    returnCards,
+    movementCards,
+    forehandCards,
+    backhandCards,
+    volleyCards,
+    singlesCards,
+    doublesCards,
+  })
   const activeLaneCard = activeLaneCardId
     ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
     : undefined
@@ -291,24 +319,20 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         onStartCard={startCardFromPlan}
       />
 
-      <LevelUpFocusTrainingLane
-        ariaLabel="Serve Training"
-        eyebrow="Serve Training"
-        title="Serve with a job, not hope."
-        copy="Call the target, run the same routine, connect the first ball, then score the proof."
-        module={serveTrainingModule}
-        groups={serveTrainingGroups}
-        completionSummaryByCardId={completionSummaryByCardId}
-        onStartCard={startCardFromPlan}
-        coachingCue="Good serve work is not just baskets. It is target, routine, recovery, then the plus-one decision."
-      />
-
-      <LevelUpReturnTrainingLane
-        module={returnTrainingModule}
-        groups={returnTrainingGroups}
-        completionSummaryByCardId={completionSummaryByCardId}
-        onStartCard={startCardFromPlan}
-      />
+      {focusTrainingLanes.map((lane) => (
+        <LevelUpFocusTrainingLane
+          key={lane.ariaLabel}
+          ariaLabel={lane.ariaLabel}
+          eyebrow={lane.eyebrow}
+          title={lane.title}
+          copy={lane.copy}
+          module={lane.module}
+          groups={lane.groups}
+          completionSummaryByCardId={completionSummaryByCardId}
+          onStartCard={startCardFromPlan}
+          coachingCue={lane.coachingCue}
+        />
+      ))}
 
       {activeLaneCard ? (
         <section className={styles.levelUpLaneActiveCard} aria-label="Active quick-start card">
@@ -408,8 +432,9 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       />
 
       <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
-      <LevelUpSmartRail title="Serve Training" cards={serveCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
-      <LevelUpSmartRail title="Return Training" cards={returnCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
+      {focusTrainingLanes.map((lane) => (
+        <LevelUpSmartRail key={`${lane.ariaLabel}-rail`} title={lane.ariaLabel} cards={lane.cards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen={lane.defaultOpen} />
+      ))}
       <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
       <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
       <LevelUpSmartRail title="Performance Upgrade" cards={performanceCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
@@ -973,32 +998,6 @@ function LevelUpSmartRail({
         </div>
       ) : <p>{emptyText ?? 'No cards in this rail yet.'}</p>}
     </details>
-  )
-}
-
-function LevelUpReturnTrainingLane({
-  module,
-  groups,
-  completionSummaryByCardId,
-  onStartCard,
-}: {
-  module?: LevelUpModule
-  groups: FocusTrainingGroup[]
-  completionSummaryByCardId: Map<string, CompletionSummary>
-  onStartCard: (cardId: string) => void
-}) {
-  return (
-    <LevelUpFocusTrainingLane
-      ariaLabel="Return Training"
-      eyebrow="Return Training"
-      title="Start the point on purpose."
-      copy="Pick the return job before the toss, make contact with a plan, then recover for ball two."
-      module={module}
-      groups={groups}
-      completionSummaryByCardId={completionSummaryByCardId}
-      onStartCard={onStartCard}
-      coachingCue="Good return work is not just making the serve back. It is job, contact, recovery, then the next decision."
-    />
   )
 }
 
@@ -2353,6 +2352,115 @@ function buildServeTrainingCards() {
     .filter(Boolean) as LevelUpCard[]
 }
 
+function buildCardsByIds(cardIds: string[]) {
+  return cardIds
+    .map((cardId) => LEVEL_UP_CARDS.find((card) => card.id === cardId))
+    .filter(Boolean) as LevelUpCard[]
+}
+
+function buildFocusTrainingLanes({
+  serveTrainingModule,
+  returnTrainingModule,
+  serveCards,
+  returnCards,
+  movementCards,
+  forehandCards,
+  backhandCards,
+  volleyCards,
+  singlesCards,
+  doublesCards,
+}: {
+  serveTrainingModule?: LevelUpModule
+  returnTrainingModule?: LevelUpModule
+  serveCards: LevelUpCard[]
+  returnCards: LevelUpCard[]
+  movementCards: LevelUpCard[]
+  forehandCards: LevelUpCard[]
+  backhandCards: LevelUpCard[]
+  volleyCards: LevelUpCard[]
+  singlesCards: LevelUpCard[]
+  doublesCards: LevelUpCard[]
+}): FocusTrainingLane[] {
+  return [
+    {
+      ariaLabel: 'Serve Training',
+      eyebrow: 'Serve Training',
+      title: 'Serve with a job, not hope.',
+      copy: 'Call the target, run the same routine, connect the first ball, then score the proof.',
+      module: serveTrainingModule,
+      cards: serveCards,
+      groups: buildServeTrainingGroups(serveCards),
+      coachingCue: 'Good serve work is not just baskets. It is target, routine, recovery, then the plus-one decision.',
+      defaultOpen: true,
+    },
+    {
+      ariaLabel: 'Return Training',
+      eyebrow: 'Return Training',
+      title: 'Start the point on purpose.',
+      copy: 'Pick the return job before the toss, make contact with a plan, then recover for ball two.',
+      module: returnTrainingModule,
+      cards: returnCards,
+      groups: buildReturnTrainingGroups(returnCards),
+      coachingCue: 'Good return work is not just making the serve back. It is job, contact, recovery, then the next decision.',
+      defaultOpen: true,
+    },
+    {
+      ariaLabel: 'Movement Training',
+      eyebrow: 'Movement Training',
+      title: 'Arrive balanced, recover sooner.',
+      copy: 'Train split step, first move, recovery after contact, and wide-ball reset with tennis posture.',
+      cards: movementCards,
+      groups: buildMovementTrainingGroups(movementCards),
+      coachingCue: 'Good movement work is not max speed. It is clean arrival, balanced contact, and recovery before watching.',
+    },
+    {
+      ariaLabel: 'Forehand Training',
+      eyebrow: 'Forehand Training',
+      title: 'Build the forehand before you blast it.',
+      copy: 'Use shape, margin, recovery, and the right attack decision so the forehand becomes a point pattern.',
+      cards: forehandCards,
+      groups: buildForehandTrainingGroups(forehandCards),
+      coachingCue: 'Good forehand work has a ball shape, a recovery lane, and a decision before speed.',
+    },
+    {
+      ariaLabel: 'Backhand Training',
+      eyebrow: 'Backhand Training',
+      title: 'Make the backhand hold up.',
+      copy: 'Build crosscourt tolerance, depth, spacing, and recovery so the backhand can start or extend points.',
+      cards: backhandCards,
+      groups: buildBackhandTrainingGroups(backhandCards),
+      coachingCue: 'Good backhand work is not surviving. It is spacing, shape, depth, and recovery you can repeat.',
+    },
+    {
+      ariaLabel: 'Volley Training',
+      eyebrow: 'Volley Training',
+      title: 'Close, split, finish simple.',
+      copy: 'Train ready split, compact contact, target choice, and approach-volley connection.',
+      cards: volleyCards,
+      groups: buildVolleyTrainingGroups(volleyCards),
+      coachingCue: 'Good volley work is close, split, quiet hands, target. Big swings usually mean the setup was late.',
+    },
+    {
+      ariaLabel: 'Singles Training',
+      eyebrow: 'Singles Training',
+      title: 'Win the rally job in front of you.',
+      copy: 'Build crosscourt tolerance, defense-to-neutral, pressure points, and reset routines for singles.',
+      cards: singlesCards,
+      groups: buildSinglesTrainingGroups(singlesCards),
+      coachingCue: 'Good singles work connects the shot to the point job: build, defend, attack, or reset.',
+    },
+    {
+      ariaLabel: 'Doubles Training',
+      eyebrow: 'Doubles Training',
+      title: 'Make your partner faster.',
+      copy: 'Use short calls, first moves, poach timing, middle ownership, and pressure clarity.',
+      cards: doublesCards,
+      groups: buildDoublesTrainingGroups(doublesCards),
+      coachingCue: 'Good doubles work makes the first move visible. Your partner should not have to guess.',
+    },
+  ]
+}
+
 function buildServeTrainingGroups(serveCards: LevelUpCard[]): FocusTrainingGroup[] {
   const byId = new Map(serveCards.map((card) => [card.id, card]))
 
@@ -2404,6 +2512,72 @@ function buildReturnTrainingGroups(returnCards: LevelUpCard[]): FocusTrainingGro
       card: byId.get('doubles-return-first-move'),
       cue: 'Return lane and partner first move are both called before the serve.',
     },
+  ]
+}
+
+function buildMovementTrainingGroups(cards: LevelUpCard[]): FocusTrainingGroup[] {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+
+  return [
+    { label: 'Recover after contact', card: byId.get('cone-recover-shadow-swing'), cue: 'Finish the swing, recover, then look.' },
+    { label: 'Split rhythm', card: byId.get('split-step-rhythm') ?? byId.get('jump-rope-rhythm-builder'), cue: 'Split before the next move, not after it.' },
+    { label: 'Wide-ball reset', card: byId.get('wide-ball-neutralizer'), cue: 'Buy time with height, then recover to neutral.' },
+    { label: 'Cone movement', card: byId.get('four-cone-tennis-star') ?? byId.get('drop-step-recovery'), cue: 'Move with tennis posture before adding speed.' },
+  ]
+}
+
+function buildForehandTrainingGroups(cards: LevelUpCard[]): FocusTrainingGroup[] {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+
+  return [
+    { label: 'Crosscourt shape', card: byId.get('basket-forehand-crosscourt'), cue: 'Shape with margin, finish balanced, recover.' },
+    { label: 'Rally build', card: byId.get('crosscourt-consistency'), cue: 'Build crosscourt before changing direction.' },
+    { label: 'Attack decision', card: byId.get('defense-neutral-attack-rally'), cue: 'Name defense, neutral, or attack before the swing.' },
+    { label: 'Close forward', card: byId.get('short-ball-close-split') ?? byId.get('cone-close-recover'), cue: 'Move through the short ball and split after.' },
+  ]
+}
+
+function buildBackhandTrainingGroups(cards: LevelUpCard[]): FocusTrainingGroup[] {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+
+  return [
+    { label: 'Backhand shape', card: byId.get('basket-backhand-crosscourt'), cue: 'Use height and depth before going for more.' },
+    { label: 'Crosscourt hold', card: byId.get('crosscourt-consistency'), cue: 'Stay in the crosscourt job until balanced.' },
+    { label: 'Wall spacing', card: byId.get('wall-alternating-fh-bh') ?? byId.get('wall-depth-builder'), cue: 'Spacing first, then contact rhythm.' },
+    { label: 'Defend neutral', card: byId.get('wide-ball-neutralizer') ?? byId.get('drop-step-recovery'), cue: 'Defend with shape and recover before changing.' },
+  ]
+}
+
+function buildVolleyTrainingGroups(cards: LevelUpCard[]): FocusTrainingGroup[] {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+
+  return [
+    { label: 'Ready split', card: byId.get('volley-ready-split'), cue: 'Close, split, quiet hands.' },
+    { label: 'Punch target', card: byId.get('volley-punch-target'), cue: 'Target first, punch short, recover forward.' },
+    { label: 'Approach volley', card: byId.get('approach-volley-close'), cue: 'Approach, close, split, first volley.' },
+    { label: 'Wall hands', card: byId.get('reaction-volley-wall'), cue: 'Short block, reset hands, stay balanced.' },
+  ]
+}
+
+function buildSinglesTrainingGroups(cards: LevelUpCard[]): FocusTrainingGroup[] {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+
+  return [
+    { label: 'Crosscourt build', card: byId.get('crosscourt-consistency'), cue: 'Earn the change by building first.' },
+    { label: 'Defense to neutral', card: byId.get('defense-neutral-attack-rally') ?? byId.get('wide-ball-neutralizer'), cue: 'Know when the job is survive, build, or attack.' },
+    { label: 'Pressure game', card: byId.get('30-30-pressure-game'), cue: 'Start at 30-30 and keep the point plan clear.' },
+    { label: 'Reset routine', card: byId.get('three-step-reset') ?? byId.get('closing-game-routine'), cue: 'Breathe, choose, commit before the next point.' },
+  ]
+}
+
+function buildDoublesTrainingGroups(cards: LevelUpCard[]): FocusTrainingGroup[] {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+
+  return [
+    { label: 'Serve location', card: byId.get('serve-location-call'), cue: 'Location call creates partner movement.' },
+    { label: 'First move', card: byId.get('partner-first-move-call') ?? byId.get('doubles-return-first-move'), cue: 'Say the first move before the ball is live.' },
+    { label: 'Poach timing', card: byId.get('poach-timing-shadow'), cue: 'Poach on a trigger, not a guess.' },
+    { label: 'Middle and switch', card: byId.get('middle-ball-rule') ?? byId.get('switch-call-drill'), cue: 'Own the middle and call the switch early.' },
   ]
 }
 
