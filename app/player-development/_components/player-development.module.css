@@ -478,6 +478,7 @@
 .levelUpPortalApp[data-session-focus='active'] .levelUpTodayDashboard,
 .levelUpPortalApp[data-session-focus='active'] .levelUpSessionBuilder,
 .levelUpPortalApp[data-session-focus='active'] .levelUpFocusTraining,
+.levelUpPortalApp[data-session-focus='active'] .levelUpCloseLoop,
 .levelUpPortalApp[data-session-focus='active'] .levelUpNextBestRep,
 .levelUpPortalApp[data-session-focus='active'] .levelUpTrainingPulse,
 .levelUpPortalApp[data-session-focus='active'] .levelUpCoachUpdate,
@@ -558,6 +559,7 @@
 .levelUpFocusTraining,
 .levelUpLaneActiveCard,
 .levelUpTodayPlan,
+.levelUpCloseLoop,
 .levelUpNextBestRep,
 .levelUpTrainingPulse,
 .levelUpCoachUpdate,
@@ -1576,6 +1578,88 @@
   background:
     linear-gradient(135deg, rgba(155, 225, 29, 0.07), transparent 42%),
     rgba(5, 13, 19, 0.9);
+}
+
+.levelUpCloseLoop {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr) minmax(180px, 0.42fr);
+  align-items: center;
+  gap: 12px;
+  border-color: rgba(116, 190, 255, 0.2);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 42%),
+    rgba(5, 13, 19, 0.9);
+}
+
+.levelUpCloseLoopGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.levelUpCloseLoopGrid button,
+.levelUpCloseLoopReadout {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 10px;
+  text-align: left;
+}
+
+.levelUpCloseLoopGrid button {
+  cursor: pointer;
+  font: inherit;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.levelUpCloseLoopGrid button:hover,
+.levelUpCloseLoopGrid button:focus-visible {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.08);
+  transform: translateY(-1px);
+}
+
+.levelUpCloseLoopGrid span,
+.levelUpCloseLoopReadout span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  background: rgba(155, 225, 29, 0.09);
+  color: #d8f7a4;
+  padding: 5px 8px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpCloseLoopGrid strong,
+.levelUpCloseLoopReadout strong {
+  color: var(--foreground-strong);
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+.levelUpCloseLoopGrid small,
+.levelUpCloseLoopReadout small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.levelUpCloseLoopGrid b {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--brand-blue-2);
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  line-height: 1.15;
 }
 
 .levelUpSessionBuilder {
@@ -8153,6 +8237,8 @@
   .levelUpHero,
   .levelUpOverviewGrid,
   .levelUpCoachAssignmentBanner,
+  .levelUpCloseLoop,
+  .levelUpCloseLoopGrid,
   .levelUpNextBestRep,
   .levelUpTrainingPulse,
   .levelUpCoachUpdate,
@@ -8285,6 +8371,8 @@
   .levelUpHero,
   .levelUpOverviewGrid,
   .levelUpCoachAssignmentBanner,
+  .levelUpCloseLoop,
+  .levelUpCloseLoopGrid,
   .levelUpTodayDashboardGrid,
   .levelUpSessionBuilderControls,
   .levelUpSessionBuilderGrid,

@@ -66,6 +66,13 @@ type TodayPlanItem = {
   proof: string
 }
 
+type CloseLoopItem = {
+  label: string
+  card: LevelUpCard
+  cue: string
+  action: string
+}
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -233,6 +240,11 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     nextBestRep,
   })
   const todayPlan = buildTodayPlan({ startCards })
+  const closeLoopItems = buildCloseLoopItems({
+    identityCards,
+    matchDayCards,
+    nextBestCard: nextBestRep.card,
+  })
   const sessionPlan = buildSessionBuilderPlan({
     minutes: sessionMinutes,
     focus: sessionFocus,
@@ -354,6 +366,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       ) : null}
 
       <LevelUpTodayPlan items={todayPlan} activeCardTitle={activeCardTitle} onStartCard={startCardFromPlan} />
+
+      <LevelUpCloseLoopPanel items={closeLoopItems} recentCard={recentCard} recentProofRead={recentProofRead} onStartCard={startCardFromPlan} />
 
       <LevelUpNextBestRepPanel nextBestRep={nextBestRep} onStartCard={startCardFromPlan} />
 
@@ -686,6 +700,43 @@ function LevelUpTodayPlan({ items, activeCardTitle, onStartCard }: { items: Toda
             </div>
           </button>
         ))}
+      </div>
+    </section>
+  )
+}
+
+function LevelUpCloseLoopPanel({
+  items,
+  recentCard,
+  recentProofRead,
+  onStartCard,
+}: {
+  items: CloseLoopItem[]
+  recentCard?: LevelUpCard
+  recentProofRead: string
+  onStartCard: (cardId: string) => void
+}) {
+  return (
+    <section id="close-the-loop" className={styles.levelUpCloseLoop} aria-label="Close the loop">
+      <div className={styles.levelUpRailHeader}>
+        <span>Close the loop</span>
+        <h2>Prep, prove, pick next.</h2>
+        <p>Use this when practice or a match is done. Save one number, one tiny note, and one next card.</p>
+      </div>
+      <div className={styles.levelUpCloseLoopGrid}>
+        {items.map((item) => (
+          <button key={`${item.label}-${item.card.id}`} type="button" onClick={() => onStartCard(item.card.id)}>
+            <span>{item.label}</span>
+            <strong>{item.card.title}</strong>
+            <small>{item.cue}</small>
+            <b>{item.action}</b>
+          </button>
+        ))}
+      </div>
+      <div className={styles.levelUpCloseLoopReadout}>
+        <span>Current read</span>
+        <strong>{recentProofRead}</strong>
+        <small>{recentCard ? `Last proof came from ${recentCard.title}.` : 'No proof yet. Start any card and save a 0-5 score.'}</small>
       </div>
     </section>
   )
@@ -2284,6 +2335,46 @@ function buildTodayPlan({ startCards }: { startCards: LevelUpCard[] }): TodayPla
     card,
     proof: card.proof,
   }))
+}
+
+function buildCloseLoopItems({
+  identityCards,
+  matchDayCards,
+  nextBestCard,
+}: {
+  identityCards: LevelUpCard[]
+  matchDayCards: LevelUpCard[]
+  nextBestCard: LevelUpCard
+}): CloseLoopItem[] {
+  const beforeMatchCard = LEVEL_UP_CARDS.find((card) => card.id === 'five-minute-match-primer')
+    ?? matchDayCards.find((card) => card.tags.includes('match-day'))
+    ?? identityCards[0]
+    ?? nextBestCard
+  const afterMatchCard = LEVEL_UP_CARDS.find((card) => card.id === 'post-match-five-minute-debrief')
+    ?? matchDayCards.find((card) => card.tags.includes('recovery'))
+    ?? nextBestCard
+  const nextPracticeCard = nextBestCard
+
+  return [
+    {
+      label: 'Before play',
+      card: beforeMatchCard,
+      cue: 'Choose one pattern, one reset, and one proof target before the first point.',
+      action: 'Start primer',
+    },
+    {
+      label: 'After play',
+      card: afterMatchCard,
+      cue: 'Write one proof, one leak, and one next rep. No long journal.',
+      action: 'Recap now',
+    },
+    {
+      label: 'Next practice',
+      card: nextPracticeCard,
+      cue: `Use the next recommended card to train what the last proof exposed.`,
+      action: 'Pick next',
+    },
+  ]
 }
 
 function buildSessionBuilderPlan({
