@@ -251,6 +251,38 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Pressure Closer because this path builds reset routines, 30-30 clarity, serve recovery, closing-game behavior, and useful match recaps.',
   },
+  'return-disruptor-4-0': {
+    identitySlug: 'return-disruptor-4-0',
+    featuredModuleIds: [
+      'return-intent',
+      'pressure-reset',
+      'match-day-warm-up',
+      'crosscourt-build-before-change',
+      'wide-ball-reset',
+      'post-play-mobility-reset',
+    ],
+    starterCardIds: [
+      'return-shadow-split-read',
+      'return-depth-lane',
+      'second-serve-attack-or-build',
+      'return-plus-one-recover',
+      'return-30-30-game',
+      'wall-return-recovery',
+      'three-step-reset',
+    ],
+    focusTags: [
+      'return-intent',
+      'return-recovery',
+      'split-step',
+      'decision-quality',
+      'pressure-reset',
+      'crosscourt-build',
+      'defense-to-neutral',
+    ],
+    lanePriority: ['return', 'movement', 'singles', 'backhand', 'pressure', 'serve', 'forehand', 'fitness'],
+    recommendationCopy:
+      'Recommended for Return Disruptor because this path builds split-read timing, return intent, depth lanes, second-serve decisions, recovery after return, and 30-30 return pressure.',
+  },
   'all-court-adapter-4-0': {
     identitySlug: 'all-court-adapter-4-0',
     featuredModuleIds: [
