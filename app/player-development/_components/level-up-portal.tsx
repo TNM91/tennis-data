@@ -82,6 +82,7 @@ type FocusTrainingGroup = {
 }
 
 type FocusTrainingLane = {
+  key: string
   ariaLabel: string
   eyebrow: string
   title: string
@@ -251,6 +252,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     volleyCards,
     singlesCards,
     doublesCards,
+    lanePriority: profile.lanePriority,
   })
   const activeLaneCard = activeLaneCardId
     ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
@@ -321,7 +323,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
 
       {focusTrainingLanes.map((lane) => (
         <LevelUpFocusTrainingLane
-          key={lane.ariaLabel}
+          key={lane.key}
           ariaLabel={lane.ariaLabel}
           eyebrow={lane.eyebrow}
           title={lane.title}
@@ -433,7 +435,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
 
       <LevelUpSmartRail title="Coach Assigned" cards={identityCards.slice(0, 3)} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen />
       {focusTrainingLanes.map((lane) => (
-        <LevelUpSmartRail key={`${lane.ariaLabel}-rail`} title={lane.ariaLabel} cards={lane.cards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen={lane.defaultOpen} />
+        <LevelUpSmartRail key={`${lane.key}-rail`} title={lane.ariaLabel} cards={lane.cards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} defaultOpen={lane.defaultOpen} />
       ))}
       <LevelUpSmartRail title="Recommended for Your Player Identity" cards={identityCards} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
       <LevelUpSmartRail title="Quick Wins Under 10 Minutes" cards={quickWins} recommendationByCardId={recommendationByCardId} completionSummaryByCardId={completionSummaryByCardId} favorites={favorites} onFavorite={toggleFavorite} onComplete={logCompletion} onActivityChange={setActiveCardTitle} identitySlug={identitySlug} />
@@ -2369,6 +2371,7 @@ function buildFocusTrainingLanes({
   volleyCards,
   singlesCards,
   doublesCards,
+  lanePriority,
 }: {
   serveTrainingModule?: LevelUpModule
   returnTrainingModule?: LevelUpModule
@@ -2380,9 +2383,11 @@ function buildFocusTrainingLanes({
   volleyCards: LevelUpCard[]
   singlesCards: LevelUpCard[]
   doublesCards: LevelUpCard[]
+  lanePriority?: string[]
 }): FocusTrainingLane[] {
-  return [
+  const lanes = [
     {
+      key: 'serve',
       ariaLabel: 'Serve Training',
       eyebrow: 'Serve Training',
       title: 'Serve with a job, not hope.',
@@ -2394,6 +2399,7 @@ function buildFocusTrainingLanes({
       defaultOpen: true,
     },
     {
+      key: 'return',
       ariaLabel: 'Return Training',
       eyebrow: 'Return Training',
       title: 'Start the point on purpose.',
@@ -2405,6 +2411,7 @@ function buildFocusTrainingLanes({
       defaultOpen: true,
     },
     {
+      key: 'movement',
       ariaLabel: 'Movement Training',
       eyebrow: 'Movement Training',
       title: 'Arrive balanced, recover sooner.',
@@ -2414,6 +2421,7 @@ function buildFocusTrainingLanes({
       coachingCue: 'Good movement work is not max speed. It is clean arrival, balanced contact, and recovery before watching.',
     },
     {
+      key: 'forehand',
       ariaLabel: 'Forehand Training',
       eyebrow: 'Forehand Training',
       title: 'Build the forehand before you blast it.',
@@ -2423,6 +2431,7 @@ function buildFocusTrainingLanes({
       coachingCue: 'Good forehand work has a ball shape, a recovery lane, and a decision before speed.',
     },
     {
+      key: 'backhand',
       ariaLabel: 'Backhand Training',
       eyebrow: 'Backhand Training',
       title: 'Make the backhand hold up.',
@@ -2432,6 +2441,7 @@ function buildFocusTrainingLanes({
       coachingCue: 'Good backhand work is not surviving. It is spacing, shape, depth, and recovery you can repeat.',
     },
     {
+      key: 'volley',
       ariaLabel: 'Volley Training',
       eyebrow: 'Volley Training',
       title: 'Close, split, finish simple.',
@@ -2441,6 +2451,7 @@ function buildFocusTrainingLanes({
       coachingCue: 'Good volley work is close, split, quiet hands, target. Big swings usually mean the setup was late.',
     },
     {
+      key: 'singles',
       ariaLabel: 'Singles Training',
       eyebrow: 'Singles Training',
       title: 'Win the rally job in front of you.',
@@ -2450,6 +2461,7 @@ function buildFocusTrainingLanes({
       coachingCue: 'Good singles work connects the shot to the point job: build, defend, attack, or reset.',
     },
     {
+      key: 'doubles',
       ariaLabel: 'Doubles Training',
       eyebrow: 'Doubles Training',
       title: 'Make your partner faster.',
@@ -2459,6 +2471,18 @@ function buildFocusTrainingLanes({
       coachingCue: 'Good doubles work makes the first move visible. Your partner should not have to guess.',
     },
   ]
+
+  return orderFocusTrainingLanes(lanes, lanePriority)
+}
+
+function orderFocusTrainingLanes(lanes: FocusTrainingLane[], lanePriority: string[] = []) {
+  if (!lanePriority.length) return lanes
+
+  const rank = new Map(lanePriority.map((key, index) => [key, index]))
+  return [...lanes].sort((left, right) => (
+    (rank.get(left.key) ?? lanePriority.length + lanes.indexOf(left))
+    - (rank.get(right.key) ?? lanePriority.length + lanes.indexOf(right))
+  ))
 }
 
 function buildServeTrainingGroups(serveCards: LevelUpCard[]): FocusTrainingGroup[] {

@@ -3,6 +3,7 @@ export type IdentityLevelUpProfile = {
   featuredModuleIds: string[]
   starterCardIds: string[]
   focusTags: string[]
+  lanePriority?: string[]
   avoidTags?: string[]
   recommendationCopy: string
 }
@@ -40,6 +41,7 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
       'defense-to-neutral',
       'decision-quality',
     ],
+    lanePriority: ['movement', 'return', 'serve', 'singles', 'fitness', 'pressure', 'backhand', 'doubles'],
     recommendationCopy:
       'Recommended for Relentless Competitor because this path builds recovery, serve and return routine, late-game legs, and pressure response.',
   },
@@ -71,6 +73,7 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
       'crosscourt-build',
       'decision-quality',
     ],
+    lanePriority: ['serve', 'forehand', 'volley', 'return', 'singles', 'movement', 'fitness', 'doubles'],
     recommendationCopy:
       'Recommended for Smart Attacker because this path builds serve +1 clarity, forward closing, return intent, and balanced first-strike decisions.',
   },
@@ -88,6 +91,7 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
       'post-play-mobility-reset',
     ],
     focusTags: ['warm-up', 'pressure-reset', 'mobility', 'at-home'],
+    lanePriority: ['match', 'movement', 'serve', 'return', 'singles', 'fitness'],
     recommendationCopy:
       'Recommended because these cards are safe starter tools for building a repeatable tennis habit.',
   },
