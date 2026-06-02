@@ -135,6 +135,16 @@ type NetConfidenceMissDecoderItem = {
 
 type NetConfidenceToolkitTab = 'start' | 'feed' | 'solo' | 'compete' | 'fix'
 
+type NetConfidenceTabGuide = {
+  tab: NetConfidenceToolkitTab
+  eyebrow: string
+  title: string
+  useWhen: string
+  doThis: string
+  score: string
+  startCardId: string
+}
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -827,6 +837,8 @@ function LevelUpNetConfidenceLadder({
   const soloReps = buildNetConfidenceSoloReps()
   const pressureGames = buildNetConfidencePressureGames()
   const missDecoder = buildNetConfidenceMissDecoder(items)
+  const tabGuides = buildNetConfidenceTabGuides(items)
+  const activeGuide = tabGuides.find((guide) => guide.tab === activeTab)
   const toolkitTabs: Array<{ key: NetConfidenceToolkitTab; label: string; detail: string }> = [
     { key: 'start', label: 'Start', detail: 'Ladder + readiness' },
     { key: 'feed', label: 'Feed', detail: 'Partner setup' },
@@ -857,6 +869,18 @@ function LevelUpNetConfidenceLadder({
         ))}
       </div>
       <div className={styles.levelUpNetToolkitPanel} data-active-tab={activeTab}>
+        {activeGuide ? (
+          <div className={styles.levelUpNetTabGuide} aria-label="Net tab guide">
+            <span>{activeGuide.eyebrow}</span>
+            <strong>{activeGuide.title}</strong>
+            <p><b>Use when:</b> {activeGuide.useWhen}</p>
+            <p><b>Do:</b> {activeGuide.doThis}</p>
+            <p><b>Score:</b> {activeGuide.score}</p>
+            <button type="button" onClick={() => onStartCard(activeGuide.startCardId)}>
+              Start recommended rep
+            </button>
+          </div>
+        ) : null}
         {activeTab === 'start' ? (
           <>
             <div className={styles.levelUpNetLadderGrid}>
@@ -2859,6 +2883,59 @@ function buildNetConfidenceMissDecoder(items: NetConfidenceLadderItem[]): NetCon
   ]
 
   return misses.filter((item): item is NetConfidenceMissDecoderItem => Boolean(item.card))
+}
+
+function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfidenceTabGuide[] {
+  const byCardId = new Map(items.map((item) => [item.card.id, item.card]))
+  const fallbackCardId = items[0]?.card.id ?? 'short-ball-close-split'
+
+  return [
+    {
+      tab: 'start',
+      eyebrow: 'First choice',
+      title: 'Build the net habit in order.',
+      useWhen: 'You are not sure which net rep to run or confidence feels uneven.',
+      doThis: 'Run the ladder from close to split to target call before playing points.',
+      score: 'Close, split, target, compact contact 0-5.',
+      startCardId: byCardId.get('short-ball-close-split')?.id ?? fallbackCardId,
+    },
+    {
+      tab: 'feed',
+      eyebrow: 'With a partner',
+      title: 'Ask for the feed that matches the miss.',
+      useWhen: 'Someone can feed and you need controlled reps before live play.',
+      doThis: 'Tell the feeder the exact ball, then score only the first-volley habit.',
+      score: '6 of 8 clean before adding pace or direction changes.',
+      startCardId: byCardId.get('approach-volley-close')?.id ?? fallbackCardId,
+    },
+    {
+      tab: 'solo',
+      eyebrow: 'Training alone',
+      title: 'Get useful reps without a feeder.',
+      useWhen: 'You have a wall, open space, or five minutes before practice.',
+      doThis: 'Shadow the close, freeze the split, say the target, then reset hands.',
+      score: 'Balanced freeze and quiet hands 0-5.',
+      startCardId: byCardId.get('reaction-volley-wall')?.id ?? fallbackCardId,
+    },
+    {
+      tab: 'compete',
+      eyebrow: 'Add pressure',
+      title: 'Make the net habit survive the score.',
+      useWhen: 'The mechanics are clean and you need it to hold up in points.',
+      doThis: 'Play the game, but only reward points where the net habit happened.',
+      score: 'Decision quality, not just point result 0-5.',
+      startCardId: byCardId.get('volley-punch-target')?.id ?? fallbackCardId,
+    },
+    {
+      tab: 'fix',
+      eyebrow: 'Fix the miss',
+      title: 'Turn the last miss into the next rep.',
+      useWhen: 'You know what broke: late split, big swing, no target, or watching.',
+      doThis: 'Tap the miss, start the linked card, and keep the next block narrow.',
+      score: 'Did the fix change the next 5 reps? 0-5.',
+      startCardId: byCardId.get('volley-ready-split')?.id ?? fallbackCardId,
+    },
+  ]
 }
 
 function buildSessionBuilderPlan({

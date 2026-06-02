@@ -1734,6 +1734,19 @@
   gap: 10px;
 }
 
+.levelUpNetTabGuide {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 0.75fr) repeat(3, minmax(0, 1fr)) auto;
+  gap: 9px;
+  align-items: stretch;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 56%),
+    rgba(255, 255, 255, 0.04);
+  padding: 9px;
+}
+
 .levelUpNetLadderGrid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1957,6 +1970,20 @@
   text-transform: uppercase;
 }
 
+.levelUpNetTabGuide > span {
+  display: grid;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.13);
+  color: #d8f7a4;
+  padding: 8px 10px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .levelUpNetReadiness > strong {
   display: grid;
   align-items: center;
@@ -2011,6 +2038,50 @@
   color: var(--foreground-strong);
   font-size: 0.88rem;
   line-height: 1.2;
+}
+
+.levelUpNetTabGuide > strong {
+  display: grid;
+  align-items: center;
+  color: var(--foreground-strong);
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+.levelUpNetTabGuide p {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid rgba(116, 190, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted-strong);
+  padding: 8px;
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
+.levelUpNetTabGuide p b {
+  color: var(--brand-blue-2);
+  font-size: 0.64rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.levelUpNetTabGuide button {
+  min-width: 128px;
+  cursor: pointer;
+  border: 1px solid rgba(155, 225, 29, 0.42);
+  border-radius: 12px;
+  background: var(--brand-green-2);
+  color: #061221;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 950;
+  padding: 10px;
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .levelUpNetReadiness article {
@@ -2113,6 +2184,8 @@
 
 .levelUpNetLadderGrid button:hover,
 .levelUpNetLadderGrid button:focus-visible,
+.levelUpNetTabGuide button:hover,
+.levelUpNetTabGuide button:focus-visible,
 .levelUpNetMissDecoder button:hover,
 .levelUpNetMissDecoder button:focus-visible,
 .levelUpNetFixGrid button:hover,
@@ -2120,6 +2193,11 @@
   border-color: rgba(155, 225, 29, 0.44);
   background: rgba(155, 225, 29, 0.08);
   transform: translateY(-1px);
+}
+
+.levelUpNetTabGuide button:hover,
+.levelUpNetTabGuide button:focus-visible {
+  box-shadow: 0 14px 28px rgba(155, 225, 29, 0.14);
 }
 
 .levelUpNetLadderGrid span {
@@ -8941,6 +9019,7 @@
   .levelUpTodayDashboardGrid,
   .levelUpSessionBuilderControls,
   .levelUpSessionBuilderGrid,
+  .levelUpNetTabGuide,
   .levelUpNetLadderGrid,
   .levelUpNetReadiness,
   .levelUpNetTargetMap,
@@ -9093,6 +9172,7 @@
   .levelUpTodayDashboardGrid,
   .levelUpSessionBuilderControls,
   .levelUpSessionBuilderGrid,
+  .levelUpNetTabGuide,
   .levelUpNetLadderGrid,
   .levelUpNetReadiness,
   .levelUpNetTargetMap,
