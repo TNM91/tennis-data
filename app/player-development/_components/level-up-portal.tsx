@@ -3345,6 +3345,7 @@ function buildFocusTrainingLanes({
       copy: 'Use shape, margin, recovery, and the right attack decision so the forehand becomes a point pattern.',
       cards: forehandCards,
       groups: buildForehandTrainingGroups(forehandCards),
+      station: buildForehandTrainingStation(forehandCards),
       coachingCue: 'Good forehand work has a ball shape, a recovery lane, and a decision before speed.',
     },
     {
@@ -3355,6 +3356,7 @@ function buildFocusTrainingLanes({
       copy: 'Build crosscourt tolerance, depth, spacing, and recovery so the backhand can start or extend points.',
       cards: backhandCards,
       groups: buildBackhandTrainingGroups(backhandCards),
+      station: buildBackhandTrainingStation(backhandCards),
       coachingCue: 'Good backhand work is not surviving. It is spacing, shape, depth, and recovery you can repeat.',
     },
     {
@@ -3365,6 +3367,7 @@ function buildFocusTrainingLanes({
       copy: 'Train ready split, compact contact, target choice, and approach-volley connection.',
       cards: volleyCards,
       groups: buildVolleyTrainingGroups(volleyCards),
+      station: buildVolleyTrainingStation(volleyCards),
       coachingCue: 'Good volley work is close, split, quiet hands, target. Big swings usually mean the setup was late.',
     },
     {
@@ -3375,6 +3378,7 @@ function buildFocusTrainingLanes({
       copy: 'Build crosscourt tolerance, defense-to-neutral, pressure points, and reset routines for singles.',
       cards: singlesCards,
       groups: buildSinglesTrainingGroups(singlesCards),
+      station: buildSinglesTrainingStation(singlesCards),
       coachingCue: 'Good singles work connects the shot to the point job: build, defend, attack, or reset.',
     },
     {
@@ -3385,6 +3389,7 @@ function buildFocusTrainingLanes({
       copy: 'Use short calls, first moves, poach timing, middle ownership, and pressure clarity.',
       cards: doublesCards,
       groups: buildDoublesTrainingGroups(doublesCards),
+      station: buildDoublesTrainingStation(doublesCards),
       coachingCue: 'Good doubles work makes the first move visible. Your partner should not have to guess.',
     },
   ]
@@ -3749,6 +3754,486 @@ function buildMovementTrainingStation(movementCards: LevelUpCard[]): FocusTraini
           low: 'Fatigue changed posture or movement quality quickly.',
           mid: 'Quality held for part of the block.',
           high: 'Posture, breath, and tennis decision stayed playable.',
+        },
+      },
+    ],
+  }
+}
+
+function buildForehandTrainingStation(cards: LevelUpCard[]): FocusTrainingStation {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+  const fallbackCardId = cards[0]?.id ?? 'basket-forehand-crosscourt'
+
+  return {
+    label: 'Forehand station',
+    tabs: [
+      {
+        key: 'shape',
+        label: 'Shape',
+        detail: 'Margin first',
+        title: 'Build forehand shape before adding pace.',
+        setup: 'Basket, partner feed, wall, or shadow reps. Pick crosscourt as the first lane.',
+        block: '3 rounds of 8: shape with margin, finish balanced, recover, then call ready.',
+        score: 'Forehand shape, balance, and recovery 0-5.',
+        say: 'Shape first, speed second.',
+        resetIf: 'You swing harder to solve a spacing or balance problem.',
+        startCardId: byId.get('basket-forehand-crosscourt')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Forehand contact was rushed, flat, or off balance.',
+          mid: 'Shape showed up, but recovery or spacing leaked.',
+          high: 'Shape, balance, and recovery repeated without forcing pace.',
+        },
+      },
+      {
+        key: 'build',
+        label: 'Build',
+        detail: 'Crosscourt job',
+        title: 'Earn the direction change with crosscourt control.',
+        setup: 'Partner rally, wall rhythm, or target cones. Start with a big safe lane.',
+        block: 'Play 3 rallies to 6 crosscourt balls before any change of direction.',
+        score: 'Crosscourt build patience and quality 0-5.',
+        say: 'Build before I change.',
+        resetIf: 'You change direction because you are bored, not balanced.',
+        startCardId: byId.get('crosscourt-consistency')?.id ?? byId.get('wall-rally-rhythm')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Direction changed early or the crosscourt ball lacked shape.',
+          mid: 'You built some rallies but rushed the change.',
+          high: 'Crosscourt pressure created the right ball to change.',
+        },
+      },
+      {
+        key: 'decision',
+        label: 'Decision',
+        detail: 'Defense/neutral/attack',
+        title: 'Let the body position choose the forehand job.',
+        setup: 'Partner feeds mixed balls or you shadow three body positions.',
+        block: 'Call defense, neutral, or attack before 12 forehands. Score the call, not the winner.',
+        score: 'Forehand decision quality 0-5.',
+        say: 'My body tells me the job.',
+        resetIf: 'You attack from a defensive or stretched position.',
+        startCardId: byId.get('defense-neutral-attack-rally')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Shot choice ignored balance or contact height.',
+          mid: 'The call was right sometimes, but late under pace.',
+          high: 'Forehand job matched body position repeatedly.',
+        },
+      },
+      {
+        key: 'close',
+        label: 'Close',
+        detail: 'Short ball',
+        title: 'Move through the short forehand and split after it.',
+        setup: 'Partner feeds short balls or use a cone close pattern.',
+        block: '10 reps: read short, close through contact, recover or split inside the court.',
+        score: 'Short-ball close and post-contact readiness 0-5.',
+        say: 'Close, hit, split.',
+        resetIf: 'You stop at contact or watch the shot after moving forward.',
+        startCardId: byId.get('short-ball-close-split')?.id ?? byId.get('cone-close-recover')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'You arrived late or stopped moving after contact.',
+          mid: 'Close timing improved but the split was late.',
+          high: 'Close, contact, and split connected as one habit.',
+        },
+      },
+      {
+        key: 'fix',
+        label: 'Fix a Miss',
+        detail: 'One leak',
+        title: 'Turn the last forehand miss into one useful rep.',
+        setup: 'Pick one leak: late spacing, no shape, rushed attack, or no recovery.',
+        block: 'Run 5 correction reps, then test with 5 mixed forehands.',
+        score: 'Did the forehand leak change? 0-5.',
+        say: 'One miss, one forehand job.',
+        resetIf: 'You try to fix swing path, target, footwork, and pace together.',
+        startCardId: byId.get('wall-rally-rhythm')?.id ?? byId.get('basket-forehand-crosscourt')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'The same miss repeated without a cleaner cue.',
+          mid: 'The fix worked on predictable reps only.',
+          high: 'The fix held when the ball changed slightly.',
+        },
+      },
+    ],
+  }
+}
+
+function buildBackhandTrainingStation(cards: LevelUpCard[]): FocusTrainingStation {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+  const fallbackCardId = cards[0]?.id ?? 'basket-backhand-crosscourt'
+
+  return {
+    label: 'Backhand station',
+    tabs: [
+      {
+        key: 'shape',
+        label: 'Shape',
+        detail: 'Height + depth',
+        title: 'Use height and depth to make the backhand playable.',
+        setup: 'Basket, wall, or partner feed. Pick a safe crosscourt window.',
+        block: '3 rounds of 8: shape, depth, recover. Count only balls with playable margin.',
+        score: 'Backhand height, depth, and recovery 0-5.',
+        say: 'Depth buys time.',
+        resetIf: 'You flatten the ball because the rally feels uncomfortable.',
+        startCardId: byId.get('basket-backhand-crosscourt')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Backhands were short, rushed, or off balance.',
+          mid: 'Height appeared, but depth or recovery was uneven.',
+          high: 'Height, depth, and recovery kept the rally stable.',
+        },
+      },
+      {
+        key: 'hold',
+        label: 'Hold',
+        detail: 'Crosscourt',
+        title: 'Hold the crosscourt backhand until you are balanced.',
+        setup: 'Partner rally or wall target. Stay crosscourt until the proof is clean.',
+        block: 'Play 4 mini-rallies: 5 crosscourt backhands before any direction change.',
+        score: 'Crosscourt tolerance and patience 0-5.',
+        say: 'Hold the lane until I earn more.',
+        resetIf: 'You escape down the line from discomfort instead of balance.',
+        startCardId: byId.get('crosscourt-consistency')?.id ?? byId.get('wall-depth-builder')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'You left the crosscourt job early or lost depth.',
+          mid: 'Tolerance improved but broke under pressure.',
+          high: 'Crosscourt depth stayed stable until the right ball appeared.',
+        },
+      },
+      {
+        key: 'spacing',
+        label: 'Spacing',
+        detail: 'Wall rhythm',
+        title: 'Fix spacing before judging the backhand swing.',
+        setup: 'Wall or shadow reps. Mark a recovery spot and contact window.',
+        block: '20 wall touches or shadow reps: spacing, contact, reset feet.',
+        score: 'Backhand spacing and contact rhythm 0-5.',
+        say: 'Feet solve the swing first.',
+        resetIf: 'You reach, crowd, or skip the foot reset.',
+        startCardId: byId.get('wall-alternating-fh-bh')?.id ?? byId.get('wall-depth-builder')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Spacing caused reaches, jams, or late contact.',
+          mid: 'Spacing improved when the ball was predictable.',
+          high: 'Feet adjusted early enough for clean contact rhythm.',
+        },
+      },
+      {
+        key: 'defend',
+        label: 'Defend',
+        detail: 'Wide reset',
+        title: 'Defend with shape, then recover to neutral.',
+        setup: 'Partner feeds wide or use shadow drop-step reps.',
+        block: '3 rounds of 6: move wide, play high/deep, recover, call neutral.',
+        score: 'Backhand defense-to-neutral quality 0-5.',
+        say: 'High, deep, recover.',
+        resetIf: 'You try to win from a stretched backhand.',
+        startCardId: byId.get('wide-ball-neutralizer')?.id ?? byId.get('drop-step-recovery')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Wide backhands became panic shots.',
+          mid: 'You bought time but recovery was late.',
+          high: 'Wide backhand shape returned you to neutral.',
+        },
+      },
+      {
+        key: 'fix',
+        label: 'Fix a Miss',
+        detail: 'One leak',
+        title: 'Choose one backhand leak and train the next rep.',
+        setup: 'Pick one leak: short ball, late spacing, rushed line change, or no recovery.',
+        block: '5 correction reps, then 5 mixed backhands with the same cue.',
+        score: 'Did the backhand leak change? 0-5.',
+        say: 'One backhand leak, one cue.',
+        resetIf: 'You make the correction too technical to repeat on court.',
+        startCardId: byId.get('wall-depth-builder')?.id ?? byId.get('basket-backhand-crosscourt')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'The same leak repeated without cleaner intent.',
+          mid: 'The fix worked only when the feed was easy.',
+          high: 'The fix stayed simple and held in mixed reps.',
+        },
+      },
+    ],
+  }
+}
+
+function buildVolleyTrainingStation(cards: LevelUpCard[]): FocusTrainingStation {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+  const fallbackCardId = cards[0]?.id ?? 'volley-ready-split'
+
+  return {
+    label: 'Volley station',
+    tabs: [
+      {
+        key: 'ready',
+        label: 'Ready',
+        detail: 'Close + split',
+        title: 'Earn the volley with a ready split.',
+        setup: 'Start near the service line. Use shadow reps or controlled feeds.',
+        block: '3 rounds: close two steps, split, freeze, reset hands in front.',
+        score: 'Close timing and ready split 0-5.',
+        say: 'Close, split, ready.',
+        resetIf: 'You hit before you are split and balanced.',
+        startCardId: byId.get('volley-ready-split')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Split was late or body was still moving through contact.',
+          mid: 'Ready split appeared on predictable reps.',
+          high: 'Close and split were clean before the volley decision.',
+        },
+      },
+      {
+        key: 'target',
+        label: 'Target',
+        detail: 'Punch simple',
+        title: 'Give the volley a target before the hands move.',
+        setup: 'Partner feeds controlled balls. Choose deep middle, short angle, or behind.',
+        block: '8 predictable volleys, then 8 mixed target calls before contact.',
+        score: 'Volley target clarity and compact contact 0-5.',
+        say: 'Target first, punch short.',
+        resetIf: 'The swing gets big because the target was late.',
+        startCardId: byId.get('volley-punch-target')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Volley had no target or the hands got loud.',
+          mid: 'Target was clear, but contact grew under pace.',
+          high: 'Target and compact punch repeated under mixed feeds.',
+        },
+      },
+      {
+        key: 'approach',
+        label: 'Approach',
+        detail: 'First volley',
+        title: 'Connect approach, close, split, and first volley.',
+        setup: 'Partner feeds approach balls or shadow the pattern without a ball.',
+        block: '10 sequences: approach, close, split, call first-volley target, recover forward.',
+        score: 'Approach-to-volley connection 0-5.',
+        say: 'Approach creates the first volley.',
+        resetIf: 'You admire the approach shot instead of closing.',
+        startCardId: byId.get('approach-volley-close')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Approach and volley felt like separate actions.',
+          mid: 'You closed, but split or target was late.',
+          high: 'Approach, close, split, and first volley connected.',
+        },
+      },
+      {
+        key: 'hands',
+        label: 'Hands',
+        detail: 'Wall reset',
+        title: 'Keep the hands quiet and reset after every touch.',
+        setup: 'Wall, fence, or partner toss. Stay close enough for compact contact.',
+        block: '20 short touches: punch, reset hands, recover one step.',
+        score: 'Quiet hands and reset rhythm 0-5.',
+        say: 'Touch, reset, ready.',
+        resetIf: 'The volley turns into a swing or hands drop after contact.',
+        startCardId: byId.get('reaction-volley-wall')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Hands got big or failed to reset.',
+          mid: 'Hands stayed quiet until the feed changed.',
+          high: 'Quiet hands and reset stayed automatic.',
+        },
+      },
+      {
+        key: 'fix',
+        label: 'Fix a Miss',
+        detail: 'Next touch',
+        title: 'Let the last volley miss pick the next correction.',
+        setup: 'Pick one miss: late split, no target, big swing, or no recovery.',
+        block: '5 correction reps, then 5 mixed volleys with the same cue.',
+        score: 'Did the volley miss change? 0-5.',
+        say: 'One volley miss, five clean touches.',
+        resetIf: 'You try to fix every part of the volley at once.',
+        startCardId: byId.get('reaction-volley-wall')?.id ?? byId.get('volley-ready-split')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'The same volley miss repeated.',
+          mid: 'The fix worked only on easy feeds.',
+          high: 'The correction showed up on mixed feeds.',
+        },
+      },
+    ],
+  }
+}
+
+function buildSinglesTrainingStation(cards: LevelUpCard[]): FocusTrainingStation {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+  const fallbackCardId = cards[0]?.id ?? 'crosscourt-consistency'
+
+  return {
+    label: 'Singles station',
+    tabs: [
+      {
+        key: 'build',
+        label: 'Build',
+        detail: 'Crosscourt',
+        title: 'Use crosscourt to earn the next decision.',
+        setup: 'Partner rally, wall, or target cones. Pick one rally lane.',
+        block: '4 rallies: build crosscourt first, then call hold, change, attack, or reset.',
+        score: 'Rally job clarity and crosscourt quality 0-5.',
+        say: 'Build, then choose.',
+        resetIf: 'You change direction before the rally gives permission.',
+        startCardId: byId.get('crosscourt-consistency')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Point job was vague or direction changed early.',
+          mid: 'Build pattern appeared but decisions were late.',
+          high: 'Crosscourt build created clear next decisions.',
+        },
+      },
+      {
+        key: 'dna',
+        label: 'D/N/A',
+        detail: 'Point job',
+        title: 'Name defense, neutral, or attack before the swing.',
+        setup: 'Partner feeds mixed balls or rally with a call before contact.',
+        block: '12 balls: call defense, neutral, or attack, then play the matching ball.',
+        score: 'Defense-neutral-attack decision quality 0-5.',
+        say: 'Name the job, then swing.',
+        resetIf: 'You attack because of emotion instead of court position.',
+        startCardId: byId.get('defense-neutral-attack-rally')?.id ?? byId.get('wide-ball-neutralizer')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Shot choice did not match the ball or body position.',
+          mid: 'Calls were useful but late under pace.',
+          high: 'The job call matched the ball repeatedly.',
+        },
+      },
+      {
+        key: 'pressure',
+        label: 'Pressure',
+        detail: '30-30',
+        title: 'Keep the point plan clear at 30-30.',
+        setup: 'Play mini games starting at 30-30. Pick one first-ball plan.',
+        block: 'Play 6 pressure points, reset, then repeat the same point-plan rule.',
+        score: 'Point-plan clarity under pressure 0-5.',
+        say: 'The score does not pick my shot.',
+        resetIf: 'You abandon the plan after one miss or tight point.',
+        startCardId: byId.get('30-30-pressure-game')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Pressure made the point plan disappear.',
+          mid: 'Plan held for some points but changed after misses.',
+          high: 'The plan stayed clear through pressure points.',
+        },
+      },
+      {
+        key: 'reset',
+        label: 'Reset',
+        detail: 'Between points',
+        title: 'Reset before the next point chooses you.',
+        setup: 'Use any practice set, tiebreak, or point game.',
+        block: 'After every point: breathe, name the next job, commit before the serve or return.',
+        score: 'Between-point reset used 0-5.',
+        say: 'Breathe, choose, commit.',
+        resetIf: 'The last point is still deciding the next one.',
+        startCardId: byId.get('three-step-reset')?.id ?? byId.get('closing-game-routine')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'No reset happened after misses or wins.',
+          mid: 'Reset happened with reminders.',
+          high: 'Reset happened automatically before the next point.',
+        },
+      },
+      {
+        key: 'fix',
+        label: 'Fix a Miss',
+        detail: 'Pattern leak',
+        title: 'Fix the singles pattern, not just the last shot.',
+        setup: 'Pick one leak: changed too early, attacked late, defended too low, or skipped reset.',
+        block: 'Run 5 correction reps, then play 3 live points with the same rule.',
+        score: 'Did the pattern leak change? 0-5.',
+        say: 'One pattern leak, one rule.',
+        resetIf: 'You blame the stroke when the point job was unclear.',
+        startCardId: byId.get('defense-neutral-attack-rally')?.id ?? byId.get('three-step-reset')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'The same pattern leak repeated.',
+          mid: 'The fix worked in reps but not live points.',
+          high: 'The new rule changed the next live points.',
+        },
+      },
+    ],
+  }
+}
+
+function buildDoublesTrainingStation(cards: LevelUpCard[]): FocusTrainingStation {
+  const byId = new Map(cards.map((card) => [card.id, card]))
+  const fallbackCardId = cards[0]?.id ?? 'serve-location-call'
+
+  return {
+    label: 'Doubles station',
+    tabs: [
+      {
+        key: 'serve-call',
+        label: 'Serve Call',
+        detail: 'Location + partner',
+        title: 'Connect serve location to your partner first move.',
+        setup: 'Server and partner agree on wide, body, or T plus partner action.',
+        block: '12 serves or shadow starts: call location, partner move, cover the next lane.',
+        score: 'Serve location and partner readiness 0-5.',
+        say: 'Location creates movement.',
+        resetIf: 'Your partner cannot tell what your serve is trying to create.',
+        startCardId: byId.get('serve-location-call')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Serve location and partner move were disconnected.',
+          mid: 'Calls were clear but coverage was late.',
+          high: 'Serve, partner move, and coverage connected repeatedly.',
+        },
+      },
+      {
+        key: 'first-move',
+        label: 'First Move',
+        detail: 'Before live',
+        title: 'Say the first move before the ball is live.',
+        setup: 'Both players call first move before serve or return. Keep calls short.',
+        block: '10 starts: call first move, play the first two balls, then reset.',
+        score: 'Partner first-move clarity 0-5.',
+        say: 'Call it before we need it.',
+        resetIf: 'Both players wait to see what happens before moving.',
+        startCardId: byId.get('partner-first-move-call')?.id ?? byId.get('doubles-return-first-move')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'First move was unclear or late.',
+          mid: 'One player knew the move, but coverage lagged.',
+          high: 'Both players moved with the same first idea.',
+        },
+      },
+      {
+        key: 'poach',
+        label: 'Poach',
+        detail: 'Trigger',
+        title: 'Poach on a trigger, not a guess.',
+        setup: 'Agree on the trigger: weak return, floating crosscourt, or called serve location.',
+        block: '8 shadow poaches, then 8 live starts where the trigger decides the move.',
+        score: 'Poach timing and trigger discipline 0-5.',
+        say: 'Trigger first, poach second.',
+        resetIf: 'You poach because you are bored or stay because you are unsure.',
+        startCardId: byId.get('poach-timing-shadow')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Poach timing was random or late.',
+          mid: 'Trigger was clear but the first step hesitated.',
+          high: 'Trigger and first step matched repeatedly.',
+        },
+      },
+      {
+        key: 'middle',
+        label: 'Middle',
+        detail: 'Own + switch',
+        title: 'Own the middle and call the switch early.',
+        setup: 'Start with middle-ball ownership rules, then add switch calls.',
+        block: '10 middle balls: call mine/yours/switch early, then play the next ball.',
+        score: 'Middle ownership and switch timing 0-5.',
+        say: 'Early call, early cover.',
+        resetIf: 'Both players hesitate or both chase the same ball.',
+        startCardId: byId.get('middle-ball-rule')?.id ?? byId.get('switch-call-drill')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Middle balls caused hesitation or overlap.',
+          mid: 'Calls happened, but late after movement started.',
+          high: 'Middle and switch calls were early enough to organize coverage.',
+        },
+      },
+      {
+        key: 'pressure',
+        label: 'Pressure',
+        detail: '30-30',
+        title: 'Keep doubles communication short under pressure.',
+        setup: 'Play games starting at 30-30. Pick one call rule before every point.',
+        block: 'Play 6 pressure points. Score the communication habit before the point result.',
+        score: 'Doubles clarity at 30-30 0-5.',
+        say: 'Short call, full commit.',
+        resetIf: 'Pressure turns the team silent or overtalking.',
+        startCardId: byId.get('doubles-30-30-game')?.id ?? byId.get('partner-first-move-call')?.id ?? fallbackCardId,
+        proofAnchors: {
+          low: 'Communication disappeared or got noisy under pressure.',
+          mid: 'The call was made but not acted on consistently.',
+          high: 'Short calls shaped first moves through pressure points.',
         },
       },
     ],
