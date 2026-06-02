@@ -109,6 +109,25 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     proof: 'Return intent 0-5',
   },
   {
+    id: 'singles-point-builder',
+    title: 'Singles Point Builder',
+    subtitle: 'Build the point before you force it.',
+    description: 'Train point-job reads, crosscourt build, serve and return starts, and 30-30 pattern clarity.',
+    useWhen: 'Use this when singles points feel random, rushed, or disconnected from the player identity.',
+    sessionPlan: [
+      'Start with defense-neutral-attack reads so the player names the job before adding speed.',
+      'Add crosscourt build and point-start cards so serve and return choices create the next ball.',
+      'Finish with 30-30 pressure and a tiny recap: one pattern to repeat, one cue to train next.',
+    ],
+    successCriteria: 'The player can call the point job, choose a target, and explain the next rep without over-writing the recap.',
+    level: 'builder',
+    durationLabel: '6 cards / 35 minutes',
+    cardIds: ['defense-neutral-attack-rally', 'crosscourt-consistency', 'serve-target-call', 'return-depth-lane', '30-30-pressure-game', 'post-match-five-minute-debrief'],
+    tags: ['singles', 'decision-quality', 'crosscourt-build', 'serve-target', 'return-intent', 'pressure-reset'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'backhand-stability-builder-4-0', 'singles-point-builder-4-0', 'all-court-adapter-4-0'],
+    proof: 'Singles point clarity 0-5',
+  },
+  {
     id: 'wide-ball-reset',
     title: 'Wide-Ball Reset',
     subtitle: 'Defend wide without panic.',
@@ -179,7 +198,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 20 minutes',
     cardIds: ['crosscourt-consistency', 'basket-forehand-crosscourt', 'basket-backhand-crosscourt'],
     tags: ['crosscourt-build', 'decision-quality', 'attack-balance'],
-    identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'backhand-stability-builder-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'defensive-counterpuncher-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'backhand-stability-builder-4-0', 'singles-point-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Crosscourt build 0-5',
   },
   {
@@ -217,7 +236,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '3 cards / 10 minutes',
     cardIds: ['three-step-reset', 'tight-arm-reset', 'closing-game-routine'],
     tags: ['pressure-reset', 'between-points', 'quick-win'],
-    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'backhand-stability-builder-4-0', 'net-confidence-builder-4-0', 'all-court-adapter-4-0'],
+    identitySlugs: ['relentless-competitor-4-0', 'smart-attacker-4-0-to-4-5', 'consistent-builder-4-0', 'doubles-commander-4-0', 'serve-forward-finisher-4-0', 'defensive-counterpuncher-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'forehand-pressure-builder-4-0', 'backhand-stability-builder-4-0', 'net-confidence-builder-4-0', 'singles-point-builder-4-0', 'all-court-adapter-4-0'],
     proof: 'Reset used 0-5',
   },
   {
@@ -229,7 +248,7 @@ export const LEVEL_UP_MODULES: LevelUpModule[] = [
     durationLabel: '2 cards / 10 minutes',
     cardIds: ['dynamic-tennis-warm-up', 'five-minute-match-primer'],
     tags: ['match-day', 'warm-up', 'mobility'],
-    identitySlugs: ['consistent-builder-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'backhand-stability-builder-4-0'],
+    identitySlugs: ['consistent-builder-4-0', 'pressure-closer-4-0', 'return-disruptor-4-0', 'backhand-stability-builder-4-0', 'singles-point-builder-4-0'],
     proof: 'Match-day ready 0-5',
   },
   {

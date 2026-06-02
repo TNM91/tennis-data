@@ -380,6 +380,38 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Net Confidence Builder because this path builds close timing, ready split, compact volley contact, first-volley targets, and pressure-safe finishing.',
   },
+  'singles-point-builder-4-0': {
+    identitySlug: 'singles-point-builder-4-0',
+    featuredModuleIds: [
+      'singles-point-builder',
+      'crosscourt-build-before-change',
+      'serve-plus-one-clarity',
+      'return-intent',
+      'pressure-reset',
+      'match-day-warm-up',
+    ],
+    starterCardIds: [
+      'defense-neutral-attack-rally',
+      'crosscourt-consistency',
+      'serve-target-call',
+      'return-depth-lane',
+      '30-30-pressure-game',
+      'five-minute-match-primer',
+      'post-match-five-minute-debrief',
+    ],
+    focusTags: [
+      'singles',
+      'decision-quality',
+      'crosscourt-build',
+      'serve-target',
+      'return-intent',
+      'pressure-reset',
+      'match-day',
+    ],
+    lanePriority: ['singles', 'serve', 'return', 'forehand', 'backhand', 'movement', 'pressure', 'volley'],
+    recommendationCopy:
+      'Recommended for Singles Point Builder because this path builds point-job reads, crosscourt build, serve and return starts, 30-30 pattern clarity, and useful match recaps.',
+  },
   'all-court-adapter-4-0': {
     identitySlug: 'all-court-adapter-4-0',
     featuredModuleIds: [
