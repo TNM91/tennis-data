@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const playerApiSource = readFileSync(join(process.cwd(), 'app/api/player/level-up-sessions/route.ts'), 'utf8')
 const coachApiSource = readFileSync(join(process.cwd(), 'app/api/coach/level-up-sessions/route.ts'), 'utf8')
 const workbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
+const portalSource = readFileSync(join(process.cwd(), 'app/player-development/_components/level-up-portal.tsx'), 'utf8')
 const authSource = readFileSync(join(process.cwd(), 'lib/player-api-auth.ts'), 'utf8')
 
 describe('Level Up session sync', () => {
@@ -29,5 +30,18 @@ describe('Level Up session sync', () => {
     expect(workbenchSource).toContain('/api/player/level-up-sessions')
     expect(workbenchSource).toContain('Synced. Your linked coach can use this for the next lesson.')
     expect(workbenchSource).toContain('Free preview saved locally.')
+  })
+
+  it('syncs portal proof logs through coach invite, Player+, or local fallback', () => {
+    expect(portalSource).toContain('function useLevelUpCompletions(identitySlug: string)')
+    expect(portalSource).toContain('supabase.auth.getSession')
+    expect(portalSource).toContain('/api/player/level-up-sessions')
+    expect(portalSource).toContain("accessMode: 'coach_invited'")
+    expect(portalSource).toContain("accessMode: 'player_plus'")
+    expect(portalSource).toContain('Saved locally. Sign in from a coach invite or Player+ to sync proof history.')
+    expect(portalSource).toContain('Synced. Your linked coach can use this for the next lesson.')
+    expect(portalSource).toContain('Synced to your Level Up history.')
+    expect(portalSource).toContain('remoteSessionToCompletion')
+    expect(portalSource).toContain('mergeCompletions')
   })
 })

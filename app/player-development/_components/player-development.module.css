@@ -555,6 +555,7 @@
 .levelUpOverviewPanel,
 .levelUpHero,
 .levelUpCoachAssignmentBanner,
+.levelUpSyncStatus,
 .levelUpTodayDashboard,
 .levelUpSessionBuilder,
 .levelUpNetLadder,
@@ -592,6 +593,41 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.levelUpSyncStatus {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border-color: rgba(155, 225, 29, 0.28);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.12), rgba(116, 190, 255, 0.05)),
+    rgba(11, 23, 42, 0.88);
+  padding: 12px 14px;
+}
+
+.levelUpSyncStatus span {
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.35);
+  background: rgba(155, 225, 29, 0.14);
+  color: #dcff9f;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpSyncStatus strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.levelUpSyncStatus[data-sync-status='local'],
+.levelUpSyncStatus[data-sync-status='error'] {
+  border-color: rgba(116, 190, 255, 0.22);
+  background: rgba(255, 255, 255, 0.045);
 }
 
 .levelUpOverviewGrid article {

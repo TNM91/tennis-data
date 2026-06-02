@@ -5,6 +5,7 @@ import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity, recommendLevelUpCards } from '@/lib/level-up/recommendations'
 import type { LevelUpAssignment, LevelUpCard, LevelUpCompletion, LevelUpModule, LevelUpRecommendation } from '@/lib/level-up/level-up-types'
+import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
 
 type LevelUpPortalProps = {
@@ -231,6 +232,36 @@ type StartRequest = {
   signal: number
 }
 
+type CompletionLogger = (cardId: string, rating: number, note: string, elapsedSeconds?: number) => void
+
+type CompletionSyncState = {
+  status: 'idle' | 'loading' | 'syncing' | 'synced' | 'local' | 'error'
+  message: string
+}
+
+type RemoteLevelUpSession = {
+  id: string
+  playerUserId: string
+  coachUserId: string | null
+  studentLinkId: string | null
+  assignmentId: string | null
+  identitySlug: string
+  focusId: string
+  focusTitle: string
+  workType: 'court' | 'physical' | 'mental'
+  context: 'alone' | 'partner' | 'singles' | 'doubles' | 'coach'
+  drillTitle: string
+  rating: number
+  feeling: 'ready' | 'tight' | 'tired' | 'nervous'
+  accessMode: 'coach_invited' | 'player_plus' | 'free_preview'
+  note: string
+  elapsedSeconds: number
+  sharedWithCoach: boolean
+  completedAt: string
+  createdAt: string
+  updatedAt: string
+}
+
 const emptyFilters: FilterState = {
   category: 'all',
   pack: 'all',
@@ -295,7 +326,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [startRequest, setStartRequest] = useState<StartRequest>({ cardId: '', signal: 0 })
   const [activeLaneCardId, setActiveLaneCardId] = useState<string | null>(null)
   const [favorites, toggleFavorite] = useLevelUpFavorites()
-  const [completions, logCompletion] = useLevelUpCompletions()
+  const [completions, logCompletion, completionSyncState] = useLevelUpCompletions(identitySlug)
   const completionSummaryByCardId = useMemo(() => buildCompletionSummaryByCardId(completions), [completions])
   const recommendations = useMemo(
     () => recommendLevelUpCards({
@@ -432,6 +463,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           <small>Finish the rep, score proof, then choose the next card.</small>
         </div>
       ) : null}
+      <LevelUpSyncStatus state={completionSyncState} />
       <LevelUpHero identityTitle={identityTitle} recommendationCopy={profile.recommendationCopy} />
 
       <LevelUpCoachAssignmentBanner
@@ -1263,7 +1295,7 @@ function LevelUpStartList({
   completionSummaryByCardId: Map<string, CompletionSummary>
   favorites: string[]
   onFavorite: (cardId: string) => void
-  onComplete: (cardId: string, rating: number, note: string) => void
+  onComplete: CompletionLogger
   onActivityChange?: (cardTitle: string | null) => void
   identitySlug: string
   nextBestRep: NextBestRep
@@ -1366,7 +1398,7 @@ function LevelUpSmartRail({
   completionSummaryByCardId: Map<string, CompletionSummary>
   favorites: string[]
   onFavorite: (cardId: string) => void
-  onComplete: (cardId: string, rating: number, note: string) => void
+  onComplete: CompletionLogger
   onActivityChange?: (cardTitle: string | null) => void
   emptyText?: string
   identitySlug: string
@@ -1677,7 +1709,7 @@ function LevelUpCardTile({
   favorite: boolean
   completionSummary?: CompletionSummary
   onFavorite: (cardId: string) => void
-  onComplete: (cardId: string, rating: number, note: string) => void
+  onComplete: CompletionLogger
   onActivityChange?: (cardTitle: string | null) => void
   startHref: string
   initialActivityOpen?: boolean
@@ -1808,7 +1840,7 @@ function LevelUpCardTile({
 
   function completeCard() {
     const proofNote = note.trim() || activityProofNote
-    onComplete(card.id, rating, proofNote)
+    onComplete(card.id, rating, proofNote, elapsedSeconds)
     setSavedRating(rating)
     setSavedProofNote(proofNote)
     setCoachUpdateCopyStatus('idle')
@@ -6203,6 +6235,17 @@ function LevelUpSafetyNote() {
   )
 }
 
+function LevelUpSyncStatus({ state }: { state: CompletionSyncState }) {
+  if (!state.message) return null
+
+  return (
+    <aside className={styles.levelUpSyncStatus} data-sync-status={state.status} aria-live="polite">
+      <span>{state.status === 'synced' ? 'History synced' : state.status === 'syncing' ? 'Saving proof' : 'Proof saved'}</span>
+      <strong>{state.message}</strong>
+    </aside>
+  )
+}
+
 function useLevelUpFavorites(): [string[], (cardId: string) => void] {
   const [favorites, setFavorites] = useState<string[]>([])
 
@@ -6223,8 +6266,9 @@ function useLevelUpFavorites(): [string[], (cardId: string) => void] {
   return [favorites, toggle]
 }
 
-function useLevelUpCompletions(): [LevelUpCompletion[], (cardId: string, rating: number, note: string) => void] {
+function useLevelUpCompletions(identitySlug: string): [LevelUpCompletion[], CompletionLogger, CompletionSyncState] {
   const [completions, setCompletions] = useState<LevelUpCompletion[]>([])
+  const [syncState, setSyncState] = useState<CompletionSyncState>({ status: 'idle', message: '' })
 
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
@@ -6233,21 +6277,205 @@ function useLevelUpCompletions(): [LevelUpCompletion[], (cardId: string, rating:
     return () => window.clearTimeout(hydrationTimer)
   }, [])
 
-  function log(cardId: string, rating: number, note: string) {
+  useEffect(() => {
+    let active = true
+
+    void (async () => {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) return
+
+      try {
+        setSyncState({ status: 'loading', message: 'Checking your Level Up history...' })
+        const response = await fetch('/api/player/level-up-sessions', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const json = (await response.json()) as { ok?: boolean; sessions?: RemoteLevelUpSession[] }
+        if (!response.ok || !json.ok || !active) return
+
+        const remoteCompletions = (json.sessions ?? [])
+          .filter((session) => session.identitySlug === identitySlug)
+          .map(remoteSessionToCompletion)
+          .filter(Boolean) as LevelUpCompletion[]
+        const merged = mergeCompletions(remoteCompletions, readCompletions()).slice(0, 40)
+        setCompletions(merged)
+        window.localStorage.setItem('tiq-level-up-completions', JSON.stringify(merged))
+        setSyncState({
+          status: 'synced',
+          message: remoteCompletions.length ? 'Your saved proof history is available on this device.' : '',
+        })
+      } catch {
+        if (active) {
+          setSyncState({ status: 'local', message: 'Saved proof will stay on this device until sync is available.' })
+        }
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [identitySlug])
+
+  function log(cardId: string, rating: number, note: string, elapsedSeconds = 0) {
+    const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === cardId)
+    const now = new Date().toISOString()
+    const nextCompletion: LevelUpCompletion = {
+      id: `${Date.now()}-${cardId}`,
+      playerId: 'local-player',
+      cardId,
+      completedAt: now,
+      proofRating: rating,
+      note: note.trim(),
+      durationMinutes: card ? Math.max(1, Math.round(elapsedSeconds / 60)) || card.durationMinutes : undefined,
+    }
+
     setCompletions((current) => {
-      const next = [{
-        id: `${Date.now()}-${cardId}`,
-        playerId: 'local-player',
-        cardId,
-        completedAt: new Date().toISOString(),
-        proofRating: rating,
-        note: note.trim(),
-      }, ...current].slice(0, 40)
+      const next = [nextCompletion, ...current.filter((completion) => completion.id !== nextCompletion.id)].slice(0, 40)
       window.localStorage.setItem('tiq-level-up-completions', JSON.stringify(next))
       return next
     })
+
+    if (!card) {
+      setSyncState({ status: 'local', message: 'Saved locally. This card can sync after it is in the Level Up library.' })
+      return
+    }
+
+    setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing proof now...' })
+    void syncPortalCompletion({ card, completion: nextCompletion, identitySlug, elapsedSeconds, setSyncState })
   }
-  return [completions, log]
+  return [completions, log, syncState]
+}
+
+async function syncPortalCompletion({
+  card,
+  completion,
+  identitySlug,
+  elapsedSeconds,
+  setSyncState,
+}: {
+  card: LevelUpCard
+  completion: LevelUpCompletion
+  identitySlug: string
+  elapsedSeconds: number
+  setSyncState: (state: CompletionSyncState) => void
+}) {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) {
+    setSyncState({ status: 'local', message: 'Saved locally. Sign in from a coach invite or Player+ to sync proof history.' })
+    return
+  }
+
+  const coachResult = await postPortalCompletion({
+    token,
+    card,
+    completion,
+    identitySlug,
+    elapsedSeconds,
+    accessMode: 'coach_invited',
+    sharedWithCoach: true,
+  })
+  if (coachResult.ok) {
+    setSyncState({ status: 'synced', message: 'Synced. Your linked coach can use this for the next lesson.' })
+    return
+  }
+
+  const playerPlusResult = await postPortalCompletion({
+    token,
+    card,
+    completion,
+    identitySlug,
+    elapsedSeconds,
+    accessMode: 'player_plus',
+    sharedWithCoach: false,
+  })
+  if (playerPlusResult.ok) {
+    setSyncState({ status: 'synced', message: 'Synced to your Level Up history.' })
+    return
+  }
+
+  setSyncState({
+    status: 'local',
+    message: playerPlusResult.message || coachResult.message || 'Saved locally. Coach invite or Player+ turns on cloud history.',
+  })
+}
+
+async function postPortalCompletion({
+  token,
+  card,
+  completion,
+  identitySlug,
+  elapsedSeconds,
+  accessMode,
+  sharedWithCoach,
+}: {
+  token: string
+  card: LevelUpCard
+  completion: LevelUpCompletion
+  identitySlug: string
+  elapsedSeconds: number
+  accessMode: 'coach_invited' | 'player_plus'
+  sharedWithCoach: boolean
+}) {
+  try {
+    const workType = getCardWorkType(card)
+    const response = await fetch('/api/player/level-up-sessions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        session: {
+          id: completion.id,
+          focusId: card.id,
+          focusTitle: getTrainingAreaLabel(card),
+          workType,
+          context: getCardContext(card, workType),
+          drillTitle: card.title,
+          rating: completion.proofRating,
+          feeling: 'ready',
+          accessMode,
+          note: completion.note ?? '',
+          elapsedSeconds,
+          sharedWithCoach,
+          completedAt: completion.completedAt,
+          identitySlug,
+          assignmentId: completion.assignmentId,
+        },
+      }),
+    })
+    const json = (await response.json()) as { ok?: boolean; message?: string }
+    return { ok: response.ok && json.ok, message: json.message }
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : 'Cloud sync is not available right now.' }
+  }
+}
+
+function remoteSessionToCompletion(session: RemoteLevelUpSession): LevelUpCompletion | null {
+  const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === session.focusId)
+    ?? LEVEL_UP_CARDS.find((candidate) => candidate.title === session.drillTitle)
+  if (!card) return null
+
+  return {
+    id: session.id,
+    playerId: session.playerUserId,
+    cardId: card.id,
+    completedAt: session.completedAt,
+    proofRating: session.rating,
+    note: session.note,
+    durationMinutes: Math.max(1, Math.round(session.elapsedSeconds / 60)) || card.durationMinutes,
+    assignmentId: session.assignmentId ?? undefined,
+  }
+}
+
+function mergeCompletions(remoteCompletions: LevelUpCompletion[], localCompletions: LevelUpCompletion[]) {
+  const byId = new Map<string, LevelUpCompletion>()
+  for (const completion of [...localCompletions, ...remoteCompletions]) {
+    byId.set(completion.id, completion)
+  }
+
+  return [...byId.values()].sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
 }
 
 function readStringList(key: string) {
