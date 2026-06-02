@@ -964,6 +964,24 @@ function LevelUpCardTile({
     })
   }
 
+  function finishAndPickNext() {
+    setTimerRunning(false)
+    setLoggerOpen(false)
+    setActivityOpen(false)
+    onActivityChange?.(null)
+    if (savedRating !== null) {
+      setFinishRecap(buildFinishRecap({
+        card,
+        rating: savedRating,
+        completedRoundCount,
+        totalCleanRepCount,
+      }))
+    }
+    window.requestAnimationFrame(() => {
+      document.getElementById('level-up-start-here')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
   function pickNextCard() {
     document.getElementById('level-up-start-here')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -1371,7 +1389,7 @@ function LevelUpCardTile({
             </div>
             {savedScoreDecision ? (
               <div className={styles.levelUpScoreDecision}>
-                <span>Decision</span>
+                <span>Next action</span>
                 <strong>{savedScoreDecision.title}</strong>
                 <small>{savedScoreDecision.detail}</small>
               </div>
@@ -1393,7 +1411,8 @@ function LevelUpCardTile({
             <div className={styles.completionSavedActions}>
               <button type="button" data-primary="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(savedRating)}</button>
               <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy coach update', 'Coach update copied')}</button>
-              <button type="button" data-finish="true" onClick={finishActivity}>Finish recap</button>
+              <button type="button" data-finish="true" onClick={finishActivity}>Finish session</button>
+              <button type="button" data-next-card="true" onClick={finishAndPickNext}>Pick next card</button>
             </div>
           </div>
         ) : null}

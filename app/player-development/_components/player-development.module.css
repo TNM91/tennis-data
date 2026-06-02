@@ -3031,7 +3031,7 @@
   bottom: 8px;
   z-index: 3;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
   margin: 7px -2px -2px;
   border: 1px solid rgba(116, 190, 255, 0.12);
@@ -3064,6 +3064,12 @@
   border-color: rgba(116, 190, 255, 0.42);
   background: rgba(116, 190, 255, 0.12);
   color: var(--foreground-strong);
+}
+
+.completionSavedActions button[data-next-card='true'] {
+  border-color: rgba(155, 225, 29, 0.32);
+  background: rgba(155, 225, 29, 0.12);
+  color: var(--brand-green-3);
 }
 
 .levelUpAssignmentControls {
