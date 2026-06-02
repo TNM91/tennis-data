@@ -147,6 +147,11 @@ type NetConfidenceTabGuide = {
   moveOn: string
   say: string
   resetIf: string
+  proofAnchors: {
+    low: string
+    mid: string
+    high: string
+  }
   startCardId: string
 }
 
@@ -897,6 +902,12 @@ function LevelUpNetConfidenceLadder({
               <p><b>Move on:</b> {activeGuide.moveOn}</p>
               <p><b>Say:</b> {activeGuide.say}</p>
               <p><b>Reset if:</b> {activeGuide.resetIf}</p>
+            </div>
+            <div className={styles.levelUpNetProofAnchors} aria-label="Net proof score anchors">
+              <span>Proof anchors</span>
+              <p><b>1-2</b>{activeGuide.proofAnchors.low}</p>
+              <p><b>3</b>{activeGuide.proofAnchors.mid}</p>
+              <p><b>4-5</b>{activeGuide.proofAnchors.high}</p>
             </div>
           </div>
         ) : null}
@@ -2921,6 +2932,11 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       moveOn: 'Go to Feed when 3 of 4 readiness checks are clean.',
       say: 'Close, split, target before I watch.',
       resetIf: 'You rush the volley before the split or target call.',
+      proofAnchors: {
+        low: 'You arrived late, split late, or skipped the target call.',
+        mid: 'The sequence happened, but one piece was rushed or unclear.',
+        high: 'Close, split, target, contact, and recover were clean.',
+      },
       startCardId: byCardId.get('short-ball-close-split')?.id ?? fallbackCardId,
     },
     {
@@ -2935,6 +2951,11 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       moveOn: 'Go to Compete when the target call stays early under variety.',
       say: 'Feed me one controlled ball, then make me read.',
       resetIf: 'The feeder adds pace before your first-volley habit is clean.',
+      proofAnchors: {
+        low: 'The feed exposed rushed feet or no target.',
+        mid: 'You handled predictable feeds but lost clarity with variety.',
+        high: 'You kept the same habit through predictable and varied feeds.',
+      },
       startCardId: byCardId.get('approach-volley-close')?.id ?? fallbackCardId,
     },
     {
@@ -2949,6 +2970,11 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       moveOn: 'Go to Start or Feed when the body feels organized enough for balls.',
       say: 'Quiet hands, recover before I look.',
       resetIf: 'The wall touch turns into a swing or your feet stop.',
+      proofAnchors: {
+        low: 'Hands got big or the feet stopped after contact.',
+        mid: 'The rep stayed controlled, but recovery timing was inconsistent.',
+        high: 'Quiet hands, balanced feet, and recover-before-look stayed automatic.',
+      },
       startCardId: byCardId.get('reaction-volley-wall')?.id ?? fallbackCardId,
     },
     {
@@ -2963,6 +2989,11 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       moveOn: 'Keep competing if proof is 4+. Drop to Feed if the habit disappears.',
       say: 'I only count it if the habit shows up.',
       resetIf: 'You chase the point score and stop scoring the net habit.',
+      proofAnchors: {
+        low: 'Point score took over and the net habit disappeared.',
+        mid: 'The habit showed up in some pressure points but leaked late.',
+        high: 'The habit held while the point mattered.',
+      },
       startCardId: byCardId.get('volley-punch-target')?.id ?? fallbackCardId,
     },
     {
@@ -2977,6 +3008,11 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       moveOn: 'Return to the tab where the miss showed up and retest.',
       say: 'One miss, one fix, five clean reps.',
       resetIf: 'You try to fix three things at once.',
+      proofAnchors: {
+        low: 'The same miss repeated and the fix was not clear.',
+        mid: 'The fix helped, but only when the rep was slow or predictable.',
+        high: 'The next live points showed the fix holding.',
+      },
       startCardId: byCardId.get('volley-ready-split')?.id ?? fallbackCardId,
     },
   ]
