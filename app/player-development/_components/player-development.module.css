@@ -1473,22 +1473,24 @@
   gap: 9px;
 }
 
-.levelUpTodayPlanGrid a {
+.levelUpTodayPlanGrid button {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 9px;
   align-items: start;
   min-width: 0;
+  cursor: pointer;
   border: 1px solid rgba(116, 190, 255, 0.16);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.045);
   color: var(--foreground);
+  font: inherit;
   padding: 11px;
-  text-decoration: none;
+  text-align: left;
 }
 
-.levelUpTodayPlanGrid a:hover,
-.levelUpTodayPlanGrid a:focus-visible,
+.levelUpTodayPlanGrid button:hover,
+.levelUpTodayPlanGrid button:focus-visible,
 .levelUpTodayPlanActive {
   border-color: rgba(155, 225, 29, 0.42) !important;
   background:

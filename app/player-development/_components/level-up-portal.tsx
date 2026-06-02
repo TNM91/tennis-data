@@ -64,7 +64,6 @@ type TodayPlanItem = {
   label: string
   card: LevelUpCard
   proof: string
-  href: string
 }
 
 const emptyFilters: FilterState = {
@@ -175,13 +174,16 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     trainingPulse,
     nextBestRep,
   })
-  const todayPlan = buildTodayPlan({
-    identitySlug,
-    coachChallengeCard,
-    nextBestCard: nextBestRep.card,
-    quickStartCard,
-    matchDayCard: matchDayCards[0] ?? todayCard,
-  })
+  const todayPlan = buildTodayPlan({ startCards })
+
+  function startCardFromPlan(cardId: string) {
+    scrollToStartList(startListRef)
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLButtonElement>(`[data-level-up-card-id="${cardId}"] [data-level-up-start-action="true"]`)
+        ?.click()
+    })
+  }
 
   return (
     <section
@@ -218,9 +220,9 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         identitySlug={identitySlug}
       />
 
-      <LevelUpTodayPlan items={todayPlan} activeCardTitle={activeCardTitle} />
+      <LevelUpTodayPlan items={todayPlan} activeCardTitle={activeCardTitle} onStartCard={startCardFromPlan} />
 
-      <LevelUpNextBestRepPanel nextBestRep={nextBestRep} identitySlug={identitySlug} />
+      <LevelUpNextBestRepPanel nextBestRep={nextBestRep} onStartCard={startCardFromPlan} />
 
       <LevelUpTrainingPulsePanel pulse={trainingPulse} />
 
@@ -431,7 +433,7 @@ function LevelUpTodayDashboard({
   )
 }
 
-function LevelUpNextBestRepPanel({ nextBestRep, identitySlug }: { nextBestRep: NextBestRep; identitySlug: string }) {
+function LevelUpNextBestRepPanel({ nextBestRep, onStartCard }: { nextBestRep: NextBestRep; onStartCard: (cardId: string) => void }) {
   return (
     <section className={styles.levelUpNextBestRep} aria-label="Next best rep">
       <div>
@@ -446,12 +448,12 @@ function LevelUpNextBestRepPanel({ nextBestRep, identitySlug }: { nextBestRep: N
         <strong>{nextBestRep.card.title}</strong>
         <small>Proof target: {nextBestRep.proof}</small>
       </div>
-      <a className="button-primary" href={buildCardStartHref(identitySlug, nextBestRep.card)}>Start card</a>
+      <button type="button" className="button-primary" onClick={() => onStartCard(nextBestRep.card.id)}>Start card</button>
     </section>
   )
 }
 
-function LevelUpTodayPlan({ items, activeCardTitle }: { items: TodayPlanItem[]; activeCardTitle: string | null }) {
+function LevelUpTodayPlan({ items, activeCardTitle, onStartCard }: { items: TodayPlanItem[]; activeCardTitle: string | null; onStartCard: (cardId: string) => void }) {
   return (
     <section className={styles.levelUpTodayPlan} aria-label="Today's plan">
       <div className={styles.levelUpRailHeader}>
@@ -461,9 +463,10 @@ function LevelUpTodayPlan({ items, activeCardTitle }: { items: TodayPlanItem[]; 
       </div>
       <div className={styles.levelUpTodayPlanGrid}>
         {items.map((item, index) => (
-          <a
+          <button
+            type="button"
             key={`${item.label}-${item.card.id}`}
-            href={item.href}
+            onClick={() => onStartCard(item.card.id)}
             className={item.card.title === activeCardTitle ? styles.levelUpTodayPlanActive : undefined}
           >
             <span>{index + 1}</span>
@@ -472,7 +475,7 @@ function LevelUpTodayPlan({ items, activeCardTitle }: { items: TodayPlanItem[]; 
               <strong>{item.card.title}</strong>
               <small>{item.proof}</small>
             </div>
-          </a>
+          </button>
         ))}
       </div>
     </section>
@@ -970,7 +973,7 @@ function LevelUpCardTile({
   }
 
   return (
-    <article ref={cardRef} className={`${styles.levelUpCardTile} ${activityOpen ? styles.levelUpCardTileActive : ''}`} data-activity={activityOpen ? 'true' : 'false'}>
+    <article ref={cardRef} className={`${styles.levelUpCardTile} ${activityOpen ? styles.levelUpCardTileActive : ''}`} data-activity={activityOpen ? 'true' : 'false'} data-level-up-card-id={card.id}>
       <div>
         <span>{card.pack}</span>
         <h3>{card.title}</h3>
@@ -1389,7 +1392,7 @@ function LevelUpCardTile({
         ) : null}
       </details>
       <div className={styles.levelUpCardActions}>
-        <button type="button" className="button-primary" onClick={startActivity}>Start</button>
+        <button type="button" className="button-primary" data-level-up-start-action="true" onClick={startActivity}>Start</button>
         <button type="button" className={styles.scoreButton} onClick={openLogger}>Score</button>
         <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
       </div>
@@ -1809,40 +1812,14 @@ function buildAdaptiveStartCards({
   return startCards.slice(0, 3)
 }
 
-function buildTodayPlan({
-  identitySlug,
-  coachChallengeCard,
-  nextBestCard,
-  quickStartCard,
-  matchDayCard,
-}: {
-  identitySlug: string
-  coachChallengeCard: LevelUpCard
-  nextBestCard: LevelUpCard
-  quickStartCard: LevelUpCard
-  matchDayCard: LevelUpCard
-}): TodayPlanItem[] {
-  const candidates = [
-    { label: 'Coach or identity start', card: coachChallengeCard },
-    { label: 'Adaptive next rep', card: nextBestCard },
-    { label: 'Quick finish', card: quickStartCard },
-    { label: 'Match-ready habit', card: matchDayCard },
-  ]
-  const seen = new Set<string>()
+function buildTodayPlan({ startCards }: { startCards: LevelUpCard[] }): TodayPlanItem[] {
+  const labels = ['Start first', 'Add one rep', 'Finish useful']
 
-  return candidates
-    .filter(({ card }) => {
-      if (seen.has(card.id)) return false
-      seen.add(card.id)
-      return true
-    })
-    .slice(0, 3)
-    .map(({ label, card }) => ({
-      label,
-      card,
-      proof: card.proof,
-      href: buildCardStartHref(identitySlug, card),
-    }))
+  return startCards.slice(0, 3).map((card, index) => ({
+    label: labels[index] ?? 'Next useful rep',
+    card,
+    proof: card.proof,
+  }))
 }
 
 function buildAdaptiveCardReason(nextBestRep: NextBestRep) {
