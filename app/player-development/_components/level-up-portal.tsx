@@ -465,6 +465,9 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const activeLaneCard = activeLaneCardId
     ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
     : undefined
+  const activeLaneCoachAssignment = activeLaneCard
+    ? assignmentByCardId.get(activeLaneCard.id) ?? buildDirectStartAssignment(activeLaneCard, requestedStartCardId)
+    : undefined
 
   useEffect(() => {
     if (!requestedStartCardId || directStartHandledRef.current === requestedStartCardId) return
@@ -586,6 +589,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
             reason={recommendationByCardId.get(activeLaneCard.id)?.reason}
             favorite={favorites.includes(activeLaneCard.id)}
             completionSummary={completionSummaryByCardId.get(activeLaneCard.id)}
+            coachAssignment={activeLaneCoachAssignment}
             onFavorite={toggleFavorite}
             onComplete={logCompletion}
             onActivityChange={handleActivityChange}
@@ -1757,6 +1761,7 @@ function LevelUpCardTile({
   reason,
   favorite,
   completionSummary,
+  coachAssignment,
   onFavorite,
   onComplete,
   onActivityChange,
@@ -1767,6 +1772,7 @@ function LevelUpCardTile({
   reason?: string
   favorite: boolean
   completionSummary?: CompletionSummary
+  coachAssignment?: LevelUpAssignment
   onFavorite: (cardId: string) => void
   onComplete: CompletionLogger
   onActivityChange?: (cardTitle: string | null) => void
@@ -1854,6 +1860,7 @@ function LevelUpCardTile({
       nextAction: savedProofAction.title,
     })
     : ''
+  const coachAssignedLabel = coachAssignment ? getCoachAssignmentCardLabel(coachAssignment, card) : null
 
   useEffect(() => {
     if (!timerRunning) return undefined
@@ -1999,6 +2006,13 @@ function LevelUpCardTile({
         <span>{card.intensity}</span>
         <EquipmentPill equipment={card.equipment.join(', ')} />
       </div>
+      {coachAssignedLabel ? (
+        <div className={styles.coachAssignedCardPill} aria-label={`Coach assignment context for ${card.title}`}>
+          <span>{coachAssignedLabel.status}</span>
+          <strong>{coachAssignedLabel.proof}</strong>
+          <small>{coachAssignedLabel.due}</small>
+        </div>
+      ) : null}
       {activityOpen ? (
         <div className={styles.levelUpActivityMode} aria-label={`Active drill mode for ${card.title}`} data-focus-state={activeFocusState}>
           <div className={styles.levelUpActivityHeader}>
@@ -4822,6 +4836,29 @@ function buildAssignmentByCardId(challenges: LevelUpCoachChallenge[]) {
     }
   }
   return byCardId
+}
+
+function buildDirectStartAssignment(card: LevelUpCard, requestedStartCardId: string): LevelUpAssignment | undefined {
+  if (requestedStartCardId !== card.id) return undefined
+
+  return {
+    id: `direct-coach-link-${card.id}`,
+    playerId: 'direct-link-player',
+    cardId: card.id,
+    assignedAt: new Date().toISOString(),
+    coachNote: 'Opened from a coach link. Run the card, score the proof, and share the recap if this is assigned work.',
+    proofRequired: card.proof,
+    status: 'assigned',
+  }
+}
+
+function getCoachAssignmentCardLabel(assignment: LevelUpAssignment, card: LevelUpCard) {
+  const directLink = assignment.id.startsWith('direct-coach-link-')
+  return {
+    status: directLink ? 'Coach link' : 'Coach assigned',
+    proof: assignment.proofRequired ?? card.proof,
+    due: directLink ? 'Share proof when this is assigned work.' : `Due ${formatAssignmentDueDate(assignment.dueAt)}`,
+  }
 }
 
 function matchAssignmentCard(assignment: CoachAssignment) {

@@ -74,4 +74,12 @@ describe('Level Up session sync', () => {
     expect(portalSource).toContain('setActiveLaneCardId(requestedCard.id)')
     expect(portalSource).toContain("setSelectedIntent('Coach link')")
   })
+
+  it('labels active direct-start cards with coach assignment context', () => {
+    expect(portalSource).toContain('activeLaneCoachAssignment')
+    expect(portalSource).toContain('buildDirectStartAssignment')
+    expect(portalSource).toContain('coachAssignment={activeLaneCoachAssignment}')
+    expect(portalSource).toContain('coachAssignedCardPill')
+    expect(portalSource).toContain('Coach assigned')
+  })
 })
