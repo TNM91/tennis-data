@@ -145,6 +145,8 @@ type NetConfidenceTabGuide = {
   block: string
   score: string
   moveOn: string
+  say: string
+  resetIf: string
   startCardId: string
 }
 
@@ -877,17 +879,25 @@ function LevelUpNetConfidenceLadder({
       <div className={styles.levelUpNetToolkitPanel} data-active-tab={activeTab}>
         {activeGuide ? (
           <div className={styles.levelUpNetTabGuide} aria-label="Net tab guide">
-            <span>{activeGuide.eyebrow}</span>
-            <strong>{activeGuide.title}</strong>
-            <p><b>Setup:</b> {activeGuide.setup}</p>
-            <p><b>Use when:</b> {activeGuide.useWhen}</p>
-            <p><b>Do:</b> {activeGuide.doThis}</p>
-            <p><b>Block:</b> {activeGuide.block}</p>
-            <p><b>Score:</b> {activeGuide.score}</p>
-            <p><b>Move on:</b> {activeGuide.moveOn}</p>
-            <button type="button" onClick={() => onStartCard(activeGuide.startCardId)}>
-              Start: {activeGuideCard?.title ?? 'recommended rep'}
-            </button>
+            <div className={styles.levelUpNetTabGuideHeader}>
+              <div>
+                <span>{activeGuide.eyebrow}</span>
+                <strong>{activeGuide.title}</strong>
+              </div>
+              <button type="button" onClick={() => onStartCard(activeGuide.startCardId)}>
+                Start: {activeGuideCard?.title ?? 'recommended rep'}
+              </button>
+            </div>
+            <div className={styles.levelUpNetTabGuideDetails}>
+              <p><b>Setup:</b> {activeGuide.setup}</p>
+              <p><b>Use when:</b> {activeGuide.useWhen}</p>
+              <p><b>Do:</b> {activeGuide.doThis}</p>
+              <p><b>Block:</b> {activeGuide.block}</p>
+              <p><b>Score:</b> {activeGuide.score}</p>
+              <p><b>Move on:</b> {activeGuide.moveOn}</p>
+              <p><b>Say:</b> {activeGuide.say}</p>
+              <p><b>Reset if:</b> {activeGuide.resetIf}</p>
+            </div>
           </div>
         ) : null}
         {activeTab === 'start' ? (
@@ -2909,6 +2919,8 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       block: '3 rounds: close-only, split timing, then target call plus volley.',
       score: 'Close, split, target, compact contact 0-5.',
       moveOn: 'Go to Feed when 3 of 4 readiness checks are clean.',
+      say: 'Close, split, target before I watch.',
+      resetIf: 'You rush the volley before the split or target call.',
       startCardId: byCardId.get('short-ball-close-split')?.id ?? fallbackCardId,
     },
     {
@@ -2921,6 +2933,8 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       block: '8 predictable feeds, 8 two-lane reads, then 6 approach points.',
       score: '6 of 8 clean before adding pace or direction changes.',
       moveOn: 'Go to Compete when the target call stays early under variety.',
+      say: 'Feed me one controlled ball, then make me read.',
+      resetIf: 'The feeder adds pace before your first-volley habit is clean.',
       startCardId: byCardId.get('approach-volley-close')?.id ?? fallbackCardId,
     },
     {
@@ -2933,6 +2947,8 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       block: '5 shadow closes, 20 wall touches, 5 recover-before-look reps.',
       score: 'Balanced freeze and quiet hands 0-5.',
       moveOn: 'Go to Start or Feed when the body feels organized enough for balls.',
+      say: 'Quiet hands, recover before I look.',
+      resetIf: 'The wall touch turns into a swing or your feet stop.',
       startCardId: byCardId.get('reaction-volley-wall')?.id ?? fallbackCardId,
     },
     {
@@ -2945,6 +2961,8 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       block: 'Play one race to 7, then repeat the same game with a tighter proof rule.',
       score: 'Decision quality, not just point result 0-5.',
       moveOn: 'Keep competing if proof is 4+. Drop to Feed if the habit disappears.',
+      say: 'I only count it if the habit shows up.',
+      resetIf: 'You chase the point score and stop scoring the net habit.',
       startCardId: byCardId.get('volley-punch-target')?.id ?? fallbackCardId,
     },
     {
@@ -2957,6 +2975,8 @@ function buildNetConfidenceTabGuides(items: NetConfidenceLadderItem[]): NetConfi
       block: 'Pick one miss, run 5 correction reps, then test it in 3 live points.',
       score: 'Did the fix change the next 5 reps? 0-5.',
       moveOn: 'Return to the tab where the miss showed up and retest.',
+      say: 'One miss, one fix, five clean reps.',
+      resetIf: 'You try to fix three things at once.',
       startCardId: byCardId.get('volley-ready-split')?.id ?? fallbackCardId,
     },
   ]

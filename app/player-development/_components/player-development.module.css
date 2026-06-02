@@ -1736,15 +1736,37 @@
 
 .levelUpNetTabGuide {
   display: grid;
-  grid-template-columns: auto minmax(190px, 0.85fr) repeat(6, minmax(0, 1fr)) auto;
-  gap: 9px;
-  align-items: stretch;
+  gap: 10px;
   border: 1px solid rgba(155, 225, 29, 0.18);
   border-radius: 14px;
   background:
     linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 56%),
     rgba(255, 255, 255, 0.04);
   padding: 9px;
+}
+
+.levelUpNetTabGuideHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.levelUpNetTabGuideHeader > div {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 10px;
+}
+
+.levelUpNetTabGuideDetails {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .levelUpNetLadderGrid {
@@ -1970,7 +1992,7 @@
   text-transform: uppercase;
 }
 
-.levelUpNetTabGuide > span {
+.levelUpNetTabGuideHeader span {
   display: grid;
   align-items: center;
   width: fit-content;
@@ -2040,20 +2062,19 @@
   line-height: 1.2;
 }
 
-.levelUpNetTabGuide > strong {
+.levelUpNetTabGuideHeader strong {
   display: grid;
   align-items: center;
   color: var(--foreground-strong);
-  font-size: 0.92rem;
+  font-size: 1rem;
   line-height: 1.15;
 }
 
-.levelUpNetTabGuide p {
+.levelUpNetTabGuideDetails p {
   display: grid;
   align-content: start;
   gap: 4px;
   min-width: 0;
-  min-height: 88px;
   margin: 0;
   border: 1px solid rgba(116, 190, 255, 0.12);
   border-radius: 12px;
@@ -2064,7 +2085,7 @@
   line-height: 1.3;
 }
 
-.levelUpNetTabGuide p b {
+.levelUpNetTabGuideDetails p b {
   color: var(--brand-blue-2);
   font-size: 0.64rem;
   line-height: 1.1;
@@ -9053,6 +9074,10 @@
     scroll-snap-align: start;
   }
 
+  .levelUpNetTabGuideDetails {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .levelUpFilters {
     grid-template-columns: 1fr;
   }
@@ -9204,6 +9229,11 @@
   .levelUpNetToolkitNav button {
     min-width: 146px;
     scroll-snap-align: start;
+  }
+
+  .levelUpNetTabGuideHeader,
+  .levelUpNetTabGuideDetails {
+    grid-template-columns: 1fr;
   }
 
   .levelUpFilters,
