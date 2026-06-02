@@ -91,6 +91,13 @@ type NetConfidenceReadinessItem = {
   watch: string
 }
 
+type NetConfidenceTargetItem = {
+  target: string
+  useWhen: string
+  playerJob: string
+  proof: string
+}
+
 type SessionFocus = 'serve' | 'return' | 'movement' | 'pressure' | 'fitness' | 'match'
 
 type SessionBuilderItem = {
@@ -776,6 +783,7 @@ function LevelUpNetConfidenceLadder({
 }) {
   const fixes = buildNetConfidenceFixes(items)
   const readinessChecks = buildNetConfidenceReadinessChecks()
+  const targetMap = buildNetConfidenceTargetMap()
 
   return (
     <section className={styles.levelUpNetLadder} aria-label="Net confidence ladder">
@@ -802,6 +810,18 @@ function LevelUpNetConfidenceLadder({
             <b>{item.label}</b>
             <small>{item.standard}</small>
             <i>{item.watch}</i>
+          </article>
+        ))}
+      </div>
+      <div className={styles.levelUpNetTargetMap} aria-label="First-volley target map">
+        <span>First-volley target map</span>
+        <strong>Do not just volley. Give the first volley a job.</strong>
+        {targetMap.map((item) => (
+          <article key={item.target}>
+            <b>{item.target}</b>
+            <small>{item.useWhen}</small>
+            <em>{item.playerJob}</em>
+            <i>{item.proof}</i>
           </article>
         ))}
       </div>
@@ -2547,6 +2567,29 @@ function buildNetConfidenceReadinessChecks(): NetConfidenceReadinessItem[] {
       label: 'Hands',
       standard: 'Your hands reset in front after every touch.',
       watch: 'If the swing gets big, start Reaction Volley Wall.',
+    },
+  ]
+}
+
+function buildNetConfidenceTargetMap(): NetConfidenceTargetItem[] {
+  return [
+    {
+      target: 'Deep middle',
+      useWhen: 'Use when the volley is rushed or the passers are balanced.',
+      playerJob: 'Compact punch, take away the clean angle, recover forward.',
+      proof: 'Score: target called before contact 0-5',
+    },
+    {
+      target: 'Short angle',
+      useWhen: 'Use when the feed is soft and you arrive balanced.',
+      playerJob: 'Small punch, finish low, then cover the reply lane.',
+      proof: 'Score: controlled angle, not over-hit 0-5',
+    },
+    {
+      target: 'Behind',
+      useWhen: 'Use when the opponent over-recovers or opens the hips early.',
+      playerJob: 'Hold shape, punch behind the move, split for the next ball.',
+      proof: 'Score: read plus compact contact 0-5',
     },
   ]
 }
