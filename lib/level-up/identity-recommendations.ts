@@ -77,6 +77,41 @@ export const IDENTITY_LEVEL_UP_PROFILES: Record<string, IdentityLevelUpProfile> 
     recommendationCopy:
       'Recommended for Smart Attacker because this path builds serve +1 clarity, forward closing, return intent, and balanced first-strike decisions.',
   },
+  'consistent-builder-4-0': {
+    identitySlug: 'consistent-builder-4-0',
+    featuredModuleIds: [
+      'crosscourt-build-before-change',
+      'recovery-after-contact',
+      'wide-ball-reset',
+      'match-day-warm-up',
+      'pressure-reset',
+      'post-play-mobility-reset',
+      'wall-work-starter',
+    ],
+    starterCardIds: [
+      'crosscourt-consistency',
+      'basket-forehand-crosscourt',
+      'basket-backhand-crosscourt',
+      'wide-ball-neutralizer',
+      'wall-depth-builder',
+      'three-step-reset',
+      'dynamic-tennis-warm-up',
+      'post-play-mobility-reset',
+    ],
+    focusTags: [
+      'crosscourt-build',
+      'recovery-after-contact',
+      'wide-ball-reset',
+      'defense-to-neutral',
+      'pressure-reset',
+      'match-day',
+      'wall-work',
+      'decision-quality',
+    ],
+    lanePriority: ['forehand', 'backhand', 'movement', 'singles', 'return', 'serve', 'fitness', 'doubles'],
+    recommendationCopy:
+      'Recommended for Consistent Builder because this path builds crosscourt tolerance, recovery, wide-ball reset, match-day readiness, and pressure control.',
+  },
   default: {
     identitySlug: 'default',
     featuredModuleIds: [
