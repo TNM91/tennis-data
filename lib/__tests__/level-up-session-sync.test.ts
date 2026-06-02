@@ -58,6 +58,15 @@ describe('Level Up session sync', () => {
     expect(coachPageSource).toContain('setReviewNextFocus(proofReviewDraft?.nextFocus')
   })
 
+  it('recommends and preloads the next coach assignment from Level Up proof', () => {
+    expect(coachPageSource).toContain('loadNextAssignmentFromProof')
+    expect(coachPageSource).toContain('proofReviewDraft.nextMove')
+    expect(coachPageSource).toContain('Load next assignment')
+    expect(coachPageSource).toContain('setAssignmentLevelUpCardId(nextCardId)')
+    expect(coachPageSource).toContain('Repeat clean:')
+    expect(coachPageSource).toContain('Scale down:')
+  })
+
   it('lets Coach Hub assign exact Level Up cards into the player portal', () => {
     expect(coachPageSource).toContain('assignmentLevelUpCardId')
     expect(coachPageSource).toContain('Assign exact Level Up card')

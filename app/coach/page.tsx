@@ -379,6 +379,26 @@ function CoachContent() {
     setWorkspaceMessage(`${starter.title} loaded. Expected evidence: ${starter.evidence}`)
   }
 
+  function loadNextAssignmentFromProof(assignment: CoachAssignment, session: LevelUpSession, draft: LevelUpProofReviewDraft) {
+    const nextCardId = draft.nextMove.cardId
+    const templateId = getCoachAssignmentTemplateIdForCard(nextCardId)
+    const nextCard = LEVEL_UP_CARDS.find((card) => card.id === nextCardId)
+
+    setAssignmentStudentId(assignment.studentLinkId)
+    setAssignmentTemplateId(templateId)
+    setAssignmentTitle(draft.nextMove.title)
+    setAssignmentFocus(draft.nextMove.focus)
+    setAssignmentDueDate(getDateInputDaysFromNow(draft.nextMove.dueDays))
+    setAssignmentPresetId('')
+    setAssignmentStarterId('')
+    setAssignmentLevelUpCardId(nextCardId)
+    setWorkspaceMessage(`Next assignment loaded from ${session.drillTitle}: ${draft.nextMove.label}. Create it when it fits the player.`)
+
+    if (!nextCard) {
+      setWorkspaceMessage(`Next assignment loaded, but the Level Up card needs a manual pick before saving.`)
+    }
+  }
+
   async function saveAssignmentReview(assignmentId: string) {
     if (!session?.access_token || (!reviewNote.trim() && !reviewNextFocus.trim())) return
 
@@ -1078,6 +1098,33 @@ function CoachContent() {
                         <em>{formatClock(levelUpProof.elapsedSeconds)} / {levelUpProof.feeling}</em>
                         {levelUpProof.note ? <small>{levelUpProof.note}</small> : null}
                         {proofReviewDraft ? <small>Suggested coach response: {proofReviewDraft.note}</small> : null}
+                        {proofReviewDraft ? (
+                          <div style={proofNextMoveStyle}>
+                            <span>{proofReviewDraft.nextMove.label}</span>
+                            <strong>{proofReviewDraft.nextMove.title}</strong>
+                            <small>{proofReviewDraft.nextMove.reason}</small>
+                            <div style={proofNextMoveActionRowStyle}>
+                              <button
+                                type="button"
+                                onClick={() => loadNextAssignmentFromProof(assignment, levelUpProof, proofReviewDraft)}
+                                style={smallPrimaryButtonStyle}
+                              >
+                                Load next assignment
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewAssignmentId(assignment.id)
+                                  setReviewNote(proofReviewDraft.note)
+                                  setReviewNextFocus(proofReviewDraft.nextFocus)
+                                }}
+                                style={smallGhostButtonStyle}
+                              >
+                                Use coach response
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                     {playerCheckIn ? (
@@ -1252,6 +1299,19 @@ type CoachQueueAction = {
   detail: string
   href: string
   tone: 'review' | 'due' | 'setup' | 'assign' | 'steady'
+}
+
+type LevelUpProofReviewDraft = {
+  note: string
+  nextFocus: string
+  nextMove: {
+    label: string
+    title: string
+    focus: string
+    reason: string
+    cardId: string
+    dueDays: number
+  }
 }
 
 function buildCoachLevelUpAssignmentCards(
@@ -1431,25 +1491,72 @@ function buildAssignmentProofMap(levelUpSessions: LevelUpSession[]) {
 
 function buildLevelUpProofReviewDraft(session: LevelUpSession, assignment: CoachAssignment) {
   const base = `${session.drillTitle} came back ${session.rating}/5.`
+  const cardId = getAssignmentLevelUpCardId(assignment, session)
+  const focus = assignment.focus || session.focusTitle
 
   if (session.rating >= 4) {
     return {
       note: `${base} Good signal: the assigned habit is repeatable enough to test with more pressure next.`,
-      nextFocus: `Add pressure to ${assignment.focus || session.focusTitle}`,
-    }
+      nextFocus: `Add pressure to ${focus}`,
+      nextMove: {
+        label: 'Progress',
+        title: `Add pressure: ${session.drillTitle}`,
+        focus: `Pressure test ${focus}`,
+        reason: 'The player scored 4-5, so keep the same habit and add scoreboard, target, or time pressure.',
+        cardId,
+        dueDays: 5,
+      },
+    } satisfies LevelUpProofReviewDraft
   }
 
   if (session.rating >= 2) {
     return {
       note: `${base} Keep the same assignment target and ask for one cleaner proof block before increasing difficulty.`,
       nextFocus: `Repeat ${session.focusTitle} with cleaner proof`,
-    }
+      nextMove: {
+        label: 'Repeat cleaner',
+        title: `Repeat clean: ${session.drillTitle}`,
+        focus: `Cleaner proof for ${session.focusTitle}`,
+        reason: 'The player scored 2-3, so the next assignment should repeat the same card with a clearer standard before adding difficulty.',
+        cardId,
+        dueDays: 4,
+      },
+    } satisfies LevelUpProofReviewDraft
   }
 
   return {
     note: `${base} Scale this down. The next lesson should simplify the cue and rebuild confidence before speed or pressure.`,
-    nextFocus: `Scale down ${assignment.focus || session.focusTitle}`,
-  }
+    nextFocus: `Scale down ${focus}`,
+    nextMove: {
+      label: 'Scale down',
+      title: `Scale down: ${session.focusTitle}`,
+      focus: `Simplify ${focus}`,
+      reason: 'The player scored 0-1, so the next assignment should reduce speed, volume, or decision load.',
+      cardId,
+      dueDays: 3,
+    },
+  } satisfies LevelUpProofReviewDraft
+}
+
+function getAssignmentLevelUpCardId(assignment: CoachAssignment, session: LevelUpSession) {
+  const directCardId = typeof assignment.assignment.cardId === 'string' ? assignment.assignment.cardId : ''
+  if (directCardId && LEVEL_UP_CARDS.some((card) => card.id === directCardId)) return directCardId
+
+  const shortcutCardId = getCoachAssignmentShortcutCardId(`${assignment.title} ${assignment.focus} ${session.drillTitle} ${session.focusTitle}`)
+  if (shortcutCardId && LEVEL_UP_CARDS.some((card) => card.id === shortcutCardId)) return shortcutCardId
+
+  return LEVEL_UP_CARDS[0]?.id ?? ''
+}
+
+function getCoachAssignmentTemplateIdForCard(cardId: string) {
+  const exactTemplate = COACH_ASSIGNMENT_TEMPLATES.find((template) => template.id === cardId)
+  if (exactTemplate) return exactTemplate.id
+
+  const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === cardId)
+  const shortcutTemplateId = card ? getCoachAssignmentShortcutCardId(`${card.id} ${card.title} ${card.tags.join(' ')}`) : ''
+  const matchingTemplate = COACH_ASSIGNMENT_TEMPLATES.find((template) => template.id === shortcutTemplateId)
+
+  return matchingTemplate?.id ?? COACH_ASSIGNMENT_TEMPLATES[0]?.id ?? ''
 }
 
 function buildLinkedPlayerCards(
@@ -2385,6 +2492,23 @@ const levelUpProofStyle: CSSProperties = {
   ...checkInReviewStyle,
   border: '1px solid rgba(155,225,29,0.22)',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.055))',
+}
+
+const proofNextMoveStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  marginTop: 4,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.2)',
+  background: 'rgba(5,11,22,0.3)',
+}
+
+const proofNextMoveActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
 }
 
 function proofScoreBadgeStyle(rating: number): CSSProperties {
