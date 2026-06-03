@@ -5337,6 +5337,50 @@
   line-height: 1.3;
 }
 
+.levelUpPostProofNextCard {
+  display: grid;
+  gap: 5px;
+  margin-top: 4px;
+  border: 1px solid rgba(116, 190, 255, 0.24);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.1), rgba(155, 225, 29, 0.06)),
+    rgba(5, 15, 30, 0.34);
+  padding: 8px;
+}
+
+.levelUpPostProofNextCard span {
+  color: var(--brand-blue-2);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpPostProofNextCard strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.18;
+}
+
+.levelUpPostProofNextCard small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
+.levelUpPostProofNextCard button {
+  width: fit-content;
+  min-height: 38px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.14);
+  color: var(--foreground-strong);
+  padding: 8px 12px;
+  font-weight: 950;
+}
+
 .coachUpdatePreview {
   display: grid;
   gap: 5px;

@@ -24,14 +24,39 @@ try {
   await coachNext.waitFor({ state: 'visible', timeout: 10_000 })
 
   const panelText = await coachNext.innerText()
+  const bodyText = await page.locator('body').innerText()
+  const hasCoachSendAction =
+    panelText.includes('SEND')
+    && panelText.includes('ASK')
+    && panelText.includes('THEN')
+    && panelText.includes('Copy coach update')
+  const hasCoachRecipeAction =
+    panelText.includes('SETUP')
+    && panelText.includes('SCORE')
+    && panelText.includes('STOP')
+    && (
+      panelText.includes('Add pressure')
+      || panelText.includes('Repeat cleaner')
+      || panelText.includes('Scale down')
+    )
+
   if (
-    !panelText.includes('Send proof to coach.')
-    || !panelText.includes('Copy coach update')
-    || !panelText.includes('SEND')
-    || !panelText.includes('ASK')
-    || !panelText.includes('THEN')
+    !panelText.includes('COACH RECOMMENDED NEXT')
+    || (!hasCoachSendAction && !hasCoachRecipeAction)
   ) {
-    throw new Error(`Expected coach send recommendation. Saw:\n${panelText}`)
+    throw new Error(`Expected coach next recommendation. Saw:\n${panelText}`)
+  }
+
+  if (
+    !bodyText.includes('RUN NEXT')
+    || !(
+      bodyText.includes('Start next card')
+      || bodyText.includes('Add pressure here')
+      || bodyText.includes('Repeat this card')
+      || bodyText.includes('Scale this card')
+    )
+  ) {
+    throw new Error(`Expected post-proof next card handoff. Saw:\n${bodyText}`)
   }
 
   console.log(JSON.stringify({
