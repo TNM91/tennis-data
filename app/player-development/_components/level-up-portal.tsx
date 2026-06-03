@@ -51,6 +51,13 @@ type NextBestRep = {
   signal: string
 }
 
+type CoachRecommendedNext = {
+  title: string
+  detail: string
+  actionLabel: string
+  action: 'send' | 'repeat' | 'pick-next'
+}
+
 type TrainingPulse = {
   proofCount: number
   averageProofLabel: string
@@ -402,6 +409,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const previewCoachChallenge = buildPreviewCoachChallenge(previewCoachChallengeCard, todayModule)
   const activeCoachChallenge = coachChallenges.find((challenge) => challenge.assignment.status === 'assigned') ?? coachChallenges[0] ?? previewCoachChallenge
   const coachChallengeInbox = coachChallenges.length ? coachChallenges : [previewCoachChallenge]
+  const coachInboxAssignmentByCardId = buildAssignmentByCardId(coachChallengeInbox)
   const coachChallengeCard = activeCoachChallenge.card
   const coachAssignment = activeCoachChallenge.assignment
   const coachAssignmentModule = activeCoachChallenge.module
@@ -473,7 +481,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
     : undefined
   const activeLaneCoachAssignment = activeLaneCard
-    ? assignmentByCardId.get(activeLaneCard.id) ?? buildDirectStartAssignment(activeLaneCard, requestedStartCardId)
+    ? assignmentByCardId.get(activeLaneCard.id) ?? coachInboxAssignmentByCardId.get(activeLaneCard.id) ?? buildDirectStartAssignment(activeLaneCard, requestedStartCardId)
     : undefined
 
   useEffect(() => {
@@ -2048,6 +2056,7 @@ function LevelUpCardTile({
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
   const savedScoreDecision = savedRating === null ? null : getScoreDecision(card, savedRating)
   const savedCoachNextRead = savedRating === null ? null : getCoachNextAssignmentRead(card, savedRating)
+  const savedCoachRecommendedNext = savedRating === null ? null : getCoachRecommendedNext(card, savedRating, Boolean(coachAssignment))
   const savedProofSnapshot = savedRating === null ? null : buildProofSnapshot({
     card,
     rating: savedRating,
@@ -2624,6 +2633,20 @@ function LevelUpCardTile({
                 {coachUpdateCopyStatus === 'copied' ? 'Copied' : coachUpdateCopyStatus === 'blocked' ? 'Manual copy' : 'Ready'}
               </span>
             </div>
+            {savedCoachRecommendedNext ? (
+              <div className={styles.levelUpCoachRecommendedNext} aria-label={`Coach recommended next for ${card.title}`}>
+                <span>Coach Recommended Next</span>
+                <strong>{savedCoachRecommendedNext.title}</strong>
+                <small>{savedCoachRecommendedNext.detail}</small>
+                <button
+                  type="button"
+                  data-recommendation-action={savedCoachRecommendedNext.action}
+                  onClick={savedCoachRecommendedNext.action === 'send' ? copyCoachUpdate : savedCoachRecommendedNext.action === 'pick-next' ? finishAndPickNext : repeatActivity}
+                >
+                  {savedCoachRecommendedNext.actionLabel}
+                </button>
+              </div>
+            ) : null}
             {savedProofSnapshot ? (
               <div className={styles.levelUpProofSnapshot} aria-label={`Proof snapshot for ${card.title}`}>
                 <span>Proof snapshot</span>
@@ -7378,6 +7401,44 @@ function getCoachNextAssignmentRead(card: LevelUpCard, rating: number) {
     detail: `Your ${proofName} score says the habit is repeatable enough to test. The next assignment should add one pressure layer without changing everything.`,
     assignment: `Next assignment idea: add pressure to ${card.title}.`,
     actionLabel: 'add pressure',
+  }
+}
+
+function getCoachRecommendedNext(card: LevelUpCard, rating: number, hasCoachAssignment: boolean): CoachRecommendedNext {
+  const proofName = card.proof.replace(' 0-5', '').toLowerCase()
+
+  if (hasCoachAssignment) {
+    return {
+      title: 'Send proof to coach.',
+      detail: `You finished assigned work. Send the ${rating}/5 ${proofName} proof before starting another card.`,
+      actionLabel: 'Copy coach update',
+      action: 'send',
+    }
+  }
+
+  if (rating <= 1) {
+    return {
+      title: 'Scale it down now.',
+      detail: `The ${proofName} score is not stable yet. Shrink the rep and make the cue show up before chasing speed.`,
+      actionLabel: 'Scale down rep',
+      action: 'repeat',
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Repeat clean once.',
+      detail: `The ${proofName} habit is showing up. Run one cleaner round at the same difficulty before moving on.`,
+      actionLabel: 'Repeat clean',
+      action: 'repeat',
+    }
+  }
+
+  return {
+    title: 'Level up one piece.',
+    detail: `The ${proofName} habit is repeatable enough to test. Add one pressure layer, not a whole new drill.`,
+    actionLabel: 'Add pressure',
+    action: 'repeat',
   }
 }
 

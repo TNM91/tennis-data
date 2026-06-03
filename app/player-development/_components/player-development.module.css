@@ -5043,6 +5043,50 @@
   text-transform: uppercase;
 }
 
+.levelUpCoachRecommendedNext {
+  display: grid;
+  gap: 6px;
+  margin-top: 5px;
+  border: 1px solid rgba(155, 225, 29, 0.34);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.14), rgba(116, 190, 255, 0.08)),
+    rgba(5, 15, 30, 0.35);
+  padding: 9px;
+}
+
+.levelUpCoachRecommendedNext span {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpCoachRecommendedNext strong {
+  color: var(--foreground-strong);
+  font-size: 0.98rem;
+  line-height: 1.18;
+}
+
+.levelUpCoachRecommendedNext small {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.32;
+}
+
+.levelUpCoachRecommendedNext button {
+  width: fit-content;
+  min-height: 38px;
+  border: 1px solid rgba(155, 225, 29, 0.34);
+  border-radius: 999px;
+  background: var(--brand-green);
+  color: #07110b;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 950;
+}
+
 .levelUpAfterScoreNext {
   display: grid;
   gap: 4px;
