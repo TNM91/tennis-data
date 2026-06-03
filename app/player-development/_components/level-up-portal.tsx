@@ -1434,6 +1434,31 @@ function LevelUpCoachChallengeInbox({
                   />
                 ) : null}
               </div>
+            ) : item.status === 'completed' && item.coachUpdateText ? (
+              <div className={styles.levelUpCoachInboxDone}>
+                <small><b>Sent update</b>{item.coachUpdateText}</small>
+                <small><b>Next step</b>{item.nextStepText}</small>
+                <div>
+                  <button type="button" onClick={() => copyInboxCoachUpdate(item)}>
+                    {copyStatusByItemId[item.challenge.assignment.id] === 'copied'
+                      ? 'Copied'
+                      : copyStatusByItemId[item.challenge.assignment.id] === 'blocked'
+                        ? 'Copy blocked'
+                        : 'Copy update'}
+                  </button>
+                  <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>Run again</button>
+                </div>
+                {copyStatusByItemId[item.challenge.assignment.id] === 'blocked' ? (
+                  <textarea
+                    className={styles.levelUpCoachInboxCopyFallback}
+                    value={item.coachUpdateText}
+                    readOnly
+                    rows={3}
+                    aria-label={`Manual sent coach update for ${item.challenge.card.title}`}
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                ) : null}
+              </div>
             ) : (
               <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>
                 {item.status === 'completed' ? 'Run again' : 'Start'}
@@ -5039,6 +5064,7 @@ function buildCoachChallengeInboxItems(
         ? `Proof ${completionSummary.lastRating}/5`
         : challenge.assignment.proofRequired ?? challenge.card.proof,
       coachUpdateText: buildCoachChallengeInboxUpdate(challenge, completionSummary),
+      nextStepText: buildCoachChallengeInboxNextStep(challenge, completionSummary),
     }
   })
 }
@@ -5075,6 +5101,25 @@ function buildCoachChallengeInboxUpdate(
   const durationLine = completionSummary.lastDurationMinutes ? `, ${completionSummary.lastDurationMinutes} min` : ''
   const proof = challenge.assignment.proofRequired ?? challenge.card.proof
   return `${challenge.card.title}: proof ${completionSummary.lastRating}/5${durationLine}. ${proof}.${noteLine}`
+}
+
+function buildCoachChallengeInboxNextStep(
+  challenge: LevelUpCoachChallenge,
+  completionSummary?: CompletionSummary,
+) {
+  if (completionSummary?.lastRating === undefined) {
+    return `Run ${challenge.card.title}, then send one proof number.`
+  }
+
+  if (completionSummary.lastRating >= 4) {
+    return `Repeat ${challenge.card.title} once more, then ask coach whether to add pressure.`
+  }
+
+  if (completionSummary.lastRating >= 2) {
+    return `Run ${challenge.card.title} again at the same speed and clean up the proof before adding difficulty.`
+  }
+
+  return `Scale ${challenge.card.title} down and make the cue show up before chasing score.`
 }
 
 function buildDirectStartAssignment(card: LevelUpCard, requestedStartCardId: string): LevelUpAssignment | undefined {

@@ -1736,7 +1736,8 @@
   gap: 7px;
 }
 
-.levelUpCoachInboxReady small {
+.levelUpCoachInboxReady small,
+.levelUpCoachInboxDone small {
   max-width: 34ch;
   border: 1px solid rgba(155, 225, 29, 0.18);
   border-radius: 10px;
@@ -1744,14 +1745,35 @@
   padding: 7px;
 }
 
-.levelUpCoachInboxReady div {
+.levelUpCoachInboxDone small {
+  border-color: rgba(116, 190, 255, 0.16);
+  background: rgba(116, 190, 255, 0.06);
+}
+
+.levelUpCoachInboxDone small b {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--foreground-strong);
+  font-size: 0.64rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.levelUpCoachInboxReady div,
+.levelUpCoachInboxDone div {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.levelUpCoachInboxReady button {
+.levelUpCoachInboxReady button,
+.levelUpCoachInboxDone button {
   width: fit-content;
+}
+
+.levelUpCoachInboxDone {
+  display: grid;
+  gap: 7px;
 }
 
 .levelUpCoachInboxCopyFallback {
