@@ -1676,6 +1676,13 @@
     rgba(255, 255, 255, 0.04);
 }
 
+.levelUpCoachInboxGrid article[data-status='completed'] {
+  border-color: rgba(116, 190, 255, 0.22);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 44%),
+    rgba(255, 255, 255, 0.035);
+}
+
 .levelUpCoachInboxGrid article[data-active='true'] {
   outline: 2px solid rgba(155, 225, 29, 0.36);
   outline-offset: 2px;

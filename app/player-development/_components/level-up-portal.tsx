@@ -293,6 +293,7 @@ const emptyFilters: FilterState = {
   tag: 'all',
 }
 
+const LEVEL_UP_COACH_SENT_STORAGE_KEY = 'tiq-level-up-coach-sent'
 const STORED_STATE_HYDRATION_DELAY_MS = 2000
 
 const sessionDurationOptions = [10, 20, 30, 45]
@@ -1324,7 +1325,8 @@ function LevelUpCoachChallengeInbox({
 }) {
   const [activeFilter, setActiveFilter] = useState<CoachChallengeInboxFilter>('assigned')
   const [copyStatusByItemId, setCopyStatusByItemId] = useState<Record<string, 'copied' | 'blocked'>>({})
-  const inboxItems = buildCoachChallengeInboxItems(challenges, completionSummaryByCardId)
+  const [sentAssignmentIds, setSentAssignmentIds] = useState<string[]>([])
+  const inboxItems = buildCoachChallengeInboxItems(challenges, completionSummaryByCardId, sentAssignmentIds)
   const assignedCount = inboxItems.filter((item) => item.status === 'assigned').length
   const readyCount = inboxItems.filter((item) => item.status === 'ready').length
   const completedCount = inboxItems.filter((item) => item.status === 'completed').length
@@ -1348,6 +1350,24 @@ function LevelUpCoachChallengeInbox({
     }
   }
 
+  useEffect(() => {
+    const hydrationTimer = window.setTimeout(() => {
+      setSentAssignmentIds(readStringList(LEVEL_UP_COACH_SENT_STORAGE_KEY))
+    }, STORED_STATE_HYDRATION_DELAY_MS)
+
+    return () => window.clearTimeout(hydrationTimer)
+  }, [])
+
+  function markCoachChallengeSent(item: ReturnType<typeof buildCoachChallengeInboxItems>[number]) {
+    setSentAssignmentIds((current) => {
+      const assignmentId = item.challenge.assignment.id
+      const next = current.includes(assignmentId) ? current : [assignmentId, ...current].slice(0, 40)
+      window.localStorage.setItem(LEVEL_UP_COACH_SENT_STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
+    setActiveFilter('completed')
+  }
+
   return (
     <section className={styles.levelUpCoachChallengeInbox} aria-label="Coach challenge inbox">
       <div className={styles.levelUpCoachInboxHeader}>
@@ -1358,7 +1378,7 @@ function LevelUpCoachChallengeInbox({
         </div>
         {nextItem ? (
           <button type="button" className="button-primary" onClick={() => onStartCard(nextItem.challenge.card.id)}>
-            {nextItem.status === 'ready' ? 'Review proof' : 'Start next'}
+            {nextItem.status === 'completed' ? 'Review done' : nextItem.status === 'ready' ? 'Review proof' : 'Start next'}
           </button>
         ) : null}
       </div>
@@ -1401,6 +1421,7 @@ function LevelUpCoachChallengeInbox({
                         : 'Copy update'}
                   </button>
                   <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>Open recap</button>
+                  <button type="button" onClick={() => markCoachChallengeSent(item)}>Mark sent</button>
                 </div>
                 {copyStatusByItemId[item.challenge.assignment.id] === 'blocked' ? (
                   <textarea
@@ -4999,10 +5020,15 @@ function buildAssignmentByCardId(challenges: LevelUpCoachChallenge[]) {
 function buildCoachChallengeInboxItems(
   challenges: LevelUpCoachChallenge[],
   completionSummaryByCardId: Map<string, CompletionSummary>,
+  sentAssignmentIds: string[] = [],
 ) {
   return challenges.map((challenge) => {
     const completionSummary = completionSummaryByCardId.get(challenge.card.id)
-    const status = getCoachChallengeInboxStatus(challenge.assignment, completionSummary)
+    const status = getCoachChallengeInboxStatus(
+      challenge.assignment,
+      completionSummary,
+      sentAssignmentIds.includes(challenge.assignment.id),
+    )
     return {
       challenge,
       completionSummary,
@@ -5020,8 +5046,9 @@ function buildCoachChallengeInboxItems(
 function getCoachChallengeInboxStatus(
   assignment: LevelUpAssignment,
   completionSummary?: CompletionSummary,
+  locallySent = false,
 ): CoachChallengeInboxFilter {
-  if (assignment.status === 'completed') return 'completed'
+  if (assignment.status === 'completed' || locallySent) return 'completed'
   if (completionSummary?.lastRating !== undefined) return 'ready'
   return 'assigned'
 }
@@ -5034,7 +5061,7 @@ function getCoachChallengeInboxLabel(status: CoachChallengeInboxFilter, completi
 
 function getCoachInboxEmptyCopy(filter: CoachChallengeInboxFilter) {
   if (filter === 'ready') return 'Save proof on an assigned card and it will move here.'
-  if (filter === 'completed') return 'Completed coach challenges will collect here for review.'
+  if (filter === 'completed') return 'Mark a coach update sent and it will collect here for review.'
   return 'You are caught up on assigned coach work.'
 }
 
