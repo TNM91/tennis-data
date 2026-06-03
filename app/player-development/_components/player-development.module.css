@@ -1724,6 +1724,42 @@
   font-weight: 950;
 }
 
+.levelUpCoachInboxReady {
+  display: grid;
+  gap: 7px;
+}
+
+.levelUpCoachInboxReady small {
+  max-width: 34ch;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: 10px;
+  background: rgba(155, 225, 29, 0.07);
+  padding: 7px;
+}
+
+.levelUpCoachInboxReady div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.levelUpCoachInboxReady button {
+  width: fit-content;
+}
+
+.levelUpCoachInboxCopyFallback {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 10px;
+  background: rgba(5, 15, 30, 0.72);
+  color: var(--foreground-strong);
+  padding: 8px;
+  font: inherit;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 .levelUpCoachInboxEmpty {
   grid-template-columns: 1fr;
 }

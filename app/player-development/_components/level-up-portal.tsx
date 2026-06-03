@@ -36,6 +36,9 @@ type CompletionSummary = {
   count: number
   lastRating?: number
   previousRating?: number
+  lastNote?: string
+  lastDurationMinutes?: number
+  lastCompletedAt?: string
 }
 
 type NextBestRep = {
@@ -1320,6 +1323,7 @@ function LevelUpCoachChallengeInbox({
   onStartCard: (cardId: string) => void
 }) {
   const [activeFilter, setActiveFilter] = useState<CoachChallengeInboxFilter>('assigned')
+  const [copyStatusByItemId, setCopyStatusByItemId] = useState<Record<string, 'copied' | 'blocked'>>({})
   const inboxItems = buildCoachChallengeInboxItems(challenges, completionSummaryByCardId)
   const assignedCount = inboxItems.filter((item) => item.status === 'assigned').length
   const readyCount = inboxItems.filter((item) => item.status === 'ready').length
@@ -1332,6 +1336,17 @@ function LevelUpCoachChallengeInbox({
     { key: 'ready', label: 'Ready', count: readyCount },
     { key: 'completed', label: 'Done', count: completedCount },
   ]
+
+  async function copyInboxCoachUpdate(item: ReturnType<typeof buildCoachChallengeInboxItems>[number]) {
+    if (!item.coachUpdateText) return
+
+    try {
+      await window.navigator.clipboard?.writeText(item.coachUpdateText)
+      setCopyStatusByItemId((current) => ({ ...current, [item.challenge.assignment.id]: 'copied' }))
+    } catch {
+      setCopyStatusByItemId((current) => ({ ...current, [item.challenge.assignment.id]: 'blocked' }))
+    }
+  }
 
   return (
     <section className={styles.levelUpCoachChallengeInbox} aria-label="Coach challenge inbox">
@@ -1374,9 +1389,35 @@ function LevelUpCoachChallengeInbox({
               <b>{item.proofLabel}</b>
               <b>{item.challenge.module.title}</b>
             </div>
-            <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>
-              {item.status === 'ready' ? 'Open recap' : item.status === 'completed' ? 'Run again' : 'Start'}
-            </button>
+            {item.status === 'ready' && item.coachUpdateText ? (
+              <div className={styles.levelUpCoachInboxReady}>
+                <small>{item.coachUpdateText}</small>
+                <div>
+                  <button type="button" onClick={() => copyInboxCoachUpdate(item)}>
+                    {copyStatusByItemId[item.challenge.assignment.id] === 'copied'
+                      ? 'Copied'
+                      : copyStatusByItemId[item.challenge.assignment.id] === 'blocked'
+                        ? 'Copy blocked'
+                        : 'Copy update'}
+                  </button>
+                  <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>Open recap</button>
+                </div>
+                {copyStatusByItemId[item.challenge.assignment.id] === 'blocked' ? (
+                  <textarea
+                    className={styles.levelUpCoachInboxCopyFallback}
+                    value={item.coachUpdateText}
+                    readOnly
+                    rows={3}
+                    aria-label={`Manual coach update for ${item.challenge.card.title}`}
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                ) : null}
+              </div>
+            ) : (
+              <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>
+                {item.status === 'completed' ? 'Run again' : 'Start'}
+              </button>
+            )}
           </article>
         )) : (
           <div className={styles.levelUpCoachInboxEmpty}>
@@ -4971,6 +5012,7 @@ function buildCoachChallengeInboxItems(
       proofLabel: completionSummary?.lastRating !== undefined
         ? `Proof ${completionSummary.lastRating}/5`
         : challenge.assignment.proofRequired ?? challenge.card.proof,
+      coachUpdateText: buildCoachChallengeInboxUpdate(challenge, completionSummary),
     }
   })
 }
@@ -4994,6 +5036,18 @@ function getCoachInboxEmptyCopy(filter: CoachChallengeInboxFilter) {
   if (filter === 'ready') return 'Save proof on an assigned card and it will move here.'
   if (filter === 'completed') return 'Completed coach challenges will collect here for review.'
   return 'You are caught up on assigned coach work.'
+}
+
+function buildCoachChallengeInboxUpdate(
+  challenge: LevelUpCoachChallenge,
+  completionSummary?: CompletionSummary,
+) {
+  if (completionSummary?.lastRating === undefined) return ''
+
+  const noteLine = completionSummary.lastNote ? ` Note: ${completionSummary.lastNote}` : ''
+  const durationLine = completionSummary.lastDurationMinutes ? `, ${completionSummary.lastDurationMinutes} min` : ''
+  const proof = challenge.assignment.proofRequired ?? challenge.card.proof
+  return `${challenge.card.title}: proof ${completionSummary.lastRating}/5${durationLine}. ${proof}.${noteLine}`
 }
 
 function buildDirectStartAssignment(card: LevelUpCard, requestedStartCardId: string): LevelUpAssignment | undefined {
@@ -7053,6 +7107,9 @@ function buildCompletionSummaryByCardId(completions: LevelUpCompletion[]) {
       summaryByCardId.set(completion.cardId, {
         count: 1,
         lastRating: completion.proofRating,
+        lastNote: completion.note,
+        lastDurationMinutes: completion.durationMinutes,
+        lastCompletedAt: completion.completedAt,
       })
     } else {
       if (current.count === 1) current.previousRating = completion.proofRating
