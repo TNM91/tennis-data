@@ -1560,6 +1560,11 @@ function LevelUpCoachChallengeInbox({
     setActiveFilter('ready')
   }
 
+  function assignSuggestedCoachNext(item: ReturnType<typeof buildCoachChallengeInboxItems>[number]) {
+    onCreateAssignment(buildCoachFeedbackAssignmentPayload(item.challenge, item.coachFeedback))
+    setActiveFilter('assigned')
+  }
+
   return (
     <section className={styles.levelUpCoachChallengeInbox} aria-label="Coach challenge inbox">
       <div className={styles.levelUpCoachInboxHeader}>
@@ -1634,6 +1639,7 @@ function LevelUpCoachChallengeInbox({
                         : 'Copy update'}
                   </button>
                   <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>Open recap</button>
+                  <button type="button" onClick={() => assignSuggestedCoachNext(item)}>Assign suggested next</button>
                   <button type="button" onClick={() => markCoachChallengeSent(item)}>Mark sent</button>
                 </div>
                 {copyStatusByItemId[item.challenge.assignment.id] === 'blocked' ? (
@@ -1666,6 +1672,7 @@ function LevelUpCoachChallengeInbox({
                         : 'Copy update'}
                   </button>
                   <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>Run again</button>
+                  <button type="button" onClick={() => assignSuggestedCoachNext(item)}>Assign suggested next</button>
                   <button type="button" onClick={() => undoCoachChallengeSent(item)}>Undo sent</button>
                 </div>
                 {copyStatusByItemId[item.challenge.assignment.id] === 'blocked' ? (
@@ -5801,6 +5808,19 @@ function buildCoachFeedbackLoop(
     title: 'Coach reply: level up.',
     detail: `The proof is strong enough to test one harder variable without changing the whole drill.`,
     nextAssignment: `Assign: ${challenge.card.progression ?? `add one pressure layer to ${challenge.card.title}`}`,
+  }
+}
+
+function buildCoachFeedbackAssignmentPayload(
+  challenge: LevelUpCoachChallenge,
+  feedback: ReturnType<typeof buildCoachFeedbackLoop>,
+): CoachAssignmentBuilderPayload {
+  return {
+    card: challenge.card,
+    module: challenge.module,
+    dueDate: getDefaultAssignmentDueDate(),
+    coachNote: feedback.nextAssignment,
+    proofRequired: challenge.assignment.proofRequired ?? challenge.card.proof,
   }
 }
 

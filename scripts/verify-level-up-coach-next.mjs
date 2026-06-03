@@ -75,6 +75,13 @@ try {
     throw new Error(`Expected post-proof next card handoff. Saw:\n${bodyText}`)
   }
 
+  await page.getByRole('button', { name: /Collapse/i }).first().click()
+  await page.getByRole('button', { name: /Ready\s+1/i }).first().click()
+  const collapsedText = await page.locator('body').innerText()
+  if (!collapsedText.includes('Assign suggested next')) {
+    throw new Error(`Expected coach feedback suggested assignment after collapse. Saw:\n${collapsedText}`)
+  }
+
   console.log(JSON.stringify({
     ok: true,
     identity,
