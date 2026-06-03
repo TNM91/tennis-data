@@ -294,6 +294,7 @@ const emptyFilters: FilterState = {
 }
 
 const LEVEL_UP_COACH_SENT_STORAGE_KEY = 'tiq-level-up-coach-sent'
+const LEVEL_UP_COACH_SENT_AT_STORAGE_KEY = 'tiq-level-up-coach-sent-at'
 const STORED_STATE_HYDRATION_DELAY_MS = 2000
 
 const sessionDurationOptions = [10, 20, 30, 45]
@@ -1326,7 +1327,8 @@ function LevelUpCoachChallengeInbox({
   const [activeFilter, setActiveFilter] = useState<CoachChallengeInboxFilter>('assigned')
   const [copyStatusByItemId, setCopyStatusByItemId] = useState<Record<string, 'copied' | 'blocked'>>({})
   const [sentAssignmentIds, setSentAssignmentIds] = useState<string[]>([])
-  const inboxItems = buildCoachChallengeInboxItems(challenges, completionSummaryByCardId, sentAssignmentIds)
+  const [sentAtByAssignmentId, setSentAtByAssignmentId] = useState<Record<string, string>>({})
+  const inboxItems = buildCoachChallengeInboxItems(challenges, completionSummaryByCardId, sentAssignmentIds, sentAtByAssignmentId)
   const assignedCount = inboxItems.filter((item) => item.status === 'assigned').length
   const readyCount = inboxItems.filter((item) => item.status === 'ready').length
   const completedCount = inboxItems.filter((item) => item.status === 'completed').length
@@ -1353,26 +1355,41 @@ function LevelUpCoachChallengeInbox({
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
       setSentAssignmentIds(readStringList(LEVEL_UP_COACH_SENT_STORAGE_KEY))
+      setSentAtByAssignmentId(readStringRecord(LEVEL_UP_COACH_SENT_AT_STORAGE_KEY))
     }, STORED_STATE_HYDRATION_DELAY_MS)
 
     return () => window.clearTimeout(hydrationTimer)
   }, [])
 
   function markCoachChallengeSent(item: ReturnType<typeof buildCoachChallengeInboxItems>[number]) {
+    const assignmentId = item.challenge.assignment.id
+    const sentAt = new Date().toISOString()
+
     setSentAssignmentIds((current) => {
-      const assignmentId = item.challenge.assignment.id
       const next = current.includes(assignmentId) ? current : [assignmentId, ...current].slice(0, 40)
       window.localStorage.setItem(LEVEL_UP_COACH_SENT_STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
+    setSentAtByAssignmentId((current) => {
+      const next = { ...current, [assignmentId]: sentAt }
+      window.localStorage.setItem(LEVEL_UP_COACH_SENT_AT_STORAGE_KEY, JSON.stringify(next))
       return next
     })
     setActiveFilter('completed')
   }
 
   function undoCoachChallengeSent(item: ReturnType<typeof buildCoachChallengeInboxItems>[number]) {
+    const assignmentId = item.challenge.assignment.id
+
     setSentAssignmentIds((current) => {
-      const assignmentId = item.challenge.assignment.id
       const next = current.filter((sentAssignmentId) => sentAssignmentId !== assignmentId)
       window.localStorage.setItem(LEVEL_UP_COACH_SENT_STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
+    setSentAtByAssignmentId((current) => {
+      const next = { ...current }
+      delete next[assignmentId]
+      window.localStorage.setItem(LEVEL_UP_COACH_SENT_AT_STORAGE_KEY, JSON.stringify(next))
       return next
     })
     setActiveFilter('ready')
@@ -1418,6 +1435,7 @@ function LevelUpCoachChallengeInbox({
               <b>{item.dueLabel}</b>
               <b>{item.proofLabel}</b>
               <b>{item.challenge.module.title}</b>
+              {item.sentAtLabel ? <b>{item.sentAtLabel}</b> : null}
             </div>
             {item.status === 'ready' && item.coachUpdateText ? (
               <div className={styles.levelUpCoachInboxReady}>
@@ -5057,9 +5075,11 @@ function buildCoachChallengeInboxItems(
   challenges: LevelUpCoachChallenge[],
   completionSummaryByCardId: Map<string, CompletionSummary>,
   sentAssignmentIds: string[] = [],
+  sentAtByAssignmentId: Record<string, string> = {},
 ) {
   return challenges.map((challenge) => {
     const completionSummary = completionSummaryByCardId.get(challenge.card.id)
+    const sentAt = sentAtByAssignmentId[challenge.assignment.id]
     const status = getCoachChallengeInboxStatus(
       challenge.assignment,
       completionSummary,
@@ -5074,6 +5094,7 @@ function buildCoachChallengeInboxItems(
       proofLabel: completionSummary?.lastRating !== undefined
         ? `Proof ${completionSummary.lastRating}/5`
         : challenge.assignment.proofRequired ?? challenge.card.proof,
+      sentAtLabel: sentAt ? `Sent ${formatCoachInboxSentDate(sentAt)}` : '',
       coachUpdateText: buildCoachChallengeInboxUpdate(challenge, completionSummary),
       nextStepText: buildCoachChallengeInboxNextStep(challenge, completionSummary),
     }
@@ -5100,6 +5121,19 @@ function getCoachInboxEmptyCopy(filter: CoachChallengeInboxFilter) {
   if (filter === 'ready') return 'Save proof on an assigned card and it will move here.'
   if (filter === 'completed') return 'Mark a coach update sent and it will collect here for review.'
   return 'You are caught up on assigned coach work.'
+}
+
+function formatCoachInboxSentDate(sentAt: string) {
+  const sentDate = new Date(sentAt)
+  if (Number.isNaN(sentDate.getTime())) return 'today'
+
+  const today = new Date()
+  if (sentDate.toDateString() === today.toDateString()) return 'today'
+
+  return sentDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 function buildCoachChallengeInboxUpdate(
@@ -7169,6 +7203,20 @@ function readStringList(key: string) {
     return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : []
   } catch {
     return []
+  }
+}
+
+function readStringRecord(key: string): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || '{}')
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([entryKey, entryValue]) => typeof entryKey === 'string' && typeof entryValue === 'string'),
+    ) as Record<string, string>
+  } catch {
+    return {}
   }
 }
 
