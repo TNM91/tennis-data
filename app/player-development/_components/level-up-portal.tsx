@@ -1368,6 +1368,16 @@ function LevelUpCoachChallengeInbox({
     setActiveFilter('completed')
   }
 
+  function undoCoachChallengeSent(item: ReturnType<typeof buildCoachChallengeInboxItems>[number]) {
+    setSentAssignmentIds((current) => {
+      const assignmentId = item.challenge.assignment.id
+      const next = current.filter((sentAssignmentId) => sentAssignmentId !== assignmentId)
+      window.localStorage.setItem(LEVEL_UP_COACH_SENT_STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
+    setActiveFilter('ready')
+  }
+
   return (
     <section className={styles.levelUpCoachChallengeInbox} aria-label="Coach challenge inbox">
       <div className={styles.levelUpCoachInboxHeader}>
@@ -1447,6 +1457,7 @@ function LevelUpCoachChallengeInbox({
                         : 'Copy update'}
                   </button>
                   <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>Run again</button>
+                  <button type="button" onClick={() => undoCoachChallengeSent(item)}>Undo sent</button>
                 </div>
                 {copyStatusByItemId[item.challenge.assignment.id] === 'blocked' ? (
                   <textarea
