@@ -1836,6 +1836,7 @@ function LevelUpCardTile({
   })
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
   const savedScoreDecision = savedRating === null ? null : getScoreDecision(card, savedRating)
+  const savedCoachNextRead = savedRating === null ? null : getCoachNextAssignmentRead(card, savedRating)
   const savedProofSnapshot = savedRating === null ? null : buildProofSnapshot({
     card,
     rating: savedRating,
@@ -2429,6 +2430,14 @@ function LevelUpCardTile({
                 <span>Next action</span>
                 <strong>{savedScoreDecision.title}</strong>
                 <small>{savedScoreDecision.detail}</small>
+              </div>
+            ) : null}
+            {savedCoachNextRead ? (
+              <div className={styles.levelUpCoachNextRead} aria-label={`Coach next assignment read for ${card.title}`}>
+                <span>Coach read</span>
+                <strong>{savedCoachNextRead.title}</strong>
+                <small>{savedCoachNextRead.detail}</small>
+                <em>{savedCoachNextRead.assignment}</em>
               </div>
             ) : null}
             <div className={styles.coachUpdatePreview}>
@@ -6918,6 +6927,32 @@ function getScoreDecision(card: LevelUpCard, rating: number) {
   return {
     title: prescription.repeatTitle,
     detail: `${prescription.repeatDetail} Keep ${proofName} as the score that matters.`,
+  }
+}
+
+function getCoachNextAssignmentRead(card: LevelUpCard, rating: number) {
+  const proofName = card.proof.replace(' 0-5', '').toLowerCase()
+
+  if (rating <= 1) {
+    return {
+      title: 'Likely coach move: scale this down.',
+      detail: `Your ${proofName} score says the habit is not stable yet. The useful next assignment should reduce speed, volume, or decision load.`,
+      assignment: `Next assignment idea: scale down ${card.title}.`,
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Likely coach move: repeat cleaner.',
+      detail: `Your ${proofName} score says the habit is showing up, but not automatic. The next assignment should keep the same card and make the standard clearer.`,
+      assignment: `Next assignment idea: repeat clean ${card.title}.`,
+    }
+  }
+
+  return {
+    title: 'Likely coach move: add pressure.',
+    detail: `Your ${proofName} score says the habit is repeatable enough to test. The next assignment should add one pressure layer without changing everything.`,
+    assignment: `Next assignment idea: add pressure to ${card.title}.`,
   }
 }
 
