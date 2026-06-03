@@ -45,6 +45,7 @@ type CompletionSummary = {
   lastNote?: string
   lastDurationMinutes?: number
   lastCompletedAt?: string
+  lastAssignmentId?: string
 }
 
 type NextBestRep = {
@@ -1568,7 +1569,7 @@ function LevelUpCoachChallengeInbox({
     setActiveFilter('assigned')
   }
 
-  const latestSuggestedAssignment = Object.values(suggestedAssignmentById)[0]
+  const latestSuggestedAssignment = Object.values(suggestedAssignmentById).at(-1)
 
   return (
     <section className={styles.levelUpCoachChallengeInbox} aria-label="Coach challenge inbox">
@@ -5739,7 +5740,12 @@ function buildCoachChallengeInboxItems(
   sentAtByAssignmentId: Record<string, string> = {},
 ) {
   return challenges.map((challenge) => {
-    const completionSummary = completionSummaryByCardId.get(challenge.card.id)
+    const latestCardSummary = completionSummaryByCardId.get(challenge.card.id)
+    const completionSummary = latestCardSummary?.lastAssignmentId && latestCardSummary.lastAssignmentId !== challenge.assignment.id
+      ? undefined
+      : latestCardSummary?.lastCompletedAt && isAssignmentAfterCompletion(challenge.assignment.assignedAt, latestCardSummary.lastCompletedAt)
+      ? undefined
+      : latestCardSummary
     const sentAt = sentAtByAssignmentId[challenge.assignment.id]
     const status = getCoachChallengeInboxStatus(
       challenge.assignment,
@@ -5849,6 +5855,13 @@ function getCoachChallengeInboxStatus(
   if (assignment.status === 'completed' || locallySent) return 'completed'
   if (completionSummary?.lastRating !== undefined) return 'ready'
   return 'assigned'
+}
+
+function isAssignmentAfterCompletion(assignedAt: string, completedAt: string) {
+  const assignedTime = new Date(assignedAt).getTime()
+  const completedTime = new Date(completedAt).getTime()
+  if (Number.isNaN(assignedTime) || Number.isNaN(completedTime)) return false
+  return assignedTime > completedTime
 }
 
 function getCoachChallengeInboxLabel(status: CoachChallengeInboxFilter, completionSummary?: CompletionSummary) {
@@ -8051,6 +8064,7 @@ function buildCompletionSummaryByCardId(completions: LevelUpCompletion[]) {
         lastNote: completion.note,
         lastDurationMinutes: completion.durationMinutes,
         lastCompletedAt: completion.completedAt,
+        lastAssignmentId: completion.assignmentId,
       })
     } else {
       if (current.count === 1) current.previousRating = completion.proofRating

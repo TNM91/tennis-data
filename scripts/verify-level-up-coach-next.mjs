@@ -83,7 +83,11 @@ try {
   }
   await page.getByRole('button', { name: /Assign suggested next/i }).first().click()
   const assignedText = await page.locator('body').innerText()
-  if (!assignedText.includes('SUGGESTED CHALLENGE ASSIGNED') || !assignedText.includes('Suggested assigned')) {
+  if (
+    !assignedText.includes('SUGGESTED CHALLENGE ASSIGNED')
+    || !assignedText.includes('Suggested assigned')
+    || !assignedText.includes('TO DO\n1')
+  ) {
     throw new Error(`Expected suggested assignment confirmation. Saw:\n${assignedText}`)
   }
 
