@@ -32,6 +32,12 @@ type IntentPreset = {
   copy: string
 }
 
+type ReadinessPreset = IntentPreset & {
+  state: 'ready' | 'tight' | 'tired' | 'rushed'
+  command: string
+  playerCue: string
+}
+
 type CompletionSummary = {
   count: number
   lastRating?: number
@@ -344,6 +350,41 @@ const intentPresets = [
   },
 ] satisfies IntentPreset[]
 
+const readinessPresets = [
+  {
+    state: 'ready',
+    label: 'Ready',
+    filters: emptyFilters,
+    copy: 'Use the recommended path.',
+    command: 'Train the main habit.',
+    playerCue: 'Run one card with full focus, then score honestly.',
+  },
+  {
+    state: 'tight',
+    label: 'Tight',
+    filters: { ...emptyFilters, tag: 'mobility' },
+    copy: 'Open the body before speed.',
+    command: 'Choose mobility or reset.',
+    playerCue: 'Move well first. Add speed only after the body feels organized.',
+  },
+  {
+    state: 'tired',
+    label: 'Tired',
+    filters: { ...emptyFilters, intensity: 'low' },
+    copy: 'Keep quality high and volume low.',
+    command: 'Pick a low-intensity rep.',
+    playerCue: 'Shorten the block. Stop before posture or balance changes.',
+  },
+  {
+    state: 'rushed',
+    label: 'Rushed',
+    filters: { ...emptyFilters, duration: 'under-10' },
+    copy: 'Get one useful proof fast.',
+    command: 'Pick a quick win.',
+    playerCue: 'Do one clean card. Do not turn five minutes into browsing.',
+  },
+] satisfies ReadinessPreset[]
+
 export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPortalProps) {
   const profile = getLevelUpProfileForIdentity(identitySlug)
   const searchParams = useSearchParams()
@@ -357,6 +398,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
   const [showAllCards, setShowAllCards] = useState(false)
   const [selectedIntent, setSelectedIntent] = useState(requestedStartCard ? 'Coach link' : 'Recommended')
+  const [selectedReadiness, setSelectedReadiness] = useState<ReadinessPreset['state']>('ready')
   const [sessionMinutes, setSessionMinutes] = useState(20)
   const [sessionFocus, setSessionFocus] = useState<SessionFocus>('movement')
   const [activeCardTitle, setActiveCardTitle] = useState<string | null>(requestedStartCard?.title ?? null)
@@ -660,6 +702,17 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         favoriteCount={favorites.length}
         completionCount={completions.length}
         sessionRead={sessionRead}
+      />
+
+      <LevelUpReadinessPicker
+        activeReadiness={selectedReadiness}
+        onApply={(preset) => {
+          setSelectedReadiness(preset.state)
+          setSelectedIntent(preset.label)
+          setFilters(preset.filters)
+          setShowAllCards(false)
+          scrollToStartList(startListRef)
+        }}
       />
 
       <LevelUpIntentPresets
@@ -1553,6 +1606,40 @@ function LevelUpSessionDock({
         <a href="#all-cards">Library</a>
       </div>
     </nav>
+  )
+}
+
+function LevelUpReadinessPicker({
+  activeReadiness,
+  onApply,
+}: {
+  activeReadiness: ReadinessPreset['state']
+  onApply: (preset: ReadinessPreset) => void
+}) {
+  const activePreset = readinessPresets.find((preset) => preset.state === activeReadiness) ?? readinessPresets[0]
+
+  return (
+    <section className={styles.levelUpReadinessPicker} aria-label="Choose today's readiness">
+      <div>
+        <span>Before you start</span>
+        <strong>{activePreset.command}</strong>
+        <small>{activePreset.playerCue}</small>
+      </div>
+      <div className={styles.levelUpReadinessChoices}>
+        {readinessPresets.map((preset) => (
+          <button
+            key={preset.state}
+            type="button"
+            data-active={activeReadiness === preset.state}
+            aria-pressed={activeReadiness === preset.state}
+            onClick={() => onApply(preset)}
+          >
+            <b>{preset.label}</b>
+            <span>{preset.copy}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 
