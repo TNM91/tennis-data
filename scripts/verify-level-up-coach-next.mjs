@@ -12,6 +12,16 @@ try {
   await page.evaluate(() => localStorage.clear())
   await page.reload({ waitUntil: 'networkidle' })
 
+  const initialText = await page.locator('body').innerText()
+  if (
+    !initialText.includes('COACH ASSIGNMENT BUILDER')
+    || !initialText.includes('CHALLENGE')
+    || !initialText.includes('WHY')
+    || !initialText.includes('PROOF')
+  ) {
+    throw new Error(`Expected coach builder and challenge plan before active drill. Saw:\n${initialText}`)
+  }
+
   const inbox = page.getByRole('region', { name: 'Coach challenge inbox' })
   await inbox.getByRole('button', { name: /Start next/i }).click()
 

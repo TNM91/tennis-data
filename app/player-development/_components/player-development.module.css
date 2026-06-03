@@ -1624,6 +1624,122 @@
   gap: 8px;
 }
 
+.coachAssignmentBuilder {
+  display: grid;
+  gap: 9px;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: 12px;
+  background: rgba(155, 225, 29, 0.055);
+  padding: 10px;
+}
+
+.coachAssignmentBuilder summary {
+  cursor: pointer;
+}
+
+.coachAssignmentBuilder summary span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coachAssignmentBuilder summary strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.coachAssignmentBuilderGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.coachAssignmentBuilderGrid + .coachAssignmentBuilderGrid {
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+}
+
+.coachAssignmentBuilder label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.coachAssignmentBuilder label span {
+  color: var(--muted-strong);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coachAssignmentBuilder select,
+.coachAssignmentBuilder input,
+.coachAssignmentBuilder textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 9px;
+  background: rgba(5, 15, 30, 0.68);
+  color: var(--foreground-strong);
+  padding: 9px;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.coachAssignmentBuilder textarea {
+  resize: vertical;
+  line-height: 1.35;
+}
+
+.coachAssignmentBuilderPreview {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(5, 15, 30, 0.34);
+  padding: 8px;
+}
+
+.coachAssignmentBuilderPreview span {
+  color: var(--brand-blue-2);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coachAssignmentBuilderPreview strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+}
+
+.coachAssignmentBuilderPreview small,
+.coachAssignmentBuilderPreview b {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
+.coachAssignmentBuilder > button {
+  width: fit-content;
+  min-height: 38px;
+  cursor: pointer;
+  border: 1px solid rgba(155, 225, 29, 0.32);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.14);
+  color: var(--brand-green-3);
+  padding: 8px 12px;
+  font-weight: 950;
+}
+
 .levelUpCoachInboxTabs button {
   cursor: pointer;
   border: 1px solid rgba(116, 190, 255, 0.16);
@@ -1669,6 +1785,61 @@
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   padding: 10px;
+}
+
+.levelUpCoachChallengePlan,
+.levelUpCoachFeedbackLoop {
+  display: grid;
+  gap: 5px;
+  grid-column: 1 / -1;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(5, 15, 30, 0.28);
+  padding: 8px;
+}
+
+.levelUpCoachChallengePlan span,
+.levelUpCoachFeedbackLoop span {
+  color: var(--brand-blue-2);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpCoachChallengePlan small {
+  max-width: none;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.levelUpCoachChallengePlan small b {
+  display: inline-block;
+  min-width: 44px;
+  color: var(--brand-green-3);
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.levelUpCoachFeedbackLoop {
+  border-color: rgba(155, 225, 29, 0.2);
+  background: rgba(155, 225, 29, 0.07);
+}
+
+.levelUpCoachFeedbackLoop strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.levelUpCoachFeedbackLoop small,
+.levelUpCoachFeedbackLoop b {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.32;
 }
 
 .levelUpCoachInboxGrid article[data-status='ready'] {
@@ -10452,6 +10623,15 @@
   }
 
   .levelUpCoachUpdate button {
+    width: 100%;
+  }
+
+  .coachAssignmentBuilderGrid,
+  .coachAssignmentBuilderGrid + .coachAssignmentBuilderGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .coachAssignmentBuilder > button {
     width: 100%;
   }
 

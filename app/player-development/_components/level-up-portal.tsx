@@ -286,6 +286,14 @@ type LevelUpCoachChallenge = {
   link?: CoachStudentLink
 }
 
+type CoachAssignmentBuilderPayload = {
+  card: LevelUpCard
+  module: LevelUpModule
+  dueDate: string
+  coachNote: string
+  proofRequired: string
+}
+
 type CompletionSyncState = {
   status: 'idle' | 'loading' | 'syncing' | 'synced' | 'local' | 'error'
   message: string
@@ -327,6 +335,7 @@ const emptyFilters: FilterState = {
 
 const LEVEL_UP_COACH_SENT_STORAGE_KEY = 'tiq-level-up-coach-sent'
 const LEVEL_UP_COACH_SENT_AT_STORAGE_KEY = 'tiq-level-up-coach-sent-at'
+const LEVEL_UP_LOCAL_COACH_ASSIGNMENTS_KEY = 'tiq-level-up-local-coach-assignments'
 const STORED_STATE_HYDRATION_DELAY_MS = 2000
 
 const sessionDurationOptions = [10, 20, 30, 45]
@@ -424,7 +433,12 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [activeLaneCardId, setActiveLaneCardId] = useState<string | null>(requestedStartCard?.id ?? null)
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [coachChallenges, coachChallengeState] = usePlayerCoachChallenges(identitySlug)
-  const assignmentByCardId = useMemo(() => buildAssignmentByCardId(coachChallenges), [coachChallenges])
+  const [localCoachChallenges, addLocalCoachChallenge] = useLocalCoachAssignments(identitySlug)
+  const allCoachChallenges = useMemo(
+    () => uniqueCoachChallenges([...localCoachChallenges, ...coachChallenges]),
+    [coachChallenges, localCoachChallenges],
+  )
+  const assignmentByCardId = useMemo(() => buildAssignmentByCardId(allCoachChallenges), [allCoachChallenges])
   const [completions, logCompletion, completionSyncState] = useLevelUpCompletions(identitySlug, assignmentByCardId)
   const completionSummaryByCardId = useMemo(() => buildCompletionSummaryByCardId(completions), [completions])
   const recommendations = useMemo(
@@ -468,14 +482,14 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const todayCard = identityCards[0] ?? LEVEL_UP_CARDS[0]
   const previewCoachChallengeCard = identityCards[1] ?? todayCard
   const previewCoachChallenge = buildPreviewCoachChallenge(previewCoachChallengeCard, todayModule)
-  const activeCoachChallenge = coachChallenges.find((challenge) => challenge.assignment.status === 'assigned') ?? coachChallenges[0] ?? previewCoachChallenge
-  const coachChallengeInbox = coachChallenges.length ? coachChallenges : [previewCoachChallenge]
+  const activeCoachChallenge = allCoachChallenges.find((challenge) => challenge.assignment.status === 'assigned') ?? allCoachChallenges[0] ?? previewCoachChallenge
+  const coachChallengeInbox = allCoachChallenges.length ? allCoachChallenges : [previewCoachChallenge]
   const coachInboxAssignmentByCardId = buildAssignmentByCardId(coachChallengeInbox)
   const coachChallengeCard = activeCoachChallenge.card
   const coachAssignment = activeCoachChallenge.assignment
   const coachAssignmentModule = activeCoachChallenge.module
   const coachAssignedCards = uniqueCards([
-    ...coachChallenges.filter((challenge) => challenge.assignment.status !== 'completed').map((challenge) => challenge.card),
+    ...allCoachChallenges.filter((challenge) => challenge.assignment.status !== 'completed').map((challenge) => challenge.card),
     ...identityCards.slice(0, 3),
   ]).slice(0, 8)
   const quickStartCard = favoriteCards[0] ?? quickWins[0] ?? todayCard
@@ -618,6 +632,9 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         challenges={coachChallengeInbox}
         completionSummaryByCardId={completionSummaryByCardId}
         activeCardTitle={activeCardTitle}
+        cardOptions={uniqueCards([...identityCards, ...allCoachChallenges.map((challenge) => challenge.card), ...LEVEL_UP_CARDS]).slice(0, 36)}
+        moduleOptions={uniqueModules([...featuredModules, ...allCoachChallenges.map((challenge) => challenge.module), ...LEVEL_UP_MODULES]).slice(0, 24)}
+        onCreateAssignment={addLocalCoachChallenge}
         onStartCard={startCardFromPlan}
       />
 
@@ -1458,11 +1475,17 @@ function LevelUpCoachChallengeInbox({
   challenges,
   completionSummaryByCardId,
   activeCardTitle,
+  cardOptions,
+  moduleOptions,
+  onCreateAssignment,
   onStartCard,
 }: {
   challenges: LevelUpCoachChallenge[]
   completionSummaryByCardId: Map<string, CompletionSummary>
   activeCardTitle: string | null
+  cardOptions: LevelUpCard[]
+  moduleOptions: LevelUpModule[]
+  onCreateAssignment: (payload: CoachAssignmentBuilderPayload) => void
   onStartCard: (cardId: string) => void
 }) {
   const [activeFilter, setActiveFilter] = useState<CoachChallengeInboxFilter>('assigned')
@@ -1550,6 +1573,11 @@ function LevelUpCoachChallengeInbox({
           </button>
         ) : null}
       </div>
+      <CoachAssignmentBuilder
+        cardOptions={cardOptions}
+        moduleOptions={moduleOptions}
+        onCreateAssignment={onCreateAssignment}
+      />
       <div className={styles.levelUpCoachInboxTabs} aria-label="Coach inbox status">
         {tabs.map((tab) => (
           <button
@@ -1578,8 +1606,23 @@ function LevelUpCoachChallengeInbox({
               <b>{item.challenge.module.title}</b>
               {item.sentAtLabel ? <b>{item.sentAtLabel}</b> : null}
             </div>
+            <div className={styles.levelUpCoachChallengePlan} aria-label={`Coach challenge plan for ${item.challenge.card.title}`}>
+              <span>Challenge</span>
+              {item.assignmentPlan.map((planItem) => (
+                <small key={planItem.label}>
+                  <b>{planItem.label}</b>
+                  {planItem.value}
+                </small>
+              ))}
+            </div>
             {item.status === 'ready' && item.coachUpdateText ? (
               <div className={styles.levelUpCoachInboxReady}>
+                <div className={styles.levelUpCoachFeedbackLoop} aria-label={`Coach feedback loop for ${item.challenge.card.title}`}>
+                  <span>Coach feedback</span>
+                  <strong>{item.coachFeedback.title}</strong>
+                  <small>{item.coachFeedback.detail}</small>
+                  <b>{item.coachFeedback.nextAssignment}</b>
+                </div>
                 <small>{item.coachUpdateText}</small>
                 <div>
                   <button type="button" onClick={() => copyInboxCoachUpdate(item)}>
@@ -1605,6 +1648,12 @@ function LevelUpCoachChallengeInbox({
               </div>
             ) : item.status === 'completed' && item.coachUpdateText ? (
               <div className={styles.levelUpCoachInboxDone}>
+                <div className={styles.levelUpCoachFeedbackLoop} aria-label={`Sent coach feedback loop for ${item.challenge.card.title}`}>
+                  <span>Coach feedback</span>
+                  <strong>{item.coachFeedback.title}</strong>
+                  <small>{item.coachFeedback.detail}</small>
+                  <b>{item.coachFeedback.nextAssignment}</b>
+                </div>
                 <small><b>Sent update</b>{item.coachUpdateText}</small>
                 <small><b>Next step</b>{item.nextStepText}</small>
                 <div>
@@ -1644,6 +1693,96 @@ function LevelUpCoachChallengeInbox({
         )}
       </div>
     </section>
+  )
+}
+
+function CoachAssignmentBuilder({
+  cardOptions,
+  moduleOptions,
+  onCreateAssignment,
+}: {
+  cardOptions: LevelUpCard[]
+  moduleOptions: LevelUpModule[]
+  onCreateAssignment: (payload: CoachAssignmentBuilderPayload) => void
+}) {
+  const defaultCard = cardOptions[0] ?? LEVEL_UP_CARDS[0]
+  const defaultModule = moduleOptions.find((module) => module.cardIds.includes(defaultCard.id)) ?? moduleOptions[0] ?? LEVEL_UP_MODULES[0]
+  const [open, setOpen] = useState(false)
+  const [selectedCardId, setSelectedCardId] = useState(defaultCard.id)
+  const selectedCard = cardOptions.find((card) => card.id === selectedCardId) ?? defaultCard
+  const matchingModule = moduleOptions.find((module) => module.cardIds.includes(selectedCard.id)) ?? defaultModule
+  const [selectedModuleId, setSelectedModuleId] = useState(matchingModule.id)
+  const selectedModule = moduleOptions.find((module) => module.id === selectedModuleId) ?? matchingModule
+  const [dueDate, setDueDate] = useState(() => getDefaultAssignmentDueDate())
+  const [coachNote, setCoachNote] = useState(() => buildDefaultCoachAssignmentNote(defaultCard))
+  const [proofRequired, setProofRequired] = useState(defaultCard.proof)
+
+  function selectCard(cardId: string) {
+    const nextCard = cardOptions.find((card) => card.id === cardId) ?? defaultCard
+    const nextModule = moduleOptions.find((module) => module.cardIds.includes(nextCard.id)) ?? selectedModule
+    setSelectedCardId(nextCard.id)
+    setSelectedModuleId(nextModule.id)
+    setProofRequired(nextCard.proof)
+    setCoachNote(buildDefaultCoachAssignmentNote(nextCard))
+  }
+
+  function createAssignment() {
+    onCreateAssignment({
+      card: selectedCard,
+      module: selectedModule,
+      dueDate,
+      coachNote: coachNote.trim() || buildDefaultCoachAssignmentNote(selectedCard),
+      proofRequired: proofRequired.trim() || selectedCard.proof,
+    })
+    setOpen(false)
+  }
+
+  return (
+    <details className={styles.coachAssignmentBuilder} open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary>
+        <span>Coach assignment builder</span>
+        <strong>Assign one tool that supports the player’s current tennis habit.</strong>
+      </summary>
+      <div className={styles.coachAssignmentBuilderGrid}>
+        <label>
+          <span>Card</span>
+          <select value={selectedCard.id} onChange={(event) => selectCard(event.target.value)}>
+            {cardOptions.map((card) => (
+              <option key={card.id} value={card.id}>{card.title}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Module</span>
+          <select value={selectedModule.id} onChange={(event) => setSelectedModuleId(event.target.value)}>
+            {moduleOptions.map((module) => (
+              <option key={module.id} value={module.id}>{module.title}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Due</span>
+          <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+        </label>
+      </div>
+      <div className={styles.coachAssignmentBuilderGrid}>
+        <label>
+          <span>Proof required</span>
+          <input value={proofRequired} onChange={(event) => setProofRequired(event.target.value)} maxLength={90} />
+        </label>
+        <label>
+          <span>Coach note</span>
+          <textarea value={coachNote} onChange={(event) => setCoachNote(event.target.value)} maxLength={180} rows={3} />
+        </label>
+      </div>
+      <div className={styles.coachAssignmentBuilderPreview} aria-label={`Assignment preview for ${selectedCard.title}`}>
+        <span>Player will see</span>
+        <strong>{selectedCard.title}</strong>
+        <small>{coachNote || buildDefaultCoachAssignmentNote(selectedCard)}</small>
+        <b>{proofRequired || selectedCard.proof}</b>
+      </div>
+      <button type="button" onClick={createAssignment}>Assign challenge</button>
+    </details>
   )
 }
 
@@ -5441,6 +5580,41 @@ function buildPreviewCoachChallenge(card: LevelUpCard, module: LevelUpModule): L
   }
 }
 
+function buildLocalCoachChallenge({
+  payload,
+  identitySlug,
+}: {
+  payload: CoachAssignmentBuilderPayload
+  identitySlug: string
+}): LevelUpCoachChallenge {
+  return {
+    source: null,
+    card: payload.card,
+    module: payload.module,
+    summary: null,
+    assignment: {
+      id: `local-coach-${identitySlug}-${payload.card.id}-${Date.now()}`,
+      playerId: 'local-player',
+      coachId: 'local-coach',
+      cardId: payload.card.id,
+      moduleId: payload.module.id,
+      assignedAt: new Date().toISOString(),
+      dueAt: payload.dueDate ? `${payload.dueDate}T23:59:59.000Z` : undefined,
+      coachNote: payload.coachNote,
+      proofRequired: payload.proofRequired,
+      status: 'assigned',
+    },
+  }
+}
+
+function buildDefaultCoachAssignmentNote(card: LevelUpCard) {
+  return `Run this once and send one proof score. I want to see ${card.proof.replace(' 0-5', '').toLowerCase()} before we add more work.`
+}
+
+function getDefaultAssignmentDueDate() {
+  return new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
 function buildAssignmentByCardId(challenges: LevelUpCoachChallenge[]) {
   const byCardId = new Map<string, LevelUpAssignment>()
   for (const challenge of challenges) {
@@ -5450,6 +5624,23 @@ function buildAssignmentByCardId(challenges: LevelUpCoachChallenge[]) {
     }
   }
   return byCardId
+}
+
+function uniqueCoachChallenges(challenges: LevelUpCoachChallenge[]) {
+  const seen = new Set<string>()
+  return challenges.filter((challenge) => {
+    if (seen.has(challenge.assignment.id)) return false
+    seen.add(challenge.assignment.id)
+    return true
+  })
+}
+
+function uniqueModules(modules: Array<LevelUpModule | undefined>) {
+  return modules.filter((module, index, list): module is LevelUpModule => {
+    if (!module) return false
+
+    return list.findIndex((candidate) => candidate?.id === module.id) === index
+  })
 }
 
 function buildCoachChallengeInboxItems(
@@ -5476,10 +5667,76 @@ function buildCoachChallengeInboxItems(
         ? `Proof ${completionSummary.lastRating}/5`
         : challenge.assignment.proofRequired ?? challenge.card.proof,
       sentAtLabel: sentAt ? `Sent ${formatCoachInboxSentDate(sentAt)}` : '',
+      assignmentPlan: buildCoachAssignmentPlayerPlan(challenge),
       coachUpdateText: buildCoachChallengeInboxUpdate(challenge, completionSummary),
       nextStepText: buildCoachChallengeInboxNextStep(challenge, completionSummary),
+      coachFeedback: buildCoachFeedbackLoop(challenge, completionSummary),
     }
   })
+}
+
+function buildCoachAssignmentPlayerPlan(challenge: LevelUpCoachChallenge) {
+  return [
+    {
+      label: 'Why',
+      value: getCoachAssignmentWhy(challenge.card),
+    },
+    {
+      label: 'Do',
+      value: `${challenge.card.durationMinutes} min. ${challenge.card.routine[0]}`,
+    },
+    {
+      label: 'Proof',
+      value: challenge.assignment.proofRequired ?? challenge.card.proof,
+    },
+  ]
+}
+
+function getCoachAssignmentWhy(card: LevelUpCard) {
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) return 'Clean up the point start before judging makes and misses.'
+  if (card.tags.includes('return-intent')) return 'Make the return job clear before the server starts.'
+  if (card.tags.includes('recovery-after-contact')) return 'Build the habit of recovering before watching the result.'
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) return 'Give pressure points a repeatable reset instead of a reaction.'
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) return 'Make the first move obvious to your partner.'
+  if (card.tags.includes('forward-close') || card.tags.includes('volley')) return 'Close and split with balance before trying to finish faster.'
+  if (card.tags.includes('conditioning') || card.tags.includes('leg-durability')) return 'Connect body work to posture and decisions late in the session.'
+  return 'Support the player identity with one clear tennis habit.'
+}
+
+function buildCoachFeedbackLoop(
+  challenge: LevelUpCoachChallenge,
+  completionSummary?: CompletionSummary,
+) {
+  if (completionSummary?.lastRating === undefined) {
+    return {
+      title: 'Waiting on proof.',
+      detail: 'The coach needs one 0-5 score before changing the assignment.',
+      nextAssignment: `Next coach move: wait for ${challenge.assignment.proofRequired ?? challenge.card.proof}.`,
+    }
+  }
+
+  const rating = completionSummary.lastRating
+  if (rating <= 1) {
+    return {
+      title: 'Coach reply: scale down.',
+      detail: `The proof is not stable yet. Reduce speed, volume, or decision load on ${challenge.card.title}.`,
+      nextAssignment: `Assign: ${challenge.card.title} with an easier setup.`,
+    }
+  }
+
+  if (rating <= 3) {
+    return {
+      title: 'Coach reply: repeat cleaner.',
+      detail: `The habit is showing up. Keep the same tool and make the standard clearer before adding difficulty.`,
+      nextAssignment: `Assign: repeat ${challenge.card.title} with the same proof.`,
+    }
+  }
+
+  return {
+    title: 'Coach reply: level up.',
+    detail: `The proof is strong enough to test one harder variable without changing the whole drill.`,
+    nextAssignment: `Assign: ${challenge.card.progression ?? `add one pressure layer to ${challenge.card.title}`}`,
+  }
 }
 
 function getCoachChallengeInboxStatus(
@@ -7371,6 +7628,64 @@ function useLevelUpFavorites(): [string[], (cardId: string) => void] {
     })
   }
   return [favorites, toggle]
+}
+
+function useLocalCoachAssignments(identitySlug: string): [LevelUpCoachChallenge[], (payload: CoachAssignmentBuilderPayload) => void] {
+  const storageKey = `${LEVEL_UP_LOCAL_COACH_ASSIGNMENTS_KEY}:${identitySlug}`
+  const [challenges, setChallenges] = useState<LevelUpCoachChallenge[]>([])
+
+  useEffect(() => {
+    const hydrationTimer = window.setTimeout(() => {
+      setChallenges(readLocalCoachChallenges(storageKey))
+    }, STORED_STATE_HYDRATION_DELAY_MS)
+
+    return () => window.clearTimeout(hydrationTimer)
+  }, [storageKey])
+
+  function addAssignment(payload: CoachAssignmentBuilderPayload) {
+    const challenge = buildLocalCoachChallenge({ payload, identitySlug })
+    setChallenges((current) => {
+      const next = uniqueCoachChallenges([challenge, ...current]).slice(0, 20)
+      window.localStorage.setItem(storageKey, JSON.stringify(next.map(serializeLocalCoachChallenge)))
+      return next
+    })
+  }
+
+  return [challenges, addAssignment]
+}
+
+function serializeLocalCoachChallenge(challenge: LevelUpCoachChallenge) {
+  return {
+    assignment: challenge.assignment,
+    cardId: challenge.card.id,
+    moduleId: challenge.module.id,
+  }
+}
+
+function readLocalCoachChallenges(key: string): LevelUpCoachChallenge[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || '[]')
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .map((item): LevelUpCoachChallenge | null => {
+        const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === item?.cardId)
+        const assignedModule = LEVEL_UP_MODULES.find((candidate) => candidate.id === item?.moduleId)
+        if (!card || !assignedModule || !item?.assignment) return null
+
+        return {
+          source: null,
+          summary: null,
+          card,
+          module: assignedModule,
+          assignment: item.assignment as LevelUpAssignment,
+        }
+      })
+      .filter((challenge): challenge is LevelUpCoachChallenge => Boolean(challenge))
+  } catch {
+    return []
+  }
 }
 
 function useLevelUpCompletions(
