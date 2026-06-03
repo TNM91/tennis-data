@@ -235,6 +235,7 @@ type StartRequest = {
 }
 
 type CompletionLogger = (cardId: string, rating: number, note: string, elapsedSeconds?: number) => void
+type ActiveDrillVariant = 'base' | 'scale-down' | 'repeat-clean' | 'add-pressure'
 
 type CoachChallengeState = {
   status: 'idle' | 'loading' | 'linked' | 'preview' | 'error'
@@ -1792,6 +1793,7 @@ function LevelUpCardTile({
   const [roundNumber, setRoundNumber] = useState(1)
   const [completedRoundCount, setCompletedRoundCount] = useState(0)
   const [bankedCleanRepCount, setBankedCleanRepCount] = useState(0)
+  const [activeVariant, setActiveVariant] = useState<ActiveDrillVariant>('base')
   const [repeatPlan, setRepeatPlan] = useState<{ title: string; detail: string } | null>(null)
   const [finishRecap, setFinishRecap] = useState<{ title: string; detail: string; proof: string } | null>(null)
   const [coachUpdateCopyStatus, setCoachUpdateCopyStatus] = useState<'idle' | 'copied' | 'blocked'>('idle')
@@ -1810,10 +1812,11 @@ function LevelUpCardTile({
   const sessionStandard = getCardSessionStandard(card)
   const proofAnchors = getCardProofAnchors(card)
   const repLadder = getCardRepLadder(card)
-  const targetSeconds = Math.max(60, card.durationMinutes * 60)
+  const variantPlan = getAdaptiveDrillVariantPlan(card, activeVariant)
+  const targetSeconds = Math.max(60, variantPlan.durationMinutes * 60)
   const timerProgress = Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100))
-  const cleanRepTarget = getCleanRepTarget(card)
-  const roundTarget = getCardRoundTarget(card, cleanRepTarget)
+  const cleanRepTarget = getAdaptiveCleanRepTarget(card, activeVariant)
+  const roundTarget = getAdaptiveRoundTarget(card, cleanRepTarget, activeVariant)
   const cleanRepProgress = Math.min(100, Math.round((cleanRepCount / cleanRepTarget) * 100))
   const roundComplete = cleanRepCount >= cleanRepTarget
   const roundCompletePrompt = getRoundCompletePrompt(card, cleanRepCount, cleanRepTarget)
@@ -1888,6 +1891,7 @@ function LevelUpCardTile({
   function startActivity() {
     setActivityOpen(true)
     onActivityChange?.(card.title)
+    setActiveVariant('base')
     setRepeatPlan(null)
     setFinishRecap(null)
     window.requestAnimationFrame(() => {
@@ -1916,12 +1920,14 @@ function LevelUpCardTile({
 
   function repeatActivity() {
     const nextRepeatPlan = savedRating === null ? null : getAfterScoreRepeatPlan(card, savedRating)
+    const nextVariant = savedRating === null ? 'base' : getVariantForRating(savedRating)
     setTimerRunning(false)
     setElapsedSeconds(0)
     setCleanRepCount(0)
     setRoundNumber(1)
     setCompletedRoundCount(0)
     setBankedCleanRepCount(0)
+    setActiveVariant(nextVariant)
     setSavedRating(null)
     setSavedProofNote('')
     setRepeatPlan(nextRepeatPlan)
@@ -2030,10 +2036,17 @@ function LevelUpCardTile({
             <div>
               <span>{activeFocusLabel}</span>
               <strong>Round {roundNumber}: {formatTimer(elapsedSeconds)} - {cleanRepCount}/{cleanRepTarget} clean</strong>
-              <small>{card.proof}</small>
+              <small>{variantPlan.label} - {card.proof}</small>
             </div>
             <button type="button" onClick={openLogger}>{savedRating === null ? 'Score' : 'Review'}</button>
           </div>
+          {activeVariant !== 'base' ? (
+            <div className={styles.levelUpAdaptiveVariant} aria-label={`Adaptive drill adjustment for ${card.title}`}>
+              <span>{variantPlan.label}</span>
+              <strong>{variantPlan.title}</strong>
+              <small>{variantPlan.detail}</small>
+            </div>
+          ) : null}
           {repeatPlan ? (
             <div className={styles.levelUpRepeatPlan} aria-label={`Repeat plan for ${card.title}`}>
               <span>Repeat plan</span>
@@ -2043,7 +2056,7 @@ function LevelUpCardTile({
           ) : null}
           <div className={styles.levelUpActivityCommand} aria-label={`Do this round for ${card.title}`}>
             <span>Do this round</span>
-            <strong>{card.routine[1] ?? card.cue}</strong>
+            <strong>{variantPlan.command}</strong>
             <small>{roundTarget.target} Score only what you can see.</small>
             <div>
               <b>Cue</b>
@@ -2062,7 +2075,7 @@ function LevelUpCardTile({
             <div className={styles.levelUpActivityTimer} data-timer-state={timerRunning ? 'running' : elapsedSeconds > 0 ? 'paused' : 'ready'}>
               <span>Timer</span>
               <strong>{formatTimer(elapsedSeconds)}</strong>
-              <small>Target: {card.durationMinutes}:00. Stop early if quality drops.</small>
+              <small>Target: {variantPlan.durationMinutes}:00. Stop early if quality drops.</small>
               <div className={styles.levelUpActivityTimerTrack} aria-hidden="true">
                 <i style={{ width: `${timerProgress}%` }} />
               </div>
@@ -5426,6 +5439,91 @@ function getCardRoundTarget(card: LevelUpCard, cleanRepTarget: number) {
     quality: 'The proof behavior shows up without guessing.',
     missResponse: 'Make the setup easier and repeat one cue.',
   }
+}
+
+function getVariantForRating(rating: number): ActiveDrillVariant {
+  if (rating <= 1) return 'scale-down'
+  if (rating <= 3) return 'repeat-clean'
+  return 'add-pressure'
+}
+
+function getAdaptiveDrillVariantPlan(card: LevelUpCard, variant: ActiveDrillVariant) {
+  const baseCommand = card.routine[1] ?? card.cue
+
+  if (variant === 'scale-down') {
+    return {
+      label: 'Scale down',
+      title: 'Shrink the rep before chasing more work.',
+      detail: card.regression || 'Reduce speed, volume, or decision load until the proof behavior is visible again.',
+      command: `Easier rep: ${card.cue}`,
+      durationMinutes: Math.max(1, Math.ceil(card.durationMinutes / 2)),
+    }
+  }
+
+  if (variant === 'repeat-clean') {
+    return {
+      label: 'Repeat clean',
+      title: 'Same card. Cleaner proof.',
+      detail: `Keep the setup the same and make this cue obvious: ${card.cue}`,
+      command: baseCommand,
+      durationMinutes: card.durationMinutes,
+    }
+  }
+
+  if (variant === 'add-pressure') {
+    return {
+      label: 'Add pressure',
+      title: 'Raise one variable, not three.',
+      detail: card.progression || 'Add score, time, target, or recovery pressure while keeping the same tennis habit.',
+      command: `Pressure rep: ${baseCommand}`,
+      durationMinutes: card.durationMinutes,
+    }
+  }
+
+  return {
+    label: 'Base round',
+    title: 'Run the card as written.',
+    detail: 'Use the core setup first. Score the proof before changing the challenge.',
+    command: baseCommand,
+    durationMinutes: card.durationMinutes,
+  }
+}
+
+function getAdaptiveCleanRepTarget(card: LevelUpCard, variant: ActiveDrillVariant) {
+  const baseTarget = getCleanRepTarget(card)
+  if (variant === 'scale-down') return Math.max(3, Math.ceil(baseTarget / 2))
+  if (variant === 'add-pressure') return baseTarget + 2
+  return baseTarget
+}
+
+function getAdaptiveRoundTarget(card: LevelUpCard, cleanRepTarget: number, variant: ActiveDrillVariant) {
+  const baseTarget = getCardRoundTarget(card, cleanRepTarget)
+
+  if (variant === 'scale-down') {
+    return {
+      target: `Easy version: ${baseTarget.target}`,
+      quality: `Slow and obvious: ${baseTarget.quality}`,
+      missResponse: `Make it smaller again. ${baseTarget.missResponse}`,
+    }
+  }
+
+  if (variant === 'repeat-clean') {
+    return {
+      target: `Repeat the same target: ${baseTarget.target}`,
+      quality: `No extra difficulty. ${baseTarget.quality}`,
+      missResponse: `Return to the cue before the next rep. ${baseTarget.missResponse}`,
+    }
+  }
+
+  if (variant === 'add-pressure') {
+    return {
+      target: `Pressure version: ${baseTarget.target}`,
+      quality: `Keep the same proof under score, time, or target pressure. ${baseTarget.quality}`,
+      missResponse: `Remove the pressure layer for one rep. ${baseTarget.missResponse}`,
+    }
+  }
+
+  return baseTarget
 }
 
 function getRoundCompletePrompt(card: LevelUpCard, cleanRepCount: number, cleanRepTarget: number) {
