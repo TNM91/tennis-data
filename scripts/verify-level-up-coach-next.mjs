@@ -76,10 +76,15 @@ try {
   }
 
   await page.getByRole('button', { name: /Collapse/i }).first().click()
-  await page.getByRole('button', { name: /Ready\s+1/i }).first().click()
+  await page.locator('button').filter({ hasText: /^Ready/ }).first().click()
   const collapsedText = await page.locator('body').innerText()
   if (!collapsedText.includes('Assign suggested next')) {
     throw new Error(`Expected coach feedback suggested assignment after collapse. Saw:\n${collapsedText}`)
+  }
+  await page.getByRole('button', { name: /Assign suggested next/i }).first().click()
+  const assignedText = await page.locator('body').innerText()
+  if (!assignedText.includes('SUGGESTED CHALLENGE ASSIGNED') || !assignedText.includes('Suggested assigned')) {
+    throw new Error(`Expected suggested assignment confirmation. Saw:\n${assignedText}`)
   }
 
   console.log(JSON.stringify({

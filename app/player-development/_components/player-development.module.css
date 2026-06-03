@@ -1784,6 +1784,42 @@
   font-weight: 950;
 }
 
+.levelUpCoachSuggestedAssigned {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  border-radius: 12px;
+  background: rgba(155, 225, 29, 0.08);
+  padding: 9px;
+}
+
+.levelUpCoachSuggestedAssigned span {
+  color: var(--brand-green-3);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpCoachSuggestedAssigned em {
+  color: var(--brand-green-2);
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.levelUpCoachSuggestedAssigned strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.18;
+}
+
+.levelUpCoachSuggestedAssigned small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
 .levelUpCoachInboxTabs button {
   cursor: pointer;
   border: 1px solid rgba(116, 190, 255, 0.16);

@@ -1491,6 +1491,7 @@ function LevelUpCoachChallengeInbox({
 }) {
   const [activeFilter, setActiveFilter] = useState<CoachChallengeInboxFilter>('assigned')
   const [copyStatusByItemId, setCopyStatusByItemId] = useState<Record<string, 'copied' | 'blocked'>>({})
+  const [suggestedAssignmentById, setSuggestedAssignmentById] = useState<Record<string, string>>({})
   const [sentAssignmentIds, setSentAssignmentIds] = useState<string[]>([])
   const [sentAtByAssignmentId, setSentAtByAssignmentId] = useState<Record<string, string>>({})
   const inboxItems = buildCoachChallengeInboxItems(challenges, completionSummaryByCardId, sentAssignmentIds, sentAtByAssignmentId)
@@ -1561,9 +1562,13 @@ function LevelUpCoachChallengeInbox({
   }
 
   function assignSuggestedCoachNext(item: ReturnType<typeof buildCoachChallengeInboxItems>[number]) {
+    const assignmentTitle = item.challenge.card.title
     onCreateAssignment(buildCoachFeedbackAssignmentPayload(item.challenge, item.coachFeedback))
+    setSuggestedAssignmentById((current) => ({ ...current, [item.challenge.assignment.id]: assignmentTitle }))
     setActiveFilter('assigned')
   }
+
+  const latestSuggestedAssignment = Object.values(suggestedAssignmentById)[0]
 
   return (
     <section className={styles.levelUpCoachChallengeInbox} aria-label="Coach challenge inbox">
@@ -1584,6 +1589,14 @@ function LevelUpCoachChallengeInbox({
         moduleOptions={moduleOptions}
         onCreateAssignment={onCreateAssignment}
       />
+      {latestSuggestedAssignment ? (
+        <div className={styles.levelUpCoachSuggestedAssigned} aria-live="polite">
+          <span>Suggested challenge assigned</span>
+          <em>Suggested assigned</em>
+          <strong>{latestSuggestedAssignment}</strong>
+          <small>It was added to To do so the player can run the next coach move.</small>
+        </div>
+      ) : null}
       <div className={styles.levelUpCoachInboxTabs} aria-label="Coach inbox status">
         {tabs.map((tab) => (
           <button
@@ -1639,7 +1652,9 @@ function LevelUpCoachChallengeInbox({
                         : 'Copy update'}
                   </button>
                   <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>Open recap</button>
-                  <button type="button" onClick={() => assignSuggestedCoachNext(item)}>Assign suggested next</button>
+                  <button type="button" onClick={() => assignSuggestedCoachNext(item)}>
+                    {suggestedAssignmentById[item.challenge.assignment.id] ? 'Suggested assigned' : 'Assign suggested next'}
+                  </button>
                   <button type="button" onClick={() => markCoachChallengeSent(item)}>Mark sent</button>
                 </div>
                 {copyStatusByItemId[item.challenge.assignment.id] === 'blocked' ? (
@@ -1672,7 +1687,9 @@ function LevelUpCoachChallengeInbox({
                         : 'Copy update'}
                   </button>
                   <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>Run again</button>
-                  <button type="button" onClick={() => assignSuggestedCoachNext(item)}>Assign suggested next</button>
+                  <button type="button" onClick={() => assignSuggestedCoachNext(item)}>
+                    {suggestedAssignmentById[item.challenge.assignment.id] ? 'Suggested assigned' : 'Assign suggested next'}
+                  </button>
                   <button type="button" onClick={() => undoCoachChallengeSent(item)}>Undo sent</button>
                 </div>
                 {copyStatusByItemId[item.challenge.assignment.id] === 'blocked' ? (
