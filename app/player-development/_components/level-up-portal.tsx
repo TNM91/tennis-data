@@ -826,6 +826,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
               module={module}
               identitySlug={identitySlug}
               completionSummaryByCardId={completionSummaryByCardId}
+              onStartCard={startCardFromPlan}
             />
           ))}
         </div>
@@ -3114,10 +3115,12 @@ function LevelUpModuleTile({
   module,
   identitySlug,
   completionSummaryByCardId,
+  onStartCard,
 }: {
   module: LevelUpModule
   identitySlug: string
   completionSummaryByCardId: Map<string, CompletionSummary>
+  onStartCard: (cardId: string) => void
 }) {
   const moduleCards = module.cardIds
     .map((cardId) => LEVEL_UP_CARDS.find((card) => card.id === cardId))
@@ -3128,6 +3131,7 @@ function LevelUpModuleTile({
   const progressLabel = moduleCards.length ? `${completedCount}/${moduleCards.length} logged` : 'No cards yet'
   const moduleActionLabel = completedCount > 0 && completedCount < moduleCards.length ? 'Continue module' : completedCount === moduleCards.length ? 'Repeat module' : 'Start module'
   const moduleStages = buildModuleProgressStages(module, moduleCards, completionSummaryByCardId)
+  const moduleReadiness = buildModulePathReadiness(module, moduleCards, completionSummaryByCardId)
 
   return (
     <article className={styles.levelUpModuleTile}>
@@ -3163,6 +3167,12 @@ function LevelUpModuleTile({
         <small>{progressLabel}</small>
         {nextCard ? <b>Next up: {nextCard.title}</b> : null}
       </div>
+      <div className={styles.levelUpModulePathCoach} aria-label={`${module.title} module path coach`}>
+        <span>Path coach</span>
+        <strong>{moduleReadiness.title}</strong>
+        <small>{moduleReadiness.detail}</small>
+        <b>{moduleReadiness.proofGate}</b>
+      </div>
       <div className={styles.levelUpModulePath} aria-label={`${module.title} module progression`}>
         {moduleStages.map((stage) => (
           <div key={stage.label} data-active={stage.active ? 'true' : 'false'} data-complete={stage.complete ? 'true' : 'false'}>
@@ -3183,7 +3193,12 @@ function LevelUpModuleTile({
         </ol>
       ) : null}
       <small>Proof: {module.proof}</small>
-      {nextCard ? <a className="button-primary" href={buildCardStartHref(identitySlug, nextCard)}>{moduleActionLabel}</a> : null}
+      {nextCard ? (
+        <div className={styles.levelUpModuleActions}>
+          <button type="button" className="button-primary" onClick={() => onStartCard(nextCard.id)}>{moduleActionLabel}</button>
+          <a className="button-secondary" href={buildCardStartHref(identitySlug, nextCard)}>Open guide</a>
+        </div>
+      ) : null}
     </article>
   )
 }
@@ -3193,12 +3208,12 @@ function buildModuleProgressStages(
   moduleCards: LevelUpCard[],
   completionSummaryByCardId: Map<string, CompletionSummary>,
 ) {
-  const stageLabels = ['Learn', 'Repeat', 'Pressure', 'Prove']
+  const stageLabels = ['Start', 'Build', 'Pressure', 'Transfer']
   const stageDetails = [
-    'Understand the cue.',
-    'Log it clean twice.',
+    'Learn the cue.',
+    'Repeat the behavior.',
     'Add one challenge.',
-    'Show it in points.',
+    'Use it in points.',
   ]
   const nextCardIndex = moduleCards.findIndex((card) => !completionSummaryByCardId.has(card.id))
   const safeActiveIndex = Math.min(nextCardIndex < 0 ? stageLabels.length - 1 : nextCardIndex, stageLabels.length - 1)
@@ -3214,6 +3229,56 @@ function buildModuleProgressStages(
       complete,
     }
   })
+}
+
+function buildModulePathReadiness(
+  module: LevelUpModule,
+  moduleCards: LevelUpCard[],
+  completionSummaryByCardId: Map<string, CompletionSummary>,
+) {
+  if (!moduleCards.length) {
+    return {
+      title: 'No path cards yet.',
+      detail: 'Add cards to this module before assigning it.',
+      proofGate: module.proof,
+    }
+  }
+
+  const nextCard = moduleCards.find((card) => !completionSummaryByCardId.has(card.id)) ?? moduleCards[0]
+  const completedCount = moduleCards.filter((card) => completionSummaryByCardId.has(card.id)).length
+  const latestRating = moduleCards
+    .map((card) => completionSummaryByCardId.get(card.id)?.lastRating)
+    .find((rating): rating is number => typeof rating === 'number')
+
+  if (completedCount === 0) {
+    return {
+      title: 'Start with one proof.',
+      detail: `Run ${nextCard.title}. Do not browse the full module yet.`,
+      proofGate: `Move on when ${nextCard.proof} is 3/5 or better.`,
+    }
+  }
+
+  if (latestRating !== undefined && latestRating <= 2) {
+    return {
+      title: 'Repeat before advancing.',
+      detail: `The last proof says this path needs cleaner reps before the next card.`,
+      proofGate: `Repeat ${nextCard.title} until the proof reaches 3/5.`,
+    }
+  }
+
+  if (completedCount < moduleCards.length) {
+    return {
+      title: 'Advance one card.',
+      detail: `The next useful module rep is ${nextCard.title}.`,
+      proofGate: `Move on when ${nextCard.proof} is 4/5 or better.`,
+    }
+  }
+
+  return {
+    title: 'Transfer it to play.',
+    detail: module.successCriteria ?? `Use this module in a live point and keep the proof honest.`,
+    proofGate: module.proof,
+  }
 }
 
 function LevelUpFilters({

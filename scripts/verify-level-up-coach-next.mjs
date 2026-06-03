@@ -15,6 +15,8 @@ try {
   const initialText = await page.locator('body').innerText()
   if (
     !initialText.includes('COACH ASSIGNMENT BUILDER')
+    || !initialText.includes('PATH COACH')
+    || !initialText.includes('Start with one proof.')
     || !initialText.includes('CHALLENGE')
     || !initialText.includes('WHY')
     || !initialText.includes('PROOF')
