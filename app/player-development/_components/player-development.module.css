@@ -483,6 +483,7 @@
 .levelUpPortalApp[data-session-focus='active'] .levelUpCloseLoop,
 .levelUpPortalApp[data-session-focus='active'] .levelUpNextBestRep,
 .levelUpPortalApp[data-session-focus='active'] .levelUpTrainingPulse,
+.levelUpPortalApp[data-session-focus='active'] .levelUpWeeklyBalance,
 .levelUpPortalApp[data-session-focus='active'] .levelUpCoachUpdate,
 .levelUpPortalApp[data-session-focus='active'] .levelUpSafetyNote,
 .levelUpPortalApp[data-session-focus='active'] .levelUpIntentPresets,
@@ -569,6 +570,7 @@
 .levelUpCloseLoop,
 .levelUpNextBestRep,
 .levelUpTrainingPulse,
+.levelUpWeeklyBalance,
 .levelUpCoachUpdate,
 .levelUpTodayMission,
 .levelUpSessionDock,
@@ -1951,6 +1953,118 @@
   color: var(--muted-strong);
   font-size: 0.74rem;
   line-height: 1.25;
+}
+
+.levelUpWeeklyBalance {
+  grid-template-columns: minmax(0, 0.46fr) minmax(0, 1fr);
+  align-items: stretch;
+  border-color: rgba(116, 190, 255, 0.18);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 42%),
+    rgba(5, 15, 30, 0.42);
+}
+
+.levelUpWeeklyBalance > div:first-child {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.levelUpWeeklyBalance > div:first-child span,
+.levelUpWeeklyBalanceGrid article span,
+.levelUpWeeklyBalanceStrip b {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpWeeklyBalance h2 {
+  color: var(--foreground-strong);
+  font-size: 1.05rem;
+  line-height: 1.16;
+}
+
+.levelUpWeeklyBalance p {
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  line-height: 1.38;
+}
+
+.levelUpWeeklyBalanceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.levelUpWeeklyBalanceGrid article {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+}
+
+.levelUpWeeklyBalanceGrid article[data-emphasis='under'] {
+  border-color: rgba(255, 210, 116, 0.28);
+  background: rgba(255, 210, 116, 0.06);
+}
+
+.levelUpWeeklyBalanceGrid article[data-emphasis='next'] {
+  border-color: rgba(155, 225, 29, 0.28);
+  background: rgba(155, 225, 29, 0.07);
+}
+
+.levelUpWeeklyBalanceGrid strong {
+  color: var(--foreground-strong);
+  font-size: 0.92rem;
+  line-height: 1.16;
+}
+
+.levelUpWeeklyBalanceGrid small {
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  line-height: 1.28;
+}
+
+.levelUpWeeklyBalanceGrid button {
+  width: fit-content;
+  min-height: 36px;
+  cursor: pointer;
+  border: 1px solid rgba(155, 225, 29, 0.36);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.14);
+  color: var(--foreground-strong);
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.levelUpWeeklyBalanceStrip {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.levelUpWeeklyBalanceStrip span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(5, 15, 30, 0.3);
+  color: var(--foreground-strong);
+  padding: 7px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.18;
 }
 
 .levelUpCoachUpdate {
@@ -9903,6 +10017,8 @@
   .levelUpSessionDock,
   .levelUpIntentPresets,
   .levelUpReadinessPicker,
+  .levelUpWeeklyBalance,
+  .levelUpWeeklyBalanceGrid,
   .levelUpStartList,
   .levelUpRailGrid,
   .levelUpAssignmentControls {
@@ -10100,6 +10216,8 @@
   .levelUpSessionDock,
   .levelUpIntentPresets,
   .levelUpReadinessPicker,
+  .levelUpWeeklyBalance,
+  .levelUpWeeklyBalanceGrid,
   .levelUpStartList,
   .levelUpRailGrid,
   .levelUpAssignmentControls,
@@ -10161,6 +10279,10 @@
   }
 
   .levelUpReadinessChoices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpWeeklyBalanceStrip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

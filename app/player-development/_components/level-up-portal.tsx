@@ -84,6 +84,24 @@ type LaneProgressItem = {
   read: string
 }
 
+type WeeklyBalanceItem = {
+  laneKey: string
+  label: string
+  proofCount: number
+  share: number
+  read: string
+  nextCard?: LevelUpCard
+}
+
+type WeeklyBalance = {
+  totalProofs: number
+  headline: string
+  read: string
+  overIndex: WeeklyBalanceItem
+  underIndex: WeeklyBalanceItem
+  items: WeeklyBalanceItem[]
+}
+
 type CoachUpdateDigest = {
   status: string
   proofLine: string
@@ -520,6 +538,10 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     () => buildLaneProgress(focusTrainingLanes, completions, completionSummaryByCardId),
     [focusTrainingLanes, completions, completionSummaryByCardId],
   )
+  const weeklyBalance = useMemo(
+    () => buildWeeklyBalance(focusTrainingLanes, completions, completionSummaryByCardId),
+    [focusTrainingLanes, completions, completionSummaryByCardId],
+  )
   const activeLaneCard = activeLaneCardId
     ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
     : undefined
@@ -671,6 +693,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       <LevelUpNextBestRepPanel nextBestRep={nextBestRep} onStartCard={startCardFromPlan} />
 
       <LevelUpTrainingPulsePanel pulse={trainingPulse} />
+
+      <LevelUpWeeklyBalancePanel balance={weeklyBalance} onStartCard={startCardFromPlan} />
 
       <LevelUpCoachUpdatePanel digest={coachUpdateDigest} />
 
@@ -1288,6 +1312,54 @@ function LevelUpTrainingPulsePanel({ pulse }: { pulse: TrainingPulse }) {
           <strong>{pulse.attentionArea}</strong>
           <small>Under-trained next</small>
         </article>
+      </div>
+    </section>
+  )
+}
+
+function LevelUpWeeklyBalancePanel({
+  balance,
+  onStartCard,
+}: {
+  balance: WeeklyBalance
+  onStartCard: (cardId: string) => void
+}) {
+  return (
+    <section className={styles.levelUpWeeklyBalance} aria-label="Weekly training balance">
+      <div>
+        <span>Weekly balance</span>
+        <h2>{balance.headline}</h2>
+        <p>{balance.read}</p>
+      </div>
+      <div className={styles.levelUpWeeklyBalanceGrid}>
+        <article data-emphasis="over">
+          <span>Most trained</span>
+          <strong>{balance.overIndex.label}</strong>
+          <small>{formatProofCount(balance.overIndex.proofCount)} this week</small>
+        </article>
+        <article data-emphasis="under">
+          <span>Needs one</span>
+          <strong>{balance.underIndex.label}</strong>
+          <small>{balance.underIndex.read}</small>
+        </article>
+        <article data-emphasis="next">
+          <span>Balance card</span>
+          <strong>{balance.underIndex.nextCard?.title ?? 'Log one proof'}</strong>
+          <small>{balance.underIndex.nextCard?.proof ?? 'Pick a card and save a 0-5 score.'}</small>
+          {balance.underIndex.nextCard ? (
+            <button type="button" onClick={() => balance.underIndex.nextCard ? onStartCard(balance.underIndex.nextCard.id) : undefined}>
+              Start balance rep
+            </button>
+          ) : null}
+        </article>
+      </div>
+      <div className={styles.levelUpWeeklyBalanceStrip} aria-label="Weekly proof distribution">
+        {balance.items.map((item) => (
+          <span key={item.laneKey}>
+            <b>{item.label}</b>
+            {item.proofCount}
+          </span>
+        ))}
       </div>
     </section>
   )
@@ -4980,6 +5052,73 @@ function buildLaneProgress(
       || (left.lastRating ?? 6) - (right.lastRating ?? 6)
       || left.label.localeCompare(right.label)
     ))
+}
+
+function buildWeeklyBalance(
+  lanes: FocusTrainingLane[],
+  completions: LevelUpCompletion[],
+  completionSummaryByCardId: Map<string, CompletionSummary>,
+): WeeklyBalance {
+  const now = Date.now()
+  const weekStart = now - 7 * 24 * 60 * 60 * 1000
+  const weeklyCompletions = completions.filter((completion) => {
+    const completedAt = new Date(completion.completedAt).getTime()
+    return Number.isFinite(completedAt) && completedAt >= weekStart
+  })
+  const completionsByCardId = new Map<string, LevelUpCompletion[]>()
+
+  for (const completion of weeklyCompletions) {
+    const list = completionsByCardId.get(completion.cardId) ?? []
+    list.push(completion)
+    completionsByCardId.set(completion.cardId, list)
+  }
+
+  const items = lanes.map((lane) => {
+    const laneCards = uniqueById(lane.cards)
+    const proofCount = laneCards.reduce((count, card) => count + (completionsByCardId.get(card.id)?.length ?? 0), 0)
+    const nextCard = laneCards.find((card) => !completionSummaryByCardId.has(card.id)) ?? laneCards[0]
+
+    return {
+      laneKey: lane.key,
+      label: lane.eyebrow.replace(' Training', ''),
+      proofCount,
+      share: weeklyCompletions.length ? Math.round((proofCount / weeklyCompletions.length) * 100) : 0,
+      read: buildWeeklyBalanceRead(lane, proofCount, nextCard),
+      nextCard,
+    }
+  })
+  const fallbackItem = items[0] ?? {
+    laneKey: 'weekly-balance',
+    label: 'Training',
+    proofCount: 0,
+    share: 0,
+    read: 'Log one proof score this week.',
+    nextCard: undefined,
+  }
+  const sortedByProof = [...items].sort((left, right) => right.proofCount - left.proofCount || left.label.localeCompare(right.label))
+  const underIndex = [...items].sort((left, right) => left.proofCount - right.proofCount || left.label.localeCompare(right.label))[0] ?? fallbackItem
+  const overIndex = sortedByProof[0] ?? underIndex
+
+  return {
+    totalProofs: weeklyCompletions.length,
+    headline: weeklyCompletions.length ? `${formatProofCount(weeklyCompletions.length)} in the last 7 days.` : 'No weekly proof yet.',
+    read: weeklyCompletions.length
+      ? `You are leaning toward ${overIndex.label}. Add ${underIndex.label} next so the week stays balanced.`
+      : `Start with ${underIndex?.nextCard?.title ?? 'one card'} and log one 0-5 proof score.`,
+    overIndex,
+    underIndex,
+    items,
+  }
+}
+
+function buildWeeklyBalanceRead(lane: FocusTrainingLane, proofCount: number, nextCard?: LevelUpCard) {
+  if (!proofCount) return `No ${lane.eyebrow.toLowerCase().replace(' training', '')} proof this week. Start ${nextCard?.title ?? lane.title}.`
+  if (proofCount === 1) return `1 proof. Keep it alive with ${nextCard?.title ?? 'one clean rep'}.`
+  return `${proofCount} proofs. Good signal; balance another lane before stacking more here.`
+}
+
+function formatProofCount(count: number) {
+  return count === 1 ? '1 proof' : `${count} proofs`
 }
 
 function uniqueById(cards: LevelUpCard[]) {
