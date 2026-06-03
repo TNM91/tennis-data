@@ -2438,6 +2438,9 @@ function LevelUpCardTile({
                 <strong>{savedCoachNextRead.title}</strong>
                 <small>{savedCoachNextRead.detail}</small>
                 <em>{savedCoachNextRead.assignment}</em>
+                <button type="button" onClick={repeatActivity}>
+                  Do this next: {savedCoachNextRead.actionLabel}
+                </button>
               </div>
             ) : null}
             <div className={styles.coachUpdatePreview}>
@@ -6938,6 +6941,7 @@ function getCoachNextAssignmentRead(card: LevelUpCard, rating: number) {
       title: 'Likely coach move: scale this down.',
       detail: `Your ${proofName} score says the habit is not stable yet. The useful next assignment should reduce speed, volume, or decision load.`,
       assignment: `Next assignment idea: scale down ${card.title}.`,
+      actionLabel: 'scale down',
     }
   }
 
@@ -6946,6 +6950,7 @@ function getCoachNextAssignmentRead(card: LevelUpCard, rating: number) {
       title: 'Likely coach move: repeat cleaner.',
       detail: `Your ${proofName} score says the habit is showing up, but not automatic. The next assignment should keep the same card and make the standard clearer.`,
       assignment: `Next assignment idea: repeat clean ${card.title}.`,
+      actionLabel: 'repeat clean',
     }
   }
 
@@ -6953,6 +6958,7 @@ function getCoachNextAssignmentRead(card: LevelUpCard, rating: number) {
     title: 'Likely coach move: add pressure.',
     detail: `Your ${proofName} score says the habit is repeatable enough to test. The next assignment should add one pressure layer without changing everything.`,
     assignment: `Next assignment idea: add pressure to ${card.title}.`,
+    actionLabel: 'add pressure',
   }
 }
 
