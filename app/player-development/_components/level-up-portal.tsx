@@ -54,6 +54,7 @@ type NextBestRep = {
 type CoachRecommendedNext = {
   title: string
   detail: string
+  recipe: Array<{ label: string; value: string }>
   actionLabel: string
   action: 'send' | 'repeat' | 'pick-next'
 }
@@ -2638,6 +2639,14 @@ function LevelUpCardTile({
                 <span>Coach Recommended Next</span>
                 <strong>{savedCoachRecommendedNext.title}</strong>
                 <small>{savedCoachRecommendedNext.detail}</small>
+                <div className={styles.levelUpCoachNextRecipe} aria-label={`Next rep recipe for ${card.title}`}>
+                  {savedCoachRecommendedNext.recipe.map((item) => (
+                    <span key={item.label}>
+                      <b>{item.label}</b>
+                      {item.value}
+                    </span>
+                  ))}
+                </div>
                 <button
                   type="button"
                   data-recommendation-action={savedCoachRecommendedNext.action}
@@ -7406,11 +7415,13 @@ function getCoachNextAssignmentRead(card: LevelUpCard, rating: number) {
 
 function getCoachRecommendedNext(card: LevelUpCard, rating: number, hasCoachAssignment: boolean): CoachRecommendedNext {
   const proofName = card.proof.replace(' 0-5', '').toLowerCase()
+  const recipe = getCoachRecommendedNextRecipe(card, rating, hasCoachAssignment)
 
   if (hasCoachAssignment) {
     return {
       title: 'Send proof to coach.',
       detail: `You finished assigned work. Send the ${rating}/5 ${proofName} proof before starting another card.`,
+      recipe,
       actionLabel: 'Copy coach update',
       action: 'send',
     }
@@ -7420,6 +7431,7 @@ function getCoachRecommendedNext(card: LevelUpCard, rating: number, hasCoachAssi
     return {
       title: 'Scale it down now.',
       detail: `The ${proofName} score is not stable yet. Shrink the rep and make the cue show up before chasing speed.`,
+      recipe,
       actionLabel: 'Scale down rep',
       action: 'repeat',
     }
@@ -7429,6 +7441,7 @@ function getCoachRecommendedNext(card: LevelUpCard, rating: number, hasCoachAssi
     return {
       title: 'Repeat clean once.',
       detail: `The ${proofName} habit is showing up. Run one cleaner round at the same difficulty before moving on.`,
+      recipe,
       actionLabel: 'Repeat clean',
       action: 'repeat',
     }
@@ -7437,9 +7450,62 @@ function getCoachRecommendedNext(card: LevelUpCard, rating: number, hasCoachAssi
   return {
     title: 'Level up one piece.',
     detail: `The ${proofName} habit is repeatable enough to test. Add one pressure layer, not a whole new drill.`,
+    recipe,
     actionLabel: 'Add pressure',
     action: 'repeat',
   }
+}
+
+function getCoachRecommendedNextRecipe(card: LevelUpCard, rating: number, hasCoachAssignment: boolean) {
+  const proofName = card.proof.replace(' 0-5', '')
+
+  if (hasCoachAssignment) {
+    return [
+      { label: 'Send', value: `${rating}/5 ${proofName}` },
+      { label: 'Ask', value: getProofSnapshotCoachAsk(card, rating) },
+      { label: 'Then', value: rating >= 4 ? 'Repeat only if coach wants pressure added.' : 'Repeat clean before adding new work.' },
+    ]
+  }
+
+  if (rating <= 1) {
+    return [
+      { label: 'Setup', value: getScaleDownSetup(card) },
+      { label: 'Score', value: `Only count ${proofName.toLowerCase()} that shows without rushing.` },
+      { label: 'Stop', value: 'Stop after one cleaner proof score.' },
+    ]
+  }
+
+  if (rating <= 3) {
+    return [
+      { label: 'Setup', value: 'Same card, same target, one cleaner round.' },
+      { label: 'Score', value: `Beat ${rating}/5 on ${proofName.toLowerCase()}.` },
+      { label: 'Stop', value: 'Stop when the cue repeats twice without reminders.' },
+    ]
+  }
+
+  return [
+    { label: 'Setup', value: getPressureLayerSetup(card) },
+    { label: 'Score', value: `Keep ${proofName.toLowerCase()} at 4/5 or better.` },
+    { label: 'Stop', value: 'Stop if speed breaks the habit.' },
+  ]
+}
+
+function getScaleDownSetup(card: LevelUpCard) {
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) return 'Shadow first. Call one target before any ball.'
+  if (card.tags.includes('return-intent')) return 'No full point yet. Call the return job before the feed.'
+  if (card.tags.includes('recovery-after-contact')) return 'Walk the finish, recover, look sequence.'
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) return 'Cut the block in half and keep posture clean.'
+  if (card.tags.includes('volley') || card.tags.includes('forward-close')) return 'Short feed, freeze the split before contact.'
+  return card.regression ?? 'Make the rep slower and easier before adding volume.'
+}
+
+function getPressureLayerSetup(card: LevelUpCard) {
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) return 'Start at 30-30 and keep the same target call.'
+  if (card.tags.includes('return-intent')) return 'Start at 30-30 with one return job.'
+  if (card.tags.includes('recovery-after-contact')) return 'Add a live ball only if recovery beats watching.'
+  if (card.tags.includes('doubles-communication')) return 'Add score pressure and say the call early.'
+  if (card.tags.includes('volley') || card.tags.includes('forward-close')) return 'Add one pass attempt after the first volley.'
+  return card.progression ?? 'Add one pressure layer while keeping the same cue.'
 }
 
 function buildProofSnapshot({

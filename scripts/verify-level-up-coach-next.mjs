@@ -24,7 +24,13 @@ try {
   await coachNext.waitFor({ state: 'visible', timeout: 10_000 })
 
   const panelText = await coachNext.innerText()
-  if (!panelText.includes('Send proof to coach.') || !panelText.includes('Copy coach update')) {
+  if (
+    !panelText.includes('Send proof to coach.')
+    || !panelText.includes('Copy coach update')
+    || !panelText.includes('SEND')
+    || !panelText.includes('ASK')
+    || !panelText.includes('THEN')
+  ) {
     throw new Error(`Expected coach send recommendation. Saw:\n${panelText}`)
   }
 

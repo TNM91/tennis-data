@@ -5075,6 +5075,34 @@
   line-height: 1.32;
 }
 
+.levelUpCoachNextRecipe {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.levelUpCoachNextRecipe span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 9px;
+  background: rgba(5, 15, 30, 0.32);
+  color: var(--foreground-strong);
+  padding: 7px;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.levelUpCoachNextRecipe b {
+  color: var(--brand-blue-2);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .levelUpCoachRecommendedNext button {
   width: fit-content;
   min-height: 38px;
@@ -10690,6 +10718,11 @@
   .levelUpLaneProgressGrid article {
     min-height: auto;
     width: 100%;
+  }
+
+  .levelUpSavedActionStrip,
+  .levelUpCoachNextRecipe {
+    grid-template-columns: 1fr;
   }
 }
 
