@@ -396,6 +396,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const previewCoachChallengeCard = identityCards[1] ?? todayCard
   const previewCoachChallenge = buildPreviewCoachChallenge(previewCoachChallengeCard, todayModule)
   const activeCoachChallenge = coachChallenges.find((challenge) => challenge.assignment.status === 'assigned') ?? coachChallenges[0] ?? previewCoachChallenge
+  const coachChallengeInbox = coachChallenges.length ? coachChallenges : [previewCoachChallenge]
   const coachChallengeCard = activeCoachChallenge.card
   const coachAssignment = activeCoachChallenge.assignment
   const coachAssignmentModule = activeCoachChallenge.module
@@ -532,6 +533,13 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         identitySlug={identitySlug}
         completionSummary={completionSummaryByCardId.get(coachChallengeCard.id)}
         challengeState={coachChallengeState}
+        onStartCard={startCardFromPlan}
+      />
+
+      <LevelUpCoachChallengeInbox
+        challenges={coachChallengeInbox}
+        completionSummaryByCardId={completionSummaryByCardId}
+        activeCardTitle={activeCardTitle}
         onStartCard={startCardFromPlan}
       />
 
@@ -1294,6 +1302,90 @@ function LevelUpCoachAssignmentBanner({
       ) : (
         <button type="button" className="button-primary" onClick={() => onStartCard(card.id)}>{primaryActionLabel}</button>
       )}
+    </section>
+  )
+}
+
+type CoachChallengeInboxFilter = 'assigned' | 'ready' | 'completed'
+
+function LevelUpCoachChallengeInbox({
+  challenges,
+  completionSummaryByCardId,
+  activeCardTitle,
+  onStartCard,
+}: {
+  challenges: LevelUpCoachChallenge[]
+  completionSummaryByCardId: Map<string, CompletionSummary>
+  activeCardTitle: string | null
+  onStartCard: (cardId: string) => void
+}) {
+  const [activeFilter, setActiveFilter] = useState<CoachChallengeInboxFilter>('assigned')
+  const inboxItems = buildCoachChallengeInboxItems(challenges, completionSummaryByCardId)
+  const assignedCount = inboxItems.filter((item) => item.status === 'assigned').length
+  const readyCount = inboxItems.filter((item) => item.status === 'ready').length
+  const completedCount = inboxItems.filter((item) => item.status === 'completed').length
+  const visibleItems = inboxItems.filter((item) => item.status === activeFilter)
+  const nextItem = inboxItems.find((item) => item.status === 'assigned') ?? inboxItems.find((item) => item.status === 'ready') ?? inboxItems[0]
+
+  const tabs: Array<{ key: CoachChallengeInboxFilter; label: string; count: number }> = [
+    { key: 'assigned', label: 'To do', count: assignedCount },
+    { key: 'ready', label: 'Ready', count: readyCount },
+    { key: 'completed', label: 'Done', count: completedCount },
+  ]
+
+  return (
+    <section className={styles.levelUpCoachChallengeInbox} aria-label="Coach challenge inbox">
+      <div className={styles.levelUpCoachInboxHeader}>
+        <div>
+          <span>Coach inbox</span>
+          <h2>{nextItem ? 'Start the work your coach picked.' : 'No coach work yet.'}</h2>
+          <p>{nextItem ? 'Assigned tools stay here until you save proof. Use this before browsing the full library.' : 'When a coach assigns a card, it will show here first.'}</p>
+        </div>
+        {nextItem ? (
+          <button type="button" className="button-primary" onClick={() => onStartCard(nextItem.challenge.card.id)}>
+            {nextItem.status === 'ready' ? 'Review proof' : 'Start next'}
+          </button>
+        ) : null}
+      </div>
+      <div className={styles.levelUpCoachInboxTabs} aria-label="Coach inbox status">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            aria-pressed={activeFilter === tab.key}
+            data-active={activeFilter === tab.key}
+            onClick={() => setActiveFilter(tab.key)}
+          >
+            <span>{tab.label}</span>
+            <strong>{tab.count}</strong>
+          </button>
+        ))}
+      </div>
+      <div className={styles.levelUpCoachInboxGrid}>
+        {visibleItems.length ? visibleItems.map((item) => (
+          <article key={item.challenge.assignment.id} data-status={item.status} data-active={item.challenge.card.title === activeCardTitle ? 'true' : 'false'}>
+            <div>
+              <span>{item.label}</span>
+              <strong>{item.challenge.card.title}</strong>
+              <small>{item.challenge.assignment.coachNote}</small>
+            </div>
+            <div className={styles.levelUpCoachInboxMeta}>
+              <b>{item.dueLabel}</b>
+              <b>{item.proofLabel}</b>
+              <b>{item.challenge.module.title}</b>
+            </div>
+            <button type="button" onClick={() => onStartCard(item.challenge.card.id)}>
+              {item.status === 'ready' ? 'Open recap' : item.status === 'completed' ? 'Run again' : 'Start'}
+            </button>
+          </article>
+        )) : (
+          <div className={styles.levelUpCoachInboxEmpty}>
+            <span>{activeFilter}</span>
+            <strong>No cards here.</strong>
+            <small>{getCoachInboxEmptyCopy(activeFilter)}</small>
+          </div>
+        )}
+      </div>
     </section>
   )
 }
@@ -4861,6 +4953,47 @@ function buildAssignmentByCardId(challenges: LevelUpCoachChallenge[]) {
     }
   }
   return byCardId
+}
+
+function buildCoachChallengeInboxItems(
+  challenges: LevelUpCoachChallenge[],
+  completionSummaryByCardId: Map<string, CompletionSummary>,
+) {
+  return challenges.map((challenge) => {
+    const completionSummary = completionSummaryByCardId.get(challenge.card.id)
+    const status = getCoachChallengeInboxStatus(challenge.assignment, completionSummary)
+    return {
+      challenge,
+      completionSummary,
+      status,
+      label: getCoachChallengeInboxLabel(status, completionSummary),
+      dueLabel: `Due ${formatAssignmentDueDate(challenge.assignment.dueAt)}`,
+      proofLabel: completionSummary?.lastRating !== undefined
+        ? `Proof ${completionSummary.lastRating}/5`
+        : challenge.assignment.proofRequired ?? challenge.card.proof,
+    }
+  })
+}
+
+function getCoachChallengeInboxStatus(
+  assignment: LevelUpAssignment,
+  completionSummary?: CompletionSummary,
+): CoachChallengeInboxFilter {
+  if (assignment.status === 'completed') return 'completed'
+  if (completionSummary?.lastRating !== undefined) return 'ready'
+  return 'assigned'
+}
+
+function getCoachChallengeInboxLabel(status: CoachChallengeInboxFilter, completionSummary?: CompletionSummary) {
+  if (status === 'completed') return 'Sent to coach'
+  if (status === 'ready') return completionSummary?.lastRating !== undefined ? `Ready: ${completionSummary.lastRating}/5 proof` : 'Ready to send'
+  return 'Coach assigned'
+}
+
+function getCoachInboxEmptyCopy(filter: CoachChallengeInboxFilter) {
+  if (filter === 'ready') return 'Save proof on an assigned card and it will move here.'
+  if (filter === 'completed') return 'Completed coach challenges will collect here for review.'
+  return 'You are caught up on assigned coach work.'
 }
 
 function buildDirectStartAssignment(card: LevelUpCard, requestedStartCardId: string): LevelUpAssignment | undefined {
