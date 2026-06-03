@@ -2682,6 +2682,20 @@ function LevelUpCardTile({
               <span>Next practice</span>
               <strong>{nextPractice.title}</strong>
               <small>{nextPractice.detail}</small>
+              <div className={styles.levelUpNextPracticeGrid} aria-label={`Next practice prescription for ${card.title}`}>
+                <span>
+                  <b>Dose</b>
+                  {nextPractice.dose}
+                </span>
+                <span>
+                  <b>Focus</b>
+                  {nextPractice.focus}
+                </span>
+                <span>
+                  <b>Coach ask</b>
+                  {nextPractice.coachAsk}
+                </span>
+              </div>
             </div>
           ) : null}
           <div className={styles.levelUpDoNow}>
@@ -2884,6 +2898,27 @@ function LevelUpCardTile({
                 <button type="button" onClick={startPostProofNextCard}>
                   {savedNextCardPlan.actionLabel}
                 </button>
+              </div>
+            ) : null}
+            {nextPractice ? (
+              <div className={styles.levelUpNextPractice} aria-label={`Next practice prescription for ${card.title}`}>
+                <span>Next practice</span>
+                <strong>{nextPractice.title}</strong>
+                <small>{nextPractice.detail}</small>
+                <div className={styles.levelUpNextPracticeGrid}>
+                  <span>
+                    <b>Dose</b>
+                    {nextPractice.dose}
+                  </span>
+                  <span>
+                    <b>Focus</b>
+                    {nextPractice.focus}
+                  </span>
+                  <span>
+                    <b>Coach ask</b>
+                    {nextPractice.coachAsk}
+                  </span>
+                </div>
               </div>
             ) : null}
             {savedScoreDecision ? (
@@ -5891,10 +5926,16 @@ function getCardNextPractice(card: LevelUpCard, rating: number | null) {
   if (rating === null) return null
 
   const proofName = card.proof.replace(' 0-5', '').toLowerCase()
+  const doseGuide = getCardDoseGuide(card)
+  const coachLens = getCardCoachLens(card)
+
   if (rating <= 1) {
     return {
       title: 'Shrink the drill.',
       detail: `Next time: ${card.regression} Score ${proofName} again before adding volume.`,
+      dose: '1 short block. Stop after 3 clean reps.',
+      focus: `Make this cue appear once: ${card.cue}`,
+      coachAsk: `Ask for the easiest setup that still proves ${proofName}.`,
     }
   }
 
@@ -5902,12 +5943,18 @@ function getCardNextPractice(card: LevelUpCard, rating: number | null) {
     return {
       title: 'Repeat the same standard.',
       detail: `Run the same card again and chase one cleaner cue: ${card.cue}`,
+      dose: doseGuide.target,
+      focus: `Repeat the same proof. Do not add speed yet.`,
+      coachAsk: coachLens.ask,
     }
   }
 
   return {
     title: 'Raise the challenge.',
     detail: `Next time: ${card.progression} Keep the proof honest, not just harder.`,
+    dose: 'Add 1 round or 1 target score.',
+    focus: `Keep ${proofName} at 4/5 or better.`,
+    coachAsk: `Ask whether to add pressure, pace, or decision speed next.`,
   }
 }
 

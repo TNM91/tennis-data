@@ -4700,6 +4700,37 @@
   line-height: 1.32;
 }
 
+.levelUpNextPracticeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.levelUpNextPracticeGrid span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.16);
+  border-radius: 9px;
+  background: rgba(5, 15, 30, 0.28);
+  color: var(--foreground);
+  padding: 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.25;
+  text-transform: none;
+}
+
+.levelUpNextPracticeGrid b {
+  color: var(--brand-green-3);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .levelUpFinishRecap {
   display: grid;
   gap: 4px;
@@ -10437,6 +10468,10 @@
   }
 
   .levelUpRunStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpNextPracticeGrid {
     grid-template-columns: 1fr;
   }
 

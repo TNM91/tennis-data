@@ -49,6 +49,10 @@ try {
 
   if (
     !bodyText.includes('RUN NEXT')
+    || !bodyText.includes('NEXT PRACTICE')
+    || !bodyText.includes('DOSE')
+    || !bodyText.includes('FOCUS')
+    || !bodyText.includes('COACH ASK')
     || !(
       bodyText.includes('Start next card')
       || bodyText.includes('Add pressure here')
