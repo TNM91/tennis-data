@@ -3521,10 +3521,21 @@ function LevelUpCardTile({
           </div>
         ) : null}
       </details>
-      <div className={styles.levelUpCardActions}>
-        <button type="button" className="button-primary" data-level-up-start-action="true" onClick={startActivity}>Start</button>
-        <button type="button" className={styles.scoreButton} onClick={openLogger}>Score</button>
-        <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
+      <div className={styles.levelUpCardActions} data-proof-saved={savedRating !== null ? 'true' : 'false'}>
+        {savedRating === null ? (
+          <>
+            <button type="button" className="button-primary" data-level-up-start-action="true" onClick={startActivity}>Start</button>
+            <button type="button" className={styles.scoreButton} onClick={openLogger}>Score</button>
+            <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
+          </>
+        ) : (
+          <>
+            <button type="button" className="button-primary" data-level-up-repeat-action="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(card, savedRating)}</button>
+            <button type="button" className={styles.scoreButton} data-level-up-pick-next-action="true" onClick={finishAndPickNext}>Pick next</button>
+            <button type="button" className={styles.scoreButton} onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy update', 'Update copied')}</button>
+            <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
+          </>
+        )}
       </div>
     </article>
   )

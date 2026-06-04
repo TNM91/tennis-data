@@ -5335,6 +5335,23 @@
   align-items: center;
 }
 
+.levelUpCardActions[data-proof-saved='true'] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  width: 100%;
+  border-top: 1px solid rgba(155, 225, 29, 0.14);
+  padding-top: 8px;
+}
+
+.levelUpCardActions[data-proof-saved='true'] :global(.button-primary),
+.levelUpCardActions[data-proof-saved='true'] button {
+  min-height: 40px;
+}
+
+.levelUpCardActions[data-proof-saved='true'] :global(.button-primary) {
+  min-width: 0;
+}
+
 .levelUpCardMeta span,
 .reasonPill,
 .completionSummaryPill,
@@ -12062,6 +12079,15 @@
   .levelUpSavedActionStrip,
   .levelUpCoachNextRecipe {
     grid-template-columns: 1fr;
+  }
+
+  .levelUpCardActions[data-proof-saved='true'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .levelUpCardActions[data-proof-saved='true'] :global(.button-primary) {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }
 
