@@ -6072,6 +6072,37 @@
   line-height: 1.32;
 }
 
+.levelUpSavedProofBadges {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.levelUpSavedProofBadges span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.16);
+  border-radius: 10px;
+  background: rgba(5, 15, 30, 0.3);
+  color: var(--foreground-strong);
+  padding: 7px;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.levelUpSavedProofBadges b {
+  color: var(--brand-blue-2);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .levelUpSavedPrimaryPath {
   display: grid;
   gap: 6px;

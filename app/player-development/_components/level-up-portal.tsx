@@ -3342,6 +3342,20 @@ function LevelUpCardTile({
             <span>Proof saved</span>
             <strong>{savedRating}/5 - {savedProofAction.title}</strong>
             <small>{savedProofAction.detail}</small>
+            <div className={styles.levelUpSavedProofBadges} aria-label={`Saved proof summary for ${card.title}`}>
+              <span>
+                <b>Goal</b>
+                {activeSessionGoal}
+              </span>
+              <span>
+                <b>Proof</b>
+                {savedRating}/5
+              </span>
+              <span>
+                <b>Next</b>
+                {savedPrimaryPath?.actionLabel ?? getAfterScorePrimaryButton(card, savedRating)}
+              </span>
+            </div>
             {savedPrimaryPath ? (
               <div className={styles.levelUpSavedPrimaryPath} aria-label={`Primary saved action for ${card.title}`}>
                 <span>Do next</span>
