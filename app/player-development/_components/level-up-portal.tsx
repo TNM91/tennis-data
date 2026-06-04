@@ -3269,74 +3269,78 @@ function LevelUpCardTile({
       </details>
       <details className={styles.completionLogger} open={loggerOpen} onToggle={(event) => setLoggerOpen(event.currentTarget.open)}>
         <summary>
-          <span>Score proof</span>
-          <strong>{rating}/5 - {proofGuidance.title}</strong>
+          <span>{savedRating === null ? 'Score proof' : 'Proof saved'}</span>
+          <strong>{savedRating === null ? `${rating}/5 - ${proofGuidance.title}` : `${savedRating}/5 - ${savedProofAction?.title ?? 'Saved proof'}`}</strong>
         </summary>
-        <p className={styles.levelUpLoggerHint}>Pick the number that matches the habit. Save first; add a note only if it changes the next rep.</p>
-        <div className={styles.levelUpScorePad}>
-          <div className={styles.levelUpProofScale} aria-label={`Proof scale for ${card.title}`}>
-            <span>0-1: not yet</span>
-            <span>2-3: showing up</span>
-            <span>4-5: repeatable</span>
-          </div>
-          <div className={styles.levelUpLoggerAnchors} aria-label={`Score anchors for ${card.title}`}>
-            <span>
-              <b>0-1</b>
-              {proofAnchors.low}
-            </span>
-            <span>
-              <b>2-3</b>
-              {proofAnchors.mid}
-            </span>
-            <span>
-              <b>4-5</b>
-              {proofAnchors.high}
-            </span>
-          </div>
-          <div className={styles.levelUpScoreButtons} aria-label={`Proof rating buttons for ${card.title}`}>
-            {[0, 1, 2, 3, 4, 5].map((value) => (
-              <button key={value} type="button" data-active={rating === value ? 'true' : 'false'} onClick={() => setRating(value)}>{value}</button>
-            ))}
-          </div>
-          <div className={styles.levelUpProofNextStep}>
-            <span>Next rep</span>
-            <strong>{proofGuidance.title}</strong>
-            <small>{proofGuidance.detail}</small>
-          </div>
-        </div>
-        {cleanRepCount > 0 || missedRepCount > 0 || elapsedSeconds > 0 ? (
-          <div className={styles.levelUpActivityRecap}>
-            <span>Activity recap</span>
-            <strong>{cleanRepCount}/{cleanRepTarget} clean reps - {missedRepCount} missed - {formatTimer(elapsedSeconds)}</strong>
-            <small>Suggested proof: {suggestedRating}/5. Total clean reps: {totalCleanRepCount}. Missed reps lower the suggestion only when they show the habit needs another cleaner round.</small>
-          </div>
-        ) : null}
-        <details className={styles.levelUpTinyNoteDrawer}>
-          <summary>Add tiny note</summary>
-          <div className={styles.levelUpRepFeedback}>
-            <span>{repFeedback.label}</span>
-            <strong>{repFeedback.title}</strong>
-            <small>{repFeedback.detail}</small>
-          </div>
-          <div className={styles.levelUpCoachableNote}>
-            <span>Worth noting</span>
-            <strong>{coachableNote.title}</strong>
-            <small>{coachableNote.prompt}</small>
-          </div>
-          <div className={styles.levelUpQuickNotes} aria-label={`Quick notes for ${card.title}`}>
-            <span>Tap a note</span>
-            <div>
-              {quickProofNotes.map((quickNote) => (
-                <button key={quickNote} type="button" onClick={() => setNote(quickNote)}>{quickNote}</button>
-              ))}
+        {savedRating === null ? (
+          <>
+            <p className={styles.levelUpLoggerHint}>Pick the number that matches the habit. Save first; add a note only if it changes the next rep.</p>
+            <div className={styles.levelUpScorePad}>
+              <div className={styles.levelUpProofScale} aria-label={`Proof scale for ${card.title}`}>
+                <span>0-1: not yet</span>
+                <span>2-3: showing up</span>
+                <span>4-5: repeatable</span>
+              </div>
+              <div className={styles.levelUpLoggerAnchors} aria-label={`Score anchors for ${card.title}`}>
+                <span>
+                  <b>0-1</b>
+                  {proofAnchors.low}
+                </span>
+                <span>
+                  <b>2-3</b>
+                  {proofAnchors.mid}
+                </span>
+                <span>
+                  <b>4-5</b>
+                  {proofAnchors.high}
+                </span>
+              </div>
+              <div className={styles.levelUpScoreButtons} aria-label={`Proof rating buttons for ${card.title}`}>
+                {[0, 1, 2, 3, 4, 5].map((value) => (
+                  <button key={value} type="button" data-active={rating === value ? 'true' : 'false'} onClick={() => setRating(value)}>{value}</button>
+                ))}
+              </div>
+              <div className={styles.levelUpProofNextStep}>
+                <span>Next rep</span>
+                <strong>{proofGuidance.title}</strong>
+                <small>{proofGuidance.detail}</small>
+              </div>
             </div>
-          </div>
-          <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder={notePrompt} aria-label={`Note for ${card.title}`} />
-        </details>
-        <div className={styles.levelUpScoreSaveBar}>
-          <span>{card.proof}</span>
-          <button type="button" className="button-secondary" onClick={completeCard}>{savedRating === null ? `Save ${rating}/5 proof` : `Saved ${savedRating}/5`}</button>
-        </div>
+            {cleanRepCount > 0 || missedRepCount > 0 || elapsedSeconds > 0 ? (
+              <div className={styles.levelUpActivityRecap}>
+                <span>Activity recap</span>
+                <strong>{cleanRepCount}/{cleanRepTarget} clean reps - {missedRepCount} missed - {formatTimer(elapsedSeconds)}</strong>
+                <small>Suggested proof: {suggestedRating}/5. Total clean reps: {totalCleanRepCount}. Missed reps lower the suggestion only when they show the habit needs another cleaner round.</small>
+              </div>
+            ) : null}
+            <details className={styles.levelUpTinyNoteDrawer}>
+              <summary>Add tiny note</summary>
+              <div className={styles.levelUpRepFeedback}>
+                <span>{repFeedback.label}</span>
+                <strong>{repFeedback.title}</strong>
+                <small>{repFeedback.detail}</small>
+              </div>
+              <div className={styles.levelUpCoachableNote}>
+                <span>Worth noting</span>
+                <strong>{coachableNote.title}</strong>
+                <small>{coachableNote.prompt}</small>
+              </div>
+              <div className={styles.levelUpQuickNotes} aria-label={`Quick notes for ${card.title}`}>
+                <span>Tap a note</span>
+                <div>
+                  {quickProofNotes.map((quickNote) => (
+                    <button key={quickNote} type="button" onClick={() => setNote(quickNote)}>{quickNote}</button>
+                  ))}
+                </div>
+              </div>
+              <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={120} placeholder={notePrompt} aria-label={`Note for ${card.title}`} />
+            </details>
+            <div className={styles.levelUpScoreSaveBar}>
+              <span>{card.proof}</span>
+              <button type="button" className="button-secondary" onClick={completeCard}>Save {rating}/5 proof</button>
+            </div>
+          </>
+        ) : null}
         {savedProofAction && savedRating !== null ? (
           <div className={styles.completionSavedMessage}>
             <span>Proof saved</span>
