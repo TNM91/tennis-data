@@ -2515,6 +2515,7 @@ function LevelUpCardTile({
   const sessionStandard = getCardSessionStandard(card)
   const proofAnchors = getCardProofAnchors(card)
   const activeQualityChecks = getCardQualityChecks(card).slice(0, 3)
+  const activeWatchCue = activeQualityChecks[cleanRepCount % activeQualityChecks.length] ?? card.cue
   const repLadder = getCardRepLadder(card)
   const variantPlan = getAdaptiveDrillVariantPlan(card, activeVariant)
   const targetSeconds = Math.max(60, variantPlan.durationMinutes * 60)
@@ -2786,6 +2787,10 @@ function LevelUpCardTile({
               <small>{repeatPlan.detail}</small>
             </div>
           ) : null}
+          <div className={styles.levelUpActiveWatchCue} aria-label={`Watch this rep for ${card.title}`}>
+            <span>Watch this rep</span>
+            <strong>{activeWatchCue}</strong>
+          </div>
           <div className={styles.levelUpActivityCommand} aria-label={`Do this round for ${card.title}`}>
             <span>Do this round</span>
             <strong>{variantPlan.command}</strong>

@@ -4484,6 +4484,35 @@
   line-height: 1.25;
 }
 
+.levelUpActiveWatchCue {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.26);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.13), rgba(116, 190, 255, 0.04)),
+    rgba(5, 15, 30, 0.5);
+  padding: 9px 10px;
+}
+
+.levelUpActiveWatchCue span {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.levelUpActiveWatchCue strong {
+  min-width: 0;
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+  line-height: 1.22;
+}
+
 .levelUpActiveQualityStrip {
   display: grid;
   grid-template-columns: auto repeat(3, minmax(0, 1fr));
@@ -11041,9 +11070,14 @@
   }
 
   .levelUpActivityCommand,
+  .levelUpActiveWatchCue,
   .levelUpActiveQualityStrip,
   .levelUpActivityWorkGrid {
     grid-template-columns: 1fr;
+  }
+
+  .levelUpActiveWatchCue span {
+    white-space: normal;
   }
 
   .levelUpActivityCommand {
