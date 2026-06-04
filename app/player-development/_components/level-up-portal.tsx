@@ -2514,6 +2514,7 @@ function LevelUpCardTile({
   const nextPractice = getCardNextPractice(card, shownSavedRating)
   const sessionStandard = getCardSessionStandard(card)
   const proofAnchors = getCardProofAnchors(card)
+  const activeQualityChecks = getCardQualityChecks(card).slice(0, 3)
   const repLadder = getCardRepLadder(card)
   const variantPlan = getAdaptiveDrillVariantPlan(card, activeVariant)
   const targetSeconds = Math.max(60, variantPlan.durationMinutes * 60)
@@ -2801,6 +2802,12 @@ function LevelUpCardTile({
               <b>Fix</b>
               <strong>{commonMiss.fix}</strong>
             </div>
+          </div>
+          <div className={styles.levelUpActiveQualityStrip} aria-label={`Clean rep checks for ${card.title}`}>
+            <span>Clean rep checks</span>
+            {activeQualityChecks.map((check) => (
+              <strong key={check}>{check}</strong>
+            ))}
           </div>
           <div className={styles.levelUpActivityWorkGrid}>
             <div className={styles.levelUpActivityTimer} data-timer-state={timerRunning ? 'running' : elapsedSeconds > 0 ? 'paused' : 'ready'}>
