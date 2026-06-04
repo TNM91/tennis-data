@@ -103,6 +103,16 @@ type WeeklyBalance = {
   items: WeeklyBalanceItem[]
 }
 
+type HabitMomentum = {
+  headline: string
+  read: string
+  weeklyProofCount: number
+  streakDays: number
+  strongestLane: string
+  nextCard?: LevelUpCard
+  nextLabel: string
+}
+
 type CoachUpdateDigest = {
   status: string
   proofLine: string
@@ -610,6 +620,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     () => buildWeeklyBalance(focusTrainingLanes, completions, completionSummaryByCardId),
     [focusTrainingLanes, completions, completionSummaryByCardId],
   )
+  const habitMomentum = buildHabitMomentum(completions, weeklyBalance, laneProgress, nextBestRep.card)
   const activeLaneCard = activeLaneCardId
     ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
     : undefined
@@ -703,6 +714,8 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         completionCount={completions.length}
         onStartCard={startCardFromPlan}
       />
+
+      <LevelUpHabitMomentumPanel momentum={habitMomentum} onStartCard={startCardFromPlan} />
 
       <LevelUpSessionBuilder
         minutes={sessionMinutes}
@@ -1012,6 +1025,46 @@ function LevelUpNextBestRepPanel({ nextBestRep, onStartCard }: { nextBestRep: Ne
         <small>Proof target: {nextBestRep.proof}</small>
       </div>
       <button type="button" className="button-primary" onClick={() => onStartCard(nextBestRep.card.id)}>Start card</button>
+    </section>
+  )
+}
+
+function LevelUpHabitMomentumPanel({
+  momentum,
+  onStartCard,
+}: {
+  momentum: HabitMomentum
+  onStartCard: (cardId: string) => void
+}) {
+  return (
+    <section className={styles.levelUpHabitMomentum} aria-label="Habit momentum">
+      <div>
+        <span>Habit momentum</span>
+        <h2>{momentum.headline}</h2>
+        <p>{momentum.read}</p>
+      </div>
+      <div className={styles.levelUpHabitMomentumGrid}>
+        <article>
+          <span>This week</span>
+          <strong>{formatProofCount(momentum.weeklyProofCount)}</strong>
+          <small>Proofs logged</small>
+        </article>
+        <article>
+          <span>Streak</span>
+          <strong>{momentum.streakDays ? `${momentum.streakDays} days` : 'Start today'}</strong>
+          <small>Consecutive proof days</small>
+        </article>
+        <article>
+          <span>Signal</span>
+          <strong>{momentum.strongestLane}</strong>
+          <small>Most active lane</small>
+        </article>
+      </div>
+      {momentum.nextCard ? (
+        <button type="button" onClick={() => momentum.nextCard ? onStartCard(momentum.nextCard.id) : undefined}>
+          {momentum.nextLabel}: {momentum.nextCard.title}
+        </button>
+      ) : null}
     </section>
   )
 }
@@ -5564,6 +5617,97 @@ function buildWeeklyBalanceRead(lane: FocusTrainingLane, proofCount: number, nex
   if (!proofCount) return `No ${lane.eyebrow.toLowerCase().replace(' training', '')} proof this week. Start ${nextCard?.title ?? lane.title}.`
   if (proofCount === 1) return `1 proof. Keep it alive with ${nextCard?.title ?? 'one clean rep'}.`
   return `${proofCount} proofs. Good signal; balance another lane before stacking more here.`
+}
+
+function buildHabitMomentum(
+  completions: LevelUpCompletion[],
+  weeklyBalance: WeeklyBalance,
+  laneProgress: LaneProgressItem[],
+  fallbackCard: LevelUpCard,
+): HabitMomentum {
+  const streakDays = getProofStreakDays(completions)
+  const weeklyProofCount = weeklyBalance.totalProofs
+  const strongestLane = laneProgress
+    .filter((item) => item.proofCount > 0)
+    .sort((left, right) => right.proofCount - left.proofCount || left.label.localeCompare(right.label))[0]?.label
+    ?? 'Not proven yet'
+  const nextCard = weeklyBalance.underIndex.nextCard ?? fallbackCard
+  const nextLabel = weeklyProofCount ? 'Keep balance' : 'Start momentum'
+
+  if (!completions.length) {
+    return {
+      headline: 'Start with one honest proof.',
+      read: `Run ${nextCard.title} and save a 0-5 score. One number is enough to make tomorrow clearer.`,
+      weeklyProofCount,
+      streakDays,
+      strongestLane,
+      nextCard,
+      nextLabel,
+    }
+  }
+
+  if (streakDays >= 3) {
+    return {
+      headline: `${streakDays}-day proof streak.`,
+      read: `Momentum is real. Protect the streak, but use ${weeklyBalance.underIndex.label} so the work stays balanced.`,
+      weeklyProofCount,
+      streakDays,
+      strongestLane,
+      nextCard,
+      nextLabel,
+    }
+  }
+
+  if (weeklyProofCount >= 3) {
+    return {
+      headline: `${formatProofCount(weeklyProofCount)} this week.`,
+      read: `Good weekly signal. You are leaning toward ${weeklyBalance.overIndex.label}; add ${weeklyBalance.underIndex.label} next.`,
+      weeklyProofCount,
+      streakDays,
+      strongestLane,
+      nextCard,
+      nextLabel,
+    }
+  }
+
+  return {
+    headline: streakDays ? `${streakDays}-day proof streak.` : 'Momentum needs one proof today.',
+    read: `Keep it simple: run one useful card, score it, and stop after the note if the number tells the story.`,
+    weeklyProofCount,
+    streakDays,
+    strongestLane,
+    nextCard,
+    nextLabel,
+  }
+}
+
+function getProofStreakDays(completions: LevelUpCompletion[]) {
+  const completedDayKeys = new Set(
+    completions
+      .map((completion) => getLocalDayKey(completion.completedAt))
+      .filter((dayKey): dayKey is string => Boolean(dayKey)),
+  )
+  let streak = 0
+  const today = new Date()
+
+  for (let offset = 0; offset < 30; offset += 1) {
+    const date = new Date(today)
+    date.setDate(today.getDate() - offset)
+    if (!completedDayKeys.has(getDateDayKey(date))) break
+    streak += 1
+  }
+
+  return streak
+}
+
+function getLocalDayKey(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return getDateDayKey(date)
+}
+
+function getDateDayKey(date: Date) {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
 }
 
 function formatProofCount(count: number) {

@@ -17,6 +17,8 @@ try {
     !initialText.includes('COACH ASSIGNMENT BUILDER')
     || !initialText.includes('PATH COACH')
     || !initialText.includes('Start with one proof.')
+    || !initialText.includes('HABIT MOMENTUM')
+    || (!initialText.includes('Start momentum') && !initialText.includes('START MOMENTUM'))
     || !initialText.includes('CHALLENGE')
     || !initialText.includes('WHY')
     || !initialText.includes('PROOF')
