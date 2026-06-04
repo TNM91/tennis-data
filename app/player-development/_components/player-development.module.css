@@ -5906,6 +5906,66 @@
   line-height: 1.32;
 }
 
+.levelUpSavedPrimaryPath {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+  border: 1px solid rgba(155, 225, 29, 0.34);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.14), transparent 52%),
+    rgba(5, 15, 30, 0.38);
+  padding: 9px;
+}
+
+.levelUpSavedPrimaryPath > span {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpSavedPrimaryPath strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+  line-height: 1.18;
+}
+
+.levelUpSavedPrimaryPath small {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.32;
+}
+
+.levelUpSavedPrimaryPath div {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 0.8fr;
+  gap: 7px;
+}
+
+.levelUpSavedPrimaryPath button {
+  min-height: 40px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--foreground-strong);
+  padding: 7px 10px;
+  font-weight: 900;
+}
+
+.levelUpSavedPrimaryPath button[data-primary='true'] {
+  border-color: rgba(155, 225, 29, 0.54);
+  background: var(--brand-green-2);
+  color: #061221;
+}
+
+.levelUpSavedPrimaryPath button[data-finish='true'] {
+  border-color: rgba(255, 210, 116, 0.34);
+  background: rgba(255, 210, 116, 0.1);
+}
+
 .levelUpSavedActionStrip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -11293,6 +11353,10 @@
   }
 
   .completionSavedActions {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpSavedPrimaryPath div {
     grid-template-columns: 1fr;
   }
 

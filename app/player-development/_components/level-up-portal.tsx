@@ -2574,6 +2574,11 @@ function LevelUpCardTile({
     totalCleanRepCount,
     missedRepCount,
   })
+  const savedPrimaryPath = savedRating === null ? null : {
+    title: savedCoachRecommendedNext?.title ?? getAfterScorePrimaryAction(card, savedRating),
+    detail: savedSessionRecap?.next ?? getAfterScoreDetail(card, savedRating),
+    actionLabel: savedCoachRecommendedNext?.actionLabel ?? getAfterScorePrimaryButton(card, savedRating),
+  }
   const activeFocusState = savedRating !== null ? 'saved' : loggerOpen ? 'scoring' : timerRunning ? 'running' : elapsedSeconds > 0 || cleanRepCount > 0 || missedRepCount > 0 ? 'working' : 'ready'
   const activeFocusLabel = getActiveFocusLabel(activeFocusState)
   const finishLineSteps = [
@@ -2760,6 +2765,25 @@ function LevelUpCardTile({
     } catch {
       setCoachUpdateCopyStatus('blocked')
     }
+  }
+
+  function runSavedPrimaryAction() {
+    if (!savedCoachRecommendedNext) {
+      repeatActivity()
+      return
+    }
+
+    if (savedCoachRecommendedNext.action === 'send') {
+      void copyCoachUpdate()
+      return
+    }
+
+    if (savedCoachRecommendedNext.action === 'pick-next') {
+      finishAndPickNext()
+      return
+    }
+
+    repeatActivity()
   }
 
   return (
@@ -3245,6 +3269,18 @@ function LevelUpCardTile({
             <span>Proof saved</span>
             <strong>{savedRating}/5 - {savedProofAction.title}</strong>
             <small>{savedProofAction.detail}</small>
+            {savedPrimaryPath ? (
+              <div className={styles.levelUpSavedPrimaryPath} aria-label={`Primary saved action for ${card.title}`}>
+                <span>Do next</span>
+                <strong>{savedPrimaryPath.title}</strong>
+                <small>{savedPrimaryPath.detail}</small>
+                <div>
+                  <button type="button" data-primary="true" onClick={runSavedPrimaryAction}>{savedPrimaryPath.actionLabel}</button>
+                  <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy coach update', 'Coach update copied')}</button>
+                  <button type="button" data-finish="true" onClick={finishActivity}>Finish</button>
+                </div>
+              </div>
+            ) : null}
             <div className={styles.levelUpSavedActionStrip} aria-label={`Saved proof action strip for ${card.title}`}>
               <span>
                 <b>Saved</b>
