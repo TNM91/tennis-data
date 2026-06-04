@@ -2886,6 +2886,21 @@ function LevelUpCardTile({
               <strong>{commonMiss.fix}</strong>
             </div>
           </div>
+          <div className={styles.levelUpCourtCard} aria-label={`Court card for ${card.title}`}>
+            <span>Court card</span>
+            <div>
+              <b>Set up</b>
+              <strong>{getCardSetupLabel(card)}</strong>
+            </div>
+            <div>
+              <b>Count it</b>
+              <strong>{roundTarget.quality}</strong>
+            </div>
+            <div>
+              <b>Stop when</b>
+              <strong>{sessionStandard.stop}</strong>
+            </div>
+          </div>
           <div className={styles.levelUpActiveQualityStrip} aria-label={`Clean rep checks for ${card.title}`}>
             <span>Clean rep checks</span>
             {activeQualityChecks.map((check) => (
