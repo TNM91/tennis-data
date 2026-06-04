@@ -2901,6 +2901,17 @@ function LevelUpCardTile({
               <strong>{sessionStandard.stop}</strong>
             </div>
           </div>
+          {missedRepCount > 0 ? (
+            <div className={styles.levelUpMissDecoder} aria-label={`Miss decoder for ${card.title}`}>
+              <span>Miss decoder</span>
+              <strong>{missedRepPattern.title}</strong>
+              <small>{missedRepPattern.detail}</small>
+              <div>
+                <b>Next clean rep</b>
+                <strong>{missedRepPattern.cleanRepStandard}</strong>
+              </div>
+            </div>
+          ) : null}
           <div className={styles.levelUpActiveQualityStrip} aria-label={`Clean rep checks for ${card.title}`}>
             <span>Clean rep checks</span>
             {activeQualityChecks.map((check) => (

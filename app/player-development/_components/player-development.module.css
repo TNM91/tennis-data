@@ -4571,6 +4571,61 @@
   line-height: 1.25;
 }
 
+.levelUpMissDecoder {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(255, 210, 116, 0.24);
+  border-left: 3px solid rgba(255, 210, 116, 0.54);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 210, 116, 0.09), transparent 54%),
+    rgba(5, 15, 30, 0.32);
+  padding: 8px 9px;
+}
+
+.levelUpMissDecoder > span {
+  color: #f6d78a;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpMissDecoder > strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.levelUpMissDecoder small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
+.levelUpMissDecoder div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 7px;
+}
+
+.levelUpMissDecoder b {
+  color: var(--brand-blue-2);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpMissDecoder div strong {
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
 .levelUpActiveWatchCue {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
