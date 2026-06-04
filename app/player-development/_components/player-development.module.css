@@ -6103,6 +6103,47 @@
   text-transform: uppercase;
 }
 
+.levelUpSavedShareStatus {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  margin-top: 2px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(5, 15, 30, 0.28);
+  padding: 6px 8px;
+}
+
+.levelUpSavedShareStatus b {
+  color: var(--brand-blue-2);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.levelUpSavedShareStatus span {
+  min-width: 0;
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: none;
+}
+
+.levelUpSavedShareStatus[data-share-status='copied'] {
+  border-color: rgba(155, 225, 29, 0.28);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.levelUpSavedShareStatus[data-share-status='blocked'] {
+  border-color: rgba(255, 210, 116, 0.28);
+  background: rgba(255, 210, 116, 0.08);
+}
+
 .levelUpSavedPrimaryPath {
   display: grid;
   gap: 6px;

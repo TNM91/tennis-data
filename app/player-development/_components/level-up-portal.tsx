@@ -3356,6 +3356,10 @@ function LevelUpCardTile({
                 {savedPrimaryPath?.actionLabel ?? getAfterScorePrimaryButton(card, savedRating)}
               </span>
             </div>
+            <div className={styles.levelUpSavedShareStatus} data-share-status={coachUpdateCopyStatus}>
+              <b>Coach update</b>
+              <span>{coachUpdateCopyStatus === 'copied' ? 'Copied and ready to send.' : coachUpdateCopyStatus === 'blocked' ? 'Manual copy ready below.' : 'Ready to copy when linked with coach.'}</span>
+            </div>
             {savedPrimaryPath ? (
               <div className={styles.levelUpSavedPrimaryPath} aria-label={`Primary saved action for ${card.title}`}>
                 <span>Do next</span>
