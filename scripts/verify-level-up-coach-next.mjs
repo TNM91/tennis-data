@@ -48,6 +48,7 @@ try {
   await page.getByRole('button', { name: /Score now/i }).first().click()
   await page.getByRole('button', { name: /^4$/ }).first().click()
   await page.getByRole('button', { name: /Save 4\/5 proof/i }).first().click()
+  await page.getByText('Review proof details').first().click()
 
   const coachNext = page.locator('[aria-label^="Coach recommended next for"]').first()
   await coachNext.waitFor({ state: 'visible', timeout: 10_000 })

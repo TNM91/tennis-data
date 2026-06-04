@@ -3281,129 +3281,138 @@ function LevelUpCardTile({
                 </div>
               </div>
             ) : null}
-            <div className={styles.levelUpSavedActionStrip} aria-label={`Saved proof action strip for ${card.title}`}>
-              <span>
-                <b>Saved</b>
-                {savedRating}/5
-              </span>
-              <span>
-                <b>Next</b>
-                {getAfterScorePrimaryButton(card, savedRating)}
-              </span>
-              <span>
-                <b>Share</b>
-                {coachUpdateCopyStatus === 'copied' ? 'Copied' : coachUpdateCopyStatus === 'blocked' ? 'Manual copy' : 'Ready'}
-              </span>
-            </div>
-            {savedSessionRecap ? (
-              <div className={styles.levelUpSavedSessionRecap} aria-label={`Saved session recap for ${card.title}`}>
-                <span>Session recap</span>
-                <strong>{savedSessionRecap.headline}</strong>
-                <small>{savedSessionRecap.detail}</small>
-                <em>{savedSessionRecap.next}</em>
+            <details className={styles.levelUpSavedDetails}>
+              <summary>Review proof details</summary>
+              <div className={styles.levelUpSavedActionStrip} aria-label={`Saved proof action strip for ${card.title}`}>
+                <span>
+                  <b>Saved</b>
+                  {savedRating}/5
+                </span>
+                <span>
+                  <b>Next</b>
+                  {getAfterScorePrimaryButton(card, savedRating)}
+                </span>
+                <span>
+                  <b>Share</b>
+                  {coachUpdateCopyStatus === 'copied' ? 'Copied' : coachUpdateCopyStatus === 'blocked' ? 'Manual copy' : 'Ready'}
+                </span>
               </div>
-            ) : null}
-            {savedCoachRecommendedNext ? (
-              <div className={styles.levelUpCoachRecommendedNext} aria-label={`Coach recommended next for ${card.title}`}>
-                <span>Coach Recommended Next</span>
-                <strong>{savedCoachRecommendedNext.title}</strong>
-                <small>{savedCoachRecommendedNext.detail}</small>
-                <div className={styles.levelUpCoachNextRecipe} aria-label={`Next rep recipe for ${card.title}`}>
-                  {savedCoachRecommendedNext.recipe.map((item) => (
-                    <span key={item.label}>
-                      <b>{item.label}</b>
-                      {item.value}
-                    </span>
-                  ))}
+              {savedSessionRecap ? (
+                <div className={styles.levelUpSavedSessionRecap} aria-label={`Saved session recap for ${card.title}`}>
+                  <span>Session recap</span>
+                  <strong>{savedSessionRecap.headline}</strong>
+                  <small>{savedSessionRecap.detail}</small>
+                  <em>{savedSessionRecap.next}</em>
                 </div>
-                <button
-                  type="button"
-                  data-recommendation-action={savedCoachRecommendedNext.action}
-                  onClick={savedCoachRecommendedNext.action === 'send' ? copyCoachUpdate : savedCoachRecommendedNext.action === 'pick-next' ? finishAndPickNext : repeatActivity}
-                >
-                  {savedCoachRecommendedNext.actionLabel}
-                </button>
-              </div>
-            ) : null}
-            {savedProofSnapshot ? (
-              <div className={styles.levelUpProofSnapshot} aria-label={`Proof snapshot for ${card.title}`}>
-                <span>Proof snapshot</span>
-                <div>
-                  <b>Goal</b>
-                  <strong>{savedProofSnapshot.goal}</strong>
+              ) : null}
+              {savedCoachRecommendedNext ? (
+                <div className={styles.levelUpCoachRecommendedNext} aria-label={`Coach recommended next for ${card.title}`}>
+                  <span>Coach Recommended Next</span>
+                  <strong>{savedCoachRecommendedNext.title}</strong>
+                  <small>{savedCoachRecommendedNext.detail}</small>
+                  <div className={styles.levelUpCoachNextRecipe} aria-label={`Next rep recipe for ${card.title}`}>
+                    {savedCoachRecommendedNext.recipe.map((item) => (
+                      <span key={item.label}>
+                        <b>{item.label}</b>
+                        {item.value}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    data-recommendation-action={savedCoachRecommendedNext.action}
+                    onClick={savedCoachRecommendedNext.action === 'send' ? copyCoachUpdate : savedCoachRecommendedNext.action === 'pick-next' ? finishAndPickNext : repeatActivity}
+                  >
+                    {savedCoachRecommendedNext.actionLabel}
+                  </button>
                 </div>
-                <div>
-                  <b>Score</b>
-                  <strong>{savedProofSnapshot.score}</strong>
-                </div>
-                <div>
-                  <b>Rep signal</b>
-                  <strong>{savedProofSnapshot.repSignal}</strong>
-                </div>
-                <div>
-                  <b>Coach ask</b>
-                  <strong>{savedProofSnapshot.coachAsk}</strong>
-                </div>
-              </div>
-            ) : null}
-            <div className={styles.levelUpAfterScoreNext}>
-              <span>Next move</span>
-              <strong>{getAfterScorePrimaryAction(card, savedRating)}</strong>
-              <small>{getAfterScoreDetail(card, savedRating)}</small>
-            </div>
-            {savedNextCardPlan ? (
-              <div className={styles.levelUpPostProofNextCard} aria-label={`Post-proof next card for ${card.title}`}>
-                <span>Run next</span>
-                <strong>{savedNextCardPlan.card.title}</strong>
-                <small>{savedNextCardPlan.detail}</small>
-                <button type="button" onClick={startPostProofNextCard}>
-                  {savedNextCardPlan.actionLabel}
-                </button>
-              </div>
-            ) : null}
-            {nextPractice ? (
-              <div className={styles.levelUpNextPractice} aria-label={`Next practice prescription for ${card.title}`}>
-                <span>Next practice</span>
-                <strong>{nextPractice.title}</strong>
-                <small>{nextPractice.detail}</small>
-                <div className={styles.levelUpNextPracticeGrid}>
-                  <span>
-                    <b>Dose</b>
-                    {nextPractice.dose}
-                  </span>
-                  <span>
-                    <b>Focus</b>
-                    {nextPractice.focus}
-                  </span>
-                  <span>
+              ) : null}
+              {savedProofSnapshot ? (
+                <div className={styles.levelUpProofSnapshot} aria-label={`Proof snapshot for ${card.title}`}>
+                  <span>Proof snapshot</span>
+                  <div>
+                    <b>Goal</b>
+                    <strong>{savedProofSnapshot.goal}</strong>
+                  </div>
+                  <div>
+                    <b>Score</b>
+                    <strong>{savedProofSnapshot.score}</strong>
+                  </div>
+                  <div>
+                    <b>Rep signal</b>
+                    <strong>{savedProofSnapshot.repSignal}</strong>
+                  </div>
+                  <div>
                     <b>Coach ask</b>
-                    {nextPractice.coachAsk}
-                  </span>
+                    <strong>{savedProofSnapshot.coachAsk}</strong>
+                  </div>
                 </div>
+              ) : null}
+              <div className={styles.levelUpAfterScoreNext}>
+                <span>Next move</span>
+                <strong>{getAfterScorePrimaryAction(card, savedRating)}</strong>
+                <small>{getAfterScoreDetail(card, savedRating)}</small>
               </div>
-            ) : null}
-            {savedScoreDecision ? (
-              <div className={styles.levelUpScoreDecision}>
-                <span>Next action</span>
-                <strong>{savedScoreDecision.title}</strong>
-                <small>{savedScoreDecision.detail}</small>
+              {savedNextCardPlan ? (
+                <div className={styles.levelUpPostProofNextCard} aria-label={`Post-proof next card for ${card.title}`}>
+                  <span>Run next</span>
+                  <strong>{savedNextCardPlan.card.title}</strong>
+                  <small>{savedNextCardPlan.detail}</small>
+                  <button type="button" onClick={startPostProofNextCard}>
+                    {savedNextCardPlan.actionLabel}
+                  </button>
+                </div>
+              ) : null}
+              {nextPractice ? (
+                <div className={styles.levelUpNextPractice} aria-label={`Next practice prescription for ${card.title}`}>
+                  <span>Next practice</span>
+                  <strong>{nextPractice.title}</strong>
+                  <small>{nextPractice.detail}</small>
+                  <div className={styles.levelUpNextPracticeGrid}>
+                    <span>
+                      <b>Dose</b>
+                      {nextPractice.dose}
+                    </span>
+                    <span>
+                      <b>Focus</b>
+                      {nextPractice.focus}
+                    </span>
+                    <span>
+                      <b>Coach ask</b>
+                      {nextPractice.coachAsk}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+              {savedScoreDecision ? (
+                <div className={styles.levelUpScoreDecision}>
+                  <span>Next action</span>
+                  <strong>{savedScoreDecision.title}</strong>
+                  <small>{savedScoreDecision.detail}</small>
+                </div>
+              ) : null}
+              {savedCoachNextRead ? (
+                <div className={styles.levelUpCoachNextRead} aria-label={`Coach next assignment read for ${card.title}`}>
+                  <span>Coach read</span>
+                  <strong>{savedCoachNextRead.title}</strong>
+                  <small>{savedCoachNextRead.detail}</small>
+                  <em>{savedCoachNextRead.assignment}</em>
+                  <button type="button" onClick={repeatActivity}>
+                    Do this next: {savedCoachNextRead.actionLabel}
+                  </button>
+                </div>
+              ) : null}
+              <div className={styles.coachUpdatePreview}>
+                <span>Coach update</span>
+                <p>{savedCoachUpdate}</p>
               </div>
-            ) : null}
-            {savedCoachNextRead ? (
-              <div className={styles.levelUpCoachNextRead} aria-label={`Coach next assignment read for ${card.title}`}>
-                <span>Coach read</span>
-                <strong>{savedCoachNextRead.title}</strong>
-                <small>{savedCoachNextRead.detail}</small>
-                <em>{savedCoachNextRead.assignment}</em>
-                <button type="button" onClick={repeatActivity}>
-                  Do this next: {savedCoachNextRead.actionLabel}
-                </button>
+              <div className={styles.completionSavedActions}>
+                <button type="button" data-primary="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(card, savedRating)}</button>
+                <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy coach update', 'Coach update copied')}</button>
+                <button type="button" data-finish="true" onClick={finishActivity}>Finish session</button>
+                <button type="button" data-next-card="true" onClick={finishAndPickNext}>Pick next card</button>
               </div>
-            ) : null}
-            <div className={styles.coachUpdatePreview}>
-              <span>Coach update</span>
-              <p>{savedCoachUpdate}</p>
-            </div>
+            </details>
             {coachUpdateCopyStatus === 'blocked' ? (
               <textarea
                 className={styles.levelUpCopyFallback}
@@ -3414,12 +3423,6 @@ function LevelUpCardTile({
                 onFocus={(event) => event.currentTarget.select()}
               />
             ) : null}
-            <div className={styles.completionSavedActions}>
-              <button type="button" data-primary="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(card, savedRating)}</button>
-              <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy coach update', 'Coach update copied')}</button>
-              <button type="button" data-finish="true" onClick={finishActivity}>Finish session</button>
-              <button type="button" data-next-card="true" onClick={finishAndPickNext}>Pick next card</button>
-            </div>
           </div>
         ) : null}
       </details>

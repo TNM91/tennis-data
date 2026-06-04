@@ -5966,6 +5966,33 @@
   background: rgba(255, 210, 116, 0.1);
 }
 
+.levelUpSavedDetails {
+  display: grid;
+  gap: 7px;
+  margin-top: 6px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(5, 15, 30, 0.28);
+  padding: 8px;
+}
+
+.levelUpSavedDetails summary {
+  cursor: pointer;
+  color: var(--brand-blue-2);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpSavedDetails[open] {
+  background: rgba(5, 15, 30, 0.38);
+}
+
+.levelUpSavedDetails[open] > * + * {
+  margin-top: 7px;
+}
+
 .levelUpSavedActionStrip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
