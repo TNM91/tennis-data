@@ -2493,6 +2493,7 @@ function LevelUpCardTile({
   const [timerRunning, setTimerRunning] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [cleanRepCount, setCleanRepCount] = useState(0)
+  const [missedRepCount, setMissedRepCount] = useState(0)
   const [roundNumber, setRoundNumber] = useState(1)
   const [completedRoundCount, setCompletedRoundCount] = useState(0)
   const [bankedCleanRepCount, setBankedCleanRepCount] = useState(0)
@@ -2631,6 +2632,7 @@ function LevelUpCardTile({
     setTimerRunning(false)
     setElapsedSeconds(0)
     setCleanRepCount(0)
+    setMissedRepCount(0)
     setRoundNumber(1)
     setCompletedRoundCount(0)
     setBankedCleanRepCount(0)
@@ -2651,6 +2653,7 @@ function LevelUpCardTile({
     setBankedCleanRepCount((count) => count + cleanRepCount)
     setCompletedRoundCount((count) => count + 1)
     setCleanRepCount(0)
+    setMissedRepCount(0)
     setRoundNumber((round) => round + 1)
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -2837,17 +2840,29 @@ function LevelUpCardTile({
             <div className={styles.levelUpActivityRepCounter} data-rep-state={cleanRepCount >= cleanRepTarget ? 'complete' : cleanRepCount > 0 ? 'counting' : 'ready'}>
               <span>Clean reps</span>
               <strong>{cleanRepCount}/{cleanRepTarget}</strong>
-              <small>Tap +1 only when the proof behavior showed up.</small>
+              <small>Tap +1 only when the proof behavior showed up. Tap missed it when the habit breaks.</small>
               {completedRoundCount > 0 ? (
                 <em className={styles.levelUpRoundBank}>{completedRoundCount} round banked - {totalCleanRepCount} total clean reps</em>
+              ) : null}
+              {missedRepCount > 0 ? (
+                <div className={styles.levelUpMissedRepCue} aria-label={`Missed rep cue for ${card.title}`}>
+                  <span>{missedRepCount} missed</span>
+                  <strong>{commonMiss.fix}</strong>
+                </div>
               ) : null}
               <div className={styles.levelUpActivityTimerTrack} aria-hidden="true">
                 <i style={{ width: `${cleanRepProgress}%` }} />
               </div>
               <div className={styles.levelUpActivityRepActions}>
                 <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1 clean</button>
+                <button type="button" onClick={() => setMissedRepCount((count) => count + 1)}>Missed it</button>
                 <button type="button" onClick={() => setCleanRepCount((count) => Math.max(count - 1, 0))}>Undo</button>
-                <button type="button" onClick={() => setCleanRepCount(0)}>Reset reps</button>
+                <button type="button" onClick={() => {
+                  setCleanRepCount(0)
+                  setMissedRepCount(0)
+                }}>
+                  Reset reps
+                </button>
               </div>
             </div>
           </div>

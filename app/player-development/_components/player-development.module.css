@@ -4909,6 +4909,29 @@
   background: linear-gradient(90deg, var(--brand-green-2), var(--brand-blue-2));
 }
 
+.levelUpMissedRepCue {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(255, 210, 116, 0.24);
+  border-radius: 11px;
+  background: rgba(255, 210, 116, 0.07);
+  padding: 8px;
+}
+
+.levelUpMissedRepCue span {
+  color: #f6d78a;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpMissedRepCue strong {
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
 .levelUpActivityTimerActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4917,7 +4940,7 @@
 
 .levelUpActivityRepActions {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr 1fr;
+  grid-template-columns: 1.1fr 1fr 0.8fr 1fr;
   gap: 7px;
 }
 
@@ -4938,6 +4961,12 @@
   border-color: rgba(155, 225, 29, 0.5);
   background: var(--brand-green-2);
   color: #061221;
+}
+
+.levelUpActivityRepActions button:nth-child(2) {
+  border-color: rgba(255, 210, 116, 0.42);
+  background: rgba(255, 210, 116, 0.12);
+  color: var(--foreground-strong);
 }
 
 .levelUpActivityActions {
