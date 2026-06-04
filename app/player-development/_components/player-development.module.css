@@ -1820,6 +1820,18 @@
   line-height: 1.32;
 }
 
+.levelUpCoachSuggestedAssigned button {
+  width: fit-content;
+  cursor: pointer;
+  border: 1px solid rgba(155, 225, 29, 0.42);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.18);
+  color: var(--foreground-strong);
+  padding: 8px 11px;
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
 .levelUpCoachInboxTabs button {
   cursor: pointer;
   border: 1px solid rgba(116, 190, 255, 0.16);

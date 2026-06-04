@@ -86,9 +86,15 @@ try {
   if (
     !assignedText.includes('SUGGESTED CHALLENGE ASSIGNED')
     || !assignedText.includes('Suggested assigned')
+    || !assignedText.includes('Start suggested challenge')
     || !assignedText.includes('TO DO\n1')
   ) {
     throw new Error(`Expected suggested assignment confirmation. Saw:\n${assignedText}`)
+  }
+  await page.getByRole('button', { name: /Start suggested challenge/i }).first().click()
+  const startedSuggestedText = await page.locator('body').innerText()
+  if (!startedSuggestedText.includes('ON-COURT MODE') || !startedSuggestedText.includes('Return 30-30 Game')) {
+    throw new Error(`Expected suggested assignment to open on-court mode. Saw:\n${startedSuggestedText}`)
   }
 
   console.log(JSON.stringify({
