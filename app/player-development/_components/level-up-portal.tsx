@@ -2576,6 +2576,12 @@ function LevelUpCardTile({
   })
   const activeFocusState = savedRating !== null ? 'saved' : loggerOpen ? 'scoring' : timerRunning ? 'running' : elapsedSeconds > 0 || cleanRepCount > 0 || missedRepCount > 0 ? 'working' : 'ready'
   const activeFocusLabel = getActiveFocusLabel(activeFocusState)
+  const finishLineSteps = [
+    { label: 'Goal', value: activeSessionGoal, done: Boolean(activeSessionGoal), active: savedRating === null && totalCleanRepCount === 0 && missedRepCount === 0 },
+    { label: 'Reps', value: `${totalCleanRepCount} clean${missedRepCount ? `, ${missedRepCount} missed` : ''}`, done: totalCleanRepCount > 0 || missedRepCount > 0, active: savedRating === null && (totalCleanRepCount > 0 || missedRepCount > 0) },
+    { label: 'Proof', value: savedRating === null ? `${suggestedRating}/5 suggested` : `${savedRating}/5 saved`, done: savedRating !== null, active: loggerOpen },
+    { label: 'Finish', value: savedRating === null ? 'Save proof first' : 'Share or pick next', done: savedRating !== null, active: savedRating !== null },
+  ]
   const savedCoachUpdate = savedProofAction && savedRating !== null
     ? buildCoachUpdate({
       card,
@@ -2801,6 +2807,14 @@ function LevelUpCardTile({
               <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1</button>
               <button type="button" onClick={openLogger}>{savedRating === null ? 'Score' : 'Review'}</button>
             </div>
+          </div>
+          <div className={styles.levelUpFinishLine} aria-label={`Session finish line for ${card.title}`}>
+            {finishLineSteps.map((step) => (
+              <span key={step.label} data-done={step.done ? 'true' : 'false'} data-active={step.active ? 'true' : 'false'}>
+                <b>{step.label}</b>
+                {step.value}
+              </span>
+            ))}
           </div>
           {activeVariant !== 'base' ? (
             <div className={styles.levelUpAdaptiveVariant} aria-label={`Adaptive drill adjustment for ${card.title}`}>
