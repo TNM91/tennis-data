@@ -7001,6 +7001,8 @@ function getCardRepLadder(card: LevelUpCard) {
 }
 
 function getCardProofAnchors(card: LevelUpCard) {
+  if (card.proofAnchors) return card.proofAnchors
+
   if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
     return {
       low: 'You watched first or missed the ready spot.',
@@ -7226,6 +7228,8 @@ function getCardCoachSignal(card: LevelUpCard) {
 }
 
 function getCardQualityChecks(card: LevelUpCard) {
+  if (card.qualityChecks?.length) return card.qualityChecks
+
   if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
     return [
       'Finish balanced before you look for the result.',
@@ -7468,6 +7472,8 @@ function getCardTrainingOptions(card: LevelUpCard) {
 }
 
 function getCardCommonMiss(card: LevelUpCard) {
+  if (card.commonMiss) return card.commonMiss
+
   if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
     return {
       miss: 'You hit, watch, and arrive late to the next ready spot.',

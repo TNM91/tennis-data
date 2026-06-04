@@ -63,6 +63,16 @@ export type LevelUpCard = {
   reward: string
   proof: string
   ratingLabels?: string[]
+  qualityChecks?: string[]
+  commonMiss?: {
+    miss: string
+    fix: string
+  }
+  proofAnchors?: {
+    low: string
+    mid: string
+    high: string
+  }
   progression?: string
   regression?: string
   safetyNote?: string
