@@ -2533,6 +2533,8 @@ function LevelUpCardTile({
   const roundResetCue = getRoundResetCue(card)
   const totalCleanRepCount = bankedCleanRepCount + cleanRepCount
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds, missedRepCount)
+  const activeScoreDecision = getScoreDecision(card, suggestedRating)
+  const hasActiveProofSignal = totalCleanRepCount > 0 || missedRepCount > 0 || elapsedSeconds > 0
   const quickProofNotes = getQuickProofNotes({
     card,
     rating,
@@ -2985,6 +2987,13 @@ function LevelUpCardTile({
                 <button type="button" onClick={openLogger}>Score this round</button>
                 <button type="button" onClick={repeatRound}>Repeat round</button>
               </div>
+            </div>
+          ) : null}
+          {hasActiveProofSignal && savedRating === null ? (
+            <div className={styles.levelUpActiveScoreDecision} aria-label={`Active score decision for ${card.title}`}>
+              <span>Score decision</span>
+              <strong>{suggestedRating}/5 suggested - {activeScoreDecision.title}</strong>
+              <small>{activeScoreDecision.detail}</small>
             </div>
           ) : null}
           <div className={styles.levelUpActivityActions}>
