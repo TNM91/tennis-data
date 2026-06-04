@@ -56,6 +56,7 @@ type NextBestRep = {
   detail: string
   proof: string
   signal: string
+  firstRep: string
 }
 
 type CoachRecommendedNext = {
@@ -117,6 +118,7 @@ type CoachUpdateDigest = {
   status: string
   proofLine: string
   coachAsk: string
+  firstRep: string
   shareText: string
 }
 
@@ -1022,6 +1024,7 @@ function LevelUpNextBestRepPanel({ nextBestRep, onStartCard }: { nextBestRep: Ne
       <div className={styles.levelUpNextBestRepCard}>
         <span>Suggested card</span>
         <strong>{nextBestRep.card.title}</strong>
+        <small>First rep: {nextBestRep.firstRep}</small>
         <small>Proof target: {nextBestRep.proof}</small>
       </div>
       <button type="button" className="button-primary" onClick={() => onStartCard(nextBestRep.card.id)}>Start card</button>
@@ -1519,6 +1522,7 @@ function LevelUpCoachUpdatePanel({ digest }: { digest: CoachUpdateDigest }) {
       <div className={styles.levelUpCoachUpdatePreview}>
         <span>Shareable recap</span>
         <strong>{digest.proofLine}</strong>
+        <small>First rep: {digest.firstRep}</small>
         <small>{digest.shareText}</small>
       </div>
       <button type="button" onClick={copyUpdate}>{copied ? 'Copied' : 'Copy update'}</button>
@@ -4170,6 +4174,7 @@ function buildNextBestRep({
         detail: recentCard.regression ?? `Make the setup easier and protect this cue: ${recentCard.cue}`,
         proof: recentCard.proof,
         signal: `Based on your last proof: ${recentCompletion.proofRating}/5.`,
+        firstRep: getPostProofFirstRep(recentCard, 'scale-down'),
       }
     }
 
@@ -4182,18 +4187,21 @@ function buildNextBestRep({
         detail: `Repeat this before adding difficulty. Cue to protect: ${recentCard.cue}`,
         proof: recentCard.proof,
         signal: `Based on your last proof: ${recentCompletion.proofRating}/5.`,
+        firstRep: getPostProofFirstRep(recentCard, 'repeat-clean'),
       }
     }
 
     const unloggedCard = identityCards.find((card) => !completionSummaryByCardId.has(card.id))
+    const nextCard = unloggedCard ?? recentCard
     return {
-      card: unloggedCard ?? recentCard,
+      card: nextCard,
       label: 'Level up next',
       decision: 'Decision: level up',
       title: unloggedCard ? 'Add one new connected habit.' : 'Raise one variable, not all of them.',
       detail: unloggedCard ? `You proved ${recentCard.title}. Now connect it to ${unloggedCard.title}.` : recentCard.progression ?? `Raise one variable while keeping this cue: ${recentCard.cue}`,
-      proof: (unloggedCard ?? recentCard).proof,
+      proof: nextCard.proof,
       signal: `Based on your last proof: ${recentCompletion.proofRating}/5.`,
+      firstRep: getPostProofFirstRep(nextCard, unloggedCard ? 'next-card' : 'add-pressure'),
     }
   }
 
@@ -4205,6 +4213,7 @@ function buildNextBestRep({
     detail: 'Run the first card, score 0-5, and let the next recommendation get sharper.',
     proof: todayCard.proof,
     signal: 'No proof logged yet.',
+    firstRep: getPostProofFirstRep(todayCard, 'next-card'),
   }
 }
 
@@ -6222,19 +6231,22 @@ function buildCoachUpdateDigest({
       status: 'No proof sent yet.',
       proofLine: 'Run one card, score 0-5, then send the short update.',
       coachAsk: 'Start with the next best rep so your coach has a real signal to react to.',
-      shareText: `I am starting Level Up with ${nextBestRep.card.title}. Proof target: ${nextBestRep.proof}.`,
+      firstRep: nextBestRep.firstRep,
+      shareText: `I am starting Level Up with ${nextBestRep.card.title}. First rep: ${nextBestRep.firstRep} Proof target: ${nextBestRep.proof}.`,
     }
   }
 
   const note = recentCompletion.note?.trim()
   const noteText = note ? ` Note: ${note}` : ''
   const nextLine = `Next: ${nextBestRep.card.title} (${nextBestRep.label}).`
-  const shareText = `${recentCard.title}: ${recentCompletion.proofRating}/5 proof.${noteText} ${nextLine} Pulse: ${trainingPulse.strongestArea} strongest, ${trainingPulse.attentionArea} needs reps.`
+  const firstRepLine = `First rep: ${nextBestRep.firstRep}`
+  const shareText = `${recentCard.title}: ${recentCompletion.proofRating}/5 proof.${noteText} ${nextLine} ${firstRepLine} Pulse: ${trainingPulse.strongestArea} strongest, ${trainingPulse.attentionArea} needs reps.`
 
   return {
     status: recentCompletion.proofRating >= 4 ? 'Ready to send a strong update.' : 'Send the honest signal.',
     proofLine: `${recentCard.title}: ${recentCompletion.proofRating}/5 - ${recentCard.proof}`,
     coachAsk: `Ask your coach to confirm whether ${trainingPulse.attentionArea.toLowerCase()} should be the next lesson focus.`,
+    firstRep: nextBestRep.firstRep,
     shareText,
   }
 }
