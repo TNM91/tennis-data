@@ -3158,6 +3158,14 @@ function LevelUpCardTile({
               <small>{finishRecap.detail}</small>
               <em>{finishRecap.proof}</em>
               <p>{savedCoachUpdate}</p>
+              {savedNextCardPlan ? (
+                <div className={styles.levelUpFinishNextCard} aria-label={`Finish recap next card for ${card.title}`}>
+                  <span>Suggested next</span>
+                  <strong>{savedNextCardPlan.card.title}</strong>
+                  <small>{savedNextCardPlan.detail}</small>
+                  <button type="button" data-finish-next-card="true" onClick={startPostProofNextCard}>{savedNextCardPlan.actionLabel}</button>
+                </div>
+              ) : null}
               <div className={styles.levelUpFinishChoices} aria-label={`Finish choices for ${card.title}`}>
                 <span>Finish choices</span>
                 <button type="button" data-finish-copy="true" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy update', 'Update copied')}</button>
