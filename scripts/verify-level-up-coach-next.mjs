@@ -24,6 +24,21 @@ try {
     throw new Error(`Expected coach builder and challenge plan before active drill. Saw:\n${initialText}`)
   }
 
+  await page.getByText('COACH ASSIGNMENT BUILDER').click()
+  const builderText = await page.locator('body').innerText()
+  if (!builderText.includes('COACH TEMPLATES') || !builderText.includes('Return pressure block')) {
+    throw new Error(`Expected coach assignment templates after opening builder. Saw:\n${builderText}`)
+  }
+  await page.getByRole('button', { name: /Return pressure block/i }).click()
+  const templateText = await page.locator('body').innerText()
+  if (
+    !templateText.includes('PLAYER WILL SEE')
+    || !templateText.includes('Return 30-30 Game')
+    || !templateText.includes('Start at 30-30. Pick the return job before the toss and recover for ball two.')
+  ) {
+    throw new Error(`Expected coach template to prefill the assignment preview. Saw:\n${templateText}`)
+  }
+
   const inbox = page.getByRole('region', { name: 'Coach challenge inbox' })
   await inbox.getByRole('button', { name: /Start next/i }).click()
 

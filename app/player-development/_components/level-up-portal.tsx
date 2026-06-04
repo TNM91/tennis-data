@@ -295,6 +295,14 @@ type CoachAssignmentBuilderPayload = {
   proofRequired: string
 }
 
+type CoachAssignmentTemplate = {
+  id: string
+  title: string
+  cardId: string
+  coachNote: string
+  proofRequired?: string
+}
+
 type CompletionSyncState = {
   status: 'idle' | 'loading' | 'syncing' | 'synced' | 'local' | 'error'
   message: string
@@ -338,6 +346,51 @@ const LEVEL_UP_COACH_SENT_STORAGE_KEY = 'tiq-level-up-coach-sent'
 const LEVEL_UP_COACH_SENT_AT_STORAGE_KEY = 'tiq-level-up-coach-sent-at'
 const LEVEL_UP_LOCAL_COACH_ASSIGNMENTS_KEY = 'tiq-level-up-local-coach-assignments'
 const STORED_STATE_HYDRATION_DELAY_MS = 2000
+
+const coachAssignmentTemplates: CoachAssignmentTemplate[] = [
+  {
+    id: 'serve-routine-reset',
+    title: 'Serve routine reset',
+    cardId: 'serve-target-call',
+    coachNote: 'Run one serve block. Call the target before every toss and keep the same routine after misses.',
+    proofRequired: 'Serve target clarity 0-5',
+  },
+  {
+    id: 'return-pressure-block',
+    title: 'Return pressure block',
+    cardId: 'return-30-30-game',
+    coachNote: 'Start at 30-30. Pick the return job before the toss and recover for ball two.',
+    proofRequired: 'Return intent at 30-30 0-5',
+  },
+  {
+    id: 'movement-recovery-habit',
+    title: 'Movement recovery habit',
+    cardId: 'cone-recover-shadow-swing',
+    coachNote: 'Train recovery after contact. Finish the swing, recover through the gate, then watch.',
+    proofRequired: 'Recovered before watching 0-5',
+  },
+  {
+    id: 'pressure-reset-rep',
+    title: 'Pressure reset rep',
+    cardId: 'three-step-reset',
+    coachNote: 'Use the three-step reset after misses or rushed points. Score whether the next point started clean.',
+    proofRequired: 'Reset used before next point 0-5',
+  },
+  {
+    id: 'backhand-stability-rep',
+    title: 'Backhand stability rep',
+    cardId: 'basket-backhand-crosscourt',
+    coachNote: 'Build backhand height, depth, and recovery. Do not flatten the ball to escape discomfort.',
+    proofRequired: 'Backhand height, depth, and recovery 0-5',
+  },
+  {
+    id: 'doubles-first-move',
+    title: 'Doubles first move',
+    cardId: 'serve-location-call',
+    coachNote: 'Call serve location and partner first move before the ball is live. Score connection, not point result.',
+    proofRequired: 'Serve location and partner readiness 0-5',
+  },
+]
 
 const sessionDurationOptions = [10, 20, 30, 45]
 
@@ -633,7 +686,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         challenges={coachChallengeInbox}
         completionSummaryByCardId={completionSummaryByCardId}
         activeCardTitle={activeCardTitle}
-        cardOptions={uniqueCards([...identityCards, ...allCoachChallenges.map((challenge) => challenge.card), ...LEVEL_UP_CARDS]).slice(0, 36)}
+        cardOptions={uniqueCards([...identityCards, ...allCoachChallenges.map((challenge) => challenge.card), ...getCoachTemplateCards(), ...LEVEL_UP_CARDS]).slice(0, 42)}
         moduleOptions={uniqueModules([...featuredModules, ...allCoachChallenges.map((challenge) => challenge.module), ...LEVEL_UP_MODULES]).slice(0, 24)}
         onCreateAssignment={addLocalCoachChallenge}
         onStartCard={startCardFromPlan}
@@ -1748,6 +1801,7 @@ function CoachAssignmentBuilder({
   const [dueDate, setDueDate] = useState(() => getDefaultAssignmentDueDate())
   const [coachNote, setCoachNote] = useState(() => buildDefaultCoachAssignmentNote(defaultCard))
   const [proofRequired, setProofRequired] = useState(defaultCard.proof)
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
 
   function selectCard(cardId: string) {
     const nextCard = cardOptions.find((card) => card.id === cardId) ?? defaultCard
@@ -1756,6 +1810,19 @@ function CoachAssignmentBuilder({
     setSelectedModuleId(nextModule.id)
     setProofRequired(nextCard.proof)
     setCoachNote(buildDefaultCoachAssignmentNote(nextCard))
+    setSelectedTemplateId('')
+  }
+
+  function applyTemplate(template: CoachAssignmentTemplate) {
+    const templateCard = cardOptions.find((card) => card.id === template.cardId)
+      ?? LEVEL_UP_CARDS.find((card) => card.id === template.cardId)
+      ?? defaultCard
+    const templateModule = moduleOptions.find((module) => module.cardIds.includes(templateCard.id)) ?? selectedModule
+    setSelectedCardId(templateCard.id)
+    setSelectedModuleId(templateModule.id)
+    setProofRequired(template.proofRequired ?? templateCard.proof)
+    setCoachNote(template.coachNote)
+    setSelectedTemplateId(template.id)
   }
 
   function createAssignment() {
@@ -1775,6 +1842,23 @@ function CoachAssignmentBuilder({
         <span>Coach assignment builder</span>
         <strong>Assign one tool that supports the player’s current tennis habit.</strong>
       </summary>
+      <div className={styles.coachAssignmentTemplates} aria-label="Coach assignment templates">
+        <span>Coach templates</span>
+        <div>
+          {coachAssignmentTemplates.map((template) => (
+            <button
+              key={template.id}
+              type="button"
+              data-active={selectedTemplateId === template.id}
+              aria-pressed={selectedTemplateId === template.id}
+              onClick={() => applyTemplate(template)}
+            >
+              {template.title}
+            </button>
+          ))}
+        </div>
+        <small>Pick one habit template, then adjust the proof or note if the lesson needs it.</small>
+      </div>
       <div className={styles.coachAssignmentBuilderGrid}>
         <label>
           <span>Card</span>
@@ -5736,6 +5820,11 @@ function uniqueCoachChallenges(challenges: LevelUpCoachChallenge[]) {
     seen.add(challenge.assignment.id)
     return true
   })
+}
+
+function getCoachTemplateCards() {
+  const templateCardIds = new Set(coachAssignmentTemplates.map((template) => template.cardId))
+  return LEVEL_UP_CARDS.filter((card) => templateCardIds.has(card.id))
 }
 
 function uniqueModules(modules: Array<LevelUpModule | undefined>) {
