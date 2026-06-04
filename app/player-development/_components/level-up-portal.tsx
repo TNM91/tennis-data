@@ -2611,12 +2611,13 @@ function LevelUpCardTile({
         <div className={styles.levelUpActivityMode} aria-label={`Active drill mode for ${card.title}`} data-focus-state={activeFocusState}>
           <div className={styles.levelUpActivityHeader}>
             <span>Active drill</span>
-            <strong>Do this now. Log one honest score.</strong>
+            <strong>{card.title}</strong>
+            <small>{card.cue}</small>
             <button type="button" onClick={() => {
               setActivityOpen(false)
               onActivityChange?.(null)
             }}>
-              Collapse
+              Exit
             </button>
           </div>
           <div className={styles.levelUpActivityFocusBar} aria-label={`Current work state for ${card.title}`}>
@@ -2625,7 +2626,13 @@ function LevelUpCardTile({
               <strong>Round {roundNumber}: {formatTimer(elapsedSeconds)} - {cleanRepCount}/{cleanRepTarget} clean</strong>
               <small>{variantPlan.label} - {card.proof}</small>
             </div>
-            <button type="button" onClick={openLogger}>{savedRating === null ? 'Score' : 'Review'}</button>
+            <div className={styles.levelUpActiveQuickActions} aria-label={`Quick active controls for ${card.title}`}>
+              <button type="button" onClick={() => setTimerRunning((running) => !running)}>
+                {timerRunning ? 'Pause' : elapsedSeconds > 0 ? 'Resume' : 'Start'}
+              </button>
+              <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1</button>
+              <button type="button" onClick={openLogger}>{savedRating === null ? 'Score' : 'Review'}</button>
+            </div>
           </div>
           {activeVariant !== 'base' ? (
             <div className={styles.levelUpAdaptiveVariant} aria-label={`Adaptive drill adjustment for ${card.title}`}>

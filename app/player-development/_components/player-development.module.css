@@ -4156,7 +4156,7 @@
   display: none;
 }
 
-.levelUpCardTileActive > div:first-child p,
+.levelUpCardTileActive > div:first-child,
 .levelUpCardTileActive > .levelUpCardMeta {
   display: none;
 }
@@ -4206,6 +4206,13 @@
   color: var(--foreground-strong);
   font-size: 1rem;
   line-height: 1.2;
+}
+
+.levelUpActivityHeader small {
+  grid-column: 1;
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.25;
 }
 
 .levelUpActivityHeader button {
@@ -4261,15 +4268,34 @@
   line-height: 1.25;
 }
 
-.levelUpActivityFocusBar button {
+.levelUpActiveQuickActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(42px, 1fr));
+  gap: 6px;
+}
+
+.levelUpActivityFocusBar button,
+.levelUpActiveQuickActions button {
   min-height: 42px;
   cursor: pointer;
   border: 1px solid rgba(155, 225, 29, 0.48);
   border-radius: 999px;
   background: var(--brand-green-2);
   color: #061221;
-  padding: 8px 14px;
+  padding: 8px 10px;
   font-weight: 950;
+}
+
+.levelUpActiveQuickActions button:nth-child(2) {
+  border-color: rgba(116, 190, 255, 0.34);
+  background: rgba(116, 190, 255, 0.16);
+  color: var(--foreground-strong);
+}
+
+.levelUpActiveQuickActions button:last-child {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--foreground-strong);
 }
 
 .levelUpActivityCommand {
@@ -10761,6 +10787,13 @@
   }
 
   .levelUpActivityHeader strong {
+    overflow: hidden;
+    font-size: 0.96rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .levelUpActivityHeader small {
     display: none;
   }
 
@@ -10772,7 +10805,7 @@
 
   .levelUpActivityFocusBar {
     top: 6px;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 1fr;
     padding: 9px;
   }
 
@@ -10782,6 +10815,15 @@
 
   .levelUpActivityFocusBar small {
     display: none;
+  }
+
+  .levelUpActiveQuickActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .levelUpActiveQuickActions button {
+    min-height: 44px;
+    padding-inline: 8px;
   }
 
   .levelUpActivityCommand,

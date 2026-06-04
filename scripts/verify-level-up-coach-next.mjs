@@ -75,7 +75,7 @@ try {
     throw new Error(`Expected post-proof next card handoff. Saw:\n${bodyText}`)
   }
 
-  await page.getByRole('button', { name: /Collapse/i }).first().click()
+  await page.getByRole('button', { name: /Exit/i }).first().click()
   await page.locator('button').filter({ hasText: /^Ready/ }).first().click()
   const collapsedText = await page.locator('body').innerText()
   if (!collapsedText.includes('Assign suggested next')) {
@@ -93,7 +93,14 @@ try {
   }
   await page.getByRole('button', { name: /Start suggested challenge/i }).first().click()
   const startedSuggestedText = await page.locator('body').innerText()
-  if (!startedSuggestedText.includes('ON-COURT MODE') || !startedSuggestedText.includes('Return 30-30 Game')) {
+  if (
+    !startedSuggestedText.includes('ON-COURT MODE')
+    || !startedSuggestedText.includes('Return 30-30 Game')
+    || !startedSuggestedText.includes('ACTIVE DRILL')
+    || !startedSuggestedText.includes('Start')
+    || !startedSuggestedText.includes('+1')
+    || !startedSuggestedText.includes('Exit')
+  ) {
     throw new Error(`Expected suggested assignment to open on-court mode. Saw:\n${startedSuggestedText}`)
   }
 
