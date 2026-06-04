@@ -3172,6 +3172,10 @@ function LevelUpCardTile({
                       <b>Proof</b>
                       {savedNextCardPlan.proofTarget}
                     </span>
+                    <span>
+                      <b>First rep</b>
+                      {savedNextCardPlan.firstRep}
+                    </span>
                   </div>
                   <button type="button" data-finish-next-card="true" onClick={startPostProofNextCard}>{savedNextCardPlan.actionLabel}</button>
                 </div>
@@ -5809,6 +5813,7 @@ function getPostProofNextCardPlan(
       detail: `Scale down this same card. Use: ${card.regression ?? getScaleDownSetup(card)}`,
       reason: 'The proof was not stable yet, so the next rep should get easier before it gets faster.',
       proofTarget: card.proof,
+      firstRep: getPostProofFirstRep(card, 'scale-down'),
       actionLabel: 'Scale this card',
     }
   }
@@ -5819,6 +5824,7 @@ function getPostProofNextCardPlan(
       detail: `Repeat the same card and protect this cue: ${card.cue}`,
       reason: 'The habit is showing up, but it needs one cleaner round before adding pressure.',
       proofTarget: card.proof,
+      firstRep: getPostProofFirstRep(card, 'repeat-clean'),
       actionLabel: 'Repeat this card',
     }
   }
@@ -5833,8 +5839,18 @@ function getPostProofNextCardPlan(
       ? 'The proof is repeatable enough to add one pressure layer.'
       : 'The proof was strong enough to connect this habit to the next tennis job.',
     proofTarget: nextCard.proof,
+    firstRep: getPostProofFirstRep(nextCard, nextCard.id === card.id ? 'add-pressure' : 'next-card'),
     actionLabel: nextCard.id === card.id ? 'Add pressure here' : 'Start next card',
   }
+}
+
+function getPostProofFirstRep(card: LevelUpCard, mode: 'scale-down' | 'repeat-clean' | 'add-pressure' | 'next-card') {
+  const firstStep = card.routine[0]?.replace(/[.?!]+$/, '') || card.cue
+
+  if (mode === 'scale-down') return `Slow version: ${firstStep}.`
+  if (mode === 'repeat-clean') return `Same setup: ${firstStep}.`
+  if (mode === 'add-pressure') return `Pressure version: ${firstStep}.`
+  return `Start here: ${firstStep}.`
 }
 
 function buildAdaptiveCardReason(nextBestRep: NextBestRep) {
