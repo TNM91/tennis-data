@@ -5574,6 +5574,36 @@
   line-height: 1.3;
 }
 
+.levelUpFinishNextReason {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.levelUpFinishNextReason span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 9px;
+  background: rgba(5, 15, 30, 0.3);
+  color: var(--muted-strong);
+  padding: 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.25;
+  text-transform: none;
+}
+
+.levelUpFinishNextReason b {
+  color: var(--brand-green-3);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .levelUpFinishChoices {
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(3, auto);
@@ -12133,6 +12163,10 @@
   }
 
   .levelUpFinishChoices {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpFinishNextReason {
     grid-template-columns: 1fr;
   }
 

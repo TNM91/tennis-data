@@ -3163,6 +3163,16 @@ function LevelUpCardTile({
                   <span>Suggested next</span>
                   <strong>{savedNextCardPlan.card.title}</strong>
                   <small>{savedNextCardPlan.detail}</small>
+                  <div className={styles.levelUpFinishNextReason} aria-label={`Why ${savedNextCardPlan.card.title} is next`}>
+                    <span>
+                      <b>Why</b>
+                      {savedNextCardPlan.reason}
+                    </span>
+                    <span>
+                      <b>Proof</b>
+                      {savedNextCardPlan.proofTarget}
+                    </span>
+                  </div>
                   <button type="button" data-finish-next-card="true" onClick={startPostProofNextCard}>{savedNextCardPlan.actionLabel}</button>
                 </div>
               ) : null}
@@ -5797,6 +5807,8 @@ function getPostProofNextCardPlan(
     return {
       card,
       detail: `Scale down this same card. Use: ${card.regression ?? getScaleDownSetup(card)}`,
+      reason: 'The proof was not stable yet, so the next rep should get easier before it gets faster.',
+      proofTarget: card.proof,
       actionLabel: 'Scale this card',
     }
   }
@@ -5805,6 +5817,8 @@ function getPostProofNextCardPlan(
     return {
       card,
       detail: `Repeat the same card and protect this cue: ${card.cue}`,
+      reason: 'The habit is showing up, but it needs one cleaner round before adding pressure.',
+      proofTarget: card.proof,
       actionLabel: 'Repeat this card',
     }
   }
@@ -5815,6 +5829,10 @@ function getPostProofNextCardPlan(
     detail: nextCard.id === card.id
       ? card.progression ?? `Add one pressure layer while keeping this cue: ${card.cue}`
       : `You proved ${card.title}. Connect it to ${nextCard.title}.`,
+    reason: nextCard.id === card.id
+      ? 'The proof is repeatable enough to add one pressure layer.'
+      : 'The proof was strong enough to connect this habit to the next tennis job.',
+    proofTarget: nextCard.proof,
     actionLabel: nextCard.id === card.id ? 'Add pressure here' : 'Start next card',
   }
 }
