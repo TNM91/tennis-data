@@ -2497,6 +2497,7 @@ function LevelUpCardTile({
   const [roundNumber, setRoundNumber] = useState(1)
   const [completedRoundCount, setCompletedRoundCount] = useState(0)
   const [bankedCleanRepCount, setBankedCleanRepCount] = useState(0)
+  const [sessionGoal, setSessionGoal] = useState('')
   const [activeVariant, setActiveVariant] = useState<ActiveDrillVariant>('base')
   const [repeatPlan, setRepeatPlan] = useState<{ title: string; detail: string } | null>(null)
   const [finishRecap, setFinishRecap] = useState<{ title: string; detail: string; proof: string } | null>(null)
@@ -2515,6 +2516,8 @@ function LevelUpCardTile({
   const trainingOptions = getCardTrainingOptions(card)
   const nextPractice = getCardNextPractice(card, shownSavedRating)
   const sessionStandard = getCardSessionStandard(card)
+  const sessionGoalOptions = getSessionGoalOptions(card)
+  const activeSessionGoal = sessionGoal || sessionGoalOptions[0]
   const proofAnchors = getCardProofAnchors(card)
   const activeQualityChecks = getCardQualityChecks(card).slice(0, 3)
   const activeWatchCue = activeQualityChecks[cleanRepCount % activeQualityChecks.length] ?? card.cue
@@ -2544,6 +2547,7 @@ function LevelUpCardTile({
     completedRoundCount,
     totalCleanRepCount,
     missedRepCount,
+    sessionGoal: activeSessionGoal,
   })
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
   const savedScoreDecision = savedRating === null ? null : getScoreDecision(card, savedRating)
@@ -2553,12 +2557,22 @@ function LevelUpCardTile({
   const savedProofSnapshot = savedRating === null ? null : buildProofSnapshot({
     card,
     rating: savedRating,
+    sessionGoal: activeSessionGoal,
     cleanRepCount,
     cleanRepTarget,
     completedRoundCount,
     totalCleanRepCount,
     missedRepCount,
     elapsedSeconds,
+  })
+  const savedSessionRecap = savedRating === null ? null : buildSavedSessionRecap({
+    card,
+    rating: savedRating,
+    sessionGoal: activeSessionGoal,
+    elapsedSeconds,
+    completedRoundCount,
+    totalCleanRepCount,
+    missedRepCount,
   })
   const activeFocusState = savedRating !== null ? 'saved' : loggerOpen ? 'scoring' : timerRunning ? 'running' : elapsedSeconds > 0 || cleanRepCount > 0 || missedRepCount > 0 ? 'working' : 'ready'
   const activeFocusLabel = getActiveFocusLabel(activeFocusState)
@@ -2574,6 +2588,7 @@ function LevelUpCardTile({
       missedRepCount,
       elapsedSeconds,
       nextAction: savedProofAction.title,
+      sessionGoal: activeSessionGoal,
     })
     : ''
   const coachAssignedLabel = coachAssignment ? getCoachAssignmentCardLabel(coachAssignment, card) : null
@@ -2606,6 +2621,7 @@ function LevelUpCardTile({
     setActiveVariant('base')
     setRepeatPlan(null)
     setFinishRecap(null)
+    if (!sessionGoal) setSessionGoal(sessionGoalOptions[0])
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
@@ -2675,6 +2691,9 @@ function LevelUpCardTile({
         rating: savedRating,
         completedRoundCount,
         totalCleanRepCount,
+        missedRepCount,
+        elapsedSeconds,
+        sessionGoal: activeSessionGoal,
       }))
     }
     window.requestAnimationFrame(() => {
@@ -2693,6 +2712,9 @@ function LevelUpCardTile({
         rating: savedRating,
         completedRoundCount,
         totalCleanRepCount,
+        missedRepCount,
+        elapsedSeconds,
+        sessionGoal: activeSessionGoal,
       }))
     }
     window.requestAnimationFrame(() => {
@@ -2794,6 +2816,17 @@ function LevelUpCardTile({
               <small>{repeatPlan.detail}</small>
             </div>
           ) : null}
+          <div className={styles.levelUpSessionGoal} aria-label={`Session goal for ${card.title}`}>
+            <span>Today&apos;s proof goal</span>
+            <strong>{activeSessionGoal}</strong>
+            <div>
+              {sessionGoalOptions.map((goal) => (
+                <button key={goal} type="button" data-active={activeSessionGoal === goal ? 'true' : 'false'} onClick={() => setSessionGoal(goal)}>
+                  {goal}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className={styles.levelUpActiveWatchCue} aria-label={`Watch this rep for ${card.title}`}>
             <span>Watch this rep</span>
             <strong>{activeWatchCue}</strong>
@@ -3013,6 +3046,7 @@ function LevelUpCardTile({
               <strong>{finishRecap.title}</strong>
               <small>{finishRecap.detail}</small>
               <em>{finishRecap.proof}</em>
+              <p>{savedCoachUpdate}</p>
               <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy recap', 'Recap copied')}</button>
               <button type="button" onClick={repeatActivity}>Run again</button>
               <button type="button" data-next-card="true" onClick={pickNextCard}>Pick next card</button>
@@ -3211,6 +3245,14 @@ function LevelUpCardTile({
                 {coachUpdateCopyStatus === 'copied' ? 'Copied' : coachUpdateCopyStatus === 'blocked' ? 'Manual copy' : 'Ready'}
               </span>
             </div>
+            {savedSessionRecap ? (
+              <div className={styles.levelUpSavedSessionRecap} aria-label={`Saved session recap for ${card.title}`}>
+                <span>Session recap</span>
+                <strong>{savedSessionRecap.headline}</strong>
+                <small>{savedSessionRecap.detail}</small>
+                <em>{savedSessionRecap.next}</em>
+              </div>
+            ) : null}
             {savedCoachRecommendedNext ? (
               <div className={styles.levelUpCoachRecommendedNext} aria-label={`Coach recommended next for ${card.title}`}>
                 <span>Coach Recommended Next</span>
@@ -3236,6 +3278,10 @@ function LevelUpCardTile({
             {savedProofSnapshot ? (
               <div className={styles.levelUpProofSnapshot} aria-label={`Proof snapshot for ${card.title}`}>
                 <span>Proof snapshot</span>
+                <div>
+                  <b>Goal</b>
+                  <strong>{savedProofSnapshot.goal}</strong>
+                </div>
                 <div>
                   <b>Score</b>
                   <strong>{savedProofSnapshot.score}</strong>
@@ -3741,21 +3787,29 @@ function buildFinishRecap({
   rating,
   completedRoundCount,
   totalCleanRepCount,
+  missedRepCount,
+  elapsedSeconds,
+  sessionGoal,
 }: {
   card: LevelUpCard
   rating: number
   completedRoundCount: number
   totalCleanRepCount: number
+  missedRepCount: number
+  elapsedSeconds: number
+  sessionGoal: string
 }) {
   const proofName = card.proof.replace(' 0-5', '')
-  const proof = totalCleanRepCount > 0
-    ? `${rating}/5 ${proofName} - ${totalCleanRepCount} clean reps${completedRoundCount > 0 ? ` across ${completedRoundCount + 1} rounds` : ''}`
+  const missedLine = missedRepCount > 0 ? `, ${missedRepCount} missed` : ''
+  const roundLine = completedRoundCount > 0 ? ` across ${completedRoundCount + 1} rounds` : ''
+  const proof = totalCleanRepCount > 0 || missedRepCount > 0 || elapsedSeconds > 0
+    ? `${rating}/5 ${proofName} - ${totalCleanRepCount} clean reps${missedLine}${roundLine} in ${formatTimer(elapsedSeconds)}`
     : `${rating}/5 ${proofName}`
 
   if (rating <= 1) {
     return {
       title: 'Next time: shrink it.',
-      detail: card.regression ?? 'Make the setup easier and chase one clean cue before adding more.',
+      detail: `Goal was ${sessionGoal}. ${card.regression ?? 'Make the setup easier and chase one clean cue before adding more.'}`,
       proof,
     }
   }
@@ -3763,16 +3817,95 @@ function buildFinishRecap({
   if (rating <= 3) {
     return {
       title: 'Next time: repeat clean.',
-      detail: `Start with the same cue: ${card.cue}`,
+      detail: `Goal was ${sessionGoal}. Start with the same cue: ${card.cue}`,
       proof,
     }
   }
 
   return {
     title: 'Next time: level up one piece.',
-    detail: card.progression ?? 'Add one small challenge while keeping the same proof score honest.',
+    detail: `Goal was ${sessionGoal}. ${card.progression ?? 'Add one small challenge while keeping the same proof score honest.'}`,
     proof,
   }
+}
+
+function buildSavedSessionRecap({
+  card,
+  rating,
+  sessionGoal,
+  elapsedSeconds,
+  completedRoundCount,
+  totalCleanRepCount,
+  missedRepCount,
+}: {
+  card: LevelUpCard
+  rating: number
+  sessionGoal: string
+  elapsedSeconds: number
+  completedRoundCount: number
+  totalCleanRepCount: number
+  missedRepCount: number
+}) {
+  const proofName = card.proof.replace(' 0-5', '').toLowerCase()
+  const roundLine = completedRoundCount > 0 ? ` across ${completedRoundCount + 1} rounds` : ''
+  const missedLine = missedRepCount > 0 ? ` with ${missedRepCount} misses logged` : ''
+  const next = getSavedSessionNextAction(card, rating)
+
+  return {
+    headline: `You trained ${sessionGoal.toLowerCase()} for ${formatTimer(elapsedSeconds)}.`,
+    detail: `${totalCleanRepCount} clean reps${missedLine}${roundLine}. Proof: ${rating}/5 ${proofName}.`,
+    next,
+  }
+}
+
+function getSavedSessionNextAction(card: LevelUpCard, rating: number) {
+  if (rating <= 1) return `Next: scale down. ${getScaleDownSetup(card)}`
+  if (rating <= 3) return `Next: repeat clean. Keep ${card.cue}`
+  return `Next: add one pressure layer. ${getPressureLayerSetup(card)}`
+}
+
+function getSessionGoalOptions(card: LevelUpCard) {
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target')) {
+    return ['Serve target clarity', 'Same routine after misses', 'Calm first ball']
+  }
+
+  if (card.tags.includes('serve-plus-one')) {
+    return ['Serve plus-one clarity', 'First ball decision', 'Pattern under pressure']
+  }
+
+  if (card.tags.includes('return-intent') || card.tags.includes('return-recovery')) {
+    return ['Earlier return decision', 'Recover after contact', 'Return with a job']
+  }
+
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return ['Cleaner recovery', 'Recover before watching', 'Ready spot after contact']
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return ['Defense back to neutral', 'Higher safer shape', 'Balanced recovery']
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return ['Attack with balance', 'Controlled close', 'Ready after the attack']
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return ['Earlier partner call', 'First move clarity', 'Doubles reset after confusion']
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return ['Reset before next point', 'Calmer pressure response', 'One clear intention']
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return ['Better posture late', 'Legs under fatigue', 'Control before speed']
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return ['Move better after play', 'Controlled range', 'Ready body reset']
+  }
+
+  return ['Cleaner habit', 'Better decision quality', 'Repeatable proof']
 }
 
 function getProofTrendLabel(summary: CompletionSummary) {
@@ -8505,6 +8638,7 @@ function getActivityProofNote({
   elapsedSeconds,
   totalCleanRepCount,
   missedRepCount,
+  sessionGoal,
 }: {
   cleanRepCount: number
   cleanRepTarget: number
@@ -8512,11 +8646,12 @@ function getActivityProofNote({
   completedRoundCount: number
   totalCleanRepCount: number
   missedRepCount: number
+  sessionGoal: string
 }) {
   if (totalCleanRepCount === 0 && missedRepCount === 0 && elapsedSeconds === 0) return ''
   const roundLine = completedRoundCount > 0 ? ` across ${completedRoundCount + 1} rounds` : ''
   const missedLine = missedRepCount > 0 ? `, ${missedRepCount} missed reps` : ''
-  return `Activity: ${totalCleanRepCount} total clean reps${roundLine}${missedLine} in ${formatTimer(elapsedSeconds)}.`
+  return `Goal: ${sessionGoal}. Activity: ${totalCleanRepCount} total clean reps${roundLine}${missedLine} in ${formatTimer(elapsedSeconds)}.`
 }
 
 function getSavedProofAction(card: LevelUpCard, rating: number) {
@@ -8693,6 +8828,7 @@ function getPressureLayerSetup(card: LevelUpCard) {
 function buildProofSnapshot({
   card,
   rating,
+  sessionGoal,
   cleanRepCount,
   cleanRepTarget,
   completedRoundCount,
@@ -8702,6 +8838,7 @@ function buildProofSnapshot({
 }: {
   card: LevelUpCard
   rating: number
+  sessionGoal: string
   cleanRepCount: number
   cleanRepTarget: number
   completedRoundCount: number
@@ -8719,6 +8856,7 @@ function buildProofSnapshot({
 
   return {
     score: `${rating}/5 ${proofName}`,
+    goal: sessionGoal,
     repSignal,
     coachAsk: getProofSnapshotCoachAsk(card, rating),
   }
@@ -8749,6 +8887,7 @@ function buildCoachUpdate({
   nextAction,
   totalCleanRepCount,
   missedRepCount,
+  sessionGoal,
 }: {
   card: LevelUpCard
   rating: number
@@ -8760,12 +8899,13 @@ function buildCoachUpdate({
   nextAction: string
   totalCleanRepCount: number
   missedRepCount: number
+  sessionGoal: string
 }) {
   const noteLine = note ? ` Note: ${note}` : ''
   const roundLine = completedRoundCount > 0 ? `, ${completedRoundCount + 1} rounds` : ''
   const currentRoundLine = completedRoundCount > 0 ? ` (${cleanRepCount}/${cleanRepTarget} current round)` : ''
   const missedLine = missedRepCount > 0 ? `, ${missedRepCount} missed` : ''
-  return `${card.title}: proof ${rating}/5, ${totalCleanRepCount} total clean reps${missedLine}${roundLine}${currentRoundLine}, ${formatTimer(elapsedSeconds)}. Next: ${nextAction}${noteLine}`
+  return `${card.title}: goal ${sessionGoal}; proof ${rating}/5, ${totalCleanRepCount} total clean reps${missedLine}${roundLine}${currentRoundLine}, ${formatTimer(elapsedSeconds)}. Next: ${nextAction}${noteLine}`
 }
 
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {
