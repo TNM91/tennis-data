@@ -3158,9 +3158,12 @@ function LevelUpCardTile({
               <small>{finishRecap.detail}</small>
               <em>{finishRecap.proof}</em>
               <p>{savedCoachUpdate}</p>
-              <button type="button" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy recap', 'Recap copied')}</button>
-              <button type="button" onClick={repeatActivity}>Run again</button>
-              <button type="button" data-next-card="true" onClick={pickNextCard}>Pick next card</button>
+              <div className={styles.levelUpFinishChoices} aria-label={`Finish choices for ${card.title}`}>
+                <span>Finish choices</span>
+                <button type="button" data-finish-copy="true" onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy update', 'Update copied')}</button>
+                <button type="button" data-finish-repeat="true" onClick={repeatActivity}>Repeat later</button>
+                <button type="button" data-next-card="true" onClick={pickNextCard}>Pick next</button>
+              </div>
               {coachUpdateCopyStatus === 'blocked' ? (
                 <textarea
                   className={styles.levelUpCopyFallback}

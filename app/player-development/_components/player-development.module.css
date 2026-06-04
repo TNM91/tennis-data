@@ -5543,6 +5543,21 @@
   line-height: 1.35;
 }
 
+.levelUpFinishChoices {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+  gap: 6px;
+  align-items: center;
+}
+
+.levelUpFinishChoices span {
+  color: var(--muted-strong);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .levelUpFinishRecap button {
   width: fit-content;
   min-height: 34px;
@@ -5553,6 +5568,11 @@
   color: var(--foreground-strong);
   padding: 6px 11px;
   font-weight: 950;
+}
+
+.levelUpFinishChoices button[data-finish-copy='true'] {
+  border-color: rgba(155, 225, 29, 0.52);
+  background: rgba(155, 225, 29, 0.18);
 }
 
 .levelUpFinishRecap button + button {
@@ -12079,6 +12099,14 @@
   .levelUpSavedActionStrip,
   .levelUpCoachNextRecipe {
     grid-template-columns: 1fr;
+  }
+
+  .levelUpFinishChoices {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpFinishChoices button {
+    width: 100%;
   }
 
   .levelUpCardActions[data-proof-saved='true'] {
