@@ -5044,6 +5044,30 @@
   line-height: 1.32;
 }
 
+.levelUpActiveDecisionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.levelUpActiveDecisionActions button {
+  min-height: 36px;
+  cursor: pointer;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--foreground-strong);
+  padding: 7px 10px;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.levelUpActiveDecisionActions button:first-child {
+  border-color: rgba(155, 225, 29, 0.48);
+  background: rgba(155, 225, 29, 0.15);
+  color: var(--brand-green-3);
+}
+
 .levelUpActivityTimer span,
 .levelUpActivityRepCounter span {
   color: var(--brand-green-3);

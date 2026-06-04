@@ -2693,6 +2693,15 @@ function LevelUpCardTile({
     })
   }
 
+  function resetDecisionRound() {
+    setCleanRepCount(0)
+    setMissedRepCount(0)
+    setRoundNumber((round) => round + 1)
+    window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
   function finishActivity() {
     setTimerRunning(false)
     setLoggerOpen(false)
@@ -2994,6 +3003,13 @@ function LevelUpCardTile({
               <span>Score decision</span>
               <strong>{suggestedRating}/5 suggested - {activeScoreDecision.title}</strong>
               <small>{activeScoreDecision.detail}</small>
+              <div className={styles.levelUpActiveDecisionActions}>
+                <button type="button" onClick={openLogger}>Score proof</button>
+                <button type="button" onClick={resetDecisionRound}>Repeat round</button>
+                {missedRepCount > 0 ? (
+                  <button type="button" onClick={() => setMissedRepCount((count) => Math.max(count - 1, 0))}>Clear miss</button>
+                ) : null}
+              </div>
             </div>
           ) : null}
           <div className={styles.levelUpActivityActions}>
