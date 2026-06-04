@@ -756,6 +756,7 @@ describe('Level Up page', () => {
     expect(playerDevelopmentPortalSource).toContain("data-proof-saved={savedRating !== null ? 'true' : 'false'}")
     expect(playerDevelopmentPortalSource).toContain('data-level-up-repeat-action="true"')
     expect(playerDevelopmentPortalSource).toContain('data-level-up-pick-next-action="true"')
+    expect(playerDevelopmentPortalSource).toContain('data-level-up-finish-action="true"')
     expect(playerDevelopmentPortalSource).toContain('loggerOpen')
     expect(playerDevelopmentPortalSource).toContain('activityOpen')
     expect(playerDevelopmentPortalSource).toContain('startActivity')

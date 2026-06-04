@@ -3533,7 +3533,7 @@ function LevelUpCardTile({
             <button type="button" className="button-primary" data-level-up-repeat-action="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(card, savedRating)}</button>
             <button type="button" className={styles.scoreButton} data-level-up-pick-next-action="true" onClick={finishAndPickNext}>Pick next</button>
             <button type="button" className={styles.scoreButton} onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy update', 'Update copied')}</button>
-            <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
+            <button type="button" className={styles.scoreButton} data-level-up-finish-action="true" onClick={finishActivity}>Finish</button>
           </>
         )}
       </div>
