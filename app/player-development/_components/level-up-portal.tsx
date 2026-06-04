@@ -2862,7 +2862,10 @@ function LevelUpCardTile({
               <div className={styles.levelUpActivityRepActions}>
                 <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1 clean</button>
                 <button type="button" onClick={() => setMissedRepCount((count) => count + 1)}>Missed it</button>
-                <button type="button" onClick={() => setCleanRepCount((count) => Math.max(count - 1, 0))}>Undo</button>
+                <button type="button" onClick={() => setCleanRepCount((count) => Math.max(count - 1, 0))}>Undo clean</button>
+                {missedRepCount > 0 ? (
+                  <button type="button" onClick={() => setMissedRepCount((count) => Math.max(count - 1, 0))}>Undo miss</button>
+                ) : null}
                 <button type="button" onClick={() => {
                   setCleanRepCount(0)
                   setMissedRepCount(0)
