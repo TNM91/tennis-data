@@ -2507,6 +2507,7 @@ function LevelUpCardTile({
   const repFeedback = getCardRepFeedback(card, rating)
   const coachableNote = getCoachableNotePrompt(card, rating)
   const commonMiss = getCardCommonMiss(card)
+  const missedRepPattern = getMissedRepPattern(card, commonMiss, missedRepCount)
   const doseGuide = getCardDoseGuide(card)
   const transferGuide = getCardTransferGuide(card)
   const coachLens = getCardCoachLens(card)
@@ -2850,7 +2851,9 @@ function LevelUpCardTile({
               {missedRepCount > 0 ? (
                 <div className={styles.levelUpMissedRepCue} aria-label={`Missed rep cue for ${card.title}`}>
                   <span>{missedRepCount} missed</span>
-                  <strong>{commonMiss.fix}</strong>
+                  <strong>{missedRepPattern.title}</strong>
+                  <small>{missedRepPattern.detail}</small>
+                  <em>{missedRepPattern.cleanRepStandard}</em>
                 </div>
               ) : null}
               <div className={styles.levelUpActivityTimerTrack} aria-hidden="true">
@@ -7592,6 +7595,89 @@ function getCardCommonMiss(card: LevelUpCard) {
     miss: 'The rep gets completed, but the tennis habit is not obvious.',
     fix: 'Restart with one cue and count only reps that match the proof.',
   }
+}
+
+function getMissedRepPattern(card: LevelUpCard, commonMiss: { miss: string; fix: string }, missedRepCount: number) {
+  const missCountLabel = missedRepCount === 1 ? '1 miss logged' : `${missedRepCount} misses logged`
+  const base = {
+    title: `${missCountLabel}: fix the habit before adding reps.`,
+    detail: `${commonMiss.miss} ${commonMiss.fix}`,
+    cleanRepStandard: 'Next clean rep: one obvious cue, one balanced finish.',
+  }
+
+  if (card.tags.includes('recovery-after-contact') || card.tags.includes('recover-before-watching')) {
+    return {
+      title: `${missCountLabel}: you may be watching before recovering.`,
+      detail: commonMiss.fix,
+      cleanRepStandard: 'Next clean rep: finish, recover to ready, then look.',
+    }
+  }
+
+  if (card.tags.includes('serve-routine') || card.tags.includes('serve-target') || card.tags.includes('serve-plus-one')) {
+    return {
+      title: `${missCountLabel}: restart the serve plan.`,
+      detail: commonMiss.fix,
+      cleanRepStandard: 'Next clean rep: target called before toss, same breath after contact.',
+    }
+  }
+
+  if (card.tags.includes('return-intent') || card.tags.includes('return-recovery')) {
+    return {
+      title: `${missCountLabel}: choose before the toss.`,
+      detail: commonMiss.fix,
+      cleanRepStandard: 'Next clean rep: return job named early and recovery started after contact.',
+    }
+  }
+
+  if (card.tags.includes('defense-to-neutral') || card.tags.includes('wide-ball-reset')) {
+    return {
+      title: `${missCountLabel}: neutral is the win here.`,
+      detail: commonMiss.fix,
+      cleanRepStandard: 'Next clean rep: height or shape buys time, then recover balanced.',
+    }
+  }
+
+  if (card.tags.includes('attack-balance') || card.tags.includes('forward-close')) {
+    return {
+      title: `${missCountLabel}: slow the close before speeding up.`,
+      detail: commonMiss.fix,
+      cleanRepStandard: 'Next clean rep: close under control and finish ready for the next ball.',
+    }
+  }
+
+  if (card.tags.includes('doubles-communication') || card.tags.includes('partner-first-move')) {
+    return {
+      title: `${missCountLabel}: make the call earlier.`,
+      detail: commonMiss.fix,
+      cleanRepStandard: 'Next clean rep: one clear call before your partner has to guess.',
+    }
+  }
+
+  if (card.tags.includes('pressure-reset') || card.tags.includes('between-points')) {
+    return {
+      title: `${missCountLabel}: reset before the next point starts.`,
+      detail: commonMiss.fix,
+      cleanRepStandard: 'Next clean rep: exhale, name the next intention, then step in.',
+    }
+  }
+
+  if (card.tags.includes('conditioning') || card.tags.includes('posture-under-fatigue')) {
+    return {
+      title: `${missCountLabel}: protect tennis posture.`,
+      detail: commonMiss.fix,
+      cleanRepStandard: 'Next clean rep: posture stays playable before more time or speed.',
+    }
+  }
+
+  if (card.tags.includes('mobility') || card.tags.includes('stretch') || card.tags.includes('recovery')) {
+    return {
+      title: `${missCountLabel}: control beats range.`,
+      detail: commonMiss.fix,
+      cleanRepStandard: 'Next clean rep: slow controlled range with no forced position.',
+    }
+  }
+
+  return base
 }
 
 function getCardDoseGuide(card: LevelUpCard) {

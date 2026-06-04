@@ -4932,6 +4932,22 @@
   line-height: 1.25;
 }
 
+.levelUpMissedRepCue small,
+.levelUpMissedRepCue em {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.levelUpMissedRepCue em {
+  border-top: 1px solid rgba(255, 210, 116, 0.16);
+  margin-top: 2px;
+  padding-top: 5px;
+  color: #f6d78a;
+  font-style: normal;
+  font-weight: 850;
+}
+
 .levelUpActivityTimerActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
