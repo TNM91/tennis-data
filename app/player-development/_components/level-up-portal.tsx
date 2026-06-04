@@ -2528,7 +2528,7 @@ function LevelUpCardTile({
   const roundCompletePrompt = getRoundCompletePrompt(card, cleanRepCount, cleanRepTarget)
   const roundResetCue = getRoundResetCue(card)
   const totalCleanRepCount = bankedCleanRepCount + cleanRepCount
-  const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds)
+  const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds, missedRepCount)
   const quickProofNotes = getQuickProofNotes({
     card,
     rating,
@@ -2542,6 +2542,7 @@ function LevelUpCardTile({
     elapsedSeconds,
     completedRoundCount,
     totalCleanRepCount,
+    missedRepCount,
   })
   const savedProofAction = savedRating === null ? null : getSavedProofAction(card, savedRating)
   const savedScoreDecision = savedRating === null ? null : getScoreDecision(card, savedRating)
@@ -2555,9 +2556,10 @@ function LevelUpCardTile({
     cleanRepTarget,
     completedRoundCount,
     totalCleanRepCount,
+    missedRepCount,
     elapsedSeconds,
   })
-  const activeFocusState = savedRating !== null ? 'saved' : loggerOpen ? 'scoring' : timerRunning ? 'running' : elapsedSeconds > 0 || cleanRepCount > 0 ? 'working' : 'ready'
+  const activeFocusState = savedRating !== null ? 'saved' : loggerOpen ? 'scoring' : timerRunning ? 'running' : elapsedSeconds > 0 || cleanRepCount > 0 || missedRepCount > 0 ? 'working' : 'ready'
   const activeFocusLabel = getActiveFocusLabel(activeFocusState)
   const savedCoachUpdate = savedProofAction && savedRating !== null
     ? buildCoachUpdate({
@@ -2568,6 +2570,7 @@ function LevelUpCardTile({
       cleanRepTarget,
       completedRoundCount,
       totalCleanRepCount,
+      missedRepCount,
       elapsedSeconds,
       nextAction: savedProofAction.title,
     })
@@ -3150,11 +3153,11 @@ function LevelUpCardTile({
             <small>{proofGuidance.detail}</small>
           </div>
         </div>
-        {cleanRepCount > 0 || elapsedSeconds > 0 ? (
+        {cleanRepCount > 0 || missedRepCount > 0 || elapsedSeconds > 0 ? (
           <div className={styles.levelUpActivityRecap}>
             <span>Activity recap</span>
-            <strong>{cleanRepCount}/{cleanRepTarget} clean reps - {formatTimer(elapsedSeconds)}</strong>
-            <small>Suggested proof: {suggestedRating}/5. Total clean reps: {totalCleanRepCount}. Edit the score if the habit felt different.</small>
+            <strong>{cleanRepCount}/{cleanRepTarget} clean reps - {missedRepCount} missed - {formatTimer(elapsedSeconds)}</strong>
+            <small>Suggested proof: {suggestedRating}/5. Total clean reps: {totalCleanRepCount}. Missed reps lower the suggestion only when they show the habit needs another cleaner round.</small>
           </div>
         ) : null}
         <details className={styles.levelUpTinyNoteDrawer}>
@@ -8396,13 +8399,15 @@ function getCleanRepTarget(card: LevelUpCard) {
   return 12
 }
 
-function getActivitySuggestedRating(cleanRepCount: number, cleanRepTarget: number, elapsedSeconds: number) {
+function getActivitySuggestedRating(cleanRepCount: number, cleanRepTarget: number, elapsedSeconds: number, missedRepCount = 0) {
   const repRatio = cleanRepCount / cleanRepTarget
-  if (repRatio >= 1) return 5
-  if (repRatio >= 0.75) return 4
-  if (repRatio >= 0.5) return 3
+  if (missedRepCount > cleanRepCount && cleanRepCount > 0) return 2
+  if (missedRepCount > 0 && repRatio < 0.75) return Math.max(1, cleanRepCount > 0 ? 2 : 1)
+  if (repRatio >= 1) return missedRepCount > 0 ? 4 : 5
+  if (repRatio >= 0.75) return missedRepCount > 0 ? 3 : 4
+  if (repRatio >= 0.5) return missedRepCount > 0 ? 2 : 3
   if (cleanRepCount > 0) return 2
-  if (elapsedSeconds > 0) return 1
+  if (elapsedSeconds > 0 || missedRepCount > 0) return 1
   return 3
 }
 
@@ -8410,16 +8415,19 @@ function getActivityProofNote({
   completedRoundCount,
   elapsedSeconds,
   totalCleanRepCount,
+  missedRepCount,
 }: {
   cleanRepCount: number
   cleanRepTarget: number
   elapsedSeconds: number
   completedRoundCount: number
   totalCleanRepCount: number
+  missedRepCount: number
 }) {
-  if (totalCleanRepCount === 0 && elapsedSeconds === 0) return ''
+  if (totalCleanRepCount === 0 && missedRepCount === 0 && elapsedSeconds === 0) return ''
   const roundLine = completedRoundCount > 0 ? ` across ${completedRoundCount + 1} rounds` : ''
-  return `Activity: ${totalCleanRepCount} total clean reps${roundLine} in ${formatTimer(elapsedSeconds)}.`
+  const missedLine = missedRepCount > 0 ? `, ${missedRepCount} missed reps` : ''
+  return `Activity: ${totalCleanRepCount} total clean reps${roundLine}${missedLine} in ${formatTimer(elapsedSeconds)}.`
 }
 
 function getSavedProofAction(card: LevelUpCard, rating: number) {
@@ -8601,6 +8609,7 @@ function buildProofSnapshot({
   completedRoundCount,
   elapsedSeconds,
   totalCleanRepCount,
+  missedRepCount,
 }: {
   card: LevelUpCard
   rating: number
@@ -8609,12 +8618,14 @@ function buildProofSnapshot({
   completedRoundCount: number
   elapsedSeconds: number
   totalCleanRepCount: number
+  missedRepCount: number
 }) {
   const proofName = card.proof.replace(' 0-5', '')
   const roundLine = completedRoundCount > 0 ? `${completedRoundCount + 1} rounds, ` : ''
   const currentRoundLine = completedRoundCount > 0 ? ` (${cleanRepCount}/${cleanRepTarget} current round)` : ''
-  const repSignal = totalCleanRepCount > 0 || elapsedSeconds > 0
-    ? `${roundLine}${totalCleanRepCount} total clean reps${currentRoundLine} in ${formatTimer(elapsedSeconds)}`
+  const missedLine = missedRepCount > 0 ? `, ${missedRepCount} missed` : ''
+  const repSignal = totalCleanRepCount > 0 || missedRepCount > 0 || elapsedSeconds > 0
+    ? `${roundLine}${totalCleanRepCount} total clean reps${missedLine}${currentRoundLine} in ${formatTimer(elapsedSeconds)}`
     : 'Score saved without timed reps'
 
   return {
@@ -8648,6 +8659,7 @@ function buildCoachUpdate({
   elapsedSeconds,
   nextAction,
   totalCleanRepCount,
+  missedRepCount,
 }: {
   card: LevelUpCard
   rating: number
@@ -8658,11 +8670,13 @@ function buildCoachUpdate({
   elapsedSeconds: number
   nextAction: string
   totalCleanRepCount: number
+  missedRepCount: number
 }) {
   const noteLine = note ? ` Note: ${note}` : ''
   const roundLine = completedRoundCount > 0 ? `, ${completedRoundCount + 1} rounds` : ''
   const currentRoundLine = completedRoundCount > 0 ? ` (${cleanRepCount}/${cleanRepTarget} current round)` : ''
-  return `${card.title}: proof ${rating}/5, ${totalCleanRepCount} total clean reps${roundLine}${currentRoundLine}, ${formatTimer(elapsedSeconds)}. Next: ${nextAction}${noteLine}`
+  const missedLine = missedRepCount > 0 ? `, ${missedRepCount} missed` : ''
+  return `${card.title}: proof ${rating}/5, ${totalCleanRepCount} total clean reps${missedLine}${roundLine}${currentRoundLine}, ${formatTimer(elapsedSeconds)}. Next: ${nextAction}${noteLine}`
 }
 
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {
