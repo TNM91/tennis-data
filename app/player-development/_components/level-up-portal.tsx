@@ -3098,6 +3098,20 @@ function LevelUpCardTile({
             <span>2-3: showing up</span>
             <span>4-5: repeatable</span>
           </div>
+          <div className={styles.levelUpLoggerAnchors} aria-label={`Score anchors for ${card.title}`}>
+            <span>
+              <b>0-1</b>
+              {proofAnchors.low}
+            </span>
+            <span>
+              <b>2-3</b>
+              {proofAnchors.mid}
+            </span>
+            <span>
+              <b>4-5</b>
+              {proofAnchors.high}
+            </span>
+          </div>
           <div className={styles.levelUpScoreButtons} aria-label={`Proof rating buttons for ${card.title}`}>
             {[0, 1, 2, 3, 4, 5].map((value) => (
               <button key={value} type="button" data-active={rating === value ? 'true' : 'false'} onClick={() => setRating(value)}>{value}</button>

@@ -5290,6 +5290,7 @@
 }
 
 .levelUpScorePad .levelUpProofScale,
+.levelUpScorePad .levelUpLoggerAnchors,
 .levelUpScorePad .levelUpScoreButtons,
 .levelUpScorePad .levelUpProofNextStep {
   grid-column: 1 / -1;
@@ -5312,6 +5313,36 @@
   font-size: 0.72rem;
   font-weight: 850;
   line-height: 1.22;
+}
+
+.levelUpLoggerAnchors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.levelUpLoggerAnchors span {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.16);
+  border-radius: 10px;
+  background: rgba(155, 225, 29, 0.055);
+  color: var(--foreground);
+  padding: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.24;
+}
+
+.levelUpLoggerAnchors b {
+  color: var(--brand-green-3);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .levelUpScoreButtons {
@@ -10903,7 +10934,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .levelUpProofScale {
+  .levelUpProofScale,
+  .levelUpLoggerAnchors {
     grid-template-columns: 1fr;
   }
 
