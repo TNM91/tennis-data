@@ -5044,6 +5044,19 @@
   line-height: 1.32;
 }
 
+.levelUpActiveScoreDecision em {
+  width: fit-content;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.08);
+  color: var(--brand-green-3);
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
 .levelUpActiveDecisionActions {
   display: flex;
   flex-wrap: wrap;

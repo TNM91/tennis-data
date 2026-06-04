@@ -2500,6 +2500,7 @@ function LevelUpCardTile({
   const [sessionGoal, setSessionGoal] = useState('')
   const [activeVariant, setActiveVariant] = useState<ActiveDrillVariant>('base')
   const [repeatPlan, setRepeatPlan] = useState<{ title: string; detail: string } | null>(null)
+  const [roundNotice, setRoundNotice] = useState<{ title: string; detail: string } | null>(null)
   const [finishRecap, setFinishRecap] = useState<{ title: string; detail: string; proof: string } | null>(null)
   const [coachUpdateCopyStatus, setCoachUpdateCopyStatus] = useState<'idle' | 'copied' | 'blocked'>('idle')
   const shownSavedRating = savedRating ?? completionSummary?.lastRating ?? null
@@ -2534,7 +2535,7 @@ function LevelUpCardTile({
   const totalCleanRepCount = bankedCleanRepCount + cleanRepCount
   const suggestedRating = getActivitySuggestedRating(cleanRepCount, cleanRepTarget, elapsedSeconds, missedRepCount)
   const activeScoreDecision = getScoreDecision(card, suggestedRating)
-  const hasActiveProofSignal = totalCleanRepCount > 0 || missedRepCount > 0 || elapsedSeconds > 0
+  const hasActiveProofSignal = totalCleanRepCount > 0 || missedRepCount > 0 || elapsedSeconds > 0 || Boolean(roundNotice)
   const quickProofNotes = getQuickProofNotes({
     card,
     rating,
@@ -2633,6 +2634,7 @@ function LevelUpCardTile({
     onActivityChange?.(card.title)
     setActiveVariant('base')
     setRepeatPlan(null)
+    setRoundNotice(null)
     setFinishRecap(null)
     if (!sessionGoal) setSessionGoal(sessionGoalOptions[0])
     window.requestAnimationFrame(() => {
@@ -2673,6 +2675,7 @@ function LevelUpCardTile({
     setSavedRating(null)
     setSavedProofNote('')
     setRepeatPlan(nextRepeatPlan)
+    setRoundNotice(null)
     setFinishRecap(null)
     setCoachUpdateCopyStatus('idle')
     setLoggerOpen(false)
@@ -2688,6 +2691,10 @@ function LevelUpCardTile({
     setCleanRepCount(0)
     setMissedRepCount(0)
     setRoundNumber((round) => round + 1)
+    setRoundNotice({
+      title: 'Round reset.',
+      detail: `Start the next round with this cue: ${card.cue}`,
+    })
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
@@ -2697,8 +2704,20 @@ function LevelUpCardTile({
     setCleanRepCount(0)
     setMissedRepCount(0)
     setRoundNumber((round) => round + 1)
+    setRoundNotice({
+      title: 'Clean round started.',
+      detail: `Watch one cue first: ${activeWatchCue}`,
+    })
     window.requestAnimationFrame(() => {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
+  function clearDecisionMiss() {
+    setMissedRepCount((count) => Math.max(count - 1, 0))
+    setRoundNotice({
+      title: 'Miss cleared.',
+      detail: missedRepPattern.cleanRepStandard,
     })
   }
 
@@ -3003,11 +3022,14 @@ function LevelUpCardTile({
               <span>Score decision</span>
               <strong>{suggestedRating}/5 suggested - {activeScoreDecision.title}</strong>
               <small>{activeScoreDecision.detail}</small>
+              {roundNotice ? (
+                <em>{roundNotice.title} {roundNotice.detail}</em>
+              ) : null}
               <div className={styles.levelUpActiveDecisionActions}>
                 <button type="button" onClick={openLogger}>Score proof</button>
                 <button type="button" onClick={resetDecisionRound}>Repeat round</button>
                 {missedRepCount > 0 ? (
-                  <button type="button" onClick={() => setMissedRepCount((count) => Math.max(count - 1, 0))}>Clear miss</button>
+                  <button type="button" onClick={clearDecisionMiss}>Clear miss</button>
                 ) : null}
               </div>
             </div>
