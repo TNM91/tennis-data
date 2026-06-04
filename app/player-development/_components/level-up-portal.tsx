@@ -2602,6 +2602,7 @@ function LevelUpCardTile({
       missedRepCount,
       elapsedSeconds,
       nextAction: savedProofAction.title,
+      nextFirstRep: savedNextCardPlan?.firstRep,
       sessionGoal: activeSessionGoal,
     })
     : ''
@@ -9089,6 +9090,7 @@ function buildCoachUpdate({
   completedRoundCount,
   elapsedSeconds,
   nextAction,
+  nextFirstRep,
   totalCleanRepCount,
   missedRepCount,
   sessionGoal,
@@ -9101,15 +9103,17 @@ function buildCoachUpdate({
   completedRoundCount: number
   elapsedSeconds: number
   nextAction: string
+  nextFirstRep?: string
   totalCleanRepCount: number
   missedRepCount: number
   sessionGoal: string
 }) {
   const noteLine = note ? ` Note: ${note}` : ''
+  const nextRepLine = nextFirstRep ? ` Coach next rep: ${nextFirstRep}` : ''
   const roundLine = completedRoundCount > 0 ? `, ${completedRoundCount + 1} rounds` : ''
   const currentRoundLine = completedRoundCount > 0 ? ` (${cleanRepCount}/${cleanRepTarget} current round)` : ''
   const missedLine = missedRepCount > 0 ? `, ${missedRepCount} missed` : ''
-  return `${card.title}: goal ${sessionGoal}; proof ${rating}/5, ${totalCleanRepCount} total clean reps${missedLine}${roundLine}${currentRoundLine}, ${formatTimer(elapsedSeconds)}. Next: ${nextAction}${noteLine}`
+  return `${card.title}: goal ${sessionGoal}; proof ${rating}/5, ${totalCleanRepCount} total clean reps${missedLine}${roundLine}${currentRoundLine}, ${formatTimer(elapsedSeconds)}. Next: ${nextAction}.${nextRepLine}${noteLine}`
 }
 
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {

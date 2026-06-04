@@ -1119,6 +1119,8 @@ describe('Level Up page', () => {
     expect(playerDevelopmentPortalSource).toContain('Coach update')
     expect(playerDevelopmentPortalSource).toContain('Copy coach update')
     expect(playerDevelopmentPortalSource).toContain('Coach update copied')
+    expect(playerDevelopmentPortalSource).toContain('nextFirstRep: savedNextCardPlan?.firstRep')
+    expect(playerDevelopmentPortalSource).toContain('Coach next rep:')
     expect(playerDevelopmentPortalSource).toContain('goal ${sessionGoal}; proof')
     expect(playerDevelopmentPortalSource).toContain('STORED_STATE_HYDRATION_DELAY_MS')
     expect(playerDevelopmentPortalSource).toContain('repeatActivity')
