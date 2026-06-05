@@ -90,6 +90,8 @@ describe('customer journey test results', () => {
     expect(packageSource).toContain('"qa:session-ledger": "node scripts/customer-journey-session-ledger.mjs"')
     expect(resultsDocSource).toContain('npm run qa:session-ledger')
     expect(sessionLedgerScriptSource).toContain('Usage: npm run qa:session-ledger -- <day1 | day2 | day3 | day4 | day5>')
+    expect(sessionLedgerScriptSource).toContain('--date=yyyy-mm-dd --tester=<name> --device=<device/browser>')
+    expect(sessionLedgerScriptSource).toContain('Defaults: date=')
     expect(sessionLedgerScriptSource).toContain('Paste these rows into docs/customer-journey-test-results.md')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {

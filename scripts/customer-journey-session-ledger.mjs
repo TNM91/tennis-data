@@ -1,4 +1,5 @@
-const rawQuery = process.argv[2]?.trim().toLowerCase() ?? ''
+const options = parseArgs(process.argv.slice(2))
+const rawQuery = options.session.trim().toLowerCase()
 const normalizedQuery = rawQuery.replace(/\s+/g, '').replace('-', '')
 
 const sessions = [
@@ -94,6 +95,7 @@ console.log('')
 
 if (!session) {
   console.log('Usage: npm run qa:session-ledger -- <day1 | day2 | day3 | day4 | day5>')
+  console.log('       npm run qa:session-ledger -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>')
   console.log('')
   console.log('Available sessions:')
   for (const item of sessions) {
@@ -106,6 +108,11 @@ if (!session) {
 
 console.log(`${session.label}: ${session.focus}`)
 console.log('Paste these rows into docs/customer-journey-test-results.md under Result Ledger as you test this session.')
+if (options.date || options.tester || options.deviceBrowser) {
+  console.log(
+    `Defaults: date=${options.date || 'blank'}, tester=${options.tester || 'blank'}, device/browser=${options.deviceBrowser || 'blank'}`
+  )
+}
 console.log('')
 console.log('| Date | Tester | Device/browser | Account fixture | Journey ID | Entry route | Result | Category | Severity | Screenshot/video | Notes | Next action |')
 console.log('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |')
@@ -115,7 +122,7 @@ for (const journeyId of session.journeyIds) {
   if (!journey) continue
 
   console.log(
-    `|  |  |  | ${journey.accountFixture} | ${journey.id} | ${journey.entryRoute} | needs-follow-up |  |  |  |  |  |`
+    `| ${formatCell(options.date)} | ${formatCell(options.tester)} | ${formatCell(options.deviceBrowser)} | ${journey.accountFixture} | ${journey.id} | ${journey.entryRoute} | needs-follow-up |  |  |  |  |  |`
   )
 }
 
@@ -125,9 +132,45 @@ console.log('- date, tester, device/browser')
 console.log('- result: pass, fail, blocked, or needs-follow-up')
 console.log('- screenshot/video evidence for pass, fail, and follow-up rows')
 console.log('- category, severity, notes, and next action for non-pass rows')
+console.log('- optional defaults: --date=yyyy-mm-dd --tester=<name> --device=<device/browser>')
 console.log('')
 console.log('Use with:')
 console.log(`- npm run qa:session -- ${session.id}`)
 console.log(`- npm run qa:session-status -- ${session.id}`)
 console.log('- npm run qa:ledger-check')
 console.log('- npm run qa:daily-summary -- <yyyy-mm-dd>')
+
+function parseArgs(args) {
+  const parsed = {
+    session: '',
+    date: '',
+    tester: '',
+    deviceBrowser: '',
+  }
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index] ?? ''
+
+    if (!arg.startsWith('--')) {
+      if (!parsed.session) parsed.session = arg
+      continue
+    }
+
+    const [rawKey, inlineValue] = arg.slice(2).split('=')
+    const key = rawKey.trim().toLowerCase()
+    const nextValue = args[index + 1] ?? ''
+    const value = inlineValue ?? (nextValue.startsWith('--') ? '' : nextValue)
+
+    if (inlineValue === undefined && value) index += 1
+
+    if (key === 'date') parsed.date = value
+    if (key === 'tester') parsed.tester = value
+    if (key === 'device' || key === 'browser' || key === 'device-browser') parsed.deviceBrowser = value
+  }
+
+  return parsed
+}
+
+function formatCell(value) {
+  return value.trim().replace(/\|/g, '/')
+}

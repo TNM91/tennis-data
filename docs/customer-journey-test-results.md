@@ -40,7 +40,7 @@ Use this during next-week testing to record what passed, what failed, what was b
 Copy one row per journey attempt. Keep credentials and private customer data out of this file.
 
 Run `npm run qa:ledger` to print starter rows for every planned journey.
-Run `npm run qa:session-ledger -- <day1-day5>` to print starter rows only for the active testing session.
+Run `npm run qa:session-ledger -- <day1-day5>` to print starter rows only for the active testing session. Add `--date=yyyy-mm-dd --tester=<name> --device=<device/browser>` to prefill repeated fields.
 Run `npm run qa:next` after logging results to see the next incomplete journey or p0/p1 item.
 Run `npm run qa:session-status` after testing to summarize readiness by Day 1 through Day 5 session.
 Run `npm run qa:triage` when choosing issue category, severity, and next action.
