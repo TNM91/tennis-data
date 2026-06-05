@@ -157,6 +157,11 @@ const steps = [
     args: ['scripts/customer-journey-risk-board.mjs'],
   },
   {
+    label: 'Change impact review',
+    command: 'node',
+    args: ['scripts/customer-journey-change-impact.mjs'],
+  },
+  {
     label: 'Evidence gap report',
     command: 'node',
     args: ['scripts/customer-journey-gap-report.mjs'],

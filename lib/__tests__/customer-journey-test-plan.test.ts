@@ -67,6 +67,7 @@ const journeyHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/cus
 const featureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-feature-review.mjs'), 'utf8')
 const coverageReportScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-coverage-report.mjs'), 'utf8')
 const riskBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-risk-board.mjs'), 'utf8')
+const changeImpactScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-change-impact.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const actionListScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-action-list.mjs'), 'utf8')
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
@@ -151,6 +152,7 @@ describe('customer journey test plan', () => {
       'npm run qa:feature-review',
       'npm run qa:coverage',
       'npm run qa:risk-board',
+      'npm run qa:change-impact',
       'npm run qa:gaps',
       'npm run qa:evidence',
       'npm run qa:evidence-index',
@@ -224,6 +226,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:feature-review": "node scripts/customer-journey-feature-review.mjs"')
     expect(packageSource).toContain('"qa:coverage": "node scripts/customer-journey-coverage-report.mjs"')
     expect(packageSource).toContain('"qa:risk-board": "node scripts/customer-journey-risk-board.mjs"')
+    expect(packageSource).toContain('"qa:change-impact": "node scripts/customer-journey-change-impact.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
     expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
     expect(packageSource).toContain('"qa:evidence-index": "node scripts/customer-journey-evidence-index.mjs"')
@@ -276,6 +279,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:feature-review')
     expect(qaStatusScriptSource).toContain('qa:coverage')
     expect(qaStatusScriptSource).toContain('qa:risk-board')
+    expect(qaStatusScriptSource).toContain('qa:change-impact')
     expect(qaStatusScriptSource).toContain('qa:gaps')
     expect(qaStatusScriptSource).toContain('qa:evidence')
     expect(qaStatusScriptSource).toContain('qa:evidence-index')
@@ -325,6 +329,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-feature-review.mjs',
       'scripts/customer-journey-coverage-report.mjs',
       'scripts/customer-journey-risk-board.mjs',
+      'scripts/customer-journey-change-impact.mjs',
       'scripts/customer-journey-gap-report.mjs',
       'scripts/customer-journey-evidence-checklist.mjs',
       'scripts/customer-journey-evidence-index.mjs',
@@ -360,6 +365,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger-check',
       'npm run qa:session-status',
       'npm run qa:close-day',
+      'npm run qa:change-impact',
       'npm run qa:tester-handoff',
       'npm run qa:launch',
       'npm run verify:closeout',
@@ -487,6 +493,7 @@ describe('customer journey test plan', () => {
       'npm run qa:feature-review',
       'npm run qa:coverage',
       'npm run qa:risk-board',
+      'npm run qa:change-impact',
       'npm run qa:gaps',
       'npm run qa:evidence',
       'npm run qa:evidence-index',
@@ -533,6 +540,31 @@ describe('customer journey test plan', () => {
       expect(testerHandoffScriptSource, `${plan.id} missing from tester handoff script`).toContain(plan.id)
       expect(testerHandoffScriptSource, `${plan.entryRoute} missing from tester handoff script`).toContain(plan.entryRoute)
       expect(testerHandoffScriptSource, `${plan.personaFixture} missing from tester handoff script`).toContain(plan.personaFixture)
+    }
+  })
+
+  it('keeps the change impact review tied to changed files and journey reruns', () => {
+    for (const anchor of [
+      'TenAceIQ Change Impact Review',
+      'Use this after a code change or deploy before trusting older pass evidence.',
+      'Diff source',
+      'Product-affecting files',
+      'Impacted journeys',
+      'Session rerun queue',
+      'npm run qa:tester-packet --',
+      'npm run qa:retest --',
+      'npm run qa:evidence-pack --',
+      'npm run qa:scorecard',
+      'Change rule',
+      '--files=<comma-separated-files>',
+    ]) {
+      expect(changeImpactScriptSource, `${anchor} missing from change impact script`).toContain(anchor)
+    }
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(changeImpactScriptSource, `${plan.id} missing from change impact script`).toContain(plan.id)
+      expect(changeImpactScriptSource, `${plan.entryRoute} missing from change impact script`).toContain(plan.entryRoute)
+      expect(changeImpactScriptSource, `${plan.personaFixture} missing from change impact script`).toContain(plan.personaFixture)
     }
   })
 

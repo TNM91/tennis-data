@@ -55,6 +55,7 @@
     "qa:feature-review": "node scripts/customer-journey-feature-review.mjs",
     "qa:coverage": "node scripts/customer-journey-coverage-report.mjs",
     "qa:risk-board": "node scripts/customer-journey-risk-board.mjs",
+    "qa:change-impact": "node scripts/customer-journey-change-impact.mjs",
     "qa:gaps": "node scripts/customer-journey-gap-report.mjs",
     "qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs",
     "qa:evidence-index": "node scripts/customer-journey-evidence-index.mjs",

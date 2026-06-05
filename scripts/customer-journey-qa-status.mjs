@@ -58,6 +58,7 @@ const requiredCommands = [
   'qa:feature-review',
   'qa:coverage',
   'qa:risk-board',
+  'qa:change-impact',
   'qa:gaps',
   'qa:evidence',
   'qa:evidence-index',
@@ -141,6 +142,7 @@ console.log('- npm run qa:matrix')
 console.log('- npm run qa:feature-review -- <feature | tier | route>')
 console.log('- npm run qa:coverage -- <tier>')
 console.log('- npm run qa:risk-board -- <tier | day | journey>')
+console.log('- npm run qa:change-impact -- --files=<comma-separated-files>')
 console.log('- npm run qa:gaps')
 console.log('- npm run qa:evidence')
 console.log('- npm run qa:evidence-index')

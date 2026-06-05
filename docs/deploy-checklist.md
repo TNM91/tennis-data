@@ -45,6 +45,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:feature-review -- <feature>` before closing a feature-specific fix or regression
 - Run `npm run qa:coverage -- <tier>` to confirm every feature has a proving journey and logged pass evidence
 - Run `npm run qa:gaps` to focus account, fixture, manual, and local-sync evidence before launch decisions
+- Run `git diff --name-only <last-tested-sha-or-tag>..HEAD`, then `npm run qa:change-impact -- --files=<comma-separated-files>` after product changes so impacted journeys get fresh evidence
 - Run `npm run qa:evidence` before marking journey results as pass/fail/blocked
 - Run `npm run qa:evidence-index` before capture so screenshots/videos stay under `docs/qa-evidence` and are traceable from the ledger
 - Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos

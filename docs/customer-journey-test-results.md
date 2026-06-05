@@ -67,6 +67,7 @@ Run `npm run qa:fixture-review -- <fixture>` when a result is blocked by account
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
 Run `npm run qa:action-list` after testing to list the concrete fixes, blockers, and follow-ups by priority.
 Run `npm run qa:retest -- <day-or-journey>` after fixes to list the exact journeys that need fresh pass evidence.
+Run `npm run qa:change-impact -- --files=<comma-separated-files>` after product changes so impacted journeys get fresh evidence.
 Run `npm run qa:daily-summary -- <yyyy-mm-dd>` after testing to recap the day and name the top fix.
 Run `npm run qa:close-day -- <day1-day5>` before calling a testing day done so missing pass evidence, screenshots/video, next actions, and retests are visible.
 Run `npm run qa:tester-handoff -- <day1-day5>` before handing a session to another tester so open rows, missing evidence, fixture-gap blockers, and next commands are visible.
@@ -112,6 +113,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - Use `qa:evidence-pack` before capture so screenshot/video names prove the journey signal and stay easy to paste into the ledger.
 - Use `qa:issue` when an observation needs to become a clean ledger row with a result, category, severity, next action, and retest command.
 - Use `qa:retest` after every fix pass so missing or stale pass evidence does not slip through.
+- Use `qa:change-impact` after commits or deploys so stale pass evidence is not trusted when product files changed.
 - Use `qa:close-day` before ending a testing block so open retests and missing evidence are not carried forward silently.
 - Use `qa:tester-handoff` before another tester picks up so they can see what was tested, what is blocked, what evidence exists, and what command to run next.
 - Use `qa:scorecard` before signoff so status conversations stay tied to tier, session, evidence, blockers, and the next command.
