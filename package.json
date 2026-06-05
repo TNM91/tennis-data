@@ -37,6 +37,7 @@
     "qa:handoffs": "node scripts/customer-journey-handoffs.mjs",
     "qa:matrix": "node scripts/customer-journey-feature-matrix.mjs",
     "qa:coverage": "node scripts/customer-journey-coverage-report.mjs",
+    "qa:risk-board": "node scripts/customer-journey-risk-board.mjs",
     "qa:gaps": "node scripts/customer-journey-gap-report.mjs",
     "qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs",
     "qa:triage": "node scripts/customer-journey-triage-guide.mjs",

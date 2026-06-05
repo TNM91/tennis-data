@@ -67,6 +67,11 @@ const steps = [
     args: ['scripts/customer-journey-coverage-report.mjs'],
   },
   {
+    label: 'Journey risk board',
+    command: 'node',
+    args: ['scripts/customer-journey-risk-board.mjs'],
+  },
+  {
     label: 'Evidence gap report',
     command: 'node',
     args: ['scripts/customer-journey-gap-report.mjs'],
