@@ -87,6 +87,11 @@ const steps = [
     args: ['scripts/customer-journey-evidence-checklist.mjs'],
   },
   {
+    label: 'Sample evidence capture pack',
+    command: 'node',
+    args: ['scripts/customer-journey-evidence-pack.mjs', 'day1'],
+  },
+  {
     label: 'Issue triage guide',
     command: 'node',
     args: ['scripts/customer-journey-triage-guide.mjs'],

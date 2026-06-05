@@ -41,6 +41,7 @@ const requiredCommands = [
   'qa:risk-board',
   'qa:gaps',
   'qa:evidence',
+  'qa:evidence-pack',
   'qa:triage',
   'qa:ledger-check',
   'qa:results',
@@ -101,6 +102,7 @@ console.log('- npm run qa:coverage -- <tier>')
 console.log('- npm run qa:risk-board -- <tier | day | journey>')
 console.log('- npm run qa:gaps')
 console.log('- npm run qa:evidence')
+console.log('- npm run qa:evidence-pack -- <day1-day5>')
 console.log('- npm run qa:triage')
 console.log('- npm run qa:ledger-check')
 console.log('- npm run qa:results')

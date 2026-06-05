@@ -39,6 +39,7 @@ const journeyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/custom
 const tierCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-card.mjs'), 'utf8')
 const tierStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-status.mjs'), 'utf8')
 const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-checklist.mjs'), 'utf8')
+const evidencePackScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-pack.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const flowMapScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-flow-map.mjs'), 'utf8')
 const journeyFocusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-focus.mjs'), 'utf8')
@@ -112,6 +113,7 @@ describe('customer journey test plan', () => {
       'npm run qa:risk-board',
       'npm run qa:gaps',
       'npm run qa:evidence',
+      'npm run qa:evidence-pack',
       'npm run qa:triage',
       'npm run qa:ledger-check',
       'npm run qa:results',
@@ -158,6 +160,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:risk-board": "node scripts/customer-journey-risk-board.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
     expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
+    expect(packageSource).toContain('"qa:evidence-pack": "node scripts/customer-journey-evidence-pack.mjs"')
     expect(packageSource).toContain('"qa:triage": "node scripts/customer-journey-triage-guide.mjs"')
     expect(packageSource).toContain('"qa:ledger-check": "node scripts/customer-journey-ledger-check.mjs"')
     expect(packageSource).toContain('"qa:results": "node scripts/customer-journey-results-summary.mjs"')
@@ -186,6 +189,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:risk-board')
     expect(qaStatusScriptSource).toContain('qa:gaps')
     expect(qaStatusScriptSource).toContain('qa:evidence')
+    expect(qaStatusScriptSource).toContain('qa:evidence-pack')
     expect(qaStatusScriptSource).toContain('qa:triage')
     expect(qaStatusScriptSource).toContain('qa:ledger-check')
     expect(qaStatusScriptSource).toContain('qa:results')
@@ -213,6 +217,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-risk-board.mjs',
       'scripts/customer-journey-gap-report.mjs',
       'scripts/customer-journey-evidence-checklist.mjs',
+      'scripts/customer-journey-evidence-pack.mjs',
       'scripts/customer-journey-triage-guide.mjs',
       'scripts/customer-journey-ledger-check.mjs',
       'scripts/customer-journey-results-summary.mjs',
@@ -251,6 +256,7 @@ describe('customer journey test plan', () => {
       'npm run qa:risk-board',
       'npm run qa:gaps',
       'npm run qa:evidence',
+      'npm run qa:evidence-pack',
       'npm run qa:triage',
       'npm run qa:ledger-check',
       'npm run qa:results',
@@ -285,6 +291,7 @@ describe('customer journey test plan', () => {
       expect(journeySessionStatusScriptSource, `${session} missing from session status`).toContain(session)
       expect(journeyMorningBriefScriptSource, `${session} missing from morning brief`).toContain(session)
       expect(journeyDayScriptSource, `${session} missing from day driver`).toContain(session)
+      expect(evidencePackScriptSource, `${session} missing from evidence pack`).toContain(session)
       expect(sessionLedgerScriptSource, `${session} missing from session ledger`).toContain(session)
     }
 
@@ -293,6 +300,7 @@ describe('customer journey test plan', () => {
       expect(journeySessionStatusScriptSource, `${plan.id} missing from session status`).toContain(plan.id)
       expect(journeyMorningBriefScriptSource, `${plan.id} missing from morning brief`).toContain(plan.id)
       expect(journeyDayScriptSource, `${plan.id} missing from day driver`).toContain(plan.id)
+      expect(evidencePackScriptSource, `${plan.id} missing from evidence pack`).toContain(plan.id)
       expect(sessionLedgerScriptSource, `${plan.id} missing from session ledger`).toContain(plan.id)
     }
 
@@ -355,6 +363,8 @@ describe('customer journey test plan', () => {
 
   it('keeps every agenda entry visible in the evidence checklist command', () => {
     expect(evidenceChecklistScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(evidencePackScriptSource).toContain('Evidence folder')
+    expect(evidencePackScriptSource).toContain('evidence names should prove the journey signal')
     expect(ledgerCheckScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(coverageReportScriptSource).toContain('docs/customer-journey-process-map.md')
     expect(coverageReportScriptSource).toContain('docs/customer-journey-test-results.md')
@@ -387,6 +397,7 @@ describe('customer journey test plan', () => {
       expect(evidenceChecklistScriptSource, `${plan.entryRoute} missing from evidence checklist`).toContain(plan.entryRoute)
       expect(evidenceChecklistScriptSource, `${plan.personaFixture} missing from evidence checklist`).toContain(plan.personaFixture)
       expect(evidenceChecklistScriptSource, `${plan.successSignal} missing from evidence checklist`).toContain(plan.successSignal)
+      expect(evidencePackScriptSource, `${plan.id} missing from evidence pack`).toContain(plan.id)
       expect(journeyCardScriptSource, `${plan.id} missing from journey card command`).toContain(plan.id)
       expect(journeyCardScriptSource, `${plan.entryRoute} missing from journey card command`).toContain(plan.entryRoute)
       expect(journeyCardScriptSource, `${plan.personaFixture} missing from journey card command`).toContain(plan.personaFixture)

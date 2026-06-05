@@ -41,6 +41,7 @@ Copy one row per journey attempt. Keep credentials and private customer data out
 
 Run `npm run qa:ledger` to print starter rows for every planned journey.
 Run `npm run qa:session-ledger -- <day1-day5>` to print starter rows only for the active testing session. Add `--date=yyyy-mm-dd --tester=<name> --device=<device/browser>` to prefill repeated fields.
+Run `npm run qa:evidence-pack -- <day1-day5>` before saving screenshots or videos so evidence filenames match the ledger.
 Run `npm run qa:next` after logging results to see the next incomplete journey or p0/p1 item.
 Run `npm run qa:session-status` after testing to summarize readiness by Day 1 through Day 5 session.
 Run `npm run qa:triage` when choosing issue category, severity, and next action.
@@ -70,6 +71,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - A `mobile-ux-gap` in Level Up should be retested on phone-width viewport after the fix.
 - A `content-quality-gap` should be fixed against the tennis behavior, proof signal, and next action.
 - `qa:ledger-check` should pass before `qa:launch` is used as a sign-off signal.
+- Use `qa:evidence-pack` before capture so screenshot/video names prove the journey signal and stay easy to paste into the ledger.
 - Use `qa:retest` after every fix pass so missing or stale pass evidence does not slip through.
 - Use `qa:close-day` before ending a testing block so open retests and missing evidence are not carried forward silently.
 - A journey closes only when the result is `pass` and the evidence shows the pain point was actually solved.
