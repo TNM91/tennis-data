@@ -2,6 +2,8 @@
 
 Use this as the technical reference for journey testing by tier. The source of truth for feature status, pain points, verification mode, and next closeout steps is `lib/platform-closeout-inventory.ts`. The typed testing agenda lives in `docs/customer-journey-test-plan.md`; the manual test playbook lives in `docs/customer-journey-test-scripts.md`; the account/data fixture plan lives in `docs/customer-journey-test-fixtures.md`.
 
+Run `npm run qa:matrix` to print the tier-by-feature matrix while testing.
+
 ## How To Use This
 
 1. Pick the tier.

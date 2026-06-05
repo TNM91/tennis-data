@@ -10,6 +10,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:status` to confirm the customer journey QA packet is complete
 - Run `npm run qa:week` before next week's full manual journey sweep
 - Run `npm run qa:ledger` before logging fresh test passes or issues
+- Run `npm run qa:matrix` before tier-by-feature testing so every feature is checked against its pain point
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
 - For production closeout checks after deploy, run `npm run verify:closeout:live`

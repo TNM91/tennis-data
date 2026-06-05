@@ -61,7 +61,14 @@ describe('customer journey test plan', () => {
   })
 
   it('keeps the QA index as the one-page starting point', () => {
-    for (const command of ['npm run qa:status', 'npm run qa:day1', 'npm run qa:week', 'npm run qa:ledger', 'npm run verify:closeout:live']) {
+    for (const command of [
+      'npm run qa:status',
+      'npm run qa:day1',
+      'npm run qa:week',
+      'npm run qa:ledger',
+      'npm run qa:matrix',
+      'npm run verify:closeout:live',
+    ]) {
       expect(qaIndexSource, `${command} missing from QA index`).toContain(command)
     }
 
@@ -79,7 +86,9 @@ describe('customer journey test plan', () => {
 
     expect(testScriptsSource).toContain('docs/customer-journey-qa-index.md')
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
+    expect(packageSource).toContain('"qa:matrix": "node scripts/customer-journey-feature-matrix.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
+    expect(qaStatusScriptSource).toContain('qa:matrix')
   })
 
   it('keeps the deploy checklist connected to the customer journey QA packet', () => {
@@ -88,6 +97,7 @@ describe('customer journey test plan', () => {
       'npm run qa:status',
       'npm run qa:week',
       'npm run qa:ledger',
+      'npm run qa:matrix',
       'npm run verify:closeout',
       'npm run verify:closeout:live',
     ]) {

@@ -96,6 +96,7 @@ describe('platform closeout inventory', () => {
 
   it('keeps the technical journey map aligned to the feature inventory', () => {
     expect(journeyMapSource).toContain('Feature Access And Pain Point Matrix')
+    expect(journeyMapSource).toContain('npm run qa:matrix')
 
     for (const feature of PLATFORM_CLOSEOUT_FEATURES) {
       expect(journeyMapSource, `${feature.id} label missing from journey map`).toContain(feature.label)

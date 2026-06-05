@@ -22,6 +22,7 @@
     "qa:day1": "node scripts/customer-journey-day-one-readiness.mjs",
     "qa:week": "node scripts/customer-journey-weekly-readiness.mjs",
     "qa:ledger": "node scripts/customer-journey-ledger-template.mjs",
+    "qa:matrix": "node scripts/customer-journey-feature-matrix.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
     "db:migrations": "supabase migration list",
     "db:push:dry": "supabase db push --dry-run",

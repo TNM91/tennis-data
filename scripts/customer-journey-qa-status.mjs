@@ -22,6 +22,7 @@ const requiredCommands = [
   'qa:week',
   'qa:day1',
   'qa:ledger',
+  'qa:matrix',
   'verify:closeout',
   'verify:closeout:live',
 ]
@@ -55,6 +56,7 @@ console.log('Recommended command order:')
 console.log('- npm run qa:week')
 console.log('- npm run qa:day1')
 console.log('- npm run qa:ledger')
+console.log('- npm run qa:matrix')
 console.log('- npm run verify:closeout:live')
 
 if (missingDocs.length || missingCommands.length) {
