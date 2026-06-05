@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "check:extension": "node --check tenaceiq-capture-extension/content_script.js",
+    "verify:closeout": "node scripts/verify-platform-closeout.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
     "db:migrations": "supabase migration list",
     "db:push:dry": "supabase db push --dry-run",
