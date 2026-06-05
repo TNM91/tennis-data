@@ -31,6 +31,7 @@ const weeklyReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/cu
 const fixtureChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-checklist.mjs'), 'utf8')
 const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
+const journeySessionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-brief.mjs'), 'utf8')
 const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-checklist.mjs'), 'utf8')
 const flowMapScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-flow-map.mjs'), 'utf8')
 const journeyFocusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-focus.mjs'), 'utf8')
@@ -76,6 +77,7 @@ describe('customer journey test plan', () => {
     for (const command of [
       'npm run qa:prep',
       'npm run qa:status',
+      'npm run qa:session',
       'npm run qa:day1',
       'npm run qa:week',
       'npm run qa:fixtures',
@@ -109,6 +111,7 @@ describe('customer journey test plan', () => {
     expect(testScriptsSource).toContain('docs/customer-journey-qa-index.md')
     expect(packageSource).toContain('"qa:prep": "node scripts/customer-journey-qa-prep.mjs"')
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
+    expect(packageSource).toContain('"qa:session": "node scripts/customer-journey-session-brief.mjs"')
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
     expect(packageSource).toContain('"qa:flows": "node scripts/customer-journey-flow-map.mjs"')
     expect(packageSource).toContain('"qa:focus": "node scripts/customer-journey-focus.mjs"')
@@ -121,6 +124,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:launch": "node scripts/customer-journey-launch-readiness.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
     expect(qaStatusScriptSource).toContain('qa:prep')
+    expect(qaStatusScriptSource).toContain('qa:session')
     expect(qaStatusScriptSource).toContain('qa:fixtures')
     expect(qaStatusScriptSource).toContain('qa:flows')
     expect(qaStatusScriptSource).toContain('qa:focus')
@@ -154,6 +158,7 @@ describe('customer journey test plan', () => {
       'docs/customer-journey-qa-index.md',
       'npm run qa:prep',
       'npm run qa:status',
+      'npm run qa:session',
       'npm run qa:week',
       'npm run qa:fixtures',
       'npm run qa:ledger',
@@ -185,6 +190,14 @@ describe('customer journey test plan', () => {
     expect(processMapSource).toContain('lib/customer-journey-flow-map.json')
     expect(processMapSource).toContain('Flow Contract')
     expect(processMapSource).toContain('npm run qa:handoffs')
+
+    for (const session of ['day1', 'day2', 'day3', 'day4', 'day5']) {
+      expect(journeySessionScriptSource, `${session} missing from session brief`).toContain(session)
+    }
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(journeySessionScriptSource, `${plan.id} missing from session brief`).toContain(plan.id)
+    }
 
     for (const flow of CUSTOMER_JOURNEY_FLOW_MAPS) {
       expect(PLATFORM_CLOSEOUT_TIER_LABELS[flow.tierId], `${flow.id} has unknown tier`).toBeTruthy()

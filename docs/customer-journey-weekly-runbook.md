@@ -16,11 +16,12 @@ Primary references:
 
 1. Pull latest changes.
 2. Run `npm run qa:week` to print the week sequence.
-3. Run `npm run qa:day1` when testing Day 1 journeys.
-4. Run `npm run verify:closeout:live` after production deploys.
-5. Record the pass or failure in `docs/platform-closeout-verification-log.md`.
-6. Confirm the account/data fixtures needed for that day.
-7. Prepare result rows in `docs/customer-journey-test-results.md`.
+3. Run `npm run qa:session -- day1` through `day5` before each testing session.
+4. Run `npm run qa:day1` when testing Day 1 journeys.
+5. Run `npm run verify:closeout:live` after production deploys.
+6. Record the pass or failure in `docs/platform-closeout-verification-log.md`.
+7. Confirm the account/data fixtures needed for that day.
+8. Prepare result rows in `docs/customer-journey-test-results.md`.
 
 ## Day 1: Trust Loop
 
