@@ -2,6 +2,8 @@
 
 Captured locally on 2026-05-19 from the current repo.
 
+Updated on 2026-06-04 to reflect the current six-tier model in `lib/product-story.ts` and `lib/pricing-plans.ts`.
+
 ## Source Of Truth
 
 - Product tier language: `lib/product-story.ts`
@@ -17,7 +19,37 @@ Captured locally on 2026-05-19 from the current repo.
 
 TenAceIQ helps tennis players, captains, and league coordinators spend less time guessing, more time understanding, and more time playing.
 
-## Tier Summary
+## Current Tier Summary
+
+| Tier | Plan id | Price | Billing model | Checkout mode | Quantity mode | Audience |
+| --- | --- | ---: | --- | --- | --- | --- |
+| Free | `free` | `$0` | Free account | None | Account | Players, captains, and fans getting oriented |
+| Player | `player_plus` | `$4.99/month` | Monthly subscription | Subscription | Account | Players who want clearer prep and a personalized tennis home |
+| Coach | `coach` | `$9.99/month` | Monthly subscription | Subscription | Account | Private coaches, school coaches, and training-group leaders |
+| Captain | `captain` | `$9.99/month` | Monthly subscription | Subscription | Account | Captains managing lineups, readiness, and weekly decisions |
+| League | `league` | `$14.99/season workspace` | Season fee | One-time | League | League coordinators and organizers running one competition workspace |
+| Full-Court | `full_court` | `$19.99/month` | Monthly subscription | Subscription | Account | Coaches, captains, clubs, and organizers running the full tennis operation |
+
+Current entitlement grants:
+
+- Player grants `playerPlus`.
+- Coach grants `playerPlus` and `coach`.
+- Captain grants `playerPlus` and `captain`.
+- League grants `leagueCoordinator`, `tiqTeamLeagueEntry`, and `tiqIndividualLeagueCreator`.
+- Full-Court grants Player, Coach, Captain, and League workspace access.
+
+Current access notes:
+
+- Active plan ids always include `free`.
+- Player access is satisfied by Player, Coach, Captain, or Full-Court.
+- Coach access is satisfied by Coach or Full-Court.
+- Captain access is satisfied by Captain or Full-Court.
+- League access is satisfied by League or Full-Court.
+- Admin role turns on League tools and can resolve internal workflows.
+
+## Historical Tier Summary
+
+The section below is the 2026-05-19 snapshot retained for rollout history. Use the current tier summary above for closeout QA.
 
 | Tier | Plan id | Price | Billing model | Checkout mode | Quantity mode | Audience |
 | --- | --- | ---: | --- | --- | --- | --- |
