@@ -16,6 +16,7 @@ const resultsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
+const missionControlScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-mission-control.mjs'), 'utf8')
 const qaStartScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-start.mjs'), 'utf8')
 const qaTodayScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-today.mjs'), 'utf8')
 const readinessBriefScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-readiness-brief.mjs'), 'utf8')
@@ -97,6 +98,7 @@ describe('customer journey test results', () => {
     expect(closeoutQaSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
+    expect(resultsDocSource).toContain('npm run qa:control')
     expect(resultsDocSource).toContain('npm run qa:start')
     expect(resultsDocSource).toContain('npm run qa:today')
     expect(resultsDocSource).toContain('npm run qa:readiness')
@@ -124,6 +126,20 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(qaStartScriptSource, `${plan.id} missing from QA start`).toContain(plan.id)
+    }
+  })
+
+  it('keeps mission control aligned to the compact test-week scoreboard', () => {
+    expect(packageSource).toContain('"qa:control": "node scripts/customer-journey-mission-control.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:control')
+    expect(missionControlScriptSource).toContain('TenAceIQ QA Mission Control')
+    expect(missionControlScriptSource).toContain('Scoreboard')
+    expect(missionControlScriptSource).toContain('Sessions')
+    expect(missionControlScriptSource).toContain('Tiers')
+    expect(missionControlScriptSource).toContain('qa:launch')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(missionControlScriptSource, `${plan.id} missing from mission control`).toContain(plan.id)
     }
   })
 

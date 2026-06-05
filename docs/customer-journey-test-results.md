@@ -40,6 +40,7 @@ Use this during next-week testing to record what passed, what failed, what was b
 Copy one row per journey attempt. Keep credentials and private customer data out of this file.
 
 Run `npm run qa:ledger` to print starter rows for every planned journey.
+Run `npm run qa:control` when you need the compact test-week scoreboard, next block, session state, tier state, and blockers.
 Run `npm run qa:start -- --date=yyyy-mm-dd --tester=<name>` when you want the shortest first testing block and closeout commands.
 Run `npm run qa:today -- --date=yyyy-mm-dd --tester=<name>` when you want the active testing-day sheet with required devices, proof targets, and closeout gates.
 Run `npm run qa:readiness` before a manual testing block to confirm packet health, current ledger state, missing pass evidence, and first commands.
@@ -84,6 +85,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 
 - A `sync-gap`, `access-gap`, `gating-gap`, or `data-propagation-gap` should be treated as product logic until proven otherwise.
 - A `fixture-gap` does not mean the product passed. Create the fixture and rerun.
+- Use `qa:control` at the start of a testing conversation so everyone sees the same scoreboard, next block, blockers, and launch gate.
 - Use `qa:start` when the full QA command list feels too broad and you need the first useful block.
 - Use `qa:today` when a tester needs one day sheet that says which devices to run, which journeys to prove, and how to close the block.
 - Use `qa:readiness` to confirm the packet can start even when the ledger is not launch-ready yet.

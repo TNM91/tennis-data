@@ -20,6 +20,7 @@ const requiredDocs = [
 const requiredCommands = [
   'qa:prep',
   'qa:status',
+  'qa:control',
   'qa:start',
   'qa:today',
   'qa:readiness',
@@ -97,6 +98,7 @@ console.log('- docs/customer-journey-qa-index.md')
 console.log('')
 console.log('Recommended command order:')
 console.log('- npm run qa:prep')
+console.log('- npm run qa:control')
 console.log('- npm run qa:start -- --date=yyyy-mm-dd --tester=<name>')
 console.log('- npm run qa:today -- --date=yyyy-mm-dd --tester=<name>')
 console.log('- npm run qa:readiness')
