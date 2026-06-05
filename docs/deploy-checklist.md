@@ -15,6 +15,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:gaps` to focus account, fixture, manual, and local-sync evidence before launch decisions
 - Run `npm run qa:evidence` before marking journey results as pass/fail/blocked
 - Run `npm run qa:results` to confirm missing journeys and open p0/p1 rows before launch decisions
+- Run `npm run qa:launch` after testing is logged; it should pass before broad launch decisions
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
 - For production closeout checks after deploy, run `npm run verify:closeout:live`

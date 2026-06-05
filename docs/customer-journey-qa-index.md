@@ -15,6 +15,7 @@ Start here when preparing for next-week journey testing.
 | `npm run qa:gaps` | Print feature gaps that still need account, fixture, manual, or local-sync proof. |
 | `npm run qa:evidence` | Print the proof checklist for each journey before recording results. |
 | `npm run qa:results` | Summarize the result ledger, missing journeys, and open p0/p1 items. |
+| `npm run qa:launch` | Fail unless every journey has pass evidence and no p0/p1 row remains open. |
 | `npm run verify:closeout` | Run deterministic closeout checks. |
 | `npm run verify:closeout:live` | Run production closeout checks with browser smoke. |
 
@@ -26,7 +27,8 @@ Start here when preparing for next-week journey testing.
 4. Run `npm run qa:ledger` and paste starter rows into `docs/customer-journey-test-results.md`.
 5. Run focused commands as needed: `npm run qa:matrix`, `npm run qa:gaps`, or `npm run qa:evidence`.
 6. Run `npm run qa:results` after each testing block.
-7. Run `npm run verify:closeout:live` after the latest deploy.
+7. Run `npm run qa:launch` only after the ledger has real pass evidence.
+8. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -62,3 +64,4 @@ Start here when preparing for next-week journey testing.
 - Use `npm run qa:gaps` when deciding which account, fixture, manual, or local-sync evidence still needs attention.
 - Use `npm run qa:evidence` before marking a journey `pass`, especially for sync, access, mobile, and fixture-sensitive flows.
 - Use `npm run qa:results` at the end of each testing day to see missing journeys and open high-priority issues.
+- Use `npm run qa:launch` as the final manual-evidence gate; it is expected to fail until every journey has a pass row.

@@ -27,6 +27,7 @@ const requiredCommands = [
   'qa:gaps',
   'qa:evidence',
   'qa:results',
+  'qa:launch',
   'verify:closeout',
   'verify:closeout:live',
 ]
@@ -65,6 +66,7 @@ console.log('- npm run qa:matrix')
 console.log('- npm run qa:gaps')
 console.log('- npm run qa:evidence')
 console.log('- npm run qa:results')
+console.log('- npm run qa:launch')
 console.log('- npm run verify:closeout:live')
 
 if (missingDocs.length || missingCommands.length) {

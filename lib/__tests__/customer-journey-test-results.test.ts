@@ -16,6 +16,7 @@ const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
+const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 
 describe('customer journey test results', () => {
@@ -81,6 +82,17 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(resultsSummaryScriptSource, `${plan.id} missing from result summary script`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the launch readiness command strict and aligned to every planned journey', () => {
+    expect(packageSource).toContain('"qa:launch": "node scripts/customer-journey-launch-readiness.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:launch')
+    expect(launchReadinessScriptSource).toContain('Launch readiness: not ready.')
+    expect(launchReadinessScriptSource).toContain('process.exit(1)')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(launchReadinessScriptSource, `${plan.id} missing from launch readiness script`).toContain(plan.id)
     }
   })
 })
