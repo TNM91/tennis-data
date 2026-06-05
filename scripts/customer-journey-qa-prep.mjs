@@ -52,6 +52,11 @@ const steps = [
     args: ['scripts/customer-journey-tier-status.mjs'],
   },
   {
+    label: 'Tier access review',
+    command: 'node',
+    args: ['scripts/customer-journey-access-review.mjs'],
+  },
+  {
     label: 'Customer journey flow map',
     command: 'node',
     args: ['scripts/customer-journey-flow-map.mjs'],
