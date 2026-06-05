@@ -38,6 +38,7 @@ const requiredCommands = [
   'qa:evidence',
   'qa:triage',
   'qa:results',
+  'qa:action-list',
   'qa:launch',
   'verify:closeout',
   'verify:closeout:live',
@@ -88,6 +89,7 @@ console.log('- npm run qa:gaps')
 console.log('- npm run qa:evidence')
 console.log('- npm run qa:triage')
 console.log('- npm run qa:results')
+console.log('- npm run qa:action-list')
 console.log('- npm run qa:launch')
 console.log('- npm run verify:closeout:live')
 

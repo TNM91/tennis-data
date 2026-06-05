@@ -26,6 +26,7 @@ Start here when preparing for next-week journey testing.
 | `npm run qa:evidence` | Print the proof checklist for each journey before recording results. |
 | `npm run qa:triage` | Print issue categories, severity rules, and closeout actions. |
 | `npm run qa:results` | Summarize the result ledger, missing journeys, and open p0/p1 items. |
+| `npm run qa:action-list` | Print logged fail, blocked, and follow-up rows as a prioritized fix list. |
 | `npm run qa:launch` | Fail unless every journey has pass evidence and no p0/p1 row remains open. |
 | `npm run verify:closeout` | Run deterministic closeout checks. |
 | `npm run verify:closeout:live` | Run production closeout checks with browser smoke. |
@@ -48,8 +49,9 @@ Start here when preparing for next-week journey testing.
 14. Run `npm run qa:handoffs` before testing linked or shared-role workflows.
 15. Run focused commands as needed: `npm run qa:matrix`, `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
 16. Run `npm run qa:results` after each testing block.
-17. Run `npm run qa:launch` only after the ledger has real pass evidence.
-18. Run `npm run verify:closeout:live` after the latest deploy.
+17. Run `npm run qa:action-list` to turn open rows into the next fix list.
+18. Run `npm run qa:launch` only after the ledger has real pass evidence.
+19. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -96,4 +98,5 @@ Start here when preparing for next-week journey testing.
 - Use `npm run qa:evidence` before marking a journey `pass`, especially for sync, access, mobile, and fixture-sensitive flows.
 - Use `npm run qa:triage` when choosing the result category, severity, and next action for an issue.
 - Use `npm run qa:results` at the end of each testing day to see missing journeys and open high-priority issues.
+- Use `npm run qa:action-list` after `qa:results` to list every logged fix, blocker, and follow-up by severity and missing next action.
 - Use `npm run qa:launch` as the final manual-evidence gate; it is expected to fail until every journey has a pass row.

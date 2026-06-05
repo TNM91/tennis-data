@@ -44,6 +44,7 @@ Run `npm run qa:next` after logging results to see the next incomplete journey o
 Run `npm run qa:session-status` after testing to summarize readiness by Day 1 through Day 5 session.
 Run `npm run qa:triage` when choosing issue category, severity, and next action.
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
+Run `npm run qa:action-list` after testing to list the concrete fixes, blockers, and follow-ups by priority.
 Run `npm run qa:tier-status` after testing to summarize readiness by role-based tier.
 Run `npm run qa:launch` after testing is logged. It should fail until every journey has a `pass` row and no p0/p1 row remains open.
 
