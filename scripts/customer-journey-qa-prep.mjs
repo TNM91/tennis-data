@@ -47,6 +47,11 @@ const steps = [
     args: ['scripts/customer-journey-live-card.mjs', 'player-level-up-mobile-loop'],
   },
   {
+    label: 'Sample device journey card',
+    command: 'node',
+    args: ['scripts/customer-journey-device-card.mjs', 'phone'],
+  },
+  {
     label: 'Sample route review',
     command: 'node',
     args: ['scripts/customer-journey-route-review.mjs', '/coach'],

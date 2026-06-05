@@ -17,6 +17,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:day -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` for the compact daily testing driver
 - Run `npm run qa:journey -- <journey-id>` before walking one journey for route, fixture, pass signal, fail-fast, and evidence
 - Run `npm run qa:live-card -- <journey-id> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` while executing a journey so capture names and ledger rows stay aligned
+- Run `npm run qa:device-card -- <phone|tablet|desktop>` before device-sensitive passes so viewport checks and live-card commands stay explicit
 - Run `npm run qa:route-review -- <route>` while browser testing to confirm what the current page should prove
 - Run `npm run qa:tier -- <tier>` before signing off a role-based tier
 - Run `npm run qa:tier-status` after logging results to confirm tier readiness blockers

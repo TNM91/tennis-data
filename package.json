@@ -27,6 +27,7 @@
     "qa:day": "node scripts/customer-journey-day-brief.mjs",
     "qa:journey": "node scripts/customer-journey-card.mjs",
     "qa:live-card": "node scripts/customer-journey-live-card.mjs",
+    "qa:device-card": "node scripts/customer-journey-device-card.mjs",
     "qa:route-review": "node scripts/customer-journey-route-review.mjs",
     "qa:tier": "node scripts/customer-journey-tier-card.mjs",
     "qa:tier-status": "node scripts/customer-journey-tier-status.mjs",

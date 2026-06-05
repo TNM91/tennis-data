@@ -18,6 +18,7 @@ const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeou
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const liveJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-live-card.mjs'), 'utf8')
+const deviceJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-card.mjs'), 'utf8')
 const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
 const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
@@ -89,6 +90,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
     expect(resultsDocSource).toContain('npm run qa:live-card')
+    expect(resultsDocSource).toContain('npm run qa:device-card')
     expect(resultsDocSource).toContain('npm run qa:route-review')
     expect(resultsDocSource).toContain('npm run qa:fixture-review')
     expect(resultsDocSource).toContain('npm run qa:access-review')
@@ -138,6 +140,22 @@ describe('customer journey test results', () => {
       expect(liveJourneyCardScriptSource, `${plan.id} missing from live card`).toContain(plan.id)
       expect(liveJourneyCardScriptSource, `${plan.entryRoute} missing from live card`).toContain(plan.entryRoute)
       expect(liveJourneyCardScriptSource, `${plan.personaFixture} missing from live card`).toContain(plan.personaFixture)
+    }
+  })
+
+  it('keeps the device card command aligned to viewport-sensitive testing', () => {
+    expect(packageSource).toContain('"qa:device-card": "node scripts/customer-journey-device-card.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:device-card')
+    expect(deviceJourneyCardScriptSource).toContain('TenAceIQ Device Journey Card')
+    expect(deviceJourneyCardScriptSource).toContain('viewport-specific risk')
+    expect(deviceJourneyCardScriptSource).toContain('Phone')
+    expect(deviceJourneyCardScriptSource).toContain('Tablet / iPad')
+    expect(deviceJourneyCardScriptSource).toContain('Desktop')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(deviceJourneyCardScriptSource, `${plan.id} missing from device card`).toContain(plan.id)
+      expect(deviceJourneyCardScriptSource, `${plan.entryRoute} missing from device card`).toContain(plan.entryRoute)
+      expect(deviceJourneyCardScriptSource, `${plan.personaFixture} missing from device card`).toContain(plan.personaFixture)
     }
   })
 

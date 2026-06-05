@@ -42,6 +42,7 @@ Copy one row per journey attempt. Keep credentials and private customer data out
 Run `npm run qa:ledger` to print starter rows for every planned journey.
 Run `npm run qa:session-ledger -- <day1-day5>` to print starter rows only for the active testing session. Add `--date=yyyy-mm-dd --tester=<name> --device=<device/browser>` to prefill repeated fields.
 Run `npm run qa:live-card -- <journey-id>` when you want the route, task, evidence filenames, paste-ready ledger row, and blocked-state commands for one journey.
+Run `npm run qa:device-card -- <phone|tablet|desktop>` when deciding what the current viewport must prove before a pass row is trusted.
 Run `npm run qa:evidence-pack -- <day1-day5>` before saving screenshots or videos so evidence filenames match the ledger.
 Run `npm run qa:next` after logging results to see the next incomplete journey or p0/p1 item.
 Run `npm run qa:session-status` after testing to summarize readiness by Day 1 through Day 5 session.
@@ -76,6 +77,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - A `sync-gap`, `access-gap`, `gating-gap`, or `data-propagation-gap` should be treated as product logic until proven otherwise.
 - A `fixture-gap` does not mean the product passed. Create the fixture and rerun.
 - Use `qa:live-card` while actively testing one journey so the same screen tells you what to open, what to prove, what to capture, and what to paste.
+- Use `qa:device-card` before logging device-sensitive passes so the row names the device/browser and the evidence proves the viewport-specific risk.
 - Use `qa:route-review` when a page loads but the tester is unsure which feature, journey, or evidence the route is meant to prove.
 - Use `qa:access-review` for access, gating, and stale-lock questions before deciding whether the issue is `access-gap`, `gating-gap`, or fixture setup.
 - Use `qa:feature-review` before closing a feature-specific issue so the fix is tied to the proving journey and connected flow.
