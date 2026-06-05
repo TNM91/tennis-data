@@ -30,6 +30,7 @@
     "qa:week": "node scripts/customer-journey-weekly-readiness.mjs",
     "qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs",
     "qa:ledger": "node scripts/customer-journey-ledger-template.mjs",
+    "qa:session-ledger": "node scripts/customer-journey-session-ledger.mjs",
     "qa:flows": "node scripts/customer-journey-flow-map.mjs",
     "qa:focus": "node scripts/customer-journey-focus.mjs",
     "qa:handoffs": "node scripts/customer-journey-handoffs.mjs",

@@ -16,6 +16,7 @@ const resultsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
+const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
@@ -85,10 +86,15 @@ describe('customer journey test results', () => {
   it('keeps the ledger template command aligned to every planned journey', () => {
     expect(packageSource).toContain('"qa:ledger": "node scripts/customer-journey-ledger-template.mjs"')
     expect(resultsDocSource).toContain('npm run qa:ledger')
+    expect(packageSource).toContain('"qa:session-ledger": "node scripts/customer-journey-session-ledger.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:session-ledger')
+    expect(sessionLedgerScriptSource).toContain('Usage: npm run qa:session-ledger -- <day1 | day2 | day3 | day4 | day5>')
+    expect(sessionLedgerScriptSource).toContain('Paste these rows into docs/customer-journey-test-results.md')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(ledgerTemplateScriptSource, `${plan.id} missing from ledger template script`).toContain(plan.id)
       expect(ledgerTemplateScriptSource, `${plan.entryRoute} missing from ledger template script`).toContain(plan.entryRoute)
+      expect(sessionLedgerScriptSource, `${plan.id} missing from session ledger script`).toContain(plan.id)
     }
   })
 

@@ -32,6 +32,11 @@ const steps = [
     args: ['scripts/customer-journey-tier-card.mjs', 'player'],
   },
   {
+    label: 'Sample session ledger rows',
+    command: 'node',
+    args: ['scripts/customer-journey-session-ledger.mjs', 'day1'],
+  },
+  {
     label: 'Tier status rollup',
     command: 'node',
     args: ['scripts/customer-journey-tier-status.mjs'],

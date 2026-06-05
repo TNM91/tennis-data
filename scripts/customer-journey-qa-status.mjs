@@ -30,6 +30,7 @@ const requiredCommands = [
   'qa:day1',
   'qa:fixtures',
   'qa:ledger',
+  'qa:session-ledger',
   'qa:flows',
   'qa:focus',
   'qa:handoffs',
@@ -83,6 +84,7 @@ console.log('- npm run qa:week')
 console.log('- npm run qa:day1')
 console.log('- npm run qa:fixtures')
 console.log('- npm run qa:ledger')
+console.log('- npm run qa:session-ledger -- <day1-day5>')
 console.log('- npm run qa:flows')
 console.log('- npm run qa:focus -- <tier-or-journey>')
 console.log('- npm run qa:handoffs')
