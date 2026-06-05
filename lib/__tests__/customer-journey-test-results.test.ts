@@ -17,6 +17,7 @@ const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
+const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
 const triageGuideScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-triage-guide.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
@@ -98,6 +99,18 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(resultsSummaryScriptSource, `${plan.id} missing from result summary script`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the next journey command aligned to ledger rows and sessions', () => {
+    expect(packageSource).toContain('"qa:next": "node scripts/customer-journey-next.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:next')
+    expect(nextJourneyScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(nextJourneyScriptSource).toContain('Fix or decide these p0/p1 items before moving wider')
+    expect(nextJourneyScriptSource).toContain('npm run qa:session --')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(nextJourneyScriptSource, `${plan.id} missing from next journey script`).toContain(plan.id)
     }
   })
 

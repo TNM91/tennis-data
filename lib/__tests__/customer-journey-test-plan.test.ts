@@ -77,6 +77,7 @@ describe('customer journey test plan', () => {
     for (const command of [
       'npm run qa:prep',
       'npm run qa:status',
+      'npm run qa:next',
       'npm run qa:session',
       'npm run qa:day1',
       'npm run qa:week',
@@ -111,6 +112,7 @@ describe('customer journey test plan', () => {
     expect(testScriptsSource).toContain('docs/customer-journey-qa-index.md')
     expect(packageSource).toContain('"qa:prep": "node scripts/customer-journey-qa-prep.mjs"')
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
+    expect(packageSource).toContain('"qa:next": "node scripts/customer-journey-next.mjs"')
     expect(packageSource).toContain('"qa:session": "node scripts/customer-journey-session-brief.mjs"')
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
     expect(packageSource).toContain('"qa:flows": "node scripts/customer-journey-flow-map.mjs"')
@@ -124,6 +126,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:launch": "node scripts/customer-journey-launch-readiness.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
     expect(qaStatusScriptSource).toContain('qa:prep')
+    expect(qaStatusScriptSource).toContain('qa:next')
     expect(qaStatusScriptSource).toContain('qa:session')
     expect(qaStatusScriptSource).toContain('qa:fixtures')
     expect(qaStatusScriptSource).toContain('qa:flows')
@@ -158,6 +161,7 @@ describe('customer journey test plan', () => {
       'docs/customer-journey-qa-index.md',
       'npm run qa:prep',
       'npm run qa:status',
+      'npm run qa:next',
       'npm run qa:session',
       'npm run qa:week',
       'npm run qa:fixtures',
