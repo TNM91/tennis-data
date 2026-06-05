@@ -8,6 +8,7 @@ Start here when preparing for next-week journey testing.
 | --- | --- |
 | `npm run qa:prep` | Run the core prep packet and deterministic inventory guard in one pass. |
 | `npm run qa:status` | Check that the QA docs and commands are present. |
+| `npm run qa:brief -- <day1-day5>` | Print the morning testing card: top risk, fixtures, starter rows, and closeout commands. |
 | `npm run qa:next` | Print the next incomplete journey/session from the result ledger. |
 | `npm run qa:session -- <day1-day5>` | Print one testing session brief with journeys, fixtures, commands, and handoffs. |
 | `npm run qa:session-status -- <day1-day5>` | Read the result ledger and show whether each testing session can move forward. |
@@ -42,33 +43,34 @@ Start here when preparing for next-week journey testing.
 ## Start Here
 
 1. Run `npm run qa:prep`.
-2. Run `npm run qa:risk-board` to see the highest-value journey to prove or fix first.
-3. Run `npm run qa:next` to see the next incomplete session.
-4. Run `npm run qa:session -- day1` for the active testing session.
-5. Run `npm run qa:session-status` after logging results to see session readiness.
-6. Run `npm run qa:day -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` for the compact daily driver.
-7. Run `npm run qa:journey -- <journey-id>` for the specific journey you are walking.
-8. Run `npm run qa:tier -- player` or the tier being tested to keep role expectations clear.
-9. Run `npm run qa:tier-status` after logging results to see tier readiness.
-10. Open `docs/customer-journey-weekly-runbook.md`.
-11. For Day 1, run `npm run qa:day1`.
-12. Run `npm run qa:fixtures` while confirming test accounts and safe data.
-13. Run `npm run qa:session-ledger -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` for the rows you need in the current session, or `npm run qa:ledger` for every journey.
-14. Paste starter rows into `docs/customer-journey-test-results.md`.
-15. Run `npm run qa:flows` before walking a tier end to end.
-16. Run `npm run qa:focus -- <tier-or-journey>` while testing one journey at a time.
-17. Run `npm run qa:handoffs` before testing linked or shared-role workflows.
-18. Run `npm run qa:matrix` to keep tier features tied to pain points.
-19. Run `npm run qa:coverage -- <tier>` to confirm each feature has a proving journey and logged evidence.
-20. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
-21. Run `npm run qa:ledger-check` after adding or editing result rows.
-22. Run `npm run qa:results` after each testing block.
-23. Run `npm run qa:action-list` to turn open rows into the next fix list.
-24. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
-25. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
-26. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
-27. Run `npm run qa:launch` only after the ledger has real pass evidence.
-28. Run `npm run verify:closeout:live` after the latest deploy.
+2. Run `npm run qa:brief -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` for the active testing card.
+3. Run `npm run qa:risk-board` to see the highest-value journey to prove or fix first.
+4. Run `npm run qa:next` to see the next incomplete session.
+5. Run `npm run qa:session -- day1` for the active testing session.
+6. Run `npm run qa:session-status` after logging results to see session readiness.
+7. Run `npm run qa:day -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` for the compact daily driver.
+8. Run `npm run qa:journey -- <journey-id>` for the specific journey you are walking.
+9. Run `npm run qa:tier -- player` or the tier being tested to keep role expectations clear.
+10. Run `npm run qa:tier-status` after logging results to see tier readiness.
+11. Open `docs/customer-journey-weekly-runbook.md`.
+12. For Day 1, run `npm run qa:day1`.
+13. Run `npm run qa:fixtures` while confirming test accounts and safe data.
+14. Run `npm run qa:session-ledger -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` for the rows you need in the current session, or `npm run qa:ledger` for every journey.
+15. Paste starter rows into `docs/customer-journey-test-results.md`.
+16. Run `npm run qa:flows` before walking a tier end to end.
+17. Run `npm run qa:focus -- <tier-or-journey>` while testing one journey at a time.
+18. Run `npm run qa:handoffs` before testing linked or shared-role workflows.
+19. Run `npm run qa:matrix` to keep tier features tied to pain points.
+20. Run `npm run qa:coverage -- <tier>` to confirm each feature has a proving journey and logged evidence.
+21. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
+22. Run `npm run qa:ledger-check` after adding or editing result rows.
+23. Run `npm run qa:results` after each testing block.
+24. Run `npm run qa:action-list` to turn open rows into the next fix list.
+25. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
+26. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
+27. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
+28. Run `npm run qa:launch` only after the ledger has real pass evidence.
+29. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -97,6 +99,7 @@ Start here when preparing for next-week journey testing.
 
 - Log every journey attempt in `docs/customer-journey-test-results.md`.
 - Use `npm run qa:prep` at the start of a testing session to confirm the packet, matrix, gap report, evidence checklist, and inventory guard are healthy.
+- Use `npm run qa:brief -- <day1-day5>` as the one-screen morning card for focus, fixtures, ledger rows, and closeout commands.
 - Use `npm run qa:risk-board` before broad testing to rank blocker, evidence, and risk priorities.
 - Use `npm run qa:next` after logging results to decide the next session or high-priority fix.
 - Use `npm run qa:session -- day1` through `day5` to keep each manual testing block focused.

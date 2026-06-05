@@ -7,6 +7,11 @@ const steps = [
     args: ['scripts/customer-journey-qa-status.mjs'],
   },
   {
+    label: 'Morning testing brief',
+    command: 'node',
+    args: ['scripts/customer-journey-morning-brief.mjs', 'day1'],
+  },
+  {
     label: 'Weekly testing sequence',
     command: 'node',
     args: ['scripts/customer-journey-weekly-readiness.mjs'],
