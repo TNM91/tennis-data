@@ -37,6 +37,11 @@ const checks = [
     command: process.execPath,
     args: ['scripts/verify-level-up-content.mjs'],
   },
+  {
+    label: 'Platform closeout inventory',
+    command: process.execPath,
+    args: ['scripts/verify-platform-closeout-inventory.mjs'],
+  },
 ]
 
 if (process.env.PLATFORM_QA_BASE_URL) {

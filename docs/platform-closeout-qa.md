@@ -9,6 +9,7 @@ Use this when the platform is ready for a full quality pass by tier, feature, an
 - Pricing and checkout plans: `lib/pricing-plans.ts`
 - Primary navigation access: `lib/primary-nav-access.ts`
 - Navigation surfaces: `lib/site-navigation.ts`
+- Closeout feature inventory: `lib/platform-closeout-inventory.ts`
 - Existing tier inventory: `docs/tier-inventory.md`
 - Deploy checklist: `docs/deploy-checklist.md`
 - Upgrade request rollout: `docs/upgrade-requests-rollout.md`
@@ -32,6 +33,7 @@ Use this when the platform is ready for a full quality pass by tier, feature, an
 - Every coach/player workflow should create a short proof signal, not a long journal.
 - Every on-court player surface should be phone-first: minimal scrolling, large tap targets, and one obvious next action.
 - Every mock/local-only feature should be labeled in this QA doc as `mock`, `local`, `backend-backed`, or `blocked`.
+- The executable feature inventory in `lib/platform-closeout-inventory.ts` should label every closeout surface with capability status, verification kind, and next closeout step.
 - Every workflow should have at least one smoke check or manual checklist item before closeout.
 
 ## Level Up Closeout Loop
@@ -124,6 +126,10 @@ Status: high-priority closeout candidate. Feature depth is strong; trust depends
 | Full-Court | User with all workspaces sees coherent navigation and no redundant upgrade prompts. |
 | Admin to Product | Admin activation changes access state and related gated pages respond correctly. |
 
+## Executable Inventory
+
+Use `lib/platform-closeout-inventory.ts` as the current tier-by-feature closeout map. It labels each feature as `backend-backed`, `local`, `mock`, `manual`, or `blocked`, then names the verification mode and next closeout step. `scripts/verify-platform-closeout-inventory.mjs` keeps that inventory complete and prevents local/manual/account-dependent work from disappearing from the plan.
+
 ## Automation Targets
 
 Add or extend scripts after this checklist is accepted:
@@ -131,6 +137,7 @@ Add or extend scripts after this checklist is accepted:
 - `scripts/verify-platform-routes.mjs`: visit core public, player, coach, captain, league, admin routes and check title/body availability. Created 2026-06-04.
 - `scripts/verify-platform-closeout.mjs`: run deterministic closeout checks, and include route, Level Up, and overflow browser smokes when base URL env vars are provided, `--browser-base=...` is passed, or `--live` is used. Created 2026-06-04.
 - `scripts/verify-tier-copy.mjs`: assert tier names, plan ids, access labels, primary-nav locks, and QA docs stay aligned with `lib/product-story.ts`. Created 2026-06-04.
+- `scripts/verify-platform-closeout-inventory.mjs`: assert closeout inventory coverage for Free, Player, Coach, Captain, League, Full-Court, and Admin/Internal features. Created 2026-06-04.
 - `scripts/verify-level-up-player-loop.mjs`: run the Level Up player card loop from direct card start to proof, tiny note, next recommendation, and local persistence. Created 2026-06-04.
 - `scripts/verify-coach-player-loop.mjs`: exercise coach assignment payloads, Level Up session payloads, player proof check-ins, and coach review handoff with test fixtures. Created 2026-06-04.
 - `scripts/verify-level-up-content.mjs`: assert Level Up cards/modules stay practical, tennis-specific, scoreable, linked, and identity-recommended as the library expands. Created 2026-06-04.
