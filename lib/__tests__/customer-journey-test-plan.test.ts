@@ -36,6 +36,7 @@ const journeySessionScriptSource = readFileSync(join(process.cwd(), 'scripts/cus
 const journeySessionStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-status.mjs'), 'utf8')
 const journeyDayScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-brief.mjs'), 'utf8')
 const journeyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-card.mjs'), 'utf8')
+const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
 const tierCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-card.mjs'), 'utf8')
 const tierStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-status.mjs'), 'utf8')
 const accessReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-access-review.mjs'), 'utf8')
@@ -102,6 +103,7 @@ describe('customer journey test plan', () => {
       'npm run qa:session-status',
       'npm run qa:day',
       'npm run qa:journey',
+      'npm run qa:route-review',
       'npm run qa:tier',
       'npm run qa:tier-status',
       'npm run qa:access-review',
@@ -156,6 +158,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:session-status": "node scripts/customer-journey-session-status.mjs"')
     expect(packageSource).toContain('"qa:day": "node scripts/customer-journey-day-brief.mjs"')
     expect(packageSource).toContain('"qa:journey": "node scripts/customer-journey-card.mjs"')
+    expect(packageSource).toContain('"qa:route-review": "node scripts/customer-journey-route-review.mjs"')
     expect(packageSource).toContain('"qa:tier": "node scripts/customer-journey-tier-card.mjs"')
     expect(packageSource).toContain('"qa:tier-status": "node scripts/customer-journey-tier-status.mjs"')
     expect(packageSource).toContain('"qa:access-review": "node scripts/customer-journey-access-review.mjs"')
@@ -189,6 +192,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:session-status')
     expect(qaStatusScriptSource).toContain('qa:day')
     expect(qaStatusScriptSource).toContain('qa:journey')
+    expect(qaStatusScriptSource).toContain('qa:route-review')
     expect(qaStatusScriptSource).toContain('qa:tier')
     expect(qaStatusScriptSource).toContain('qa:tier-status')
     expect(qaStatusScriptSource).toContain('qa:access-review')
@@ -222,6 +226,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-session-status.mjs',
       'scripts/customer-journey-day-brief.mjs',
       'scripts/customer-journey-card.mjs',
+      'scripts/customer-journey-route-review.mjs',
       'scripts/customer-journey-tier-card.mjs',
       'scripts/customer-journey-tier-status.mjs',
       'scripts/customer-journey-access-review.mjs',
@@ -262,6 +267,7 @@ describe('customer journey test plan', () => {
       'npm run qa:session-status',
       'npm run qa:day',
       'npm run qa:journey',
+      'npm run qa:route-review',
       'npm run qa:tier',
       'npm run qa:tier-status',
       'npm run qa:access-review',
@@ -420,6 +426,9 @@ describe('customer journey test plan', () => {
     expect(journeySessionStatusScriptSource).toContain('a session is ready to move on only when every listed journey has pass evidence')
     expect(journeyCardScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(journeyCardScriptSource).toContain('npm run qa:journey -- <journey-id | tier | search>')
+    expect(routeReviewScriptSource).toContain('docs/customer-journey-process-map.md')
+    expect(routeReviewScriptSource).toContain('lib/customer-journey-flow-map.json')
+    expect(routeReviewScriptSource).toContain('a route is not proven by loading')
     expect(tierCardScriptSource).toContain('Closeout rule: a tier is not test-ready')
     expect(tierCardScriptSource).toContain('npm run qa:tier -- <free | player | coach | captain | league | full-court | admin>')
     expect(tierStatusScriptSource).toContain('docs/customer-journey-test-results.md')
@@ -435,7 +444,9 @@ describe('customer journey test plan', () => {
       expect(evidenceChecklistScriptSource, `${plan.successSignal} missing from evidence checklist`).toContain(plan.successSignal)
       expect(evidencePackScriptSource, `${plan.id} missing from evidence pack`).toContain(plan.id)
       expect(journeyCardScriptSource, `${plan.id} missing from journey card command`).toContain(plan.id)
+      expect(routeReviewScriptSource, `${plan.id} missing from route review`).toContain(plan.id)
       expect(journeyCardScriptSource, `${plan.entryRoute} missing from journey card command`).toContain(plan.entryRoute)
+      expect(routeReviewScriptSource, `${plan.entryRoute} missing from route review`).toContain(plan.entryRoute)
       expect(journeyCardScriptSource, `${plan.personaFixture} missing from journey card command`).toContain(plan.personaFixture)
       expect(journeyCardScriptSource, `${plan.successSignal} missing from journey card command`).toContain(plan.successSignal)
       expect(tierCardScriptSource, `${plan.id} missing from tier card command`).toContain(plan.id)

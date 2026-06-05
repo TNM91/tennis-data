@@ -37,6 +37,11 @@ const steps = [
     args: ['scripts/customer-journey-card.mjs', 'player-level-up-mobile-loop'],
   },
   {
+    label: 'Sample route review',
+    command: 'node',
+    args: ['scripts/customer-journey-route-review.mjs', '/coach'],
+  },
+  {
     label: 'Sample tier readiness card',
     command: 'node',
     args: ['scripts/customer-journey-tier-card.mjs', 'player'],

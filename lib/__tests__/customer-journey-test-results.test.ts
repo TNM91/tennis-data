@@ -17,6 +17,7 @@ const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
+const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
@@ -85,6 +86,7 @@ describe('customer journey test results', () => {
     expect(closeoutQaSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
+    expect(resultsDocSource).toContain('npm run qa:route-review')
     expect(resultsDocSource).toContain('npm run qa:access-review')
     expect(resultsDocSource).toContain('npm run qa:feature-review')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
@@ -104,6 +106,19 @@ describe('customer journey test results', () => {
       expect(ledgerTemplateScriptSource, `${plan.id} missing from ledger template script`).toContain(plan.id)
       expect(ledgerTemplateScriptSource, `${plan.entryRoute} missing from ledger template script`).toContain(plan.entryRoute)
       expect(sessionLedgerScriptSource, `${plan.id} missing from session ledger script`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the route review command aligned to page-level evidence checks', () => {
+    expect(packageSource).toContain('"qa:route-review": "node scripts/customer-journey-route-review.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:route-review')
+    expect(routeReviewScriptSource).toContain('TenAceIQ Route Review')
+    expect(routeReviewScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(routeReviewScriptSource).toContain('a route is not proven by loading')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(routeReviewScriptSource, `${plan.id} missing from route review`).toContain(plan.id)
+      expect(routeReviewScriptSource, `${plan.entryRoute} missing from route review`).toContain(plan.entryRoute)
     }
   })
 

@@ -26,6 +26,7 @@ const requiredCommands = [
   'qa:session-status',
   'qa:day',
   'qa:journey',
+  'qa:route-review',
   'qa:tier',
   'qa:tier-status',
   'qa:access-review',
@@ -91,6 +92,7 @@ console.log('- npm run qa:session -- <day1-day5>')
 console.log('- npm run qa:session-status -- <day1-day5>')
 console.log('- npm run qa:day -- <day1-day5>')
 console.log('- npm run qa:journey -- <journey-id | tier | search>')
+console.log('- npm run qa:route-review -- </route | tier | feature | journey>')
 console.log('- npm run qa:tier -- <tier>')
 console.log('- npm run qa:tier-status -- <tier>')
 console.log('- npm run qa:access-review -- <tier>')

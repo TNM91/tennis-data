@@ -26,6 +26,7 @@
     "qa:session-status": "node scripts/customer-journey-session-status.mjs",
     "qa:day": "node scripts/customer-journey-day-brief.mjs",
     "qa:journey": "node scripts/customer-journey-card.mjs",
+    "qa:route-review": "node scripts/customer-journey-route-review.mjs",
     "qa:tier": "node scripts/customer-journey-tier-card.mjs",
     "qa:tier-status": "node scripts/customer-journey-tier-status.mjs",
     "qa:access-review": "node scripts/customer-journey-access-review.mjs",
