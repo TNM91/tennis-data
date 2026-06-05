@@ -10,6 +10,7 @@ Use this when the platform is ready for a full quality pass by tier, feature, an
 - Primary navigation access: `lib/primary-nav-access.ts`
 - Navigation surfaces: `lib/site-navigation.ts`
 - Closeout feature inventory: `lib/platform-closeout-inventory.ts`
+- Customer journey QA index: `docs/customer-journey-qa-index.md`
 - Customer journey test plan: `lib/customer-journey-test-plan.ts`, `docs/customer-journey-test-plan.md`
 - Customer journey day one runbook: `docs/customer-journey-day-one-runbook.md`
 - Customer journey weekly runbook: `docs/customer-journey-weekly-runbook.md`
@@ -138,6 +139,8 @@ Status: high-priority closeout candidate. Feature depth is strong; trust depends
 ## Executable Inventory
 
 Use `lib/platform-closeout-inventory.ts` as the current tier-by-feature closeout map. It labels each feature as `backend-backed`, `local`, `mock`, `manual`, or `blocked`, then names the verification mode and next closeout step. `scripts/verify-platform-closeout-inventory.mjs` keeps that inventory complete and prevents local/manual/account-dependent work from disappearing from the plan.
+
+Use `docs/customer-journey-qa-index.md` as the one-page starting point for commands, runbooks, ledger, fixtures, sync audit, and verification log.
 
 Use `docs/customer-journey-process-map.md` as the human-readable process flow map for next-week journey testing. It mirrors the inventory and records each tier journey, feature access, and pain point.
 

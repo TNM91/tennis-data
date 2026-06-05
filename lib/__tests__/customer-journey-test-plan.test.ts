@@ -13,6 +13,7 @@ import { PLATFORM_CLOSEOUT_TIER_LABELS } from '../platform-closeout-inventory'
 
 const testPlanDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-plan.md'), 'utf8')
 const testScriptsSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
+const qaIndexSource = readFileSync(join(process.cwd(), 'docs/customer-journey-qa-index.md'), 'utf8')
 const fixtureSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-fixtures.md'), 'utf8')
 const processMapSource = readFileSync(join(process.cwd(), 'docs/customer-journey-process-map.md'), 'utf8')
 const routeSmokeSource = readFileSync(join(process.cwd(), 'scripts/verify-platform-routes.mjs'), 'utf8')
@@ -55,6 +56,26 @@ describe('customer journey test plan', () => {
       expect(testPlanDocSource, `${plan.id} success signal missing`).toContain(plan.successSignal)
       expect(processMapSource, `${plan.id} tier journey missing`).toContain(PLATFORM_CLOSEOUT_TIER_LABELS[plan.tierId])
     }
+  })
+
+  it('keeps the QA index as the one-page starting point', () => {
+    for (const command of ['npm run qa:day1', 'npm run qa:week', 'npm run qa:ledger', 'npm run verify:closeout:live']) {
+      expect(qaIndexSource, `${command} missing from QA index`).toContain(command)
+    }
+
+    for (const doc of [
+      'docs/customer-journey-weekly-runbook.md',
+      'docs/customer-journey-day-one-runbook.md',
+      'docs/customer-journey-test-plan.md',
+      'docs/customer-journey-test-results.md',
+      'docs/customer-journey-test-fixtures.md',
+      'docs/level-up-sync-audit.md',
+      'docs/platform-closeout-verification-log.md',
+    ]) {
+      expect(qaIndexSource, `${doc} missing from QA index`).toContain(doc)
+    }
+
+    expect(testScriptsSource).toContain('docs/customer-journey-qa-index.md')
   })
 
   it('keeps fixture references documented before journey testing starts', () => {

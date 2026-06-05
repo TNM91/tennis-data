@@ -1,6 +1,6 @@
 # TenAceIQ Customer Journey Test Scripts
 
-Use this next week as the manual QA playbook. Start with `docs/customer-journey-day-one-runbook.md`; sequence the full week with `docs/customer-journey-weekly-runbook.md`; the testing agenda is `docs/customer-journey-test-plan.md`; the result ledger is `docs/customer-journey-test-results.md`; the companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`; the Level Up sync audit is `docs/level-up-sync-audit.md`.
+Use this next week as the manual QA playbook. Start with `docs/customer-journey-qa-index.md`; use `docs/customer-journey-day-one-runbook.md` for the first session; sequence the full week with `docs/customer-journey-weekly-runbook.md`; the testing agenda is `docs/customer-journey-test-plan.md`; the result ledger is `docs/customer-journey-test-results.md`; the companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`; the Level Up sync audit is `docs/level-up-sync-audit.md`.
 
 ## Test Rules
 
