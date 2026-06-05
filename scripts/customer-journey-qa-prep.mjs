@@ -207,6 +207,11 @@ const steps = [
     args: ['scripts/customer-journey-action-list.mjs'],
   },
   {
+    label: 'Owner board',
+    command: 'node',
+    args: ['scripts/customer-journey-owner-board.mjs'],
+  },
+  {
     label: 'Retest plan',
     command: 'node',
     args: ['scripts/customer-journey-retest-plan.mjs'],

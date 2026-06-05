@@ -37,6 +37,7 @@ const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/cust
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
+const ownerBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-owner-board.mjs'), 'utf8')
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
 const changeImpactScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-change-impact.mjs'), 'utf8')
 const testerHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-handoff.mjs'), 'utf8')
@@ -128,6 +129,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:trace')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
     expect(resultsDocSource).toContain('npm run qa:issue')
+    expect(resultsDocSource).toContain('npm run qa:owner-board')
     expect(resultsDocSource).toContain('npm run qa:change-impact')
     expect(resultsDocSource).toContain('npm run qa:tester-handoff')
   })
@@ -142,6 +144,7 @@ describe('customer journey test results', () => {
       'npm run qa:issue',
       'npm run qa:ledger-check',
       'npm run qa:close-day',
+      'npm run qa:owner-board',
       'npm run qa:change-impact',
       'npm run qa:tester-handoff',
       'npm run qa:scorecard',
@@ -459,6 +462,25 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(retestPlanScriptSource, `${plan.id} missing from retest plan script`).toContain(plan.id)
+    }
+  })
+
+  it('keeps owner board aligned to open ledger rows and named owner lanes', () => {
+    expect(packageSource).toContain('"qa:owner-board": "node scripts/customer-journey-owner-board.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:owner-board')
+    expect(ownerBoardScriptSource).toContain('TenAceIQ Customer Journey Owner Board')
+    expect(ownerBoardScriptSource).toContain('named QA lane')
+    expect(ownerBoardScriptSource).toContain('Owner load')
+    expect(ownerBoardScriptSource).toContain('Journey ownership')
+    expect(ownerBoardScriptSource).toContain('backup')
+    expect(ownerBoardScriptSource).toContain('open p0/p1')
+    expect(ownerBoardScriptSource).toContain('missing next action')
+    expect(ownerBoardScriptSource).toContain('Owner rule')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(ownerBoardScriptSource, `${plan.id} missing from owner board`).toContain(plan.id)
+      expect(ownerBoardScriptSource, `${plan.entryRoute} missing from owner board`).toContain(plan.entryRoute)
+      expect(ownerBoardScriptSource, `${plan.personaFixture} missing from owner board`).toContain(plan.personaFixture)
     }
   })
 

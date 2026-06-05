@@ -49,6 +49,7 @@ Use the command that matches the question in front of you.
 | Where should screenshots/videos go? | `npm run qa:evidence-index` |
 | How should I log this issue? | `npm run qa:issue` |
 | What should be fixed next? | `npm run qa:action-list` |
+| Who owns this journey or blocker? | `npm run qa:owner-board -- <owner|tier|day1-day5|journey>` |
 | What needs a rerun after a fix? | `npm run qa:retest -- <day-or-journey>` |
 | What changed and needs fresh evidence? | `npm run qa:change-impact -- --files=<comma-separated-files>` |
 | What should the next tester pick up? | `npm run qa:tester-handoff -- <day1-day5>` |
@@ -74,11 +75,12 @@ Use this order at the end of each testing day.
 3. `npm run qa:issue` if any row needs a result/category/severity decision.
 4. `npm run qa:evidence-index` if any row is missing screenshot/video proof.
 5. `npm run qa:action-list`
-6. `npm run qa:daily-summary -- <yyyy-mm-dd>`
-7. `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`
-8. `npm run qa:change-impact -- --files=<comma-separated-files>` after code changes or deploys.
-9. `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`
-10. `npm run qa:scorecard`
+6. `npm run qa:owner-board`
+7. `npm run qa:daily-summary -- <yyyy-mm-dd>`
+8. `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`
+9. `npm run qa:change-impact -- --files=<comma-separated-files>` after code changes or deploys.
+10. `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`
+11. `npm run qa:scorecard`
 
 Use this order before launch readiness.
 

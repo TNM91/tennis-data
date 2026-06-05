@@ -68,6 +68,7 @@ const requiredCommands = [
   'qa:ledger-check',
   'qa:results',
   'qa:action-list',
+  'qa:owner-board',
   'qa:retest',
   'qa:daily-summary',
   'qa:close-day',
@@ -152,6 +153,7 @@ console.log('- npm run qa:issue')
 console.log('- npm run qa:ledger-check')
 console.log('- npm run qa:results')
 console.log('- npm run qa:action-list')
+console.log('- npm run qa:owner-board -- <owner | tier | day1-day5 | journey>')
 console.log('- npm run qa:retest -- <day-or-journey>')
 console.log('- npm run qa:daily-summary -- <yyyy-mm-dd>')
 console.log('- npm run qa:close-day -- <day1-day5>')

@@ -53,6 +53,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:ledger-check` | Validate recorded ledger rows before using them for summaries or launch decisions. |
 | `npm run qa:results` | Summarize the result ledger, missing journeys, and open p0/p1 items. |
 | `npm run qa:action-list` | Print logged fail, blocked, and follow-up rows as a prioritized fix list. |
+| `npm run qa:owner-board -- <owner \| tier \| day1-day5 \| journey>` | Show journey owners, backup lanes, open blockers, missing evidence, and next commands. |
 | `npm run qa:retest -- <day-or-journey>` | Build the rerun list from open rows and missing pass evidence. |
 | `npm run qa:daily-summary -- <yyyy-mm-dd>` | Recap one testing day with pass/fail counts, blockers, missing actions, and the top fix. |
 | `npm run qa:close-day -- <day1-day5>` | Confirm whether a testing day has pass evidence, screenshots/video, next actions, and a retest queue. |
@@ -109,14 +110,15 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 42. Run `npm run qa:ledger-check` after adding or editing result rows.
 43. Run `npm run qa:results` after each testing block.
 44. Run `npm run qa:action-list` to turn open rows into the next fix list.
-45. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
-46. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
-47. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
-48. Run `npm run qa:tester-handoff -- <day1-day5>` before another tester or future session picks up the work.
-49. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
-50. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
-51. Run `npm run qa:launch` only after the ledger has real pass evidence.
-52. Run `npm run verify:closeout:live` after the latest deploy.
+45. Run `npm run qa:owner-board` so every open journey has a named owner lane.
+46. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
+47. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
+48. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
+49. Run `npm run qa:tester-handoff -- <day1-day5>` before another tester or future session picks up the work.
+50. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
+51. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
+52. Run `npm run qa:launch` only after the ledger has real pass evidence.
+53. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -193,6 +195,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 - Use `npm run qa:ledger-check` before trusting summaries, daily recaps, or launch readiness.
 - Use `npm run qa:results` at the end of each testing day to see missing journeys and open high-priority issues.
 - Use `npm run qa:action-list` after `qa:results` to list every logged fix, blocker, and follow-up by severity and missing next action.
+- Use `npm run qa:owner-board` after `qa:action-list` so each open row has one owner lane and one next command.
 - Use `npm run qa:retest -- day1` or a journey id after fixing issues so reruns stay tied to the original journey.
 - Use `npm run qa:daily-summary -- <yyyy-mm-dd>` after `qa:action-list` to record the day-level recap and the top fix to start with next.
 - Use `npm run qa:close-day -- <day1-day5>` after the daily summary to confirm pass evidence, screenshots/video, open next actions, and the retest queue.

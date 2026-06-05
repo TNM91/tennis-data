@@ -54,6 +54,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:ledger-check` to validate status, category, severity, fixture, route, evidence, and next-action fields
 - Run `npm run qa:results` to confirm missing journeys and open p0/p1 rows before launch decisions
 - Run `npm run qa:action-list` to confirm every logged fail, blocked, or follow-up row has a concrete next action
+- Run `npm run qa:owner-board` to confirm every open journey or blocker has an owner lane before signoff
 - Run `npm run qa:retest -- <day-or-journey>` after fixes to confirm the right journey gets fresh pass evidence
 - Run `npm run qa:daily-summary -- <yyyy-mm-dd>` after each testing block so the daily pass/fail count and top fix are clear
 - Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling a testing day done

@@ -70,6 +70,7 @@ const riskBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer
 const changeImpactScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-change-impact.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const actionListScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-action-list.mjs'), 'utf8')
+const ownerBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-owner-board.mjs'), 'utf8')
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
 const dailySummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-daily-summary.mjs'), 'utf8')
 const dayCloseoutScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-closeout.mjs'), 'utf8')
@@ -162,6 +163,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger-check',
       'npm run qa:results',
       'npm run qa:action-list',
+      'npm run qa:owner-board',
       'npm run qa:retest',
       'npm run qa:daily-summary',
       'npm run qa:close-day',
@@ -236,6 +238,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:ledger-check": "node scripts/customer-journey-ledger-check.mjs"')
     expect(packageSource).toContain('"qa:results": "node scripts/customer-journey-results-summary.mjs"')
     expect(packageSource).toContain('"qa:action-list": "node scripts/customer-journey-action-list.mjs"')
+    expect(packageSource).toContain('"qa:owner-board": "node scripts/customer-journey-owner-board.mjs"')
     expect(packageSource).toContain('"qa:retest": "node scripts/customer-journey-retest-plan.mjs"')
     expect(packageSource).toContain('"qa:daily-summary": "node scripts/customer-journey-daily-summary.mjs"')
     expect(packageSource).toContain('"qa:close-day": "node scripts/customer-journey-day-closeout.mjs"')
@@ -289,6 +292,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:ledger-check')
     expect(qaStatusScriptSource).toContain('qa:results')
     expect(qaStatusScriptSource).toContain('qa:action-list')
+    expect(qaStatusScriptSource).toContain('qa:owner-board')
     expect(qaStatusScriptSource).toContain('qa:retest')
     expect(qaStatusScriptSource).toContain('qa:daily-summary')
     expect(qaStatusScriptSource).toContain('qa:close-day')
@@ -339,6 +343,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-ledger-check.mjs',
       'scripts/customer-journey-results-summary.mjs',
       'scripts/customer-journey-action-list.mjs',
+      'scripts/customer-journey-owner-board.mjs',
       'scripts/customer-journey-retest-plan.mjs',
       'scripts/customer-journey-daily-summary.mjs',
       'scripts/customer-journey-day-closeout.mjs',
@@ -503,6 +508,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger-check',
       'npm run qa:results',
       'npm run qa:action-list',
+      'npm run qa:owner-board',
       'npm run qa:retest',
       'npm run qa:daily-summary',
       'npm run qa:close-day',
@@ -540,6 +546,33 @@ describe('customer journey test plan', () => {
       expect(testerHandoffScriptSource, `${plan.id} missing from tester handoff script`).toContain(plan.id)
       expect(testerHandoffScriptSource, `${plan.entryRoute} missing from tester handoff script`).toContain(plan.entryRoute)
       expect(testerHandoffScriptSource, `${plan.personaFixture} missing from tester handoff script`).toContain(plan.personaFixture)
+    }
+  })
+
+  it('keeps the owner board tied to journey ownership, blockers, and next commands', () => {
+    for (const anchor of [
+      'TenAceIQ Customer Journey Owner Board',
+      'docs/customer-journey-test-results.md',
+      'Owner load',
+      'Journey ownership',
+      'Product + mobile QA',
+      'Coach workflow QA',
+      'Admin/data QA',
+      'Public discovery QA',
+      'open p0/p1',
+      'missing next action',
+      'npm run qa:action-list',
+      'npm run qa:tester-handoff -- <day1-day5>',
+      'npm run qa:change-impact -- --files=<comma-separated-files>',
+      'Owner rule',
+    ]) {
+      expect(ownerBoardScriptSource, `${anchor} missing from owner board script`).toContain(anchor)
+    }
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(ownerBoardScriptSource, `${plan.id} missing from owner board script`).toContain(plan.id)
+      expect(ownerBoardScriptSource, `${plan.entryRoute} missing from owner board script`).toContain(plan.entryRoute)
+      expect(ownerBoardScriptSource, `${plan.personaFixture} missing from owner board script`).toContain(plan.personaFixture)
     }
   })
 
