@@ -25,6 +25,7 @@ Start here when preparing for next-week journey testing.
 | `npm run qa:access-review -- <tier>` | Print tier unlock, protected-control, fixture, feature, and proving-journey checks. |
 | `npm run qa:day1` | Print the Day 1 trust-loop checklist. |
 | `npm run qa:week` | Print the full week testing sequence and fixture list. |
+| `npm run qa:week-plan -- <day1-day5>` | Print the full week or one day as device-specific tester-packet commands with closeout gates. |
 | `npm run qa:fixtures` | Print account, data fixture, and setup-order expectations. |
 | `npm run qa:fixture-review -- <fixture \| tier \| journey \| route>` | Print one fixture's setup needs, dependent journeys, routes, and evidence state. |
 | `npm run qa:ledger` | Print starter result rows for every planned journey. |
@@ -73,28 +74,29 @@ Start here when preparing for next-week journey testing.
 17. Run `npm run qa:access-review -- player` or the tier being tested to confirm unlock and protected-control expectations.
 18. Open `docs/customer-journey-weekly-runbook.md`.
 19. For Day 1, run `npm run qa:day1`.
-20. Run `npm run qa:fixtures` while confirming test accounts and safe data.
-21. Run `npm run qa:fixture-review -- coach_primary` or the fixture being used to see dependent journeys and setup needs.
-22. Run `npm run qa:session-ledger -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` for the rows you need in the current session, or `npm run qa:ledger` for every journey.
-23. Paste starter rows into `docs/customer-journey-test-results.md`.
-24. Run `npm run qa:flows` before walking a tier end to end.
-25. Run `npm run qa:focus -- <tier-or-journey>` while testing one journey at a time.
-26. Run `npm run qa:handoffs` before testing linked or shared-role workflows.
-27. Run `npm run qa:matrix` to keep tier features tied to pain points.
-28. Run `npm run qa:feature-review -- player-level-up` or another feature when a specific tool needs a focused contract check.
-29. Run `npm run qa:coverage -- <tier>` to confirm each feature has a proving journey and logged evidence.
-30. Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos.
-31. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
-32. Run `npm run qa:ledger-check` after adding or editing result rows.
-33. Run `npm run qa:results` after each testing block.
-34. Run `npm run qa:action-list` to turn open rows into the next fix list.
-35. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
-36. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
-37. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
-38. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
-39. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
-40. Run `npm run qa:launch` only after the ledger has real pass evidence.
-41. Run `npm run verify:closeout:live` after the latest deploy.
+20. Run `npm run qa:week-plan -- --date=yyyy-mm-dd --tester=<name>` to map the week into device-specific tester packets.
+21. Run `npm run qa:fixtures` while confirming test accounts and safe data.
+22. Run `npm run qa:fixture-review -- coach_primary` or the fixture being used to see dependent journeys and setup needs.
+23. Run `npm run qa:session-ledger -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` for the rows you need in the current session, or `npm run qa:ledger` for every journey.
+24. Paste starter rows into `docs/customer-journey-test-results.md`.
+25. Run `npm run qa:flows` before walking a tier end to end.
+26. Run `npm run qa:focus -- <tier-or-journey>` while testing one journey at a time.
+27. Run `npm run qa:handoffs` before testing linked or shared-role workflows.
+28. Run `npm run qa:matrix` to keep tier features tied to pain points.
+29. Run `npm run qa:feature-review -- player-level-up` or another feature when a specific tool needs a focused contract check.
+30. Run `npm run qa:coverage -- <tier>` to confirm each feature has a proving journey and logged evidence.
+31. Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos.
+32. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
+33. Run `npm run qa:ledger-check` after adding or editing result rows.
+34. Run `npm run qa:results` after each testing block.
+35. Run `npm run qa:action-list` to turn open rows into the next fix list.
+36. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
+37. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
+38. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
+39. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
+40. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
+41. Run `npm run qa:launch` only after the ledger has real pass evidence.
+42. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -139,6 +141,7 @@ Start here when preparing for next-week journey testing.
 - Use `npm run qa:tier -- coach` or another tier when checking whether that role is test-ready across its features and journeys.
 - Use `npm run qa:tier-status` after logging results to see which role-based tiers are still blocked by missing pass evidence or open p0/p1 rows.
 - Use `npm run qa:access-review -- coach` or another tier when checking what should unlock, what must stay hidden, and which journey proves it.
+- Use `npm run qa:week-plan -- --date=yyyy-mm-dd --tester=<name>` before broad testing so each day has the required phone, iPad/tablet, and desktop tester packets.
 - Use `npm run qa:fixtures` before testing account-dependent journeys; missing fixture means `fixture-gap`, not pass.
 - Use `npm run qa:fixture-review -- level-up-assignment` or another fixture when checking setup shape, dependent journeys, and ledger evidence.
 - Use `npm run qa:session-ledger -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` through `day5` to avoid copying rows for journeys you are not testing that session.

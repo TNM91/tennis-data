@@ -17,6 +17,11 @@ const steps = [
     args: ['scripts/customer-journey-weekly-readiness.mjs'],
   },
   {
+    label: 'Test week device plan',
+    command: 'node',
+    args: ['scripts/customer-journey-week-plan.mjs'],
+  },
+  {
     label: 'Session status rollup',
     command: 'node',
     args: ['scripts/customer-journey-session-status.mjs'],

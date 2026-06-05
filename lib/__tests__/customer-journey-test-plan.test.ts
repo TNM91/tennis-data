@@ -28,6 +28,7 @@ const dayOneRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-jour
 const weeklyRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-journey-weekly-runbook.md'), 'utf8')
 const dayOneReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-one-readiness.mjs'), 'utf8')
 const weeklyReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-weekly-readiness.mjs'), 'utf8')
+const weekPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-week-plan.mjs'), 'utf8')
 const fixtureChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-checklist.mjs'), 'utf8')
 const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
@@ -120,6 +121,7 @@ describe('customer journey test plan', () => {
       'npm run qa:access-review',
       'npm run qa:day1',
       'npm run qa:week',
+      'npm run qa:week-plan',
       'npm run qa:fixtures',
       'npm run qa:fixture-review',
       'npm run qa:ledger',
@@ -179,6 +181,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:tier": "node scripts/customer-journey-tier-card.mjs"')
     expect(packageSource).toContain('"qa:tier-status": "node scripts/customer-journey-tier-status.mjs"')
     expect(packageSource).toContain('"qa:access-review": "node scripts/customer-journey-access-review.mjs"')
+    expect(packageSource).toContain('"qa:week-plan": "node scripts/customer-journey-week-plan.mjs"')
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
     expect(packageSource).toContain('"qa:fixture-review": "node scripts/customer-journey-fixture-review.mjs"')
     expect(packageSource).toContain('"qa:session-ledger": "node scripts/customer-journey-session-ledger.mjs"')
@@ -219,6 +222,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:tier')
     expect(qaStatusScriptSource).toContain('qa:tier-status')
     expect(qaStatusScriptSource).toContain('qa:access-review')
+    expect(qaStatusScriptSource).toContain('qa:week-plan')
     expect(qaStatusScriptSource).toContain('qa:fixtures')
     expect(qaStatusScriptSource).toContain('qa:fixture-review')
     expect(qaStatusScriptSource).toContain('qa:session-ledger')
@@ -247,6 +251,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-qa-status.mjs',
       'scripts/customer-journey-morning-brief.mjs',
       'scripts/customer-journey-weekly-readiness.mjs',
+      'scripts/customer-journey-week-plan.mjs',
       'scripts/customer-journey-session-status.mjs',
       'scripts/customer-journey-day-brief.mjs',
       'scripts/customer-journey-tester-packet.mjs',
@@ -307,6 +312,7 @@ describe('customer journey test plan', () => {
       'npm run qa:tier-status',
       'npm run qa:access-review',
       'npm run qa:week',
+      'npm run qa:week-plan',
       'npm run qa:fixtures',
       'npm run qa:fixture-review',
       'npm run qa:ledger',
@@ -592,10 +598,17 @@ describe('customer journey test plan', () => {
     expect(weeklyRunbookSource).toContain('npm run verify:closeout:live')
     expect(testScriptsSource).toContain('docs/customer-journey-weekly-runbook.md')
     expect(packageSource).toContain('"qa:week": "node scripts/customer-journey-weekly-readiness.mjs"')
+    expect(packageSource).toContain('"qa:week-plan": "node scripts/customer-journey-week-plan.mjs"')
+    expect(weekPlanScriptSource).toContain('TenAceIQ Test Week Plan')
+    expect(weekPlanScriptSource).toContain('qa:tester-packet')
+    expect(weekPlanScriptSource).toContain('required device pass')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(weeklyRunbookSource, `${plan.id} missing from weekly runbook`).toContain(plan.id)
       expect(weeklyReadinessScriptSource, `${plan.id} missing from weekly readiness script`).toContain(plan.id)
+      expect(weekPlanScriptSource, `${plan.id} missing from week plan script`).toContain(plan.id)
+      expect(weekPlanScriptSource, `${plan.entryRoute} missing from week plan script`).toContain(plan.entryRoute)
+      expect(weekPlanScriptSource, `${plan.personaFixture} missing from week plan script`).toContain(plan.personaFixture)
     }
   })
 

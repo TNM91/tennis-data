@@ -17,6 +17,7 @@ const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
+const weekPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-week-plan.mjs'), 'utf8')
 const testerPacketScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-packet.mjs'), 'utf8')
 const liveJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-live-card.mjs'), 'utf8')
 const deviceJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-card.mjs'), 'utf8')
@@ -92,6 +93,7 @@ describe('customer journey test results', () => {
     expect(closeoutQaSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
+    expect(resultsDocSource).toContain('npm run qa:week-plan')
     expect(resultsDocSource).toContain('npm run qa:tester-packet')
     expect(resultsDocSource).toContain('npm run qa:live-card')
     expect(resultsDocSource).toContain('npm run qa:device-card')
@@ -161,6 +163,20 @@ describe('customer journey test results', () => {
       expect(testerPacketScriptSource, `${plan.id} missing from tester packet`).toContain(plan.id)
       expect(testerPacketScriptSource, `${plan.entryRoute} missing from tester packet`).toContain(plan.entryRoute)
       expect(testerPacketScriptSource, `${plan.personaFixture} missing from tester packet`).toContain(plan.personaFixture)
+    }
+  })
+
+  it('keeps the week plan command aligned to full-week device coverage', () => {
+    expect(packageSource).toContain('"qa:week-plan": "node scripts/customer-journey-week-plan.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:week-plan')
+    expect(weekPlanScriptSource).toContain('TenAceIQ Test Week Plan')
+    expect(weekPlanScriptSource).toContain('qa:tester-packet')
+    expect(weekPlanScriptSource).toContain('required device pass')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(weekPlanScriptSource, `${plan.id} missing from week plan`).toContain(plan.id)
+      expect(weekPlanScriptSource, `${plan.entryRoute} missing from week plan`).toContain(plan.entryRoute)
+      expect(weekPlanScriptSource, `${plan.personaFixture} missing from week plan`).toContain(plan.personaFixture)
     }
   })
 

@@ -41,6 +41,7 @@ Copy one row per journey attempt. Keep credentials and private customer data out
 
 Run `npm run qa:ledger` to print starter rows for every planned journey.
 Run `npm run qa:session-ledger -- <day1-day5>` to print starter rows only for the active testing session. Add `--date=yyyy-mm-dd --tester=<name> --device=<device/browser>` to prefill repeated fields.
+Run `npm run qa:week-plan -- --date=yyyy-mm-dd --tester=<name>` when planning the full week across required phone, iPad/tablet, and desktop passes.
 Run `npm run qa:tester-packet -- <day1-day5> --device=<phone|tablet|desktop>` when one tester needs the run order for a specific session and device.
 Run `npm run qa:live-card -- <journey-id>` when you want the route, task, evidence filenames, paste-ready ledger row, and blocked-state commands for one journey.
 Run `npm run qa:device-card -- <phone|tablet|desktop>` when deciding what the current viewport must prove before a pass row is trusted.
@@ -79,6 +80,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 
 - A `sync-gap`, `access-gap`, `gating-gap`, or `data-propagation-gap` should be treated as product logic until proven otherwise.
 - A `fixture-gap` does not mean the product passed. Create the fixture and rerun.
+- Use `qa:week-plan` before broad testing so required device coverage is planned before evidence rows are logged.
 - Use `qa:live-card` while actively testing one journey so the same screen tells you what to open, what to prove, what to capture, and what to paste.
 - Use `qa:tester-packet` before a device testing block so one tester has the session command, device checks, evidence-pack command, ledger rows, and closeout checks together.
 - Use `qa:device-card` before logging device-sensitive passes so the row names the device/browser and the evidence proves the viewport-specific risk.
