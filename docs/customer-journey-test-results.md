@@ -63,6 +63,7 @@ Run `npm run qa:access-review -- <tier>` when a result is about wrong access, mi
 Run `npm run qa:tier-board -- <tier>` when a result needs the tier promise, feature pain points, proving journeys, evidence state, blockers, and next command together.
 Run `npm run qa:feature-review -- <feature>` when a result is about one feature's route, pain point, proving journey, connected flow, or handoff.
 Run `npm run qa:trace -- <tier|journey|feature|route>` when a result needs to be reviewed against tier promise, access rule, proving journeys, handoffs, and ledger evidence together.
+Run `npm run qa:fixture-board` when a result is blocked by account access, player/coach link state, safe data setup, or fixture readiness across multiple journeys.
 Run `npm run qa:fixture-status -- <day1-day5>` when checking whether a testing block has required fixtures or open fixture-gap blockers.
 Run `npm run qa:fixture-review -- <fixture>` when a result is blocked by account setup, linked state, test data, or safe fixture shape.
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
@@ -109,6 +110,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - Use `qa:tier-board` when signing off a role so the tier promise, feature pain points, proving journeys, evidence state, blockers, and next command stay visible together.
 - Use `qa:feature-review` before closing a feature-specific issue so the fix is tied to the proving journey and connected flow.
 - Use `qa:trace` before a tier signoff conversation so promise, pain point, feature access, proving journeys, handoffs, and ledger evidence stay connected.
+- Use `qa:fixture-board` before broad testing so account access, player/coach links, safe data fixtures, dependent journeys, and fixture-gap rows are visible together.
 - Use `qa:fixture-status` before a testing block so fixture gaps do not get mistaken for product failures or passes.
 - Use `qa:fixture-review` before marking `fixture-gap` so the dependent journeys, setup shape, and rerun command are clear.
 - A `mobile-ux-gap` in Level Up should be retested on phone-width viewport after the fix.

@@ -62,6 +62,11 @@ const steps = [
     args: ['scripts/customer-journey-fixture-checklist.mjs'],
   },
   {
+    label: 'Fixture readiness board',
+    command: 'node',
+    args: ['scripts/customer-journey-fixture-board.mjs'],
+  },
+  {
     label: 'Fixture status board',
     command: 'node',
     args: ['scripts/customer-journey-fixture-status.mjs', 'day1'],

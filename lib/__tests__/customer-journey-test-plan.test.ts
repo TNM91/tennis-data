@@ -33,6 +33,7 @@ const dayOneReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/cu
 const weeklyReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-weekly-readiness.mjs'), 'utf8')
 const weekPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-week-plan.mjs'), 'utf8')
 const fixtureChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-checklist.mjs'), 'utf8')
+const fixtureBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-board.mjs'), 'utf8')
 const fixtureStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-status.mjs'), 'utf8')
 const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
@@ -144,6 +145,7 @@ describe('customer journey test plan', () => {
       'npm run qa:week',
       'npm run qa:week-plan',
       'npm run qa:fixtures',
+      'npm run qa:fixture-board',
       'npm run qa:fixture-status',
       'npm run qa:fixture-review',
       'npm run qa:ledger',
@@ -222,6 +224,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:access-review": "node scripts/customer-journey-access-review.mjs"')
     expect(packageSource).toContain('"qa:week-plan": "node scripts/customer-journey-week-plan.mjs"')
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
+    expect(packageSource).toContain('"qa:fixture-board": "node scripts/customer-journey-fixture-board.mjs"')
     expect(packageSource).toContain('"qa:fixture-status": "node scripts/customer-journey-fixture-status.mjs"')
     expect(packageSource).toContain('"qa:fixture-review": "node scripts/customer-journey-fixture-review.mjs"')
     expect(packageSource).toContain('"qa:session-ledger": "node scripts/customer-journey-session-ledger.mjs"')
@@ -278,6 +281,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:access-review')
     expect(qaStatusScriptSource).toContain('qa:week-plan')
     expect(qaStatusScriptSource).toContain('qa:fixtures')
+    expect(qaStatusScriptSource).toContain('qa:fixture-board')
     expect(qaStatusScriptSource).toContain('qa:fixture-status')
     expect(qaStatusScriptSource).toContain('qa:fixture-review')
     expect(qaStatusScriptSource).toContain('qa:session-ledger')
@@ -333,6 +337,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-access-review.mjs',
       'scripts/customer-journey-session-ledger.mjs',
       'scripts/customer-journey-fixture-checklist.mjs',
+      'scripts/customer-journey-fixture-board.mjs',
       'scripts/customer-journey-fixture-status.mjs',
       'scripts/customer-journey-fixture-review.mjs',
       'scripts/customer-journey-flow-map.mjs',
@@ -373,6 +378,7 @@ describe('customer journey test plan', () => {
       'npm run qa:start',
       'npm run qa:today',
       'npm run qa:tester-packet',
+      'npm run qa:fixture-board',
       'npm run qa:fixture-status',
       'npm run qa:evidence-index',
       'npm run qa:evidence-pack',
@@ -425,6 +431,29 @@ describe('customer journey test plan', () => {
       'data-assist-upload',
     ]) {
       expect(fixtureStatusScriptSource, `${anchor} missing from fixture status script`).toContain(anchor)
+    }
+  })
+
+  it('keeps the fixture readiness board tied to account access, safe data, and fixture gaps', () => {
+    for (const anchor of [
+      'TenAceIQ Fixture Readiness Board',
+      'docs/customer-journey-test-fixtures.md',
+      'docs/customer-journey-test-results.md',
+      'Account access',
+      'Player and coach link',
+      'Team and league data',
+      'Admin and data safety',
+      'fixture-gap',
+      'qa:fixture-status',
+      'qa:fixture-review',
+      'Fixture board rule',
+    ]) {
+      expect(fixtureBoardScriptSource, `${anchor} missing from fixture readiness board`).toContain(anchor)
+    }
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(fixtureBoardScriptSource, `${plan.id} missing from fixture readiness board`).toContain(plan.id)
+      expect(fixtureBoardScriptSource, `${plan.personaFixture} missing from fixture readiness board`).toContain(plan.personaFixture)
     }
   })
 
@@ -499,6 +528,7 @@ describe('customer journey test plan', () => {
       'npm run qa:week',
       'npm run qa:week-plan',
       'npm run qa:fixtures',
+      'npm run qa:fixture-board',
       'npm run qa:fixture-status',
       'npm run qa:fixture-review',
       'npm run qa:ledger',
@@ -688,11 +718,18 @@ describe('customer journey test plan', () => {
     for (const fixtureId of getCustomerJourneyFixtureIds()) {
       expect(fixtureSource, `${fixtureId} missing from fixture plan`).toContain(fixtureId)
       expect(fixtureChecklistScriptSource, `${fixtureId} missing from fixture checklist command`).toContain(fixtureId)
+      expect(fixtureBoardScriptSource, `${fixtureId} missing from fixture readiness board`).toContain(fixtureId)
       expect(fixtureReviewScriptSource, `${fixtureId} missing from fixture review command`).toContain(fixtureId)
     }
 
     expect(fixtureSource).toContain('npm run qa:fixtures')
+    expect(fixtureSource).toContain('npm run qa:fixture-board')
     expect(fixtureSource).toContain('npm run qa:fixture-review')
+    expect(fixtureBoardScriptSource).toContain('docs/customer-journey-test-fixtures.md')
+    expect(fixtureBoardScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(fixtureBoardScriptSource).toContain('account access')
+    expect(fixtureBoardScriptSource).toContain('player/coach links')
+    expect(fixtureBoardScriptSource).toContain('Fixture board rule')
     expect(fixtureReviewScriptSource).toContain('docs/customer-journey-test-fixtures.md')
     expect(fixtureReviewScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(fixtureReviewScriptSource).toContain('a missing fixture is a fixture-gap')

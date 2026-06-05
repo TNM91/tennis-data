@@ -32,6 +32,7 @@ const deviceLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/custo
 const deviceStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-status.mjs'), 'utf8')
 const evidencePackScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-pack.mjs'), 'utf8')
 const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
+const fixtureBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-board.mjs'), 'utf8')
 const fixtureStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-status.mjs'), 'utf8')
 const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
@@ -124,6 +125,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:device-status')
     expect(resultsDocSource).toContain('npm run qa:evidence-index')
     expect(resultsDocSource).toContain('npm run qa:route-review')
+    expect(resultsDocSource).toContain('npm run qa:fixture-board')
     expect(resultsDocSource).toContain('npm run qa:fixture-status')
     expect(resultsDocSource).toContain('npm run qa:fixture-review')
     expect(resultsDocSource).toContain('npm run qa:access-review')
@@ -144,6 +146,7 @@ describe('customer journey test results', () => {
       'npm run qa:control',
       'npm run qa:today',
       'npm run qa:tester-packet',
+      'npm run qa:fixture-board',
       'npm run qa:evidence-index',
       'npm run qa:issue',
       'npm run qa:ledger-check',
@@ -395,6 +398,25 @@ describe('customer journey test results', () => {
       expect(fixtureReviewScriptSource, `${plan.id} missing from fixture review`).toContain(plan.id)
       expect(fixtureReviewScriptSource, `${plan.entryRoute} missing from fixture review`).toContain(plan.entryRoute)
       expect(fixtureReviewScriptSource, `${plan.personaFixture} missing from fixture review`).toContain(plan.personaFixture)
+    }
+  })
+
+  it('keeps the fixture readiness board aligned to setup readiness and fixture-gap evidence', () => {
+    expect(packageSource).toContain('"qa:fixture-board": "node scripts/customer-journey-fixture-board.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:fixture-board')
+    expect(testWeekQuickstartSource).toContain('npm run qa:fixture-board')
+    expect(fixtureBoardScriptSource).toContain('TenAceIQ Fixture Readiness Board')
+    expect(fixtureBoardScriptSource).toContain('docs/customer-journey-test-fixtures.md')
+    expect(fixtureBoardScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(fixtureBoardScriptSource).toContain('account access')
+    expect(fixtureBoardScriptSource).toContain('player/coach links')
+    expect(fixtureBoardScriptSource).toContain('safe data fixtures')
+    expect(fixtureBoardScriptSource).toContain('fixture-gap')
+    expect(fixtureBoardScriptSource).toContain('Fixture board rule')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(fixtureBoardScriptSource, `${plan.id} missing from fixture readiness board`).toContain(plan.id)
+      expect(fixtureBoardScriptSource, `${plan.personaFixture} missing from fixture readiness board`).toContain(plan.personaFixture)
     }
   })
 
