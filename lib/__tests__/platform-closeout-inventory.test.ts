@@ -5,8 +5,10 @@ import {
   PLATFORM_CAPABILITY_STATUSES,
   PLATFORM_CLOSEOUT_FEATURES,
   PLATFORM_CLOSEOUT_TIER_LABELS,
+  PLATFORM_CUSTOMER_JOURNEY_STAGES,
   PLATFORM_VERIFICATION_KINDS,
   type PlatformCloseoutTierId,
+  getPlatformCloseoutFeaturesByJourneyStage,
   getPlatformCloseoutFeaturesByStatus,
   getPlatformCloseoutFeaturesByVerification,
   getPlatformCloseoutFeaturesForTier,
@@ -17,6 +19,7 @@ import {
 import { MEMBERSHIP_TIER_ORDER } from '../product-story'
 
 const REQUIRED_TIERS: PlatformCloseoutTierId[] = [...MEMBERSHIP_TIER_ORDER, 'admin_internal']
+const journeyMapSource = readFileSync(join(process.cwd(), 'docs/customer-journey-process-map.md'), 'utf8')
 
 describe('platform closeout inventory', () => {
   it('keeps every product tier represented with actionable features', () => {
@@ -34,6 +37,8 @@ describe('platform closeout inventory', () => {
       expect(feature.id.trim(), feature.id).not.toHaveLength(0)
       expect(feature.label.trim(), feature.id).not.toHaveLength(0)
       expect(feature.route, feature.id).toMatch(/^\//)
+      expect(PLATFORM_CUSTOMER_JOURNEY_STAGES, feature.id).toContain(feature.journeyStage)
+      expect(feature.painPoint.trim(), feature.id).not.toHaveLength(0)
       expect(feature.job.trim(), feature.id).not.toHaveLength(0)
       expect(PLATFORM_CAPABILITY_STATUSES, feature.id).toContain(feature.status)
       expect(PLATFORM_VERIFICATION_KINDS, feature.id).toContain(feature.verification.kind)
@@ -74,9 +79,26 @@ describe('platform closeout inventory', () => {
     expect(summary.outstandingFeatures).toBe(getPlatformCloseoutOutstandingFeatures().length)
     expect(summary.byStatus.local).toBe(getPlatformCloseoutFeaturesByStatus('local').length)
     expect(summary.byVerification.manual).toBe(getPlatformCloseoutFeaturesByVerification('manual').length)
+    expect(summary.byJourneyStage.act).toBe(getPlatformCloseoutFeaturesByJourneyStage('act').length)
 
     for (const tierId of REQUIRED_TIERS) {
       expect(summary.byTier[tierId], `${tierId} should be counted in summary`).toBe(getPlatformCloseoutFeaturesForTier(tierId).length)
+    }
+  })
+
+  it('keeps the core journey stages represented in the test-ready map', () => {
+    for (const stage of ['discover', 'unlock', 'plan', 'act', 'review', 'share', 'operate', 'return', 'admin'] as const) {
+      expect(getPlatformCloseoutFeaturesByJourneyStage(stage).length, `${stage} should have at least one feature`).toBeGreaterThan(0)
+    }
+  })
+
+  it('keeps the technical journey map aligned to the feature inventory', () => {
+    expect(journeyMapSource).toContain('Feature Access And Pain Point Matrix')
+
+    for (const feature of PLATFORM_CLOSEOUT_FEATURES) {
+      expect(journeyMapSource, `${feature.id} label missing from journey map`).toContain(feature.label)
+      expect(journeyMapSource, `${feature.id} route missing from journey map`).toContain(feature.route)
+      expect(journeyMapSource, `${feature.id} pain point missing from journey map`).toContain(feature.painPoint)
     }
   })
 

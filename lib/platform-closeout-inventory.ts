@@ -6,11 +6,25 @@ export type PlatformCapabilityStatus = 'backend-backed' | 'local' | 'mock' | 'ma
 
 export type PlatformVerificationKind = 'automated' | 'manual' | 'needs-account' | 'blocked'
 
+export type PlatformCustomerJourneyStage =
+  | 'discover'
+  | 'unlock'
+  | 'plan'
+  | 'act'
+  | 'track'
+  | 'review'
+  | 'share'
+  | 'operate'
+  | 'return'
+  | 'admin'
+
 export type PlatformCloseoutFeature = {
   id: string
   tierId: PlatformCloseoutTierId
   label: string
   route: string
+  journeyStage: PlatformCustomerJourneyStage
+  painPoint: string
   job: string
   status: PlatformCapabilityStatus
   verification: {
@@ -35,12 +49,40 @@ export const PLATFORM_CAPABILITY_STATUSES: PlatformCapabilityStatus[] = ['backen
 
 export const PLATFORM_VERIFICATION_KINDS: PlatformVerificationKind[] = ['automated', 'manual', 'needs-account', 'blocked']
 
+export const PLATFORM_CUSTOMER_JOURNEY_STAGES: PlatformCustomerJourneyStage[] = [
+  'discover',
+  'unlock',
+  'plan',
+  'act',
+  'track',
+  'review',
+  'share',
+  'operate',
+  'return',
+  'admin',
+]
+
+export const PLATFORM_CUSTOMER_JOURNEY_STAGE_LABELS: Record<PlatformCustomerJourneyStage, string> = {
+  discover: 'Discover',
+  unlock: 'Unlock',
+  plan: 'Plan',
+  act: 'Act',
+  track: 'Track',
+  review: 'Review',
+  share: 'Share',
+  operate: 'Operate',
+  return: 'Return',
+  admin: 'Admin',
+}
+
 export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
   {
     id: 'free-public-explore',
     tierId: 'free',
     label: 'Public Explore',
     route: '/explore',
+    journeyStage: 'discover',
+    painPoint: 'Visitors do not know where to start or how to understand the tennis landscape around them.',
     job: 'Help visitors find players, teams, leagues, rankings, and public tennis context.',
     status: 'backend-backed',
     verification: {
@@ -55,6 +97,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'free',
     label: 'Data Assist Entry',
     route: '/data-assist',
+    journeyStage: 'act',
+    painPoint: 'Users have updated scorecards, schedules, or rosters but no clear way to turn them into trusted platform context.',
     job: 'Let users contribute TennisLink exports when platform data needs to refresh.',
     status: 'manual',
     verification: {
@@ -68,6 +112,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'player_plus',
     label: 'My Lab',
     route: '/mylab',
+    journeyStage: 'return',
+    painPoint: 'Players see tennis data in fragments and need one personal home that tells them what matters next.',
     job: 'Give the player a personalized tennis home with current context and next actions.',
     status: 'backend-backed',
     verification: {
@@ -81,6 +127,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'player_plus',
     label: 'Level Up Portal',
     route: '/player-development/[identity]/level-up',
+    journeyStage: 'act',
+    painPoint: 'Players leave lessons without an easy on-court way to choose a focus, train it, and log proof quickly.',
     job: 'Let players train, score proof, save a tiny note, and get the next useful rep.',
     status: 'local',
     verification: {
@@ -95,6 +143,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'player_plus',
     label: 'Level Up Content Library',
     route: '/player-development/[identity]/level-up',
+    journeyStage: 'plan',
+    painPoint: 'Training libraries can become generic, making it hard for players to know which drill actually helps their game.',
     job: 'Keep drills, modules, recommendations, proof anchors, and identity lanes practical and tennis-specific.',
     status: 'backend-backed',
     verification: {
@@ -109,6 +159,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'coach',
     label: 'Coach Hub',
     route: '/coach',
+    journeyStage: 'review',
+    painPoint: 'Coaches need one place to see students, assigned work, proof, and the next lesson focus between sessions.',
     job: 'Help coaches manage students, assignments, sessions, and next lesson focus.',
     status: 'backend-backed',
     verification: {
@@ -123,6 +175,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'coach',
     label: 'Coach Invite Link',
     route: '/coach/invite/[token]',
+    journeyStage: 'unlock',
+    painPoint: 'Coach-player alignment breaks when the player is not linked to the coach inside the platform.',
     job: 'Let an invited player create or link an account to a coach relationship.',
     status: 'backend-backed',
     verification: {
@@ -136,6 +190,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'coach',
     label: 'Coach Lesson Planner',
     route: '/player-development/[identity]/coach-planner',
+    journeyStage: 'plan',
+    painPoint: 'Lesson plans can drift away from the player identity, assigned work, and readiness signals.',
     job: 'Give coaches one-hour lesson plans that support the player identity and current readiness.',
     status: 'manual',
     verification: {
@@ -149,6 +205,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'captain',
     label: 'Captain Lineup Week',
     route: '/captain',
+    journeyStage: 'plan',
+    painPoint: 'Captains make weekly lineup decisions with scattered availability, readiness, scouting, and communication.',
     job: 'Move from availability and scouting to lineup decisions and team communication.',
     status: 'local',
     verification: {
@@ -162,6 +220,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'captain',
     label: 'Compete Bridge',
     route: '/compete',
+    journeyStage: 'discover',
+    painPoint: 'Team context, schedules, and results can feel disconnected from the captain actions they should inform.',
     job: 'Connect team context, schedules, results, and captain tools without tier confusion.',
     status: 'manual',
     verification: {
@@ -175,6 +235,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'league',
     label: 'League Office',
     route: '/league-coordinator',
+    journeyStage: 'operate',
+    painPoint: 'Coordinators often run structure, schedules, results, standings, and visibility across too many manual tools.',
     job: 'Let coordinators manage league structure, team results, individual results, and tournaments.',
     status: 'backend-backed',
     verification: {
@@ -188,6 +250,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'league',
     label: 'Public League Context',
     route: '/leagues/[league]',
+    journeyStage: 'share',
+    painPoint: 'Members need a clear public or member-facing place to see league schedule, result, and standings context.',
     job: 'Show members schedule, result, and standing context where public visibility is intended.',
     status: 'backend-backed',
     verification: {
@@ -202,6 +266,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'full_court',
     label: 'Full-Court Navigation',
     route: '/pricing',
+    journeyStage: 'unlock',
+    painPoint: 'Multi-role users need all workspaces without repeated locks, duplicated prompts, or unclear role switching.',
     job: 'Show that Full-Court unlocks Player, Coach, Captain, and League workspaces without redundant upgrade prompts.',
     status: 'manual',
     verification: {
@@ -215,6 +281,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'admin_internal',
     label: 'Admin Access Management',
     route: '/admin/access',
+    journeyStage: 'admin',
+    painPoint: 'Internal users need to activate and repair access without creating tier drift or billing confusion.',
     job: 'Let internal users activate, review, and repair access safely.',
     status: 'backend-backed',
     verification: {
@@ -228,6 +296,8 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
     tierId: 'admin_internal',
     label: 'Admin Data Quality',
     route: '/admin/import-queue',
+    journeyStage: 'admin',
+    painPoint: 'Imported tennis data needs review before it changes match history, rankings, player context, or league intelligence.',
     job: 'Review imported tennis data before it changes product intelligence.',
     status: 'manual',
     verification: {
@@ -250,6 +320,10 @@ export function getPlatformCloseoutFeaturesByVerification(kind: PlatformVerifica
   return PLATFORM_CLOSEOUT_FEATURES.filter((feature) => feature.verification.kind === kind)
 }
 
+export function getPlatformCloseoutFeaturesByJourneyStage(stage: PlatformCustomerJourneyStage) {
+  return PLATFORM_CLOSEOUT_FEATURES.filter((feature) => feature.journeyStage === stage)
+}
+
 export function getPlatformCloseoutOutstandingFeatures() {
   return PLATFORM_CLOSEOUT_FEATURES.filter((feature) => feature.verification.kind !== 'automated' || feature.status !== 'backend-backed')
 }
@@ -266,6 +340,7 @@ export function getPlatformCloseoutSummary() {
     byTier: countBy(PLATFORM_CLOSEOUT_FEATURES, (feature) => feature.tierId),
     byStatus: countBy(PLATFORM_CLOSEOUT_FEATURES, (feature) => feature.status),
     byVerification: countBy(PLATFORM_CLOSEOUT_FEATURES, (feature) => feature.verification.kind),
+    byJourneyStage: countBy(PLATFORM_CLOSEOUT_FEATURES, (feature) => feature.journeyStage),
     automatedFeatures: getPlatformCloseoutFeaturesByVerification('automated').length,
     outstandingFeatures: getPlatformCloseoutOutstandingFeatures().length,
     nextActions: getPlatformCloseoutNextActions(),
