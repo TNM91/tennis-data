@@ -62,6 +62,11 @@ const steps = [
     args: ['scripts/customer-journey-feature-matrix.mjs'],
   },
   {
+    label: 'Tier feature coverage report',
+    command: 'node',
+    args: ['scripts/customer-journey-coverage-report.mjs'],
+  },
+  {
     label: 'Evidence gap report',
     command: 'node',
     args: ['scripts/customer-journey-gap-report.mjs'],

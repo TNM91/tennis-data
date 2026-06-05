@@ -36,6 +36,7 @@ const requiredCommands = [
   'qa:focus',
   'qa:handoffs',
   'qa:matrix',
+  'qa:coverage',
   'qa:gaps',
   'qa:evidence',
   'qa:triage',
@@ -93,6 +94,7 @@ console.log('- npm run qa:flows')
 console.log('- npm run qa:focus -- <tier-or-journey>')
 console.log('- npm run qa:handoffs')
 console.log('- npm run qa:matrix')
+console.log('- npm run qa:coverage -- <tier>')
 console.log('- npm run qa:gaps')
 console.log('- npm run qa:evidence')
 console.log('- npm run qa:triage')
