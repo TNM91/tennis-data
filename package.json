@@ -49,6 +49,7 @@
     "qa:retest": "node scripts/customer-journey-retest-plan.mjs",
     "qa:daily-summary": "node scripts/customer-journey-daily-summary.mjs",
     "qa:close-day": "node scripts/customer-journey-day-closeout.mjs",
+    "qa:signoff": "node scripts/customer-journey-signoff-sheet.mjs",
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
     "db:migrations": "supabase migration list",

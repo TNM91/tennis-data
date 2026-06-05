@@ -51,6 +51,7 @@ const actionListScriptSource = readFileSync(join(process.cwd(), 'scripts/custome
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
 const dailySummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-daily-summary.mjs'), 'utf8')
 const dayCloseoutScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-closeout.mjs'), 'utf8')
+const signoffSheetScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-signoff-sheet.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const CRITICAL_SCRIPT_ANCHORS: Record<string, string[]> = {
   'player-level-up-mobile-loop': ['Level Up Portal', '/player-development/relentless-competitor-4-0/level-up', 'local saved state behaves honestly'],
@@ -121,6 +122,7 @@ describe('customer journey test plan', () => {
       'npm run qa:retest',
       'npm run qa:daily-summary',
       'npm run qa:close-day',
+      'npm run qa:signoff',
       'npm run qa:launch',
       'npm run verify:closeout:live',
     ]) {
@@ -168,6 +170,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:retest": "node scripts/customer-journey-retest-plan.mjs"')
     expect(packageSource).toContain('"qa:daily-summary": "node scripts/customer-journey-daily-summary.mjs"')
     expect(packageSource).toContain('"qa:close-day": "node scripts/customer-journey-day-closeout.mjs"')
+    expect(packageSource).toContain('"qa:signoff": "node scripts/customer-journey-signoff-sheet.mjs"')
     expect(packageSource).toContain('"qa:launch": "node scripts/customer-journey-launch-readiness.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
     expect(qaStatusScriptSource).toContain('qa:prep')
@@ -197,6 +200,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:retest')
     expect(qaStatusScriptSource).toContain('qa:daily-summary')
     expect(qaStatusScriptSource).toContain('qa:close-day')
+    expect(qaStatusScriptSource).toContain('qa:signoff')
     expect(qaStatusScriptSource).toContain('qa:launch')
 
     for (const script of [
@@ -225,6 +229,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-retest-plan.mjs',
       'scripts/customer-journey-daily-summary.mjs',
       'scripts/customer-journey-day-closeout.mjs',
+      'scripts/customer-journey-signoff-sheet.mjs',
       'scripts/verify-platform-closeout-inventory.mjs',
     ]) {
       expect(qaPrepScriptSource, `${script} missing from QA prep`).toContain(script)
@@ -264,6 +269,7 @@ describe('customer journey test plan', () => {
       'npm run qa:retest',
       'npm run qa:daily-summary',
       'npm run qa:close-day',
+      'npm run qa:signoff',
       'npm run qa:launch',
       'npm run verify:closeout',
       'npm run verify:closeout:live',
@@ -383,6 +389,8 @@ describe('customer journey test plan', () => {
     expect(dailySummaryScriptSource).toContain('Top fix')
     expect(dayCloseoutScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(dayCloseoutScriptSource).toContain('a testing day is not closed')
+    expect(signoffSheetScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(signoffSheetScriptSource).toContain('signed off means pass evidence')
     expect(journeySessionStatusScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(journeySessionStatusScriptSource).toContain('a session is ready to move on only when every listed journey has pass evidence')
     expect(journeyCardScriptSource).toContain('docs/customer-journey-test-results.md')
@@ -411,6 +419,7 @@ describe('customer journey test plan', () => {
       expect(retestPlanScriptSource, `${plan.id} missing from retest plan command`).toContain(plan.id)
       expect(dailySummaryScriptSource, `${plan.id} missing from daily summary command`).toContain(plan.id)
       expect(dayCloseoutScriptSource, `${plan.id} missing from day closeout command`).toContain(plan.id)
+      expect(signoffSheetScriptSource, `${plan.id} missing from signoff sheet`).toContain(plan.id)
     }
   })
 

@@ -37,6 +37,7 @@ Start here when preparing for next-week journey testing.
 | `npm run qa:retest -- <day-or-journey>` | Build the rerun list from open rows and missing pass evidence. |
 | `npm run qa:daily-summary -- <yyyy-mm-dd>` | Recap one testing day with pass/fail counts, blockers, missing actions, and the top fix. |
 | `npm run qa:close-day -- <day1-day5>` | Confirm whether a testing day has pass evidence, screenshots/video, next actions, and a retest queue. |
+| `npm run qa:signoff` | Print the final journey signoff sheet with owners, evidence state, and launch blockers. |
 | `npm run qa:launch` | Fail unless every journey has pass evidence and no p0/p1 row remains open. |
 | `npm run verify:closeout` | Run deterministic closeout checks. |
 | `npm run verify:closeout:live` | Run production closeout checks with browser smoke. |
@@ -71,8 +72,9 @@ Start here when preparing for next-week journey testing.
 26. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
 27. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
 28. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
-29. Run `npm run qa:launch` only after the ledger has real pass evidence.
-30. Run `npm run verify:closeout:live` after the latest deploy.
+29. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
+30. Run `npm run qa:launch` only after the ledger has real pass evidence.
+31. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -130,4 +132,5 @@ Start here when preparing for next-week journey testing.
 - Use `npm run qa:retest -- day1` or a journey id after fixing issues so reruns stay tied to the original journey.
 - Use `npm run qa:daily-summary -- <yyyy-mm-dd>` after `qa:action-list` to record the day-level recap and the top fix to start with next.
 - Use `npm run qa:close-day -- <day1-day5>` after the daily summary to confirm pass evidence, screenshots/video, open next actions, and the retest queue.
+- Use `npm run qa:signoff` before launch readiness to see which journey owners can call their flow done.
 - Use `npm run qa:launch` as the final manual-evidence gate; it is expected to fail until every journey has a pass row.

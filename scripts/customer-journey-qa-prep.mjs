@@ -127,6 +127,11 @@ const steps = [
     args: ['scripts/customer-journey-day-closeout.mjs'],
   },
   {
+    label: 'Journey signoff sheet',
+    command: 'node',
+    args: ['scripts/customer-journey-signoff-sheet.mjs'],
+  },
+  {
     label: 'Closeout inventory guard',
     command: 'node',
     args: ['scripts/verify-platform-closeout-inventory.mjs'],

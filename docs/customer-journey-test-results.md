@@ -52,6 +52,7 @@ Run `npm run qa:retest -- <day-or-journey>` after fixes to list the exact journe
 Run `npm run qa:daily-summary -- <yyyy-mm-dd>` after testing to recap the day and name the top fix.
 Run `npm run qa:close-day -- <day1-day5>` before calling a testing day done so missing pass evidence, screenshots/video, next actions, and retests are visible.
 Run `npm run qa:tier-status` after testing to summarize readiness by role-based tier.
+Run `npm run qa:signoff` before launch readiness so every journey owner, evidence state, and blocker is visible.
 Run `npm run qa:launch` after testing is logged. It should fail until every journey has a `pass` row and no p0/p1 row remains open.
 
 | Date | Tester | Device/browser | Account fixture | Journey ID | Entry route | Result | Category | Severity | Screenshot/video | Notes | Next action |
@@ -74,4 +75,5 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - Use `qa:evidence-pack` before capture so screenshot/video names prove the journey signal and stay easy to paste into the ledger.
 - Use `qa:retest` after every fix pass so missing or stale pass evidence does not slip through.
 - Use `qa:close-day` before ending a testing block so open retests and missing evidence are not carried forward silently.
+- Use `qa:signoff` before launch readiness so “done” means pass evidence, screenshot/video evidence, and no open p0/p1.
 - A journey closes only when the result is `pass` and the evidence shows the pain point was actually solved.
