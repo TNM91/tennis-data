@@ -34,6 +34,7 @@ const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-
 const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-checklist.mjs'), 'utf8')
 const flowMapScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-flow-map.mjs'), 'utf8')
 const journeyFocusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-focus.mjs'), 'utf8')
+const journeyHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-handoffs.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const CRITICAL_SCRIPT_ANCHORS: Record<string, string[]> = {
   'player-level-up-mobile-loop': ['Level Up Portal', '/player-development/relentless-competitor-4-0/level-up', 'local saved state behaves honestly'],
@@ -81,6 +82,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger',
       'npm run qa:flows',
       'npm run qa:focus',
+      'npm run qa:handoffs',
       'npm run qa:matrix',
       'npm run qa:gaps',
       'npm run qa:evidence',
@@ -110,6 +112,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
     expect(packageSource).toContain('"qa:flows": "node scripts/customer-journey-flow-map.mjs"')
     expect(packageSource).toContain('"qa:focus": "node scripts/customer-journey-focus.mjs"')
+    expect(packageSource).toContain('"qa:handoffs": "node scripts/customer-journey-handoffs.mjs"')
     expect(packageSource).toContain('"qa:matrix": "node scripts/customer-journey-feature-matrix.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
     expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
@@ -121,6 +124,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:fixtures')
     expect(qaStatusScriptSource).toContain('qa:flows')
     expect(qaStatusScriptSource).toContain('qa:focus')
+    expect(qaStatusScriptSource).toContain('qa:handoffs')
     expect(qaStatusScriptSource).toContain('qa:matrix')
     expect(qaStatusScriptSource).toContain('qa:gaps')
     expect(qaStatusScriptSource).toContain('qa:evidence')
@@ -133,6 +137,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-weekly-readiness.mjs',
       'scripts/customer-journey-fixture-checklist.mjs',
       'scripts/customer-journey-flow-map.mjs',
+      'scripts/customer-journey-handoffs.mjs',
       'scripts/customer-journey-feature-matrix.mjs',
       'scripts/customer-journey-gap-report.mjs',
       'scripts/customer-journey-evidence-checklist.mjs',
@@ -154,6 +159,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger',
       'npm run qa:flows',
       'npm run qa:focus',
+      'npm run qa:handoffs',
       'npm run qa:matrix',
       'npm run qa:gaps',
       'npm run qa:evidence',
@@ -174,8 +180,11 @@ describe('customer journey test plan', () => {
     expect(journeyFocusScriptSource).toContain('lib/customer-journey-flow-map.json')
     expect(journeyFocusScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(journeyFocusScriptSource).toContain('npm run qa:focus -- <tier | flow id | feature id | search>')
+    expect(journeyHandoffScriptSource).toContain('lib/customer-journey-flow-map.json')
+    expect(journeyHandoffScriptSource).toContain('shared work must reach the right role')
     expect(processMapSource).toContain('lib/customer-journey-flow-map.json')
     expect(processMapSource).toContain('Flow Contract')
+    expect(processMapSource).toContain('npm run qa:handoffs')
 
     for (const flow of CUSTOMER_JOURNEY_FLOW_MAPS) {
       expect(PLATFORM_CLOSEOUT_TIER_LABELS[flow.tierId], `${flow.id} has unknown tier`).toBeTruthy()

@@ -2,7 +2,7 @@
 
 Use this as the technical reference for journey testing by tier. The source of truth for feature status, pain points, verification mode, and next closeout steps is `lib/platform-closeout-inventory.ts`. The typed testing agenda lives in `docs/customer-journey-test-plan.md`; the manual test playbook lives in `docs/customer-journey-test-scripts.md`; the account/data fixture plan lives in `docs/customer-journey-test-fixtures.md`.
 
-Run `npm run qa:flows` to print tier journey steps, handoffs, access rules, and evidence points. Run `npm run qa:matrix` to print the tier-by-feature matrix while testing. Run `npm run qa:gaps` to focus the account, fixture, manual, and local-sync evidence pass.
+Run `npm run qa:flows` to print tier journey steps, handoffs, access rules, and evidence points. Run `npm run qa:handoffs` to isolate cross-role proof and access checks. Run `npm run qa:matrix` to print the tier-by-feature matrix while testing. Run `npm run qa:gaps` to focus the account, fixture, manual, and local-sync evidence pass.
 
 ## How To Use This
 
@@ -59,6 +59,8 @@ Each tested tier should have:
 | Return | The user can come back later and see what changed or what to do next. |
 
 Source: `lib/customer-journey-flow-map.json`.
+
+Run `npm run qa:handoffs` before any linked player/coach, captain/league, Full-Court, or Data Assist/Admin test pass.
 
 ## Core Customer Journeys
 

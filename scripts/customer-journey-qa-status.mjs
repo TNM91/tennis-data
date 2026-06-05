@@ -26,6 +26,7 @@ const requiredCommands = [
   'qa:ledger',
   'qa:flows',
   'qa:focus',
+  'qa:handoffs',
   'qa:matrix',
   'qa:gaps',
   'qa:evidence',
@@ -69,6 +70,7 @@ console.log('- npm run qa:fixtures')
 console.log('- npm run qa:ledger')
 console.log('- npm run qa:flows')
 console.log('- npm run qa:focus -- <tier-or-journey>')
+console.log('- npm run qa:handoffs')
 console.log('- npm run qa:matrix')
 console.log('- npm run qa:gaps')
 console.log('- npm run qa:evidence')

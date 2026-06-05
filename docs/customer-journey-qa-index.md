@@ -14,6 +14,7 @@ Start here when preparing for next-week journey testing.
 | `npm run qa:ledger` | Print starter result rows for every planned journey. |
 | `npm run qa:flows` | Print tier journey steps, handoffs, access rules, and evidence points. |
 | `npm run qa:focus -- <tier-or-journey>` | Print one focused tier or journey flow for manual testing. |
+| `npm run qa:handoffs` | Print cross-role handoff checks and shared proof expectations. |
 | `npm run qa:matrix` | Print the tier-by-feature QA matrix with pain points and verification mode. |
 | `npm run qa:gaps` | Print feature gaps that still need account, fixture, manual, or local-sync proof. |
 | `npm run qa:evidence` | Print the proof checklist for each journey before recording results. |
@@ -32,10 +33,11 @@ Start here when preparing for next-week journey testing.
 5. Run `npm run qa:ledger` and paste starter rows into `docs/customer-journey-test-results.md`.
 6. Run `npm run qa:flows` before walking a tier end to end.
 7. Run `npm run qa:focus -- <tier-or-journey>` while testing one journey at a time.
-8. Run focused commands as needed: `npm run qa:matrix`, `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
-9. Run `npm run qa:results` after each testing block.
-10. Run `npm run qa:launch` only after the ledger has real pass evidence.
-11. Run `npm run verify:closeout:live` after the latest deploy.
+8. Run `npm run qa:handoffs` before testing linked or shared-role workflows.
+9. Run focused commands as needed: `npm run qa:matrix`, `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
+10. Run `npm run qa:results` after each testing block.
+11. Run `npm run qa:launch` only after the ledger has real pass evidence.
+12. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -67,6 +69,7 @@ Start here when preparing for next-week journey testing.
 - Use `npm run qa:fixtures` before testing account-dependent journeys; missing fixture means `fixture-gap`, not pass.
 - Use `npm run qa:flows` when checking the entry, action, proof, handoff, and return state for a tier.
 - Use `npm run qa:focus -- coach` or another tier/flow query when you only want the one path currently under test.
+- Use `npm run qa:handoffs` when checking whether shared work reaches the right role and avoids the wrong one.
 - Treat `sync-gap`, `access-gap`, `gating-gap`, and `data-propagation-gap` as product logic until proven otherwise.
 - Treat `fixture-gap` as blocked, not passed.
 - Do not close a journey until the result is `pass` and the evidence shows the pain point was solved.

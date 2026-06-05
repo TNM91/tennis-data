@@ -22,6 +22,11 @@ const steps = [
     args: ['scripts/customer-journey-flow-map.mjs'],
   },
   {
+    label: 'Customer journey handoff map',
+    command: 'node',
+    args: ['scripts/customer-journey-handoffs.mjs'],
+  },
+  {
     label: 'Tier feature matrix',
     command: 'node',
     args: ['scripts/customer-journey-feature-matrix.mjs'],
