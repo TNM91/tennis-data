@@ -39,6 +39,7 @@
     "qa:triage": "node scripts/customer-journey-triage-guide.mjs",
     "qa:results": "node scripts/customer-journey-results-summary.mjs",
     "qa:action-list": "node scripts/customer-journey-action-list.mjs",
+    "qa:daily-summary": "node scripts/customer-journey-daily-summary.mjs",
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
     "db:migrations": "supabase migration list",

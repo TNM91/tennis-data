@@ -77,6 +77,11 @@ const steps = [
     args: ['scripts/customer-journey-action-list.mjs'],
   },
   {
+    label: 'Daily result recap',
+    command: 'node',
+    args: ['scripts/customer-journey-daily-summary.mjs'],
+  },
+  {
     label: 'Closeout inventory guard',
     command: 'node',
     args: ['scripts/verify-platform-closeout-inventory.mjs'],

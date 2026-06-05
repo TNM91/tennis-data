@@ -27,6 +27,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:triage` when classifying issue category, severity, and next action
 - Run `npm run qa:results` to confirm missing journeys and open p0/p1 rows before launch decisions
 - Run `npm run qa:action-list` to confirm every logged fail, blocked, or follow-up row has a concrete next action
+- Run `npm run qa:daily-summary -- <yyyy-mm-dd>` after each testing block so the daily pass/fail count and top fix are clear
 - Run `npm run qa:launch` after testing is logged; it should pass before broad launch decisions
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
