@@ -12,6 +12,11 @@ const steps = [
     args: ['scripts/customer-journey-weekly-readiness.mjs'],
   },
   {
+    label: 'Fixture setup checklist',
+    command: 'node',
+    args: ['scripts/customer-journey-fixture-checklist.mjs'],
+  },
+  {
     label: 'Tier feature matrix',
     command: 'node',
     args: ['scripts/customer-journey-feature-matrix.mjs'],

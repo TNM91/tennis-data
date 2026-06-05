@@ -22,6 +22,7 @@ const requiredCommands = [
   'qa:status',
   'qa:week',
   'qa:day1',
+  'qa:fixtures',
   'qa:ledger',
   'qa:matrix',
   'qa:gaps',
@@ -61,6 +62,7 @@ console.log('Recommended command order:')
 console.log('- npm run qa:prep')
 console.log('- npm run qa:week')
 console.log('- npm run qa:day1')
+console.log('- npm run qa:fixtures')
 console.log('- npm run qa:ledger')
 console.log('- npm run qa:matrix')
 console.log('- npm run qa:gaps')

@@ -2,6 +2,8 @@
 
 Use this with `docs/customer-journey-test-scripts.md` during next-week testing. Keep credentials outside the repo. This file records the roles, access expectations, and data fixtures needed to make each journey repeatable. Use `docs/level-up-sync-audit.md` when testing Level Up local, Player+, and coach-invited sync behavior.
 
+Run `npm run qa:fixtures` to print the account, data fixture, and setup-order checklist.
+
 ## Account Set
 
 | Fixture | Tier/role | Purpose | Required access | Setup notes |
