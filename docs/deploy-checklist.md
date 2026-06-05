@@ -6,6 +6,10 @@ Use this checklist before promoting the current redesign and product-architectur
 
 - Run `npm run build`
 - Confirm the homepage, pricing page, explore routes, captain routes, and auth pages load locally
+- Start journey QA from `docs/customer-journey-qa-index.md`
+- Run `npm run qa:status` to confirm the customer journey QA packet is complete
+- Run `npm run qa:week` before next week's full manual journey sweep
+- Run `npm run qa:ledger` before logging fresh test passes or issues
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
 - For production closeout checks after deploy, run `npm run verify:closeout:live`
@@ -57,8 +61,10 @@ If a slot id is not set, the related ad surface safely stays hidden.
 
 ## Quick Smoke Test
 
+- Start with `docs/customer-journey-qa-index.md` so the QA status, runbooks, ledger, fixtures, and closeout evidence stay connected
 - `npm run verify:closeout` should pass before deploy
 - Production closeout with `npm run verify:closeout:live` should pass after deploy
+- `npm run qa:status` should show every journey QA doc and command present
 - Check single dark-shell header/footer branding
 - Check homepage hero, product preview cards, and footer CTAs
 - Check mobile header menu

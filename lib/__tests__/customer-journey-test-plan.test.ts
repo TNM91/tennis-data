@@ -16,6 +16,7 @@ const testScriptsSource = readFileSync(join(process.cwd(), 'docs/customer-journe
 const qaIndexSource = readFileSync(join(process.cwd(), 'docs/customer-journey-qa-index.md'), 'utf8')
 const fixtureSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-fixtures.md'), 'utf8')
 const processMapSource = readFileSync(join(process.cwd(), 'docs/customer-journey-process-map.md'), 'utf8')
+const deployChecklistSource = readFileSync(join(process.cwd(), 'docs/deploy-checklist.md'), 'utf8')
 const routeSmokeSource = readFileSync(join(process.cwd(), 'scripts/verify-platform-routes.mjs'), 'utf8')
 const dayOneRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-journey-day-one-runbook.md'), 'utf8')
 const weeklyRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-journey-weekly-runbook.md'), 'utf8')
@@ -79,6 +80,19 @@ describe('customer journey test plan', () => {
     expect(testScriptsSource).toContain('docs/customer-journey-qa-index.md')
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
+  })
+
+  it('keeps the deploy checklist connected to the customer journey QA packet', () => {
+    for (const anchor of [
+      'docs/customer-journey-qa-index.md',
+      'npm run qa:status',
+      'npm run qa:week',
+      'npm run qa:ledger',
+      'npm run verify:closeout',
+      'npm run verify:closeout:live',
+    ]) {
+      expect(deployChecklistSource, `${anchor} missing from deploy checklist`).toContain(anchor)
+    }
   })
 
   it('keeps fixture references documented before journey testing starts', () => {
