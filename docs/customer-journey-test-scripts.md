@@ -1,12 +1,13 @@
 # TenAceIQ Customer Journey Test Scripts
 
-Use this next week as the manual QA playbook. The testing agenda is `docs/customer-journey-test-plan.md`; the companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`; the Level Up sync audit is `docs/level-up-sync-audit.md`.
+Use this next week as the manual QA playbook. The testing agenda is `docs/customer-journey-test-plan.md`; the result ledger is `docs/customer-journey-test-results.md`; the companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`; the Level Up sync audit is `docs/level-up-sync-audit.md`.
 
 ## Test Rules
 
 - Test the journey as the customer, not as the builder.
 - Record the device, browser, tier/account, URL, expected result, actual result, and screenshot when something feels off.
 - Mark each step as `pass`, `fail`, `blocked`, or `needs follow-up`.
+- Record each journey attempt in `docs/customer-journey-test-results.md`.
 - When a workflow is `local`, confirm whether the user understands that it is saved locally or whether the experience implies true account sync.
 - When a workflow is `manual` or `needs-account`, capture exactly what account/data fixture is missing.
 - A feature only passes if it solves the pain point listed here and in the process map.

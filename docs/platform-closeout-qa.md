@@ -11,6 +11,7 @@ Use this when the platform is ready for a full quality pass by tier, feature, an
 - Navigation surfaces: `lib/site-navigation.ts`
 - Closeout feature inventory: `lib/platform-closeout-inventory.ts`
 - Customer journey test plan: `lib/customer-journey-test-plan.ts`, `docs/customer-journey-test-plan.md`
+- Customer journey result ledger: `lib/customer-journey-test-results.ts`, `docs/customer-journey-test-results.md`
 - Customer journey process map: `docs/customer-journey-process-map.md`
 - Manual journey test scripts: `docs/customer-journey-test-scripts.md`
 - Journey test fixtures: `docs/customer-journey-test-fixtures.md`
@@ -139,6 +140,8 @@ Use `lib/platform-closeout-inventory.ts` as the current tier-by-feature closeout
 Use `docs/customer-journey-process-map.md` as the human-readable process flow map for next-week journey testing. It mirrors the inventory and records each tier journey, feature access, and pain point.
 
 Use `docs/customer-journey-test-plan.md` as the ordered test agenda. It identifies the persona fixture, feature IDs, fail-fast signals, and evidence to capture for each tier journey.
+
+Use `docs/customer-journey-test-results.md` to log pass/fail/blocked outcomes, issue categories, severity, evidence, and next actions during manual testing.
 
 Use `docs/customer-journey-test-scripts.md` as the manual testing playbook. It turns each mapped journey into setup, steps, pass signals, fail-fast signals, and daily wrap-up notes.
 

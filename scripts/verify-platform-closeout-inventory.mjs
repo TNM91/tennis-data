@@ -5,6 +5,7 @@ const args = [
   'run',
   'lib/__tests__/platform-closeout-inventory.test.ts',
   'lib/__tests__/customer-journey-test-plan.test.ts',
+  'lib/__tests__/customer-journey-test-results.test.ts',
   '--pool=threads',
   '--no-file-parallelism',
 ]
