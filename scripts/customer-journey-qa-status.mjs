@@ -5,6 +5,7 @@ const root = process.cwd()
 
 const requiredDocs = [
   'docs/customer-journey-qa-index.md',
+  'docs/customer-journey-test-week-quickstart.md',
   'docs/customer-journey-weekly-runbook.md',
   'docs/customer-journey-day-one-runbook.md',
   'docs/customer-journey-test-plan.md',
@@ -95,6 +96,7 @@ if (missingCommands.length) {
 console.log('')
 console.log('Start here:')
 console.log('- docs/customer-journey-qa-index.md')
+console.log('- docs/customer-journey-test-week-quickstart.md')
 console.log('')
 console.log('Recommended command order:')
 console.log('- npm run qa:prep')

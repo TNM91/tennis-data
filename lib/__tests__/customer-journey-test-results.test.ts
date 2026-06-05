@@ -14,6 +14,7 @@ import {
 
 const resultsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-results.md'), 'utf8')
 const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
+const testWeekQuickstartSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-week-quickstart.md'), 'utf8')
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const missionControlScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-mission-control.mjs'), 'utf8')
@@ -95,6 +96,7 @@ describe('customer journey test results', () => {
 
   it('keeps result ledger linked from closeout docs', () => {
     expect(scriptsDocSource).toContain('docs/customer-journey-test-results.md')
+    expect(testWeekQuickstartSource).toContain('docs/customer-journey-test-results.md')
     expect(closeoutQaSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
@@ -114,6 +116,30 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:feature-review')
     expect(resultsDocSource).toContain('npm run qa:trace')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
+  })
+
+  it('keeps the test week quickstart aligned to ledger closeout and launch evidence', () => {
+    for (const anchor of [
+      'docs/customer-journey-test-results.md',
+      'npm run qa:control',
+      'npm run qa:today',
+      'npm run qa:tester-packet',
+      'npm run qa:ledger-check',
+      'npm run qa:close-day',
+      'npm run qa:scorecard',
+      'npm run qa:signoff',
+      'npm run qa:launch',
+      'npm run verify:closeout',
+      'npm run verify:closeout:live',
+      'Any open p0 or p1 row',
+      'fixture-gap',
+    ]) {
+      expect(testWeekQuickstartSource, `${anchor} missing from quickstart`).toContain(anchor)
+    }
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(testWeekQuickstartSource, `${plan.id} missing from quickstart`).toContain(plan.id)
+    }
   })
 
   it('keeps the QA start command aligned to the first manual testing block', () => {

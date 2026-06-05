@@ -8,6 +8,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Confirm the homepage, pricing page, explore routes, captain routes, and auth pages load locally
 - Run `npm run qa:prep` for the customer journey prep packet and inventory guard
 - Start journey QA from `docs/customer-journey-qa-index.md`
+- Open `docs/customer-journey-test-week-quickstart.md` for the daily test rhythm, pass rules, and closeout order
 - Run `npm run qa:status` to confirm the customer journey QA packet is complete
 - Run `npm run qa:control` for the compact mission-control scoreboard before choosing the next manual block
 - Run `npm run qa:start -- --date=yyyy-mm-dd --tester=<name>` for the shortest first manual testing block
@@ -106,7 +107,7 @@ If a slot id is not set, the related ad surface safely stays hidden.
 
 ## Quick Smoke Test
 
-- Start with `docs/customer-journey-qa-index.md` so the QA status, runbooks, ledger, fixtures, and closeout evidence stay connected
+- Start with `docs/customer-journey-qa-index.md` and `docs/customer-journey-test-week-quickstart.md` so the QA status, runbooks, ledger, fixtures, daily rhythm, and closeout evidence stay connected
 - `npm run verify:closeout` should pass before deploy
 - Production closeout with `npm run verify:closeout:live` should pass after deploy
 - `npm run qa:status` should show every journey QA doc and command present

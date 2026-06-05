@@ -20,6 +20,7 @@ import { PLATFORM_CLOSEOUT_TIER_LABELS } from '../platform-closeout-inventory'
 const testPlanDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-plan.md'), 'utf8')
 const testScriptsSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
 const qaIndexSource = readFileSync(join(process.cwd(), 'docs/customer-journey-qa-index.md'), 'utf8')
+const testWeekQuickstartSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-week-quickstart.md'), 'utf8')
 const fixtureSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-fixtures.md'), 'utf8')
 const processMapSource = readFileSync(join(process.cwd(), 'docs/customer-journey-process-map.md'), 'utf8')
 const deployChecklistSource = readFileSync(join(process.cwd(), 'docs/deploy-checklist.md'), 'utf8')
@@ -162,6 +163,7 @@ describe('customer journey test plan', () => {
     }
 
     for (const doc of [
+      'docs/customer-journey-test-week-quickstart.md',
       'docs/customer-journey-weekly-runbook.md',
       'docs/customer-journey-day-one-runbook.md',
       'docs/customer-journey-test-plan.md',
@@ -174,6 +176,7 @@ describe('customer journey test plan', () => {
     }
 
     expect(testScriptsSource).toContain('docs/customer-journey-qa-index.md')
+    expect(qaStatusScriptSource).toContain('docs/customer-journey-test-week-quickstart.md')
     expect(packageSource).toContain('"qa:prep": "node scripts/customer-journey-qa-prep.mjs"')
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
     expect(packageSource).toContain('"qa:control": "node scripts/customer-journey-mission-control.mjs"')
@@ -221,6 +224,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:signoff": "node scripts/customer-journey-signoff-sheet.mjs"')
     expect(packageSource).toContain('"qa:launch": "node scripts/customer-journey-launch-readiness.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
+    expect(qaStatusScriptSource).toContain('docs/customer-journey-test-week-quickstart.md')
     expect(qaStatusScriptSource).toContain('qa:prep')
     expect(qaStatusScriptSource).toContain('qa:control')
     expect(qaStatusScriptSource).toContain('qa:start')
@@ -313,6 +317,43 @@ describe('customer journey test plan', () => {
       'scripts/verify-platform-closeout-inventory.mjs',
     ]) {
       expect(qaPrepScriptSource, `${script} missing from QA prep`).toContain(script)
+    }
+  })
+
+  it('keeps the test week quickstart tied to daily execution, pass rules, and every planned journey', () => {
+    for (const command of [
+      'npm run qa:prep',
+      'npm run qa:control',
+      'npm run qa:start',
+      'npm run qa:today',
+      'npm run qa:tester-packet',
+      'npm run qa:evidence-pack',
+      'npm run qa:ledger-check',
+      'npm run qa:session-status',
+      'npm run qa:close-day',
+      'npm run qa:launch',
+      'npm run verify:closeout',
+      'npm run verify:closeout:live',
+    ]) {
+      expect(testWeekQuickstartSource, `${command} missing from test week quickstart`).toContain(command)
+    }
+
+    for (const anchor of [
+      'docs/customer-journey-qa-index.md',
+      'docs/customer-journey-test-results.md',
+      'fixture-gap',
+      'p0',
+      'p1',
+      'screenshot or video evidence',
+      'What Counts As Pass',
+      'If You Get Stuck',
+      'Recommended Week Sweep',
+    ]) {
+      expect(testWeekQuickstartSource, `${anchor} missing from test week quickstart`).toContain(anchor)
+    }
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(testWeekQuickstartSource, `${plan.id} missing from test week quickstart`).toContain(plan.id)
     }
   })
 
