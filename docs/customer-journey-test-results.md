@@ -39,6 +39,8 @@ Use this during next-week testing to record what passed, what failed, what was b
 
 Copy one row per journey attempt. Keep credentials and private customer data out of this file.
 
+Run `npm run qa:ledger` to print starter rows for every planned journey.
+
 | Date | Tester | Device/browser | Account fixture | Journey ID | Entry route | Result | Category | Severity | Screenshot/video | Notes | Next action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 |  |  |  |  |  |  | pass / fail / blocked / needs-follow-up |  | p0 / p1 / p2 / p3 |  |  |  |
