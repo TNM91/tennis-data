@@ -7,8 +7,8 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run build`
 - Confirm the homepage, pricing page, explore routes, captain routes, and auth pages load locally
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
-- For local browser closeout checks in PowerShell, run `$env:PLATFORM_QA_BASE_URL='http://localhost:3074'; $env:LEVEL_UP_BASE_URL='http://localhost:3074'; npm run verify:closeout`
-- For production closeout checks after deploy in PowerShell, run `$env:PLATFORM_QA_BASE_URL='https://www.tenaceiq.com'; $env:LEVEL_UP_BASE_URL='https://www.tenaceiq.com'; $env:PORTAL_CHECK_BASE_URL='https://www.tenaceiq.com'; npm run verify:closeout`
+- For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
+- For production closeout checks after deploy, run `npm run verify:closeout:live`
 
 ## Database
 
@@ -58,7 +58,7 @@ If a slot id is not set, the related ad surface safely stays hidden.
 ## Quick Smoke Test
 
 - `npm run verify:closeout` should pass before deploy
-- Production closeout with `PLATFORM_QA_BASE_URL`, `LEVEL_UP_BASE_URL`, and `PORTAL_CHECK_BASE_URL` should pass after deploy
+- Production closeout with `npm run verify:closeout:live` should pass after deploy
 - Check single dark-shell header/footer branding
 - Check homepage hero, product preview cards, and footer CTAs
 - Check mobile header menu

@@ -128,7 +128,7 @@ Status: high-priority closeout candidate. Feature depth is strong; trust depends
 Add or extend scripts after this checklist is accepted:
 
 - `scripts/verify-platform-routes.mjs`: visit core public, player, coach, captain, league, admin routes and check title/body availability. Created 2026-06-04.
-- `scripts/verify-platform-closeout.mjs`: run deterministic closeout checks, and include route, Level Up, and overflow browser smokes when base URL env vars are provided. Created 2026-06-04.
+- `scripts/verify-platform-closeout.mjs`: run deterministic closeout checks, and include route, Level Up, and overflow browser smokes when base URL env vars are provided, `--browser-base=...` is passed, or `--live` is used. Created 2026-06-04.
 - `scripts/verify-tier-copy.mjs`: assert tier names, plan ids, access labels, primary-nav locks, and QA docs stay aligned with `lib/product-story.ts`. Created 2026-06-04.
 - `scripts/verify-level-up-player-loop.mjs`: run the Level Up player card loop from direct card start to proof, tiny note, next recommendation, and local persistence. Created 2026-06-04.
 - `scripts/verify-coach-player-loop.mjs`: exercise coach assignment payloads, Level Up session payloads, player proof check-ins, and coach review handoff with test fixtures. Created 2026-06-04.

@@ -1,5 +1,26 @@
 import { spawn } from 'node:child_process'
 
+const args = process.argv.slice(2)
+const live = args.includes('--live')
+const browserBaseArg = args.find((arg) => arg.startsWith('--browser-base='))
+const browserBase = browserBaseArg?.slice('--browser-base='.length).trim()
+
+if (live && !process.env.PLATFORM_QA_BASE_URL) {
+  process.env.PLATFORM_QA_BASE_URL = 'https://www.tenaceiq.com'
+}
+if (live && !process.env.LEVEL_UP_BASE_URL) {
+  process.env.LEVEL_UP_BASE_URL = 'https://www.tenaceiq.com'
+}
+if (live && !process.env.PORTAL_CHECK_BASE_URL) {
+  process.env.PORTAL_CHECK_BASE_URL = 'https://www.tenaceiq.com'
+}
+
+if (browserBase) {
+  process.env.PLATFORM_QA_BASE_URL = browserBase
+  process.env.LEVEL_UP_BASE_URL = browserBase
+  process.env.PORTAL_CHECK_BASE_URL = browserBase
+}
+
 const checks = [
   {
     label: 'Tier copy consistency',
@@ -35,6 +56,18 @@ if (process.env.PORTAL_CHECK_BASE_URL) {
     command: process.execPath,
     args: ['scripts/portal-overflow-check.mjs'],
   })
+}
+
+const skipped = [
+  process.env.PLATFORM_QA_BASE_URL ? null : 'Platform route smoke (set PLATFORM_QA_BASE_URL or use --live/--browser-base)',
+  process.env.LEVEL_UP_BASE_URL ? null : 'Level Up player loop smoke (set LEVEL_UP_BASE_URL or use --live/--browser-base)',
+  process.env.PORTAL_CHECK_BASE_URL ? null : 'Portal overflow smoke (set PORTAL_CHECK_BASE_URL or use --live/--browser-base)',
+].filter(Boolean)
+
+console.log('Platform closeout mode:', checks.length > 2 ? 'browser + deterministic' : 'deterministic only')
+if (skipped.length) {
+  console.log('Skipped optional browser checks:')
+  for (const item of skipped) console.log(`- ${item}`)
 }
 
 for (const check of checks) {
