@@ -40,6 +40,7 @@ const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/
 const flowMapScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-flow-map.mjs'), 'utf8')
 const journeyFocusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-focus.mjs'), 'utf8')
 const journeyHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-handoffs.mjs'), 'utf8')
+const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const actionListScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-action-list.mjs'), 'utf8')
 const dailySummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-daily-summary.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
@@ -100,6 +101,7 @@ describe('customer journey test plan', () => {
       'npm run qa:gaps',
       'npm run qa:evidence',
       'npm run qa:triage',
+      'npm run qa:ledger-check',
       'npm run qa:results',
       'npm run qa:action-list',
       'npm run qa:daily-summary',
@@ -138,6 +140,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
     expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
     expect(packageSource).toContain('"qa:triage": "node scripts/customer-journey-triage-guide.mjs"')
+    expect(packageSource).toContain('"qa:ledger-check": "node scripts/customer-journey-ledger-check.mjs"')
     expect(packageSource).toContain('"qa:results": "node scripts/customer-journey-results-summary.mjs"')
     expect(packageSource).toContain('"qa:action-list": "node scripts/customer-journey-action-list.mjs"')
     expect(packageSource).toContain('"qa:daily-summary": "node scripts/customer-journey-daily-summary.mjs"')
@@ -158,6 +161,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:gaps')
     expect(qaStatusScriptSource).toContain('qa:evidence')
     expect(qaStatusScriptSource).toContain('qa:triage')
+    expect(qaStatusScriptSource).toContain('qa:ledger-check')
     expect(qaStatusScriptSource).toContain('qa:results')
     expect(qaStatusScriptSource).toContain('qa:action-list')
     expect(qaStatusScriptSource).toContain('qa:daily-summary')
@@ -177,6 +181,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-gap-report.mjs',
       'scripts/customer-journey-evidence-checklist.mjs',
       'scripts/customer-journey-triage-guide.mjs',
+      'scripts/customer-journey-ledger-check.mjs',
       'scripts/customer-journey-results-summary.mjs',
       'scripts/customer-journey-action-list.mjs',
       'scripts/customer-journey-daily-summary.mjs',
@@ -207,6 +212,7 @@ describe('customer journey test plan', () => {
       'npm run qa:gaps',
       'npm run qa:evidence',
       'npm run qa:triage',
+      'npm run qa:ledger-check',
       'npm run qa:results',
       'npm run qa:action-list',
       'npm run qa:daily-summary',
@@ -300,6 +306,8 @@ describe('customer journey test plan', () => {
 
   it('keeps every agenda entry visible in the evidence checklist command', () => {
     expect(evidenceChecklistScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(ledgerCheckScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(ledgerCheckScriptSource).toContain('Ledger check: not ready.')
     expect(actionListScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(actionListScriptSource).toContain('p0/p1 needs a fix or explicit launch decision')
     expect(dailySummaryScriptSource).toContain('docs/customer-journey-test-results.md')
@@ -324,6 +332,7 @@ describe('customer journey test plan', () => {
       expect(journeyCardScriptSource, `${plan.successSignal} missing from journey card command`).toContain(plan.successSignal)
       expect(tierCardScriptSource, `${plan.id} missing from tier card command`).toContain(plan.id)
       expect(tierStatusScriptSource, `${plan.id} missing from tier status command`).toContain(plan.id)
+      expect(ledgerCheckScriptSource, `${plan.id} missing from ledger check command`).toContain(plan.id)
       expect(actionListScriptSource, `${plan.id} missing from action list command`).toContain(plan.id)
       expect(dailySummaryScriptSource, `${plan.id} missing from daily summary command`).toContain(plan.id)
     }

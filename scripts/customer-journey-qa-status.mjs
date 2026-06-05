@@ -37,6 +37,7 @@ const requiredCommands = [
   'qa:gaps',
   'qa:evidence',
   'qa:triage',
+  'qa:ledger-check',
   'qa:results',
   'qa:action-list',
   'qa:daily-summary',
@@ -89,6 +90,7 @@ console.log('- npm run qa:matrix')
 console.log('- npm run qa:gaps')
 console.log('- npm run qa:evidence')
 console.log('- npm run qa:triage')
+console.log('- npm run qa:ledger-check')
 console.log('- npm run qa:results')
 console.log('- npm run qa:action-list')
 console.log('- npm run qa:daily-summary -- <yyyy-mm-dd>')

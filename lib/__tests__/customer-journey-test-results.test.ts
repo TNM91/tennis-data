@@ -16,6 +16,7 @@ const resultsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
+const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
@@ -88,6 +89,27 @@ describe('customer journey test results', () => {
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(ledgerTemplateScriptSource, `${plan.id} missing from ledger template script`).toContain(plan.id)
       expect(ledgerTemplateScriptSource, `${plan.entryRoute} missing from ledger template script`).toContain(plan.entryRoute)
+    }
+  })
+
+  it('keeps the ledger check command strict enough for launch evidence', () => {
+    expect(packageSource).toContain('"qa:ledger-check": "node scripts/customer-journey-ledger-check.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:ledger-check')
+    expect(ledgerCheckScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(ledgerCheckScriptSource).toContain('Ledger check: not ready.')
+    expect(ledgerCheckScriptSource).toContain('Pass rows need screenshot/video evidence.')
+    expect(ledgerCheckScriptSource).toContain('Non-pass rows need a concrete next action.')
+
+    for (const status of CUSTOMER_JOURNEY_RESULT_STATUSES) {
+      expect(ledgerCheckScriptSource, `${status} missing from ledger check`).toContain(status)
+    }
+
+    for (const category of Object.keys(CUSTOMER_JOURNEY_ISSUE_CATEGORIES)) {
+      expect(ledgerCheckScriptSource, `${category} missing from ledger check`).toContain(category)
+    }
+
+    for (const severity of CUSTOMER_JOURNEY_ISSUE_SEVERITIES) {
+      expect(ledgerCheckScriptSource, `${severity} missing from ledger check`).toContain(severity)
     }
   })
 
