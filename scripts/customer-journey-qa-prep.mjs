@@ -17,6 +17,11 @@ const steps = [
     args: ['scripts/customer-journey-session-status.mjs'],
   },
   {
+    label: 'Sample day driver',
+    command: 'node',
+    args: ['scripts/customer-journey-day-brief.mjs', 'day1'],
+  },
+  {
     label: 'Fixture setup checklist',
     command: 'node',
     args: ['scripts/customer-journey-fixture-checklist.mjs'],

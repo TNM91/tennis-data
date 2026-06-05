@@ -33,6 +33,7 @@ const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-jo
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
 const journeySessionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-brief.mjs'), 'utf8')
 const journeySessionStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-status.mjs'), 'utf8')
+const journeyDayScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-brief.mjs'), 'utf8')
 const journeyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-card.mjs'), 'utf8')
 const tierCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-card.mjs'), 'utf8')
 const tierStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-status.mjs'), 'utf8')
@@ -89,6 +90,7 @@ describe('customer journey test plan', () => {
       'npm run qa:next',
       'npm run qa:session',
       'npm run qa:session-status',
+      'npm run qa:day',
       'npm run qa:journey',
       'npm run qa:tier',
       'npm run qa:tier-status',
@@ -133,6 +135,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:next": "node scripts/customer-journey-next.mjs"')
     expect(packageSource).toContain('"qa:session": "node scripts/customer-journey-session-brief.mjs"')
     expect(packageSource).toContain('"qa:session-status": "node scripts/customer-journey-session-status.mjs"')
+    expect(packageSource).toContain('"qa:day": "node scripts/customer-journey-day-brief.mjs"')
     expect(packageSource).toContain('"qa:journey": "node scripts/customer-journey-card.mjs"')
     expect(packageSource).toContain('"qa:tier": "node scripts/customer-journey-tier-card.mjs"')
     expect(packageSource).toContain('"qa:tier-status": "node scripts/customer-journey-tier-status.mjs"')
@@ -156,6 +159,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:next')
     expect(qaStatusScriptSource).toContain('qa:session')
     expect(qaStatusScriptSource).toContain('qa:session-status')
+    expect(qaStatusScriptSource).toContain('qa:day')
     expect(qaStatusScriptSource).toContain('qa:journey')
     expect(qaStatusScriptSource).toContain('qa:tier')
     expect(qaStatusScriptSource).toContain('qa:tier-status')
@@ -179,6 +183,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-qa-status.mjs',
       'scripts/customer-journey-weekly-readiness.mjs',
       'scripts/customer-journey-session-status.mjs',
+      'scripts/customer-journey-day-brief.mjs',
       'scripts/customer-journey-card.mjs',
       'scripts/customer-journey-tier-card.mjs',
       'scripts/customer-journey-tier-status.mjs',
@@ -209,6 +214,7 @@ describe('customer journey test plan', () => {
       'npm run qa:next',
       'npm run qa:session',
       'npm run qa:session-status',
+      'npm run qa:day',
       'npm run qa:journey',
       'npm run qa:tier',
       'npm run qa:tier-status',
@@ -252,12 +258,14 @@ describe('customer journey test plan', () => {
     for (const session of ['day1', 'day2', 'day3', 'day4', 'day5']) {
       expect(journeySessionScriptSource, `${session} missing from session brief`).toContain(session)
       expect(journeySessionStatusScriptSource, `${session} missing from session status`).toContain(session)
+      expect(journeyDayScriptSource, `${session} missing from day driver`).toContain(session)
       expect(sessionLedgerScriptSource, `${session} missing from session ledger`).toContain(session)
     }
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(journeySessionScriptSource, `${plan.id} missing from session brief`).toContain(plan.id)
       expect(journeySessionStatusScriptSource, `${plan.id} missing from session status`).toContain(plan.id)
+      expect(journeyDayScriptSource, `${plan.id} missing from day driver`).toContain(plan.id)
       expect(sessionLedgerScriptSource, `${plan.id} missing from session ledger`).toContain(plan.id)
     }
 
