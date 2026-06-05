@@ -46,6 +46,7 @@ const requiredCommands = [
   'qa:ledger',
   'qa:session-ledger',
   'qa:flows',
+  'qa:trace',
   'qa:focus',
   'qa:handoffs',
   'qa:matrix',
@@ -122,6 +123,7 @@ console.log('- npm run qa:fixture-review -- <fixture | tier | journey | route>')
 console.log('- npm run qa:ledger')
 console.log('- npm run qa:session-ledger -- <day1-day5>')
 console.log('- npm run qa:flows')
+console.log('- npm run qa:trace -- <tier | journey | feature | route>')
 console.log('- npm run qa:focus -- <tier-or-journey>')
 console.log('- npm run qa:handoffs')
 console.log('- npm run qa:matrix')

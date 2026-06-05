@@ -35,6 +35,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:ledger` before logging fresh test passes or issues
 - Run `npm run qa:session-ledger -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` when logging only the active testing block
 - Run `npm run qa:flows` before testing a tier end to end
+- Run `npm run qa:trace -- <tier|journey|feature|route>` before tier signoff to connect promise, pain point, access, proving journeys, and evidence
 - Run `npm run qa:focus -- <tier-or-journey>` while testing one customer path at a time
 - Run `npm run qa:handoffs` before testing linked or shared-role workflows
 - Run `npm run qa:matrix` before tier-by-feature testing so every feature is checked against its pain point

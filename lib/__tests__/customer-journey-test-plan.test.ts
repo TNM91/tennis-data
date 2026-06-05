@@ -54,6 +54,7 @@ const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/
 const evidencePackScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-pack.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const flowMapScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-flow-map.mjs'), 'utf8')
+const traceabilityScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-traceability.mjs'), 'utf8')
 const journeyFocusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-focus.mjs'), 'utf8')
 const journeyHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-handoffs.mjs'), 'utf8')
 const featureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-feature-review.mjs'), 'utf8')
@@ -133,6 +134,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger',
       'npm run qa:session-ledger',
       'npm run qa:flows',
+      'npm run qa:trace',
       'npm run qa:focus',
       'npm run qa:handoffs',
       'npm run qa:matrix',
@@ -195,6 +197,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:fixture-review": "node scripts/customer-journey-fixture-review.mjs"')
     expect(packageSource).toContain('"qa:session-ledger": "node scripts/customer-journey-session-ledger.mjs"')
     expect(packageSource).toContain('"qa:flows": "node scripts/customer-journey-flow-map.mjs"')
+    expect(packageSource).toContain('"qa:trace": "node scripts/customer-journey-traceability.mjs"')
     expect(packageSource).toContain('"qa:focus": "node scripts/customer-journey-focus.mjs"')
     expect(packageSource).toContain('"qa:handoffs": "node scripts/customer-journey-handoffs.mjs"')
     expect(packageSource).toContain('"qa:matrix": "node scripts/customer-journey-feature-matrix.mjs"')
@@ -239,6 +242,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:fixture-review')
     expect(qaStatusScriptSource).toContain('qa:session-ledger')
     expect(qaStatusScriptSource).toContain('qa:flows')
+    expect(qaStatusScriptSource).toContain('qa:trace')
     expect(qaStatusScriptSource).toContain('qa:focus')
     expect(qaStatusScriptSource).toContain('qa:handoffs')
     expect(qaStatusScriptSource).toContain('qa:matrix')
@@ -283,6 +287,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-fixture-checklist.mjs',
       'scripts/customer-journey-fixture-review.mjs',
       'scripts/customer-journey-flow-map.mjs',
+      'scripts/customer-journey-traceability.mjs',
       'scripts/customer-journey-handoffs.mjs',
       'scripts/customer-journey-feature-matrix.mjs',
       'scripts/customer-journey-feature-review.mjs',
@@ -336,6 +341,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger',
       'npm run qa:session-ledger',
       'npm run qa:flows',
+      'npm run qa:trace',
       'npm run qa:focus',
       'npm run qa:handoffs',
       'npm run qa:matrix',
@@ -373,8 +379,11 @@ describe('customer journey test plan', () => {
     expect(journeyHandoffScriptSource).toContain('shared work must reach the right role')
     expect(processMapSource).toContain('lib/customer-journey-flow-map.json')
     expect(processMapSource).toContain('Flow Contract')
+    expect(processMapSource).toContain('npm run qa:trace -- <tier | journey | feature | route>')
     expect(processMapSource).toContain('npm run qa:handoffs')
     expect(processMapSource).toContain('npm run qa:coverage -- <tier>')
+    expect(traceabilityScriptSource).toContain('lib/customer-journey-flow-map.json')
+    expect(traceabilityScriptSource).toContain('docs/customer-journey-test-results.md')
 
     for (const session of ['day1', 'day2', 'day3', 'day4', 'day5']) {
       expect(journeySessionScriptSource, `${session} missing from session brief`).toContain(session)
@@ -466,6 +475,10 @@ describe('customer journey test plan', () => {
     expect(coverageReportScriptSource).toContain('docs/customer-journey-process-map.md')
     expect(coverageReportScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(coverageReportScriptSource).toContain('every feature should have a proving journey')
+    expect(traceabilityScriptSource).toContain('TenAceIQ Journey Traceability Map')
+    expect(traceabilityScriptSource).toContain('tier promise, pain point, feature access')
+    expect(traceabilityScriptSource).toContain('qa:coverage')
+    expect(traceabilityScriptSource).toContain('qa:today')
     expect(featureReviewScriptSource).toContain('docs/customer-journey-process-map.md')
     expect(featureReviewScriptSource).toContain('lib/customer-journey-flow-map.json')
     expect(featureReviewScriptSource).toContain('docs/customer-journey-test-results.md')
@@ -575,6 +588,7 @@ describe('customer journey test plan', () => {
       expect(accessReviewScriptSource, `${plan.id} missing from access review`).toContain(plan.id)
       expect(featureReviewScriptSource, `${plan.id} missing from feature review`).toContain(plan.id)
       expect(coverageReportScriptSource, `${plan.id} missing from coverage report command`).toContain(plan.id)
+      expect(traceabilityScriptSource, `${plan.id} missing from traceability command`).toContain(plan.id)
       expect(riskBoardScriptSource, `${plan.id} missing from risk board command`).toContain(plan.id)
       expect(ledgerCheckScriptSource, `${plan.id} missing from ledger check command`).toContain(plan.id)
       expect(actionListScriptSource, `${plan.id} missing from action list command`).toContain(plan.id)

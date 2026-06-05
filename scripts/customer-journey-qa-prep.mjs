@@ -117,6 +117,11 @@ const steps = [
     args: ['scripts/customer-journey-flow-map.mjs'],
   },
   {
+    label: 'Journey traceability map',
+    command: 'node',
+    args: ['scripts/customer-journey-traceability.mjs'],
+  },
+  {
     label: 'Customer journey handoff map',
     command: 'node',
     args: ['scripts/customer-journey-handoffs.mjs'],

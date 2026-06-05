@@ -34,6 +34,7 @@ const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/custom
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
 const accessReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-access-review.mjs'), 'utf8')
 const featureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-feature-review.mjs'), 'utf8')
+const traceabilityScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-traceability.mjs'), 'utf8')
 const scorecardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-scorecard.mjs'), 'utf8')
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
 const triageGuideScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-triage-guide.mjs'), 'utf8')
@@ -109,6 +110,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:fixture-review')
     expect(resultsDocSource).toContain('npm run qa:access-review')
     expect(resultsDocSource).toContain('npm run qa:feature-review')
+    expect(resultsDocSource).toContain('npm run qa:trace')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
   })
 
@@ -367,6 +369,19 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(featureReviewScriptSource, `${plan.id} missing from feature review`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the traceability command aligned to tier promises and ledger evidence', () => {
+    expect(packageSource).toContain('"qa:trace": "node scripts/customer-journey-traceability.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:trace')
+    expect(traceabilityScriptSource).toContain('TenAceIQ Journey Traceability Map')
+    expect(traceabilityScriptSource).toContain('lib/customer-journey-flow-map.json')
+    expect(traceabilityScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(traceabilityScriptSource).toContain('Closeout rule: every tier promise')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(traceabilityScriptSource, `${plan.id} missing from traceability`).toContain(plan.id)
     }
   })
 

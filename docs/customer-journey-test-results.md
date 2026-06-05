@@ -58,6 +58,7 @@ Run `npm run qa:ledger-check` after editing rows to catch invalid status, catego
 Run `npm run qa:route-review -- <route>` when a result is about what the current page should prove.
 Run `npm run qa:access-review -- <tier>` when a result is about wrong access, missing unlocks, stale locks, or protected controls.
 Run `npm run qa:feature-review -- <feature>` when a result is about one feature's route, pain point, proving journey, connected flow, or handoff.
+Run `npm run qa:trace -- <tier|journey|feature|route>` when a result needs to be reviewed against tier promise, access rule, proving journeys, handoffs, and ledger evidence together.
 Run `npm run qa:fixture-review -- <fixture>` when a result is blocked by account setup, linked state, test data, or safe fixture shape.
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
 Run `npm run qa:action-list` after testing to list the concrete fixes, blockers, and follow-ups by priority.
@@ -95,6 +96,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - Use `qa:route-review` when a page loads but the tester is unsure which feature, journey, or evidence the route is meant to prove.
 - Use `qa:access-review` for access, gating, and stale-lock questions before deciding whether the issue is `access-gap`, `gating-gap`, or fixture setup.
 - Use `qa:feature-review` before closing a feature-specific issue so the fix is tied to the proving journey and connected flow.
+- Use `qa:trace` before a tier signoff conversation so promise, pain point, feature access, proving journeys, handoffs, and ledger evidence stay connected.
 - Use `qa:fixture-review` before marking `fixture-gap` so the dependent journeys, setup shape, and rerun command are clear.
 - A `mobile-ux-gap` in Level Up should be retested on phone-width viewport after the fix.
 - A `content-quality-gap` should be fixed against the tennis behavior, proof signal, and next action.
