@@ -17,6 +17,11 @@ const steps = [
     args: ['scripts/customer-journey-fixture-checklist.mjs'],
   },
   {
+    label: 'Sample journey field card',
+    command: 'node',
+    args: ['scripts/customer-journey-card.mjs', 'player-level-up-mobile-loop'],
+  },
+  {
     label: 'Customer journey flow map',
     command: 'node',
     args: ['scripts/customer-journey-flow-map.mjs'],

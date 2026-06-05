@@ -32,6 +32,7 @@ const fixtureChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/c
 const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
 const journeySessionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-brief.mjs'), 'utf8')
+const journeyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-card.mjs'), 'utf8')
 const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-checklist.mjs'), 'utf8')
 const flowMapScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-flow-map.mjs'), 'utf8')
 const journeyFocusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-focus.mjs'), 'utf8')
@@ -79,6 +80,7 @@ describe('customer journey test plan', () => {
       'npm run qa:status',
       'npm run qa:next',
       'npm run qa:session',
+      'npm run qa:journey',
       'npm run qa:day1',
       'npm run qa:week',
       'npm run qa:fixtures',
@@ -114,6 +116,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
     expect(packageSource).toContain('"qa:next": "node scripts/customer-journey-next.mjs"')
     expect(packageSource).toContain('"qa:session": "node scripts/customer-journey-session-brief.mjs"')
+    expect(packageSource).toContain('"qa:journey": "node scripts/customer-journey-card.mjs"')
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
     expect(packageSource).toContain('"qa:flows": "node scripts/customer-journey-flow-map.mjs"')
     expect(packageSource).toContain('"qa:focus": "node scripts/customer-journey-focus.mjs"')
@@ -128,6 +131,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:prep')
     expect(qaStatusScriptSource).toContain('qa:next')
     expect(qaStatusScriptSource).toContain('qa:session')
+    expect(qaStatusScriptSource).toContain('qa:journey')
     expect(qaStatusScriptSource).toContain('qa:fixtures')
     expect(qaStatusScriptSource).toContain('qa:flows')
     expect(qaStatusScriptSource).toContain('qa:focus')
@@ -142,6 +146,7 @@ describe('customer journey test plan', () => {
     for (const script of [
       'scripts/customer-journey-qa-status.mjs',
       'scripts/customer-journey-weekly-readiness.mjs',
+      'scripts/customer-journey-card.mjs',
       'scripts/customer-journey-fixture-checklist.mjs',
       'scripts/customer-journey-flow-map.mjs',
       'scripts/customer-journey-handoffs.mjs',
@@ -163,6 +168,7 @@ describe('customer journey test plan', () => {
       'npm run qa:status',
       'npm run qa:next',
       'npm run qa:session',
+      'npm run qa:journey',
       'npm run qa:week',
       'npm run qa:fixtures',
       'npm run qa:ledger',
@@ -262,12 +268,18 @@ describe('customer journey test plan', () => {
 
   it('keeps every agenda entry visible in the evidence checklist command', () => {
     expect(evidenceChecklistScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(journeyCardScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(journeyCardScriptSource).toContain('npm run qa:journey -- <journey-id | tier | search>')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(evidenceChecklistScriptSource, `${plan.id} missing from evidence checklist`).toContain(plan.id)
       expect(evidenceChecklistScriptSource, `${plan.entryRoute} missing from evidence checklist`).toContain(plan.entryRoute)
       expect(evidenceChecklistScriptSource, `${plan.personaFixture} missing from evidence checklist`).toContain(plan.personaFixture)
       expect(evidenceChecklistScriptSource, `${plan.successSignal} missing from evidence checklist`).toContain(plan.successSignal)
+      expect(journeyCardScriptSource, `${plan.id} missing from journey card command`).toContain(plan.id)
+      expect(journeyCardScriptSource, `${plan.entryRoute} missing from journey card command`).toContain(plan.entryRoute)
+      expect(journeyCardScriptSource, `${plan.personaFixture} missing from journey card command`).toContain(plan.personaFixture)
+      expect(journeyCardScriptSource, `${plan.successSignal} missing from journey card command`).toContain(plan.successSignal)
     }
   })
 

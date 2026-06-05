@@ -11,6 +11,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:status` to confirm the customer journey QA packet is complete
 - Run `npm run qa:next` to confirm the next incomplete session or high-priority fix
 - Run `npm run qa:session -- <day1-day5>` before each manual testing block
+- Run `npm run qa:journey -- <journey-id>` before walking one journey for route, fixture, pass signal, fail-fast, and evidence
 - Run `npm run qa:week` before next week's full manual journey sweep
 - Run `npm run qa:fixtures` to confirm account and safe data setup before journey testing
 - Run `npm run qa:ledger` before logging fresh test passes or issues
