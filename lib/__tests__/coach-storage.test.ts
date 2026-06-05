@@ -17,6 +17,7 @@ import {
   sortPlayerAssignmentsForAction,
   type CoachAssignment,
 } from '../coach-storage'
+import { buildLevelUpSessionPayload, mapLevelUpSessionRow } from '../level-up-sessions'
 
 describe('coach storage helpers', () => {
   it('normalizes student and assignment statuses', () => {
@@ -317,5 +318,128 @@ describe('coach storage helpers', () => {
       tracker: [],
       expectedEvidence: '',
     })
+  })
+
+  it('keeps coach assignment, player proof, and coach review connected for Level Up work', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-04T18:00:00.000Z'))
+
+    const assignmentPayload = buildCoachAssignmentPayload(
+      {
+        id: 'assignment-serve-target',
+        studentLinkId: 'student-link-1',
+        title: 'Serve Target Call',
+        focus: 'Serve routine',
+        dueDate: '2026-06-08',
+        status: 'assigned',
+        assignment: {
+          cardId: 'serve-target-call',
+          moduleId: 'serve-pressure-routine',
+          expectedEvidence: 'Serve target clarity 0-5',
+          playerPlusPrompt: 'Run the card, score one proof, and send the short recap.',
+          tracker: ['Target called before motion', 'Same routine after misses'],
+        },
+      },
+      'coach-1',
+    )
+
+    expect(assignmentPayload).toMatchObject({
+      id: 'assignment-serve-target',
+      coach_user_id: 'coach-1',
+      student_link_id: 'student-link-1',
+      title: 'Serve Target Call',
+      focus: 'Serve routine',
+      status: 'assigned',
+      assignment_json: {
+        cardId: 'serve-target-call',
+        moduleId: 'serve-pressure-routine',
+        expectedEvidence: 'Serve target clarity 0-5',
+      },
+    })
+
+    const levelUpPayload = buildLevelUpSessionPayload(
+      {
+        id: 'level-up-session-serve-target',
+        assignmentId: 'assignment-serve-target',
+        studentLinkId: 'student-link-1',
+        identitySlug: 'relentless-competitor-4-0',
+        focusId: 'serve',
+        focusTitle: 'Serve',
+        workType: 'court',
+        context: 'alone',
+        drillTitle: 'Serve Target Call',
+        rating: 4,
+        feeling: 'ready',
+        accessMode: 'coach_invited',
+        sharedWithCoach: true,
+        elapsedSeconds: 420,
+        note: 'Target call stayed clear.',
+      },
+      'player-1',
+      { coachUserId: 'coach-1', studentLinkId: 'student-link-1' },
+    )
+
+    expect(levelUpPayload).toMatchObject({
+      id: 'level-up-session-serve-target',
+      player_user_id: 'player-1',
+      coach_user_id: 'coach-1',
+      student_link_id: 'student-link-1',
+      assignment_id: 'assignment-serve-target',
+      identity_slug: 'relentless-competitor-4-0',
+      focus_id: 'serve',
+      drill_title: 'Serve Target Call',
+      rating: 4,
+      access_mode: 'coach_invited',
+      shared_with_coach: true,
+      note: 'Target call stayed clear.',
+    })
+
+    const session = mapLevelUpSessionRow({
+      ...levelUpPayload!,
+      created_at: '2026-06-04T18:00:00.000Z',
+    })
+    expect(session).toMatchObject({
+      playerUserId: 'player-1',
+      coachUserId: 'coach-1',
+      studentLinkId: 'student-link-1',
+      assignmentId: 'assignment-serve-target',
+      rating: 4,
+      sharedWithCoach: true,
+    })
+
+    const completedAssignmentJson = buildPlayerAssignmentCompletion(assignmentPayload!.assignment_json as Record<string, unknown>, {
+      recap: `${levelUpPayload!.focus_title}: ${levelUpPayload!.drill_title} (${levelUpPayload!.rating}/5, ${levelUpPayload!.feeling}, 7:00) - ${levelUpPayload!.note}`,
+      evidence: 'Level Up training log',
+    })
+    const checkIn = getPlayerAssignmentCheckIn(completedAssignmentJson)
+    expect(checkIn).toMatchObject({
+      recap: 'Serve: Serve Target Call (4/5, ready, 7:00) - Target call stayed clear.',
+      evidence: 'Level Up training log',
+      completedAt: '2026-06-04T18:00:00.000Z',
+    })
+
+    const completedAssignment: CoachAssignment = {
+      id: 'assignment-serve-target',
+      studentLinkId: 'student-link-1',
+      title: 'Serve Target Call',
+      focus: 'Serve routine',
+      dueDate: '2026-06-08',
+      status: 'completed',
+      assignment: completedAssignmentJson,
+      updatedAt: '2026-06-04T18:00:00.000Z',
+    }
+    expect(assignmentNeedsCoachReview(completedAssignment)).toBe(true)
+
+    const reviewedAssignmentJson = buildCoachAssignmentReview(completedAssignment.assignment, {
+      note: 'Strong target clarity. Add pressure without changing the routine.',
+      nextFocus: 'Start at 30-30 and keep the same target call.',
+    })
+    expect(getCoachAssignmentReview(reviewedAssignmentJson)).toMatchObject({
+      note: 'Strong target clarity. Add pressure without changing the routine.',
+      nextFocus: 'Start at 30-30 and keep the same target call.',
+      reviewedAt: '2026-06-04T18:00:00.000Z',
+    })
+
+    vi.useRealTimers()
   })
 })
