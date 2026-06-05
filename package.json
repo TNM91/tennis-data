@@ -30,6 +30,7 @@
     "qa:session-status": "node scripts/customer-journey-session-status.mjs",
     "qa:day": "node scripts/customer-journey-day-brief.mjs",
     "qa:tester-packet": "node scripts/customer-journey-tester-packet.mjs",
+    "qa:kickoff": "node scripts/customer-journey-kickoff.mjs",
     "qa:journey": "node scripts/customer-journey-card.mjs",
     "qa:live-card": "node scripts/customer-journey-live-card.mjs",
     "qa:device-card": "node scripts/customer-journey-device-card.mjs",

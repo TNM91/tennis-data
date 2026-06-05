@@ -57,6 +57,11 @@ const steps = [
     args: ['scripts/customer-journey-tester-packet.mjs', 'day1', '--device=phone'],
   },
   {
+    label: 'Sample journey kickoff',
+    command: 'node',
+    args: ['scripts/customer-journey-kickoff.mjs', 'player-level-up-mobile-loop', '--device=phone'],
+  },
+  {
     label: 'Fixture setup checklist',
     command: 'node',
     args: ['scripts/customer-journey-fixture-checklist.mjs'],

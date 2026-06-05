@@ -47,6 +47,7 @@ const journeySessionScriptSource = readFileSync(join(process.cwd(), 'scripts/cus
 const journeySessionStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-status.mjs'), 'utf8')
 const journeyDayScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-brief.mjs'), 'utf8')
 const testerPacketScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-packet.mjs'), 'utf8')
+const kickoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-kickoff.mjs'), 'utf8')
 const journeyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-card.mjs'), 'utf8')
 const liveJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-live-card.mjs'), 'utf8')
 const deviceJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-card.mjs'), 'utf8')
@@ -131,6 +132,7 @@ describe('customer journey test plan', () => {
       'npm run qa:session-status',
       'npm run qa:day',
       'npm run qa:tester-packet',
+      'npm run qa:kickoff',
       'npm run qa:journey',
       'npm run qa:live-card',
       'npm run qa:device-card',
@@ -212,6 +214,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:session-status": "node scripts/customer-journey-session-status.mjs"')
     expect(packageSource).toContain('"qa:day": "node scripts/customer-journey-day-brief.mjs"')
     expect(packageSource).toContain('"qa:tester-packet": "node scripts/customer-journey-tester-packet.mjs"')
+    expect(packageSource).toContain('"qa:kickoff": "node scripts/customer-journey-kickoff.mjs"')
     expect(packageSource).toContain('"qa:journey": "node scripts/customer-journey-card.mjs"')
     expect(packageSource).toContain('"qa:live-card": "node scripts/customer-journey-live-card.mjs"')
     expect(packageSource).toContain('"qa:device-card": "node scripts/customer-journey-device-card.mjs"')
@@ -269,6 +272,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:session-status')
     expect(qaStatusScriptSource).toContain('qa:day')
     expect(qaStatusScriptSource).toContain('qa:tester-packet')
+    expect(qaStatusScriptSource).toContain('qa:kickoff')
     expect(qaStatusScriptSource).toContain('qa:journey')
     expect(qaStatusScriptSource).toContain('qa:live-card')
     expect(qaStatusScriptSource).toContain('qa:device-card')
@@ -325,6 +329,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-session-status.mjs',
       'scripts/customer-journey-day-brief.mjs',
       'scripts/customer-journey-tester-packet.mjs',
+      'scripts/customer-journey-kickoff.mjs',
       'scripts/customer-journey-card.mjs',
       'scripts/customer-journey-live-card.mjs',
       'scripts/customer-journey-device-card.mjs',
@@ -378,6 +383,7 @@ describe('customer journey test plan', () => {
       'npm run qa:start',
       'npm run qa:today',
       'npm run qa:tester-packet',
+      'npm run qa:kickoff',
       'npm run qa:fixture-board',
       'npm run qa:fixture-status',
       'npm run qa:evidence-index',
@@ -515,6 +521,7 @@ describe('customer journey test plan', () => {
       'npm run qa:session-status',
       'npm run qa:day',
       'npm run qa:tester-packet',
+      'npm run qa:kickoff',
       'npm run qa:journey',
       'npm run qa:live-card',
       'npm run qa:device-card',
@@ -810,6 +817,12 @@ describe('customer journey test plan', () => {
     expect(testerPacketScriptSource).toContain('npm run qa:tester-packet -- <day1 | day2 | day3 | day4 | day5>')
     expect(testerPacketScriptSource).toContain('qa:device-ledger')
     expect(testerPacketScriptSource).toContain('mobile-ux-gap')
+    expect(kickoffScriptSource).toContain('TenAceIQ Journey Kickoff')
+    expect(kickoffScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(kickoffScriptSource).toContain('qa:fixture-board')
+    expect(kickoffScriptSource).toContain('qa:tester-packet')
+    expect(kickoffScriptSource).toContain('qa:live-card')
+    expect(kickoffScriptSource).toContain('Kickoff rule')
     expect(liveJourneyCardScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(liveJourneyCardScriptSource).toContain('TenAceIQ Live Journey Test Card')
     expect(liveJourneyCardScriptSource).toContain('Paste-ready ledger row')
@@ -854,6 +867,7 @@ describe('customer journey test plan', () => {
       expect(qaStartScriptSource, `${plan.id} missing from QA start`).toContain(plan.id)
       expect(qaTodayScriptSource, `${plan.id} missing from QA today`).toContain(plan.id)
       expect(testerPacketScriptSource, `${plan.id} missing from tester packet`).toContain(plan.id)
+      expect(kickoffScriptSource, `${plan.id} missing from kickoff card`).toContain(plan.id)
       expect(journeyCardScriptSource, `${plan.id} missing from journey card command`).toContain(plan.id)
       expect(liveJourneyCardScriptSource, `${plan.id} missing from live journey card`).toContain(plan.id)
       expect(deviceJourneyCardScriptSource, `${plan.id} missing from device journey card`).toContain(plan.id)
@@ -869,8 +883,10 @@ describe('customer journey test plan', () => {
       expect(routeReviewScriptSource, `${plan.entryRoute} missing from route review`).toContain(plan.entryRoute)
       expect(fixtureReviewScriptSource, `${plan.entryRoute} missing from fixture review`).toContain(plan.entryRoute)
       expect(testerPacketScriptSource, `${plan.entryRoute} missing from tester packet`).toContain(plan.entryRoute)
+      expect(kickoffScriptSource, `${plan.entryRoute} missing from kickoff card`).toContain(plan.entryRoute)
       expect(journeyCardScriptSource, `${plan.personaFixture} missing from journey card command`).toContain(plan.personaFixture)
       expect(testerPacketScriptSource, `${plan.personaFixture} missing from tester packet`).toContain(plan.personaFixture)
+      expect(kickoffScriptSource, `${plan.personaFixture} missing from kickoff card`).toContain(plan.personaFixture)
       expect(liveJourneyCardScriptSource, `${plan.personaFixture} missing from live journey card`).toContain(plan.personaFixture)
       expect(deviceJourneyCardScriptSource, `${plan.personaFixture} missing from device journey card`).toContain(plan.personaFixture)
       expect(deviceLedgerScriptSource, `${plan.personaFixture} missing from device ledger`).toContain(plan.personaFixture)
