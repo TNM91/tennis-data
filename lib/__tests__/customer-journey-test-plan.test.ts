@@ -15,6 +15,7 @@ const testPlanDocSource = readFileSync(join(process.cwd(), 'docs/customer-journe
 const testScriptsSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
 const fixtureSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-fixtures.md'), 'utf8')
 const processMapSource = readFileSync(join(process.cwd(), 'docs/customer-journey-process-map.md'), 'utf8')
+const routeSmokeSource = readFileSync(join(process.cwd(), 'scripts/verify-platform-routes.mjs'), 'utf8')
 const CRITICAL_SCRIPT_ANCHORS: Record<string, string[]> = {
   'player-level-up-mobile-loop': ['Level Up Portal', '/player-development/relentless-competitor-4-0/level-up', 'local saved state behaves honestly'],
   'coach-player-assigned-challenge': ['Coach-To-Player Assigned Challenge Journey', 'Player sees the assigned challenge', 'Coach returns to review the proof'],
@@ -54,6 +55,12 @@ describe('customer journey test plan', () => {
   it('keeps fixture references documented before journey testing starts', () => {
     for (const fixtureId of getCustomerJourneyFixtureIds()) {
       expect(fixtureSource, `${fixtureId} missing from fixture plan`).toContain(fixtureId)
+    }
+  })
+
+  it('keeps every agenda entry route covered by production route smoke', () => {
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(routeSmokeSource, `${plan.id} entry route missing from route smoke`).toContain(`route: '${plan.entryRoute}'`)
     }
   })
 

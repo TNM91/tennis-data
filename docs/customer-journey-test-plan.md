@@ -10,6 +10,8 @@ Use this as the next-week testing agenda. The typed source of truth is `lib/cust
 4. Keep each result tied to the pain point in `docs/customer-journey-process-map.md`.
 5. Update the typed plan first when a journey, fixture, or fail-fast signal changes.
 
+Automation rule: every entry route in this agenda must be covered by `scripts/verify-platform-routes.mjs` so live closeout smoke keeps matching the journeys we plan to test.
+
 ## Testing Agenda
 
 | Order | Journey | Tier | Entry | Risk | Persona | Success Signal |
