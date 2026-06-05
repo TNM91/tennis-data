@@ -13,16 +13,17 @@ Primary references:
 
 ## Before Testing
 
-1. Run `npm run verify:closeout:live` against production after the latest deploy.
-2. Confirm the latest pass is recorded in `docs/platform-closeout-verification-log.md`.
-3. Open `docs/customer-journey-test-results.md` and prepare one ledger row per journey attempt.
-4. Confirm these fixture IDs exist or mark the session blocked:
+1. Run `npm run qa:day1` to print the Day 1 checklist.
+2. Run `npm run verify:closeout:live` against production after the latest deploy.
+3. Confirm the latest pass is recorded in `docs/platform-closeout-verification-log.md`.
+4. Open `docs/customer-journey-test-results.md` and prepare one ledger row per journey attempt.
+5. Confirm these fixture IDs exist or mark the session blocked:
    - `player_plus_linked`
    - `coach_primary`
    - `coach-invite-token`
    - `level-up-assignment`
    - `level-up-completion`
-5. Use a phone or phone-width viewport for Level Up first.
+6. Use a phone or phone-width viewport for Level Up first.
 
 ## Journey 1: Player Level Up Mobile Loop
 

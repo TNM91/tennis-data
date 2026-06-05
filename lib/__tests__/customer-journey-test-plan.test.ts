@@ -17,6 +17,8 @@ const fixtureSource = readFileSync(join(process.cwd(), 'docs/customer-journey-te
 const processMapSource = readFileSync(join(process.cwd(), 'docs/customer-journey-process-map.md'), 'utf8')
 const routeSmokeSource = readFileSync(join(process.cwd(), 'scripts/verify-platform-routes.mjs'), 'utf8')
 const dayOneRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-journey-day-one-runbook.md'), 'utf8')
+const dayOneReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-one-readiness.mjs'), 'utf8')
+const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const CRITICAL_SCRIPT_ANCHORS: Record<string, string[]> = {
   'player-level-up-mobile-loop': ['Level Up Portal', '/player-development/relentless-competitor-4-0/level-up', 'local saved state behaves honestly'],
   'coach-player-assigned-challenge': ['Coach-To-Player Assigned Challenge Journey', 'Player sees the assigned challenge', 'Coach returns to review the proof'],
@@ -80,11 +82,15 @@ describe('customer journey test plan', () => {
 
     expect(dayOneRunbookSource).toContain('docs/customer-journey-test-results.md')
     expect(dayOneRunbookSource).toContain('docs/level-up-sync-audit.md')
+    expect(dayOneRunbookSource).toContain('npm run qa:day1')
+    expect(packageSource).toContain('"qa:day1": "node scripts/customer-journey-day-one-readiness.mjs"')
 
     for (const plan of firstTwoPlans) {
       expect(dayOneRunbookSource, `${plan.id} missing from day one runbook`).toContain(plan.id)
       expect(dayOneRunbookSource, `${plan.entryRoute} missing from day one runbook`).toContain(plan.entryRoute)
       expect(dayOneRunbookSource, `${plan.personaFixture} missing from day one runbook`).toContain(plan.personaFixture)
+      expect(dayOneReadinessScriptSource, `${plan.id} missing from readiness script`).toContain(plan.id)
+      expect(dayOneReadinessScriptSource, `${plan.entryRoute} missing from readiness script`).toContain(plan.entryRoute)
     }
   })
 
