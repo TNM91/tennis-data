@@ -32,6 +32,11 @@ const checks = [
     command: process.execPath,
     args: ['scripts/verify-coach-player-loop.mjs'],
   },
+  {
+    label: 'Level Up content quality',
+    command: process.execPath,
+    args: ['scripts/verify-level-up-content.mjs'],
+  },
 ]
 
 if (process.env.PLATFORM_QA_BASE_URL) {
@@ -63,8 +68,9 @@ const skipped = [
   process.env.LEVEL_UP_BASE_URL ? null : 'Level Up player loop smoke (set LEVEL_UP_BASE_URL or use --live/--browser-base)',
   process.env.PORTAL_CHECK_BASE_URL ? null : 'Portal overflow smoke (set PORTAL_CHECK_BASE_URL or use --live/--browser-base)',
 ].filter(Boolean)
+const hasBrowserChecks = Boolean(process.env.PLATFORM_QA_BASE_URL || process.env.LEVEL_UP_BASE_URL || process.env.PORTAL_CHECK_BASE_URL)
 
-console.log('Platform closeout mode:', checks.length > 2 ? 'browser + deterministic' : 'deterministic only')
+console.log('Platform closeout mode:', hasBrowserChecks ? 'browser + deterministic' : 'deterministic only')
 if (skipped.length) {
   console.log('Skipped optional browser checks:')
   for (const item of skipped) console.log(`- ${item}`)

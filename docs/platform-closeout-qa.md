@@ -45,6 +45,7 @@ Status: high-priority closeout candidate. Feature depth is strong; trust depends
 | Player starts card | Prior choices collapse enough that the active card is the main screen. | Active card mode exists and smoke checks pass. | Needs phone visual QA |
 | Player tracks work | Reps, missed reps, timer, rounds, quick notes, and proof rating support on-court use. | `scripts/verify-level-up-player-loop.mjs` validates direct-card mobile start, proof rating, tiny note, and local persistence. | Needs visual QA |
 | Player saves proof | Proof score creates next action, first rep, finish recap, and coach update copy. | Player-loop smoke validates run-next, next-practice, coach ask, and copy-update surfaces. | Backend sync review needed |
+| Content quality | Cards and modules are specific, scoreable, tennis-connected, and avoid generic filler. | `scripts/verify-level-up-content.mjs` validates lane coverage, cues, routines, proof anchors, regressions, progressions, module links, and identity recommendations. | Automated guard added |
 | Coach assignment | Coach can assign card/module and player sees a challenge. | `scripts/verify-coach-player-loop.mjs` validates the shared assignment/session/check-in contract. | Needs backend E2E test account |
 | Coach review | Coach receives useful proof and next-rep signal. | Coach-player loop validates proof recap, review priority, and coach next-focus storage. | Needs coach UI QA |
 | Progress returns later | Player sees lane progress, trends, recent proof, recommendations, favorites. | Portal has progress surfaces and local persistence. | Needs persistence audit |
@@ -132,6 +133,7 @@ Add or extend scripts after this checklist is accepted:
 - `scripts/verify-tier-copy.mjs`: assert tier names, plan ids, access labels, primary-nav locks, and QA docs stay aligned with `lib/product-story.ts`. Created 2026-06-04.
 - `scripts/verify-level-up-player-loop.mjs`: run the Level Up player card loop from direct card start to proof, tiny note, next recommendation, and local persistence. Created 2026-06-04.
 - `scripts/verify-coach-player-loop.mjs`: exercise coach assignment payloads, Level Up session payloads, player proof check-ins, and coach review handoff with test fixtures. Created 2026-06-04.
+- `scripts/verify-level-up-content.mjs`: assert Level Up cards/modules stay practical, tennis-specific, scoreable, linked, and identity-recommended as the library expands. Created 2026-06-04.
 - `scripts/portal-overflow-check.mjs`: keep as mobile/desktop layout guard for portal surfaces.
 
 ## Initial Findings

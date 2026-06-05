@@ -701,9 +701,9 @@ function makeCard(seed: CardSeed): LevelUpCard {
     reward: content.reward ?? buildReward(seed),
     proof: content.proof ?? buildProof(seed),
     ratingLabels: ['Cue', 'Routine', 'Reward', 'Proof'],
-    qualityChecks: content.qualityChecks,
-    commonMiss: content.commonMiss,
-    proofAnchors: content.proofAnchors,
+    qualityChecks: content.qualityChecks ?? buildQualityChecks(seed),
+    commonMiss: content.commonMiss ?? buildCommonMiss(seed),
+    proofAnchors: content.proofAnchors ?? buildProofAnchors(seed),
     progression: content.progression ?? buildProgression(seed, level),
     regression: content.regression ?? buildRegression(seed),
     safetyNote: content.safetyNote ?? buildSafetyNote(seed),
@@ -849,6 +849,143 @@ function buildRegression(seed: CardSeed) {
   if (seed.category === 'movement-engine') return 'Walk the pattern first, then add tennis speed only when balance stays clean.'
   if (seed.category === 'solo-drill') return 'Shorten the target area or slow the feed until contact and recovery both hold.'
   return 'Cut the reps in half and keep the tennis job clean.'
+}
+
+function buildQualityChecks(seed: CardSeed) {
+  if (seed.category === 'serve-return') {
+    return ['Target or return job is named before contact.', 'Routine speed stays the same after misses.', 'Recovery happens before judging the ball.']
+  }
+  if (seed.category === 'movement-engine') {
+    return ['Landings stay quiet enough to move again.', 'Eyes and chest stay organized through the recovery.', 'The rep ends in a ready position, not in a drift.']
+  }
+  if (seed.category === 'conditioning') {
+    return ['Posture stays tennis-ready as fatigue builds.', 'Breathing stays controlled enough to choose the next action.', 'Speed drops before technique breaks.']
+  }
+  if (seed.category === 'strength-stability') {
+    return ['Range stays controlled and repeatable.', 'Breathing and posture stay steady between reps.', 'The finish position connects to a tennis-ready stance.']
+  }
+  if (seed.category === 'mobility-stretch' || seed.category === 'recovery-reset') {
+    return ['Movement stays slow and controlled.', 'Range improves without forcing the position.', 'The final readiness score is honest.']
+  }
+  if (seed.category === 'solo-drill') {
+    return ['Target or wall rule is clear before the block starts.', 'Feet reset between contacts.', 'Only reps with the intended tennis habit count.']
+  }
+  if (seed.category === 'partner-drill') {
+    return ['The constraint is clear to both players before the rep.', 'The habit is scored before changing feeds or targets.', 'The rally teaches the next point, not just volume.']
+  }
+  if (seed.category === 'doubles-drill') {
+    return ['Call happens before the ball is live.', 'Both partners move with the call.', 'Confusion gets reset before the next point.']
+  }
+  if (seed.category === 'mental-routine') {
+    return ['Trigger is named in one short phrase.', 'Breath, cue, and target happen before the next rep.', 'The routine is used after makes and misses.']
+  }
+  return ['One tennis job is named before the rep.', 'The cue stays visible through the finish.', 'The proof score matches what actually happened.']
+}
+
+function buildCommonMiss(seed: CardSeed) {
+  if (seed.category === 'serve-return') {
+    return {
+      miss: 'The player hits first and decides the job later.',
+      fix: 'Pause before the rep and call target, shape, or return job out loud.',
+    }
+  }
+  if (seed.category === 'movement-engine') {
+    return {
+      miss: 'The player finishes the hit and watches instead of recovering.',
+      fix: 'Make the ready position the finish line. The rep does not count until recovery is complete.',
+    }
+  }
+  if (seed.category === 'conditioning' || seed.category === 'strength-stability') {
+    return {
+      miss: 'The work becomes about effort instead of better tennis movement.',
+      fix: 'Lower the dose and score posture, balance, breathing, and decision quality first.',
+    }
+  }
+  if (seed.category === 'mobility-stretch' || seed.category === 'recovery-reset') {
+    return {
+      miss: 'The player rushes through the reset and never re-checks readiness.',
+      fix: 'Move slower, breathe, then rate how ready the body feels before stopping.',
+    }
+  }
+  if (seed.category === 'doubles-drill') {
+    return {
+      miss: 'Partners talk after the point but do not make a pre-point call.',
+      fix: 'Use one short call before the serve or return, then move with it.',
+    }
+  }
+  if (seed.category === 'partner-drill') {
+    return {
+      miss: 'The rally turns into open hitting and the constraint disappears.',
+      fix: 'Stop the block, restate the rule, and only count reps that show the habit.',
+    }
+  }
+  if (seed.category === 'mental-routine') {
+    return {
+      miss: 'The player explains the last point instead of starting the next one.',
+      fix: 'Use one breath, one cue, and one target. Then play.',
+    }
+  }
+  return {
+    miss: 'The player logs effort without knowing what improved.',
+    fix: 'Name the tennis job first, then score the proof after the reps.',
+  }
+}
+
+function buildProofAnchors(seed: CardSeed) {
+  if (seed.category === 'serve-return') {
+    return {
+      low: 'Target, routine, or recovery was unclear on most reps.',
+      mid: 'The job was clear in stretches but changed under misses or pressure.',
+      high: 'Target, routine, contact job, and recovery stayed connected.',
+    }
+  }
+  if (seed.category === 'movement-engine') {
+    return {
+      low: 'Movement got rushed, tall, or disconnected from the next ready position.',
+      mid: 'Some reps finished balanced, but timing or recovery leaked.',
+      high: 'Land, move, recover, and ready position stayed clean across the block.',
+    }
+  }
+  if (seed.category === 'conditioning' || seed.category === 'strength-stability') {
+    return {
+      low: 'Effort changed posture, balance, breathing, or movement quality.',
+      mid: 'Control held for part of the block but faded before the end.',
+      high: 'Technique, posture, and tennis-ready control held through the work.',
+    }
+  }
+  if (seed.category === 'mobility-stretch' || seed.category === 'recovery-reset') {
+    return {
+      low: 'Reset felt rushed or did not improve readiness.',
+      mid: 'Readiness improved a little, but breath or control was uneven.',
+      high: 'Movement was controlled and the player finished more ready for the next block.',
+    }
+  }
+  if (seed.category === 'doubles-drill') {
+    return {
+      low: 'Calls were late, unclear, or ignored by movement.',
+      mid: 'The team aligned sometimes but still guessed on key balls.',
+      high: 'Calls, first moves, and resets were early and useful.',
+    }
+  }
+  if (seed.category === 'partner-drill') {
+    return {
+      low: 'The constraint disappeared and the rally became open hitting without the habit.',
+      mid: 'The habit showed up in stretches but was not repeatable yet.',
+      high: 'Both players could see the habit and carry it into the next point.',
+    }
+  }
+  if (seed.category === 'mental-routine') {
+    return {
+      low: 'The last point controlled the next point.',
+      mid: 'The reset helped sometimes, but timing or target was inconsistent.',
+      high: 'Breath, cue, and target started the next point cleanly.',
+    }
+  }
+  return {
+    low: 'The tennis job was unclear or rarely visible.',
+    mid: 'The habit appeared in stretches but needs cleaner repetition.',
+    high: 'The habit was visible, repeatable, and easy to score honestly.',
+  }
 }
 
 function buildSafetyNote(seed: CardSeed) {
