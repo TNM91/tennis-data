@@ -51,6 +51,7 @@ Run `npm run qa:live-card -- <journey-id>` when you want the route, task, eviden
 Run `npm run qa:device-card -- <phone|tablet|desktop>` when deciding what the current viewport must prove before a pass row is trusted.
 Run `npm run qa:device-ledger -- <phone|tablet|desktop>` to print paste-ready rows for required device passes with evidence filenames prefilled.
 Run `npm run qa:device-status -- <phone|tablet|desktop>` after logging rows to see which required device passes still need evidence.
+Run `npm run qa:evidence-index` before capture to confirm the evidence folder, capture standard, and ledger proof rule.
 Run `npm run qa:evidence-pack -- <day1-day5>` before saving screenshots or videos so evidence filenames match the ledger.
 Run `npm run qa:next` after logging results to see the next incomplete journey or p0/p1 item.
 Run `npm run qa:session-status` after testing to summarize readiness by Day 1 through Day 5 session.
@@ -96,6 +97,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - Use `qa:device-card` before logging device-sensitive passes so the row names the device/browser and the evidence proves the viewport-specific risk.
 - Use `qa:device-ledger` to avoid hand-building separate phone, iPad/tablet, and desktop rows.
 - Use `qa:device-status` after logging results so missing phone, iPad/tablet, or desktop evidence does not get lost in the broader scorecard.
+- Use `qa:evidence-index` so screenshots/videos stay under `docs/qa-evidence` and remain traceable from the result ledger.
 - Use `qa:route-review` when a page loads but the tester is unsure which feature, journey, or evidence the route is meant to prove.
 - Use `qa:access-review` for access, gating, and stale-lock questions before deciding whether the issue is `access-gap`, `gating-gap`, or fixture setup.
 - Use `qa:feature-review` before closing a feature-specific issue so the fix is tied to the proving journey and connected flow.

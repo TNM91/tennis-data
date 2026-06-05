@@ -130,6 +130,7 @@ const folder = `docs/qa-evidence/${datePrefix}/${session.id}`
 
 console.log(`${session.label}: ${session.focus}`)
 console.log(`Evidence folder: ${folder}`)
+console.log('Evidence guide: docs/qa-evidence/README.md')
 if (options.date || options.tester || options.deviceBrowser) {
   console.log(`Defaults: date=${options.date || 'blank'}, tester=${options.tester || 'blank'}, device/browser=${options.deviceBrowser || 'blank'}`)
 }
@@ -163,6 +164,7 @@ for (const journeyId of session.journeyIds) {
 console.log('')
 
 console.log('Use With:')
+console.log('- npm run qa:evidence-index')
 console.log(`- npm run qa:brief -- ${session.id}${formatDefaultsForCommand()}`)
 console.log(`- npm run qa:day -- ${session.id}${formatDefaultsForCommand()}`)
 console.log(`- npm run qa:close-day -- ${session.id}${options.date ? ` --date=${options.date}` : ''}`)

@@ -17,6 +17,7 @@ const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const testWeekQuickstartSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-week-quickstart.md'), 'utf8')
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const issueDecisionGuideSource = readFileSync(join(process.cwd(), 'docs/customer-journey-issue-decision-guide.md'), 'utf8')
+const evidenceIndexSource = readFileSync(join(process.cwd(), 'docs/qa-evidence/README.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const missionControlScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-mission-control.mjs'), 'utf8')
 const qaStartScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-start.mjs'), 'utf8')
@@ -29,6 +30,7 @@ const liveJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/cu
 const deviceJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-card.mjs'), 'utf8')
 const deviceLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-ledger.mjs'), 'utf8')
 const deviceStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-status.mjs'), 'utf8')
+const evidencePackScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-pack.mjs'), 'utf8')
 const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
 const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
@@ -42,6 +44,7 @@ const scorecardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
 const triageGuideScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-triage-guide.mjs'), 'utf8')
 const issueDecisionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-issue-decision.mjs'), 'utf8')
+const evidenceIndexScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-index.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 
 describe('customer journey test results', () => {
@@ -99,6 +102,7 @@ describe('customer journey test results', () => {
   it('keeps result ledger linked from closeout docs', () => {
     expect(scriptsDocSource).toContain('docs/customer-journey-test-results.md')
     expect(testWeekQuickstartSource).toContain('docs/customer-journey-test-results.md')
+    expect(evidenceIndexSource).toContain('docs/customer-journey-test-results.md')
     expect(closeoutQaSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
@@ -112,6 +116,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:device-card')
     expect(resultsDocSource).toContain('npm run qa:device-ledger')
     expect(resultsDocSource).toContain('npm run qa:device-status')
+    expect(resultsDocSource).toContain('npm run qa:evidence-index')
     expect(resultsDocSource).toContain('npm run qa:route-review')
     expect(resultsDocSource).toContain('npm run qa:fixture-review')
     expect(resultsDocSource).toContain('npm run qa:access-review')
@@ -127,6 +132,7 @@ describe('customer journey test results', () => {
       'npm run qa:control',
       'npm run qa:today',
       'npm run qa:tester-packet',
+      'npm run qa:evidence-index',
       'npm run qa:issue',
       'npm run qa:ledger-check',
       'npm run qa:close-day',
@@ -144,6 +150,22 @@ describe('customer journey test results', () => {
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(testWeekQuickstartSource, `${plan.id} missing from quickstart`).toContain(plan.id)
     }
+  })
+
+  it('keeps the evidence index aligned to ledger screenshot and video proof', () => {
+    expect(packageSource).toContain('"qa:evidence-index": "node scripts/customer-journey-evidence-index.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:evidence-index')
+    expect(testWeekQuickstartSource).toContain('npm run qa:evidence-index')
+    expect(evidenceIndexSource).toContain('docs/qa-evidence')
+    expect(evidenceIndexScriptSource).toContain('docs/qa-evidence')
+    expect(evidenceIndexSource).toContain('Screenshot/video')
+    expect(evidenceIndexScriptSource).toContain('Screenshot/video')
+    expect(evidenceIndexSource).toContain('prove the journey signal')
+    expect(evidenceIndexScriptSource).toContain('prove the journey signal')
+    expect(evidenceIndexSource).toContain('Keep credentials')
+    expect(evidenceIndexScriptSource).toContain('Keep credentials')
+    expect(evidencePackScriptSource).toContain('docs/qa-evidence/README.md')
+    expect(evidencePackScriptSource).toContain('qa:evidence-index')
   })
 
   it('keeps the issue decision guide aligned to result categories, severity, and retest action', () => {

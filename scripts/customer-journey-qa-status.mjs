@@ -11,6 +11,7 @@ const requiredDocs = [
   'docs/customer-journey-day-one-runbook.md',
   'docs/customer-journey-test-plan.md',
   'docs/customer-journey-test-results.md',
+  'docs/qa-evidence/README.md',
   'docs/customer-journey-test-fixtures.md',
   'docs/customer-journey-test-scripts.md',
   'docs/customer-journey-process-map.md',
@@ -58,6 +59,7 @@ const requiredCommands = [
   'qa:risk-board',
   'qa:gaps',
   'qa:evidence',
+  'qa:evidence-index',
   'qa:evidence-pack',
   'qa:triage',
   'qa:issue',
@@ -138,6 +140,7 @@ console.log('- npm run qa:coverage -- <tier>')
 console.log('- npm run qa:risk-board -- <tier | day | journey>')
 console.log('- npm run qa:gaps')
 console.log('- npm run qa:evidence')
+console.log('- npm run qa:evidence-index')
 console.log('- npm run qa:evidence-pack -- <day1-day5>')
 console.log('- npm run qa:triage')
 console.log('- npm run qa:issue')

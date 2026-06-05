@@ -56,6 +56,7 @@
     "qa:risk-board": "node scripts/customer-journey-risk-board.mjs",
     "qa:gaps": "node scripts/customer-journey-gap-report.mjs",
     "qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs",
+    "qa:evidence-index": "node scripts/customer-journey-evidence-index.mjs",
     "qa:evidence-pack": "node scripts/customer-journey-evidence-pack.mjs",
     "qa:triage": "node scripts/customer-journey-triage-guide.mjs",
     "qa:issue": "node scripts/customer-journey-issue-decision.mjs",

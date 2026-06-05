@@ -162,6 +162,11 @@ const steps = [
     args: ['scripts/customer-journey-evidence-checklist.mjs'],
   },
   {
+    label: 'QA evidence index',
+    command: 'node',
+    args: ['scripts/customer-journey-evidence-index.mjs'],
+  },
+  {
     label: 'Sample evidence capture pack',
     command: 'node',
     args: ['scripts/customer-journey-evidence-pack.mjs', 'day1'],

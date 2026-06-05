@@ -22,6 +22,7 @@ const testScriptsSource = readFileSync(join(process.cwd(), 'docs/customer-journe
 const qaIndexSource = readFileSync(join(process.cwd(), 'docs/customer-journey-qa-index.md'), 'utf8')
 const testWeekQuickstartSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-week-quickstart.md'), 'utf8')
 const issueDecisionGuideSource = readFileSync(join(process.cwd(), 'docs/customer-journey-issue-decision-guide.md'), 'utf8')
+const evidenceIndexSource = readFileSync(join(process.cwd(), 'docs/qa-evidence/README.md'), 'utf8')
 const fixtureSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-fixtures.md'), 'utf8')
 const processMapSource = readFileSync(join(process.cwd(), 'docs/customer-journey-process-map.md'), 'utf8')
 const deployChecklistSource = readFileSync(join(process.cwd(), 'docs/deploy-checklist.md'), 'utf8')
@@ -54,6 +55,7 @@ const tierCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-
 const tierStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-status.mjs'), 'utf8')
 const accessReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-access-review.mjs'), 'utf8')
 const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-checklist.mjs'), 'utf8')
+const evidenceIndexScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-index.mjs'), 'utf8')
 const evidencePackScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-pack.mjs'), 'utf8')
 const issueDecisionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-issue-decision.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
@@ -148,6 +150,7 @@ describe('customer journey test plan', () => {
       'npm run qa:risk-board',
       'npm run qa:gaps',
       'npm run qa:evidence',
+      'npm run qa:evidence-index',
       'npm run qa:evidence-pack',
       'npm run qa:triage',
       'npm run qa:issue',
@@ -172,6 +175,7 @@ describe('customer journey test plan', () => {
       'docs/customer-journey-day-one-runbook.md',
       'docs/customer-journey-test-plan.md',
       'docs/customer-journey-test-results.md',
+      'docs/qa-evidence/README.md',
       'docs/customer-journey-test-fixtures.md',
       'docs/level-up-sync-audit.md',
       'docs/platform-closeout-verification-log.md',
@@ -217,6 +221,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:risk-board": "node scripts/customer-journey-risk-board.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
     expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
+    expect(packageSource).toContain('"qa:evidence-index": "node scripts/customer-journey-evidence-index.mjs"')
     expect(packageSource).toContain('"qa:evidence-pack": "node scripts/customer-journey-evidence-pack.mjs"')
     expect(packageSource).toContain('"qa:triage": "node scripts/customer-journey-triage-guide.mjs"')
     expect(packageSource).toContain('"qa:issue": "node scripts/customer-journey-issue-decision.mjs"')
@@ -266,6 +271,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:risk-board')
     expect(qaStatusScriptSource).toContain('qa:gaps')
     expect(qaStatusScriptSource).toContain('qa:evidence')
+    expect(qaStatusScriptSource).toContain('qa:evidence-index')
     expect(qaStatusScriptSource).toContain('qa:evidence-pack')
     expect(qaStatusScriptSource).toContain('qa:triage')
     expect(qaStatusScriptSource).toContain('qa:issue')
@@ -312,6 +318,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-risk-board.mjs',
       'scripts/customer-journey-gap-report.mjs',
       'scripts/customer-journey-evidence-checklist.mjs',
+      'scripts/customer-journey-evidence-index.mjs',
       'scripts/customer-journey-evidence-pack.mjs',
       'scripts/customer-journey-triage-guide.mjs',
       'scripts/customer-journey-issue-decision.mjs',
@@ -336,6 +343,7 @@ describe('customer journey test plan', () => {
       'npm run qa:start',
       'npm run qa:today',
       'npm run qa:tester-packet',
+      'npm run qa:evidence-index',
       'npm run qa:evidence-pack',
       'npm run qa:issue',
       'npm run qa:ledger-check',
@@ -365,6 +373,27 @@ describe('customer journey test plan', () => {
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(testWeekQuickstartSource, `${plan.id} missing from test week quickstart`).toContain(plan.id)
     }
+  })
+
+  it('keeps the QA evidence index tied to capture storage and ledger proof', () => {
+    for (const anchor of [
+      'docs/qa-evidence',
+      'docs/customer-journey-test-results.md',
+      'npm run qa:evidence-index',
+      'npm run qa:evidence-pack',
+      'Screenshot/video',
+      'Capture Standard',
+      'Ledger Rule',
+      'prove the journey signal',
+      'Keep credentials',
+    ]) {
+      expect(evidenceIndexSource, `${anchor} missing from evidence README`).toContain(anchor)
+      expect(evidenceIndexScriptSource, `${anchor} missing from evidence index script`).toContain(anchor)
+    }
+
+    expect(evidencePackScriptSource).toContain('docs/qa-evidence')
+    expect(evidencePackScriptSource).toContain('docs/qa-evidence/README.md')
+    expect(evidencePackScriptSource).toContain('qa:evidence-index')
   })
 
   it('keeps the issue decision guide tied to categories, severity, and retest commands', () => {
@@ -429,6 +458,7 @@ describe('customer journey test plan', () => {
       'npm run qa:risk-board',
       'npm run qa:gaps',
       'npm run qa:evidence',
+      'npm run qa:evidence-index',
       'npm run qa:evidence-pack',
       'npm run qa:triage',
       'npm run qa:issue',

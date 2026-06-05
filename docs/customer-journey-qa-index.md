@@ -44,6 +44,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:risk-board -- <tier \| day \| journey>` | Rank the highest-value journeys to test or fix next across blockers, evidence gaps, and risk. |
 | `npm run qa:gaps` | Print feature gaps that still need account, fixture, manual, or local-sync proof. |
 | `npm run qa:evidence` | Print the proof checklist for each journey before recording results. |
+| `npm run qa:evidence-index` | Print the evidence folder, capture standard, ledger rule, and closeout commands. |
 | `npm run qa:evidence-pack -- <day1-day5>` | Print screenshot/video filenames and ledger evidence cells for a testing day. |
 | `npm run qa:triage` | Print issue categories, severity rules, and closeout actions. |
 | `npm run qa:issue` | Print the issue decision guide: result, category, severity, next action, and retest path. |
@@ -97,18 +98,19 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 34. Run `npm run qa:matrix` to keep tier features tied to pain points.
 35. Run `npm run qa:feature-review -- player-level-up` or another feature when a specific tool needs a focused contract check.
 36. Run `npm run qa:coverage -- <tier>` to confirm each feature has a proving journey and logged evidence.
-37. Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos.
-38. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, `npm run qa:triage`, or `npm run qa:issue`.
-39. Run `npm run qa:ledger-check` after adding or editing result rows.
-40. Run `npm run qa:results` after each testing block.
-41. Run `npm run qa:action-list` to turn open rows into the next fix list.
-42. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
-43. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
-44. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
-45. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
-46. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
-47. Run `npm run qa:launch` only after the ledger has real pass evidence.
-48. Run `npm run verify:closeout:live` after the latest deploy.
+37. Run `npm run qa:evidence-index` to confirm where screenshots/videos go and what the ledger evidence cell should prove.
+38. Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos.
+39. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, `npm run qa:triage`, or `npm run qa:issue`.
+40. Run `npm run qa:ledger-check` after adding or editing result rows.
+41. Run `npm run qa:results` after each testing block.
+42. Run `npm run qa:action-list` to turn open rows into the next fix list.
+43. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
+44. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
+45. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
+46. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
+47. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
+48. Run `npm run qa:launch` only after the ledger has real pass evidence.
+49. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -120,6 +122,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `docs/customer-journey-day-one-runbook.md` | First session focused on Level Up mobile and Coach-to-player assignment. |
 | `docs/customer-journey-test-plan.md` | Ordered typed agenda with journey IDs, fixtures, routes, and pass signals. |
 | `docs/customer-journey-test-results.md` | Result ledger, issue categories, severity, and daily summary. |
+| `docs/qa-evidence/README.md` | Evidence folder pattern, capture standard, and ledger proof rules. |
 | `docs/customer-journey-test-fixtures.md` | Account and data fixture checklist. |
 | `docs/customer-journey-test-scripts.md` | Manual journey steps by tier. |
 | `docs/customer-journey-process-map.md` | Tier-by-feature flow map and pain points. |
@@ -175,6 +178,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 - Use `npm run qa:coverage -- <tier>` when checking whether every feature has a proving journey and logged pass evidence.
 - Use `npm run qa:gaps` when deciding which account, fixture, manual, or local-sync evidence still needs attention.
 - Use `npm run qa:evidence` before marking a journey `pass`, especially for sync, access, mobile, and fixture-sensitive flows.
+- Use `npm run qa:evidence-index` before capture so evidence is saved under `docs/qa-evidence` and stays traceable from the ledger.
 - Use `npm run qa:evidence-pack -- <day1-day5>` to keep screenshot/video names and ledger evidence cells consistent.
 - Use `npm run qa:triage` when choosing the result category, severity, and next action for an issue.
 - Use `npm run qa:issue` when deciding whether to stop wider testing, how to score severity, and what retest command belongs in the next action.
