@@ -17,6 +17,7 @@ const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
+const testerPacketScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-packet.mjs'), 'utf8')
 const liveJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-live-card.mjs'), 'utf8')
 const deviceJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-card.mjs'), 'utf8')
 const deviceLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-ledger.mjs'), 'utf8')
@@ -91,6 +92,7 @@ describe('customer journey test results', () => {
     expect(closeoutQaSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
+    expect(resultsDocSource).toContain('npm run qa:tester-packet')
     expect(resultsDocSource).toContain('npm run qa:live-card')
     expect(resultsDocSource).toContain('npm run qa:device-card')
     expect(resultsDocSource).toContain('npm run qa:device-ledger')
@@ -144,6 +146,21 @@ describe('customer journey test results', () => {
       expect(liveJourneyCardScriptSource, `${plan.id} missing from live card`).toContain(plan.id)
       expect(liveJourneyCardScriptSource, `${plan.entryRoute} missing from live card`).toContain(plan.entryRoute)
       expect(liveJourneyCardScriptSource, `${plan.personaFixture} missing from live card`).toContain(plan.personaFixture)
+    }
+  })
+
+  it('keeps the tester packet command aligned to session and device testing', () => {
+    expect(packageSource).toContain('"qa:tester-packet": "node scripts/customer-journey-tester-packet.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:tester-packet')
+    expect(testerPacketScriptSource).toContain('TenAceIQ Tester Packet')
+    expect(testerPacketScriptSource).toContain('qa:device-ledger')
+    expect(testerPacketScriptSource).toContain('qa:evidence-pack')
+    expect(testerPacketScriptSource).toContain('mobile-ux-gap')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(testerPacketScriptSource, `${plan.id} missing from tester packet`).toContain(plan.id)
+      expect(testerPacketScriptSource, `${plan.entryRoute} missing from tester packet`).toContain(plan.entryRoute)
+      expect(testerPacketScriptSource, `${plan.personaFixture} missing from tester packet`).toContain(plan.personaFixture)
     }
   })
 

@@ -25,6 +25,7 @@ const requiredCommands = [
   'qa:session',
   'qa:session-status',
   'qa:day',
+  'qa:tester-packet',
   'qa:journey',
   'qa:live-card',
   'qa:device-card',
@@ -96,6 +97,7 @@ console.log('- npm run qa:next')
 console.log('- npm run qa:session -- <day1-day5>')
 console.log('- npm run qa:session-status -- <day1-day5>')
 console.log('- npm run qa:day -- <day1-day5>')
+console.log('- npm run qa:tester-packet -- <day1-day5> --device=<phone | tablet | desktop> --date=yyyy-mm-dd --tester=<name>')
 console.log('- npm run qa:journey -- <journey-id | tier | search>')
 console.log('- npm run qa:live-card -- <journey-id> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>')
 console.log('- npm run qa:device-card -- <phone | tablet | desktop | journey-id>')

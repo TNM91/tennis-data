@@ -27,6 +27,11 @@ const steps = [
     args: ['scripts/customer-journey-day-brief.mjs', 'day1'],
   },
   {
+    label: 'Sample tester packet',
+    command: 'node',
+    args: ['scripts/customer-journey-tester-packet.mjs', 'day1', '--device=phone'],
+  },
+  {
     label: 'Fixture setup checklist',
     command: 'node',
     args: ['scripts/customer-journey-fixture-checklist.mjs'],
