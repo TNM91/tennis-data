@@ -7,6 +7,11 @@ const steps = [
     args: ['scripts/customer-journey-qa-status.mjs'],
   },
   {
+    label: 'Shortest QA start path',
+    command: 'node',
+    args: ['scripts/customer-journey-start.mjs'],
+  },
+  {
     label: 'Journey test readiness brief',
     command: 'node',
     args: ['scripts/customer-journey-readiness-brief.mjs'],

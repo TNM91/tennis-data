@@ -16,6 +16,7 @@ const resultsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
+const qaStartScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-start.mjs'), 'utf8')
 const readinessBriefScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-readiness-brief.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const weekPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-week-plan.mjs'), 'utf8')
@@ -94,6 +95,7 @@ describe('customer journey test results', () => {
     expect(closeoutQaSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
+    expect(resultsDocSource).toContain('npm run qa:start')
     expect(resultsDocSource).toContain('npm run qa:readiness')
     expect(resultsDocSource).toContain('npm run qa:week-plan')
     expect(resultsDocSource).toContain('npm run qa:tester-packet')
@@ -106,6 +108,19 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:access-review')
     expect(resultsDocSource).toContain('npm run qa:feature-review')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
+  })
+
+  it('keeps the QA start command aligned to the first manual testing block', () => {
+    expect(packageSource).toContain('"qa:start": "node scripts/customer-journey-start.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:start')
+    expect(qaStartScriptSource).toContain('TenAceIQ QA Start')
+    expect(qaStartScriptSource).toContain('qa:readiness')
+    expect(qaStartScriptSource).toContain('qa:tester-packet')
+    expect(qaStartScriptSource).toContain('qa:next')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(qaStartScriptSource, `${plan.id} missing from QA start`).toContain(plan.id)
+    }
   })
 
   it('keeps the ledger template command aligned to every planned journey', () => {

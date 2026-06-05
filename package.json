@@ -20,6 +20,7 @@
     "verify:closeout:live": "node scripts/verify-platform-closeout.mjs --live",
     "qa:prep": "node scripts/customer-journey-qa-prep.mjs",
     "qa:status": "node scripts/customer-journey-qa-status.mjs",
+    "qa:start": "node scripts/customer-journey-start.mjs",
     "qa:readiness": "node scripts/customer-journey-readiness-brief.mjs",
     "qa:brief": "node scripts/customer-journey-morning-brief.mjs",
     "qa:next": "node scripts/customer-journey-next.mjs",
