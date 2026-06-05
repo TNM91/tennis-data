@@ -32,6 +32,11 @@ const steps = [
     args: ['scripts/customer-journey-evidence-checklist.mjs'],
   },
   {
+    label: 'Issue triage guide',
+    command: 'node',
+    args: ['scripts/customer-journey-triage-guide.mjs'],
+  },
+  {
     label: 'Result ledger summary',
     command: 'node',
     args: ['scripts/customer-journey-results-summary.mjs'],

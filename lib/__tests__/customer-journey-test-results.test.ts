@@ -5,6 +5,7 @@ import { CUSTOMER_JOURNEY_TEST_PLANS } from '../customer-journey-test-plan'
 import {
   CUSTOMER_JOURNEY_EVIDENCE_FIELDS,
   CUSTOMER_JOURNEY_ISSUE_CATEGORIES,
+  CUSTOMER_JOURNEY_ISSUE_SEVERITIES,
   CUSTOMER_JOURNEY_RESULT_STATUSES,
   buildCustomerJourneyResultDraft,
   getCustomerJourneyIssueCategory,
@@ -17,6 +18,7 @@ const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeou
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
+const triageGuideScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-triage-guide.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 
 describe('customer journey test results', () => {
@@ -39,6 +41,20 @@ describe('customer journey test results', () => {
       expect(details.label.trim(), category).not.toHaveLength(0)
       expect(details.useWhen.trim(), category).not.toHaveLength(0)
       expect(details.closeoutAction.trim(), category).not.toHaveLength(0)
+    }
+  })
+
+  it('keeps the triage guide aligned to categories and severities', () => {
+    expect(packageSource).toContain('"qa:triage": "node scripts/customer-journey-triage-guide.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:triage')
+    expect(triageGuideScriptSource).toContain('docs/customer-journey-test-results.md')
+
+    for (const category of Object.keys(CUSTOMER_JOURNEY_ISSUE_CATEGORIES)) {
+      expect(triageGuideScriptSource, `${category} missing from triage guide`).toContain(category)
+    }
+
+    for (const severity of CUSTOMER_JOURNEY_ISSUE_SEVERITIES) {
+      expect(triageGuideScriptSource, `${severity} missing from triage guide`).toContain(severity)
     }
   })
 

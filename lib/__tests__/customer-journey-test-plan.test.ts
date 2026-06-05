@@ -74,6 +74,7 @@ describe('customer journey test plan', () => {
       'npm run qa:matrix',
       'npm run qa:gaps',
       'npm run qa:evidence',
+      'npm run qa:triage',
       'npm run qa:results',
       'npm run qa:launch',
       'npm run verify:closeout:live',
@@ -100,6 +101,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:matrix": "node scripts/customer-journey-feature-matrix.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
     expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
+    expect(packageSource).toContain('"qa:triage": "node scripts/customer-journey-triage-guide.mjs"')
     expect(packageSource).toContain('"qa:results": "node scripts/customer-journey-results-summary.mjs"')
     expect(packageSource).toContain('"qa:launch": "node scripts/customer-journey-launch-readiness.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
@@ -108,6 +110,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:matrix')
     expect(qaStatusScriptSource).toContain('qa:gaps')
     expect(qaStatusScriptSource).toContain('qa:evidence')
+    expect(qaStatusScriptSource).toContain('qa:triage')
     expect(qaStatusScriptSource).toContain('qa:results')
     expect(qaStatusScriptSource).toContain('qa:launch')
 
@@ -118,6 +121,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-feature-matrix.mjs',
       'scripts/customer-journey-gap-report.mjs',
       'scripts/customer-journey-evidence-checklist.mjs',
+      'scripts/customer-journey-triage-guide.mjs',
       'scripts/customer-journey-results-summary.mjs',
       'scripts/verify-platform-closeout-inventory.mjs',
     ]) {
@@ -136,6 +140,7 @@ describe('customer journey test plan', () => {
       'npm run qa:matrix',
       'npm run qa:gaps',
       'npm run qa:evidence',
+      'npm run qa:triage',
       'npm run qa:results',
       'npm run qa:launch',
       'npm run verify:closeout',

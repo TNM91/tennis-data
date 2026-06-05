@@ -15,6 +15,7 @@ Start here when preparing for next-week journey testing.
 | `npm run qa:matrix` | Print the tier-by-feature QA matrix with pain points and verification mode. |
 | `npm run qa:gaps` | Print feature gaps that still need account, fixture, manual, or local-sync proof. |
 | `npm run qa:evidence` | Print the proof checklist for each journey before recording results. |
+| `npm run qa:triage` | Print issue categories, severity rules, and closeout actions. |
 | `npm run qa:results` | Summarize the result ledger, missing journeys, and open p0/p1 items. |
 | `npm run qa:launch` | Fail unless every journey has pass evidence and no p0/p1 row remains open. |
 | `npm run verify:closeout` | Run deterministic closeout checks. |
@@ -27,7 +28,7 @@ Start here when preparing for next-week journey testing.
 3. For Day 1, run `npm run qa:day1`.
 4. Run `npm run qa:fixtures` while confirming test accounts and safe data.
 5. Run `npm run qa:ledger` and paste starter rows into `docs/customer-journey-test-results.md`.
-6. Run focused commands as needed: `npm run qa:matrix`, `npm run qa:gaps`, or `npm run qa:evidence`.
+6. Run focused commands as needed: `npm run qa:matrix`, `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
 7. Run `npm run qa:results` after each testing block.
 8. Run `npm run qa:launch` only after the ledger has real pass evidence.
 9. Run `npm run verify:closeout:live` after the latest deploy.
@@ -66,5 +67,6 @@ Start here when preparing for next-week journey testing.
 - Use `npm run qa:matrix` when checking whether a tier feature actually solves the documented pain point.
 - Use `npm run qa:gaps` when deciding which account, fixture, manual, or local-sync evidence still needs attention.
 - Use `npm run qa:evidence` before marking a journey `pass`, especially for sync, access, mobile, and fixture-sensitive flows.
+- Use `npm run qa:triage` when choosing the result category, severity, and next action for an issue.
 - Use `npm run qa:results` at the end of each testing day to see missing journeys and open high-priority issues.
 - Use `npm run qa:launch` as the final manual-evidence gate; it is expected to fail until every journey has a pass row.

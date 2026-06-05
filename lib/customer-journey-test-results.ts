@@ -42,6 +42,7 @@ export type CustomerJourneyResultDraft = {
 }
 
 export const CUSTOMER_JOURNEY_RESULT_STATUSES: CustomerJourneyResultStatus[] = ['pass', 'fail', 'blocked', 'needs-follow-up']
+export const CUSTOMER_JOURNEY_ISSUE_SEVERITIES: CustomerJourneyIssueSeverity[] = ['p0', 'p1', 'p2', 'p3']
 
 export const CUSTOMER_JOURNEY_ISSUE_CATEGORIES: Record<
   CustomerJourneyIssueCategory,

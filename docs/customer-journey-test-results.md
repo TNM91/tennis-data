@@ -40,6 +40,7 @@ Use this during next-week testing to record what passed, what failed, what was b
 Copy one row per journey attempt. Keep credentials and private customer data out of this file.
 
 Run `npm run qa:ledger` to print starter rows for every planned journey.
+Run `npm run qa:triage` when choosing issue category, severity, and next action.
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
 Run `npm run qa:launch` after testing is logged. It should fail until every journey has a `pass` row and no p0/p1 row remains open.
 
