@@ -21,6 +21,7 @@ const dayOneRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-jour
 const weeklyRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-journey-weekly-runbook.md'), 'utf8')
 const dayOneReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-one-readiness.mjs'), 'utf8')
 const weeklyReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-weekly-readiness.mjs'), 'utf8')
+const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const CRITICAL_SCRIPT_ANCHORS: Record<string, string[]> = {
   'player-level-up-mobile-loop': ['Level Up Portal', '/player-development/relentless-competitor-4-0/level-up', 'local saved state behaves honestly'],
@@ -59,7 +60,7 @@ describe('customer journey test plan', () => {
   })
 
   it('keeps the QA index as the one-page starting point', () => {
-    for (const command of ['npm run qa:day1', 'npm run qa:week', 'npm run qa:ledger', 'npm run verify:closeout:live']) {
+    for (const command of ['npm run qa:status', 'npm run qa:day1', 'npm run qa:week', 'npm run qa:ledger', 'npm run verify:closeout:live']) {
       expect(qaIndexSource, `${command} missing from QA index`).toContain(command)
     }
 
@@ -76,6 +77,8 @@ describe('customer journey test plan', () => {
     }
 
     expect(testScriptsSource).toContain('docs/customer-journey-qa-index.md')
+    expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
+    expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
   })
 
   it('keeps fixture references documented before journey testing starts', () => {

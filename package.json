@@ -18,6 +18,7 @@
     "verify:closeout:inventory": "node scripts/verify-platform-closeout-inventory.mjs",
     "verify:closeout": "node scripts/verify-platform-closeout.mjs",
     "verify:closeout:live": "node scripts/verify-platform-closeout.mjs --live",
+    "qa:status": "node scripts/customer-journey-qa-status.mjs",
     "qa:day1": "node scripts/customer-journey-day-one-readiness.mjs",
     "qa:week": "node scripts/customer-journey-weekly-readiness.mjs",
     "qa:ledger": "node scripts/customer-journey-ledger-template.mjs",

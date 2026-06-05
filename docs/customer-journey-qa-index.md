@@ -6,6 +6,7 @@ Start here when preparing for next-week journey testing.
 
 | Command | Use |
 | --- | --- |
+| `npm run qa:status` | Check that the QA docs and commands are present. |
 | `npm run qa:day1` | Print the Day 1 trust-loop checklist. |
 | `npm run qa:week` | Print the full week testing sequence and fixture list. |
 | `npm run qa:ledger` | Print starter result rows for every planned journey. |
@@ -14,11 +15,12 @@ Start here when preparing for next-week journey testing.
 
 ## Start Here
 
-1. Run `npm run qa:week`.
-2. Open `docs/customer-journey-weekly-runbook.md`.
-3. For Day 1, run `npm run qa:day1`.
-4. Run `npm run qa:ledger` and paste starter rows into `docs/customer-journey-test-results.md`.
-5. Run `npm run verify:closeout:live` after the latest deploy.
+1. Run `npm run qa:status`.
+2. Run `npm run qa:week`.
+3. Open `docs/customer-journey-weekly-runbook.md`.
+4. For Day 1, run `npm run qa:day1`.
+5. Run `npm run qa:ledger` and paste starter rows into `docs/customer-journey-test-results.md`.
+6. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
