@@ -41,6 +41,7 @@ Use the command that matches the question in front of you.
 | What feature is this supposed to validate? | `npm run qa:feature-review -- <feature|tier|route>` |
 | What is the full promise, pain point, and proof path? | `npm run qa:trace -- <tier|journey|feature|route>` |
 | What account or data setup is missing? | `npm run qa:fixture-review -- <fixture|tier|journey|route>` |
+| How should I log this issue? | `npm run qa:issue` |
 | What should be fixed next? | `npm run qa:action-list` |
 | What needs a rerun after a fix? | `npm run qa:retest -- <day-or-journey>` |
 
@@ -62,10 +63,11 @@ Use this order at the end of each testing day.
 
 1. `npm run qa:ledger-check`
 2. `npm run qa:results`
-3. `npm run qa:action-list`
-4. `npm run qa:daily-summary -- <yyyy-mm-dd>`
-5. `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`
-6. `npm run qa:scorecard`
+3. `npm run qa:issue` if any row needs a result/category/severity decision.
+4. `npm run qa:action-list`
+5. `npm run qa:daily-summary -- <yyyy-mm-dd>`
+6. `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`
+7. `npm run qa:scorecard`
 
 Use this order before launch readiness.
 

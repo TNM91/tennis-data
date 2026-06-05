@@ -16,6 +16,7 @@ const resultsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
 const testWeekQuickstartSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-week-quickstart.md'), 'utf8')
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
+const issueDecisionGuideSource = readFileSync(join(process.cwd(), 'docs/customer-journey-issue-decision-guide.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const missionControlScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-mission-control.mjs'), 'utf8')
 const qaStartScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-start.mjs'), 'utf8')
@@ -40,6 +41,7 @@ const traceabilityScriptSource = readFileSync(join(process.cwd(), 'scripts/custo
 const scorecardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-scorecard.mjs'), 'utf8')
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
 const triageGuideScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-triage-guide.mjs'), 'utf8')
+const issueDecisionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-issue-decision.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 
 describe('customer journey test results', () => {
@@ -116,6 +118,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:feature-review')
     expect(resultsDocSource).toContain('npm run qa:trace')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
+    expect(resultsDocSource).toContain('npm run qa:issue')
   })
 
   it('keeps the test week quickstart aligned to ledger closeout and launch evidence', () => {
@@ -124,6 +127,7 @@ describe('customer journey test results', () => {
       'npm run qa:control',
       'npm run qa:today',
       'npm run qa:tester-packet',
+      'npm run qa:issue',
       'npm run qa:ledger-check',
       'npm run qa:close-day',
       'npm run qa:scorecard',
@@ -139,6 +143,29 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(testWeekQuickstartSource, `${plan.id} missing from quickstart`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the issue decision guide aligned to result categories, severity, and retest action', () => {
+    expect(packageSource).toContain('"qa:issue": "node scripts/customer-journey-issue-decision.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:issue')
+    expect(issueDecisionGuideSource).toContain('docs/customer-journey-test-results.md')
+    expect(issueDecisionScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(issueDecisionGuideSource).toContain('Stop wider testing')
+    expect(issueDecisionScriptSource).toContain('Stop wider testing')
+    expect(issueDecisionGuideSource).toContain('Ledger Row Formula')
+    expect(issueDecisionScriptSource).toContain('Ledger Row Formula')
+    expect(issueDecisionGuideSource).toContain('which journey proves the fix')
+    expect(issueDecisionScriptSource).toContain('which journey proves the fix')
+
+    for (const category of Object.keys(CUSTOMER_JOURNEY_ISSUE_CATEGORIES)) {
+      expect(issueDecisionGuideSource, `${category} missing from issue decision guide`).toContain(category)
+      expect(issueDecisionScriptSource, `${category} missing from issue decision script`).toContain(category)
+    }
+
+    for (const severity of CUSTOMER_JOURNEY_ISSUE_SEVERITIES) {
+      expect(issueDecisionGuideSource, `${severity} missing from issue decision guide`).toContain(severity)
+      expect(issueDecisionScriptSource, `${severity} missing from issue decision script`).toContain(severity)
     }
   })
 

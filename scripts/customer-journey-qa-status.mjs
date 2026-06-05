@@ -6,6 +6,7 @@ const root = process.cwd()
 const requiredDocs = [
   'docs/customer-journey-qa-index.md',
   'docs/customer-journey-test-week-quickstart.md',
+  'docs/customer-journey-issue-decision-guide.md',
   'docs/customer-journey-weekly-runbook.md',
   'docs/customer-journey-day-one-runbook.md',
   'docs/customer-journey-test-plan.md',
@@ -59,6 +60,7 @@ const requiredCommands = [
   'qa:evidence',
   'qa:evidence-pack',
   'qa:triage',
+  'qa:issue',
   'qa:ledger-check',
   'qa:results',
   'qa:action-list',
@@ -138,6 +140,7 @@ console.log('- npm run qa:gaps')
 console.log('- npm run qa:evidence')
 console.log('- npm run qa:evidence-pack -- <day1-day5>')
 console.log('- npm run qa:triage')
+console.log('- npm run qa:issue')
 console.log('- npm run qa:ledger-check')
 console.log('- npm run qa:results')
 console.log('- npm run qa:action-list')

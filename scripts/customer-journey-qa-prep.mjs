@@ -172,6 +172,11 @@ const steps = [
     args: ['scripts/customer-journey-triage-guide.mjs'],
   },
   {
+    label: 'Issue decision guide',
+    command: 'node',
+    args: ['scripts/customer-journey-issue-decision.mjs'],
+  },
+  {
     label: 'Result ledger integrity check',
     command: 'node',
     args: ['scripts/customer-journey-ledger-check.mjs'],

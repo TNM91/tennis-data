@@ -55,6 +55,7 @@ Run `npm run qa:evidence-pack -- <day1-day5>` before saving screenshots or video
 Run `npm run qa:next` after logging results to see the next incomplete journey or p0/p1 item.
 Run `npm run qa:session-status` after testing to summarize readiness by Day 1 through Day 5 session.
 Run `npm run qa:triage` when choosing issue category, severity, and next action.
+Run `npm run qa:issue` when deciding the result, category, severity, stop/continue call, and retest path for a discovered issue.
 Run `npm run qa:ledger-check` after editing rows to catch invalid status, category, severity, fixture, route, evidence, or next-action fields.
 Run `npm run qa:route-review -- <route>` when a result is about what the current page should prove.
 Run `npm run qa:access-review -- <tier>` when a result is about wrong access, missing unlocks, stale locks, or protected controls.
@@ -104,6 +105,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - A `content-quality-gap` should be fixed against the tennis behavior, proof signal, and next action.
 - `qa:ledger-check` should pass before `qa:launch` is used as a sign-off signal.
 - Use `qa:evidence-pack` before capture so screenshot/video names prove the journey signal and stay easy to paste into the ledger.
+- Use `qa:issue` when an observation needs to become a clean ledger row with a result, category, severity, next action, and retest command.
 - Use `qa:retest` after every fix pass so missing or stale pass evidence does not slip through.
 - Use `qa:close-day` before ending a testing block so open retests and missing evidence are not carried forward silently.
 - Use `qa:scorecard` before signoff so status conversations stay tied to tier, session, evidence, blockers, and the next command.

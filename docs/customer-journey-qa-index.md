@@ -46,6 +46,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:evidence` | Print the proof checklist for each journey before recording results. |
 | `npm run qa:evidence-pack -- <day1-day5>` | Print screenshot/video filenames and ledger evidence cells for a testing day. |
 | `npm run qa:triage` | Print issue categories, severity rules, and closeout actions. |
+| `npm run qa:issue` | Print the issue decision guide: result, category, severity, next action, and retest path. |
 | `npm run qa:ledger-check` | Validate recorded ledger rows before using them for summaries or launch decisions. |
 | `npm run qa:results` | Summarize the result ledger, missing journeys, and open p0/p1 items. |
 | `npm run qa:action-list` | Print logged fail, blocked, and follow-up rows as a prioritized fix list. |
@@ -97,7 +98,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 35. Run `npm run qa:feature-review -- player-level-up` or another feature when a specific tool needs a focused contract check.
 36. Run `npm run qa:coverage -- <tier>` to confirm each feature has a proving journey and logged evidence.
 37. Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos.
-38. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
+38. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, `npm run qa:triage`, or `npm run qa:issue`.
 39. Run `npm run qa:ledger-check` after adding or editing result rows.
 40. Run `npm run qa:results` after each testing block.
 41. Run `npm run qa:action-list` to turn open rows into the next fix list.
@@ -114,6 +115,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | Doc | Use |
 | --- | --- |
 | `docs/customer-journey-test-week-quickstart.md` | Short daily operating guide, pass rules, stuck paths, and closeout order. |
+| `docs/customer-journey-issue-decision-guide.md` | Issue result, category, severity, next action, and retest decision guide. |
 | `docs/customer-journey-weekly-runbook.md` | Day-by-day testing sequence. |
 | `docs/customer-journey-day-one-runbook.md` | First session focused on Level Up mobile and Coach-to-player assignment. |
 | `docs/customer-journey-test-plan.md` | Ordered typed agenda with journey IDs, fixtures, routes, and pass signals. |
@@ -175,6 +177,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 - Use `npm run qa:evidence` before marking a journey `pass`, especially for sync, access, mobile, and fixture-sensitive flows.
 - Use `npm run qa:evidence-pack -- <day1-day5>` to keep screenshot/video names and ledger evidence cells consistent.
 - Use `npm run qa:triage` when choosing the result category, severity, and next action for an issue.
+- Use `npm run qa:issue` when deciding whether to stop wider testing, how to score severity, and what retest command belongs in the next action.
 - Use `npm run qa:ledger-check` before trusting summaries, daily recaps, or launch readiness.
 - Use `npm run qa:results` at the end of each testing day to see missing journeys and open high-priority issues.
 - Use `npm run qa:action-list` after `qa:results` to list every logged fix, blocker, and follow-up by severity and missing next action.
