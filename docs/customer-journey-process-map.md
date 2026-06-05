@@ -1,6 +1,6 @@
 # TenAceIQ Customer Journey Process Map
 
-Use this as the technical reference for journey testing by tier. The source of truth for feature status, pain points, verification mode, and next closeout steps is `lib/platform-closeout-inventory.ts`.
+Use this as the technical reference for journey testing by tier. The source of truth for feature status, pain points, verification mode, and next closeout steps is `lib/platform-closeout-inventory.ts`. The manual test playbook lives in `docs/customer-journey-test-scripts.md`.
 
 ## How To Use This
 
@@ -170,5 +170,6 @@ When a feature changes, update this order:
 
 1. `lib/platform-closeout-inventory.ts`
 2. `docs/customer-journey-process-map.md`
-3. Relevant route, smoke, or unit tests
-4. `docs/platform-closeout-qa.md` if the closeout status changes
+3. `docs/customer-journey-test-scripts.md`
+4. Relevant route, smoke, or unit tests
+5. `docs/platform-closeout-qa.md` if the closeout status changes
