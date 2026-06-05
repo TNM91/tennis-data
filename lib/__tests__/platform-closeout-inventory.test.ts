@@ -21,6 +21,7 @@ import { MEMBERSHIP_TIER_ORDER } from '../product-story'
 const REQUIRED_TIERS: PlatformCloseoutTierId[] = [...MEMBERSHIP_TIER_ORDER, 'admin_internal']
 const journeyMapSource = readFileSync(join(process.cwd(), 'docs/customer-journey-process-map.md'), 'utf8')
 const journeyTestScriptsSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
+const journeyTestFixturesSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-fixtures.md'), 'utf8')
 
 describe('platform closeout inventory', () => {
   it('keeps every product tier represented with actionable features', () => {
@@ -105,10 +106,30 @@ describe('platform closeout inventory', () => {
 
   it('keeps the manual journey test scripts aligned to the feature inventory', () => {
     expect(journeyTestScriptsSource).toContain('Highest-Risk Closeout Items')
+    expect(journeyTestScriptsSource).toContain('docs/customer-journey-test-fixtures.md')
 
     for (const feature of PLATFORM_CLOSEOUT_FEATURES) {
       expect(journeyTestScriptsSource, `${feature.id} label missing from test scripts`).toContain(feature.label)
       expect(journeyTestScriptsSource, `${feature.id} route missing from test scripts`).toContain(feature.route)
+    }
+  })
+
+  it('keeps the journey fixture plan aligned to tier and high-risk testing needs', () => {
+    for (const label of Object.values(PLATFORM_CLOSEOUT_TIER_LABELS)) {
+      expect(journeyTestFixturesSource, `${label} fixture coverage missing`).toContain(label)
+    }
+
+    for (const fixture of [
+      'Coach invite token',
+      'Level Up assignment',
+      'Level Up completion',
+      'Captain team week',
+      'League week',
+      'Data Assist upload',
+      'Full-Court access state',
+      'Admin access repair',
+    ]) {
+      expect(journeyTestFixturesSource, `${fixture} fixture missing`).toContain(fixture)
     }
   })
 

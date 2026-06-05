@@ -12,6 +12,7 @@ Use this when the platform is ready for a full quality pass by tier, feature, an
 - Closeout feature inventory: `lib/platform-closeout-inventory.ts`
 - Customer journey process map: `docs/customer-journey-process-map.md`
 - Manual journey test scripts: `docs/customer-journey-test-scripts.md`
+- Journey test fixtures: `docs/customer-journey-test-fixtures.md`
 - Existing tier inventory: `docs/tier-inventory.md`
 - Deploy checklist: `docs/deploy-checklist.md`
 - Upgrade request rollout: `docs/upgrade-requests-rollout.md`
@@ -135,6 +136,8 @@ Use `lib/platform-closeout-inventory.ts` as the current tier-by-feature closeout
 Use `docs/customer-journey-process-map.md` as the human-readable process flow map for next-week journey testing. It mirrors the inventory and records each tier journey, feature access, and pain point.
 
 Use `docs/customer-journey-test-scripts.md` as the manual testing playbook. It turns each mapped journey into setup, steps, pass signals, fail-fast signals, and daily wrap-up notes.
+
+Use `docs/customer-journey-test-fixtures.md` to prepare repeatable test accounts, linked coach/player state, Level Up assignments, captain-team scenarios, league fixtures, and admin-safe data repair tests.
 
 ## Automation Targets
 
