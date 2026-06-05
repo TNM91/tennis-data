@@ -22,6 +22,7 @@
     "qa:status": "node scripts/customer-journey-qa-status.mjs",
     "qa:next": "node scripts/customer-journey-next.mjs",
     "qa:session": "node scripts/customer-journey-session-brief.mjs",
+    "qa:session-status": "node scripts/customer-journey-session-status.mjs",
     "qa:journey": "node scripts/customer-journey-card.mjs",
     "qa:tier": "node scripts/customer-journey-tier-card.mjs",
     "qa:tier-status": "node scripts/customer-journey-tier-status.mjs",

@@ -11,6 +11,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:status` to confirm the customer journey QA packet is complete
 - Run `npm run qa:next` to confirm the next incomplete session or high-priority fix
 - Run `npm run qa:session -- <day1-day5>` before each manual testing block
+- Run `npm run qa:session-status` after logging results to confirm testing-day blockers
 - Run `npm run qa:journey -- <journey-id>` before walking one journey for route, fixture, pass signal, fail-fast, and evidence
 - Run `npm run qa:tier -- <tier>` before signing off a role-based tier
 - Run `npm run qa:tier-status` after logging results to confirm tier readiness blockers

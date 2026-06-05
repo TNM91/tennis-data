@@ -32,6 +32,7 @@ const fixtureChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/c
 const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
 const journeySessionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-brief.mjs'), 'utf8')
+const journeySessionStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-status.mjs'), 'utf8')
 const journeyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-card.mjs'), 'utf8')
 const tierCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-card.mjs'), 'utf8')
 const tierStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-status.mjs'), 'utf8')
@@ -82,6 +83,7 @@ describe('customer journey test plan', () => {
       'npm run qa:status',
       'npm run qa:next',
       'npm run qa:session',
+      'npm run qa:session-status',
       'npm run qa:journey',
       'npm run qa:tier',
       'npm run qa:tier-status',
@@ -120,6 +122,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
     expect(packageSource).toContain('"qa:next": "node scripts/customer-journey-next.mjs"')
     expect(packageSource).toContain('"qa:session": "node scripts/customer-journey-session-brief.mjs"')
+    expect(packageSource).toContain('"qa:session-status": "node scripts/customer-journey-session-status.mjs"')
     expect(packageSource).toContain('"qa:journey": "node scripts/customer-journey-card.mjs"')
     expect(packageSource).toContain('"qa:tier": "node scripts/customer-journey-tier-card.mjs"')
     expect(packageSource).toContain('"qa:tier-status": "node scripts/customer-journey-tier-status.mjs"')
@@ -137,6 +140,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:prep')
     expect(qaStatusScriptSource).toContain('qa:next')
     expect(qaStatusScriptSource).toContain('qa:session')
+    expect(qaStatusScriptSource).toContain('qa:session-status')
     expect(qaStatusScriptSource).toContain('qa:journey')
     expect(qaStatusScriptSource).toContain('qa:tier')
     expect(qaStatusScriptSource).toContain('qa:tier-status')
@@ -154,6 +158,7 @@ describe('customer journey test plan', () => {
     for (const script of [
       'scripts/customer-journey-qa-status.mjs',
       'scripts/customer-journey-weekly-readiness.mjs',
+      'scripts/customer-journey-session-status.mjs',
       'scripts/customer-journey-card.mjs',
       'scripts/customer-journey-tier-card.mjs',
       'scripts/customer-journey-tier-status.mjs',
@@ -178,6 +183,7 @@ describe('customer journey test plan', () => {
       'npm run qa:status',
       'npm run qa:next',
       'npm run qa:session',
+      'npm run qa:session-status',
       'npm run qa:journey',
       'npm run qa:tier',
       'npm run qa:tier-status',
@@ -215,10 +221,12 @@ describe('customer journey test plan', () => {
 
     for (const session of ['day1', 'day2', 'day3', 'day4', 'day5']) {
       expect(journeySessionScriptSource, `${session} missing from session brief`).toContain(session)
+      expect(journeySessionStatusScriptSource, `${session} missing from session status`).toContain(session)
     }
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(journeySessionScriptSource, `${plan.id} missing from session brief`).toContain(plan.id)
+      expect(journeySessionStatusScriptSource, `${plan.id} missing from session status`).toContain(plan.id)
     }
 
     for (const flow of CUSTOMER_JOURNEY_FLOW_MAPS) {
@@ -280,6 +288,8 @@ describe('customer journey test plan', () => {
 
   it('keeps every agenda entry visible in the evidence checklist command', () => {
     expect(evidenceChecklistScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(journeySessionStatusScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(journeySessionStatusScriptSource).toContain('a session is ready to move on only when every listed journey has pass evidence')
     expect(journeyCardScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(journeyCardScriptSource).toContain('npm run qa:journey -- <journey-id | tier | search>')
     expect(tierCardScriptSource).toContain('Closeout rule: a tier is not test-ready')

@@ -12,6 +12,11 @@ const steps = [
     args: ['scripts/customer-journey-weekly-readiness.mjs'],
   },
   {
+    label: 'Session status rollup',
+    command: 'node',
+    args: ['scripts/customer-journey-session-status.mjs'],
+  },
+  {
     label: 'Fixture setup checklist',
     command: 'node',
     args: ['scripts/customer-journey-fixture-checklist.mjs'],

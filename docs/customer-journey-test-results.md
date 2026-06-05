@@ -41,6 +41,7 @@ Copy one row per journey attempt. Keep credentials and private customer data out
 
 Run `npm run qa:ledger` to print starter rows for every planned journey.
 Run `npm run qa:next` after logging results to see the next incomplete journey or p0/p1 item.
+Run `npm run qa:session-status` after testing to summarize readiness by Day 1 through Day 5 session.
 Run `npm run qa:triage` when choosing issue category, severity, and next action.
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
 Run `npm run qa:tier-status` after testing to summarize readiness by role-based tier.
