@@ -27,6 +27,11 @@ const steps = [
     args: ['scripts/customer-journey-tier-card.mjs', 'player'],
   },
   {
+    label: 'Tier status rollup',
+    command: 'node',
+    args: ['scripts/customer-journey-tier-status.mjs'],
+  },
+  {
     label: 'Customer journey flow map',
     command: 'node',
     args: ['scripts/customer-journey-flow-map.mjs'],

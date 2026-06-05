@@ -13,6 +13,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:session -- <day1-day5>` before each manual testing block
 - Run `npm run qa:journey -- <journey-id>` before walking one journey for route, fixture, pass signal, fail-fast, and evidence
 - Run `npm run qa:tier -- <tier>` before signing off a role-based tier
+- Run `npm run qa:tier-status` after logging results to confirm tier readiness blockers
 - Run `npm run qa:week` before next week's full manual journey sweep
 - Run `npm run qa:fixtures` to confirm account and safe data setup before journey testing
 - Run `npm run qa:ledger` before logging fresh test passes or issues
