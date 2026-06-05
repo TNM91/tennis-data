@@ -52,6 +52,11 @@ const steps = [
     args: ['scripts/customer-journey-device-card.mjs', 'phone'],
   },
   {
+    label: 'Device coverage status',
+    command: 'node',
+    args: ['scripts/customer-journey-device-status.mjs'],
+  },
+  {
     label: 'Sample route review',
     command: 'node',
     args: ['scripts/customer-journey-route-review.mjs', '/coach'],

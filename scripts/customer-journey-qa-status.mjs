@@ -28,6 +28,7 @@ const requiredCommands = [
   'qa:journey',
   'qa:live-card',
   'qa:device-card',
+  'qa:device-status',
   'qa:route-review',
   'qa:tier',
   'qa:tier-status',
@@ -97,6 +98,7 @@ console.log('- npm run qa:day -- <day1-day5>')
 console.log('- npm run qa:journey -- <journey-id | tier | search>')
 console.log('- npm run qa:live-card -- <journey-id> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>')
 console.log('- npm run qa:device-card -- <phone | tablet | desktop | journey-id>')
+console.log('- npm run qa:device-status -- <phone | tablet | desktop | journey-id>')
 console.log('- npm run qa:route-review -- </route | tier | feature | journey>')
 console.log('- npm run qa:tier -- <tier>')
 console.log('- npm run qa:tier-status -- <tier>')

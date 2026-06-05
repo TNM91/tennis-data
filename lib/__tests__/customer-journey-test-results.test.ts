@@ -19,6 +19,7 @@ const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/cus
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const liveJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-live-card.mjs'), 'utf8')
 const deviceJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-card.mjs'), 'utf8')
+const deviceStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-status.mjs'), 'utf8')
 const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
 const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
@@ -91,6 +92,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('Daily Summary')
     expect(resultsDocSource).toContain('npm run qa:live-card')
     expect(resultsDocSource).toContain('npm run qa:device-card')
+    expect(resultsDocSource).toContain('npm run qa:device-status')
     expect(resultsDocSource).toContain('npm run qa:route-review')
     expect(resultsDocSource).toContain('npm run qa:fixture-review')
     expect(resultsDocSource).toContain('npm run qa:access-review')
@@ -156,6 +158,21 @@ describe('customer journey test results', () => {
       expect(deviceJourneyCardScriptSource, `${plan.id} missing from device card`).toContain(plan.id)
       expect(deviceJourneyCardScriptSource, `${plan.entryRoute} missing from device card`).toContain(plan.entryRoute)
       expect(deviceJourneyCardScriptSource, `${plan.personaFixture} missing from device card`).toContain(plan.personaFixture)
+    }
+  })
+
+  it('keeps the device status command aligned to logged device evidence', () => {
+    expect(packageSource).toContain('"qa:device-status": "node scripts/customer-journey-device-status.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:device-status')
+    expect(deviceStatusScriptSource).toContain('TenAceIQ Device Status')
+    expect(deviceStatusScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(deviceStatusScriptSource).toContain('Device coverage')
+    expect(deviceStatusScriptSource).toContain('device/browser value')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(deviceStatusScriptSource, `${plan.id} missing from device status`).toContain(plan.id)
+      expect(deviceStatusScriptSource, `${plan.entryRoute} missing from device status`).toContain(plan.entryRoute)
+      expect(deviceStatusScriptSource, `${plan.personaFixture} missing from device status`).toContain(plan.personaFixture)
     }
   })
 
