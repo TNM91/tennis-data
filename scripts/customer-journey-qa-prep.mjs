@@ -102,6 +102,11 @@ const steps = [
     args: ['scripts/customer-journey-daily-summary.mjs'],
   },
   {
+    label: 'Day closeout gate',
+    command: 'node',
+    args: ['scripts/customer-journey-day-closeout.mjs'],
+  },
+  {
     label: 'Closeout inventory guard',
     command: 'node',
     args: ['scripts/verify-platform-closeout-inventory.mjs'],
