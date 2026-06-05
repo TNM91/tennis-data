@@ -15,6 +15,7 @@ Use this when the platform is ready for a full quality pass by tier, feature, an
 - Manual journey test scripts: `docs/customer-journey-test-scripts.md`
 - Journey test fixtures: `docs/customer-journey-test-fixtures.md`
 - Level Up sync audit: `docs/level-up-sync-audit.md`
+- Verification log: `docs/platform-closeout-verification-log.md`
 - Existing tier inventory: `docs/tier-inventory.md`
 - Deploy checklist: `docs/deploy-checklist.md`
 - Upgrade request rollout: `docs/upgrade-requests-rollout.md`
@@ -144,6 +145,8 @@ Use `docs/customer-journey-test-scripts.md` as the manual testing playbook. It t
 Use `docs/customer-journey-test-fixtures.md` to prepare repeatable test accounts, linked coach/player state, Level Up assignments, captain-team scenarios, league fixtures, and admin-safe data repair tests.
 
 Use `docs/level-up-sync-audit.md` to separate Level Up backend sync behavior from local-only and manual-copy behavior before next-week account testing.
+
+Use `docs/platform-closeout-verification-log.md` to record production/local closeout passes and the remaining verification target.
 
 ## Automation Targets
 

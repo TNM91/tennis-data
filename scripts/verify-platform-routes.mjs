@@ -27,6 +27,16 @@ const routeChecks = [
     expectedAny: ['Free', 'Player', 'Coach', 'Captain', 'Full-Court'],
   },
   {
+    tier: 'Free',
+    route: '/data-assist',
+    expectedAny: ['Data Assist', 'Upload source', 'Verified', 'needs review'],
+  },
+  {
+    tier: 'Free',
+    route: '/leagues',
+    expectedAny: ['Leagues', 'League Office', 'standings', 'schedule'],
+  },
+  {
     tier: 'Player',
     route: '/mylab',
     expectedAny: ['My Lab', 'Player', 'Unlock My Lab'],
@@ -52,6 +62,11 @@ const routeChecks = [
     expectedAny: ['Tactical', 'Coach', 'Captain'],
   },
   {
+    tier: 'Coach',
+    route: '/player-development/relentless-competitor-4-0/coach-planner',
+    expectedAny: ['Coach Planner', 'Lesson', 'Relentless Competitor'],
+  },
+  {
     tier: 'Captain',
     route: '/captain',
     expectedAny: ['Captain', 'lineup', 'team'],
@@ -75,6 +90,11 @@ const routeChecks = [
     tier: 'Admin',
     route: '/admin',
     expectedAny: ['Admin', 'Access', 'Import'],
+  },
+  {
+    tier: 'Admin',
+    route: '/admin/access',
+    expectedAny: ['Admin Access', 'entitlements', 'League Office', 'TENACEIQ ACCESS', 'Sign in'],
   },
 ]
 
