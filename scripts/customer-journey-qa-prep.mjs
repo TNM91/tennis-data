@@ -52,6 +52,11 @@ const steps = [
     args: ['scripts/customer-journey-device-card.mjs', 'phone'],
   },
   {
+    label: 'Sample device ledger rows',
+    command: 'node',
+    args: ['scripts/customer-journey-device-ledger.mjs', 'phone'],
+  },
+  {
     label: 'Device coverage status',
     command: 'node',
     args: ['scripts/customer-journey-device-status.mjs'],

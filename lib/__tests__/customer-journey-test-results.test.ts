@@ -19,6 +19,7 @@ const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/cus
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const liveJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-live-card.mjs'), 'utf8')
 const deviceJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-card.mjs'), 'utf8')
+const deviceLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-ledger.mjs'), 'utf8')
 const deviceStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-device-status.mjs'), 'utf8')
 const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
 const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
@@ -92,6 +93,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('Daily Summary')
     expect(resultsDocSource).toContain('npm run qa:live-card')
     expect(resultsDocSource).toContain('npm run qa:device-card')
+    expect(resultsDocSource).toContain('npm run qa:device-ledger')
     expect(resultsDocSource).toContain('npm run qa:device-status')
     expect(resultsDocSource).toContain('npm run qa:route-review')
     expect(resultsDocSource).toContain('npm run qa:fixture-review')
@@ -158,6 +160,21 @@ describe('customer journey test results', () => {
       expect(deviceJourneyCardScriptSource, `${plan.id} missing from device card`).toContain(plan.id)
       expect(deviceJourneyCardScriptSource, `${plan.entryRoute} missing from device card`).toContain(plan.entryRoute)
       expect(deviceJourneyCardScriptSource, `${plan.personaFixture} missing from device card`).toContain(plan.personaFixture)
+    }
+  })
+
+  it('keeps the device ledger command aligned to device-specific result rows', () => {
+    expect(packageSource).toContain('"qa:device-ledger": "node scripts/customer-journey-device-ledger.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:device-ledger')
+    expect(deviceLedgerScriptSource).toContain('TenAceIQ Device Ledger Rows')
+    expect(deviceLedgerScriptSource).toContain('Paste these rows into docs/customer-journey-test-results.md')
+    expect(deviceLedgerScriptSource).toContain('needs-follow-up')
+    expect(deviceLedgerScriptSource).toContain('viewport-specific risk')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(deviceLedgerScriptSource, `${plan.id} missing from device ledger`).toContain(plan.id)
+      expect(deviceLedgerScriptSource, `${plan.entryRoute} missing from device ledger`).toContain(plan.entryRoute)
+      expect(deviceLedgerScriptSource, `${plan.personaFixture} missing from device ledger`).toContain(plan.personaFixture)
     }
   })
 
