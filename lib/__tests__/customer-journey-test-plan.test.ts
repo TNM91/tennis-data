@@ -19,6 +19,7 @@ const routeSmokeSource = readFileSync(join(process.cwd(), 'scripts/verify-platfo
 const dayOneRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-journey-day-one-runbook.md'), 'utf8')
 const weeklyRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-journey-weekly-runbook.md'), 'utf8')
 const dayOneReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-one-readiness.mjs'), 'utf8')
+const weeklyReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-weekly-readiness.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const CRITICAL_SCRIPT_ANCHORS: Record<string, string[]> = {
   'player-level-up-mobile-loop': ['Level Up Portal', '/player-development/relentless-competitor-4-0/level-up', 'local saved state behaves honestly'],
@@ -98,11 +99,14 @@ describe('customer journey test plan', () => {
   it('keeps the weekly runbook covering every agenda journey', () => {
     expect(weeklyRunbookSource).toContain('docs/customer-journey-day-one-runbook.md')
     expect(weeklyRunbookSource).toContain('docs/customer-journey-test-results.md')
+    expect(weeklyRunbookSource).toContain('npm run qa:week')
     expect(weeklyRunbookSource).toContain('npm run verify:closeout:live')
     expect(testScriptsSource).toContain('docs/customer-journey-weekly-runbook.md')
+    expect(packageSource).toContain('"qa:week": "node scripts/customer-journey-weekly-readiness.mjs"')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(weeklyRunbookSource, `${plan.id} missing from weekly runbook`).toContain(plan.id)
+      expect(weeklyReadinessScriptSource, `${plan.id} missing from weekly readiness script`).toContain(plan.id)
     }
   })
 
