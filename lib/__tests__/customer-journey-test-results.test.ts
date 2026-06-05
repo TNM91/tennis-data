@@ -22,6 +22,7 @@ const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/cus
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
 const accessReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-access-review.mjs'), 'utf8')
+const featureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-feature-review.mjs'), 'utf8')
 const scorecardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-scorecard.mjs'), 'utf8')
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
 const triageGuideScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-triage-guide.mjs'), 'utf8')
@@ -85,6 +86,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
     expect(resultsDocSource).toContain('npm run qa:access-review')
+    expect(resultsDocSource).toContain('npm run qa:feature-review')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
   })
 
@@ -172,6 +174,18 @@ describe('customer journey test results', () => {
 
     for (const category of ['access-gap', 'gating-gap', 'fixture-gap']) {
       expect(resultsDocSource, `${category} missing from access review guidance`).toContain(category)
+    }
+  })
+
+  it('keeps the feature review command aligned to feature-specific closeout evidence', () => {
+    expect(packageSource).toContain('"qa:feature-review": "node scripts/customer-journey-feature-review.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:feature-review')
+    expect(featureReviewScriptSource).toContain('TenAceIQ Feature Review')
+    expect(featureReviewScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(featureReviewScriptSource).toContain('Closeout rule: a feature is not ready')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(featureReviewScriptSource, `${plan.id} missing from feature review`).toContain(plan.id)
     }
   })
 

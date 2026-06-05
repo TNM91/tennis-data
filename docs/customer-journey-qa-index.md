@@ -26,6 +26,7 @@ Start here when preparing for next-week journey testing.
 | `npm run qa:focus -- <tier-or-journey>` | Print one focused tier or journey flow for manual testing. |
 | `npm run qa:handoffs` | Print cross-role handoff checks and shared proof expectations. |
 | `npm run qa:matrix` | Print the tier-by-feature QA matrix with pain points and verification mode. |
+| `npm run qa:feature-review -- <feature \| tier \| route>` | Print one feature's tier, route, pain point, proving journeys, connected flows, and evidence state. |
 | `npm run qa:coverage -- <tier>` | Show which journey proves each feature and whether pass evidence has been logged. |
 | `npm run qa:risk-board -- <tier \| day \| journey>` | Rank the highest-value journeys to test or fix next across blockers, evidence gaps, and risk. |
 | `npm run qa:gaps` | Print feature gaps that still need account, fixture, manual, or local-sync proof. |
@@ -66,19 +67,20 @@ Start here when preparing for next-week journey testing.
 18. Run `npm run qa:focus -- <tier-or-journey>` while testing one journey at a time.
 19. Run `npm run qa:handoffs` before testing linked or shared-role workflows.
 20. Run `npm run qa:matrix` to keep tier features tied to pain points.
-21. Run `npm run qa:coverage -- <tier>` to confirm each feature has a proving journey and logged evidence.
-22. Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos.
-23. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
-24. Run `npm run qa:ledger-check` after adding or editing result rows.
-25. Run `npm run qa:results` after each testing block.
-26. Run `npm run qa:action-list` to turn open rows into the next fix list.
-27. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
-28. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
-29. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
-30. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
-31. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
-32. Run `npm run qa:launch` only after the ledger has real pass evidence.
-33. Run `npm run verify:closeout:live` after the latest deploy.
+21. Run `npm run qa:feature-review -- player-level-up` or another feature when a specific tool needs a focused contract check.
+22. Run `npm run qa:coverage -- <tier>` to confirm each feature has a proving journey and logged evidence.
+23. Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos.
+24. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
+25. Run `npm run qa:ledger-check` after adding or editing result rows.
+26. Run `npm run qa:results` after each testing block.
+27. Run `npm run qa:action-list` to turn open rows into the next fix list.
+28. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
+29. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
+30. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
+31. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
+32. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
+33. Run `npm run qa:launch` only after the ledger has real pass evidence.
+34. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -126,6 +128,7 @@ Start here when preparing for next-week journey testing.
 - Treat `fixture-gap` as blocked, not passed.
 - Do not close a journey until the result is `pass` and the evidence shows the pain point was solved.
 - Use `npm run qa:matrix` when checking whether a tier feature actually solves the documented pain point.
+- Use `npm run qa:feature-review -- coach-invite-link` or another feature when you need the route, proof journey, connected flow, and evidence state together.
 - Use `npm run qa:coverage -- <tier>` when checking whether every feature has a proving journey and logged pass evidence.
 - Use `npm run qa:gaps` when deciding which account, fixture, manual, or local-sync evidence still needs attention.
 - Use `npm run qa:evidence` before marking a journey `pass`, especially for sync, access, mobile, and fixture-sensitive flows.

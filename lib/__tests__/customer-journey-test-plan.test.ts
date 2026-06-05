@@ -45,6 +45,7 @@ const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/cust
 const flowMapScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-flow-map.mjs'), 'utf8')
 const journeyFocusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-focus.mjs'), 'utf8')
 const journeyHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-handoffs.mjs'), 'utf8')
+const featureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-feature-review.mjs'), 'utf8')
 const coverageReportScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-coverage-report.mjs'), 'utf8')
 const riskBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-risk-board.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
@@ -113,6 +114,7 @@ describe('customer journey test plan', () => {
       'npm run qa:focus',
       'npm run qa:handoffs',
       'npm run qa:matrix',
+      'npm run qa:feature-review',
       'npm run qa:coverage',
       'npm run qa:risk-board',
       'npm run qa:gaps',
@@ -163,6 +165,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:focus": "node scripts/customer-journey-focus.mjs"')
     expect(packageSource).toContain('"qa:handoffs": "node scripts/customer-journey-handoffs.mjs"')
     expect(packageSource).toContain('"qa:matrix": "node scripts/customer-journey-feature-matrix.mjs"')
+    expect(packageSource).toContain('"qa:feature-review": "node scripts/customer-journey-feature-review.mjs"')
     expect(packageSource).toContain('"qa:coverage": "node scripts/customer-journey-coverage-report.mjs"')
     expect(packageSource).toContain('"qa:risk-board": "node scripts/customer-journey-risk-board.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
@@ -195,6 +198,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:focus')
     expect(qaStatusScriptSource).toContain('qa:handoffs')
     expect(qaStatusScriptSource).toContain('qa:matrix')
+    expect(qaStatusScriptSource).toContain('qa:feature-review')
     expect(qaStatusScriptSource).toContain('qa:coverage')
     expect(qaStatusScriptSource).toContain('qa:risk-board')
     expect(qaStatusScriptSource).toContain('qa:gaps')
@@ -226,6 +230,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-flow-map.mjs',
       'scripts/customer-journey-handoffs.mjs',
       'scripts/customer-journey-feature-matrix.mjs',
+      'scripts/customer-journey-feature-review.mjs',
       'scripts/customer-journey-coverage-report.mjs',
       'scripts/customer-journey-risk-board.mjs',
       'scripts/customer-journey-gap-report.mjs',
@@ -268,6 +273,7 @@ describe('customer journey test plan', () => {
       'npm run qa:focus',
       'npm run qa:handoffs',
       'npm run qa:matrix',
+      'npm run qa:feature-review',
       'npm run qa:coverage',
       'npm run qa:risk-board',
       'npm run qa:gaps',
@@ -387,6 +393,10 @@ describe('customer journey test plan', () => {
     expect(coverageReportScriptSource).toContain('docs/customer-journey-process-map.md')
     expect(coverageReportScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(coverageReportScriptSource).toContain('every feature should have a proving journey')
+    expect(featureReviewScriptSource).toContain('docs/customer-journey-process-map.md')
+    expect(featureReviewScriptSource).toContain('lib/customer-journey-flow-map.json')
+    expect(featureReviewScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(featureReviewScriptSource).toContain('a feature is not ready until')
     expect(journeyMorningBriefScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(journeyMorningBriefScriptSource).toContain('begin with one high-risk proof gap')
     expect(riskBoardScriptSource).toContain('docs/customer-journey-process-map.md')
@@ -431,6 +441,7 @@ describe('customer journey test plan', () => {
       expect(tierCardScriptSource, `${plan.id} missing from tier card command`).toContain(plan.id)
       expect(tierStatusScriptSource, `${plan.id} missing from tier status command`).toContain(plan.id)
       expect(accessReviewScriptSource, `${plan.id} missing from access review`).toContain(plan.id)
+      expect(featureReviewScriptSource, `${plan.id} missing from feature review`).toContain(plan.id)
       expect(coverageReportScriptSource, `${plan.id} missing from coverage report command`).toContain(plan.id)
       expect(riskBoardScriptSource, `${plan.id} missing from risk board command`).toContain(plan.id)
       expect(ledgerCheckScriptSource, `${plan.id} missing from ledger check command`).toContain(plan.id)
@@ -462,6 +473,7 @@ describe('customer journey test plan', () => {
       'admin-access-management',
     ]) {
       expect(tierCardScriptSource, `${featureId} missing from tier card command`).toContain(featureId)
+      expect(featureReviewScriptSource, `${featureId} missing from feature review command`).toContain(featureId)
     }
   })
 

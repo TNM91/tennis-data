@@ -47,6 +47,7 @@ Run `npm run qa:session-status` after testing to summarize readiness by Day 1 th
 Run `npm run qa:triage` when choosing issue category, severity, and next action.
 Run `npm run qa:ledger-check` after editing rows to catch invalid status, category, severity, fixture, route, evidence, or next-action fields.
 Run `npm run qa:access-review -- <tier>` when a result is about wrong access, missing unlocks, stale locks, or protected controls.
+Run `npm run qa:feature-review -- <feature>` when a result is about one feature's route, pain point, proving journey, connected flow, or handoff.
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
 Run `npm run qa:action-list` after testing to list the concrete fixes, blockers, and follow-ups by priority.
 Run `npm run qa:retest -- <day-or-journey>` after fixes to list the exact journeys that need fresh pass evidence.
@@ -72,6 +73,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - A `sync-gap`, `access-gap`, `gating-gap`, or `data-propagation-gap` should be treated as product logic until proven otherwise.
 - A `fixture-gap` does not mean the product passed. Create the fixture and rerun.
 - Use `qa:access-review` for access, gating, and stale-lock questions before deciding whether the issue is `access-gap`, `gating-gap`, or fixture setup.
+- Use `qa:feature-review` before closing a feature-specific issue so the fix is tied to the proving journey and connected flow.
 - A `mobile-ux-gap` in Level Up should be retested on phone-width viewport after the fix.
 - A `content-quality-gap` should be fixed against the tennis behavior, proof signal, and next action.
 - `qa:ledger-check` should pass before `qa:launch` is used as a sign-off signal.

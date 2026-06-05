@@ -72,6 +72,11 @@ const steps = [
     args: ['scripts/customer-journey-feature-matrix.mjs'],
   },
   {
+    label: 'Sample feature review',
+    command: 'node',
+    args: ['scripts/customer-journey-feature-review.mjs', 'player-level-up'],
+  },
+  {
     label: 'Tier feature coverage report',
     command: 'node',
     args: ['scripts/customer-journey-coverage-report.mjs'],

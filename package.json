@@ -38,6 +38,7 @@
     "qa:focus": "node scripts/customer-journey-focus.mjs",
     "qa:handoffs": "node scripts/customer-journey-handoffs.mjs",
     "qa:matrix": "node scripts/customer-journey-feature-matrix.mjs",
+    "qa:feature-review": "node scripts/customer-journey-feature-review.mjs",
     "qa:coverage": "node scripts/customer-journey-coverage-report.mjs",
     "qa:risk-board": "node scripts/customer-journey-risk-board.mjs",
     "qa:gaps": "node scripts/customer-journey-gap-report.mjs",
