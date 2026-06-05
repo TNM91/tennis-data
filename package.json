@@ -24,6 +24,7 @@
     "qa:week": "node scripts/customer-journey-weekly-readiness.mjs",
     "qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs",
     "qa:ledger": "node scripts/customer-journey-ledger-template.mjs",
+    "qa:flows": "node scripts/customer-journey-flow-map.mjs",
     "qa:matrix": "node scripts/customer-journey-feature-matrix.mjs",
     "qa:gaps": "node scripts/customer-journey-gap-report.mjs",
     "qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs",

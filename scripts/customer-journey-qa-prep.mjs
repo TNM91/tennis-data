@@ -17,6 +17,11 @@ const steps = [
     args: ['scripts/customer-journey-fixture-checklist.mjs'],
   },
   {
+    label: 'Customer journey flow map',
+    command: 'node',
+    args: ['scripts/customer-journey-flow-map.mjs'],
+  },
+  {
     label: 'Tier feature matrix',
     command: 'node',
     args: ['scripts/customer-journey-feature-matrix.mjs'],

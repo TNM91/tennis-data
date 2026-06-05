@@ -1,0 +1,355 @@
+[
+  {
+    "id": "free-discovery-to-upgrade",
+    "tierId": "free",
+    "label": "Free discovery to upgrade",
+    "persona": "Visitor or tennis player getting oriented",
+    "painPoint": "A visitor should not have to guess where tennis context lives or what unlocks next.",
+    "accessRule": "Free users can explore public tennis intelligence and contribute Data Assist uploads without seeing private workspace controls.",
+    "entryRoute": "/explore",
+    "primaryFeatureIds": ["free-public-explore", "free-data-assist-entry"],
+    "steps": [
+      {
+        "stage": "discover",
+        "action": "Search public players, teams, leagues, rankings, or areas.",
+        "surface": "Explore",
+        "route": "/explore",
+        "productSignal": "Useful public tennis context appears before any upgrade pitch.",
+        "evidence": "Public search/detail screenshot."
+      },
+      {
+        "stage": "act",
+        "action": "Open Data Assist when public context is stale.",
+        "surface": "Data Assist",
+        "route": "/data-assist",
+        "productSignal": "Upload language makes review status clear instead of implying instant trusted data.",
+        "evidence": "Upload/review copy."
+      },
+      {
+        "stage": "unlock",
+        "action": "Compare plans only after seeing what the free surface can do.",
+        "surface": "Pricing",
+        "route": "/pricing",
+        "productSignal": "Upgrade path names the right next workspace.",
+        "evidence": "Pricing handoff."
+      }
+    ],
+    "handoffs": [
+      {
+        "toTierId": "player_plus",
+        "label": "Unlock Player when public context should become personal.",
+        "trigger": "Visitor wants My Lab, matchup prep, follows, or a player-linked home.",
+        "proof": "Pricing handoff points to Player without hiding free value."
+      }
+    ],
+    "testRisk": "medium"
+  },
+  {
+    "id": "player-practice-progress-loop",
+    "tierId": "player_plus",
+    "label": "Player practice progress loop",
+    "persona": "Player using TenAceIQ during and between practice sessions",
+    "painPoint": "Players need a simple way to turn lessons, goals, and practice time into visible progress.",
+    "accessRule": "Player access unlocks personal spaces; invited players can use coach-linked assigned work where the coach tier provides the relationship.",
+    "entryRoute": "/player-development/relentless-competitor-4-0/level-up",
+    "primaryFeatureIds": ["player-level-up", "player-level-up-content", "player-my-lab"],
+    "steps": [
+      {
+        "stage": "plan",
+        "action": "Choose one Level Up focus based on identity, coach assignment, or current goal.",
+        "surface": "Level Up Portal",
+        "route": "/player-development/[identity]/level-up",
+        "productSignal": "Recommended lane, module, or challenge explains why it fits the player.",
+        "evidence": "Recommended card/module reason."
+      },
+      {
+        "stage": "act",
+        "action": "Start the drill, exercise, or routine with prior selections collapsed.",
+        "surface": "Active Card",
+        "route": "/player-development/[identity]/level-up?card=[cardId]",
+        "productSignal": "The active task is the main screen on phone with clear do/track/score guidance.",
+        "evidence": "Phone active-task screenshot."
+      },
+      {
+        "stage": "track",
+        "action": "Rate proof 0-5 and add one tiny note only if it changes the next practice.",
+        "surface": "Completion Logger",
+        "route": "/player-development/[identity]/level-up",
+        "productSignal": "Numbers come first and the note stays lightweight.",
+        "evidence": "Saved rating and note state."
+      },
+      {
+        "stage": "return",
+        "action": "Return later to see progress and the next useful rep.",
+        "surface": "My Lab",
+        "route": "/mylab",
+        "productSignal": "Recent work and next action are pulled forward without a generic empty dashboard.",
+        "evidence": "Return-state screenshot after refresh."
+      }
+    ],
+    "handoffs": [
+      {
+        "toTierId": "coach",
+        "label": "Share proof with coach when linked.",
+        "trigger": "Player completes coach-assigned work or chooses to share a recap.",
+        "proof": "Coach can find the same proof signal from the student context."
+      }
+    ],
+    "testRisk": "critical"
+  },
+  {
+    "id": "coach-assignment-lesson-loop",
+    "tierId": "coach",
+    "label": "Coach assignment to lesson loop",
+    "persona": "Coach managing a student between private lessons",
+    "painPoint": "Coach and player alignment should continue between lessons without long journals or disconnected homework.",
+    "accessRule": "Coach tier can invite linked players, assign tools, review proof, and plan the next session.",
+    "entryRoute": "/coach",
+    "primaryFeatureIds": ["coach-hub", "coach-invite-link", "coach-lesson-planner", "player-level-up"],
+    "steps": [
+      {
+        "stage": "unlock",
+        "action": "Send an invite link and confirm the player links to the coach.",
+        "surface": "Coach Invite",
+        "route": "/coach/invite/[token]",
+        "productSignal": "The relationship is clear to both coach and player.",
+        "evidence": "Linked player state."
+      },
+      {
+        "stage": "plan",
+        "action": "Assign one tool that supports the current tennis habit.",
+        "surface": "Coach Hub",
+        "route": "/coach",
+        "productSignal": "Assignment is specific, not extra work for its own sake.",
+        "evidence": "Assignment card with proof required."
+      },
+      {
+        "stage": "review",
+        "action": "Review the player's proof and quick note.",
+        "surface": "Coach Student Detail",
+        "route": "/coach",
+        "productSignal": "Coach can see score, note, due state, and next implication.",
+        "evidence": "Coach proof view."
+      },
+      {
+        "stage": "plan",
+        "action": "Convert proof/readiness into a one-hour lesson plan.",
+        "surface": "Coach Planner",
+        "route": "/player-development/[identity]/coach-planner",
+        "productSignal": "Lesson blocks match identity, readiness, and recent assigned work.",
+        "evidence": "Lesson plan handoff."
+      }
+    ],
+    "handoffs": [
+      {
+        "toTierId": "player_plus",
+        "label": "Player receives the assigned challenge inside Level Up.",
+        "trigger": "Coach assigns a card or module.",
+        "proof": "Player sees challenge and can complete proof."
+      }
+    ],
+    "testRisk": "critical"
+  },
+  {
+    "id": "captain-week-decision-loop",
+    "tierId": "captain",
+    "label": "Captain week decision loop",
+    "persona": "Team captain setting a weekly lineup",
+    "painPoint": "Captains need to make lineup and communication decisions without rebuilding context in scattered tools.",
+    "accessRule": "Captain tier includes Player value plus team-week tools for availability, scouting, lineup, and communication.",
+    "entryRoute": "/captain",
+    "primaryFeatureIds": ["captain-lineup-week", "captain-compete-bridge"],
+    "steps": [
+      {
+        "stage": "plan",
+        "action": "Review availability, readiness, opponent context, and roster options.",
+        "surface": "Captain Hub",
+        "route": "/captain",
+        "productSignal": "The week opens with the decision inputs visible.",
+        "evidence": "Availability/readiness state."
+      },
+      {
+        "stage": "act",
+        "action": "Build and compare lineup options.",
+        "surface": "Lineup Builder",
+        "route": "/captain",
+        "productSignal": "Scenario comparison helps choose instead of just listing players.",
+        "evidence": "Lineup option/projection."
+      },
+      {
+        "stage": "share",
+        "action": "Send or prepare the team-facing brief.",
+        "surface": "Team Brief",
+        "route": "/captain",
+        "productSignal": "The captain can close the loop with the team.",
+        "evidence": "Brief/message output."
+      },
+      {
+        "stage": "return",
+        "action": "Return after results and prepare next week.",
+        "surface": "Compete / Captain",
+        "route": "/compete",
+        "productSignal": "Results and team context feed the next decision.",
+        "evidence": "Result/context handoff."
+      }
+    ],
+    "handoffs": [
+      {
+        "toTierId": "league",
+        "label": "League result context informs captain decisions.",
+        "trigger": "Schedules or results are updated by the league/coordinator flow.",
+        "proof": "Captain can see the public/member-facing context that affects the week."
+      }
+    ],
+    "testRisk": "high"
+  },
+  {
+    "id": "league-operation-visibility-loop",
+    "tierId": "league",
+    "label": "League operation to visibility loop",
+    "persona": "League coordinator running a season, ladder, or tournament",
+    "painPoint": "Coordinators need one operating workspace for schedules, results, standings, and visibility.",
+    "accessRule": "League tier gives coordinator tools while public/member league pages expose only the intended context.",
+    "entryRoute": "/league-coordinator",
+    "primaryFeatureIds": ["league-office", "league-public-context"],
+    "steps": [
+      {
+        "stage": "operate",
+        "action": "Set or review league structure, participants, and schedule.",
+        "surface": "League Office",
+        "route": "/league-coordinator",
+        "productSignal": "The coordinator can manage structure without spreadsheet workarounds.",
+        "evidence": "Coordinator workspace state."
+      },
+      {
+        "stage": "act",
+        "action": "Record or review results from safe fixture data.",
+        "surface": "League Result Flow",
+        "route": "/league-coordinator",
+        "productSignal": "Result state updates the intended source of truth.",
+        "evidence": "Result fixture and saved state."
+      },
+      {
+        "stage": "share",
+        "action": "Check public/member league context.",
+        "surface": "League Detail",
+        "route": "/leagues/[league]",
+        "productSignal": "Members can see schedule/result/standing context without private controls.",
+        "evidence": "Public league screen and privacy check."
+      },
+      {
+        "stage": "return",
+        "action": "Resolve exceptions and keep the next week moving.",
+        "surface": "League Office",
+        "route": "/league-coordinator",
+        "productSignal": "Exceptions are visible and actionable.",
+        "evidence": "Exception/review state."
+      }
+    ],
+    "handoffs": [
+      {
+        "toTierId": "captain",
+        "label": "League context feeds captain team-week planning.",
+        "trigger": "Schedule, result, or standings context changes.",
+        "proof": "Captain-facing surfaces reflect the same match-week reality."
+      }
+    ],
+    "testRisk": "high"
+  },
+  {
+    "id": "full-court-role-switching-loop",
+    "tierId": "full_court",
+    "label": "Full-Court role switching loop",
+    "persona": "Multi-role operator using several TenAceIQ workspaces",
+    "painPoint": "Multi-role users need clean access across every workspace without tier confusion.",
+    "accessRule": "Full-Court users should move through Player, Coach, Captain, and League surfaces without stale locks or duplicate upgrade prompts.",
+    "entryRoute": "/pricing",
+    "primaryFeatureIds": ["full-court-navigation", "player-my-lab", "coach-hub", "captain-lineup-week", "league-office"],
+    "steps": [
+      {
+        "stage": "unlock",
+        "action": "Confirm Full-Court tier language and access state.",
+        "surface": "Pricing",
+        "route": "/pricing",
+        "productSignal": "Full-Court explains every included workspace.",
+        "evidence": "Pricing tier copy."
+      },
+      {
+        "stage": "act",
+        "action": "Open Player, Coach, Captain, and League workspaces.",
+        "surface": "Role Workspaces",
+        "route": "/mylab",
+        "productSignal": "No paid workspace shows stale locks or redundant upgrade prompts.",
+        "evidence": "Workspace access screenshots."
+      },
+      {
+        "stage": "return",
+        "action": "Come back and choose the right workspace for the job.",
+        "surface": "Navigation",
+        "route": "/pricing",
+        "productSignal": "Role switching feels deliberate and understandable.",
+        "evidence": "Navigation/access pass."
+      }
+    ],
+    "handoffs": [
+      {
+        "toTierId": "coach",
+        "label": "Use Coach when the job is player development.",
+        "trigger": "Operator needs assignment, proof review, or lesson planning.",
+        "proof": "Coach workspace opens without gating confusion."
+      },
+      {
+        "toTierId": "captain",
+        "label": "Use Captain when the job is team-week decisions.",
+        "trigger": "Operator needs lineup, readiness, scouting, or team messages.",
+        "proof": "Captain workspace opens without gating confusion."
+      }
+    ],
+    "testRisk": "medium"
+  },
+  {
+    "id": "admin-access-data-quality-loop",
+    "tierId": "admin_internal",
+    "label": "Admin access and data quality loop",
+    "persona": "Internal operator protecting access and tennis data quality",
+    "painPoint": "Internal users need to keep access and tennis intelligence trustworthy without creating product drift.",
+    "accessRule": "Admin/Internal access is protected and should only touch safe fixtures during test week.",
+    "entryRoute": "/admin/access",
+    "primaryFeatureIds": ["admin-access-management", "admin-data-quality", "free-data-assist-entry"],
+    "steps": [
+      {
+        "stage": "admin",
+        "action": "Review a test account access issue.",
+        "surface": "Admin Access",
+        "route": "/admin/access",
+        "productSignal": "Starting tier, target tier, and affected surfaces are clear.",
+        "evidence": "Access repair before/after."
+      },
+      {
+        "stage": "admin",
+        "action": "Review imported tennis data before it becomes trusted context.",
+        "surface": "Import Queue",
+        "route": "/admin/import-queue",
+        "productSignal": "Fixture data stays isolated and unreviewed data is not treated as trusted.",
+        "evidence": "Import review state."
+      },
+      {
+        "stage": "return",
+        "action": "Confirm affected product surfaces after repair/review.",
+        "surface": "Affected Workspace",
+        "route": "/pricing",
+        "productSignal": "Access or data changes show where intended without creating tier drift.",
+        "evidence": "Affected surface confirmation."
+      }
+    ],
+    "handoffs": [
+      {
+        "toTierId": "free",
+        "label": "Data Assist submissions move into review.",
+        "trigger": "A user uploads scorecard, schedule, or roster data.",
+        "proof": "Admin queue shows review state before product intelligence changes."
+      }
+    ],
+    "testRisk": "high"
+  }
+]

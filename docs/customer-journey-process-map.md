@@ -2,7 +2,7 @@
 
 Use this as the technical reference for journey testing by tier. The source of truth for feature status, pain points, verification mode, and next closeout steps is `lib/platform-closeout-inventory.ts`. The typed testing agenda lives in `docs/customer-journey-test-plan.md`; the manual test playbook lives in `docs/customer-journey-test-scripts.md`; the account/data fixture plan lives in `docs/customer-journey-test-fixtures.md`.
 
-Run `npm run qa:matrix` to print the tier-by-feature matrix while testing. Run `npm run qa:gaps` to focus the account, fixture, manual, and local-sync evidence pass.
+Run `npm run qa:flows` to print tier journey steps, handoffs, access rules, and evidence points. Run `npm run qa:matrix` to print the tier-by-feature matrix while testing. Run `npm run qa:gaps` to focus the account, fixture, manual, and local-sync evidence pass.
 
 ## How To Use This
 
@@ -11,6 +11,7 @@ Run `npm run qa:matrix` to print the tier-by-feature matrix while testing. Run `
 3. For each feature, verify the pain point is actually solved.
 4. Mark whether the feature is `backend-backed`, `local`, `mock`, `manual`, or `blocked`.
 5. Update `lib/platform-closeout-inventory.ts` first when the map changes, then update this doc.
+6. Update `lib/customer-journey-flow-map.json` when the user-facing journey, handoff, or evidence expectation changes.
 
 ## Journey Stages
 
@@ -44,6 +45,20 @@ flowchart LR
   Admin --> Captain
   Admin --> League
 ```
+
+## Flow Contract
+
+Each tested tier should have:
+
+| Piece | What To Confirm |
+| --- | --- |
+| Entry | The right persona can start from the expected route without tier confusion. |
+| Action | The next step solves the stated tennis pain point, not just a generic task. |
+| Proof | The user can record or observe a trustworthy signal. |
+| Handoff | Shared work reaches the right role and does not leak to the wrong one. |
+| Return | The user can come back later and see what changed or what to do next. |
+
+Source: `lib/customer-journey-flow-map.json`.
 
 ## Core Customer Journeys
 

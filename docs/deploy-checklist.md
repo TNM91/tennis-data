@@ -12,6 +12,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:week` before next week's full manual journey sweep
 - Run `npm run qa:fixtures` to confirm account and safe data setup before journey testing
 - Run `npm run qa:ledger` before logging fresh test passes or issues
+- Run `npm run qa:flows` before testing a tier end to end
 - Run `npm run qa:matrix` before tier-by-feature testing so every feature is checked against its pain point
 - Run `npm run qa:gaps` to focus account, fixture, manual, and local-sync evidence before launch decisions
 - Run `npm run qa:evidence` before marking journey results as pass/fail/blocked

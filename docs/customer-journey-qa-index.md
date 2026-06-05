@@ -12,6 +12,7 @@ Start here when preparing for next-week journey testing.
 | `npm run qa:week` | Print the full week testing sequence and fixture list. |
 | `npm run qa:fixtures` | Print account, data fixture, and setup-order expectations. |
 | `npm run qa:ledger` | Print starter result rows for every planned journey. |
+| `npm run qa:flows` | Print tier journey steps, handoffs, access rules, and evidence points. |
 | `npm run qa:matrix` | Print the tier-by-feature QA matrix with pain points and verification mode. |
 | `npm run qa:gaps` | Print feature gaps that still need account, fixture, manual, or local-sync proof. |
 | `npm run qa:evidence` | Print the proof checklist for each journey before recording results. |
@@ -28,10 +29,11 @@ Start here when preparing for next-week journey testing.
 3. For Day 1, run `npm run qa:day1`.
 4. Run `npm run qa:fixtures` while confirming test accounts and safe data.
 5. Run `npm run qa:ledger` and paste starter rows into `docs/customer-journey-test-results.md`.
-6. Run focused commands as needed: `npm run qa:matrix`, `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
-7. Run `npm run qa:results` after each testing block.
-8. Run `npm run qa:launch` only after the ledger has real pass evidence.
-9. Run `npm run verify:closeout:live` after the latest deploy.
+6. Run `npm run qa:flows` before walking a tier end to end.
+7. Run focused commands as needed: `npm run qa:matrix`, `npm run qa:gaps`, `npm run qa:evidence`, or `npm run qa:triage`.
+8. Run `npm run qa:results` after each testing block.
+9. Run `npm run qa:launch` only after the ledger has real pass evidence.
+10. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -61,6 +63,7 @@ Start here when preparing for next-week journey testing.
 - Log every journey attempt in `docs/customer-journey-test-results.md`.
 - Use `npm run qa:prep` at the start of a testing session to confirm the packet, matrix, gap report, evidence checklist, and inventory guard are healthy.
 - Use `npm run qa:fixtures` before testing account-dependent journeys; missing fixture means `fixture-gap`, not pass.
+- Use `npm run qa:flows` when checking the entry, action, proof, handoff, and return state for a tier.
 - Treat `sync-gap`, `access-gap`, `gating-gap`, and `data-propagation-gap` as product logic until proven otherwise.
 - Treat `fixture-gap` as blocked, not passed.
 - Do not close a journey until the result is `pass` and the evidence shows the pain point was solved.

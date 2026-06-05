@@ -2,6 +2,12 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  CUSTOMER_JOURNEY_FLOW_MAPS,
+  getCustomerJourneyFlowMap,
+  getCustomerJourneyFlowMapsForFeature,
+  getCustomerJourneyFlowMapsForTier,
+} from '../customer-journey-flow-map'
+import {
   CUSTOMER_JOURNEY_TEST_PLANS,
   getCustomerJourneyFixtureIds,
   getCustomerJourneyTestPlan,
@@ -26,6 +32,7 @@ const fixtureChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/c
 const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
 const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-checklist.mjs'), 'utf8')
+const flowMapScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-flow-map.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const CRITICAL_SCRIPT_ANCHORS: Record<string, string[]> = {
   'player-level-up-mobile-loop': ['Level Up Portal', '/player-development/relentless-competitor-4-0/level-up', 'local saved state behaves honestly'],
@@ -71,6 +78,7 @@ describe('customer journey test plan', () => {
       'npm run qa:week',
       'npm run qa:fixtures',
       'npm run qa:ledger',
+      'npm run qa:flows',
       'npm run qa:matrix',
       'npm run qa:gaps',
       'npm run qa:evidence',
@@ -98,6 +106,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:prep": "node scripts/customer-journey-qa-prep.mjs"')
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
+    expect(packageSource).toContain('"qa:flows": "node scripts/customer-journey-flow-map.mjs"')
     expect(packageSource).toContain('"qa:matrix": "node scripts/customer-journey-feature-matrix.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
     expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
@@ -107,6 +116,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
     expect(qaStatusScriptSource).toContain('qa:prep')
     expect(qaStatusScriptSource).toContain('qa:fixtures')
+    expect(qaStatusScriptSource).toContain('qa:flows')
     expect(qaStatusScriptSource).toContain('qa:matrix')
     expect(qaStatusScriptSource).toContain('qa:gaps')
     expect(qaStatusScriptSource).toContain('qa:evidence')
@@ -118,6 +128,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-qa-status.mjs',
       'scripts/customer-journey-weekly-readiness.mjs',
       'scripts/customer-journey-fixture-checklist.mjs',
+      'scripts/customer-journey-flow-map.mjs',
       'scripts/customer-journey-feature-matrix.mjs',
       'scripts/customer-journey-gap-report.mjs',
       'scripts/customer-journey-evidence-checklist.mjs',
@@ -137,6 +148,7 @@ describe('customer journey test plan', () => {
       'npm run qa:week',
       'npm run qa:fixtures',
       'npm run qa:ledger',
+      'npm run qa:flows',
       'npm run qa:matrix',
       'npm run qa:gaps',
       'npm run qa:evidence',
@@ -148,6 +160,45 @@ describe('customer journey test plan', () => {
     ]) {
       expect(deployChecklistSource, `${anchor} missing from deploy checklist`).toContain(anchor)
     }
+  })
+
+  it('keeps customer journey flow maps tied to tiers, features, handoffs, and evidence', () => {
+    expect(CUSTOMER_JOURNEY_FLOW_MAPS.length).toBeGreaterThanOrEqual(7)
+    expect(new Set(CUSTOMER_JOURNEY_FLOW_MAPS.map((flow) => flow.id)).size).toBe(CUSTOMER_JOURNEY_FLOW_MAPS.length)
+    expect(flowMapScriptSource).toContain('lib/customer-journey-flow-map.json')
+    expect(processMapSource).toContain('lib/customer-journey-flow-map.json')
+    expect(processMapSource).toContain('Flow Contract')
+
+    for (const flow of CUSTOMER_JOURNEY_FLOW_MAPS) {
+      expect(PLATFORM_CLOSEOUT_TIER_LABELS[flow.tierId], `${flow.id} has unknown tier`).toBeTruthy()
+      expect(flow.entryRoute, flow.id).toMatch(/^\//)
+      expect(flow.painPoint.trim(), flow.id).not.toHaveLength(0)
+      expect(flow.accessRule.trim(), flow.id).not.toHaveLength(0)
+      expect(flow.steps.length, flow.id).toBeGreaterThanOrEqual(3)
+      expect(flow.primaryFeatureIds.length, flow.id).toBeGreaterThan(0)
+      expect(processMapSource, `${flow.id} label missing from process map`).toContain(PLATFORM_CLOSEOUT_TIER_LABELS[flow.tierId])
+
+      for (const featureId of flow.primaryFeatureIds) {
+        expect(hasKnownCloseoutFeature(featureId), `${flow.id} references missing feature ${featureId}`).toBe(true)
+      }
+
+      for (const step of flow.steps) {
+        expect(step.route, `${flow.id} step route`).toMatch(/^\//)
+        expect(step.action.trim(), `${flow.id} step action`).not.toHaveLength(0)
+        expect(step.productSignal.trim(), `${flow.id} product signal`).not.toHaveLength(0)
+        expect(step.evidence.trim(), `${flow.id} evidence`).not.toHaveLength(0)
+      }
+
+      for (const handoff of flow.handoffs) {
+        expect(PLATFORM_CLOSEOUT_TIER_LABELS[handoff.toTierId], `${flow.id} handoff tier`).toBeTruthy()
+        expect(handoff.trigger.trim(), `${flow.id} handoff trigger`).not.toHaveLength(0)
+        expect(handoff.proof.trim(), `${flow.id} handoff proof`).not.toHaveLength(0)
+      }
+    }
+
+    expect(getCustomerJourneyFlowMap('player-practice-progress-loop')?.tierId).toBe('player_plus')
+    expect(getCustomerJourneyFlowMapsForTier('coach').map((flow) => flow.id)).toContain('coach-assignment-lesson-loop')
+    expect(getCustomerJourneyFlowMapsForFeature('player-level-up').map((flow) => flow.id)).toContain('player-practice-progress-loop')
   })
 
   it('keeps fixture references documented before journey testing starts', () => {
