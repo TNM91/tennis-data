@@ -12,13 +12,14 @@ The goal is not to run every command. The goal is to prove each tier journey wit
 4. Run `npm run qa:start -- --date=yyyy-mm-dd --tester=<name>`.
 5. Run `npm run qa:today -- --date=yyyy-mm-dd --tester=<name>`.
 6. Pick the day and device: `npm run qa:tester-packet -- <day1-day5> --device=<phone|tablet|desktop> --date=yyyy-mm-dd --tester=<name>`.
-7. Run `npm run qa:evidence-index` to confirm the evidence folder and capture standard.
-8. Capture proof names before saving screenshots or video: `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>`.
-9. Paste or update rows in `docs/customer-journey-test-results.md`.
-10. Run `npm run qa:ledger-check`.
-11. Run `npm run qa:session-status -- <day1-day5>`.
-12. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`.
-13. Run `npm run qa:control` again before deciding the next block.
+7. Run `npm run qa:fixture-status -- <day1-day5>` to confirm required fixtures before opening the browser.
+8. Run `npm run qa:evidence-index` to confirm the evidence folder and capture standard.
+9. Capture proof names before saving screenshots or video: `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>`.
+10. Paste or update rows in `docs/customer-journey-test-results.md`.
+11. Run `npm run qa:ledger-check`.
+12. Run `npm run qa:session-status -- <day1-day5>`.
+13. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`.
+14. Run `npm run qa:control` again before deciding the next block.
 
 ## What Counts As Pass
 
@@ -42,6 +43,7 @@ Use the command that matches the question in front of you.
 | What feature is this supposed to validate? | `npm run qa:feature-review -- <feature|tier|route>` |
 | What is the full promise, pain point, and proof path? | `npm run qa:trace -- <tier|journey|feature|route>` |
 | What account or data setup is missing? | `npm run qa:fixture-review -- <fixture|tier|journey|route>` |
+| Is this testing block fixture-ready? | `npm run qa:fixture-status -- <day1-day5>` |
 | Where should screenshots/videos go? | `npm run qa:evidence-index` |
 | How should I log this issue? | `npm run qa:issue` |
 | What should be fixed next? | `npm run qa:action-list` |

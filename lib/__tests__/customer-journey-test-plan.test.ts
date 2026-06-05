@@ -33,6 +33,7 @@ const dayOneReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/cu
 const weeklyReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-weekly-readiness.mjs'), 'utf8')
 const weekPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-week-plan.mjs'), 'utf8')
 const fixtureChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-checklist.mjs'), 'utf8')
+const fixtureStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-status.mjs'), 'utf8')
 const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
@@ -137,6 +138,7 @@ describe('customer journey test plan', () => {
       'npm run qa:week',
       'npm run qa:week-plan',
       'npm run qa:fixtures',
+      'npm run qa:fixture-status',
       'npm run qa:fixture-review',
       'npm run qa:ledger',
       'npm run qa:session-ledger',
@@ -209,6 +211,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:access-review": "node scripts/customer-journey-access-review.mjs"')
     expect(packageSource).toContain('"qa:week-plan": "node scripts/customer-journey-week-plan.mjs"')
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
+    expect(packageSource).toContain('"qa:fixture-status": "node scripts/customer-journey-fixture-status.mjs"')
     expect(packageSource).toContain('"qa:fixture-review": "node scripts/customer-journey-fixture-review.mjs"')
     expect(packageSource).toContain('"qa:session-ledger": "node scripts/customer-journey-session-ledger.mjs"')
     expect(packageSource).toContain('"qa:flows": "node scripts/customer-journey-flow-map.mjs"')
@@ -259,6 +262,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:access-review')
     expect(qaStatusScriptSource).toContain('qa:week-plan')
     expect(qaStatusScriptSource).toContain('qa:fixtures')
+    expect(qaStatusScriptSource).toContain('qa:fixture-status')
     expect(qaStatusScriptSource).toContain('qa:fixture-review')
     expect(qaStatusScriptSource).toContain('qa:session-ledger')
     expect(qaStatusScriptSource).toContain('qa:flows')
@@ -308,6 +312,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-access-review.mjs',
       'scripts/customer-journey-session-ledger.mjs',
       'scripts/customer-journey-fixture-checklist.mjs',
+      'scripts/customer-journey-fixture-status.mjs',
       'scripts/customer-journey-fixture-review.mjs',
       'scripts/customer-journey-flow-map.mjs',
       'scripts/customer-journey-traceability.mjs',
@@ -343,6 +348,7 @@ describe('customer journey test plan', () => {
       'npm run qa:start',
       'npm run qa:today',
       'npm run qa:tester-packet',
+      'npm run qa:fixture-status',
       'npm run qa:evidence-index',
       'npm run qa:evidence-pack',
       'npm run qa:issue',
@@ -372,6 +378,24 @@ describe('customer journey test plan', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(testWeekQuickstartSource, `${plan.id} missing from test week quickstart`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the fixture status board tied to sessions, fixture gaps, and dependent journeys', () => {
+    for (const anchor of [
+      'TenAceIQ Fixture Status',
+      'docs/customer-journey-test-fixtures.md',
+      'docs/customer-journey-test-results.md',
+      'fixture-gap',
+      'npm run qa:fixtures',
+      'npm run qa:fixture-review -- <fixture>',
+      'npm run qa:tester-packet -- <day1-day5>',
+      'player-level-up-mobile-loop',
+      'coach-player-assigned-challenge',
+      'level-up-assignment',
+      'data-assist-upload',
+    ]) {
+      expect(fixtureStatusScriptSource, `${anchor} missing from fixture status script`).toContain(anchor)
     }
   })
 
@@ -445,6 +469,7 @@ describe('customer journey test plan', () => {
       'npm run qa:week',
       'npm run qa:week-plan',
       'npm run qa:fixtures',
+      'npm run qa:fixture-status',
       'npm run qa:fixture-review',
       'npm run qa:ledger',
       'npm run qa:session-ledger',

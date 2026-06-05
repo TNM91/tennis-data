@@ -62,6 +62,11 @@ const steps = [
     args: ['scripts/customer-journey-fixture-checklist.mjs'],
   },
   {
+    label: 'Fixture status board',
+    command: 'node',
+    args: ['scripts/customer-journey-fixture-status.mjs', 'day1'],
+  },
+  {
     label: 'Sample fixture review',
     command: 'node',
     args: ['scripts/customer-journey-fixture-review.mjs', 'coach_primary'],

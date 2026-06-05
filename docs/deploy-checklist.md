@@ -33,6 +33,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:week` before next week's full manual journey sweep
 - Run `npm run qa:week-plan -- --date=yyyy-mm-dd --tester=<name>` before broad testing to schedule required device packets by day
 - Run `npm run qa:fixtures` to confirm account and safe data setup before journey testing
+- Run `npm run qa:fixture-status -- <day1-day5>` before a testing block to see required fixtures and open fixture-gap blockers
 - Run `npm run qa:fixture-review -- <fixture>` before logging fixture-gap or rerunning fixture-dependent journeys
 - Run `npm run qa:ledger` before logging fresh test passes or issues
 - Run `npm run qa:session-ledger -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` when logging only the active testing block
