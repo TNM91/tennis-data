@@ -23,6 +23,7 @@ const weeklyRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-jour
 const dayOneReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-one-readiness.mjs'), 'utf8')
 const weeklyReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-weekly-readiness.mjs'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
+const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-checklist.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const CRITICAL_SCRIPT_ANCHORS: Record<string, string[]> = {
   'player-level-up-mobile-loop': ['Level Up Portal', '/player-development/relentless-competitor-4-0/level-up', 'local saved state behaves honestly'],
@@ -68,6 +69,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger',
       'npm run qa:matrix',
       'npm run qa:gaps',
+      'npm run qa:evidence',
       'npm run verify:closeout:live',
     ]) {
       expect(qaIndexSource, `${command} missing from QA index`).toContain(command)
@@ -89,9 +91,11 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
     expect(packageSource).toContain('"qa:matrix": "node scripts/customer-journey-feature-matrix.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
+    expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
     expect(qaStatusScriptSource).toContain('qa:matrix')
     expect(qaStatusScriptSource).toContain('qa:gaps')
+    expect(qaStatusScriptSource).toContain('qa:evidence')
   })
 
   it('keeps the deploy checklist connected to the customer journey QA packet', () => {
@@ -102,6 +106,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger',
       'npm run qa:matrix',
       'npm run qa:gaps',
+      'npm run qa:evidence',
       'npm run verify:closeout',
       'npm run verify:closeout:live',
     ]) {
@@ -128,6 +133,17 @@ describe('customer journey test plan', () => {
       for (const anchor of CRITICAL_SCRIPT_ANCHORS[plan.id] ?? []) {
         expect(testScriptsSource, `${plan.id} manual anchor missing: ${anchor}`).toContain(anchor)
       }
+    }
+  })
+
+  it('keeps every agenda entry visible in the evidence checklist command', () => {
+    expect(evidenceChecklistScriptSource).toContain('docs/customer-journey-test-results.md')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(evidenceChecklistScriptSource, `${plan.id} missing from evidence checklist`).toContain(plan.id)
+      expect(evidenceChecklistScriptSource, `${plan.entryRoute} missing from evidence checklist`).toContain(plan.entryRoute)
+      expect(evidenceChecklistScriptSource, `${plan.personaFixture} missing from evidence checklist`).toContain(plan.personaFixture)
+      expect(evidenceChecklistScriptSource, `${plan.successSignal} missing from evidence checklist`).toContain(plan.successSignal)
     }
   })
 

@@ -12,6 +12,7 @@ Start here when preparing for next-week journey testing.
 | `npm run qa:ledger` | Print starter result rows for every planned journey. |
 | `npm run qa:matrix` | Print the tier-by-feature QA matrix with pain points and verification mode. |
 | `npm run qa:gaps` | Print feature gaps that still need account, fixture, manual, or local-sync proof. |
+| `npm run qa:evidence` | Print the proof checklist for each journey before recording results. |
 | `npm run verify:closeout` | Run deterministic closeout checks. |
 | `npm run verify:closeout:live` | Run production closeout checks with browser smoke. |
 
@@ -24,7 +25,8 @@ Start here when preparing for next-week journey testing.
 5. Run `npm run qa:ledger` and paste starter rows into `docs/customer-journey-test-results.md`.
 6. Run `npm run qa:matrix` before tier-by-tier feature testing.
 7. Run `npm run qa:gaps` to focus the manual/account evidence pass.
-8. Run `npm run verify:closeout:live` after the latest deploy.
+8. Run `npm run qa:evidence` before capturing screenshots, notes, and pass/fail results.
+9. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -57,3 +59,4 @@ Start here when preparing for next-week journey testing.
 - Do not close a journey until the result is `pass` and the evidence shows the pain point was solved.
 - Use `npm run qa:matrix` when checking whether a tier feature actually solves the documented pain point.
 - Use `npm run qa:gaps` when deciding which account, fixture, manual, or local-sync evidence still needs attention.
+- Use `npm run qa:evidence` before marking a journey `pass`, especially for sync, access, mobile, and fixture-sensitive flows.

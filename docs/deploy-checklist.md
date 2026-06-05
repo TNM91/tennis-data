@@ -12,6 +12,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:ledger` before logging fresh test passes or issues
 - Run `npm run qa:matrix` before tier-by-feature testing so every feature is checked against its pain point
 - Run `npm run qa:gaps` to focus account, fixture, manual, and local-sync evidence before launch decisions
+- Run `npm run qa:evidence` before marking journey results as pass/fail/blocked
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
 - For production closeout checks after deploy, run `npm run verify:closeout:live`

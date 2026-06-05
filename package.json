@@ -24,6 +24,7 @@
     "qa:ledger": "node scripts/customer-journey-ledger-template.mjs",
     "qa:matrix": "node scripts/customer-journey-feature-matrix.mjs",
     "qa:gaps": "node scripts/customer-journey-gap-report.mjs",
+    "qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
     "db:migrations": "supabase migration list",
     "db:push:dry": "supabase db push --dry-run",
