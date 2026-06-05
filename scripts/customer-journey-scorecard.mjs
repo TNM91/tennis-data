@@ -1,0 +1,164 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const resultsPath = 'docs/customer-journey-test-results.md'
+
+const journeys = [
+  {
+    id: 'player-level-up-mobile-loop',
+    label: 'Player Level Up mobile loop',
+    tier: 'Player',
+    session: 'day1',
+  },
+  {
+    id: 'coach-player-assigned-challenge',
+    label: 'Coach to player assigned challenge',
+    tier: 'Coach',
+    session: 'day1',
+  },
+  {
+    id: 'coach-lesson-support',
+    label: 'Coach lesson support',
+    tier: 'Coach',
+    session: 'day2',
+  },
+  {
+    id: 'player-my-lab-return-state',
+    label: 'Player My Lab return state',
+    tier: 'Player',
+    session: 'day2',
+  },
+  {
+    id: 'captain-week-flow',
+    label: 'Captain week flow',
+    tier: 'Captain',
+    session: 'day3',
+  },
+  {
+    id: 'league-result-to-public-context',
+    label: 'League result to public context',
+    tier: 'League',
+    session: 'day4',
+  },
+  {
+    id: 'full-court-access-pass',
+    label: 'Full-Court access pass',
+    tier: 'Full-Court',
+    session: 'day5',
+  },
+  {
+    id: 'admin-access-and-data-quality',
+    label: 'Admin access and data quality',
+    tier: 'Admin/Internal',
+    session: 'day4',
+  },
+  {
+    id: 'free-public-discovery',
+    label: 'Free public discovery',
+    tier: 'Free',
+    session: 'day5',
+  },
+]
+
+const rows = readFileSync(join(process.cwd(), resultsPath), 'utf8')
+  .split('\n')
+  .filter((line) => line.startsWith('| ') && !line.includes('---'))
+  .map(parseMarkdownRow)
+  .filter((row) => journeys.some((journey) => journey.id === row.journeyId))
+
+const scorecardRows = journeys.map(buildScorecardRow)
+const counts = {
+  signedOff: scorecardRows.filter((row) => row.state === 'signed off').length,
+  needsPass: scorecardRows.filter((row) => row.state === 'untested' || row.state === 'needs pass').length,
+  needsEvidence: scorecardRows.filter((row) => row.state === 'needs evidence').length,
+  blocked: scorecardRows.filter((row) => row.state === 'blocked').length,
+}
+
+console.log('TenAceIQ Customer Journey Scorecard')
+console.log('')
+console.log(`Source: ${resultsPath}`)
+console.log('Use this as the compact test-week status view before signoff or launch readiness.')
+console.log('')
+console.log(`Signed off: ${counts.signedOff}/${scorecardRows.length}`)
+console.log(`Needs pass: ${counts.needsPass}`)
+console.log(`Needs screenshot/video: ${counts.needsEvidence}`)
+console.log(`Blocked by open p0/p1: ${counts.blocked}`)
+console.log('')
+console.log('| Tier | Session | Journey | State | Evidence | Blockers | Next |')
+console.log('| --- | --- | --- | --- | --- | --- | --- |')
+
+for (const row of scorecardRows) {
+  console.log(
+    `| ${row.journey.tier} | ${row.journey.session} | ${row.journey.label} | ${row.state} | ${row.evidenceState} | ${row.openHighPriorityRows.length} | ${row.nextCommand} |`,
+  )
+}
+
+console.log('')
+console.log('Use with:')
+console.log('- npm run qa:results')
+console.log('- npm run qa:action-list')
+console.log('- npm run qa:signoff')
+console.log('- npm run qa:launch')
+console.log('')
+console.log('Closeout rule: use the scorecard for meeting status, then use qa:signoff and qa:launch for final gates.')
+
+function buildScorecardRow(journey) {
+  const journeyRows = rows.filter((row) => row.journeyId === journey.id)
+  const passRows = journeyRows.filter((row) => row.result === 'pass')
+  const hasPass = passRows.length > 0
+  const hasScreenshotOrVideo = passRows.some((row) => row.screenshotOrVideo)
+  const openHighPriorityRows = journeyRows.filter((row) => row.result !== 'pass' && (row.severity === 'p0' || row.severity === 'p1'))
+  const state = getState({ journeyRows, hasPass, hasScreenshotOrVideo, openHighPriorityRows })
+  const evidenceState = getEvidenceState({ hasPass, hasScreenshotOrVideo })
+
+  return {
+    journey,
+    state,
+    evidenceState,
+    openHighPriorityRows,
+    nextCommand: getNextCommand({ journey, state, openHighPriorityRows }),
+  }
+}
+
+function getState({ journeyRows, hasPass, hasScreenshotOrVideo, openHighPriorityRows }) {
+  if (openHighPriorityRows.length) return 'blocked'
+  if (!journeyRows.length) return 'untested'
+  if (!hasPass) return 'needs pass'
+  if (!hasScreenshotOrVideo) return 'needs evidence'
+  return 'signed off'
+}
+
+function getEvidenceState({ hasPass, hasScreenshotOrVideo }) {
+  if (hasPass && hasScreenshotOrVideo) return 'pass + evidence'
+  if (hasPass) return 'pass only'
+  return 'missing'
+}
+
+function getNextCommand({ journey, state, openHighPriorityRows }) {
+  if (openHighPriorityRows.length) return `npm run qa:action-list ${journey.id}`
+  if (state === 'untested' || state === 'needs pass') return `npm run qa:journey -- ${journey.id}`
+  if (state === 'needs evidence') return `npm run qa:evidence-pack -- ${journey.session}`
+  return `npm run qa:close-day -- ${journey.session}`
+}
+
+function parseMarkdownRow(line) {
+  const cells = line
+    .split('|')
+    .slice(1, -1)
+    .map((cell) => cell.trim())
+
+  return {
+    date: cells[0] ?? '',
+    tester: cells[1] ?? '',
+    deviceBrowser: cells[2] ?? '',
+    accountFixture: cells[3] ?? '',
+    journeyId: cells[4] ?? '',
+    entryRoute: cells[5] ?? '',
+    result: cells[6] ?? '',
+    category: cells[7] ?? '',
+    severity: cells[8] ?? '',
+    screenshotOrVideo: cells[9] ?? '',
+    notes: cells[10] ?? '',
+    nextAction: cells[11] ?? '',
+  }
+}
