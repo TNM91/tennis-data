@@ -21,6 +21,7 @@ const requiredCommands = [
   'qa:prep',
   'qa:status',
   'qa:start',
+  'qa:today',
   'qa:readiness',
   'qa:brief',
   'qa:next',
@@ -96,6 +97,7 @@ console.log('')
 console.log('Recommended command order:')
 console.log('- npm run qa:prep')
 console.log('- npm run qa:start -- --date=yyyy-mm-dd --tester=<name>')
+console.log('- npm run qa:today -- --date=yyyy-mm-dd --tester=<name>')
 console.log('- npm run qa:readiness')
 console.log('- npm run qa:brief -- <day1-day5>')
 console.log('- npm run qa:next')

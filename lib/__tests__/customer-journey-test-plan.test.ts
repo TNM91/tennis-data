@@ -34,6 +34,7 @@ const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/cust
 const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
 const qaStartScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-start.mjs'), 'utf8')
+const qaTodayScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-today.mjs'), 'utf8')
 const readinessBriefScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-readiness-brief.mjs'), 'utf8')
 const journeyMorningBriefScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-morning-brief.mjs'), 'utf8')
 const journeySessionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-brief.mjs'), 'utf8')
@@ -107,6 +108,7 @@ describe('customer journey test plan', () => {
       'npm run qa:prep',
       'npm run qa:status',
       'npm run qa:start',
+      'npm run qa:today',
       'npm run qa:readiness',
       'npm run qa:brief',
       'npm run qa:next',
@@ -171,6 +173,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:prep": "node scripts/customer-journey-qa-prep.mjs"')
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
     expect(packageSource).toContain('"qa:start": "node scripts/customer-journey-start.mjs"')
+    expect(packageSource).toContain('"qa:today": "node scripts/customer-journey-today.mjs"')
     expect(packageSource).toContain('"qa:readiness": "node scripts/customer-journey-readiness-brief.mjs"')
     expect(packageSource).toContain('"qa:brief": "node scripts/customer-journey-morning-brief.mjs"')
     expect(packageSource).toContain('"qa:next": "node scripts/customer-journey-next.mjs"')
@@ -214,6 +217,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
     expect(qaStatusScriptSource).toContain('qa:prep')
     expect(qaStatusScriptSource).toContain('qa:start')
+    expect(qaStatusScriptSource).toContain('qa:today')
     expect(qaStatusScriptSource).toContain('qa:readiness')
     expect(qaStatusScriptSource).toContain('qa:brief')
     expect(qaStatusScriptSource).toContain('qa:next')
@@ -258,6 +262,7 @@ describe('customer journey test plan', () => {
     for (const script of [
       'scripts/customer-journey-qa-status.mjs',
       'scripts/customer-journey-start.mjs',
+      'scripts/customer-journey-today.mjs',
       'scripts/customer-journey-readiness-brief.mjs',
       'scripts/customer-journey-morning-brief.mjs',
       'scripts/customer-journey-weekly-readiness.mjs',
@@ -307,6 +312,7 @@ describe('customer journey test plan', () => {
       'npm run qa:prep',
       'npm run qa:status',
       'npm run qa:start',
+      'npm run qa:today',
       'npm run qa:readiness',
       'npm run qa:brief',
       'npm run qa:next',
@@ -470,6 +476,10 @@ describe('customer journey test plan', () => {
     expect(qaStartScriptSource).toContain('npm run qa:readiness')
     expect(qaStartScriptSource).toContain('qa:tester-packet')
     expect(qaStartScriptSource).toContain('qa:next')
+    expect(qaTodayScriptSource).toContain('TenAceIQ Today QA Sheet')
+    expect(qaTodayScriptSource).toContain('qa:tester-packet')
+    expect(qaTodayScriptSource).toContain('qa:close-day')
+    expect(qaTodayScriptSource).toContain('required devices')
     expect(readinessBriefScriptSource).toContain('TenAceIQ Journey Test Readiness Brief')
     expect(readinessBriefScriptSource).toContain('Ready to start testing')
     expect(readinessBriefScriptSource).toContain('ready to launch means')
@@ -535,6 +545,7 @@ describe('customer journey test plan', () => {
       expect(evidenceChecklistScriptSource, `${plan.successSignal} missing from evidence checklist`).toContain(plan.successSignal)
       expect(evidencePackScriptSource, `${plan.id} missing from evidence pack`).toContain(plan.id)
       expect(qaStartScriptSource, `${plan.id} missing from QA start`).toContain(plan.id)
+      expect(qaTodayScriptSource, `${plan.id} missing from QA today`).toContain(plan.id)
       expect(testerPacketScriptSource, `${plan.id} missing from tester packet`).toContain(plan.id)
       expect(journeyCardScriptSource, `${plan.id} missing from journey card command`).toContain(plan.id)
       expect(liveJourneyCardScriptSource, `${plan.id} missing from live journey card`).toContain(plan.id)

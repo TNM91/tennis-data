@@ -17,6 +17,7 @@ const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const qaStartScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-start.mjs'), 'utf8')
+const qaTodayScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-today.mjs'), 'utf8')
 const readinessBriefScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-readiness-brief.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const weekPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-week-plan.mjs'), 'utf8')
@@ -96,6 +97,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
     expect(resultsDocSource).toContain('npm run qa:start')
+    expect(resultsDocSource).toContain('npm run qa:today')
     expect(resultsDocSource).toContain('npm run qa:readiness')
     expect(resultsDocSource).toContain('npm run qa:week-plan')
     expect(resultsDocSource).toContain('npm run qa:tester-packet')
@@ -120,6 +122,19 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(qaStartScriptSource, `${plan.id} missing from QA start`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the QA today command aligned to active testing-day closeout', () => {
+    expect(packageSource).toContain('"qa:today": "node scripts/customer-journey-today.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:today')
+    expect(qaTodayScriptSource).toContain('TenAceIQ Today QA Sheet')
+    expect(qaTodayScriptSource).toContain('qa:tester-packet')
+    expect(qaTodayScriptSource).toContain('qa:ledger-check')
+    expect(qaTodayScriptSource).toContain('qa:close-day')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(qaTodayScriptSource, `${plan.id} missing from QA today`).toContain(plan.id)
     }
   })
 

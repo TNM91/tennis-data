@@ -12,6 +12,11 @@ const steps = [
     args: ['scripts/customer-journey-start.mjs'],
   },
   {
+    label: 'Today QA sheet',
+    command: 'node',
+    args: ['scripts/customer-journey-today.mjs'],
+  },
+  {
     label: 'Journey test readiness brief',
     command: 'node',
     args: ['scripts/customer-journey-readiness-brief.mjs'],
