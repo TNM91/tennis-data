@@ -8,7 +8,6 @@ const ignoredConsoleFragments = [
   '/_next/webpack-hmr',
   "Framing 'https://www.google.com/' violates",
   'Failed to load resource: net::ERR_FAILED',
-  'A props object containing a "key" prop is being spread into JSX',
 ]
 
 const routeChecks = [

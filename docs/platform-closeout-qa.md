@@ -135,7 +135,7 @@ Add or extend scripts after this checklist is accepted:
 
 ## Initial Findings
 
-- 2026-06-04: Local route smoke surfaced an existing React development console warning on `/`: `A props object containing a "key" prop is being spread into JSX`. The route smoke ignores it so page availability checks remain useful, but the warning should be fixed during frontend cleanup.
+- 2026-06-04: Local route smoke surfaced an existing React development console warning on `/`: `A props object containing a "key" prop is being spread into JSX`. Fixed by keeping React keys out of spread preview-card props and removing the smoke-test ignore.
 
 ## Closeout Order
 

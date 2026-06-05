@@ -329,7 +329,6 @@ export function ProductPreviewGrid({ cards = previewCards }: { cards?: PreviewCa
 
 function renderPreviewCard(card: PreviewCard) {
   const props = {
-    key: card.title,
     title: card.title,
     body: card.body,
     metrics: card.metrics,
@@ -339,13 +338,13 @@ function renderPreviewCard(card: PreviewCard) {
     trust: card.trust,
   }
 
-  if (card.label === 'Matchup') return <TiqMatchupCard {...props} />
-  if (card.label === 'Captain Tools') return <TiqLineupPreview {...props} />
-  if (card.label === 'Coach Hub') return <TiqCoachAssignmentCard {...props} />
-  if (card.label === 'Tournament Desk') return <TiqTournamentDrawCard {...props} />
-  if (card.label === 'League Office') return <TiqLeagueStandingCard {...props} />
+  if (card.label === 'Matchup') return <TiqMatchupCard key={card.title} {...props} />
+  if (card.label === 'Captain Tools') return <TiqLineupPreview key={card.title} {...props} />
+  if (card.label === 'Coach Hub') return <TiqCoachAssignmentCard key={card.title} {...props} />
+  if (card.label === 'Tournament Desk') return <TiqTournamentDrawCard key={card.title} {...props} />
+  if (card.label === 'League Office') return <TiqLeagueStandingCard key={card.title} {...props} />
 
-  return <TiqWorkspacePreview eyebrow={card.label} {...props} />
+  return <TiqWorkspacePreview key={card.title} eyebrow={card.label} {...props} />
 }
 
 export function TrustStrip({
