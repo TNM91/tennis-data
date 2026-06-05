@@ -9,6 +9,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:prep` for the customer journey prep packet and inventory guard
 - Start journey QA from `docs/customer-journey-qa-index.md`
 - Run `npm run qa:status` to confirm the customer journey QA packet is complete
+- Run `npm run qa:readiness` before manual testing to confirm packet health, ledger state, and first commands
 - Run `npm run qa:brief -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` as the daily testing start card
 - Run `npm run qa:risk-board` before broad manual testing to rank the next highest-risk proof gap
 - Run `npm run qa:next` to confirm the next incomplete session or high-priority fix

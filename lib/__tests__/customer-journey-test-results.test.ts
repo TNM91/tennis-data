@@ -16,6 +16,7 @@ const resultsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
+const readinessBriefScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-readiness-brief.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const weekPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-week-plan.mjs'), 'utf8')
 const testerPacketScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-packet.mjs'), 'utf8')
@@ -93,6 +94,7 @@ describe('customer journey test results', () => {
     expect(closeoutQaSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
+    expect(resultsDocSource).toContain('npm run qa:readiness')
     expect(resultsDocSource).toContain('npm run qa:week-plan')
     expect(resultsDocSource).toContain('npm run qa:tester-packet')
     expect(resultsDocSource).toContain('npm run qa:live-card')
@@ -120,6 +122,22 @@ describe('customer journey test results', () => {
       expect(ledgerTemplateScriptSource, `${plan.id} missing from ledger template script`).toContain(plan.id)
       expect(ledgerTemplateScriptSource, `${plan.entryRoute} missing from ledger template script`).toContain(plan.entryRoute)
       expect(sessionLedgerScriptSource, `${plan.id} missing from session ledger script`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the readiness brief aligned to packet health and ledger state', () => {
+    expect(packageSource).toContain('"qa:readiness": "node scripts/customer-journey-readiness-brief.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:readiness')
+    expect(readinessBriefScriptSource).toContain('TenAceIQ Journey Test Readiness Brief')
+    expect(readinessBriefScriptSource).toContain('Packet Health')
+    expect(readinessBriefScriptSource).toContain('Ledger State')
+    expect(readinessBriefScriptSource).toContain('Ready to start testing')
+    expect(readinessBriefScriptSource).toContain('qa:week-plan')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(readinessBriefScriptSource, `${plan.id} missing from readiness brief`).toContain(plan.id)
+      expect(readinessBriefScriptSource, `${plan.entryRoute} missing from readiness brief`).toContain(plan.entryRoute)
+      expect(readinessBriefScriptSource, `${plan.personaFixture} missing from readiness brief`).toContain(plan.personaFixture)
     }
   })
 

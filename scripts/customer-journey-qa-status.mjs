@@ -20,6 +20,7 @@ const requiredDocs = [
 const requiredCommands = [
   'qa:prep',
   'qa:status',
+  'qa:readiness',
   'qa:brief',
   'qa:next',
   'qa:session',
@@ -93,6 +94,7 @@ console.log('- docs/customer-journey-qa-index.md')
 console.log('')
 console.log('Recommended command order:')
 console.log('- npm run qa:prep')
+console.log('- npm run qa:readiness')
 console.log('- npm run qa:brief -- <day1-day5>')
 console.log('- npm run qa:next')
 console.log('- npm run qa:session -- <day1-day5>')
