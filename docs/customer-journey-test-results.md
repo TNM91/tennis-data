@@ -47,6 +47,7 @@ Run `npm run qa:triage` when choosing issue category, severity, and next action.
 Run `npm run qa:ledger-check` after editing rows to catch invalid status, category, severity, fixture, route, evidence, or next-action fields.
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
 Run `npm run qa:action-list` after testing to list the concrete fixes, blockers, and follow-ups by priority.
+Run `npm run qa:retest -- <day-or-journey>` after fixes to list the exact journeys that need fresh pass evidence.
 Run `npm run qa:daily-summary -- <yyyy-mm-dd>` after testing to recap the day and name the top fix.
 Run `npm run qa:tier-status` after testing to summarize readiness by role-based tier.
 Run `npm run qa:launch` after testing is logged. It should fail until every journey has a `pass` row and no p0/p1 row remains open.
@@ -68,4 +69,5 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - A `mobile-ux-gap` in Level Up should be retested on phone-width viewport after the fix.
 - A `content-quality-gap` should be fixed against the tennis behavior, proof signal, and next action.
 - `qa:ledger-check` should pass before `qa:launch` is used as a sign-off signal.
+- Use `qa:retest` after every fix pass so missing or stale pass evidence does not slip through.
 - A journey closes only when the result is `pass` and the evidence shows the pain point was actually solved.

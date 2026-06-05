@@ -41,6 +41,7 @@ const requiredCommands = [
   'qa:ledger-check',
   'qa:results',
   'qa:action-list',
+  'qa:retest',
   'qa:daily-summary',
   'qa:launch',
   'verify:closeout',
@@ -95,6 +96,7 @@ console.log('- npm run qa:triage')
 console.log('- npm run qa:ledger-check')
 console.log('- npm run qa:results')
 console.log('- npm run qa:action-list')
+console.log('- npm run qa:retest -- <day-or-journey>')
 console.log('- npm run qa:daily-summary -- <yyyy-mm-dd>')
 console.log('- npm run qa:launch')
 console.log('- npm run verify:closeout:live')

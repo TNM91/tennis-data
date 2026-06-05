@@ -41,6 +41,7 @@
     "qa:ledger-check": "node scripts/customer-journey-ledger-check.mjs",
     "qa:results": "node scripts/customer-journey-results-summary.mjs",
     "qa:action-list": "node scripts/customer-journey-action-list.mjs",
+    "qa:retest": "node scripts/customer-journey-retest-plan.mjs",
     "qa:daily-summary": "node scripts/customer-journey-daily-summary.mjs",
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",

@@ -20,6 +20,7 @@ const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/cust
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
+const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
 const triageGuideScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-triage-guide.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
@@ -139,6 +140,19 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(nextJourneyScriptSource, `${plan.id} missing from next journey script`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the retest plan command aligned to open rows and missing pass evidence', () => {
+    expect(packageSource).toContain('"qa:retest": "node scripts/customer-journey-retest-plan.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:retest')
+    expect(retestPlanScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(retestPlanScriptSource).toContain('Retest open rows first')
+    expect(retestPlanScriptSource).toContain('Still needs pass evidence')
+    expect(retestPlanScriptSource).toContain('npm run qa:session-ledger --')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(retestPlanScriptSource, `${plan.id} missing from retest plan script`).toContain(plan.id)
     }
   })
 

@@ -87,6 +87,11 @@ const steps = [
     args: ['scripts/customer-journey-action-list.mjs'],
   },
   {
+    label: 'Retest plan',
+    command: 'node',
+    args: ['scripts/customer-journey-retest-plan.mjs'],
+  },
+  {
     label: 'Daily result recap',
     command: 'node',
     args: ['scripts/customer-journey-daily-summary.mjs'],
