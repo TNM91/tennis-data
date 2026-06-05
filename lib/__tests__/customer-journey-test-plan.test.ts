@@ -72,6 +72,7 @@ describe('customer journey test plan', () => {
       'npm run qa:matrix',
       'npm run qa:gaps',
       'npm run qa:evidence',
+      'npm run qa:results',
       'npm run verify:closeout:live',
     ]) {
       expect(qaIndexSource, `${command} missing from QA index`).toContain(command)
@@ -95,11 +96,13 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:matrix": "node scripts/customer-journey-feature-matrix.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
     expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
+    expect(packageSource).toContain('"qa:results": "node scripts/customer-journey-results-summary.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
     expect(qaStatusScriptSource).toContain('qa:prep')
     expect(qaStatusScriptSource).toContain('qa:matrix')
     expect(qaStatusScriptSource).toContain('qa:gaps')
     expect(qaStatusScriptSource).toContain('qa:evidence')
+    expect(qaStatusScriptSource).toContain('qa:results')
 
     for (const script of [
       'scripts/customer-journey-qa-status.mjs',
@@ -107,6 +110,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-feature-matrix.mjs',
       'scripts/customer-journey-gap-report.mjs',
       'scripts/customer-journey-evidence-checklist.mjs',
+      'scripts/customer-journey-results-summary.mjs',
       'scripts/verify-platform-closeout-inventory.mjs',
     ]) {
       expect(qaPrepScriptSource, `${script} missing from QA prep`).toContain(script)
@@ -123,6 +127,7 @@ describe('customer journey test plan', () => {
       'npm run qa:matrix',
       'npm run qa:gaps',
       'npm run qa:evidence',
+      'npm run qa:results',
       'npm run verify:closeout',
       'npm run verify:closeout:live',
     ]) {

@@ -27,6 +27,11 @@ const steps = [
     args: ['scripts/customer-journey-evidence-checklist.mjs'],
   },
   {
+    label: 'Result ledger summary',
+    command: 'node',
+    args: ['scripts/customer-journey-results-summary.mjs'],
+  },
+  {
     label: 'Closeout inventory guard',
     command: 'node',
     args: ['scripts/verify-platform-closeout-inventory.mjs'],

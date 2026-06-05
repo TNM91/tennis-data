@@ -15,6 +15,7 @@ const resultsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-scripts.md'), 'utf8')
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
+const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 
 describe('customer journey test results', () => {
@@ -69,6 +70,17 @@ describe('customer journey test results', () => {
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(ledgerTemplateScriptSource, `${plan.id} missing from ledger template script`).toContain(plan.id)
       expect(ledgerTemplateScriptSource, `${plan.entryRoute} missing from ledger template script`).toContain(plan.entryRoute)
+    }
+  })
+
+  it('keeps the result summary command aligned to every planned journey', () => {
+    expect(packageSource).toContain('"qa:results": "node scripts/customer-journey-results-summary.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:results')
+    expect(resultsSummaryScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(resultsSummaryScriptSource).toContain('Open p0/p1 rows')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(resultsSummaryScriptSource, `${plan.id} missing from result summary script`).toContain(plan.id)
     }
   })
 })
