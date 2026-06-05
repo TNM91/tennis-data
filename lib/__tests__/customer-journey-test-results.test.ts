@@ -46,6 +46,7 @@ const accessReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/custo
 const featureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-feature-review.mjs'), 'utf8')
 const traceabilityScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-traceability.mjs'), 'utf8')
 const scorecardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-scorecard.mjs'), 'utf8')
+const launchBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-board.mjs'), 'utf8')
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
 const triageGuideScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-triage-guide.mjs'), 'utf8')
 const issueDecisionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-issue-decision.mjs'), 'utf8')
@@ -132,6 +133,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:scorecard')
     expect(resultsDocSource).toContain('npm run qa:issue')
     expect(resultsDocSource).toContain('npm run qa:owner-board')
+    expect(resultsDocSource).toContain('npm run qa:launch-board')
     expect(resultsDocSource).toContain('npm run qa:change-impact')
     expect(resultsDocSource).toContain('npm run qa:tester-handoff')
   })
@@ -152,6 +154,7 @@ describe('customer journey test results', () => {
       'npm run qa:tester-handoff',
       'npm run qa:scorecard',
       'npm run qa:signoff',
+      'npm run qa:launch-board',
       'npm run qa:launch',
       'npm run verify:closeout',
       'npm run verify:closeout:live',
@@ -586,6 +589,23 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(scorecardScriptSource, `${plan.id} missing from scorecard`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the launch blocker board aligned to blocker categories and evidence gaps', () => {
+    expect(packageSource).toContain('"qa:launch-board": "node scripts/customer-journey-launch-board.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:launch-board')
+    expect(launchBoardScriptSource).toContain('TenAceIQ Launch Blocker Board')
+    expect(launchBoardScriptSource).toContain('Product launch blockers')
+    expect(launchBoardScriptSource).toContain('Fixture/test blockers')
+    expect(launchBoardScriptSource).toContain('Quality follow-ups')
+    expect(launchBoardScriptSource).toContain('Missing pass evidence')
+    expect(launchBoardScriptSource).toContain('Pass rows missing screenshot/video')
+    expect(launchBoardScriptSource).toContain('Launch board rule')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(launchBoardScriptSource, `${plan.id} missing from launch board`).toContain(plan.id)
+      expect(launchBoardScriptSource, `${plan.entryRoute} missing from launch board`).toContain(plan.entryRoute)
     }
   })
 

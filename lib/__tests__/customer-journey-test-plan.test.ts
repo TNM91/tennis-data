@@ -78,6 +78,7 @@ const dayCloseoutScriptSource = readFileSync(join(process.cwd(), 'scripts/custom
 const testerHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-handoff.mjs'), 'utf8')
 const scorecardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-scorecard.mjs'), 'utf8')
 const signoffSheetScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-signoff-sheet.mjs'), 'utf8')
+const launchBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-board.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const CRITICAL_SCRIPT_ANCHORS: Record<string, string[]> = {
   'player-level-up-mobile-loop': ['Level Up Portal', '/player-development/relentless-competitor-4-0/level-up', 'local saved state behaves honestly'],
@@ -172,6 +173,7 @@ describe('customer journey test plan', () => {
       'npm run qa:tester-handoff',
       'npm run qa:scorecard',
       'npm run qa:signoff',
+      'npm run qa:launch-board',
       'npm run qa:launch',
       'npm run verify:closeout:live',
     ]) {
@@ -248,6 +250,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:tester-handoff": "node scripts/customer-journey-tester-handoff.mjs"')
     expect(packageSource).toContain('"qa:scorecard": "node scripts/customer-journey-scorecard.mjs"')
     expect(packageSource).toContain('"qa:signoff": "node scripts/customer-journey-signoff-sheet.mjs"')
+    expect(packageSource).toContain('"qa:launch-board": "node scripts/customer-journey-launch-board.mjs"')
     expect(packageSource).toContain('"qa:launch": "node scripts/customer-journey-launch-readiness.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-test-week-quickstart.md')
@@ -303,6 +306,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:tester-handoff')
     expect(qaStatusScriptSource).toContain('qa:scorecard')
     expect(qaStatusScriptSource).toContain('qa:signoff')
+    expect(qaStatusScriptSource).toContain('qa:launch-board')
     expect(qaStatusScriptSource).toContain('qa:launch')
 
     for (const script of [
@@ -355,6 +359,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-tester-handoff.mjs',
       'scripts/customer-journey-scorecard.mjs',
       'scripts/customer-journey-signoff-sheet.mjs',
+      'scripts/customer-journey-launch-board.mjs',
       'scripts/verify-platform-closeout-inventory.mjs',
     ]) {
       expect(qaPrepScriptSource, `${script} missing from QA prep`).toContain(script)
@@ -378,6 +383,7 @@ describe('customer journey test plan', () => {
       'npm run qa:close-day',
       'npm run qa:change-impact',
       'npm run qa:tester-handoff',
+      'npm run qa:launch-board',
       'npm run qa:launch',
       'npm run verify:closeout',
       'npm run verify:closeout:live',
@@ -522,6 +528,7 @@ describe('customer journey test plan', () => {
       'npm run qa:tester-handoff',
       'npm run qa:scorecard',
       'npm run qa:signoff',
+      'npm run qa:launch-board',
       'npm run qa:launch',
       'npm run verify:closeout',
       'npm run verify:closeout:live',
@@ -848,6 +855,24 @@ describe('customer journey test plan', () => {
       expect(dayCloseoutScriptSource, `${plan.id} missing from day closeout command`).toContain(plan.id)
       expect(scorecardScriptSource, `${plan.id} missing from scorecard`).toContain(plan.id)
       expect(signoffSheetScriptSource, `${plan.id} missing from signoff sheet`).toContain(plan.id)
+      expect(launchBoardScriptSource, `${plan.id} missing from launch board`).toContain(plan.id)
+    }
+  })
+
+  it('keeps the launch blocker board tied to blockers, evidence gaps, and final gates', () => {
+    for (const anchor of [
+      'TenAceIQ Launch Blocker Board',
+      'docs/customer-journey-test-results.md',
+      'Product launch blockers',
+      'Fixture/test blockers',
+      'Quality follow-ups',
+      'Missing pass evidence',
+      'Pass rows missing screenshot/video',
+      'qa:launch',
+      'verify:closeout:live',
+      'Launch board rule',
+    ]) {
+      expect(launchBoardScriptSource, `${anchor} missing from launch board`).toContain(anchor)
     }
   })
 

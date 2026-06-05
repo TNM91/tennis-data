@@ -54,6 +54,7 @@ Use the command that matches the question in front of you.
 | What needs a rerun after a fix? | `npm run qa:retest -- <day-or-journey>` |
 | What changed and needs fresh evidence? | `npm run qa:change-impact -- --files=<comma-separated-files>` |
 | What should the next tester pick up? | `npm run qa:tester-handoff -- <day1-day5>` |
+| What actually blocks launch? | `npm run qa:launch-board` |
 
 ## Recommended Week Sweep
 
@@ -87,9 +88,10 @@ Use this order at the end of each testing day.
 Use this order before launch readiness.
 
 1. `npm run qa:signoff`
-2. `npm run qa:launch`
-3. `npm run verify:closeout`
-4. `npm run verify:closeout:live`
+2. `npm run qa:launch-board`
+3. `npm run qa:launch`
+4. `npm run verify:closeout`
+5. `npm run verify:closeout:live`
 
 `npm run qa:launch` is expected to fail until every planned journey has pass evidence and no open p0 or p1 row remains.
 

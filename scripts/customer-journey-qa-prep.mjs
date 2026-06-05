@@ -247,6 +247,11 @@ const steps = [
     args: ['scripts/customer-journey-signoff-sheet.mjs'],
   },
   {
+    label: 'Launch blocker board',
+    command: 'node',
+    args: ['scripts/customer-journey-launch-board.mjs'],
+  },
+  {
     label: 'Closeout inventory guard',
     command: 'node',
     args: ['scripts/verify-platform-closeout-inventory.mjs'],

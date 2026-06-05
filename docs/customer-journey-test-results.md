@@ -76,6 +76,7 @@ Run `npm run qa:tester-handoff -- <day1-day5>` before handing a session to anoth
 Run `npm run qa:tier-status` after testing to summarize readiness by role-based tier.
 Run `npm run qa:scorecard` before signoff meetings to see each tier, session, evidence state, blocker count, and next command in one table.
 Run `npm run qa:signoff` before launch readiness so every journey owner, evidence state, and blocker is visible.
+Run `npm run qa:launch-board` before the hard launch gate to separate product blockers, fixture/test blockers, quality follow-ups, and missing evidence.
 Run `npm run qa:launch` after testing is logged. It should fail until every journey has a `pass` row and no p0/p1 row remains open.
 
 | Date | Tester | Device/browser | Account fixture | Journey ID | Entry route | Result | Category | Severity | Screenshot/video | Notes | Next action |
@@ -122,4 +123,5 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - Use `qa:tester-handoff` before another tester picks up so they can see what was tested, what is blocked, what evidence exists, and what command to run next.
 - Use `qa:scorecard` before signoff so status conversations stay tied to tier, session, evidence, blockers, and the next command.
 - Use `qa:signoff` before launch readiness so “done” means pass evidence, screenshot/video evidence, and no open p0/p1.
+- Use `qa:launch-board` before `qa:launch` so product blockers, fixture/test blockers, quality follow-ups, and missing evidence are not mixed together.
 - A journey closes only when the result is `pass` and the evidence shows the pain point was actually solved.

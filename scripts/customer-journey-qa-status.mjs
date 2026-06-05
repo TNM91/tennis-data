@@ -76,6 +76,7 @@ const requiredCommands = [
   'qa:tester-handoff',
   'qa:scorecard',
   'qa:signoff',
+  'qa:launch-board',
   'qa:launch',
   'verify:closeout',
   'verify:closeout:live',
@@ -162,6 +163,7 @@ console.log('- npm run qa:close-day -- <day1-day5>')
 console.log('- npm run qa:tester-handoff -- <day1-day5 | journey | tier>')
 console.log('- npm run qa:scorecard')
 console.log('- npm run qa:signoff')
+console.log('- npm run qa:launch-board -- <tier | day | journey | category>')
 console.log('- npm run qa:launch')
 console.log('- npm run verify:closeout:live')
 
