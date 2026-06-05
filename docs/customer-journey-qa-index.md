@@ -6,6 +6,7 @@ Start here when preparing for next-week journey testing.
 
 | Command | Use |
 | --- | --- |
+| `npm run qa:prep` | Run the core prep packet and deterministic inventory guard in one pass. |
 | `npm run qa:status` | Check that the QA docs and commands are present. |
 | `npm run qa:day1` | Print the Day 1 trust-loop checklist. |
 | `npm run qa:week` | Print the full week testing sequence and fixture list. |
@@ -18,15 +19,12 @@ Start here when preparing for next-week journey testing.
 
 ## Start Here
 
-1. Run `npm run qa:status`.
-2. Run `npm run qa:week`.
-3. Open `docs/customer-journey-weekly-runbook.md`.
-4. For Day 1, run `npm run qa:day1`.
-5. Run `npm run qa:ledger` and paste starter rows into `docs/customer-journey-test-results.md`.
-6. Run `npm run qa:matrix` before tier-by-tier feature testing.
-7. Run `npm run qa:gaps` to focus the manual/account evidence pass.
-8. Run `npm run qa:evidence` before capturing screenshots, notes, and pass/fail results.
-9. Run `npm run verify:closeout:live` after the latest deploy.
+1. Run `npm run qa:prep`.
+2. Open `docs/customer-journey-weekly-runbook.md`.
+3. For Day 1, run `npm run qa:day1`.
+4. Run `npm run qa:ledger` and paste starter rows into `docs/customer-journey-test-results.md`.
+5. Run focused commands as needed: `npm run qa:matrix`, `npm run qa:gaps`, or `npm run qa:evidence`.
+6. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -54,6 +52,7 @@ Start here when preparing for next-week journey testing.
 ## Result Rules
 
 - Log every journey attempt in `docs/customer-journey-test-results.md`.
+- Use `npm run qa:prep` at the start of a testing session to confirm the packet, matrix, gap report, evidence checklist, and inventory guard are healthy.
 - Treat `sync-gap`, `access-gap`, `gating-gap`, and `data-propagation-gap` as product logic until proven otherwise.
 - Treat `fixture-gap` as blocked, not passed.
 - Do not close a journey until the result is `pass` and the evidence shows the pain point was solved.

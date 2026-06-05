@@ -22,6 +22,7 @@ const dayOneRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-jour
 const weeklyRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-journey-weekly-runbook.md'), 'utf8')
 const dayOneReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-one-readiness.mjs'), 'utf8')
 const weeklyReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-weekly-readiness.mjs'), 'utf8')
+const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
 const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-checklist.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
@@ -63,6 +64,7 @@ describe('customer journey test plan', () => {
 
   it('keeps the QA index as the one-page starting point', () => {
     for (const command of [
+      'npm run qa:prep',
       'npm run qa:status',
       'npm run qa:day1',
       'npm run qa:week',
@@ -88,19 +90,33 @@ describe('customer journey test plan', () => {
     }
 
     expect(testScriptsSource).toContain('docs/customer-journey-qa-index.md')
+    expect(packageSource).toContain('"qa:prep": "node scripts/customer-journey-qa-prep.mjs"')
     expect(packageSource).toContain('"qa:status": "node scripts/customer-journey-qa-status.mjs"')
     expect(packageSource).toContain('"qa:matrix": "node scripts/customer-journey-feature-matrix.mjs"')
     expect(packageSource).toContain('"qa:gaps": "node scripts/customer-journey-gap-report.mjs"')
     expect(packageSource).toContain('"qa:evidence": "node scripts/customer-journey-evidence-checklist.mjs"')
     expect(qaStatusScriptSource).toContain('docs/customer-journey-qa-index.md')
+    expect(qaStatusScriptSource).toContain('qa:prep')
     expect(qaStatusScriptSource).toContain('qa:matrix')
     expect(qaStatusScriptSource).toContain('qa:gaps')
     expect(qaStatusScriptSource).toContain('qa:evidence')
+
+    for (const script of [
+      'scripts/customer-journey-qa-status.mjs',
+      'scripts/customer-journey-weekly-readiness.mjs',
+      'scripts/customer-journey-feature-matrix.mjs',
+      'scripts/customer-journey-gap-report.mjs',
+      'scripts/customer-journey-evidence-checklist.mjs',
+      'scripts/verify-platform-closeout-inventory.mjs',
+    ]) {
+      expect(qaPrepScriptSource, `${script} missing from QA prep`).toContain(script)
+    }
   })
 
   it('keeps the deploy checklist connected to the customer journey QA packet', () => {
     for (const anchor of [
       'docs/customer-journey-qa-index.md',
+      'npm run qa:prep',
       'npm run qa:status',
       'npm run qa:week',
       'npm run qa:ledger',

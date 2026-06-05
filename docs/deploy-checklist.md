@@ -6,6 +6,7 @@ Use this checklist before promoting the current redesign and product-architectur
 
 - Run `npm run build`
 - Confirm the homepage, pricing page, explore routes, captain routes, and auth pages load locally
+- Run `npm run qa:prep` for the customer journey prep packet and inventory guard
 - Start journey QA from `docs/customer-journey-qa-index.md`
 - Run `npm run qa:status` to confirm the customer journey QA packet is complete
 - Run `npm run qa:week` before next week's full manual journey sweep
