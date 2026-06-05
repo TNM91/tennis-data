@@ -22,6 +22,11 @@ const steps = [
     args: ['scripts/customer-journey-card.mjs', 'player-level-up-mobile-loop'],
   },
   {
+    label: 'Sample tier readiness card',
+    command: 'node',
+    args: ['scripts/customer-journey-tier-card.mjs', 'player'],
+  },
+  {
     label: 'Customer journey flow map',
     command: 'node',
     args: ['scripts/customer-journey-flow-map.mjs'],

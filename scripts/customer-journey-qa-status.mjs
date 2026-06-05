@@ -23,6 +23,7 @@ const requiredCommands = [
   'qa:next',
   'qa:session',
   'qa:journey',
+  'qa:tier',
   'qa:week',
   'qa:day1',
   'qa:fixtures',
@@ -70,6 +71,7 @@ console.log('- npm run qa:prep')
 console.log('- npm run qa:next')
 console.log('- npm run qa:session -- <day1-day5>')
 console.log('- npm run qa:journey -- <journey-id | tier | search>')
+console.log('- npm run qa:tier -- <tier>')
 console.log('- npm run qa:week')
 console.log('- npm run qa:day1')
 console.log('- npm run qa:fixtures')
