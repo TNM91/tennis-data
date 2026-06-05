@@ -1,6 +1,6 @@
 # TenAceIQ Customer Journey Test Scripts
 
-Use this next week as the manual QA playbook. Start with `docs/customer-journey-day-one-runbook.md`; the testing agenda is `docs/customer-journey-test-plan.md`; the result ledger is `docs/customer-journey-test-results.md`; the companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`; the Level Up sync audit is `docs/level-up-sync-audit.md`.
+Use this next week as the manual QA playbook. Start with `docs/customer-journey-day-one-runbook.md`; sequence the full week with `docs/customer-journey-weekly-runbook.md`; the testing agenda is `docs/customer-journey-test-plan.md`; the result ledger is `docs/customer-journey-test-results.md`; the companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`; the Level Up sync audit is `docs/level-up-sync-audit.md`.
 
 ## Test Rules
 
@@ -51,7 +51,7 @@ Before walking journeys, open `docs/customer-journey-test-fixtures.md` and confi
 
 ## Recommended Test Order
 
-Use `docs/customer-journey-day-one-runbook.md` for the first testing session. Then use `docs/customer-journey-test-plan.md` for the full typed agenda. Start with Player Level Up mobile loop and Coach to player assigned challenge before broader Player, Captain, League, Full-Court, Admin, and Free passes.
+Use `docs/customer-journey-day-one-runbook.md` for the first testing session. Use `docs/customer-journey-weekly-runbook.md` for the full week sequence. Then use `docs/customer-journey-test-plan.md` for the full typed agenda. Start with Player Level Up mobile loop and Coach to player assigned challenge before broader Player, Captain, League, Full-Court, Admin, and Free passes.
 
 ## Free Journey
 

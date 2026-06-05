@@ -12,6 +12,7 @@ Use this when the platform is ready for a full quality pass by tier, feature, an
 - Closeout feature inventory: `lib/platform-closeout-inventory.ts`
 - Customer journey test plan: `lib/customer-journey-test-plan.ts`, `docs/customer-journey-test-plan.md`
 - Customer journey day one runbook: `docs/customer-journey-day-one-runbook.md`
+- Customer journey weekly runbook: `docs/customer-journey-weekly-runbook.md`
 - Customer journey result ledger: `lib/customer-journey-test-results.ts`, `docs/customer-journey-test-results.md`
 - Customer journey process map: `docs/customer-journey-process-map.md`
 - Manual journey test scripts: `docs/customer-journey-test-scripts.md`
@@ -143,6 +144,8 @@ Use `docs/customer-journey-process-map.md` as the human-readable process flow ma
 Use `docs/customer-journey-test-plan.md` as the ordered test agenda. It identifies the persona fixture, feature IDs, fail-fast signals, and evidence to capture for each tier journey.
 
 Use `docs/customer-journey-day-one-runbook.md` to run the first testing session against Level Up mobile and Coach-to-player assigned challenge before expanding to the wider tier pass.
+
+Use `docs/customer-journey-weekly-runbook.md` to sequence Player, Coach, Captain, League, Full-Court, Admin, and Free/Public testing after the Day 1 trust loop.
 
 Use `docs/customer-journey-test-results.md` to log pass/fail/blocked outcomes, issue categories, severity, evidence, and next actions during manual testing.
 
