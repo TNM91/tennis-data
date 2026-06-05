@@ -17,6 +17,7 @@ const scriptsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey
 const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeout-qa.md'), 'utf8')
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
+const liveJourneyCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-live-card.mjs'), 'utf8')
 const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
 const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
@@ -87,6 +88,7 @@ describe('customer journey test results', () => {
     expect(closeoutQaSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
+    expect(resultsDocSource).toContain('npm run qa:live-card')
     expect(resultsDocSource).toContain('npm run qa:route-review')
     expect(resultsDocSource).toContain('npm run qa:fixture-review')
     expect(resultsDocSource).toContain('npm run qa:access-review')
@@ -121,6 +123,21 @@ describe('customer journey test results', () => {
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(routeReviewScriptSource, `${plan.id} missing from route review`).toContain(plan.id)
       expect(routeReviewScriptSource, `${plan.entryRoute} missing from route review`).toContain(plan.entryRoute)
+    }
+  })
+
+  it('keeps the live card command aligned to active manual testing', () => {
+    expect(packageSource).toContain('"qa:live-card": "node scripts/customer-journey-live-card.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:live-card')
+    expect(liveJourneyCardScriptSource).toContain('TenAceIQ Live Journey Test Card')
+    expect(liveJourneyCardScriptSource).toContain('Paste-ready ledger row')
+    expect(liveJourneyCardScriptSource).toContain('blocked-state commands')
+    expect(liveJourneyCardScriptSource).toContain('docs/customer-journey-test-results.md')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(liveJourneyCardScriptSource, `${plan.id} missing from live card`).toContain(plan.id)
+      expect(liveJourneyCardScriptSource, `${plan.entryRoute} missing from live card`).toContain(plan.entryRoute)
+      expect(liveJourneyCardScriptSource, `${plan.personaFixture} missing from live card`).toContain(plan.personaFixture)
     }
   })
 
