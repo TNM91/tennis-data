@@ -5,6 +5,7 @@ const args = [
   'run',
   'lib/__tests__/coach-storage.test.ts',
   'lib/__tests__/level-up-session-sync.test.ts',
+  'lib/__tests__/level-up-sync-contract.test.ts',
   '--pool=threads',
   '--no-file-parallelism',
 ]

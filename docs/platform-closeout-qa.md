@@ -13,6 +13,7 @@ Use this when the platform is ready for a full quality pass by tier, feature, an
 - Customer journey process map: `docs/customer-journey-process-map.md`
 - Manual journey test scripts: `docs/customer-journey-test-scripts.md`
 - Journey test fixtures: `docs/customer-journey-test-fixtures.md`
+- Level Up sync audit: `docs/level-up-sync-audit.md`
 - Existing tier inventory: `docs/tier-inventory.md`
 - Deploy checklist: `docs/deploy-checklist.md`
 - Upgrade request rollout: `docs/upgrade-requests-rollout.md`
@@ -138,6 +139,8 @@ Use `docs/customer-journey-process-map.md` as the human-readable process flow ma
 Use `docs/customer-journey-test-scripts.md` as the manual testing playbook. It turns each mapped journey into setup, steps, pass signals, fail-fast signals, and daily wrap-up notes.
 
 Use `docs/customer-journey-test-fixtures.md` to prepare repeatable test accounts, linked coach/player state, Level Up assignments, captain-team scenarios, league fixtures, and admin-safe data repair tests.
+
+Use `docs/level-up-sync-audit.md` to separate Level Up backend sync behavior from local-only and manual-copy behavior before next-week account testing.
 
 ## Automation Targets
 

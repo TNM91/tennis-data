@@ -1,6 +1,6 @@
 # TenAceIQ Customer Journey Test Scripts
 
-Use this next week as the manual QA playbook. The companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`.
+Use this next week as the manual QA playbook. The companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`; the Level Up sync audit is `docs/level-up-sync-audit.md`.
 
 ## Test Rules
 
