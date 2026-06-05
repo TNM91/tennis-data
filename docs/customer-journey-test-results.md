@@ -60,6 +60,7 @@ Run `npm run qa:issue` when deciding the result, category, severity, stop/contin
 Run `npm run qa:ledger-check` after editing rows to catch invalid status, category, severity, fixture, route, evidence, or next-action fields.
 Run `npm run qa:route-review -- <route>` when a result is about what the current page should prove.
 Run `npm run qa:access-review -- <tier>` when a result is about wrong access, missing unlocks, stale locks, or protected controls.
+Run `npm run qa:tier-board -- <tier>` when a result needs the tier promise, feature pain points, proving journeys, evidence state, blockers, and next command together.
 Run `npm run qa:feature-review -- <feature>` when a result is about one feature's route, pain point, proving journey, connected flow, or handoff.
 Run `npm run qa:trace -- <tier|journey|feature|route>` when a result needs to be reviewed against tier promise, access rule, proving journeys, handoffs, and ledger evidence together.
 Run `npm run qa:fixture-status -- <day1-day5>` when checking whether a testing block has required fixtures or open fixture-gap blockers.
@@ -104,6 +105,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - Use `qa:evidence-index` so screenshots/videos stay under `docs/qa-evidence` and remain traceable from the result ledger.
 - Use `qa:route-review` when a page loads but the tester is unsure which feature, journey, or evidence the route is meant to prove.
 - Use `qa:access-review` for access, gating, and stale-lock questions before deciding whether the issue is `access-gap`, `gating-gap`, or fixture setup.
+- Use `qa:tier-board` when signing off a role so the tier promise, feature pain points, proving journeys, evidence state, blockers, and next command stay visible together.
 - Use `qa:feature-review` before closing a feature-specific issue so the fix is tied to the proving journey and connected flow.
 - Use `qa:trace` before a tier signoff conversation so promise, pain point, feature access, proving journeys, handoffs, and ledger evidence stay connected.
 - Use `qa:fixture-status` before a testing block so fixture gaps do not get mistaken for product failures or passes.

@@ -42,6 +42,7 @@ Use the command that matches the question in front of you.
 | --- | --- |
 | What should this route prove? | `npm run qa:route-review -- <route>` |
 | What should this tier unlock or hide? | `npm run qa:access-review -- <tier>` |
+| What is this tier's promise, feature proof, and next command? | `npm run qa:tier-board -- <tier>` |
 | What feature is this supposed to validate? | `npm run qa:feature-review -- <feature|tier|route>` |
 | What is the full promise, pain point, and proof path? | `npm run qa:trace -- <tier|journey|feature|route>` |
 | What account or data setup is missing? | `npm run qa:fixture-review -- <fixture|tier|journey|route>` |
@@ -74,13 +75,14 @@ Use this order at the end of each testing day.
 2. `npm run qa:results`
 3. `npm run qa:issue` if any row needs a result/category/severity decision.
 4. `npm run qa:evidence-index` if any row is missing screenshot/video proof.
-5. `npm run qa:action-list`
-6. `npm run qa:owner-board`
-7. `npm run qa:daily-summary -- <yyyy-mm-dd>`
-8. `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`
-9. `npm run qa:change-impact -- --files=<comma-separated-files>` after code changes or deploys.
-10. `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`
-11. `npm run qa:scorecard`
+5. `npm run qa:tier-board`
+6. `npm run qa:action-list`
+7. `npm run qa:owner-board`
+8. `npm run qa:daily-summary -- <yyyy-mm-dd>`
+9. `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`
+10. `npm run qa:change-impact -- --files=<comma-separated-files>` after code changes or deploys.
+11. `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`
+12. `npm run qa:scorecard`
 
 Use this order before launch readiness.
 

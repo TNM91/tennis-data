@@ -117,6 +117,11 @@ const steps = [
     args: ['scripts/customer-journey-tier-status.mjs'],
   },
   {
+    label: 'Tier feature board',
+    command: 'node',
+    args: ['scripts/customer-journey-tier-board.mjs'],
+  },
+  {
     label: 'Tier access review',
     command: 'node',
     args: ['scripts/customer-journey-access-review.mjs'],

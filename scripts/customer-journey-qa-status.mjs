@@ -41,6 +41,7 @@ const requiredCommands = [
   'qa:route-review',
   'qa:tier',
   'qa:tier-status',
+  'qa:tier-board',
   'qa:access-review',
   'qa:week',
   'qa:day1',
@@ -126,6 +127,7 @@ console.log('- npm run qa:device-status -- <phone | tablet | desktop | journey-i
 console.log('- npm run qa:route-review -- </route | tier | feature | journey>')
 console.log('- npm run qa:tier -- <tier>')
 console.log('- npm run qa:tier-status -- <tier>')
+console.log('- npm run qa:tier-board -- <tier | feature | journey | route>')
 console.log('- npm run qa:access-review -- <tier>')
 console.log('- npm run qa:week')
 console.log('- npm run qa:day1')

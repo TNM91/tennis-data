@@ -38,6 +38,7 @@ const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/custom
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
 const ownerBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-owner-board.mjs'), 'utf8')
+const tierBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-board.mjs'), 'utf8')
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
 const changeImpactScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-change-impact.mjs'), 'utf8')
 const testerHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-handoff.mjs'), 'utf8')
@@ -125,6 +126,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:fixture-status')
     expect(resultsDocSource).toContain('npm run qa:fixture-review')
     expect(resultsDocSource).toContain('npm run qa:access-review')
+    expect(resultsDocSource).toContain('npm run qa:tier-board')
     expect(resultsDocSource).toContain('npm run qa:feature-review')
     expect(resultsDocSource).toContain('npm run qa:trace')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
@@ -145,6 +147,7 @@ describe('customer journey test results', () => {
       'npm run qa:ledger-check',
       'npm run qa:close-day',
       'npm run qa:owner-board',
+      'npm run qa:tier-board',
       'npm run qa:change-impact',
       'npm run qa:tester-handoff',
       'npm run qa:scorecard',
@@ -481,6 +484,22 @@ describe('customer journey test results', () => {
       expect(ownerBoardScriptSource, `${plan.id} missing from owner board`).toContain(plan.id)
       expect(ownerBoardScriptSource, `${plan.entryRoute} missing from owner board`).toContain(plan.entryRoute)
       expect(ownerBoardScriptSource, `${plan.personaFixture} missing from owner board`).toContain(plan.personaFixture)
+    }
+  })
+
+  it('keeps tier board aligned to feature pain points and proving journey evidence', () => {
+    expect(packageSource).toContain('"qa:tier-board": "node scripts/customer-journey-tier-board.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:tier-board')
+    expect(tierBoardScriptSource).toContain('TenAceIQ Tier Feature Board')
+    expect(tierBoardScriptSource).toContain('docs/customer-journey-process-map.md')
+    expect(tierBoardScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(tierBoardScriptSource).toContain('Feature pain points')
+    expect(tierBoardScriptSource).toContain('Proving journeys')
+    expect(tierBoardScriptSource).toContain('Board rule')
+    expect(tierBoardScriptSource).toContain('npm run qa:coverage --')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(tierBoardScriptSource, `${plan.id} missing from tier board`).toContain(plan.id)
     }
   })
 

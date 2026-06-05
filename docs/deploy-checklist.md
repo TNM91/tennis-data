@@ -29,6 +29,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:route-review -- <route>` while browser testing to confirm what the current page should prove
 - Run `npm run qa:tier -- <tier>` before signing off a role-based tier
 - Run `npm run qa:tier-status` after logging results to confirm tier readiness blockers
+- Run `npm run qa:tier-board -- <tier>` when signing off a role so promise, feature pain points, proving journeys, evidence state, and next command are visible together
 - Run `npm run qa:access-review -- <tier>` before tier signoff to confirm expected unlocks, protected controls, and proving journeys
 - Run `npm run qa:week` before next week's full manual journey sweep
 - Run `npm run qa:week-plan -- --date=yyyy-mm-dd --tester=<name>` before broad testing to schedule required device packets by day

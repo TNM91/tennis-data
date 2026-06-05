@@ -54,6 +54,7 @@ const deviceStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/custo
 const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
 const tierCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-card.mjs'), 'utf8')
 const tierStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-status.mjs'), 'utf8')
+const tierBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-board.mjs'), 'utf8')
 const accessReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-access-review.mjs'), 'utf8')
 const evidenceChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-checklist.mjs'), 'utf8')
 const evidenceIndexScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-index.mjs'), 'utf8')
@@ -136,6 +137,7 @@ describe('customer journey test plan', () => {
       'npm run qa:route-review',
       'npm run qa:tier',
       'npm run qa:tier-status',
+      'npm run qa:tier-board',
       'npm run qa:access-review',
       'npm run qa:day1',
       'npm run qa:week',
@@ -214,6 +216,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:route-review": "node scripts/customer-journey-route-review.mjs"')
     expect(packageSource).toContain('"qa:tier": "node scripts/customer-journey-tier-card.mjs"')
     expect(packageSource).toContain('"qa:tier-status": "node scripts/customer-journey-tier-status.mjs"')
+    expect(packageSource).toContain('"qa:tier-board": "node scripts/customer-journey-tier-board.mjs"')
     expect(packageSource).toContain('"qa:access-review": "node scripts/customer-journey-access-review.mjs"')
     expect(packageSource).toContain('"qa:week-plan": "node scripts/customer-journey-week-plan.mjs"')
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
@@ -268,6 +271,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:route-review')
     expect(qaStatusScriptSource).toContain('qa:tier')
     expect(qaStatusScriptSource).toContain('qa:tier-status')
+    expect(qaStatusScriptSource).toContain('qa:tier-board')
     expect(qaStatusScriptSource).toContain('qa:access-review')
     expect(qaStatusScriptSource).toContain('qa:week-plan')
     expect(qaStatusScriptSource).toContain('qa:fixtures')
@@ -321,6 +325,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-route-review.mjs',
       'scripts/customer-journey-tier-card.mjs',
       'scripts/customer-journey-tier-status.mjs',
+      'scripts/customer-journey-tier-board.mjs',
       'scripts/customer-journey-access-review.mjs',
       'scripts/customer-journey-session-ledger.mjs',
       'scripts/customer-journey-fixture-checklist.mjs',
@@ -366,6 +371,7 @@ describe('customer journey test plan', () => {
       'npm run qa:fixture-status',
       'npm run qa:evidence-index',
       'npm run qa:evidence-pack',
+      'npm run qa:tier-board',
       'npm run qa:issue',
       'npm run qa:ledger-check',
       'npm run qa:session-status',
@@ -482,6 +488,7 @@ describe('customer journey test plan', () => {
       'npm run qa:route-review',
       'npm run qa:tier',
       'npm run qa:tier-status',
+      'npm run qa:tier-board',
       'npm run qa:access-review',
       'npm run qa:week',
       'npm run qa:week-plan',
@@ -781,6 +788,11 @@ describe('customer journey test plan', () => {
     expect(tierCardScriptSource).toContain('npm run qa:tier -- <free | player | coach | captain | league | full-court | admin>')
     expect(tierStatusScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(tierStatusScriptSource).toContain('a tier is ready only when every listed journey has pass evidence')
+    expect(tierBoardScriptSource).toContain('TenAceIQ Tier Feature Board')
+    expect(tierBoardScriptSource).toContain('docs/customer-journey-process-map.md')
+    expect(tierBoardScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(tierBoardScriptSource).toContain('Feature pain points')
+    expect(tierBoardScriptSource).toContain('Board rule')
     expect(accessReviewScriptSource).toContain('docs/customer-journey-process-map.md')
     expect(accessReviewScriptSource).toContain('lib/customer-journey-flow-map.json')
     expect(accessReviewScriptSource).toContain('expected tier can use its tools')
@@ -823,6 +835,7 @@ describe('customer journey test plan', () => {
       expect(journeyCardScriptSource, `${plan.successSignal} missing from journey card command`).toContain(plan.successSignal)
       expect(tierCardScriptSource, `${plan.id} missing from tier card command`).toContain(plan.id)
       expect(tierStatusScriptSource, `${plan.id} missing from tier status command`).toContain(plan.id)
+      expect(tierBoardScriptSource, `${plan.id} missing from tier board command`).toContain(plan.id)
       expect(accessReviewScriptSource, `${plan.id} missing from access review`).toContain(plan.id)
       expect(featureReviewScriptSource, `${plan.id} missing from feature review`).toContain(plan.id)
       expect(coverageReportScriptSource, `${plan.id} missing from coverage report command`).toContain(plan.id)
@@ -843,6 +856,7 @@ describe('customer journey test plan', () => {
       expect(tierCardScriptSource, `${tierId} missing from tier card command`).toContain(tierId)
       expect(tierCardScriptSource, `${label} missing from tier card command`).toContain(label)
       expect(tierStatusScriptSource, `${tierId} missing from tier status command`).toContain(tierId)
+      expect(tierBoardScriptSource, `${label} missing from tier board command`).toContain(label)
     }
 
     for (const featureId of [
