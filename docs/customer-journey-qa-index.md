@@ -55,6 +55,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:retest -- <day-or-journey>` | Build the rerun list from open rows and missing pass evidence. |
 | `npm run qa:daily-summary -- <yyyy-mm-dd>` | Recap one testing day with pass/fail counts, blockers, missing actions, and the top fix. |
 | `npm run qa:close-day -- <day1-day5>` | Confirm whether a testing day has pass evidence, screenshots/video, next actions, and a retest queue. |
+| `npm run qa:tester-handoff -- <day1-day5 \| journey \| tier>` | Print what was tested, what carries forward, what evidence exists, and the next commands for another tester. |
 | `npm run qa:scorecard` | Print the compact tier, session, evidence, blocker, and next-command status table. |
 | `npm run qa:signoff` | Print the final journey signoff sheet with owners, evidence state, and launch blockers. |
 | `npm run qa:launch` | Fail unless every journey has pass evidence and no p0/p1 row remains open. |
@@ -109,10 +110,11 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 44. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
 45. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
 46. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
-47. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
-48. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
-49. Run `npm run qa:launch` only after the ledger has real pass evidence.
-50. Run `npm run verify:closeout:live` after the latest deploy.
+47. Run `npm run qa:tester-handoff -- <day1-day5>` before another tester or future session picks up the work.
+48. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
+49. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
+50. Run `npm run qa:launch` only after the ledger has real pass evidence.
+51. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -191,6 +193,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 - Use `npm run qa:retest -- day1` or a journey id after fixing issues so reruns stay tied to the original journey.
 - Use `npm run qa:daily-summary -- <yyyy-mm-dd>` after `qa:action-list` to record the day-level recap and the top fix to start with next.
 - Use `npm run qa:close-day -- <day1-day5>` after the daily summary to confirm pass evidence, screenshots/video, open next actions, and the retest queue.
+- Use `npm run qa:tester-handoff -- <day1-day5>` before handing work to another tester so open rows, missing evidence, fixture-gap blockers, and next commands are visible.
 - Use `npm run qa:scorecard` before signoff meetings to see each tier, session, evidence state, blockers, and next command in one table.
 - Use `npm run qa:signoff` before launch readiness to see which journey owners can call their flow done.
 - Use `npm run qa:launch` as the final manual-evidence gate; it is expected to fail until every journey has a pass row.

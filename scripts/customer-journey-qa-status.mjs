@@ -70,6 +70,7 @@ const requiredCommands = [
   'qa:retest',
   'qa:daily-summary',
   'qa:close-day',
+  'qa:tester-handoff',
   'qa:scorecard',
   'qa:signoff',
   'qa:launch',
@@ -152,6 +153,7 @@ console.log('- npm run qa:action-list')
 console.log('- npm run qa:retest -- <day-or-journey>')
 console.log('- npm run qa:daily-summary -- <yyyy-mm-dd>')
 console.log('- npm run qa:close-day -- <day1-day5>')
+console.log('- npm run qa:tester-handoff -- <day1-day5 | journey | tier>')
 console.log('- npm run qa:scorecard')
 console.log('- npm run qa:signoff')
 console.log('- npm run qa:launch')

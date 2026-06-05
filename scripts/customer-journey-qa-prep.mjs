@@ -217,6 +217,11 @@ const steps = [
     args: ['scripts/customer-journey-day-closeout.mjs'],
   },
   {
+    label: 'Tester handoff sheet',
+    command: 'node',
+    args: ['scripts/customer-journey-tester-handoff.mjs', 'day1'],
+  },
+  {
     label: 'Journey scorecard',
     command: 'node',
     args: ['scripts/customer-journey-scorecard.mjs'],

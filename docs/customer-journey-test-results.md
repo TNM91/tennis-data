@@ -69,6 +69,7 @@ Run `npm run qa:action-list` after testing to list the concrete fixes, blockers,
 Run `npm run qa:retest -- <day-or-journey>` after fixes to list the exact journeys that need fresh pass evidence.
 Run `npm run qa:daily-summary -- <yyyy-mm-dd>` after testing to recap the day and name the top fix.
 Run `npm run qa:close-day -- <day1-day5>` before calling a testing day done so missing pass evidence, screenshots/video, next actions, and retests are visible.
+Run `npm run qa:tester-handoff -- <day1-day5>` before handing a session to another tester so open rows, missing evidence, fixture-gap blockers, and next commands are visible.
 Run `npm run qa:tier-status` after testing to summarize readiness by role-based tier.
 Run `npm run qa:scorecard` before signoff meetings to see each tier, session, evidence state, blocker count, and next command in one table.
 Run `npm run qa:signoff` before launch readiness so every journey owner, evidence state, and blocker is visible.
@@ -112,6 +113,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - Use `qa:issue` when an observation needs to become a clean ledger row with a result, category, severity, next action, and retest command.
 - Use `qa:retest` after every fix pass so missing or stale pass evidence does not slip through.
 - Use `qa:close-day` before ending a testing block so open retests and missing evidence are not carried forward silently.
+- Use `qa:tester-handoff` before another tester picks up so they can see what was tested, what is blocked, what evidence exists, and what command to run next.
 - Use `qa:scorecard` before signoff so status conversations stay tied to tier, session, evidence, blockers, and the next command.
 - Use `qa:signoff` before launch readiness so “done” means pass evidence, screenshot/video evidence, and no open p0/p1.
 - A journey closes only when the result is `pass` and the evidence shows the pain point was actually solved.

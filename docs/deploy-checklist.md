@@ -56,6 +56,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:retest -- <day-or-journey>` after fixes to confirm the right journey gets fresh pass evidence
 - Run `npm run qa:daily-summary -- <yyyy-mm-dd>` after each testing block so the daily pass/fail count and top fix are clear
 - Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling a testing day done
+- Run `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd` before handing the testing block to another tester or future session
 - Run `npm run qa:scorecard` before signoff meetings to review tier, session, evidence, blocker, and next-command status
 - Run `npm run qa:signoff` before launch readiness to confirm every journey owner, evidence state, and blocker
 - Run `npm run qa:launch` after testing is logged; it should pass before broad launch decisions

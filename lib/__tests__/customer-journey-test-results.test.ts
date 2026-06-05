@@ -38,6 +38,7 @@ const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/custom
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
+const testerHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-handoff.mjs'), 'utf8')
 const accessReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-access-review.mjs'), 'utf8')
 const featureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-feature-review.mjs'), 'utf8')
 const traceabilityScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-traceability.mjs'), 'utf8')
@@ -126,6 +127,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:trace')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
     expect(resultsDocSource).toContain('npm run qa:issue')
+    expect(resultsDocSource).toContain('npm run qa:tester-handoff')
   })
 
   it('keeps the test week quickstart aligned to ledger closeout and launch evidence', () => {
@@ -138,6 +140,7 @@ describe('customer journey test results', () => {
       'npm run qa:issue',
       'npm run qa:ledger-check',
       'npm run qa:close-day',
+      'npm run qa:tester-handoff',
       'npm run qa:scorecard',
       'npm run qa:signoff',
       'npm run qa:launch',
@@ -453,6 +456,24 @@ describe('customer journey test results', () => {
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(retestPlanScriptSource, `${plan.id} missing from retest plan script`).toContain(plan.id)
+    }
+  })
+
+  it('keeps tester handoff aligned to open rows, evidence, and retest commands', () => {
+    expect(packageSource).toContain('"qa:tester-handoff": "node scripts/customer-journey-tester-handoff.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:tester-handoff')
+    expect(testerHandoffScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(testerHandoffScriptSource).toContain('Carry forward')
+    expect(testerHandoffScriptSource).toContain('Open p0/p1')
+    expect(testerHandoffScriptSource).toContain('missing screenshot/video')
+    expect(testerHandoffScriptSource).toContain('fixture-gap blockers')
+    expect(testerHandoffScriptSource).toContain('npm run qa:retest -- <day-or-journey>')
+    expect(testerHandoffScriptSource).toContain('Handoff rule')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(testerHandoffScriptSource, `${plan.id} missing from tester handoff`).toContain(plan.id)
+      expect(testerHandoffScriptSource, `${plan.entryRoute} missing from tester handoff`).toContain(plan.entryRoute)
+      expect(testerHandoffScriptSource, `${plan.personaFixture} missing from tester handoff`).toContain(plan.personaFixture)
     }
   })
 

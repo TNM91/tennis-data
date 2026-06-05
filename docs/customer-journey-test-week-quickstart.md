@@ -19,7 +19,8 @@ The goal is not to run every command. The goal is to prove each tier journey wit
 11. Run `npm run qa:ledger-check`.
 12. Run `npm run qa:session-status -- <day1-day5>`.
 13. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`.
-14. Run `npm run qa:control` again before deciding the next block.
+14. Run `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`.
+15. Run `npm run qa:control` again before deciding the next block.
 
 ## What Counts As Pass
 
@@ -48,6 +49,7 @@ Use the command that matches the question in front of you.
 | How should I log this issue? | `npm run qa:issue` |
 | What should be fixed next? | `npm run qa:action-list` |
 | What needs a rerun after a fix? | `npm run qa:retest -- <day-or-journey>` |
+| What should the next tester pick up? | `npm run qa:tester-handoff -- <day1-day5>` |
 
 ## Recommended Week Sweep
 
@@ -72,7 +74,8 @@ Use this order at the end of each testing day.
 5. `npm run qa:action-list`
 6. `npm run qa:daily-summary -- <yyyy-mm-dd>`
 7. `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`
-8. `npm run qa:scorecard`
+8. `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`
+9. `npm run qa:scorecard`
 
 Use this order before launch readiness.
 

@@ -67,6 +67,7 @@
     "qa:retest": "node scripts/customer-journey-retest-plan.mjs",
     "qa:daily-summary": "node scripts/customer-journey-daily-summary.mjs",
     "qa:close-day": "node scripts/customer-journey-day-closeout.mjs",
+    "qa:tester-handoff": "node scripts/customer-journey-tester-handoff.mjs",
     "qa:scorecard": "node scripts/customer-journey-scorecard.mjs",
     "qa:signoff": "node scripts/customer-journey-signoff-sheet.mjs",
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",

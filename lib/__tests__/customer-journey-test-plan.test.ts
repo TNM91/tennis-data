@@ -72,6 +72,7 @@ const actionListScriptSource = readFileSync(join(process.cwd(), 'scripts/custome
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
 const dailySummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-daily-summary.mjs'), 'utf8')
 const dayCloseoutScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-closeout.mjs'), 'utf8')
+const testerHandoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-handoff.mjs'), 'utf8')
 const scorecardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-scorecard.mjs'), 'utf8')
 const signoffSheetScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-signoff-sheet.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
@@ -162,6 +163,7 @@ describe('customer journey test plan', () => {
       'npm run qa:retest',
       'npm run qa:daily-summary',
       'npm run qa:close-day',
+      'npm run qa:tester-handoff',
       'npm run qa:scorecard',
       'npm run qa:signoff',
       'npm run qa:launch',
@@ -234,6 +236,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:retest": "node scripts/customer-journey-retest-plan.mjs"')
     expect(packageSource).toContain('"qa:daily-summary": "node scripts/customer-journey-daily-summary.mjs"')
     expect(packageSource).toContain('"qa:close-day": "node scripts/customer-journey-day-closeout.mjs"')
+    expect(packageSource).toContain('"qa:tester-handoff": "node scripts/customer-journey-tester-handoff.mjs"')
     expect(packageSource).toContain('"qa:scorecard": "node scripts/customer-journey-scorecard.mjs"')
     expect(packageSource).toContain('"qa:signoff": "node scripts/customer-journey-signoff-sheet.mjs"')
     expect(packageSource).toContain('"qa:launch": "node scripts/customer-journey-launch-readiness.mjs"')
@@ -285,6 +288,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:retest')
     expect(qaStatusScriptSource).toContain('qa:daily-summary')
     expect(qaStatusScriptSource).toContain('qa:close-day')
+    expect(qaStatusScriptSource).toContain('qa:tester-handoff')
     expect(qaStatusScriptSource).toContain('qa:scorecard')
     expect(qaStatusScriptSource).toContain('qa:signoff')
     expect(qaStatusScriptSource).toContain('qa:launch')
@@ -333,6 +337,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-retest-plan.mjs',
       'scripts/customer-journey-daily-summary.mjs',
       'scripts/customer-journey-day-closeout.mjs',
+      'scripts/customer-journey-tester-handoff.mjs',
       'scripts/customer-journey-scorecard.mjs',
       'scripts/customer-journey-signoff-sheet.mjs',
       'scripts/verify-platform-closeout-inventory.mjs',
@@ -355,6 +360,7 @@ describe('customer journey test plan', () => {
       'npm run qa:ledger-check',
       'npm run qa:session-status',
       'npm run qa:close-day',
+      'npm run qa:tester-handoff',
       'npm run qa:launch',
       'npm run verify:closeout',
       'npm run verify:closeout:live',
@@ -493,6 +499,7 @@ describe('customer journey test plan', () => {
       'npm run qa:retest',
       'npm run qa:daily-summary',
       'npm run qa:close-day',
+      'npm run qa:tester-handoff',
       'npm run qa:scorecard',
       'npm run qa:signoff',
       'npm run qa:launch',
@@ -500,6 +507,32 @@ describe('customer journey test plan', () => {
       'npm run verify:closeout:live',
     ]) {
       expect(deployChecklistSource, `${anchor} missing from deploy checklist`).toContain(anchor)
+    }
+  })
+
+  it('keeps the tester handoff sheet tied to carry-forward blockers and next commands', () => {
+    for (const anchor of [
+      'TenAceIQ Tester Handoff',
+      'docs/customer-journey-test-results.md',
+      'Carry forward',
+      'fixture-gap',
+      'Open p0/p1',
+      'missing pass evidence',
+      'missing screenshot/video',
+      'npm run qa:fixture-status --',
+      'npm run qa:tester-packet --',
+      'npm run qa:retest --',
+      'npm run qa:action-list',
+      'npm run qa:close-day --',
+      'Handoff rule',
+    ]) {
+      expect(testerHandoffScriptSource, `${anchor} missing from tester handoff script`).toContain(anchor)
+    }
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(testerHandoffScriptSource, `${plan.id} missing from tester handoff script`).toContain(plan.id)
+      expect(testerHandoffScriptSource, `${plan.entryRoute} missing from tester handoff script`).toContain(plan.entryRoute)
+      expect(testerHandoffScriptSource, `${plan.personaFixture} missing from tester handoff script`).toContain(plan.personaFixture)
     }
   })
 
