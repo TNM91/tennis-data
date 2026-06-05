@@ -33,6 +33,7 @@
     "qa:day1": "node scripts/customer-journey-day-one-readiness.mjs",
     "qa:week": "node scripts/customer-journey-weekly-readiness.mjs",
     "qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs",
+    "qa:fixture-review": "node scripts/customer-journey-fixture-review.mjs",
     "qa:ledger": "node scripts/customer-journey-ledger-template.mjs",
     "qa:session-ledger": "node scripts/customer-journey-session-ledger.mjs",
     "qa:flows": "node scripts/customer-journey-flow-map.mjs",

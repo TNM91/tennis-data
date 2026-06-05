@@ -29,6 +29,7 @@ const weeklyRunbookSource = readFileSync(join(process.cwd(), 'docs/customer-jour
 const dayOneReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-day-one-readiness.mjs'), 'utf8')
 const weeklyReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-weekly-readiness.mjs'), 'utf8')
 const fixtureChecklistScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-checklist.mjs'), 'utf8')
+const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const qaPrepScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-prep.mjs'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
 const journeyMorningBriefScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-morning-brief.mjs'), 'utf8')
@@ -110,6 +111,7 @@ describe('customer journey test plan', () => {
       'npm run qa:day1',
       'npm run qa:week',
       'npm run qa:fixtures',
+      'npm run qa:fixture-review',
       'npm run qa:ledger',
       'npm run qa:session-ledger',
       'npm run qa:flows',
@@ -163,6 +165,7 @@ describe('customer journey test plan', () => {
     expect(packageSource).toContain('"qa:tier-status": "node scripts/customer-journey-tier-status.mjs"')
     expect(packageSource).toContain('"qa:access-review": "node scripts/customer-journey-access-review.mjs"')
     expect(packageSource).toContain('"qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs"')
+    expect(packageSource).toContain('"qa:fixture-review": "node scripts/customer-journey-fixture-review.mjs"')
     expect(packageSource).toContain('"qa:session-ledger": "node scripts/customer-journey-session-ledger.mjs"')
     expect(packageSource).toContain('"qa:flows": "node scripts/customer-journey-flow-map.mjs"')
     expect(packageSource).toContain('"qa:focus": "node scripts/customer-journey-focus.mjs"')
@@ -197,6 +200,7 @@ describe('customer journey test plan', () => {
     expect(qaStatusScriptSource).toContain('qa:tier-status')
     expect(qaStatusScriptSource).toContain('qa:access-review')
     expect(qaStatusScriptSource).toContain('qa:fixtures')
+    expect(qaStatusScriptSource).toContain('qa:fixture-review')
     expect(qaStatusScriptSource).toContain('qa:session-ledger')
     expect(qaStatusScriptSource).toContain('qa:flows')
     expect(qaStatusScriptSource).toContain('qa:focus')
@@ -232,6 +236,7 @@ describe('customer journey test plan', () => {
       'scripts/customer-journey-access-review.mjs',
       'scripts/customer-journey-session-ledger.mjs',
       'scripts/customer-journey-fixture-checklist.mjs',
+      'scripts/customer-journey-fixture-review.mjs',
       'scripts/customer-journey-flow-map.mjs',
       'scripts/customer-journey-handoffs.mjs',
       'scripts/customer-journey-feature-matrix.mjs',
@@ -273,6 +278,7 @@ describe('customer journey test plan', () => {
       'npm run qa:access-review',
       'npm run qa:week',
       'npm run qa:fixtures',
+      'npm run qa:fixture-review',
       'npm run qa:ledger',
       'npm run qa:session-ledger',
       'npm run qa:flows',
@@ -370,9 +376,14 @@ describe('customer journey test plan', () => {
     for (const fixtureId of getCustomerJourneyFixtureIds()) {
       expect(fixtureSource, `${fixtureId} missing from fixture plan`).toContain(fixtureId)
       expect(fixtureChecklistScriptSource, `${fixtureId} missing from fixture checklist command`).toContain(fixtureId)
+      expect(fixtureReviewScriptSource, `${fixtureId} missing from fixture review command`).toContain(fixtureId)
     }
 
     expect(fixtureSource).toContain('npm run qa:fixtures')
+    expect(fixtureSource).toContain('npm run qa:fixture-review')
+    expect(fixtureReviewScriptSource).toContain('docs/customer-journey-test-fixtures.md')
+    expect(fixtureReviewScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(fixtureReviewScriptSource).toContain('a missing fixture is a fixture-gap')
   })
 
   it('keeps every agenda entry route covered by production route smoke', () => {
@@ -445,9 +456,12 @@ describe('customer journey test plan', () => {
       expect(evidencePackScriptSource, `${plan.id} missing from evidence pack`).toContain(plan.id)
       expect(journeyCardScriptSource, `${plan.id} missing from journey card command`).toContain(plan.id)
       expect(routeReviewScriptSource, `${plan.id} missing from route review`).toContain(plan.id)
+      expect(fixtureReviewScriptSource, `${plan.id} missing from fixture review`).toContain(plan.id)
       expect(journeyCardScriptSource, `${plan.entryRoute} missing from journey card command`).toContain(plan.entryRoute)
       expect(routeReviewScriptSource, `${plan.entryRoute} missing from route review`).toContain(plan.entryRoute)
+      expect(fixtureReviewScriptSource, `${plan.entryRoute} missing from fixture review`).toContain(plan.entryRoute)
       expect(journeyCardScriptSource, `${plan.personaFixture} missing from journey card command`).toContain(plan.personaFixture)
+      expect(fixtureReviewScriptSource, `${plan.personaFixture} missing from fixture review`).toContain(plan.personaFixture)
       expect(journeyCardScriptSource, `${plan.successSignal} missing from journey card command`).toContain(plan.successSignal)
       expect(tierCardScriptSource, `${plan.id} missing from tier card command`).toContain(plan.id)
       expect(tierStatusScriptSource, `${plan.id} missing from tier status command`).toContain(plan.id)

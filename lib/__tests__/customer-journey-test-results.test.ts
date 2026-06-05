@@ -18,6 +18,7 @@ const closeoutQaSource = readFileSync(join(process.cwd(), 'docs/platform-closeou
 const ledgerTemplateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-template.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
 const routeReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-route-review.mjs'), 'utf8')
+const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-review.mjs'), 'utf8')
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
@@ -87,6 +88,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('Result Ledger')
     expect(resultsDocSource).toContain('Daily Summary')
     expect(resultsDocSource).toContain('npm run qa:route-review')
+    expect(resultsDocSource).toContain('npm run qa:fixture-review')
     expect(resultsDocSource).toContain('npm run qa:access-review')
     expect(resultsDocSource).toContain('npm run qa:feature-review')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
@@ -119,6 +121,20 @@ describe('customer journey test results', () => {
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
       expect(routeReviewScriptSource, `${plan.id} missing from route review`).toContain(plan.id)
       expect(routeReviewScriptSource, `${plan.entryRoute} missing from route review`).toContain(plan.entryRoute)
+    }
+  })
+
+  it('keeps the fixture review command aligned to fixture-gap evidence', () => {
+    expect(packageSource).toContain('"qa:fixture-review": "node scripts/customer-journey-fixture-review.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:fixture-review')
+    expect(fixtureReviewScriptSource).toContain('TenAceIQ Fixture Review')
+    expect(fixtureReviewScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(fixtureReviewScriptSource).toContain('a missing fixture is a fixture-gap')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(fixtureReviewScriptSource, `${plan.id} missing from fixture review`).toContain(plan.id)
+      expect(fixtureReviewScriptSource, `${plan.entryRoute} missing from fixture review`).toContain(plan.entryRoute)
+      expect(fixtureReviewScriptSource, `${plan.personaFixture} missing from fixture review`).toContain(plan.personaFixture)
     }
   })
 

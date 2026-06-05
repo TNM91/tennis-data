@@ -32,6 +32,11 @@ const steps = [
     args: ['scripts/customer-journey-fixture-checklist.mjs'],
   },
   {
+    label: 'Sample fixture review',
+    command: 'node',
+    args: ['scripts/customer-journey-fixture-review.mjs', 'coach_primary'],
+  },
+  {
     label: 'Sample journey field card',
     command: 'node',
     args: ['scripts/customer-journey-card.mjs', 'player-level-up-mobile-loop'],
