@@ -21,6 +21,20 @@ export type PlatformCloseoutFeature = {
   nextCloseoutStep: string
 }
 
+export const PLATFORM_CLOSEOUT_TIER_LABELS: Record<PlatformCloseoutTierId, string> = {
+  free: 'Free',
+  player_plus: 'Player',
+  coach: 'Coach',
+  captain: 'Captain',
+  league: 'League',
+  full_court: 'Full-Court',
+  admin_internal: 'Admin/Internal',
+}
+
+export const PLATFORM_CAPABILITY_STATUSES: PlatformCapabilityStatus[] = ['backend-backed', 'local', 'mock', 'manual', 'blocked']
+
+export const PLATFORM_VERIFICATION_KINDS: PlatformVerificationKind[] = ['automated', 'manual', 'needs-account', 'blocked']
+
 export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
   {
     id: 'free-public-explore',
@@ -226,4 +240,69 @@ export const PLATFORM_CLOSEOUT_FEATURES: PlatformCloseoutFeature[] = [
 
 export function getPlatformCloseoutFeaturesForTier(tierId: PlatformCloseoutTierId) {
   return PLATFORM_CLOSEOUT_FEATURES.filter((feature) => feature.tierId === tierId)
+}
+
+export function getPlatformCloseoutFeaturesByStatus(status: PlatformCapabilityStatus) {
+  return PLATFORM_CLOSEOUT_FEATURES.filter((feature) => feature.status === status)
+}
+
+export function getPlatformCloseoutFeaturesByVerification(kind: PlatformVerificationKind) {
+  return PLATFORM_CLOSEOUT_FEATURES.filter((feature) => feature.verification.kind === kind)
+}
+
+export function getPlatformCloseoutOutstandingFeatures() {
+  return PLATFORM_CLOSEOUT_FEATURES.filter((feature) => feature.verification.kind !== 'automated' || feature.status !== 'backend-backed')
+}
+
+export function getPlatformCloseoutNextActions(limit = 8) {
+  return getPlatformCloseoutOutstandingFeatures()
+    .sort((a, b) => closeoutPriorityScore(b) - closeoutPriorityScore(a))
+    .slice(0, limit)
+}
+
+export function getPlatformCloseoutSummary() {
+  return {
+    totalFeatures: PLATFORM_CLOSEOUT_FEATURES.length,
+    byTier: countBy(PLATFORM_CLOSEOUT_FEATURES, (feature) => feature.tierId),
+    byStatus: countBy(PLATFORM_CLOSEOUT_FEATURES, (feature) => feature.status),
+    byVerification: countBy(PLATFORM_CLOSEOUT_FEATURES, (feature) => feature.verification.kind),
+    automatedFeatures: getPlatformCloseoutFeaturesByVerification('automated').length,
+    outstandingFeatures: getPlatformCloseoutOutstandingFeatures().length,
+    nextActions: getPlatformCloseoutNextActions(),
+  }
+}
+
+function closeoutPriorityScore(feature: PlatformCloseoutFeature) {
+  const tierPriority: Record<PlatformCloseoutTierId, number> = {
+    coach: 7,
+    player_plus: 6,
+    captain: 5,
+    league: 4,
+    full_court: 3,
+    admin_internal: 2,
+    free: 1,
+  }
+  const verificationPriority: Record<PlatformVerificationKind, number> = {
+    'needs-account': 8,
+    manual: 5,
+    blocked: 4,
+    automated: 1,
+  }
+  const statusPriority: Record<PlatformCapabilityStatus, number> = {
+    blocked: 8,
+    mock: 7,
+    local: 12,
+    manual: 5,
+    'backend-backed': 1,
+  }
+
+  return tierPriority[feature.tierId] + verificationPriority[feature.verification.kind] + statusPriority[feature.status]
+}
+
+function countBy<TItem, TKey extends string>(items: TItem[], getKey: (item: TItem) => TKey) {
+  return items.reduce<Record<TKey, number>>((counts, item) => {
+    const key = getKey(item)
+    counts[key] = (counts[key] ?? 0) + 1
+    return counts
+  }, {} as Record<TKey, number>)
 }

@@ -2,18 +2,21 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  PLATFORM_CAPABILITY_STATUSES,
   PLATFORM_CLOSEOUT_FEATURES,
-  type PlatformCapabilityStatus,
+  PLATFORM_CLOSEOUT_TIER_LABELS,
+  PLATFORM_VERIFICATION_KINDS,
   type PlatformCloseoutTierId,
-  type PlatformVerificationKind,
+  getPlatformCloseoutFeaturesByStatus,
+  getPlatformCloseoutFeaturesByVerification,
   getPlatformCloseoutFeaturesForTier,
+  getPlatformCloseoutNextActions,
+  getPlatformCloseoutOutstandingFeatures,
+  getPlatformCloseoutSummary,
 } from '../platform-closeout-inventory'
 import { MEMBERSHIP_TIER_ORDER } from '../product-story'
 
 const REQUIRED_TIERS: PlatformCloseoutTierId[] = [...MEMBERSHIP_TIER_ORDER, 'admin_internal']
-
-const CAPABILITY_STATUSES: PlatformCapabilityStatus[] = ['backend-backed', 'local', 'mock', 'manual', 'blocked']
-const VERIFICATION_KINDS: PlatformVerificationKind[] = ['automated', 'manual', 'needs-account', 'blocked']
 
 describe('platform closeout inventory', () => {
   it('keeps every product tier represented with actionable features', () => {
@@ -21,6 +24,7 @@ describe('platform closeout inventory', () => {
 
     for (const tierId of REQUIRED_TIERS) {
       const features = getPlatformCloseoutFeaturesForTier(tierId)
+      expect(PLATFORM_CLOSEOUT_TIER_LABELS[tierId], `${tierId} needs a label`).toBeTruthy()
       expect(features.length, `${tierId} needs closeout inventory coverage`).toBeGreaterThan(0)
     }
   })
@@ -31,8 +35,8 @@ describe('platform closeout inventory', () => {
       expect(feature.label.trim(), feature.id).not.toHaveLength(0)
       expect(feature.route, feature.id).toMatch(/^\//)
       expect(feature.job.trim(), feature.id).not.toHaveLength(0)
-      expect(CAPABILITY_STATUSES, feature.id).toContain(feature.status)
-      expect(VERIFICATION_KINDS, feature.id).toContain(feature.verification.kind)
+      expect(PLATFORM_CAPABILITY_STATUSES, feature.id).toContain(feature.status)
+      expect(PLATFORM_VERIFICATION_KINDS, feature.id).toContain(feature.verification.kind)
       expect(feature.verification.note.trim(), feature.id).not.toHaveLength(0)
       expect(feature.nextCloseoutStep.trim(), feature.id).not.toHaveLength(0)
     }
@@ -60,5 +64,28 @@ describe('platform closeout inventory', () => {
     expect(PLATFORM_CLOSEOUT_FEATURES.some((feature) => feature.status === 'local')).toBe(true)
     expect(PLATFORM_CLOSEOUT_FEATURES.some((feature) => feature.status === 'manual')).toBe(true)
     expect(PLATFORM_CLOSEOUT_FEATURES.some((feature) => feature.verification.kind === 'needs-account')).toBe(true)
+  })
+
+  it('summarizes closeout progress by tier, status, and verification kind', () => {
+    const summary = getPlatformCloseoutSummary()
+
+    expect(summary.totalFeatures).toBe(PLATFORM_CLOSEOUT_FEATURES.length)
+    expect(summary.automatedFeatures).toBe(getPlatformCloseoutFeaturesByVerification('automated').length)
+    expect(summary.outstandingFeatures).toBe(getPlatformCloseoutOutstandingFeatures().length)
+    expect(summary.byStatus.local).toBe(getPlatformCloseoutFeaturesByStatus('local').length)
+    expect(summary.byVerification.manual).toBe(getPlatformCloseoutFeaturesByVerification('manual').length)
+
+    for (const tierId of REQUIRED_TIERS) {
+      expect(summary.byTier[tierId], `${tierId} should be counted in summary`).toBe(getPlatformCloseoutFeaturesForTier(tierId).length)
+    }
+  })
+
+  it('prioritizes next actions toward account-dependent and local work before lower-risk manual docs', () => {
+    const nextActions = getPlatformCloseoutNextActions(4)
+
+    expect(nextActions.length).toBe(4)
+    expect(nextActions.every((feature) => feature.verification.kind !== 'automated' || feature.status !== 'backend-backed')).toBe(true)
+    expect(nextActions.map((feature) => feature.id)).toContain('coach-invite-link')
+    expect(nextActions.map((feature) => feature.id)).toContain('player-level-up')
   })
 })
