@@ -1,6 +1,6 @@
 # TenAceIQ Customer Journey Test Scripts
 
-Use this next week as the manual QA playbook. The companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`; the Level Up sync audit is `docs/level-up-sync-audit.md`.
+Use this next week as the manual QA playbook. The testing agenda is `docs/customer-journey-test-plan.md`; the companion process map is `docs/customer-journey-process-map.md`; the source of truth for feature status and pain points is `lib/platform-closeout-inventory.ts`; the account and data fixture plan is `docs/customer-journey-test-fixtures.md`; the Level Up sync audit is `docs/level-up-sync-audit.md`.
 
 ## Test Rules
 
@@ -47,6 +47,10 @@ Before walking journeys, open `docs/customer-journey-test-fixtures.md` and confi
 3. Coach/player linked state can be created or inspected.
 4. Captain and League data fixtures are safe to edit.
 5. Admin tests use only safe test profiles and fixture uploads.
+
+## Recommended Test Order
+
+Use `docs/customer-journey-test-plan.md` for the typed agenda. Start with Player Level Up mobile loop and Coach to player assigned challenge before broader Player, Captain, League, Full-Court, Admin, and Free passes.
 
 ## Free Journey
 

@@ -14,6 +14,29 @@ Use this with `docs/customer-journey-test-scripts.md` during next-week testing. 
 | `full_court_operator` | Full-Court | Multi-role access pass | Player, Coach, Captain, League workspaces | Use to confirm no stale locks or redundant upgrade prompts across all workspaces. |
 | `admin_test` | Admin/Internal | Access repair and data quality | Admin access | Use only with safe test profiles and test import fixtures. |
 
+## Fixture ID Reference
+
+Use these IDs when logging results against `docs/customer-journey-test-plan.md`.
+
+| Fixture ID | Meaning |
+| --- | --- |
+| `free_viewer` | Signed-out or basic Free/public tester. |
+| `player_plus_linked` | Player test account with Player access and a linked tennis profile. |
+| `coach_primary` | Coach test account that can invite, assign, and review player work. |
+| `captain_primary` | Captain test account with a safe team-week fixture. |
+| `league_coordinator` | League test account with safe coordinator workspace data. |
+| `full_court_operator` | Full-Court test account with all paid workspaces unlocked. |
+| `admin_test` | Admin-only test account for access and data repair checks. |
+| `linked-player-profile` | Player profile, identity slug, and recent context fixture. |
+| `coach-invite-token` | Fresh disposable coach invite token. |
+| `level-up-assignment` | Coach-assigned card or module fixture. |
+| `level-up-completion` | Proof rating, tiny note, completion date, and optional assignment link. |
+| `captain-team-week` | Roster, availability, opponent/context, and lineup scenario fixture. |
+| `league-week` | League schedule, result, standings, and public-page expectation fixture. |
+| `data-assist-upload` | Safe scorecard or schedule upload fixture. |
+| `full-court-access-state` | All-workspace access fixture with no stale upgrade locks. |
+| `admin-access-repair` | Test profile with starting access, target access, and rollback note. |
+
 ## Core Data Fixtures
 
 | Fixture | Used by | Purpose | Minimum shape |
