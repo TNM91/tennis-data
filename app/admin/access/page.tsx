@@ -171,6 +171,39 @@ function formatAccessPreset(value: AccessPreset) {
   return 'League Office'
 }
 
+function normalizeRoleFilter(value: string | null): RoleFilter {
+  if (value === 'admin' || value === 'captain' || value === 'member' || value === 'public') return value
+  return 'all'
+}
+
+function normalizeBillingFilter(value: string | null): BillingFilter {
+  if (
+    value === 'stripe' ||
+    value === 'past_due' ||
+    value === 'canceled' ||
+    value === 'webhook_error' ||
+    value === 'webhook_ignored' ||
+    value === 'manual'
+  ) {
+    return value
+  }
+
+  return 'all'
+}
+
+function normalizeProfileLinkFilter(value: string | null): ProfileLinkFilter {
+  if (value === 'cloud' || value === 'display_only' || value === 'missing') return value
+  return 'all'
+}
+
+function setQueryParam(params: URLSearchParams, key: string, value: string, defaultValue = '') {
+  if (value === defaultValue) {
+    params.delete(key)
+  } else {
+    params.set(key, value)
+  }
+}
+
 export default function AdminAccessPage() {
   const [profiles, setProfiles] = useState<ProfileAccessRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -180,6 +213,7 @@ export default function AdminAccessPage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [handoffSearch, setHandoffSearch] = useState('')
+  const [urlFiltersReady, setUrlFiltersReady] = useState(false)
   const [playerEntitlementsAvailable, setPlayerEntitlementsAvailable] = useState(true)
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
@@ -357,13 +391,35 @@ export default function AdminAccessPage() {
   }, [loadConvertedRequests, loadLatestStripeEvents])
 
   useEffect(() => {
-    const initialSearch = new URLSearchParams(window.location.search).get('search')
+    const initialParams = new URLSearchParams(window.location.search)
+    const initialSearch = initialParams.get('search')
     if (initialSearch) {
       setSearch(initialSearch)
       setHandoffSearch(initialSearch)
     }
+    setRoleFilter(normalizeRoleFilter(initialParams.get('role')))
+    setBillingFilter(normalizeBillingFilter(initialParams.get('billing')))
+    setProfileLinkFilter(normalizeProfileLinkFilter(initialParams.get('profileLink')))
+    setUrlFiltersReady(true)
     void loadProfiles()
   }, [loadProfiles])
+
+  useEffect(() => {
+    if (!urlFiltersReady) return
+
+    const params = new URLSearchParams(window.location.search)
+    setQueryParam(params, 'search', search.trim())
+    setQueryParam(params, 'role', roleFilter, 'all')
+    setQueryParam(params, 'billing', billingFilter, 'all')
+    setQueryParam(params, 'profileLink', profileLinkFilter, 'all')
+
+    const nextQuery = params.toString()
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`
+    const currentUrl = `${window.location.pathname}${window.location.search}`
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(null, '', nextUrl)
+    }
+  }, [billingFilter, profileLinkFilter, roleFilter, search, urlFiltersReady])
 
   function updateProfileField<K extends keyof EditableProfileAccess>(
     profileId: string,
