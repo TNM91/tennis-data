@@ -45,6 +45,7 @@ const requiredCommands = [
   'qa:tier-board',
   'qa:access-review',
   'qa:week',
+  'qa:week-dashboard',
   'qa:day1',
   'qa:week-plan',
   'qa:fixtures',
@@ -135,6 +136,7 @@ console.log('- npm run qa:tier-status -- <tier>')
 console.log('- npm run qa:tier-board -- <tier | feature | journey | route>')
 console.log('- npm run qa:access-review -- <tier>')
 console.log('- npm run qa:week')
+console.log('- npm run qa:week-dashboard -- <day1-day5 | tier | journey | fixture | route>')
 console.log('- npm run qa:day1')
 console.log('- npm run qa:week-plan -- <day1-day5> --date=yyyy-mm-dd --tester=<name>')
 console.log('- npm run qa:fixtures')

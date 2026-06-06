@@ -43,6 +43,7 @@
     "qa:access-review": "node scripts/customer-journey-access-review.mjs",
     "qa:day1": "node scripts/customer-journey-day-one-readiness.mjs",
     "qa:week": "node scripts/customer-journey-weekly-readiness.mjs",
+    "qa:week-dashboard": "node scripts/customer-journey-week-dashboard.mjs",
     "qa:week-plan": "node scripts/customer-journey-week-plan.mjs",
     "qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs",
     "qa:fixture-board": "node scripts/customer-journey-fixture-board.mjs",

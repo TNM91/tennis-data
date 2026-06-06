@@ -68,6 +68,7 @@ Run `npm run qa:trace -- <tier|journey|feature|route>` when a result needs to be
 Run `npm run qa:fixture-board` when a result is blocked by account access, player/coach link state, safe data setup, or fixture readiness across multiple journeys.
 Run `npm run qa:fixture-status -- <day1-day5>` when checking whether a testing block has required fixtures or open fixture-gap blockers.
 Run `npm run qa:fixture-review -- <fixture>` when a result is blocked by account setup, linked state, test data, or safe fixture shape.
+Run `npm run qa:week-dashboard -- <day1-day5>` when you need the compact week state by tier, fixture, access check, evidence proof, blocker state, and next command.
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
 Run `npm run qa:action-list` after testing to list the concrete fixes, blockers, and follow-ups by priority.
 Run `npm run qa:owner-board` after action review so every open journey or blocker has a named owner lane and next command.
@@ -122,6 +123,7 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - Use `qa:evidence-pack` before capture so screenshot/video names prove the journey signal and stay easy to paste into the ledger.
 - Use `qa:issue` when an observation needs to become a clean ledger row with a result, category, severity, next action, and retest command.
 - Use `qa:proof-gaps` after result rows are logged so missing pass evidence, missing screenshot/video, and open p0/p1 blockers are visible before signoff.
+- Use `qa:week-dashboard` when the question is broader than one tier or proof gap: what is the test week state, what evidence is missing, and what should run next?
 - Use `qa:owner-board` when a testing issue needs a named owner, backup lane, and next command before handoff.
 - Use `qa:retest` after every fix pass so missing or stale pass evidence does not slip through.
 - Use `qa:change-impact` after commits or deploys so stale pass evidence is not trusted when product files changed.

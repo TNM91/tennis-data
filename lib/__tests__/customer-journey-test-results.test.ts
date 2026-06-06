@@ -24,6 +24,7 @@ const qaStartScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-j
 const qaTodayScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-today.mjs'), 'utf8')
 const readinessBriefScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-readiness-brief.mjs'), 'utf8')
 const sessionLedgerScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-session-ledger.mjs'), 'utf8')
+const weekDashboardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-week-dashboard.mjs'), 'utf8')
 const weekPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-week-plan.mjs'), 'utf8')
 const testerPacketScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tester-packet.mjs'), 'utf8')
 const kickoffScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-kickoff.mjs'), 'utf8')
@@ -119,6 +120,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:start')
     expect(resultsDocSource).toContain('npm run qa:today')
     expect(resultsDocSource).toContain('npm run qa:readiness')
+    expect(resultsDocSource).toContain('npm run qa:week-dashboard')
     expect(resultsDocSource).toContain('npm run qa:week-plan')
     expect(resultsDocSource).toContain('npm run qa:tester-packet')
     expect(resultsDocSource).toContain('npm run qa:kickoff')
@@ -142,6 +144,9 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:launch-board')
     expect(resultsDocSource).toContain('npm run qa:change-impact')
     expect(resultsDocSource).toContain('npm run qa:tester-handoff')
+    expect(weekDashboardScriptSource).toContain('TenAceIQ Test Week Dashboard')
+    expect(weekDashboardScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(weekDashboardScriptSource).toContain('Dashboard rule')
   })
 
   it('keeps the test week quickstart aligned to ledger closeout and launch evidence', () => {
@@ -379,13 +384,20 @@ describe('customer journey test results', () => {
   })
 
   it('keeps the week plan command aligned to full-week device coverage', () => {
+    expect(packageSource).toContain('"qa:week-dashboard": "node scripts/customer-journey-week-dashboard.mjs"')
     expect(packageSource).toContain('"qa:week-plan": "node scripts/customer-journey-week-plan.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:week-dashboard')
     expect(resultsDocSource).toContain('npm run qa:week-plan')
+    expect(weekDashboardScriptSource).toContain('TenAceIQ Test Week Dashboard')
+    expect(weekDashboardScriptSource).toContain('qa:proof-gaps')
     expect(weekPlanScriptSource).toContain('TenAceIQ Test Week Plan')
     expect(weekPlanScriptSource).toContain('qa:tester-packet')
     expect(weekPlanScriptSource).toContain('required device pass')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(weekDashboardScriptSource, `${plan.id} missing from week dashboard`).toContain(plan.id)
+      expect(weekDashboardScriptSource, `${plan.entryRoute} missing from week dashboard`).toContain(plan.entryRoute)
+      expect(weekDashboardScriptSource, `${plan.personaFixture} missing from week dashboard`).toContain(plan.personaFixture)
       expect(weekPlanScriptSource, `${plan.id} missing from week plan`).toContain(plan.id)
       expect(weekPlanScriptSource, `${plan.entryRoute} missing from week plan`).toContain(plan.entryRoute)
       expect(weekPlanScriptSource, `${plan.personaFixture} missing from week plan`).toContain(plan.personaFixture)

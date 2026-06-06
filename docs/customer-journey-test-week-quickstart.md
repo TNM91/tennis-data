@@ -11,19 +11,20 @@ The goal is not to run every command. The goal is to prove each tier journey wit
 3. Run `npm run qa:control`.
 4. Run `npm run qa:start -- --date=yyyy-mm-dd --tester=<name>`.
 5. Run `npm run qa:today -- --date=yyyy-mm-dd --tester=<name>`.
-6. Pick the day and device: `npm run qa:tester-packet -- <day1-day5> --device=<phone|tablet|desktop> --date=yyyy-mm-dd --tester=<name>`.
-7. Run `npm run qa:kickoff -- <journey-id> --device=<phone|tablet|desktop> --date=yyyy-mm-dd --tester=<name>` when you are ready to walk one journey.
-8. Run `npm run qa:fixture-board` when account access, linked-player/coach state, or safe data setup needs a full readiness view.
-9. Run `npm run qa:fixture-status -- <day1-day5>` to confirm required fixtures before opening the browser.
-10. Run `npm run qa:evidence-index` to confirm the evidence folder and capture standard.
-11. Capture proof names before saving screenshots or video: `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>`.
-12. Paste or update rows in `docs/customer-journey-test-results.md`.
-13. Run `npm run qa:ledger-check`.
-14. Run `npm run qa:session-status -- <day1-day5>`.
-15. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`.
-16. Run `git diff --name-only <last-tested-sha-or-tag>..HEAD`, then `npm run qa:change-impact -- --files=<comma-separated-files>` after any code change or deploy.
-17. Run `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`.
-18. Run `npm run qa:control` again before deciding the next block.
+6. Run `npm run qa:week-dashboard` to see the week state by day, tier, fixture, evidence, blocker, and next command.
+7. Pick the day and device: `npm run qa:tester-packet -- <day1-day5> --device=<phone|tablet|desktop> --date=yyyy-mm-dd --tester=<name>`.
+8. Run `npm run qa:kickoff -- <journey-id> --device=<phone|tablet|desktop> --date=yyyy-mm-dd --tester=<name>` when you are ready to walk one journey.
+9. Run `npm run qa:fixture-board` when account access, linked-player/coach state, or safe data setup needs a full readiness view.
+10. Run `npm run qa:fixture-status -- <day1-day5>` to confirm required fixtures before opening the browser.
+11. Run `npm run qa:evidence-index` to confirm the evidence folder and capture standard.
+12. Capture proof names before saving screenshots or video: `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>`.
+13. Paste or update rows in `docs/customer-journey-test-results.md`.
+14. Run `npm run qa:ledger-check`.
+15. Run `npm run qa:session-status -- <day1-day5>`.
+16. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`.
+17. Run `git diff --name-only <last-tested-sha-or-tag>..HEAD`, then `npm run qa:change-impact -- --files=<comma-separated-files>` after any code change or deploy.
+18. Run `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`.
+19. Run `npm run qa:control` again before deciding the next block.
 
 ## What Counts As Pass
 
@@ -45,6 +46,7 @@ Use the command that matches the question in front of you.
 | What should this route prove? | `npm run qa:route-review -- <route>` |
 | What should this tier unlock or hide? | `npm run qa:access-review -- <tier>` |
 | What is this tier's promise, feature proof, and next command? | `npm run qa:tier-board -- <tier>` |
+| What is the whole test week status? | `npm run qa:week-dashboard -- <day1-day5|tier|journey>` |
 | What feature is this supposed to validate? | `npm run qa:feature-review -- <feature|tier|route>` |
 | What is the full promise, pain point, and proof path? | `npm run qa:trace -- <tier|journey|feature|route>` |
 | What do I need before testing one journey? | `npm run qa:kickoff -- <journey-id>` |
@@ -82,14 +84,15 @@ Use this order at the end of each testing day.
 3. `npm run qa:issue` if any row needs a result/category/severity decision.
 4. `npm run qa:evidence-index` if any row is missing screenshot/video proof.
 5. `npm run qa:proof-gaps -- <day1-day5>`
-6. `npm run qa:tier-board`
-7. `npm run qa:action-list`
-8. `npm run qa:owner-board`
-9. `npm run qa:daily-summary -- <yyyy-mm-dd>`
-10. `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`
-11. `npm run qa:change-impact -- --files=<comma-separated-files>` after code changes or deploys.
-12. `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`
-13. `npm run qa:scorecard`
+6. `npm run qa:week-dashboard -- <day1-day5>`
+7. `npm run qa:tier-board`
+8. `npm run qa:action-list`
+9. `npm run qa:owner-board`
+10. `npm run qa:daily-summary -- <yyyy-mm-dd>`
+11. `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd`
+12. `npm run qa:change-impact -- --files=<comma-separated-files>` after code changes or deploys.
+13. `npm run qa:tester-handoff -- <day1-day5> --date=yyyy-mm-dd`
+14. `npm run qa:scorecard`
 
 Use this order before launch readiness.
 
