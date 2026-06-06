@@ -27,6 +27,11 @@ export type CustomerJourneyFlowMap = {
   painPoint: string
   accessRule: string
   entryRoute: string
+  testerRole: string
+  fixtureIds: string[]
+  accessCheck: string
+  evidenceArtifact: string
+  returnStateProof: string
   primaryFeatureIds: string[]
   steps: CustomerJourneyFlowStep[]
   handoffs: CustomerJourneyFlowHandoff[]

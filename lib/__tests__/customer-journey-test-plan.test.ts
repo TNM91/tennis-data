@@ -670,11 +670,18 @@ describe('customer journey test plan', () => {
     expect(journeyHandoffScriptSource).toContain('shared work must reach the right role')
     expect(processMapSource).toContain('lib/customer-journey-flow-map.json')
     expect(processMapSource).toContain('Flow Contract')
+    expect(processMapSource).toContain('Test-Ready Evidence Contract')
+    expect(processMapSource).toContain('Tester Role')
+    expect(processMapSource).toContain('Return-State Proof')
     expect(processMapSource).toContain('npm run qa:trace -- <tier | journey | feature | route>')
     expect(processMapSource).toContain('npm run qa:handoffs')
     expect(processMapSource).toContain('npm run qa:coverage -- <tier>')
     expect(traceabilityScriptSource).toContain('lib/customer-journey-flow-map.json')
     expect(traceabilityScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(flowMapScriptSource).toContain('Tester role')
+    expect(flowMapScriptSource).toContain('Access check')
+    expect(flowMapScriptSource).toContain('Evidence artifact')
+    expect(flowMapScriptSource).toContain('Return-state proof')
 
     for (const session of ['day1', 'day2', 'day3', 'day4', 'day5']) {
       expect(journeySessionScriptSource, `${session} missing from session brief`).toContain(session)
@@ -701,9 +708,23 @@ describe('customer journey test plan', () => {
       expect(flow.entryRoute, flow.id).toMatch(/^\//)
       expect(flow.painPoint.trim(), flow.id).not.toHaveLength(0)
       expect(flow.accessRule.trim(), flow.id).not.toHaveLength(0)
+      expect(flow.testerRole.trim(), flow.id).not.toHaveLength(0)
+      expect(flow.fixtureIds.length, flow.id).toBeGreaterThan(0)
+      expect(flow.accessCheck.trim(), flow.id).not.toHaveLength(0)
+      expect(flow.evidenceArtifact.trim(), flow.id).not.toHaveLength(0)
+      expect(flow.returnStateProof.trim(), flow.id).not.toHaveLength(0)
       expect(flow.steps.length, flow.id).toBeGreaterThanOrEqual(3)
       expect(flow.primaryFeatureIds.length, flow.id).toBeGreaterThan(0)
       expect(processMapSource, `${flow.id} label missing from process map`).toContain(PLATFORM_CLOSEOUT_TIER_LABELS[flow.tierId])
+      expect(processMapSource, `${flow.id} tester role missing from process map`).toContain(flow.testerRole)
+      expect(processMapSource, `${flow.id} access check missing from process map`).toContain(flow.accessCheck)
+      expect(processMapSource, `${flow.id} evidence artifact missing from process map`).toContain(flow.evidenceArtifact)
+      expect(processMapSource, `${flow.id} return proof missing from process map`).toContain(flow.returnStateProof)
+
+      for (const fixtureId of flow.fixtureIds) {
+        expect(fixtureSource, `${flow.id} references missing fixture ${fixtureId}`).toContain(fixtureId)
+        expect(processMapSource, `${flow.id} fixture ${fixtureId} missing from process map`).toContain(fixtureId)
+      }
 
       for (const featureId of flow.primaryFeatureIds) {
         expect(hasKnownCloseoutFeature(featureId), `${flow.id} references missing feature ${featureId}`).toBe(true)

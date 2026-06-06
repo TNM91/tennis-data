@@ -7,6 +7,11 @@
     "painPoint": "A visitor should not have to guess where tennis context lives or what unlocks next.",
     "accessRule": "Free users can explore public tennis intelligence and contribute Data Assist uploads without seeing private workspace controls.",
     "entryRoute": "/explore",
+    "testerRole": "Free/public tester",
+    "fixtureIds": ["free_viewer", "data-assist-upload"],
+    "accessCheck": "Signed-out or Free access can use public discovery and Data Assist entry without private workspace controls.",
+    "evidenceArtifact": "Public detail screenshot, Data Assist review-state screenshot, and pricing handoff screenshot.",
+    "returnStateProof": "Return to Explore or Pricing and confirm the user still sees useful public context plus a clear next tier.",
     "primaryFeatureIds": ["free-public-explore", "free-data-assist-entry"],
     "steps": [
       {
@@ -52,6 +57,11 @@
     "painPoint": "Players need a simple way to turn lessons, goals, and practice time into visible progress.",
     "accessRule": "Player access unlocks personal spaces; invited players can use coach-linked assigned work where the coach tier provides the relationship.",
     "entryRoute": "/player-development/relentless-competitor-4-0/level-up",
+    "testerRole": "Player tester",
+    "fixtureIds": ["player_plus_linked", "linked-player-profile", "level-up-completion"],
+    "accessCheck": "Player access opens My Lab and Level Up; coach-linked assigned work is visible only when the relationship exists.",
+    "evidenceArtifact": "Mobile active-task screenshot, saved 0-5 proof screenshot, and next-action/return-state screenshot.",
+    "returnStateProof": "Refresh Level Up and My Lab, then confirm recent work and the next useful rep are pulled forward.",
     "primaryFeatureIds": ["player-level-up", "player-level-up-content", "player-my-lab"],
     "steps": [
       {
@@ -105,6 +115,11 @@
     "painPoint": "Coach and player alignment should continue between lessons without long journals or disconnected homework.",
     "accessRule": "Coach tier can invite linked players, assign tools, review proof, and plan the next session.",
     "entryRoute": "/coach",
+    "testerRole": "Coach tester with linked player",
+    "fixtureIds": ["coach_primary", "player_plus_linked", "coach-invite-token", "level-up-assignment", "level-up-completion"],
+    "accessCheck": "Coach can invite, assign, and review only linked students; player sees only their assigned challenge and own proof.",
+    "evidenceArtifact": "Invite/link state, assignment card, player proof completion, and coach review screenshot.",
+    "returnStateProof": "Return to Coach Hub and coach planner, then confirm the latest proof informs the next lesson focus.",
     "primaryFeatureIds": ["coach-hub", "coach-invite-link", "coach-lesson-planner", "player-level-up"],
     "steps": [
       {
@@ -158,6 +173,11 @@
     "painPoint": "Captains need to make lineup and communication decisions without rebuilding context in scattered tools.",
     "accessRule": "Captain tier includes Player value plus team-week tools for availability, scouting, lineup, and communication.",
     "entryRoute": "/captain",
+    "testerRole": "Captain tester",
+    "fixtureIds": ["captain_primary", "captain-team-week"],
+    "accessCheck": "Captain access includes team-week tools and Player value without exposing league coordinator controls.",
+    "evidenceArtifact": "Availability/readiness state, lineup option, opponent/team context, and team brief screenshot.",
+    "returnStateProof": "Return after a result or fixture update and confirm the next week starts from current team context.",
     "primaryFeatureIds": ["captain-lineup-week", "captain-compete-bridge"],
     "steps": [
       {
@@ -211,6 +231,11 @@
     "painPoint": "Coordinators need one operating workspace for schedules, results, standings, and visibility.",
     "accessRule": "League tier gives coordinator tools while public/member league pages expose only the intended context.",
     "entryRoute": "/league-coordinator",
+    "testerRole": "League coordinator tester",
+    "fixtureIds": ["league_coordinator", "league-week"],
+    "accessCheck": "Coordinator can manage league operations while public/member pages hide private controls.",
+    "evidenceArtifact": "Coordinator schedule/result state, standings update, public league page, and privacy check screenshot.",
+    "returnStateProof": "Return to League Office and public league detail after result entry to confirm the same match-week reality appears.",
     "primaryFeatureIds": ["league-office", "league-public-context"],
     "steps": [
       {
@@ -264,6 +289,11 @@
     "painPoint": "Multi-role users need clean access across every workspace without tier confusion.",
     "accessRule": "Full-Court users should move through Player, Coach, Captain, and League surfaces without stale locks or duplicate upgrade prompts.",
     "entryRoute": "/pricing",
+    "testerRole": "Full-Court tester",
+    "fixtureIds": ["full_court_operator", "full-court-access-state"],
+    "accessCheck": "Full-Court access opens Player, Coach, Captain, and League workspaces with no stale paid locks.",
+    "evidenceArtifact": "Pricing tier copy plus one access screenshot from each paid workspace.",
+    "returnStateProof": "Return through navigation and confirm role switching remains clear without duplicate upgrade prompts.",
     "primaryFeatureIds": ["full-court-navigation", "player-my-lab", "coach-hub", "captain-lineup-week", "league-office"],
     "steps": [
       {
@@ -315,6 +345,11 @@
     "painPoint": "Internal users need to keep access and tennis intelligence trustworthy without creating product drift.",
     "accessRule": "Admin/Internal access is protected and should only touch safe fixtures during test week.",
     "entryRoute": "/admin/access",
+    "testerRole": "Admin/internal tester",
+    "fixtureIds": ["admin_test", "admin-access-repair", "data-assist-upload"],
+    "accessCheck": "Admin-only tools are protected, use safe fixtures, and do not expose private controls to non-admin tiers.",
+    "evidenceArtifact": "Access repair before/after screenshot, import queue review state, and affected surface confirmation.",
+    "returnStateProof": "Return to the affected product surface and confirm access or data quality changed only where intended.",
     "primaryFeatureIds": ["admin-access-management", "admin-data-quality", "free-data-assist-entry"],
     "steps": [
       {

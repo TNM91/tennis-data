@@ -60,6 +60,20 @@ Each tested tier should have:
 
 Source: `lib/customer-journey-flow-map.json`.
 
+## Test-Ready Evidence Contract
+
+Use this as the handoff checklist for each tier before a journey is called ready.
+
+| Tier | Tester Role | Fixtures | Access Check | Evidence Artifact | Return-State Proof |
+| --- | --- | --- | --- | --- | --- |
+| Free | Free/public tester | `free_viewer`, `data-assist-upload` | Signed-out or Free access can use public discovery and Data Assist entry without private workspace controls. | Public detail screenshot, Data Assist review-state screenshot, and pricing handoff screenshot. | Return to Explore or Pricing and confirm the user still sees useful public context plus a clear next tier. |
+| Player | Player tester | `player_plus_linked`, `linked-player-profile`, `level-up-completion` | Player access opens My Lab and Level Up; coach-linked assigned work is visible only when the relationship exists. | Mobile active-task screenshot, saved 0-5 proof screenshot, and next-action/return-state screenshot. | Refresh Level Up and My Lab, then confirm recent work and the next useful rep are pulled forward. |
+| Coach | Coach tester with linked player | `coach_primary`, `player_plus_linked`, `coach-invite-token`, `level-up-assignment`, `level-up-completion` | Coach can invite, assign, and review only linked students; player sees only their assigned challenge and own proof. | Invite/link state, assignment card, player proof completion, and coach review screenshot. | Return to Coach Hub and coach planner, then confirm the latest proof informs the next lesson focus. |
+| Captain | Captain tester | `captain_primary`, `captain-team-week` | Captain access includes team-week tools and Player value without exposing league coordinator controls. | Availability/readiness state, lineup option, opponent/team context, and team brief screenshot. | Return after a result or fixture update and confirm the next week starts from current team context. |
+| League | League coordinator tester | `league_coordinator`, `league-week` | Coordinator can manage league operations while public/member pages hide private controls. | Coordinator schedule/result state, standings update, public league page, and privacy check screenshot. | Return to League Office and public league detail after result entry to confirm the same match-week reality appears. |
+| Full-Court | Full-Court tester | `full_court_operator`, `full-court-access-state` | Full-Court access opens Player, Coach, Captain, and League workspaces with no stale paid locks. | Pricing tier copy plus one access screenshot from each paid workspace. | Return through navigation and confirm role switching remains clear without duplicate upgrade prompts. |
+| Admin/Internal | Admin/internal tester | `admin_test`, `admin-access-repair`, `data-assist-upload` | Admin-only tools are protected, use safe fixtures, and do not expose private controls to non-admin tiers. | Access repair before/after screenshot, import queue review state, and affected surface confirmation. | Return to the affected product surface and confirm access or data quality changed only where intended. |
+
 Run `npm run qa:handoffs` before any linked player/coach, captain/league, Full-Court, or Data Assist/Admin test pass.
 
 ## Core Customer Journeys
