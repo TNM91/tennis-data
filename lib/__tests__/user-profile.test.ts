@@ -122,6 +122,76 @@ describe('user profile links', () => {
     expect(supabaseState.results).toEqual([])
   })
 
+  it('repairs an empty cloud profile through the authenticated profile API when local storage has a linked player', async () => {
+    const { loadUserProfileLink } = await import('../user-profile')
+    supabaseState.session = { access_token: 'session-token', user: { id: 'user-repair' } }
+    store.set(
+      'tenaceiq-profile-link-v1:user-repair',
+      JSON.stringify({
+        linked_player_id: 'player-repair',
+        linked_player_name: 'Repair Player',
+        linked_team_name: null,
+        linked_league_name: null,
+      }),
+    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          profile: {
+            linked_player_id: null,
+            linked_player_name: null,
+            linked_team_name: null,
+            linked_league_name: null,
+            linked_flight: null,
+            profile_photo_url: null,
+            message_display_name: null,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          profile: {
+            linked_player_id: 'player-repair',
+            linked_player_name: 'Repair Player',
+          },
+        }),
+      })
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          store.set(key, value)
+        },
+      },
+      fetch: fetchMock,
+    })
+
+    const result = await loadUserProfileLink('user-repair')
+    await Promise.resolve()
+
+    expect(result.source).toBe('local')
+    expect(result.data?.linked_player_id).toBe('player-repair')
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/profile/link', {
+      method: 'GET',
+      headers: {
+        Authorization: 'Bearer session-token',
+      },
+    })
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/profile/link', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer session-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ linkedPlayerId: 'player-repair' }),
+    })
+  })
+
   it('falls back to a local link when the cloud profile row has no linked player', async () => {
     const { loadUserProfileLink } = await import('../user-profile')
     store.set(

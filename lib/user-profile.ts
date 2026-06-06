@@ -42,6 +42,11 @@ type ProfileLinkApiResponse = {
   profile?: UserProfileLink | null
 }
 
+type ProfileLinkAuthSession = {
+  access_token?: string
+  user?: { id?: string }
+} | null
+
 function normalizeStoredProfileLink(value: StoredProfileLink | null): UserProfileLink | null {
   if (!value) return null
   return {
@@ -93,8 +98,52 @@ function mergeCloudAndLocalProfileLink(cloudData: UserProfileLink | null, localL
   }
 }
 
+async function getProfileLinkAuthSession(userId: string): Promise<ProfileLinkAuthSession> {
+  const auth = supabase.auth as
+    | {
+        getSession?: () => Promise<{
+          data: { session: ProfileLinkAuthSession }
+        }>
+      }
+    | undefined
+  const {
+    data: { session },
+  } = await auth?.getSession?.() ?? { data: { session: null } }
+
+  if (!session?.access_token || session.user?.id !== userId) return null
+  return session
+}
+
+async function syncLocalProfileLinkToCloudViaApi(userId: string, localLink: UserProfileLink | null) {
+  if (typeof window === 'undefined' || typeof window.fetch !== 'function') return false
+  if (!localLink || !hasLinkedIdentityData(localLink)) return false
+
+  try {
+    const session = await getProfileLinkAuthSession(userId)
+    if (!session?.access_token) return false
+
+    const response = await window.fetch('/api/profile/link', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(
+        localLink.linked_player_id
+          ? { linkedPlayerId: localLink.linked_player_id }
+          : { playerName: localLink.linked_player_name },
+      ),
+    })
+
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
 async function syncLocalProfileLinkToCloud(userId: string, localLink: UserProfileLink | null) {
   if (!localLink || !hasLinkedIdentityData(localLink)) return
+  if (await syncLocalProfileLinkToCloudViaApi(userId, localLink)) return
 
   const payload = {
     id: userId,
@@ -147,17 +196,7 @@ async function loadUserProfileLinkFromApi(userId: string): Promise<LoadUserProfi
   if (typeof window === 'undefined' || typeof window.fetch !== 'function') return null
 
   try {
-    const auth = supabase.auth as
-      | {
-          getSession?: () => Promise<{
-            data: { session: { access_token?: string; user?: { id?: string } } | null }
-          }>
-        }
-      | undefined
-    const {
-      data: { session },
-    } = await auth?.getSession?.() ?? { data: { session: null } }
-
+    const session = await getProfileLinkAuthSession(userId)
     if (!session?.access_token || session.user?.id !== userId) return null
 
     const response = await window.fetch('/api/profile/link', {
