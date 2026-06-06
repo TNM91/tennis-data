@@ -68,6 +68,7 @@ const requiredCommands = [
   'qa:evidence-pack',
   'qa:triage',
   'qa:issue',
+  'qa:proof-gaps',
   'qa:ledger-check',
   'qa:results',
   'qa:action-list',
@@ -157,6 +158,7 @@ console.log('- npm run qa:evidence-index')
 console.log('- npm run qa:evidence-pack -- <day1-day5>')
 console.log('- npm run qa:triage')
 console.log('- npm run qa:issue')
+console.log('- npm run qa:proof-gaps -- <day1-day5 | tier | journey | route | fixture | category>')
 console.log('- npm run qa:ledger-check')
 console.log('- npm run qa:results')
 console.log('- npm run qa:action-list')

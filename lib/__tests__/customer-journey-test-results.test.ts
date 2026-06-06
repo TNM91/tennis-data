@@ -52,6 +52,7 @@ const launchBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/custom
 const launchReadinessScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-launch-readiness.mjs'), 'utf8')
 const triageGuideScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-triage-guide.mjs'), 'utf8')
 const issueDecisionScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-issue-decision.mjs'), 'utf8')
+const proofGapScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-proof-gaps.mjs'), 'utf8')
 const evidenceIndexScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-evidence-index.mjs'), 'utf8')
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 
@@ -134,6 +135,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:tier-board')
     expect(resultsDocSource).toContain('npm run qa:feature-review')
     expect(resultsDocSource).toContain('npm run qa:trace')
+    expect(resultsDocSource).toContain('npm run qa:proof-gaps')
     expect(resultsDocSource).toContain('npm run qa:scorecard')
     expect(resultsDocSource).toContain('npm run qa:issue')
     expect(resultsDocSource).toContain('npm run qa:owner-board')
@@ -152,6 +154,7 @@ describe('customer journey test results', () => {
       'npm run qa:fixture-board',
       'npm run qa:evidence-index',
       'npm run qa:issue',
+      'npm run qa:proof-gaps',
       'npm run qa:ledger-check',
       'npm run qa:close-day',
       'npm run qa:owner-board',
@@ -211,6 +214,30 @@ describe('customer journey test results', () => {
     for (const severity of CUSTOMER_JOURNEY_ISSUE_SEVERITIES) {
       expect(issueDecisionGuideSource, `${severity} missing from issue decision guide`).toContain(severity)
       expect(issueDecisionScriptSource, `${severity} missing from issue decision script`).toContain(severity)
+    }
+  })
+
+  it('keeps the proof gap board aligned to missing evidence and blockers', () => {
+    expect(packageSource).toContain('"qa:proof-gaps": "node scripts/customer-journey-proof-gaps.mjs"')
+    expect(resultsDocSource).toContain('npm run qa:proof-gaps')
+    expect(testWeekQuickstartSource).toContain('npm run qa:proof-gaps')
+    expect(proofGapScriptSource).toContain('TenAceIQ Proof Gap Board')
+    expect(proofGapScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(proofGapScriptSource).toContain('Missing pass evidence')
+    expect(proofGapScriptSource).toContain('Pass rows missing screenshot/video')
+    expect(proofGapScriptSource).toContain('Open p0/p1 blockers')
+    expect(proofGapScriptSource).toContain('Open follow-up proof rows')
+    expect(proofGapScriptSource).toContain('qa:kickoff')
+    expect(proofGapScriptSource).toContain('qa:evidence-pack')
+    expect(proofGapScriptSource).toContain('qa:ledger-check')
+    expect(proofGapScriptSource).toContain('Proof gap rule')
+
+    expect(proofGapScriptSource).toContain('row.category')
+
+    for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
+      expect(proofGapScriptSource, `${plan.id} missing from proof gap board`).toContain(plan.id)
+      expect(proofGapScriptSource, `${plan.entryRoute} missing from proof gap board`).toContain(plan.entryRoute)
+      expect(proofGapScriptSource, `${plan.personaFixture} missing from proof gap board`).toContain(plan.personaFixture)
     }
   })
 

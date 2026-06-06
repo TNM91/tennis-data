@@ -65,6 +65,7 @@
     "qa:evidence-pack": "node scripts/customer-journey-evidence-pack.mjs",
     "qa:triage": "node scripts/customer-journey-triage-guide.mjs",
     "qa:issue": "node scripts/customer-journey-issue-decision.mjs",
+    "qa:proof-gaps": "node scripts/customer-journey-proof-gaps.mjs",
     "qa:ledger-check": "node scripts/customer-journey-ledger-check.mjs",
     "qa:results": "node scripts/customer-journey-results-summary.mjs",
     "qa:action-list": "node scripts/customer-journey-action-list.mjs",

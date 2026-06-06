@@ -53,6 +53,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:evidence-pack -- <day1-day5>` | Print screenshot/video filenames and ledger evidence cells for a testing day. |
 | `npm run qa:triage` | Print issue categories, severity rules, and closeout actions. |
 | `npm run qa:issue` | Print the issue decision guide: result, category, severity, next action, and retest path. |
+| `npm run qa:proof-gaps -- <day1-day5 \| tier \| journey \| route \| fixture \| category>` | Show missing pass rows, missing screenshot/video, open blockers, and follow-up proof by journey. |
 | `npm run qa:ledger-check` | Validate recorded ledger rows before using them for summaries or launch decisions. |
 | `npm run qa:results` | Summarize the result ledger, missing journeys, and open p0/p1 items. |
 | `npm run qa:action-list` | Print logged fail, blocked, and follow-up rows as a prioritized fix list. |
@@ -114,19 +115,20 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 42. Run `npm run qa:evidence-index` to confirm where screenshots/videos go and what the ledger evidence cell should prove.
 43. Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos.
 44. Run focused commands as needed: `npm run qa:gaps`, `npm run qa:evidence`, `npm run qa:triage`, or `npm run qa:issue`.
-45. Run `npm run qa:ledger-check` after adding or editing result rows.
-46. Run `npm run qa:results` after each testing block.
-47. Run `npm run qa:action-list` to turn open rows into the next fix list.
-48. Run `npm run qa:owner-board` so every open journey has a named owner lane.
-49. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
-50. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
-51. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
-52. Run `npm run qa:tester-handoff -- <day1-day5>` before another tester or future session picks up the work.
-53. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
-54. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
-55. Run `npm run qa:launch-board` to separate product blockers, fixture blockers, quality follow-ups, and evidence gaps.
-56. Run `npm run qa:launch` only after the ledger has real pass evidence.
-57. Run `npm run verify:closeout:live` after the latest deploy.
+45. Run `npm run qa:proof-gaps -- <day-or-journey>` after logging rows to see what still blocks trust.
+46. Run `npm run qa:ledger-check` after adding or editing result rows.
+47. Run `npm run qa:results` after each testing block.
+48. Run `npm run qa:action-list` to turn open rows into the next fix list.
+49. Run `npm run qa:owner-board` so every open journey has a named owner lane.
+50. Run `npm run qa:retest -- <day-or-journey>` after fixes to know exactly what needs a clean rerun.
+51. Run `npm run qa:daily-summary -- <yyyy-mm-dd>` at the end of each testing day.
+52. Run `npm run qa:close-day -- <day1-day5> --date=yyyy-mm-dd` before calling that testing day done.
+53. Run `npm run qa:tester-handoff -- <day1-day5>` before another tester or future session picks up the work.
+54. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
+55. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
+56. Run `npm run qa:launch-board` to separate product blockers, fixture blockers, quality follow-ups, and evidence gaps.
+57. Run `npm run qa:launch` only after the ledger has real pass evidence.
+58. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 

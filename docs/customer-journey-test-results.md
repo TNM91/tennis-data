@@ -58,6 +58,7 @@ Run `npm run qa:next` after logging results to see the next incomplete journey o
 Run `npm run qa:session-status` after testing to summarize readiness by Day 1 through Day 5 session.
 Run `npm run qa:triage` when choosing issue category, severity, and next action.
 Run `npm run qa:issue` when deciding the result, category, severity, stop/continue call, and retest path for a discovered issue.
+Run `npm run qa:proof-gaps -- <day1-day5>` after testing to see missing pass rows, missing screenshot/video, open blockers, and follow-up proof before signoff.
 Run `npm run qa:ledger-check` after editing rows to catch invalid status, category, severity, fixture, route, evidence, or next-action fields.
 Run `npm run qa:route-review -- <route>` when a result is about what the current page should prove.
 Run `npm run qa:access-review -- <tier>` when a result is about wrong access, missing unlocks, stale locks, or protected controls.
@@ -120,12 +121,13 @@ Run `npm run qa:launch` after testing is logged. It should fail until every jour
 - `qa:ledger-check` should pass before `qa:launch` is used as a sign-off signal.
 - Use `qa:evidence-pack` before capture so screenshot/video names prove the journey signal and stay easy to paste into the ledger.
 - Use `qa:issue` when an observation needs to become a clean ledger row with a result, category, severity, next action, and retest command.
+- Use `qa:proof-gaps` after result rows are logged so missing pass evidence, missing screenshot/video, and open p0/p1 blockers are visible before signoff.
 - Use `qa:owner-board` when a testing issue needs a named owner, backup lane, and next command before handoff.
 - Use `qa:retest` after every fix pass so missing or stale pass evidence does not slip through.
 - Use `qa:change-impact` after commits or deploys so stale pass evidence is not trusted when product files changed.
 - Use `qa:close-day` before ending a testing block so open retests and missing evidence are not carried forward silently.
 - Use `qa:tester-handoff` before another tester picks up so they can see what was tested, what is blocked, what evidence exists, and what command to run next.
 - Use `qa:scorecard` before signoff so status conversations stay tied to tier, session, evidence, blockers, and the next command.
-- Use `qa:signoff` before launch readiness so “done” means pass evidence, screenshot/video evidence, and no open p0/p1.
+- Use `qa:signoff` before launch readiness so "done" means pass evidence, screenshot/video evidence, and no open p0/p1.
 - Use `qa:launch-board` before `qa:launch` so product blockers, fixture/test blockers, quality follow-ups, and missing evidence are not mixed together.
 - A journey closes only when the result is `pass` and the evidence shows the pain point was actually solved.

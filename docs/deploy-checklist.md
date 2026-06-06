@@ -54,6 +54,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:evidence-pack -- <day1-day5> --date=yyyy-mm-dd --tester=<name> --device=<device/browser>` before saving screenshots or videos
 - Run `npm run qa:triage` when classifying issue category, severity, and next action
 - Run `npm run qa:issue` when a tester needs the issue result, category, severity, stop/continue, and retest decision path
+- Run `npm run qa:proof-gaps -- <day1-day5|tier|journey>` after logging rows to see missing pass evidence, missing screenshot/video, and open blockers before signoff
 - Run `npm run qa:ledger-check` to validate status, category, severity, fixture, route, evidence, and next-action fields
 - Run `npm run qa:results` to confirm missing journeys and open p0/p1 rows before launch decisions
 - Run `npm run qa:action-list` to confirm every logged fail, blocked, or follow-up row has a concrete next action

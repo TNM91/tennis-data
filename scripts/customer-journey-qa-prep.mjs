@@ -207,6 +207,11 @@ const steps = [
     args: ['scripts/customer-journey-issue-decision.mjs'],
   },
   {
+    label: 'Proof gap board',
+    command: 'node',
+    args: ['scripts/customer-journey-proof-gaps.mjs'],
+  },
+  {
     label: 'Result ledger integrity check',
     command: 'node',
     args: ['scripts/customer-journey-ledger-check.mjs'],
