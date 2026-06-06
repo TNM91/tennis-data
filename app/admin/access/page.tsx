@@ -30,6 +30,12 @@ type ProfileAccessRow = {
   role: string | null
   stripe_customer_id?: string | null
   stripe_subscription_id?: string | null
+  linked_player_id?: string | null
+  linked_player_name?: string | null
+  linked_team_name?: string | null
+  linked_league_name?: string | null
+  linked_flight?: string | null
+  message_display_name?: string | null
   player_plus_subscription_active: boolean | null
   player_plus_subscription_status: CaptainSubscriptionStatus | null
   coach_subscription_active: boolean | null
@@ -269,7 +275,7 @@ export default function AdminAccessPage() {
       const result = await supabase
         .from('profiles')
         .select(
-          'id, role, stripe_customer_id, stripe_subscription_id, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+          'id, role, stripe_customer_id, stripe_subscription_id, linked_player_id, linked_player_name, linked_team_name, linked_league_name, linked_flight, message_display_name, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
         )
         .limit(500)
 
@@ -278,7 +284,7 @@ export default function AdminAccessPage() {
         const preBillingResult = await supabase
           .from('profiles')
           .select(
-            'id, role, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+            'id, role, linked_player_id, linked_player_name, linked_team_name, linked_league_name, linked_flight, message_display_name, player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
           )
           .limit(500)
 
@@ -296,6 +302,12 @@ export default function AdminAccessPage() {
             ...row,
             stripe_customer_id: null,
             stripe_subscription_id: null,
+            linked_player_id: null,
+            linked_player_name: null,
+            linked_team_name: null,
+            linked_league_name: null,
+            linked_flight: null,
+            message_display_name: null,
             coach_subscription_active: false,
             coach_subscription_status: 'inactive' as CaptainSubscriptionStatus,
             player_plus_subscription_active: false,
@@ -488,6 +500,7 @@ export default function AdminAccessPage() {
         compactUserId(profile.id),
         profile.stripe_customer_id ?? '',
         profile.stripe_subscription_id ?? '',
+        getProfileLinkStatus(profile).label,
       ]
         .join(' ')
         .toLowerCase()
@@ -535,6 +548,10 @@ export default function AdminAccessPage() {
       convertedRequestsByUser[profile.id] ?? null,
     ).warnings.length > 0,
   ).length
+  const cloudLinkedProfileCount = profiles.filter(hasCloudLinkedPlayer).length
+  const displayOnlyProfileCount = profiles.filter((profile) =>
+    !hasCloudLinkedPlayer(profile) && Boolean(profile.message_display_name),
+  ).length
   const handoffProfile = handoffSearch && filteredProfiles.length === 1 ? filteredProfiles[0] : null
 
   return (
@@ -576,6 +593,8 @@ export default function AdminAccessPage() {
               <MetricCard label="Canceled" value={canceledCount} />
               <MetricCard label="Webhook Errors" value={webhookErrorCount} />
               <MetricCard label="Audit Flags" value={auditWarningCount} />
+              <MetricCard label="Cloud Player Links" value={cloudLinkedProfileCount} />
+              <MetricCard label="Display Only Profiles" value={displayOnlyProfileCount} />
             </div>
           </AdminReviewPanel>
 
@@ -741,6 +760,7 @@ export default function AdminAccessPage() {
                       <th>User</th>
                       <th>Role</th>
                       <th>Stripe</th>
+                      <th>Profile Link</th>
                       <th>Access Result</th>
                       <th>Why</th>
                       <th>Player Active</th>
@@ -784,6 +804,9 @@ export default function AdminAccessPage() {
                               profile={profile}
                               latestEvent={latestStripeEvent}
                             />
+                          </td>
+                          <td>
+                            <ProfileLinkCell profile={profile} />
                           </td>
                           <td>
                             <div style={accessResultWrapStyle}>
@@ -1094,6 +1117,37 @@ function matchesBillingFilter(
   return true
 }
 
+function hasCloudLinkedPlayer(profile: ProfileAccessRow) {
+  return Boolean(profile.linked_player_id || profile.linked_player_name)
+}
+
+function getProfileLinkStatus(profile: ProfileAccessRow) {
+  if (hasCloudLinkedPlayer(profile)) {
+    return {
+      label: 'Cloud linked',
+      detail:
+        profile.linked_team_name || profile.linked_league_name || profile.linked_flight
+          ? 'Team context saved'
+          : 'Player saved',
+      badgeClass: 'badge-green',
+    }
+  }
+
+  if (profile.message_display_name) {
+    return {
+      label: 'Display only',
+      detail: 'No linked player field',
+      badgeClass: 'badge-blue',
+    }
+  }
+
+  return {
+    label: 'Missing',
+    detail: 'Set Profile',
+    badgeClass: 'badge-slate',
+  }
+}
+
 function formatEventTime(value: string) {
   if (!value) return ''
 
@@ -1272,6 +1326,10 @@ function SupportBillingDetails({
         <SupportDetailItem label="Player status" value={`${profile.player_plus_subscription_active ? 'active' : 'inactive'} / ${profile.player_plus_subscription_status || 'inactive'}`} />
         <SupportDetailItem label="Coach status" value={`${profile.coach_subscription_active ? 'active' : 'inactive'} / ${profile.coach_subscription_status || 'inactive'}`} />
         <SupportDetailItem label="Captain status" value={`${profile.captain_subscription_active ? 'active' : 'inactive'} / ${profile.captain_subscription_status || 'inactive'}`} />
+        <SupportDetailItem label="Profile link" value={getProfileLinkStatus(profile).label} />
+        <SupportDetailItem label="Player fields" value={`${profile.linked_player_id ? 'id' : 'no id'} / ${profile.linked_player_name ? 'name' : 'no name'}`} />
+        <SupportDetailItem label="Team context" value={profile.linked_team_name || profile.linked_league_name || profile.linked_flight ? 'Present' : 'Missing'} />
+        <SupportDetailItem label="Display name" value={profile.message_display_name ? 'Present' : 'Missing'} />
         <SupportDetailItem label="Converted checkout" value={convertedRequest ? `${formatPlanLabel(convertedRequest.planId)} / ${formatEventTime(convertedRequest.changedAt)}` : 'None found'} />
       </div>
       <div style={supportEventPanelStyle}>
@@ -1301,6 +1359,17 @@ function SupportDetailItem({ label, value }: { label: string; value: string }) {
     <div style={supportDetailItemStyle}>
       <span style={supportDetailLabelStyle}>{label}</span>
       <strong>{value}</strong>
+    </div>
+  )
+}
+
+function ProfileLinkCell({ profile }: { profile: ProfileAccessRow }) {
+  const status = getProfileLinkStatus(profile)
+
+  return (
+    <div style={profileLinkCellStyle}>
+      <span className={`badge ${status.badgeClass}`}>{status.label}</span>
+      <span className="subtle-text">{status.detail}</span>
     </div>
   )
 }
@@ -1530,6 +1599,14 @@ const stripeBillingCellStyle = {
   gap: 6,
   width: '100%',
   maxWidth: 220,
+  minWidth: 0,
+} as const
+
+const profileLinkCellStyle = {
+  display: 'grid',
+  gap: 6,
+  width: '100%',
+  maxWidth: 180,
   minWidth: 0,
 } as const
 
