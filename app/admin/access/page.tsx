@@ -60,6 +60,7 @@ type EditableProfileAccess = {
 type AccessPreset = 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'
 type RoleFilter = 'all' | 'admin' | 'captain' | 'member' | 'public'
 type BillingFilter = 'all' | 'stripe' | 'past_due' | 'canceled' | 'webhook_error' | 'webhook_ignored' | 'manual'
+type ProfileLinkFilter = 'all' | 'cloud' | 'display_only' | 'missing'
 
 type ConvertedUpgradeRequestRow = {
   id: string
@@ -182,6 +183,7 @@ export default function AdminAccessPage() {
   const [playerEntitlementsAvailable, setPlayerEntitlementsAvailable] = useState(true)
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
+  const [profileLinkFilter, setProfileLinkFilter] = useState<ProfileLinkFilter>('all')
   const [expandedProfileId, setExpandedProfileId] = useState<string | null>(null)
   const [editedProfiles, setEditedProfiles] = useState<Record<string, EditableProfileAccess>>({})
   const [convertedRequestsByUser, setConvertedRequestsByUser] = useState<Record<string, ConvertedUpgradeRequest>>({})
@@ -491,6 +493,7 @@ export default function AdminAccessPage() {
       const normalizedRole = (profile.role || 'public').trim().toLowerCase()
       if (roleFilter !== 'all' && normalizedRole !== roleFilter) return false
       if (!matchesBillingFilter(profile, stripeEventsByUser[profile.id] ?? null, billingFilter)) return false
+      if (!matchesProfileLinkFilter(profile, profileLinkFilter)) return false
 
       if (!normalizedSearch) return true
 
@@ -506,7 +509,7 @@ export default function AdminAccessPage() {
         .toLowerCase()
         .includes(normalizedSearch)
     })
-  }, [billingFilter, deferredSearch, profiles, roleFilter, stripeEventsByUser])
+  }, [billingFilter, deferredSearch, profileLinkFilter, profiles, roleFilter, stripeEventsByUser])
 
   const activeCaptainCount = profiles.filter((profile) =>
     Boolean(profile.captain_subscription_active),
@@ -552,6 +555,9 @@ export default function AdminAccessPage() {
   const displayOnlyProfileCount = profiles.filter((profile) =>
     !hasCloudLinkedPlayer(profile) && Boolean(profile.message_display_name),
   ).length
+  const missingProfileLinkCount = profiles.filter((profile) =>
+    !hasCloudLinkedPlayer(profile) && !profile.message_display_name,
+  ).length
   const handoffProfile = handoffSearch && filteredProfiles.length === 1 ? filteredProfiles[0] : null
 
   return (
@@ -595,6 +601,7 @@ export default function AdminAccessPage() {
               <MetricCard label="Audit Flags" value={auditWarningCount} />
               <MetricCard label="Cloud Player Links" value={cloudLinkedProfileCount} />
               <MetricCard label="Display Only Profiles" value={displayOnlyProfileCount} />
+              <MetricCard label="Missing Profile Links" value={missingProfileLinkCount} />
             </div>
           </AdminReviewPanel>
 
@@ -613,7 +620,7 @@ export default function AdminAccessPage() {
                   type="text"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by user id or role"
+                  placeholder="Search by user id, role, or profile link"
                   className="input"
                   disabled={loading || refreshing}
                 />
@@ -654,6 +661,21 @@ export default function AdminAccessPage() {
                   <option value="manual">Manual or role-based</option>
                 </select>
               </Field>
+
+              <Field label="Profile link filter" htmlFor="admin-access-profile-link-filter">
+                <select
+                  id="admin-access-profile-link-filter"
+                  value={profileLinkFilter}
+                  onChange={(event) => setProfileLinkFilter(event.target.value as ProfileLinkFilter)}
+                  className="select"
+                  disabled={loading || refreshing}
+                >
+                  <option value="all">All profile links</option>
+                  <option value="cloud">Cloud linked</option>
+                  <option value="display_only">Display only</option>
+                  <option value="missing">Missing</option>
+                </select>
+              </Field>
             </div>
 
             <AdminActionRow>
@@ -676,6 +698,8 @@ export default function AdminAccessPage() {
               This page is the monetization control point for TenAceIQ. League Office access can be
               granted by itself, without enabling Player or Captain tools. Use Billing filter for
               failed payments, canceled subscriptions, and webhook outcomes that need follow-up.
+              Use Profile link filter to find accounts that are only display-name linked or missing a
+              cloud player link.
               {convertedRequestsAvailable
                 ? ' Converted checkout requests are shown beside each profile when available.'
                 : ' Converted checkout requests are not available yet, so this view is showing profile fields only.'}
@@ -751,7 +775,7 @@ export default function AdminAccessPage() {
             {loading ? (
               <AdminEmptyState text="Loading profile entitlements..." />
             ) : filteredProfiles.length === 0 ? (
-              <AdminEmptyState text="No profiles match the current filters. Clear the search or broaden the role filter to bring more entitlement rows back into scope." />
+              <AdminEmptyState text="No profiles match the current filters. Clear the search or broaden the role, billing, or profile link filter to bring more entitlement rows back into scope." />
             ) : (
               <div className="table-wrap" style={{ marginTop: 20 }}>
                 <table className="data-table" style={{ width: '100%', tableLayout: 'auto' }}>
@@ -1119,6 +1143,19 @@ function matchesBillingFilter(
 
 function hasCloudLinkedPlayer(profile: ProfileAccessRow) {
   return Boolean(profile.linked_player_id || profile.linked_player_name)
+}
+
+function matchesProfileLinkFilter(profile: ProfileAccessRow, profileLinkFilter: ProfileLinkFilter) {
+  if (profileLinkFilter === 'all') return true
+
+  const hasCloudLink = hasCloudLinkedPlayer(profile)
+  const hasDisplayName = Boolean(profile.message_display_name)
+
+  if (profileLinkFilter === 'cloud') return hasCloudLink
+  if (profileLinkFilter === 'display_only') return !hasCloudLink && hasDisplayName
+  if (profileLinkFilter === 'missing') return !hasCloudLink && !hasDisplayName
+
+  return true
 }
 
 function getProfileLinkStatus(profile: ProfileAccessRow) {
