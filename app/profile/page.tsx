@@ -615,7 +615,7 @@ function ProfilePageInner() {
   const profileSyncText = profileSource === 'cloud'
     ? 'Cloud synced. This player should follow you across devices.'
     : profileSource === 'local'
-      ? 'Saved on this device. Cloud repair will retry when this browser has your session.'
+      ? 'Saved on this device. Use Update profile to sync this player to cloud now.'
       : ''
   const heroTitle = authPending
     ? 'Checking your account.'
