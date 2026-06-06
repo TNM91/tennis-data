@@ -12,7 +12,7 @@ import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { writeLocalProfileLink } from '@/lib/profile-link-storage'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { supabase } from '@/lib/supabase'
-import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
+import { loadUserProfileLink, saveUserProfileLink, type LoadUserProfileLinkResult, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadTiqAwardsForPlayer, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 
@@ -262,6 +262,7 @@ function ProfilePageInner() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [profileAwards, setProfileAwards] = useState<TiqAwardRecord[]>([])
+  const [profileSource, setProfileSource] = useState<LoadUserProfileLinkResult['source']>('none')
 
   useEffect(() => {
     setPrefs(readProfilePrefs())
@@ -299,6 +300,7 @@ function ProfilePageInner() {
       setMatches((matchesRes.data || []) as MatchRow[])
       setMatchPlayers((matchPlayersRes.data || []) as MatchPlayerRow[])
       setProfile(nextProfile)
+      setProfileSource(profileRes.source)
       setSelectedPlayerId(nextProfile?.linked_player_id || '')
       setTypedPlayerName(nextProfile?.linked_player_id ? '' : nextProfile?.linked_player_name || '')
     } catch (err) {
@@ -312,6 +314,7 @@ function ProfilePageInner() {
     if (!authResolved) return
     if (!userId) {
       setProfile(null)
+      setProfileSource('none')
       setSelectedPlayerId('')
       setLoading(false)
       setError('')
@@ -451,6 +454,7 @@ function ProfilePageInner() {
         nextPlayer = apiResult.player
         nextProfile = apiResult.profile
         saveSource = 'cloud'
+        setProfileSource('cloud')
       }
 
       if (!nextPlayer && typedPlayerNameClean) {
@@ -477,6 +481,7 @@ function ProfilePageInner() {
         const saveRes = await saveUserProfileLink(userId, payload)
         saveSource = saveRes.source
         saveError = saveRes.error
+        setProfileSource(saveRes.source)
         if (saveRes.error && saveRes.source !== 'local') throw saveRes.error
       } else {
         writeLocalProfileLink(userId, payload)
@@ -607,6 +612,11 @@ function ProfilePageInner() {
     { title: 'Review messages', href: '/messages', icon: 'messagingCenter' },
   ] as const
   const profileIdentityTitle = profileComplete ? profileDisplayName : 'Set your player identity'
+  const profileSyncText = profileSource === 'cloud'
+    ? 'Cloud synced. This player should follow you across devices.'
+    : profileSource === 'local'
+      ? 'Saved on this device. Cloud repair will retry when this browser has your session.'
+      : ''
   const heroTitle = authPending
     ? 'Checking your account.'
     : profileComplete
@@ -899,6 +909,7 @@ function ProfilePageInner() {
                 </div>
               ) : null}
               {message ? <div style={successStyle}>{message}</div> : null}
+              {profileComplete && profileSyncText ? <div style={profileSyncStatusStyle(profileSource)}>{profileSyncText}</div> : null}
               {error ? <div style={errorStyle}>{error}</div> : null}
             </div>
           </section>
@@ -1211,6 +1222,18 @@ const successStyle: CSSProperties = {
   fontWeight: 900,
   overflowWrap: 'anywhere',
 }
+
+const profileSyncStatusStyle = (source: LoadUserProfileLinkResult['source']): CSSProperties => ({
+  borderRadius: 14,
+  border: source === 'cloud' ? '1px solid rgba(155,225,29,0.24)' : '1px solid rgba(251,191,36,0.24)',
+  background: source === 'cloud' ? 'rgba(155,225,29,0.08)' : 'rgba(251,191,36,0.08)',
+  color: source === 'cloud' ? '#d9ff99' : '#fde68a',
+  padding: '10px 12px',
+  fontSize: 13,
+  fontWeight: 850,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+})
 
 const errorStyle: CSSProperties = {
   color: '#fecaca',
