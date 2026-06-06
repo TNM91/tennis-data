@@ -122,6 +122,27 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.getByText('Run Matchup')).toBeVisible()
   })
 
+  test('Login stays readable without mobile content overlap', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expectSurfaceLoads(page, '/login')
+    await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await expect(page.getByLabel('Email')).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Password' })).toBeVisible()
+
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const header = document.querySelector('header')?.getBoundingClientRect()
+            const authShell = document.querySelector('#main-content section')?.getBoundingClientRect()
+            return Boolean(header && authShell && authShell.top >= header.bottom - 1)
+          }),
+        { message: 'login content should start below the sticky mobile header' },
+      )
+      .toBe(true)
+  })
+
   test('Coordinator setup stays readable on mobile light mode', async ({ page }) => {
     await setTheme(page, 'light')
     await page.setViewportSize({ width: 390, height: 844 })

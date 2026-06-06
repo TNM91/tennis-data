@@ -60,6 +60,44 @@ const PLAYER_SELECT_BASE = `
   doubles_usta_dynamic_rating
 `
 
+export async function GET(request: Request) {
+  const token = getBearerToken(request)
+  if (!token) {
+    return Response.json({ ok: false, message: 'Sign in to load your player profile.' }, { status: 401 })
+  }
+
+  const requester = await getRequesterUser(token)
+  if (!requester.userId) {
+    return Response.json({ ok: false, message: 'Sign in to load your player profile.' }, { status: 401 })
+  }
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!serviceKey) {
+    return Response.json({ ok: false, message: 'Profile sync is missing Supabase service access.' }, { status: 500 })
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
+
+  try {
+    const profile = await loadProfileLink(supabase, requester.userId)
+    return Response.json({
+      ok: true,
+      profile,
+    })
+  } catch (error) {
+    return Response.json(
+      { ok: false, message: error instanceof Error ? error.message : 'Unable to load your player profile.' },
+      { status: 500 },
+    )
+  }
+}
+
 export async function POST(request: Request) {
   const token = getBearerToken(request)
   if (!token) {
@@ -129,6 +167,26 @@ export async function POST(request: Request) {
       { status: 500 },
     )
   }
+}
+
+async function loadProfileLink(supabase: SupabaseClient, userId: string) {
+  const fullRes = await supabase
+    .from('profiles')
+    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name,linked_flight,profile_photo_url,message_display_name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (!fullRes.error) return fullRes.data ?? null
+  if (!isMissingProfileLinkSchemaError(fullRes.error.message)) throw new Error(fullRes.error.message)
+
+  const compatibilityRes = await supabase
+    .from('profiles')
+    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (compatibilityRes.error) throw new Error(compatibilityRes.error.message)
+  return compatibilityRes.data ?? null
 }
 
 async function saveProfileLink(supabase: SupabaseClient, profilePayload: {

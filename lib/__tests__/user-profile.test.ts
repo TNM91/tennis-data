@@ -8,13 +8,18 @@ type SupabaseResult = {
 const supabaseState: {
   results: SupabaseResult[]
   upsertPayloads: unknown[]
+  session: { access_token?: string; user?: { id?: string } } | null
 } = {
   results: [],
   upsertPayloads: [],
+  session: null,
 }
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
+    auth: {
+      getSession: async () => ({ data: { session: supabaseState.session } }),
+    },
     from: () => ({
       select: () => ({
         eq: () => ({
@@ -59,7 +64,9 @@ vi.mock('@/lib/profile-link-storage', () => ({
 beforeEach(() => {
   supabaseState.results = []
   supabaseState.upsertPayloads = []
+  supabaseState.session = null
   store.clear()
+  vi.unstubAllGlobals()
   vi.stubGlobal('window', {
     localStorage: {
       getItem: (key: string) => store.get(key) ?? null,
@@ -71,6 +78,48 @@ beforeEach(() => {
 })
 
 describe('user profile links', () => {
+  it('loads a cloud linked player through the authenticated profile API when local storage is empty', async () => {
+    const { loadUserProfileLink } = await import('../user-profile')
+    supabaseState.session = { access_token: 'session-token', user: { id: 'user-api' } }
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        profile: {
+          linked_player_id: 'player-api',
+          linked_player_name: 'API Player',
+          linked_team_name: 'API Team',
+          linked_league_name: 'API League',
+          linked_flight: '4.0',
+          profile_photo_url: 'https://example.com/api-player.jpg',
+          message_display_name: 'API',
+        },
+      }),
+    }))
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          store.set(key, value)
+        },
+      },
+      fetch: fetchMock,
+    })
+
+    const result = await loadUserProfileLink('user-api')
+
+    expect(result.source).toBe('cloud')
+    expect(result.data?.linked_player_id).toBe('player-api')
+    expect(result.data?.linked_player_name).toBe('API Player')
+    expect(fetchMock).toHaveBeenCalledWith('/api/profile/link', {
+      method: 'GET',
+      headers: {
+        Authorization: 'Bearer session-token',
+      },
+    })
+    expect(supabaseState.results).toEqual([])
+  })
+
   it('falls back to a local link when the cloud profile row has no linked player', async () => {
     const { loadUserProfileLink } = await import('../user-profile')
     store.set(

@@ -36,6 +36,12 @@ export type SaveUserProfileLinkResult = {
   cloudSchemaReady: boolean
 }
 
+type ProfileLinkApiResponse = {
+  ok?: boolean
+  message?: string
+  profile?: UserProfileLink | null
+}
+
 function normalizeStoredProfileLink(value: StoredProfileLink | null): UserProfileLink | null {
   if (!value) return null
   return {
@@ -126,12 +132,70 @@ async function syncLocalProfileLinkToCloud(userId: string, localLink: UserProfil
   }
 }
 
+async function loadUserProfileLinkFromApi(userId: string): Promise<LoadUserProfileLinkResult | null> {
+  if (typeof window === 'undefined' || typeof window.fetch !== 'function') return null
+
+  try {
+    const auth = supabase.auth as
+      | {
+          getSession?: () => Promise<{
+            data: { session: { access_token?: string; user?: { id?: string } } | null }
+          }>
+        }
+      | undefined
+    const {
+      data: { session },
+    } = await auth?.getSession?.() ?? { data: { session: null } }
+
+    if (!session?.access_token || session.user?.id !== userId) return null
+
+    const response = await window.fetch('/api/profile/link', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    })
+    const body = (await response.json().catch(() => null)) as ProfileLinkApiResponse | null
+
+    if (!response.ok || !body?.ok) {
+      return {
+        data: null,
+        error: body?.message ? toError(body.message) : toError('Unable to load your player profile.'),
+        source: 'none',
+        cloudSchemaReady: true,
+      }
+    }
+
+    return {
+      data: body.profile ?? null,
+      error: null,
+      source: hasProfileLinkData(body.profile) ? 'cloud' : 'none',
+      cloudSchemaReady: true,
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function loadUserProfileLink(userId: string | null | undefined): Promise<LoadUserProfileLinkResult> {
   if (!userId) {
     return { data: null, error: null, source: 'none', cloudSchemaReady: true }
   }
 
   const localLink = normalizeStoredProfileLink(readLocalProfileLink(userId))
+  const apiRes = await loadUserProfileLinkFromApi(userId)
+
+  if (apiRes && !apiRes.error) {
+    const data = mergeCloudAndLocalProfileLink(apiRes.data, localLink)
+    if (!hasLinkedIdentityData(apiRes.data) && hasLinkedIdentityData(localLink)) {
+      void syncLocalProfileLinkToCloud(userId, localLink)
+    }
+    return {
+      ...apiRes,
+      data,
+      source: hasLinkedIdentityData(apiRes.data) || (hasProfileLinkData(apiRes.data) && !localLink) ? 'cloud' : localLink ? 'local' : 'none',
+    }
+  }
 
   const fullRes = await supabase
     .from('profiles')

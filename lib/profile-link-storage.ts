@@ -38,5 +38,9 @@ export function readLocalProfileLink(userId: string | null | undefined): StoredP
 
 export function writeLocalProfileLink(userId: string, link: StoredProfileLink) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(`${LOCAL_PROFILE_LINK_PREFIX}${userId}`, JSON.stringify(link))
+  try {
+    window.localStorage.setItem(`${LOCAL_PROFILE_LINK_PREFIX}${userId}`, JSON.stringify(link))
+  } catch {
+    // Private or restricted browsers can block localStorage; cloud profile storage remains authoritative.
+  }
 }

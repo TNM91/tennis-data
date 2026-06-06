@@ -7,6 +7,8 @@ describe('profile link API resilience', () => {
     const source = readFileSync(join(process.cwd(), 'app/api/profile/link/route.ts'), 'utf8')
 
     expect(source).toContain('async function saveProfileLink')
+    expect(source).toContain('export async function GET')
+    expect(source).toContain('async function loadProfileLink')
     expect(source).toContain('isMissingProfileLinkSchemaError(fullRes.error.message)')
     expect(source).toContain('compatibilityPayload')
     expect(source).toContain(".select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')")

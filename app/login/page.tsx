@@ -259,10 +259,11 @@ function canUseBrowserStorage() {
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
-    width: isMobile ? 'min(100% - 20px, 620px)' : 'min(620px, calc(100% - clamp(24px, 5vw, 40px)))',
+    width: isMobile ? 'min(620px, calc(100% - 20px))' : 'min(620px, calc(100% - clamp(24px, 5vw, 40px)))',
     gridTemplateColumns: 'minmax(0, 1fr)',
     padding: isMobile ? '18px' : '24px',
     gap: isMobile ? '12px' : '14px',
+    margin: isMobile ? '10px auto 22px' : heroShell.margin,
   }
 
   const loginPanelResponsive: CSSProperties = {
@@ -488,6 +489,8 @@ const heroText: CSSProperties = {
 }
 
 const loginCopyRailStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'grid',
   gap: 8,
   minWidth: 0,
@@ -512,6 +515,7 @@ const destinationPillStyle: CSSProperties = {
 
 const loginPanel: CSSProperties = {
   position: 'relative',
+  zIndex: 1,
   minWidth: 0,
   borderRadius: '30px',
   overflow: 'hidden',
