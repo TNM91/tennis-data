@@ -118,13 +118,24 @@ async function syncLocalProfileLinkToCloud(userId: string, localLink: UserProfil
       id: payload.id,
       linked_player_id: payload.linked_player_id,
       linked_player_name: payload.linked_player_name,
-      linked_team_name: payload.linked_team_name,
-      linked_league_name: payload.linked_league_name,
+      message_display_name: payload.linked_player_name,
     }
+
+    const fallbackRes = await supabase
+      .from('profiles')
+      .upsert(fallbackPayload, { onConflict: 'id' })
+      .select('linked_player_id')
+      .maybeSingle()
+
+    if (!fallbackRes.error || !isMissingProfileLinkSchemaError(fallbackRes.error.message)) return
 
     await supabase
       .from('profiles')
-      .upsert(fallbackPayload, { onConflict: 'id' })
+      .upsert({
+        id: payload.id,
+        linked_player_id: payload.linked_player_id,
+        linked_player_name: payload.linked_player_name,
+      }, { onConflict: 'id' })
       .select('linked_player_id')
       .maybeSingle()
   } catch {
@@ -228,7 +239,7 @@ export async function loadUserProfileLink(userId: string | null | undefined): Pr
 
   const fallbackRes = await supabase
     .from('profiles')
-    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
+    .select('linked_player_id,linked_player_name,profile_photo_url,message_display_name')
     .eq('id', userId)
     .maybeSingle()
 
@@ -250,6 +261,35 @@ export async function loadUserProfileLink(userId: string | null | undefined): Pr
     return {
       data: localLink,
       error: toError(fallbackRes.error.message),
+      source: localLink ? 'local' : 'none',
+      cloudSchemaReady: false,
+    }
+  }
+
+  const minimalRes = await supabase
+    .from('profiles')
+    .select('linked_player_id,linked_player_name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (!minimalRes.error) {
+    const cloudData = (minimalRes.data || null) as UserProfileLink | null
+    const data = mergeCloudAndLocalProfileLink(cloudData, localLink)
+    if (!hasLinkedIdentityData(cloudData) && hasLinkedIdentityData(localLink)) {
+      void syncLocalProfileLinkToCloud(userId, localLink)
+    }
+    return {
+      data,
+      error: null,
+      source: hasLinkedIdentityData(cloudData) || (hasProfileLinkData(cloudData) && !localLink) ? 'cloud' : localLink ? 'local' : 'none',
+      cloudSchemaReady: false,
+    }
+  }
+
+  if (!isMissingProfileLinkSchemaError(minimalRes.error.message)) {
+    return {
+      data: localLink,
+      error: toError(minimalRes.error.message),
       source: localLink ? 'local' : 'none',
       cloudSchemaReady: false,
     }
@@ -298,14 +338,13 @@ export async function saveUserProfileLink(
     id: userId,
     linked_player_id: payload.linked_player_id,
     linked_player_name: payload.linked_player_name,
-    linked_team_name: payload.linked_team_name,
-    linked_league_name: payload.linked_league_name,
+    message_display_name: payload.message_display_name || payload.linked_player_name,
   }
 
   const fallbackUpdate = await supabase
     .from('profiles')
     .upsert(fallbackPayload, { onConflict: 'id' })
-    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
+    .select('linked_player_id,linked_player_name,profile_photo_url,message_display_name')
     .maybeSingle()
 
   if (!fallbackUpdate.error) {
@@ -321,6 +360,35 @@ export async function saveUserProfileLink(
     return {
       data: payload,
       error: toError(fallbackUpdate.error.message),
+      source: 'local',
+      cloudSchemaReady: false,
+    }
+  }
+
+  const minimalPayload = {
+    id: userId,
+    linked_player_id: payload.linked_player_id,
+    linked_player_name: payload.linked_player_name,
+  }
+  const minimalUpdate = await supabase
+    .from('profiles')
+    .upsert(minimalPayload, { onConflict: 'id' })
+    .select('linked_player_id,linked_player_name')
+    .maybeSingle()
+
+  if (!minimalUpdate.error) {
+    return {
+      data: (minimalUpdate.data || payload) as UserProfileLink,
+      error: null,
+      source: 'cloud',
+      cloudSchemaReady: false,
+    }
+  }
+
+  if (!isMissingProfileLinkSchemaError(minimalUpdate.error.message)) {
+    return {
+      data: payload,
+      error: toError(minimalUpdate.error.message),
       source: 'local',
       cloudSchemaReady: false,
     }

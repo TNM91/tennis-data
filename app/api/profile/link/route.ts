@@ -181,12 +181,21 @@ async function loadProfileLink(supabase: SupabaseClient, userId: string) {
 
   const compatibilityRes = await supabase
     .from('profiles')
-    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
+    .select('linked_player_id,linked_player_name,profile_photo_url,message_display_name')
     .eq('id', userId)
     .maybeSingle()
 
-  if (compatibilityRes.error) throw new Error(compatibilityRes.error.message)
-  return compatibilityRes.data ?? null
+  if (!compatibilityRes.error) return compatibilityRes.data ?? null
+  if (!isMissingProfileLinkSchemaError(compatibilityRes.error.message)) throw new Error(compatibilityRes.error.message)
+
+  const minimalRes = await supabase
+    .from('profiles')
+    .select('linked_player_id,linked_player_name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (minimalRes.error) throw new Error(minimalRes.error.message)
+  return minimalRes.data ?? null
 }
 
 async function saveProfileLink(supabase: SupabaseClient, profilePayload: {
@@ -212,17 +221,30 @@ async function saveProfileLink(supabase: SupabaseClient, profilePayload: {
     id: profilePayload.id,
     linked_player_id: profilePayload.linked_player_id,
     linked_player_name: profilePayload.linked_player_name,
-    linked_team_name: profilePayload.linked_team_name,
-    linked_league_name: profilePayload.linked_league_name,
+    message_display_name: profilePayload.message_display_name,
   }
   const compatibilityRes = await supabase
     .from('profiles')
     .upsert(compatibilityPayload, { onConflict: 'id' })
-    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name')
+    .select('linked_player_id,linked_player_name,profile_photo_url,message_display_name')
     .maybeSingle()
 
-  if (compatibilityRes.error) throw new Error(compatibilityRes.error.message)
-  return compatibilityRes.data ?? compatibilityPayload
+  if (!compatibilityRes.error) return compatibilityRes.data ?? compatibilityPayload
+  if (!isMissingProfileLinkSchemaError(compatibilityRes.error.message)) throw new Error(compatibilityRes.error.message)
+
+  const minimalPayload = {
+    id: profilePayload.id,
+    linked_player_id: profilePayload.linked_player_id,
+    linked_player_name: profilePayload.linked_player_name,
+  }
+  const minimalRes = await supabase
+    .from('profiles')
+    .upsert(minimalPayload, { onConflict: 'id' })
+    .select('linked_player_id,linked_player_name')
+    .maybeSingle()
+
+  if (minimalRes.error) throw new Error(minimalRes.error.message)
+  return minimalRes.data ?? minimalPayload
 }
 
 async function getRequesterUser(token: string) {

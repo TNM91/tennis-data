@@ -49,7 +49,9 @@ vi.mock('@/lib/profile-link-storage', () => ({
       normalized.includes('linked_team_name') ||
       normalized.includes('linked_league_name') ||
       normalized.includes('linked_flight') ||
-      normalized.includes('linked_team_at')
+      normalized.includes('linked_team_at') ||
+      normalized.includes('profile_photo_url') ||
+      normalized.includes('message_display_name')
     )
   },
   readLocalProfileLink: (userId: string | null | undefined) => {
@@ -276,8 +278,7 @@ describe('user profile links', () => {
       id: 'user-6',
       linked_player_id: 'player-6',
       linked_player_name: 'Compatibility Player',
-      linked_team_name: 'Compatibility Team',
-      linked_league_name: 'Compatibility League',
+      message_display_name: 'Compatibility Player',
     })
   })
 
@@ -370,8 +371,47 @@ describe('user profile links', () => {
       id: 'user-7',
       linked_player_id: 'player-7',
       linked_player_name: 'Compatible Save',
-      linked_team_name: null,
-      linked_league_name: null,
+      message_display_name: 'Compatible Save',
+    })
+  })
+
+  it('saves profile links with a minimal payload when display profile columns are unavailable', async () => {
+    const { saveUserProfileLink } = await import('../user-profile')
+    supabaseState.results = [
+      {
+        data: null,
+        error: { message: 'Could not find the linked_team_at column of profiles in the schema cache' },
+      },
+      {
+        data: null,
+        error: { message: 'Could not find the message_display_name column of profiles in the schema cache' },
+      },
+      {
+        data: {
+          linked_player_id: 'player-8',
+          linked_player_name: 'Minimal Save',
+        },
+        error: null,
+      },
+    ]
+
+    const payload = {
+      linked_player_id: 'player-8',
+      linked_player_name: 'Minimal Save',
+      linked_team_name: 'Missing Team',
+      linked_league_name: 'Missing League',
+      linked_flight: '4.5',
+      linked_team_at: '2026-05-23T00:00:00.000Z',
+      profile_photo_url: null,
+      message_display_name: null,
+    }
+    const result = await saveUserProfileLink('user-8', payload)
+
+    expect(result.source).toBe('cloud')
+    expect(supabaseState.upsertPayloads).toContainEqual({
+      id: 'user-8',
+      linked_player_id: 'player-8',
+      linked_player_name: 'Minimal Save',
     })
   })
 })
