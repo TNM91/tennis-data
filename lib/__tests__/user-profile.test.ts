@@ -292,14 +292,15 @@ describe('user profile links', () => {
 
     expect(result.source).toBe('local')
     expect(result.data?.linked_player_id).toBe('player-5')
-    expect(supabaseState.upsertPayloads).toContainEqual({
+    expect(supabaseState.upsertPayloads).toContainEqual(expect.objectContaining({
       id: 'user-5',
       linked_player_id: 'player-5',
       linked_player_name: 'Backfill Player',
       linked_team_name: 'Backfill Team',
       linked_league_name: 'Backfill League',
       linked_flight: '4.0',
-    })
+      message_display_name: 'Backfill Player',
+    }))
   })
 
   it('backfills local links with a compatibility payload when optional profile columns are unavailable', async () => {
@@ -404,6 +405,125 @@ describe('user profile links', () => {
     expect(result.error?.message).toContain('row-level security')
     expect(stored.linked_player_id).toBe('player-2')
     expect(stored.linked_player_name).toBe('Saved Player')
+  })
+
+  it('explicitly syncs a local profile link through the authenticated profile API', async () => {
+    const { syncUserProfileLinkToCloud } = await import('../user-profile')
+    supabaseState.session = { access_token: 'session-token', user: { id: 'user-sync-api' } }
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        profile: {
+          linked_player_id: 'player-sync-api',
+          linked_player_name: 'API Sync Player',
+          linked_team_name: null,
+          linked_league_name: null,
+          linked_flight: '4.0',
+          profile_photo_url: null,
+          message_display_name: 'API Sync Player',
+        },
+      }),
+    }))
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          store.set(key, value)
+        },
+      },
+      fetch: fetchMock,
+    })
+
+    const result = await syncUserProfileLinkToCloud('user-sync-api', {
+      linked_player_id: 'player-sync-api',
+      linked_player_name: 'API Sync Player',
+      linked_team_name: null,
+      linked_league_name: null,
+      linked_flight: null,
+      profile_photo_url: null,
+      message_display_name: null,
+    })
+    const stored = JSON.parse(store.get('tenaceiq-profile-link-v1:user-sync-api') || '{}') as {
+      linked_player_id?: string
+      linked_player_name?: string
+      linked_team_at?: string
+    }
+
+    expect(result.source).toBe('cloud')
+    expect(result.via).toBe('api')
+    expect(result.data.linked_player_id).toBe('player-sync-api')
+    expect(fetchMock).toHaveBeenCalledWith('/api/profile/link', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer session-token',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ linkedPlayerId: 'player-sync-api' }),
+    })
+    expect(stored.linked_player_id).toBe('player-sync-api')
+    expect(stored.linked_player_name).toBe('API Sync Player')
+    expect(stored.linked_team_at).toBeTruthy()
+    expect(supabaseState.upsertPayloads).toEqual([])
+  })
+
+  it('explicitly syncs a local profile link through Supabase fallback when the API is unavailable', async () => {
+    const { syncUserProfileLinkToCloud } = await import('../user-profile')
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      json: async () => ({
+        ok: false,
+        message: 'Profile sync is unavailable.',
+      }),
+    }))
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          store.set(key, value)
+        },
+      },
+      fetch: fetchMock,
+    })
+    supabaseState.results = [
+      {
+        data: {
+          linked_player_id: 'player-sync-fallback',
+          linked_player_name: 'Fallback Sync Player',
+          linked_team_name: 'Fallback Team',
+          linked_league_name: 'Fallback League',
+          linked_flight: '3.5',
+          profile_photo_url: null,
+          message_display_name: 'Fallback Sync Player',
+        },
+        error: null,
+      },
+    ]
+
+    const result = await syncUserProfileLinkToCloud('user-sync-fallback', {
+      linked_player_id: 'player-sync-fallback',
+      linked_player_name: 'Fallback Sync Player',
+      linked_team_name: 'Fallback Team',
+      linked_league_name: 'Fallback League',
+      linked_flight: '3.5',
+      profile_photo_url: null,
+      message_display_name: null,
+    })
+
+    expect(result.source).toBe('cloud')
+    expect(result.via).toBe('supabase')
+    expect(result.data.linked_player_id).toBe('player-sync-fallback')
+    expect(supabaseState.upsertPayloads).toContainEqual({
+      id: 'user-sync-fallback',
+      linked_player_id: 'player-sync-fallback',
+      linked_player_name: 'Fallback Sync Player',
+      linked_team_name: 'Fallback Team',
+      linked_league_name: 'Fallback League',
+      linked_flight: '3.5',
+      linked_team_at: expect.any(String),
+      profile_photo_url: null,
+      message_display_name: 'Fallback Sync Player',
+    })
   })
 
   it('saves profile links with a compatibility payload when optional profile columns are unavailable', async () => {

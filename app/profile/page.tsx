@@ -12,7 +12,13 @@ import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { writeLocalProfileLink } from '@/lib/profile-link-storage'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { supabase } from '@/lib/supabase'
-import { loadUserProfileLink, saveUserProfileLink, type LoadUserProfileLinkResult, type UserProfileLink } from '@/lib/user-profile'
+import {
+  loadUserProfileLink,
+  saveUserProfileLink,
+  syncUserProfileLinkToCloud,
+  type LoadUserProfileLinkResult,
+  type UserProfileLink,
+} from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadTiqAwardsForPlayer, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 
@@ -543,74 +549,27 @@ function ProfilePageInner() {
     setError('')
 
     try {
-      const linkedAt = new Date().toISOString()
-
-      try {
-        const apiResult = await saveProfileIdentityViaApi(
-          currentPlayerId
-            ? { linkedPlayerId: currentPlayerId }
-            : { playerName: currentPlayerName, selfRating: normalizeSelfRating(selfRating) },
-        )
-
-        if (apiResult) {
-          const nextProfile = apiResult.profile
-          const nextPlayer = apiResult.player
-          const localPayload = {
-            linked_player_id: nextProfile.linked_player_id || nextPlayer.id,
-            linked_player_name: nextProfile.linked_player_name || nextPlayer.name,
-            linked_team_name: nextProfile.linked_team_name ?? null,
-            linked_league_name: nextProfile.linked_league_name ?? null,
-            linked_flight: nextProfile.linked_flight ?? nextPlayer.flight ?? null,
-            linked_team_at: linkedAt,
-            profile_photo_url: nextProfile.profile_photo_url ?? null,
-            message_display_name: nextProfile.message_display_name ?? nextPlayer.name,
-          }
-
-          writeLocalProfileLink(userId, localPayload)
-          setPlayers((current) =>
-            current.some((player) => player.id === nextPlayer.id)
-              ? current
-              : [...current, nextPlayer].sort((a, b) => a.name.localeCompare(b.name))
-          )
-          setSelectedPlayerId(nextPlayer.id)
-          setTypedPlayerName('')
-          setProfile({
-            linked_player_id: localPayload.linked_player_id,
-            linked_player_name: localPayload.linked_player_name,
-            linked_team_name: localPayload.linked_team_name,
-            linked_league_name: localPayload.linked_league_name,
-            linked_flight: localPayload.linked_flight,
-            profile_photo_url: localPayload.profile_photo_url,
-            message_display_name: localPayload.message_display_name,
-          })
-          setProfileSource('cloud')
-          setMessage('Profile synced to cloud. This player should now follow you across devices.')
-          return
-        }
-      } catch {
-        // Fall through to the direct Supabase compatibility path below.
-      }
-
-      const fallbackPayload = {
+      const syncRes = await syncUserProfileLinkToCloud(userId, {
         linked_player_id: currentPlayerId || null,
         linked_player_name: currentPlayerName || null,
         linked_team_name: profile?.linked_team_name ?? null,
         linked_league_name: profile?.linked_league_name ?? null,
         linked_flight: profile?.linked_flight ?? selectedPlayer?.flight ?? null,
-        linked_team_at: linkedAt,
         profile_photo_url: profile?.profile_photo_url ?? null,
         message_display_name: profile?.message_display_name ?? currentPlayerName ?? null,
-      }
-      const saveRes = await saveUserProfileLink(userId, fallbackPayload)
-      setProfile(saveRes.data)
-      setProfileSource(saveRes.source)
+      })
+
+      setProfile(syncRes.data)
+      setProfileSource(syncRes.source)
+      setSelectedPlayerId(syncRes.data.linked_player_id || selectedPlayerId)
+      if (syncRes.data.linked_player_id) setTypedPlayerName('')
       setMessage(
-        saveRes.source === 'cloud'
+        syncRes.source === 'cloud'
           ? 'Profile synced to cloud. This player should now follow you across devices.'
           : 'Profile is still saved on this device. Try syncing again after signing in from a regular browser window.',
       )
-      if (saveRes.error) {
-        setError(saveRes.error.message)
+      if (syncRes.error) {
+        setError(syncRes.error.message)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sync your profile to cloud.')
