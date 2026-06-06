@@ -599,9 +599,30 @@ export default function AdminAccessPage() {
               <MetricCard label="Canceled" value={canceledCount} />
               <MetricCard label="Webhook Errors" value={webhookErrorCount} />
               <MetricCard label="Audit Flags" value={auditWarningCount} />
-              <MetricCard label="Cloud Player Links" value={cloudLinkedProfileCount} />
-              <MetricCard label="Display Only Profiles" value={displayOnlyProfileCount} />
-              <MetricCard label="Missing Profile Links" value={missingProfileLinkCount} />
+              <MetricCard
+                label="Cloud Player Links"
+                value={cloudLinkedProfileCount}
+                active={profileLinkFilter === 'cloud'}
+                onClick={() =>
+                  setProfileLinkFilter((current) => current === 'cloud' ? 'all' : 'cloud')
+                }
+              />
+              <MetricCard
+                label="Display Only Profiles"
+                value={displayOnlyProfileCount}
+                active={profileLinkFilter === 'display_only'}
+                onClick={() =>
+                  setProfileLinkFilter((current) => current === 'display_only' ? 'all' : 'display_only')
+                }
+              />
+              <MetricCard
+                label="Missing Profile Links"
+                value={missingProfileLinkCount}
+                active={profileLinkFilter === 'missing'}
+                onClick={() =>
+                  setProfileLinkFilter((current) => current === 'missing' ? 'all' : 'missing')
+                }
+              />
             </div>
           </AdminReviewPanel>
 
@@ -1320,11 +1341,40 @@ function Field({
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="metric-card">
+function MetricCard({
+  label,
+  value,
+  active = false,
+  onClick,
+}: {
+  label: string
+  value: number
+  active?: boolean
+  onClick?: () => void
+}) {
+  const content = (
+    <>
       <div className="metric-label">{label}</div>
       <div className="metric-value">{value}</div>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`metric-card metric-card-button${active ? ' metric-card-active' : ''}`}
+        onClick={onClick}
+        aria-pressed={active}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className="metric-card">
+      {content}
     </div>
   )
 }

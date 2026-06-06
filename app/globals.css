@@ -626,6 +626,26 @@ footer {
     border-color 0.18s ease;
 }
 
+.metric-card-button {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  appearance: none;
+  cursor: pointer;
+}
+
+.metric-card-button:focus-visible {
+  outline: 2px solid var(--brand-green);
+  outline-offset: 3px;
+}
+
+.metric-card-active {
+  border-color: color-mix(in srgb, var(--brand-green) 46%, var(--card-border-soft) 54%);
+  box-shadow:
+    var(--shadow-soft),
+    0 0 0 1px color-mix(in srgb, var(--brand-green) 24%, transparent);
+}
+
 .metric-label {
   font-size: 0.82rem;
   font-weight: 700;
