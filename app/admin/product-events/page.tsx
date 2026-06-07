@@ -14,7 +14,11 @@ import {
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
-import type { ProductUsageEventName, ProductUsageEventSurface } from '@/lib/product-usage-events'
+import {
+  PRODUCT_USAGE_EVENT_SURFACES,
+  type ProductUsageEventName,
+  type ProductUsageEventSurface,
+} from '@/lib/product-usage-events'
 import type { PricingPlanId } from '@/lib/pricing-plans'
 
 type ProductUsageEventRow = {
@@ -29,11 +33,33 @@ type ProductUsageEventRow = {
 
 type EventFilter = 'all' | ProductUsageEventSurface | 'profile_sync_repairs' | 'profile_sync_attention'
 
+const PROFILE_SYNC_EVENT_FILTERS = ['profile_sync_repairs', 'profile_sync_attention'] as const
+
+function normalizeEventFilter(value: string | null): EventFilter {
+  if (!value || value === 'all') return 'all'
+  if (PRODUCT_USAGE_EVENT_SURFACES.includes(value as ProductUsageEventSurface)) {
+    return value as ProductUsageEventSurface
+  }
+  if (PROFILE_SYNC_EVENT_FILTERS.includes(value as (typeof PROFILE_SYNC_EVENT_FILTERS)[number])) {
+    return value as EventFilter
+  }
+  return 'all'
+}
+
+function setQueryParam(params: URLSearchParams, key: string, value: string, defaultValue = '') {
+  if (!value || value === defaultValue) {
+    params.delete(key)
+  } else {
+    params.set(key, value)
+  }
+}
+
 export default function AdminProductEventsPage() {
   const [events, setEvents] = useState<ProductUsageEventRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<EventFilter>('all')
+  const [urlFilterReady, setUrlFilterReady] = useState(false)
 
   const loadEvents = useCallback(async () => {
     setLoading(true)
@@ -57,11 +83,28 @@ export default function AdminProductEventsPage() {
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
+      setFilter(normalizeEventFilter(new URLSearchParams(window.location.search).get('filter')))
+      setUrlFilterReady(true)
       void loadEvents()
     }, 0)
 
     return () => window.clearTimeout(timeout)
   }, [loadEvents])
+
+  useEffect(() => {
+    if (!urlFilterReady) return
+
+    const params = new URLSearchParams(window.location.search)
+    setQueryParam(params, 'filter', filter, 'all')
+
+    const nextQuery = params.toString()
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`
+    const currentUrl = `${window.location.pathname}${window.location.search}`
+
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(null, '', nextUrl)
+    }
+  }, [filter, urlFilterReady])
 
   const filteredEvents = useMemo(() => {
     if (filter === 'all') return events
