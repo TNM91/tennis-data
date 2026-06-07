@@ -49,6 +49,8 @@ import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { PLAYER_DEVELOPMENT_IDENTITIES } from '@/lib/player-development'
+import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
+import type { LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   getCoachAssignmentDueState,
@@ -201,11 +203,24 @@ type LabGoalState = {
 
 type GoalTemplate = Pick<LabGoalState, 'goal' | 'progressUpdate' | 'doingWell' | 'improveNext' | 'notes'>
 
+type MyLabLevelUpProof = {
+  id: string
+  cardId: string
+  cardTitle: string
+  proofLabel: string
+  nextAction: string
+  nextHref: string
+  note: string
+  completedAt: string
+  timeLabel: string
+}
+
 const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v2'
 const LOCAL_GOAL_KEY = 'tenaceiq-my-lab-goal-v1'
 const LOCAL_NOTEBOOK_KEY = 'tenaceiq-my-lab-notebook-v1'
 const LOCAL_GOAL_STATE_KEY = 'tenaceiq-my-lab-goal-state-v1'
 const LOCAL_GOALS_KEY = 'tenaceiq-my-lab-goals-v2'
+const LEVEL_UP_COMPLETIONS_KEY = 'tiq-level-up-completions'
 
 const EMPTY_LAB_GOAL: LabGoalState = {
   id: 'goal-1',
@@ -419,6 +434,55 @@ function readLocalGoals(userId: string | null, playerId: string | null | undefin
 function writeLocalGoals(userId: string | null, playerId: string | null | undefined, value: LabGoalState[]) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(scopedLabStorageKey(LOCAL_GOALS_KEY, userId, playerId), JSON.stringify(value))
+}
+
+function readLocalLevelUpCompletions(): LevelUpCompletion[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(LEVEL_UP_COMPLETIONS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .filter((item): item is LevelUpCompletion => (
+        Boolean(item)
+        && typeof item.id === 'string'
+        && typeof item.cardId === 'string'
+        && typeof item.completedAt === 'string'
+      ))
+      .sort((left, right) => Date.parse(right.completedAt) - Date.parse(left.completedAt))
+      .slice(0, 8)
+  } catch {
+    return []
+  }
+}
+
+function buildMyLabLevelUpProofs(completions: LevelUpCompletion[]): MyLabLevelUpProof[] {
+  return completions.map((completion) => {
+    const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === completion.cardId)
+    const proofRating = typeof completion.proofRating === 'number' ? completion.proofRating : null
+    const primaryIdentitySlug = card?.identitySlugs?.[0] || PLAYER_DEVELOPMENT_IDENTITIES[0]?.slug || 'relentless-competitor-4-0'
+
+    return {
+      id: completion.id,
+      cardId: completion.cardId,
+      cardTitle: card?.title || 'Level Up card',
+      proofLabel: proofRating === null ? 'Proof logged' : `${proofRating}/5 proof`,
+      nextAction: getMyLabLevelUpNextAction(proofRating),
+      nextHref: `/player-development/${primaryIdentitySlug}/level-up?card=${encodeURIComponent(completion.cardId)}`,
+      note: completion.note?.trim() || '',
+      completedAt: completion.completedAt,
+      timeLabel: timeAgo(completion.completedAt),
+    }
+  })
+}
+
+function getMyLabLevelUpNextAction(rating: number | null) {
+  if (rating === null) return 'Score the next rep honestly.'
+  if (rating <= 1) return 'Scale down and chase one clean cue.'
+  if (rating <= 3) return 'Repeat the same card cleaner.'
+  return 'Add one pressure layer, not a new habit.'
 }
 
 function isGoalProgressStatus(value: unknown): value is LabGoalState['progressStatus'] {
@@ -685,6 +749,7 @@ function MyLabPageInner() {
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const [tiqAwards, setTiqAwards] = useState<TiqAwardRecord[]>([])
+  const [levelUpCompletions, setLevelUpCompletions] = useState<LevelUpCompletion[]>([])
   const { isTablet } = useViewportBreakpoints()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
@@ -709,6 +774,18 @@ function MyLabPageInner() {
 
     function handleStorage() {
       setTiqAwards(readTiqAwardsRegistry())
+    }
+
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  useEffect(() => {
+    setLevelUpCompletions(readLocalLevelUpCompletions())
+
+    function handleStorage(event: StorageEvent) {
+      if (event.key && event.key !== LEVEL_UP_COMPLETIONS_KEY) return
+      setLevelUpCompletions(readLocalLevelUpCompletions())
     }
 
     window.addEventListener('storage', handleStorage)
@@ -1869,6 +1946,7 @@ function MyLabPageInner() {
   const linkedPlayer = profileLink?.linked_player_id ? playerMap.get(profileLink.linked_player_id) || null : null
   const isSelfRatedProfile = linkedPlayer?.rating_source === 'self'
   const isNewSelfRatedProfile = Boolean(isSelfRatedProfile && !personalMatches.length)
+  const levelUpProofs = useMemo(() => buildMyLabLevelUpProofs(levelUpCompletions), [levelUpCompletions])
   const earnedAwardCards = useMemo(() => {
     const profileNames = new Set(
       [profileLink?.linked_player_name, linkedPlayer?.name]
@@ -2576,6 +2654,11 @@ function MyLabPageInner() {
           <PlayerDevelopmentPathPanel
             linkedPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
             currentGoal={activeGoal?.goal || ''}
+          />
+
+          <LevelUpReturnStatePanel
+            proofs={levelUpProofs}
+            signedIn={Boolean(session?.access_token)}
           />
 
           <PlayerCoachAssignmentsPanel
@@ -3684,6 +3767,68 @@ function PlayerDevelopmentPathPanel({
   )
 }
 
+function LevelUpReturnStatePanel({
+  proofs,
+  signedIn,
+}: {
+  proofs: MyLabLevelUpProof[]
+  signedIn: boolean
+}) {
+  const latestProof = proofs[0]
+  const nextProof = proofs[1]
+  const proofCountLabel = proofs.length ? `${proofs.length}` : 'None'
+
+  return (
+    <section style={levelUpReturnPanelStyle}>
+      <div style={developmentPathHeaderStyle}>
+        <div style={sectionTitleClusterStyle}>
+          <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
+          <div style={sectionHeaderCopyStyle}>
+            <p style={sectionKickerStyle}>Level Up return state</p>
+            <h3 style={compactSectionTitleStyle}>
+              {latestProof ? `${latestProof.cardTitle}: ${latestProof.proofLabel}` : 'No Level Up proof in this browser yet'}
+            </h3>
+            <p style={sectionTextStyle}>
+              My Lab pulls recent Level Up proof forward so the next practice does not disappear after refresh.
+            </p>
+          </div>
+        </div>
+        <Link href={latestProof?.nextHref || '/level-up'} style={quickStartButtonStyle}>
+          {latestProof ? 'Repeat in Level Up' : 'Open Level Up'}
+        </Link>
+      </div>
+
+      <div style={levelUpReturnGridStyle}>
+        <div style={levelUpReturnPrimaryStyle}>
+          <div style={metricLabelStyle}>{latestProof ? `Last proof - ${latestProof.timeLabel}` : 'Next useful rep'}</div>
+          <strong style={levelUpReturnPrimaryTitleStyle}>{latestProof?.nextAction || 'Run one card, score 0-5, and add one tiny note only if it changes the next rep.'}</strong>
+          <span style={levelUpReturnPrimaryTextStyle}>{latestProof?.note || 'Proof notes stay lightweight. The score and next action matter first.'}</span>
+          {latestProof ? (
+            <Link href={latestProof.nextHref} style={miniActionPillStyle}>
+              Start next rep
+            </Link>
+          ) : null}
+        </div>
+
+        <div style={levelUpReturnMetricGridStyle}>
+          <SummaryCard label="Proofs cached" value={proofCountLabel} note="Recent Level Up work on this device" />
+          <SummaryCard label="Latest score" value={latestProof?.proofLabel || 'Not yet'} note={latestProof?.cardTitle || 'Score one Level Up card'} />
+          <SummaryCard label="Next card" value={nextProof?.cardTitle || latestProof?.cardTitle || 'Choose'} note={nextProof?.nextAction || 'Repeat what is useful'} />
+        </div>
+      </div>
+
+      <div style={levelUpReturnStorageNoteStyle}>
+        <strong style={levelUpReturnStorageNoteStrongStyle}>{signedIn ? 'Signed-in sync check' : 'Local-only proof'}</strong>
+        <span>
+          {signedIn
+            ? 'This panel shows the Level Up cache on this device. Signed-in Player+ or coach-linked proof can sync history, but private windows may clear unsynced work.'
+            : 'This panel is reading this browser only. Private windows can forget it; sign in through Player+ or a coach invite before expecting proof to follow you across devices.'}
+        </span>
+      </div>
+    </section>
+  )
+}
+
 function PlayerCoachAssignmentsPanel({
   assignments,
   coachLinks,
@@ -4247,6 +4392,76 @@ const developmentActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 12,
   alignItems: 'center',
+  minWidth: 0,
+}
+
+const levelUpReturnPanelStyle: CSSProperties = {
+  ...developmentPathPanelStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background:
+    'radial-gradient(circle at 88% 10%, rgba(116,190,255,0.16), transparent 32%), linear-gradient(180deg, rgba(14,31,60,0.82) 0%, rgba(8,19,38,0.96) 100%)',
+  minWidth: 0,
+}
+
+const levelUpReturnGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const levelUpReturnPrimaryStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  minHeight: 160,
+  alignContent: 'start',
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.035))',
+}
+
+const levelUpReturnPrimaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1.08rem',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const levelUpReturnPrimaryTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const levelUpReturnMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const levelUpReturnStorageNoteStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const levelUpReturnStorageNoteStrongStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const coachAssignmentPanelStyle: CSSProperties = {

@@ -45,6 +45,23 @@ describe('My Lab premium surface', () => {
     expect(source).toContain("overflowWrap: 'anywhere'")
   })
 
+  it('pulls Level Up proof into My Lab return state with honest local sync copy', () => {
+    expect(source).toContain('LEVEL_UP_COMPLETIONS_KEY')
+    expect(source).toContain('readLocalLevelUpCompletions')
+    expect(source).toContain('buildMyLabLevelUpProofs')
+    expect(source).toContain('LevelUpReturnStatePanel')
+    expect(source).toContain('Level Up return state')
+    expect(source).toContain('No Level Up proof in this browser yet')
+    expect(source).toContain('Repeat in Level Up')
+    expect(source).toContain('Start next rep')
+    expect(source).toContain('This panel is reading this browser only.')
+    expect(source).toContain('Private windows can forget it')
+    expect(source).toContain('Signed-in Player+ or coach-linked proof can sync history')
+    expect(source).toContain('Add one pressure layer, not a new habit.')
+    expect(source).toContain('Repeat the same card cleaner.')
+    expect(source).toContain('Scale down and chase one clean cue.')
+  })
+
   it('uses theme-safe setup step number contrast', () => {
     expect(source).toContain('setupStepNumberStyle')
     expect(source).toContain("color: 'var(--foreground-strong)'")
@@ -102,6 +119,11 @@ describe('My Lab premium surface', () => {
       'developmentPathPanelStyle',
       'developmentPathHeaderStyle',
       'developmentIdentityCardStyle',
+      'levelUpReturnPanelStyle',
+      'levelUpReturnGridStyle',
+      'levelUpReturnPrimaryStyle',
+      'levelUpReturnMetricGridStyle',
+      'levelUpReturnStorageNoteStyle',
       'quickProfileStyle',
       'setupPanelStyle',
       'starterPanelStyle',
@@ -192,6 +214,10 @@ describe('My Lab premium surface', () => {
       'metricNoteStyle',
       'secondaryButtonStyle',
       'starterCardStyle',
+      'levelUpReturnPrimaryTitleStyle',
+      'levelUpReturnPrimaryTextStyle',
+      'levelUpReturnStorageNoteStyle',
+      'levelUpReturnStorageNoteStrongStyle',
       'todayReadCardStyle',
       'todayReadValueStyle',
       'matchPlanTextStyle',
