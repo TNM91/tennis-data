@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 const previewSource = readFileSync(join(process.cwd(), 'app/components/preview-homepage.tsx'), 'utf8')
 const heroSource = readFileSync(join(process.cwd(), 'app/components/homepage-hero-responsive.tsx'), 'utf8')
+const commandCenterSource = readFileSync(join(process.cwd(), 'app/components/public-command-center.tsx'), 'utf8')
+const portalToolbarSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
 
 function styleBlock(source: string, name: string) {
   const pattern = new RegExp(`const ${name}: CSSProperties = \\{([\\s\\S]*?)\\n\\}`)
@@ -50,5 +52,26 @@ describe('Public home mobile layout guards', () => {
     expect(heroSource).toContain("const featureGrid = isMobile ? 'minmax(0, 1fr)'")
     expect(heroSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
     expect(heroSource).toContain('minWidth: 0')
+  })
+
+  it('keeps the active public command-center homepage mobile-safe', () => {
+    expect(styleBlock(commandCenterSource, 'heroStyle')).toContain(
+      "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))'",
+    )
+    expect(styleBlock(commandCenterSource, 'heroCopyStyle')).toContain("boxSizing: 'border-box'")
+    expect(styleBlock(commandCenterSource, 'heroPanelStyle')).toContain("boxSizing: 'border-box'")
+    expect(styleBlock(commandCenterSource, 'heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(commandCenterSource, 'primaryButtonStyle')).toContain("whiteSpace: 'normal'")
+  })
+
+  it('keeps the persistent public portal toolbar from becoming a clipped mobile rail', () => {
+    expect(portalToolbarSource).not.toContain("display: publicVisitor && isMobile ? 'flex' : 'grid'")
+    expect(portalToolbarSource).not.toContain("overflowX: publicVisitor && isMobile ? 'auto' : undefined")
+    expect(portalToolbarSource).not.toContain("flex: '0 0 154px'")
+    expect(portalToolbarSource).toContain('screenWidth < 360')
+    expect(portalToolbarSource).toContain("'repeat(2, minmax(0, 1fr))'")
+    expect(portalToolbarSource).toContain("const compactMobileLaneCardStyle")
+    expect(styleBlock(portalToolbarSource, 'compactMobileLaneCardStyle')).toContain("width: '100%'")
+    expect(styleBlock(portalToolbarSource, 'compactMobileLaneCardStyle')).toContain("boxSizing: 'border-box'")
   })
 })

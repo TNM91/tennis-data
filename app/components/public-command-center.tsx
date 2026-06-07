@@ -454,7 +454,7 @@ export const pageWrapStyle: CSSProperties = {
 
 const heroStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.5fr) minmax(280px, 0.8fr)',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))',
   gap: 18,
   alignItems: 'stretch',
   minWidth: 0,
@@ -465,6 +465,8 @@ const heroCopyStyle: CSSProperties = {
   alignContent: 'center',
   gap: 16,
   minWidth: 0,
+  maxWidth: '100%',
+  boxSizing: 'border-box',
   padding: 24,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.18)',
@@ -477,6 +479,8 @@ const heroPanelStyle: CSSProperties = {
   alignContent: 'start',
   gap: 14,
   minWidth: 0,
+  maxWidth: '100%',
+  boxSizing: 'border-box',
   padding: 22,
   borderRadius: 8,
   border: '1px solid rgba(155,225,29,0.22)',
@@ -529,10 +533,11 @@ const eyebrowStyle: CSSProperties = {
 const heroTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2.5rem, 6vw, 5.7rem)',
-  lineHeight: 0.92,
+  fontSize: 'clamp(2.1rem, 10vw, 5.7rem)',
+  lineHeight: 0.95,
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroBodyStyle: CSSProperties = {
@@ -555,6 +560,7 @@ const primaryButtonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  maxWidth: '100%',
   minHeight: 46,
   padding: '0 16px',
   borderRadius: 999,
@@ -564,6 +570,9 @@ const primaryButtonStyle: CSSProperties = {
   textDecoration: 'none',
   fontSize: 13,
   fontWeight: 950,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const ghostButtonStyle: CSSProperties = {

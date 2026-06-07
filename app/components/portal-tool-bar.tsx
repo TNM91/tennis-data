@@ -154,7 +154,7 @@ export default function PortalToolBar() {
   const pathname = usePathname() || '/'
   const router = useRouter()
   const { role, userId, entitlements, authResolved, session } = useAuth()
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { screenWidth, isMobile, isSmallMobile } = useViewportBreakpoints()
   const [query, setQuery] = useState('')
   const [profileName, setProfileName] = useState('')
   const [profileLinked, setProfileLinked] = useState(false)
@@ -248,12 +248,18 @@ export default function PortalToolBar() {
         <nav
           aria-label="Choose a TenAceIQ workspace"
           style={{
-            display: publicVisitor && isMobile ? 'flex' : 'grid',
-            gridTemplateColumns: publicVisitor && isMobile ? undefined : isMobile ? 'minmax(0, 1fr)' : 'repeat(5, minmax(0, 1fr))',
+            display: 'grid',
+            gridTemplateColumns: publicVisitor && isMobile
+              ? screenWidth < 360
+                ? 'minmax(0, 1fr)'
+                : 'repeat(2, minmax(0, 1fr))'
+              : isMobile
+                ? 'minmax(0, 1fr)'
+                : 'repeat(5, minmax(0, 1fr))',
             gap: 10,
             minWidth: 0,
-            overflowX: publicVisitor && isMobile ? 'auto' : undefined,
-            paddingBottom: publicVisitor && isMobile ? 2 : undefined,
+            width: '100%',
+            boxSizing: 'border-box',
           }}
         >
           {portalLanes.map((lane) => (
@@ -514,7 +520,8 @@ const compactLaneCardStyle: CSSProperties = {
 }
 
 const compactMobileLaneCardStyle: CSSProperties = {
-  flex: '0 0 154px',
+  width: '100%',
+  boxSizing: 'border-box',
 }
 
 const laneCopyStyle: CSSProperties = {
