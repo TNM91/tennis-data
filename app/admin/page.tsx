@@ -151,13 +151,13 @@ const adminTools: AdminTool[] = [
     title: 'Product Events',
     href: '/admin/product-events',
     description:
-      'Review paid usage signals like billing portal opens, profile linking, My Lab match-plan actions, and Captain closeout actions.',
+      'Review paid usage signals, profile linking, and cloud sync repair events that need admin follow-up.',
     badge: 'Analytics',
     accent: 'blue',
     icon: 'playerRatings',
-    highlights: ['Billing opens', 'Player activation', 'My Lab actions', 'Captain closeout'],
+    highlights: ['Billing opens', 'Player activation', 'Sync repairs', 'Captain closeout'],
     statLabel: 'Best for',
-    statValue: 'Retention',
+    statValue: 'Activation health',
   },
   {
     title: 'Manage Players',
@@ -350,8 +350,17 @@ function DataQualityPanel() {
     matchesWithPlayers: number | null
     totalPlayers: number | null
     pendingUpgradeRequests: number | null
+    profileSyncNeedsReview: number | null
     lastSnapshotDate: string | null
-  }>({ totalMatches: null, matchesWithScores: null, matchesWithPlayers: null, totalPlayers: null, pendingUpgradeRequests: null, lastSnapshotDate: null })
+  }>({
+    totalMatches: null,
+    matchesWithScores: null,
+    matchesWithPlayers: null,
+    totalPlayers: null,
+    pendingUpgradeRequests: null,
+    profileSyncNeedsReview: null,
+    lastSnapshotDate: null,
+  })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -363,6 +372,8 @@ function DataQualityPanel() {
         { count: pendingUpgradeRequests },
         { data: lastSnap },
         { data: matchesWithPlayersData },
+        { data: profileSyncRepairData },
+        { data: profileSyncReviewData },
       ] = await Promise.all([
         supabase.from('matches').select('*', { count: 'exact', head: true }).not('match_type', 'is', null),
         supabase.from('matches').select('*', { count: 'exact', head: true }).not('score', 'is', null).neq('score', ''),
@@ -370,14 +381,29 @@ function DataQualityPanel() {
         supabase.from('upgrade_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('rating_snapshots').select('snapshot_date').order('snapshot_date', { ascending: false }).limit(1),
         supabase.from('match_players').select('match_id').limit(500),
+        supabase
+          .from('product_usage_events')
+          .select('id, metadata')
+          .eq('event_name', 'profile_cloud_sync_repair')
+          .order('created_at', { ascending: false })
+          .limit(500),
+        supabase
+          .from('profile_sync_review_events')
+          .select('event_id, status')
+          .eq('status', 'reviewed')
+          .limit(500),
       ])
       const linkedMatchIds = new Set((matchesWithPlayersData ?? []).map((r: { match_id: string }) => r.match_id))
+      const reviewedSyncRepairEventIds = new Set((profileSyncReviewData ?? []).map((row: { event_id: string }) => row.event_id))
       setStats({
         totalMatches,
         matchesWithScores,
         matchesWithPlayers: linkedMatchIds.size,
         totalPlayers,
         pendingUpgradeRequests,
+        profileSyncNeedsReview: (profileSyncRepairData ?? []).filter((row: { id: string; metadata: Record<string, unknown> | null }) =>
+          !reviewedSyncRepairEventIds.has(row.id) && isProfileSyncRepairNeedingReview(row.metadata),
+        ).length,
         lastSnapshotDate: (lastSnap?.[0] as { snapshot_date: string } | undefined)?.snapshot_date ?? null,
       })
       setLoading(false)
@@ -404,6 +430,12 @@ function DataQualityPanel() {
               value: stats.pendingUpgradeRequests?.toLocaleString() ?? '-',
               flag: Boolean(stats.pendingUpgradeRequests),
               href: '/admin/upgrade-requests',
+            },
+            {
+              label: 'Profile sync reviews',
+              value: stats.profileSyncNeedsReview?.toLocaleString() ?? '-',
+              flag: Boolean(stats.profileSyncNeedsReview),
+              href: '/admin/product-events?filter=profile_sync_attention',
             },
             { label: 'Last recalculate', value: stats.lastSnapshotDate ? new Date(stats.lastSnapshotDate).toLocaleDateString() : 'Never' },
           ].map((item) => {
@@ -440,6 +472,10 @@ function DataQualityPanel() {
 function getCoveragePercent(value: number | null, total: number | null) {
   if (!total || value == null) return null
   return Math.min(100, Math.max(0, Math.round((value / total) * 100)))
+}
+
+function isProfileSyncRepairNeedingReview(metadata: Record<string, unknown> | null) {
+  return metadata?.result === 'failed' || metadata?.result === 'local_only' || metadata?.hasError === true
 }
 
 function AdminToolCard({ tool }: { tool: AdminTool }) {
