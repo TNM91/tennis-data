@@ -32,6 +32,23 @@ type ProductUsageEventRow = {
 }
 
 type EventFilter = 'all' | ProductUsageEventSurface | 'profile_sync_repairs' | 'profile_sync_attention'
+type ProfileSyncReviewStatus = 'open' | 'reviewed'
+type ProfileSyncReviewRow = {
+  event_id?: string | null
+  status?: string | null
+  review_note?: string | null
+  reviewed_by_user_id?: string | null
+  reviewed_at?: string | null
+  updated_at?: string | null
+}
+type ProfileSyncReview = {
+  eventId: string
+  status: ProfileSyncReviewStatus
+  reviewNote: string
+  reviewedByUserId: string
+  reviewedAt: string
+  updatedAt: string
+}
 
 const PROFILE_SYNC_EVENT_FILTERS = ['profile_sync_repairs', 'profile_sync_attention'] as const
 
@@ -56,14 +73,19 @@ function setQueryParam(params: URLSearchParams, key: string, value: string, defa
 
 export default function AdminProductEventsPage() {
   const [events, setEvents] = useState<ProductUsageEventRow[]>([])
+  const [profileSyncReviews, setProfileSyncReviews] = useState<Record<string, ProfileSyncReview>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [filter, setFilter] = useState<EventFilter>('all')
   const [urlFilterReady, setUrlFilterReady] = useState(false)
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, string>>({})
+  const [savingReviewEventId, setSavingReviewEventId] = useState('')
 
   const loadEvents = useCallback(async () => {
     setLoading(true)
     setError('')
+    setMessage('')
 
     const { data, error } = await supabase
       .from('product_usage_events')
@@ -76,6 +98,12 @@ export default function AdminProductEventsPage() {
       setEvents([])
     } else {
       setEvents((data ?? []) as ProductUsageEventRow[])
+    }
+
+    try {
+      setProfileSyncReviews(await loadProfileSyncReviews())
+    } catch (reviewError) {
+      setError(reviewError instanceof Error ? reviewError.message : 'Could not load profile sync review state.')
     }
 
     setLoading(false)
@@ -112,24 +140,52 @@ export default function AdminProductEventsPage() {
       return events.filter((event) => event.event_name === 'profile_cloud_sync_repair')
     }
     if (filter === 'profile_sync_attention') {
-      return events.filter((event) =>
-        event.event_name === 'profile_cloud_sync_repair' &&
-        (event.metadata?.result === 'failed' || event.metadata?.result === 'local_only' || event.metadata?.hasError === true),
-      )
+      return events.filter((event) => isOpenProfileSyncReviewEvent(event, profileSyncReviews))
     }
     return events.filter((event) => event.surface === filter)
-  }, [events, filter])
+  }, [events, filter, profileSyncReviews])
 
   const uniqueUsers = new Set(events.map((event) => event.user_id)).size
   const billingEvents = events.filter((event) => event.surface === 'billing').length
   const myLabEvents = events.filter((event) => event.surface === 'mylab').length
   const captainEvents = events.filter((event) => event.surface === 'captain').length
   const profileSyncRepairEvents = events.filter((event) => event.event_name === 'profile_cloud_sync_repair').length
-  const profileSyncAttentionEvents = events.filter((event) =>
-    event.event_name === 'profile_cloud_sync_repair' &&
-    (event.metadata?.result === 'failed' || event.metadata?.result === 'local_only' || event.metadata?.hasError === true),
-  ).length
+  const openProfileSyncReviewEvents = events.filter((event) => isOpenProfileSyncReviewEvent(event, profileSyncReviews)).length
+  const reviewedProfileSyncEvents = Object.values(profileSyncReviews).filter((review) => review.status === 'reviewed').length
   const latestEvent = events[0] ?? null
+
+  async function saveProfileSyncReview(event: ProductUsageEventRow, status: ProfileSyncReviewStatus) {
+    const note = (reviewDrafts[event.id] ?? profileSyncReviews[event.id]?.reviewNote ?? '').trim()
+    if (status === 'reviewed' && note.length < 6) {
+      setError('Add a short note before marking this sync repair reviewed.')
+      return
+    }
+
+    setSavingReviewEventId(event.id)
+    setError('')
+    setMessage('')
+
+    try {
+      const review = await updateProfileSyncReview({
+        eventId: event.id,
+        status,
+        reviewNote: note,
+      })
+      setProfileSyncReviews((current) => ({
+        ...current,
+        [review.eventId]: review,
+      }))
+      setReviewDrafts((current) => ({
+        ...current,
+        [event.id]: review.reviewNote,
+      }))
+      setMessage(status === 'reviewed' ? 'Profile sync repair marked reviewed.' : 'Profile sync repair reopened.')
+    } catch (reviewError) {
+      setError(reviewError instanceof Error ? reviewError.message : 'Could not update profile sync review.')
+    } finally {
+      setSavingReviewEventId('')
+    }
+  }
 
   return (
     <SiteShell active="/admin">
@@ -140,6 +196,7 @@ export default function AdminProductEventsPage() {
           </AdminReviewHero>
 
           <AdminReviewPanel>
+            {message ? <AdminStatusPanel tone="success" text={message} /> : null}
             <div className="metric-grid">
               <MetricCard label="Events" value={events.length} />
               <MetricCard label="Users" value={uniqueUsers} />
@@ -156,12 +213,13 @@ export default function AdminProductEventsPage() {
               />
               <MetricCard
                 label="Sync Needs Review"
-                value={profileSyncAttentionEvents}
+                value={openProfileSyncReviewEvents}
                 active={filter === 'profile_sync_attention'}
                 onClick={() =>
                   setFilter((current) => current === 'profile_sync_attention' ? 'all' : 'profile_sync_attention')
                 }
               />
+              <MetricCard label="Reviewed Sync Repairs" value={reviewedProfileSyncEvents} />
             </div>
 
             <div style={adminReviewHeaderRowStyle}>
@@ -211,25 +269,26 @@ export default function AdminProductEventsPage() {
                       <th>Plan</th>
                       <th>User</th>
                       <th>Metadata</th>
+                      <th>Review</th>
                       <th>Time</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredEvents.map((event) => (
-                      <tr key={event.id}>
-                        <td>
-                          <strong style={eventNameStyle}>{formatEventName(event.event_name)}</strong>
-                        </td>
-                        <td>{event.surface}</td>
-                        <td>{event.plan_id ? formatPlanLabel(event.plan_id) : 'None'}</td>
-                        <td>
-                          <span style={monoStyle}>{compactId(event.user_id)}</span>
-                        </td>
-                        <td>
-                          <div style={metadataStyle}>{formatMetadata(event.metadata)}</div>
-                        </td>
-                        <td>{formatEventTime(event.created_at)}</td>
-                      </tr>
+                      <EventRow
+                        key={event.id}
+                        event={event}
+                        review={profileSyncReviews[event.id] || null}
+                        reviewDraft={reviewDrafts[event.id] ?? profileSyncReviews[event.id]?.reviewNote ?? ''}
+                        savingReview={savingReviewEventId === event.id}
+                        onReviewDraftChange={(value) =>
+                          setReviewDrafts((current) => ({
+                            ...current,
+                            [event.id]: value,
+                          }))
+                        }
+                        onSaveReview={(status) => void saveProfileSyncReview(event, status)}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -239,6 +298,86 @@ export default function AdminProductEventsPage() {
         </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
+  )
+}
+
+function EventRow({
+  event,
+  review,
+  reviewDraft,
+  savingReview,
+  onReviewDraftChange,
+  onSaveReview,
+}: {
+  event: ProductUsageEventRow
+  review: ProfileSyncReview | null
+  reviewDraft: string
+  savingReview: boolean
+  onReviewDraftChange: (value: string) => void
+  onSaveReview: (status: ProfileSyncReviewStatus) => void
+}) {
+  const isProfileSyncRepair = event.event_name === 'profile_cloud_sync_repair'
+  const isReviewed = review?.status === 'reviewed'
+  const needsReview = isOpenProfileSyncReviewEvent(event, review ? { [review.eventId]: review } : {})
+
+  return (
+    <tr>
+      <td>
+        <strong style={eventNameStyle}>{formatEventName(event.event_name)}</strong>
+      </td>
+      <td>{event.surface}</td>
+      <td>{event.plan_id ? formatPlanLabel(event.plan_id) : 'None'}</td>
+      <td>
+        <span style={monoStyle}>{compactId(event.user_id)}</span>
+      </td>
+      <td>
+        <div style={metadataStyle}>{formatMetadata(event.metadata)}</div>
+      </td>
+      <td>
+        {isProfileSyncRepair ? (
+          <div style={reviewCellStyle}>
+            <span className={isReviewed ? 'badge badge-green' : needsReview ? 'badge badge-slate' : 'badge badge-blue'}>
+              {isReviewed ? 'Reviewed' : needsReview ? 'Needs review' : 'Repair logged'}
+            </span>
+            {isReviewed && review?.reviewedAt ? (
+              <small style={reviewMetaStyle}>Reviewed {formatEventTime(review.reviewedAt)}</small>
+            ) : null}
+            <textarea
+              value={reviewDraft}
+              onChange={(changeEvent) => onReviewDraftChange(changeEvent.target.value)}
+              rows={2}
+              style={reviewTextAreaStyle}
+              placeholder="Review note"
+            />
+            <div style={reviewActionStyle}>
+              <button
+                type="button"
+                className="button-secondary"
+                style={reviewButtonStyle}
+                onClick={() => onSaveReview('reviewed')}
+                disabled={savingReview}
+              >
+                {savingReview ? 'Saving...' : 'Mark reviewed'}
+              </button>
+              {isReviewed ? (
+                <button
+                  type="button"
+                  className="button-secondary"
+                  style={reviewButtonStyle}
+                  onClick={() => onSaveReview('open')}
+                  disabled={savingReview}
+                >
+                  Reopen
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <span className="subtle-text">-</span>
+        )}
+      </td>
+      <td>{formatEventTime(event.created_at)}</td>
+    </tr>
   )
 }
 
@@ -280,6 +419,94 @@ function MetricCard({
   )
 }
 
+async function loadProfileSyncReviews() {
+  const token = await getAccessToken()
+  if (!token) throw new Error('Sign in as an admin to load profile sync reviews.')
+
+  const response = await fetch('/api/profile-sync-reviews', {
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  })
+  const result = (await response.json().catch(() => null)) as {
+    ok?: boolean
+    reviews?: ProfileSyncReviewRow[]
+    message?: string
+  } | null
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.message || 'Could not load profile sync reviews.')
+  }
+
+  return Object.fromEntries(
+    (result.reviews || [])
+      .map(toProfileSyncReview)
+      .filter((review): review is ProfileSyncReview => Boolean(review))
+      .map((review) => [review.eventId, review]),
+  )
+}
+
+async function updateProfileSyncReview(input: {
+  eventId: string
+  status: ProfileSyncReviewStatus
+  reviewNote: string
+}) {
+  const token = await getAccessToken()
+  if (!token) throw new Error('Sign in as an admin to update profile sync reviews.')
+
+  const response = await fetch('/api/profile-sync-reviews', {
+    method: 'PATCH',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(input),
+  })
+  const result = (await response.json().catch(() => null)) as {
+    ok?: boolean
+    review?: ProfileSyncReviewRow
+    message?: string
+  } | null
+
+  if (!response.ok || !result?.ok || !result.review) {
+    throw new Error(result?.message || 'Could not update profile sync review.')
+  }
+
+  const review = toProfileSyncReview(result.review)
+  if (!review) throw new Error('Could not read updated profile sync review.')
+  return review
+}
+
+async function getAccessToken() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  return session?.access_token?.trim() || ''
+}
+
+function toProfileSyncReview(row: ProfileSyncReviewRow): ProfileSyncReview | null {
+  const eventId = cleanText(row.event_id)
+  if (!eventId) return null
+
+  return {
+    eventId,
+    status: row.status === 'reviewed' ? 'reviewed' : 'open',
+    reviewNote: cleanText(row.review_note),
+    reviewedByUserId: cleanText(row.reviewed_by_user_id),
+    reviewedAt: cleanText(row.reviewed_at),
+    updatedAt: cleanText(row.updated_at),
+  }
+}
+
+function isOpenProfileSyncReviewEvent(
+  event: ProductUsageEventRow,
+  reviewsByEventId: Record<string, ProfileSyncReview>,
+) {
+  if (event.event_name !== 'profile_cloud_sync_repair') return false
+  if (reviewsByEventId[event.id]?.status === 'reviewed') return false
+  return event.metadata?.result === 'failed' || event.metadata?.result === 'local_only' || event.metadata?.hasError === true
+}
+
 function compactId(value: string) {
   return value.length <= 18 ? value : `${value.slice(0, 8)}...${value.slice(-6)}`
 }
@@ -314,6 +541,10 @@ function formatEventTime(value: string) {
   }
 }
 
+function cleanText(value: unknown) {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+}
+
 const toolbarStyle = {
   display: 'flex',
   alignItems: 'end',
@@ -337,4 +568,40 @@ const metadataStyle = {
   fontSize: 12,
   lineHeight: 1.45,
   overflowWrap: 'anywhere',
+} as const
+
+const reviewCellStyle = {
+  minWidth: 230,
+  display: 'grid',
+  gap: 8,
+} as const
+
+const reviewMetaStyle = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+} as const
+
+const reviewTextAreaStyle = {
+  width: '100%',
+  minHeight: 58,
+  borderRadius: 10,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  padding: 9,
+  lineHeight: 1.4,
+  resize: 'vertical' as const,
+  colorScheme: 'dark' as const,
+} as const
+
+const reviewActionStyle = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+} as const
+
+const reviewButtonStyle = {
+  minHeight: 30,
+  padding: '6px 9px',
+  fontSize: 12,
 } as const
