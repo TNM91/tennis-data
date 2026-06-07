@@ -34,6 +34,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:week-dashboard -- <day1-day5 \| tier \| journey \| fixture \| route>` | Print the compact week dashboard with tier, fixture, access, evidence, blocker state, and next command. |
 | `npm run qa:week-plan -- <day1-day5>` | Print the full week or one day as device-specific tester-packet commands with closeout gates. |
 | `npm run qa:fixtures` | Print account, data fixture, and setup-order expectations. |
+| `npm run qa:fixture-gate -- <journey \| fixture \| route \| search>` | Print the executable fixture gate for a blocked journey, including ready signals and pass command. |
 | `npm run qa:fixture-board -- <group \| fixture \| day1-day5 \| journey \| account \| data>` | Group fixtures by account access, player/coach link, safe data, dependent journeys, and fixture-gap rows. |
 | `npm run qa:fixture-status -- <day1-day5 \| fixture \| journey \| route>` | Print required fixtures, dependent journeys, and fixture-gap blockers for a testing block. |
 | `npm run qa:fixture-review -- <fixture \| tier \| journey \| route>` | Print one fixture's setup needs, dependent journeys, routes, and evidence state. |

@@ -65,6 +65,7 @@ Run `npm run qa:access-review -- <tier>` when a result is about wrong access, mi
 Run `npm run qa:tier-board -- <tier>` when a result needs the tier promise, feature pain points, proving journeys, evidence state, blockers, and next command together.
 Run `npm run qa:feature-review -- <feature>` when a result is about one feature's route, pain point, proving journey, connected flow, or handoff.
 Run `npm run qa:trace -- <tier|journey|feature|route>` when a result needs to be reviewed against tier promise, access rule, proving journeys, handoffs, and ledger evidence together.
+Run `npm run qa:fixture-gate -- <journey|fixture|route|search>` when a fixture-gap row needs a concrete browser setup gate.
 Run `npm run qa:fixture-board` when a result is blocked by account access, player/coach link state, safe data setup, or fixture readiness across multiple journeys.
 Run `npm run qa:fixture-status -- <day1-day5>` when checking whether a testing block has required fixtures or open fixture-gap blockers.
 Run `npm run qa:fixture-review -- <fixture>` when a result is blocked by account setup, linked state, test data, or safe fixture shape.

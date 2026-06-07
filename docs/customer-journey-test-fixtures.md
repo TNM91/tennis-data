@@ -3,6 +3,7 @@
 Use this with `docs/customer-journey-test-scripts.md` during next-week testing. Keep credentials outside the repo. This file records the roles, access expectations, and data fixtures needed to make each journey repeatable. Use `docs/level-up-sync-audit.md` when testing Level Up local, Player+, and coach-invited sync behavior.
 
 Run `npm run qa:fixtures` to print the account, data fixture, and setup-order checklist.
+Run `npm run qa:fixture-gate -- coach-player-assigned-challenge` to print the executable Day 1 coach-player fixture gate.
 Run `npm run qa:fixture-board` to group account access, player/coach links, team/league data, admin/data safety, dependent journeys, and fixture-gap rows.
 Run `npm run qa:fixture-status -- <day1-day5>` to see the fixtures, dependent journeys, and current fixture-gap blockers for a testing block.
 Run `npm run qa:fixture-review -- <fixture>` to inspect one fixture's setup needs, dependent journeys, routes, pass signals, and current ledger evidence.
