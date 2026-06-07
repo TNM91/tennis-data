@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AdminEmptyState,
@@ -328,7 +329,9 @@ function EventRow({
       <td>{event.surface}</td>
       <td>{event.plan_id ? formatPlanLabel(event.plan_id) : 'None'}</td>
       <td>
-        <span style={monoStyle}>{compactId(event.user_id)}</span>
+        <Link href={buildAdminAccessUserHref(event.user_id)} style={userLinkStyle}>
+          {compactId(event.user_id)}
+        </Link>
       </td>
       <td>
         <div style={metadataStyle}>{formatMetadata(event.metadata)}</div>
@@ -350,6 +353,9 @@ function EventRow({
               placeholder="Review note"
             />
             <div style={reviewActionStyle}>
+              <Link href={buildAdminAccessUserHref(event.user_id)} className="button-secondary" style={reviewButtonLinkStyle}>
+                Open access
+              </Link>
               <button
                 type="button"
                 className="button-secondary"
@@ -545,6 +551,10 @@ function cleanText(value: unknown) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
 }
 
+function buildAdminAccessUserHref(userId: string) {
+  return `/admin/access?search=${encodeURIComponent(userId)}`
+}
+
 const toolbarStyle = {
   display: 'flex',
   alignItems: 'end',
@@ -560,6 +570,12 @@ const eventNameStyle = {
 const monoStyle = {
   fontFamily: 'var(--font-geist-mono)',
   color: 'var(--foreground)',
+} as const
+
+const userLinkStyle = {
+  ...monoStyle,
+  textDecoration: 'none',
+  fontWeight: 800,
 } as const
 
 const metadataStyle = {
@@ -604,4 +620,11 @@ const reviewButtonStyle = {
   minHeight: 30,
   padding: '6px 9px',
   fontSize: 12,
+} as const
+
+const reviewButtonLinkStyle = {
+  ...reviewButtonStyle,
+  display: 'inline-flex',
+  alignItems: 'center',
+  textDecoration: 'none',
 } as const

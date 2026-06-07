@@ -27,5 +27,8 @@ describe('profile sync review workflow', () => {
     expect(productEventsPage).toContain("event.metadata?.result === 'failed' || event.metadata?.result === 'local_only' || event.metadata?.hasError === true")
     expect(productEventsPage).toContain("label=\"Sync Needs Review\"")
     expect(productEventsPage).toContain("onSaveReview={(status) => void saveProfileSyncReview(event, status)}")
+    expect(productEventsPage).toContain('function buildAdminAccessUserHref(userId: string)')
+    expect(productEventsPage).toContain("`/admin/access?search=${encodeURIComponent(userId)}`")
+    expect(productEventsPage).toContain('Open access')
   })
 })
