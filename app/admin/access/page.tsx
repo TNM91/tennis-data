@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 
+import Link from 'next/link'
 import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AdminActionRow,
@@ -1119,6 +1120,13 @@ export default function AdminAccessPage() {
                               >
                                 Copy user
                               </button>
+                              <Link
+                                href={buildProductEventsUserHref(profile.id)}
+                                className="button-ghost"
+                                style={supportActionLinkStyle}
+                              >
+                                Product events
+                              </Link>
                               <button
                                 type="button"
                                 className="button-ghost"
@@ -1260,6 +1268,10 @@ function getProfileLinkStatus(profile: ProfileAccessRow) {
     detail: 'Set Profile',
     badgeClass: 'badge-slate',
   }
+}
+
+function buildProductEventsUserHref(userId: string) {
+  return `/admin/product-events?search=${encodeURIComponent(userId)}`
 }
 
 function formatEventTime(value: string) {
@@ -1629,6 +1641,14 @@ const supportActionButtonStyle = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   border: '1px solid var(--shell-panel-border)',
+} as const
+
+const supportActionLinkStyle = {
+  ...supportActionButtonStyle,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
 } as const
 
 const supportDetailCellStyle = {
