@@ -27,7 +27,7 @@ type ProductUsageEventRow = {
   created_at: string
 }
 
-type EventFilter = 'all' | ProductUsageEventSurface
+type EventFilter = 'all' | ProductUsageEventSurface | 'profile_sync_repairs' | 'profile_sync_attention'
 
 export default function AdminProductEventsPage() {
   const [events, setEvents] = useState<ProductUsageEventRow[]>([])
@@ -63,14 +63,29 @@ export default function AdminProductEventsPage() {
     return () => window.clearTimeout(timeout)
   }, [loadEvents])
 
-  const filteredEvents = useMemo(() => (
-    filter === 'all' ? events : events.filter((event) => event.surface === filter)
-  ), [events, filter])
+  const filteredEvents = useMemo(() => {
+    if (filter === 'all') return events
+    if (filter === 'profile_sync_repairs') {
+      return events.filter((event) => event.event_name === 'profile_cloud_sync_repair')
+    }
+    if (filter === 'profile_sync_attention') {
+      return events.filter((event) =>
+        event.event_name === 'profile_cloud_sync_repair' &&
+        (event.metadata?.result === 'failed' || event.metadata?.result === 'local_only' || event.metadata?.hasError === true),
+      )
+    }
+    return events.filter((event) => event.surface === filter)
+  }, [events, filter])
 
   const uniqueUsers = new Set(events.map((event) => event.user_id)).size
   const billingEvents = events.filter((event) => event.surface === 'billing').length
   const myLabEvents = events.filter((event) => event.surface === 'mylab').length
   const captainEvents = events.filter((event) => event.surface === 'captain').length
+  const profileSyncRepairEvents = events.filter((event) => event.event_name === 'profile_cloud_sync_repair').length
+  const profileSyncAttentionEvents = events.filter((event) =>
+    event.event_name === 'profile_cloud_sync_repair' &&
+    (event.metadata?.result === 'failed' || event.metadata?.result === 'local_only' || event.metadata?.hasError === true),
+  ).length
   const latestEvent = events[0] ?? null
 
   return (
@@ -88,6 +103,22 @@ export default function AdminProductEventsPage() {
               <MetricCard label="Billing" value={billingEvents} />
               <MetricCard label="My Lab" value={myLabEvents} />
               <MetricCard label="Captain" value={captainEvents} />
+              <MetricCard
+                label="Profile Sync Repairs"
+                value={profileSyncRepairEvents}
+                active={filter === 'profile_sync_repairs'}
+                onClick={() =>
+                  setFilter((current) => current === 'profile_sync_repairs' ? 'all' : 'profile_sync_repairs')
+                }
+              />
+              <MetricCard
+                label="Sync Needs Review"
+                value={profileSyncAttentionEvents}
+                active={filter === 'profile_sync_attention'}
+                onClick={() =>
+                  setFilter((current) => current === 'profile_sync_attention' ? 'all' : 'profile_sync_attention')
+                }
+              />
             </div>
 
             <div style={adminReviewHeaderRowStyle}>
@@ -104,6 +135,8 @@ export default function AdminProductEventsPage() {
                   <option value="all">All surfaces</option>
                   <option value="billing">Billing</option>
                   <option value="profile">Profile</option>
+                  <option value="profile_sync_repairs">Profile sync repairs</option>
+                  <option value="profile_sync_attention">Sync needs review</option>
                   <option value="mylab">My Lab</option>
                   <option value="captain">Captain</option>
                   <option value="upgrade">Upgrade</option>
@@ -166,11 +199,40 @@ export default function AdminProductEventsPage() {
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="metric-card">
+function MetricCard({
+  label,
+  value,
+  active = false,
+  onClick,
+}: {
+  label: string
+  value: number
+  active?: boolean
+  onClick?: () => void
+}) {
+  const content = (
+    <>
       <div className="metric-label">{label}</div>
       <div className="metric-value">{value}</div>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`metric-card metric-card-button${active ? ' metric-card-active' : ''}`}
+        onClick={onClick}
+        aria-pressed={active}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className="metric-card">
+      {content}
     </div>
   )
 }
