@@ -4196,6 +4196,7 @@ function buildAssignmentLevelUpHref(
 ) {
   const identitySlug = coachLink?.identitySlug || 'relentless-competitor-4-0'
   const summary = getCoachAssignmentSummary(assignment.assignment)
+  const cardId = getAssignmentLevelUpCardId(assignment)
   const params = new URLSearchParams({
     assignmentId: assignment.id,
     studentLinkId: assignment.studentLinkId,
@@ -4204,7 +4205,15 @@ function buildAssignmentLevelUpHref(
     workType: inferAssignmentLevelUpWorkType(assignment, summary),
   })
   if (assignment.focus) params.set('assignmentFocus', assignment.focus)
+  if (cardId) params.set('card', cardId)
   return `/level-up/${encodeURIComponent(identitySlug)}?${params.toString()}`
+}
+
+function getAssignmentLevelUpCardId(assignment: CoachAssignment) {
+  const cardId = typeof assignment.assignment.cardId === 'string' ? assignment.assignment.cardId.trim() : ''
+  if (!cardId) return ''
+
+  return LEVEL_UP_CARDS.some((card) => card.id === cardId) ? cardId : ''
 }
 
 function inferAssignmentLevelUpWorkType(

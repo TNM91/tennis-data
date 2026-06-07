@@ -170,13 +170,13 @@ export default function PlayerLiveWorkbench({
     [assignmentFocus, playableFocuses],
   )
   const initialFocusId = assignmentFocusMatch?.id ?? defaultFocusId
-  const initialWorkType = assignmentWorkType ?? (requestedCard ? getCardLiveWorkType(requestedCard) : 'court')
-  const initialContext = requestedContext ?? (requestedCard ? getCardLiveContext(requestedCard, initialWorkType) : 'alone')
+  const initialWorkType = requestedCard ? getCardLiveWorkType(requestedCard) : assignmentWorkType ?? 'court'
+  const initialContext = hasCoachAssignment && requestedCard ? 'coach' : requestedContext ?? (requestedCard ? getCardLiveContext(requestedCard, initialWorkType) : 'alone')
   const [activeFocusId, setActiveFocusId] = useState(initialFocusId)
   const [context, setContext] = useState<TrainingContext>(hasCoachAssignment ? 'coach' : initialContext)
   const [workType, setWorkType] = useState<WorkType>(initialWorkType)
   const [accessMode, setAccessMode] = useState<AccessMode>('coach_invited')
-  const [activeDrillId, setActiveDrillId] = useState(hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : requestedCard ? `card-${requestedCard.id}` : '')
+  const [activeDrillId, setActiveDrillId] = useState(requestedCard ? `card-${requestedCard.id}` : hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : '')
   const [editingStep, setEditingStep] = useState<EditingStep>(hasCoachAssignment || hasQuickStart ? null : 'focus')
   const [draft, setDraft] = useState(emptyDraft)
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
@@ -189,9 +189,9 @@ export default function PlayerLiveWorkbench({
   const drillOptions = useMemo(
     () => {
       const baseOptions = buildDrillOptions(activeFocus, { solo, partner, offCourt, performance })
-      return requestedCard ? [buildCardDrillOption(requestedCard, identitySlug), ...baseOptions] : baseOptions
+      return requestedCard ? [buildCardDrillOption(requestedCard, identitySlug, hasCoachAssignment ? 'coach' : undefined), ...baseOptions] : baseOptions
     },
-    [activeFocus, identitySlug, partner, performance, requestedCard, solo, offCourt],
+    [activeFocus, hasCoachAssignment, identitySlug, partner, performance, requestedCard, solo, offCourt],
   )
   const filteredDrills = drillOptions.filter((drill) => drill.workType === workType && drill.context === context)
   const visibleDrills = filteredDrills.length
@@ -210,17 +210,18 @@ export default function PlayerLiveWorkbench({
     if (!hasCoachAssignment) return
 
     const nextFocusId = assignmentFocusMatch?.id ?? defaultFocusId
-    const nextWorkType = assignmentWorkType ?? 'court'
+    const nextWorkType = requestedCard ? getCardLiveWorkType(requestedCard) : assignmentWorkType ?? 'court'
+    const nextDrillId = requestedCard ? `card-${requestedCard.id}` : `${nextFocusId}-coach-${nextWorkType}`
     setAccessMode('coach_invited')
     setContext('coach')
     setWorkType(nextWorkType)
     setDraft((current) => ({ ...current, sharedWithCoach: true }))
     setSyncState({ status: 'idle', message: 'Coach challenge loaded. Rate and save after the work.' })
     setActiveFocusId(nextFocusId)
-    setActiveDrillId(`${nextFocusId}-coach-${nextWorkType}`)
+    setActiveDrillId(nextDrillId)
     setScoringDrillId('')
     setEditingStep(null)
-  }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment])
+  }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment, requestedCard])
 
   useEffect(() => {
     if (!hasCoachAssignment && !hasQuickStart) return
@@ -932,9 +933,9 @@ function drill(
   return { id, title, summary, workType, context, duration, timerSeconds, proof, href, sourceCard }
 }
 
-function buildCardDrillOption(card: LevelUpCard, identitySlug: string): DrillOption {
+function buildCardDrillOption(card: LevelUpCard, identitySlug: string, contextOverride?: TrainingContext): DrillOption {
   const workType = getCardLiveWorkType(card)
-  const context = getCardLiveContext(card, workType)
+  const context = contextOverride ?? getCardLiveContext(card, workType)
   return drill(
     `card-${card.id}`,
     card.title,
