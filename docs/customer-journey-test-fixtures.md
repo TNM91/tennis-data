@@ -91,6 +91,21 @@ Use these IDs when logging results against `docs/customer-journey-test-plan.md`.
 7. Create league week fixture.
 8. Prepare safe Data Assist upload fixture.
 
+## Day 1 Coach-Player Fixture Gate
+
+Use this gate before retesting `coach-player-assigned-challenge`. Do not mark the journey pass until every row below has visible evidence in the browser or test ledger.
+
+| Fixture | Provisioning action | Ready signal | Evidence to capture |
+| --- | --- | --- | --- |
+| `coach_primary` | Sign in as the coach test account and open `/coach`. | Coach Hub loads with student management, assignment creation, and review queue controls. | Coach Hub screen with no stale upgrade lock. |
+| `player_plus_linked` | Sign in as the intended player and confirm the profile link used by My Lab and Level Up. | Player can open `/mylab` and `/player-development/relentless-competitor-4-0/level-up`. | My Lab linked-player cue or Level Up player context. |
+| `coach-invite-token` | From `coach_primary`, create a disposable invite and accept it as `player_plus_linked`. | The invite page names the relationship and the coach sees the linked player. | Invite/link state plus Linking proof privacy cue. |
+| `level-up-assignment` | From `coach_primary`, assign one exact Level Up card with a due date, coach note, and proof requirement. | My Lab shows the assignment for the linked player only, with the exact card handoff. | Assignment id or assignment card with proof required. |
+| `level-up-completion` | As `player_plus_linked`, open the assigned card, save a 0-5 proof rating, and add one tiny note. | Save status is honest: local, Player+ synced, or coach-invited synced. | Player challenge screen and proof rating/note state. |
+| Coach review proof | Return to `coach_primary` after completion. | Coach review queue shows the same proof signal, note, due state, and next lesson implication. | Coach review proof sync cue and next-focus/next-assignment handoff. |
+
+If any ready signal is missing, log `blocked` with `fixture-gap` unless the UI clearly loaded but failed the product promise. If the UI says proof synced and the coach cannot find it, log `sync-gap` or `data-propagation-gap` instead.
+
 ## Daily Fixture Log
 
 | Date | Fixture | Action | Result | Notes |
