@@ -548,6 +548,8 @@ function ProfilePageInner() {
     setMessage('')
     setError('')
 
+    const profileSourceBeforeSync = profileSource
+
     try {
       const syncRes = await syncUserProfileLinkToCloud(userId, {
         linked_player_id: currentPlayerId || null,
@@ -571,7 +573,30 @@ function ProfilePageInner() {
       if (syncRes.error) {
         setError(syncRes.error.message)
       }
+      void trackProductUsageEvent({
+        eventName: 'profile_cloud_sync_repair',
+        surface: 'profile',
+        planId: access.canUseCaptainWorkflow ? 'captain' : access.canUseAdvancedPlayerInsights ? 'player_plus' : null,
+        metadata: {
+          result: syncRes.source === 'cloud' ? 'cloud_synced' : 'local_only',
+          via: syncRes.via,
+          profileSourceBefore: profileSourceBeforeSync,
+          hasPlayerId: Boolean(currentPlayerId),
+          hasError: Boolean(syncRes.error),
+        },
+      })
     } catch (err) {
+      void trackProductUsageEvent({
+        eventName: 'profile_cloud_sync_repair',
+        surface: 'profile',
+        planId: access.canUseCaptainWorkflow ? 'captain' : access.canUseAdvancedPlayerInsights ? 'player_plus' : null,
+        metadata: {
+          result: 'failed',
+          via: 'unknown',
+          profileSourceBefore: profileSourceBeforeSync,
+          hasPlayerId: Boolean(currentPlayerId),
+        },
+      })
       setError(err instanceof Error ? err.message : 'Unable to sync your profile to cloud.')
     } finally {
       setSyncingProfile(false)

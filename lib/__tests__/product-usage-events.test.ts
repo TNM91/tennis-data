@@ -78,6 +78,33 @@ describe('product usage events', () => {
     })
   })
 
+  it('accepts profile cloud sync repair observability', () => {
+    expect(buildProductUsageEventInsert('user-profile-sync', {
+      eventName: 'profile_cloud_sync_repair',
+      surface: 'profile',
+      planId: 'player_plus',
+      metadata: {
+        result: 'cloud_synced',
+        via: 'api',
+        profileSourceBefore: 'local',
+        hasPlayerId: true,
+        hasError: false,
+      },
+    })).toEqual({
+      user_id: 'user-profile-sync',
+      event_name: 'profile_cloud_sync_repair',
+      surface: 'profile',
+      plan_id: 'player_plus',
+      metadata: {
+        result: 'cloud_synced',
+        via: 'api',
+        profileSourceBefore: 'local',
+        hasPlayerId: true,
+        hasError: false,
+      },
+    })
+  })
+
   it('accepts public search and data-quality events', () => {
     expect(buildProductUsageEventInsert('user-3', {
       eventName: 'search_result_clicked',
