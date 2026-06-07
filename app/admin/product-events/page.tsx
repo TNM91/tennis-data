@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import {
   AdminEmptyState,
   AdminReviewFrame,
@@ -79,9 +79,11 @@ export default function AdminProductEventsPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [filter, setFilter] = useState<EventFilter>('all')
+  const [search, setSearch] = useState('')
   const [urlFilterReady, setUrlFilterReady] = useState(false)
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, string>>({})
   const [savingReviewEventId, setSavingReviewEventId] = useState('')
+  const deferredSearch = useDeferredValue(search)
 
   const loadEvents = useCallback(async () => {
     setLoading(true)
@@ -112,7 +114,9 @@ export default function AdminProductEventsPage() {
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      setFilter(normalizeEventFilter(new URLSearchParams(window.location.search).get('filter')))
+      const params = new URLSearchParams(window.location.search)
+      setFilter(normalizeEventFilter(params.get('filter')))
+      setSearch((params.get('search') || '').slice(0, 120))
       setUrlFilterReady(true)
       void loadEvents()
     }, 0)
@@ -125,6 +129,7 @@ export default function AdminProductEventsPage() {
 
     const params = new URLSearchParams(window.location.search)
     setQueryParam(params, 'filter', filter, 'all')
+    setQueryParam(params, 'search', search.trim())
 
     const nextQuery = params.toString()
     const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`
@@ -133,18 +138,21 @@ export default function AdminProductEventsPage() {
     if (nextUrl !== currentUrl) {
       window.history.replaceState(null, '', nextUrl)
     }
-  }, [filter, urlFilterReady])
+  }, [filter, search, urlFilterReady])
 
   const filteredEvents = useMemo(() => {
-    if (filter === 'all') return events
+    const filterSearch = (items: ProductUsageEventRow[]) =>
+      items.filter((event) => eventMatchesSearch(event, deferredSearch))
+
+    if (filter === 'all') return filterSearch(events)
     if (filter === 'profile_sync_repairs') {
-      return events.filter((event) => event.event_name === 'profile_cloud_sync_repair')
+      return filterSearch(events.filter((event) => event.event_name === 'profile_cloud_sync_repair'))
     }
     if (filter === 'profile_sync_attention') {
-      return events.filter((event) => isOpenProfileSyncReviewEvent(event, profileSyncReviews))
+      return filterSearch(events.filter((event) => isOpenProfileSyncReviewEvent(event, profileSyncReviews)))
     }
-    return events.filter((event) => event.surface === filter)
-  }, [events, filter, profileSyncReviews])
+    return filterSearch(events.filter((event) => event.surface === filter))
+  }, [deferredSearch, events, filter, profileSyncReviews])
 
   const uniqueUsers = new Set(events.map((event) => event.user_id)).size
   const billingEvents = events.filter((event) => event.surface === 'billing').length
@@ -225,24 +233,39 @@ export default function AdminProductEventsPage() {
 
             <div style={adminReviewHeaderRowStyle}>
               <div style={toolbarStyle}>
-                <label className="label" htmlFor="product-event-filter">
-                  Surface
-                </label>
-                <select
-                  id="product-event-filter"
-                  className="select"
-                  value={filter}
-                  onChange={(event) => setFilter(event.target.value as EventFilter)}
-                >
-                  <option value="all">All surfaces</option>
-                  <option value="billing">Billing</option>
-                  <option value="profile">Profile</option>
-                  <option value="profile_sync_repairs">Profile sync repairs</option>
-                  <option value="profile_sync_attention">Sync needs review</option>
-                  <option value="mylab">My Lab</option>
-                  <option value="captain">Captain</option>
-                  <option value="upgrade">Upgrade</option>
-                </select>
+                <div>
+                  <label className="label" htmlFor="product-event-filter">
+                    Surface
+                  </label>
+                  <select
+                    id="product-event-filter"
+                    className="select"
+                    value={filter}
+                    onChange={(event) => setFilter(event.target.value as EventFilter)}
+                  >
+                    <option value="all">All surfaces</option>
+                    <option value="billing">Billing</option>
+                    <option value="profile">Profile</option>
+                    <option value="profile_sync_repairs">Profile sync repairs</option>
+                    <option value="profile_sync_attention">Sync needs review</option>
+                    <option value="mylab">My Lab</option>
+                    <option value="captain">Captain</option>
+                    <option value="upgrade">Upgrade</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label" htmlFor="product-event-search">
+                    Search
+                  </label>
+                  <input
+                    id="product-event-search"
+                    className="input"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value.slice(0, 120))}
+                    placeholder="User id, event, plan, or metadata"
+                    style={searchInputStyle}
+                  />
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button type="button" className="button-secondary" onClick={() => void loadEvents()}>
@@ -259,7 +282,7 @@ export default function AdminProductEventsPage() {
             {loading ? (
               <p className="subtle-text" style={{ marginTop: 18 }}>Loading product events...</p>
             ) : filteredEvents.length === 0 ? (
-              <AdminEmptyState text="No product usage events match this filter yet." />
+              <AdminEmptyState text="No product usage events match these filters yet." />
             ) : (
               <div className="table-wrap" style={{ marginTop: 18 }}>
                 <table className="data-table" style={{ width: '100%', tableLayout: 'auto' }}>
@@ -513,6 +536,20 @@ function isOpenProfileSyncReviewEvent(
   return event.metadata?.result === 'failed' || event.metadata?.result === 'local_only' || event.metadata?.hasError === true
 }
 
+function eventMatchesSearch(event: ProductUsageEventRow, rawSearch: string) {
+  const search = rawSearch.trim().toLowerCase()
+  if (!search) return true
+
+  return [
+    event.id,
+    event.user_id,
+    event.event_name,
+    event.surface,
+    event.plan_id || '',
+    formatMetadata(event.metadata),
+  ].some((value) => value.toLowerCase().includes(search))
+}
+
 function compactId(value: string) {
   return value.length <= 18 ? value : `${value.slice(0, 8)}...${value.slice(-6)}`
 }
@@ -561,6 +598,10 @@ const toolbarStyle = {
   flexWrap: 'wrap',
   gap: 12,
   marginTop: 18,
+} as const
+
+const searchInputStyle = {
+  width: 'min(100%, 320px)',
 } as const
 
 const eventNameStyle = {
