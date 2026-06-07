@@ -1,31 +1,25 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const THEME_STORAGE_KEY = 'tenaceiq-theme-mode'
-const LOCKED_PRIMARY_NAV = [
-  { label: 'My Lab', plan: 'Player' },
-  { label: 'Matchup', plan: 'Player' },
-  { label: 'Captain', plan: 'Captain' },
-  { label: 'Leagues', plan: 'League Office access' },
+const PRIMARY_NAV = [
+  { href: '/explore', label: 'Find' },
+  { href: '/matchup', label: 'Prepare' },
+  { href: '/mylab', label: 'Improve' },
+  { href: '/coaches', label: 'Coaches' },
+  { href: '/teams', label: 'Teams' },
+  { href: '/tournaments', label: 'Tournaments' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/resources', label: 'Resources' },
+  { href: '/pricing', label: 'Pricing' },
 ] as const
-const LOCK_COLOR = 'rgb(8, 17, 29)'
 
-async function setTheme(page: Page, theme: 'dark' | 'light') {
-  await page.addInitScript(
-    ({ key, value }) => {
-      window.localStorage.setItem(key, value)
-    },
-    { key: THEME_STORAGE_KEY, value: theme },
-  )
-}
-
-async function expectLockedNavIcons(page: Page, theme: 'dark' | 'light') {
-  await setTheme(page, theme)
+async function expectPrimaryNavigation(page: Page) {
   await page.goto('/')
-  await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
   const viewportWidth = page.viewportSize()?.width ?? 1280
+  const header = page.locator('header').first()
+
   if (viewportWidth < 980) {
-    const header = page.locator('header').first()
     const menuButton = header.getByRole('button', { name: 'Open menu' }).first()
     const closeButton = header.getByRole('button', { name: 'Close menu' }).first()
 
@@ -44,58 +38,21 @@ async function expectLockedNavIcons(page: Page, theme: 'dark' | 'light') {
       .toBe(true)
   }
 
-  for (const { label, plan } of LOCKED_PRIMARY_NAV) {
-    const accessibleLabel = `${label} requires ${plan}. Create a free account first, then activate ${plan}.`
-    const headerLink = page.locator(`header a[aria-label="${accessibleLabel}"]`).first()
-    const footerLink = page.locator(`footer a[aria-label="${accessibleLabel}"]`).first()
+  for (const { href, label } of PRIMARY_NAV) {
+    await expect(header.locator(`a[href="${href}"]`).getByText(label, { exact: true }), `${label} header link`).toBeVisible()
+  }
 
-    await expect(headerLink, `${label} header locked link`).toBeVisible()
-    await expect(footerLink, `${label} footer locked link`).toBeVisible()
-
-    const headerPaths = await headerLink.locator('svg path').evaluateAll((paths) =>
-      paths.map((path) => path.getAttribute('d')),
-    )
-    const footerPaths = await footerLink.locator('svg path').evaluateAll((paths) =>
-      paths.map((path) => path.getAttribute('d')),
-    )
-    expect(footerPaths, `${label} footer uses the same lock glyph as the header`).toEqual(headerPaths)
-
-    const headerIcon = headerLink.locator('svg').first()
-    const footerIcon = footerLink.locator('svg').first()
-    await expect(headerIcon, `${label} header lock icon`).toBeVisible()
-    await expect(footerIcon, `${label} footer lock icon`).toBeVisible()
-
-    await expect
-      .poll(() => headerIcon.evaluate((icon) => getComputedStyle(icon).color), {
-        message: `${label} header lock color should settle`,
-      })
-      .toBe(LOCK_COLOR)
-    await expect
-      .poll(() => footerIcon.evaluate((icon) => getComputedStyle(icon).color), {
-        message: `${label} footer lock color should settle`,
-      })
-      .toBe(LOCK_COLOR)
-
-    await expect
-      .poll(() => headerIcon.evaluate((icon) => getComputedStyle(icon.parentElement as HTMLElement).backgroundImage), {
-        message: `${label} header lock badge should settle`,
-      })
-      .toContain('linear-gradient')
-    await expect
-      .poll(() => footerIcon.evaluate((icon) => getComputedStyle(icon.parentElement as HTMLElement).backgroundImage), {
-        message: `${label} footer lock badge should settle`,
-      })
-      .toContain('linear-gradient')
+  if (viewportWidth >= 820) {
+    const footer = page.locator('footer').first()
+    for (const href of ['/', '/resources', '/pricing', '/explore/players', '/mylab', '/matchup', '/leagues', '/tournaments']) {
+      await expect(footer.locator(`a[href="${href}"]`).first(), `${href} footer link`).toBeVisible()
+    }
   }
 }
 
-test.describe('locked primary navigation icons', () => {
-  test('match between header and footer in light mode', async ({ page }) => {
-    await expectLockedNavIcons(page, 'light')
-  })
-
-  test('match between header and footer in dark mode', async ({ page }) => {
-    await expectLockedNavIcons(page, 'dark')
+test.describe('public navigation contract', () => {
+  test('keeps current header and footer links reachable in the dark shell', async ({ page }) => {
+    await expectPrimaryNavigation(page)
   })
 })
 

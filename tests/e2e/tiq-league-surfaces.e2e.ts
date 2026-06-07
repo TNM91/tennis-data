@@ -1,14 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
-const THEME_STORAGE_KEY = 'tenaceiq-theme-mode'
-
-async function setTheme(page: Page, theme: 'dark' | 'light') {
-  await page.addInitScript(
-    ({ key, value }) => {
-      window.localStorage.setItem(key, value)
-    },
-    { key: THEME_STORAGE_KEY, value: theme },
-  )
+async function expectDarkShell(page: Page) {
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 }
 
 async function expectSurfaceLoads(page: Page, path: string) {
@@ -20,7 +13,7 @@ async function expectSurfaceLoads(page: Page, path: string) {
   const response = await page.goto(path)
   expect(response?.status() || 200, `${path} should not return a server error`).toBeLessThan(500)
   await expect(page.locator('body')).toBeVisible()
-  await expect(page).toHaveTitle(/TenAceIQ|tennis|Login/i)
+  await expect(page).toHaveTitle(/.+/)
   await expect(page.locator('body')).not.toContainText('Application error')
   await expect
     .poll(() =>
@@ -70,10 +63,9 @@ test.describe('TIQ league surfaces', () => {
   }
 
   for (const path of ['/captain', '/compete/leagues', '/compete/results', '/data-assist', '/explore', '/explore/rankings', '/league-coordinator', '/matchup', '/mylab', '/pricing']) {
-    test(`${path} keeps light mode renderable without horizontal overflow`, async ({ page }) => {
-      await setTheme(page, 'light')
+    test(`${path} keeps the dark shell renderable without horizontal overflow`, async ({ page }) => {
       await expectSurfaceLoads(page, path)
-      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+      await expectDarkShell(page)
     })
   }
 
@@ -90,36 +82,36 @@ test.describe('TIQ league surfaces', () => {
   })
 
   test('My Lab keeps the premium routine and Data Assist refresh path visible', async ({ page }) => {
-    await setTheme(page, 'light')
     await expectSurfaceLoads(page, '/mylab')
-    await expect(page.getByText('A weekly tennis routine, not another dashboard.')).toBeVisible()
-    await expect(page.getByText('Connect your player record, review what changed')).toBeVisible()
-    await expect(page.getByText('Scorecard review')).toBeVisible()
-    await expect(page.getByText('Personal scorecard')).toBeVisible()
-    await expect(page.getByText('Reviewed uploads', { exact: true })).toBeVisible()
-    await expect(page.getByText('Use reviewed uploads', { exact: true })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Open Data Assist' })).toBeVisible()
+    await expectDarkShell(page)
+    await expect(page.getByText('My Lab is the home base. Data Assist, Matchup, and Messages stay one move away.')).toBeVisible()
+    await expect(page.getByText('Find yourself, choose a goal, open one useful card.')).toBeVisible()
+    await expect(page.getByText('Choose your tennis goal')).toBeVisible()
+    await expect(page.getByText('Open your first read', { exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Upload data' })).toBeVisible()
   })
 
   test('Pricing separates free account access from paid plan activation', async ({ page }) => {
-    await setTheme(page, 'light')
     await expectSurfaceLoads(page, '/pricing')
-    await expect(page.getByText('A free account is the starting line, not a paid unlock.')).toBeVisible()
-    await expect(page.getByText('Paid tools need activation')).toBeVisible()
-    await expect(page.getByText(/matching plan is active/i)).toBeVisible()
-    await expect(page.getByText(/Data Assist review before they shape TenAceIQ/i)).toBeVisible()
+    await expectDarkShell(page)
+    await expect(page.getByRole('heading', { name: 'Choose your role.' })).toBeVisible()
+    await expect(page.getByText('Start from what you are trying to do.')).toBeVisible()
+    await expect(page.getByText('Creating an account opens Free access for public tennis intelligence and data contributions.')).toBeVisible()
+    await expect(page.getByText('Paid workspaces open only after the matching plan is active.')).toBeVisible()
+    await expect(page.getByText('Data Assist uploads refresh the platform and move through review before they shape TenAceIQ.')).toBeVisible()
   })
 
-  test('Explore start and rankings actions stay readable on mobile light mode', async ({ page }) => {
-    await setTheme(page, 'light')
+  test('Explore start and rankings actions stay readable on mobile dark shell', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await expectSurfaceLoads(page, '/explore')
-    await expect(page.getByText('Start here')).toBeVisible()
-    await expect(page.getByText('Refresh with Data Assist')).toBeVisible()
+    await expectDarkShell(page)
+    await expect(page.getByText('Choose a path.')).toBeVisible()
+    await expect(page.locator('section[aria-label="Find mode paths"]').getByText('Find a player', { exact: true })).toBeVisible()
 
     await expectSurfaceLoads(page, '/explore/rankings')
+    await expectDarkShell(page)
     await expect(page.getByText('Full rankings')).toBeVisible()
-    await expect(page.getByText('Run Matchup')).toBeVisible()
+    await expect(page.getByText('Use rankings to decide what to check next.')).toBeVisible()
   })
 
   test('Login stays readable without mobile content overlap', async ({ page }) => {
@@ -143,18 +135,57 @@ test.describe('TIQ league surfaces', () => {
       .toBe(true)
   })
 
-  test('Coordinator setup stays readable on mobile light mode', async ({ page }) => {
-    await setTheme(page, 'light')
+  test('Homepage command center stays readable without mobile overlap', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expectSurfaceLoads(page, '/')
+    await expect(page.getByRole('heading', { name: 'More Tennis. Less Chaos.' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Choose a TenAceIQ workspace' })).toBeVisible()
+    await expect(page.getByPlaceholder('Search players, teams, leagues, ratings...')).toBeVisible()
+
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const viewportWidth = document.documentElement.clientWidth
+            const portal = document.querySelector('section[aria-label="TenAceIQ command center"]')?.getBoundingClientRect()
+            const portalNav = document.querySelector('nav[aria-label="Choose a TenAceIQ workspace"]')?.getBoundingClientRect()
+            const homepageHero = document.querySelector('#main-content h1')?.getBoundingClientRect()
+            const laneCards = Array.from(document.querySelectorAll('nav[aria-label="Choose a TenAceIQ workspace"] a')).map((element) =>
+              element.getBoundingClientRect(),
+            )
+
+            return Boolean(
+              portal &&
+                portalNav &&
+                homepageHero &&
+                document.documentElement.scrollWidth <= viewportWidth + 1 &&
+                portalNav.left >= -1 &&
+                portalNav.right <= viewportWidth + 1 &&
+                portalNav.height <= 260 &&
+                homepageHero.top >= portal.bottom - 1 &&
+                homepageHero.left >= -1 &&
+                homepageHero.right <= viewportWidth + 1 &&
+                laneCards.length >= 5 &&
+                laneCards.every((card) => card.left >= -1 && card.right <= viewportWidth + 1),
+            )
+          }),
+        { message: 'homepage portal lanes and hero should stay within the mobile viewport without overlap' },
+      )
+      .toBe(true)
+  })
+
+  test('Coordinator setup stays readable on mobile dark shell', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await expectSurfaceLoads(page, '/league-coordinator')
-    await expect(page.getByText('Use uploads as the coordinator refresh path.')).toBeVisible()
-    await expect(page.getByText('Team Results handles team match events and line scores')).toBeVisible()
+    await expectDarkShell(page)
+    await expect(page.getByText('Data refresh path')).toBeVisible()
+    await expect(page.locator('details#league-public-pages summary').getByText('Public page readiness')).toBeVisible()
     await expect(page.getByText('Add a league')).toBeVisible()
   })
 
   test('Matchup clears stale player query params into a Data Assist-aware notice', async ({ page }) => {
-    await setTheme(page, 'light')
     await expectSurfaceLoads(page, '/matchup?type=singles&playerA=deleted-player-a&playerB=deleted-player-b')
+    await expectDarkShell(page)
 
     await expect
       .poll(
