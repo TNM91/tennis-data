@@ -26,6 +26,13 @@ describe('pricing mobile layout guards', () => {
       'planCardStyle',
       'workspaceGridStyle',
       'workspaceCardStyle',
+      'fullCourtPassStyle',
+      'fullCourtPassGridStyle',
+      'fullCourtPassLinkStyle',
+      'fullCourtWorkspaceFitProofStyle',
+      'fullCourtWorkspaceFitHeaderStyle',
+      'fullCourtWorkspaceFitGridStyle',
+      'fullCourtWorkspaceFitCardStyle',
       'sectionHeaderStyle',
       'tableWrapStyle',
       'billingBandStyle',
@@ -35,6 +42,9 @@ describe('pricing mobile layout guards', () => {
     expect(styleBlock('planGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")
     expect(styleBlock('jobChooserGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
     expect(styleBlock('workspaceGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")
+    expect(styleBlock('fullCourtPassStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'")
+    expect(styleBlock('fullCourtPassGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(styleBlock('fullCourtWorkspaceFitGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
     expect(styleBlock('billingBandStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: '28px 34px 1fr'")
     expect(source).not.toContain("gridTemplateColumns: '12px 1fr'")
@@ -57,6 +67,10 @@ describe('pricing mobile layout guards', () => {
       'tableCellStyle',
       'jobChooserCardStyle',
       'workspaceCardStyle',
+      'fullCourtPassLinkStyle',
+      'fullCourtWorkspaceFitProofStyle',
+      'fullCourtWorkspaceFitHeaderStyle',
+      'fullCourtWorkspaceFitCardStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
     }

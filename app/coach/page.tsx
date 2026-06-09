@@ -32,12 +32,16 @@ import {
   getCoachPlannerHref,
   getCoachSessionPreset,
 } from '@/lib/coach-workspace'
+import { buildCoachStudentCalendarEvents } from '@/lib/coach-calendar'
 import type { LevelUpSession } from '@/lib/level-up-sessions'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity } from '@/lib/level-up/recommendations'
 import type { LevelUpCard, LevelUpModule } from '@/lib/level-up/level-up-types'
-import { getPlayerDevelopmentIdentity } from '@/lib/player-development'
+import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentity } from '@/lib/player-development'
+
+const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
+const CUSTOM_ASSIGNMENT_TEMPLATE_ID = 'custom-assignment'
 
 const FIRST_ASSIGNMENT_STARTERS = [
   {
@@ -66,6 +70,21 @@ const FIRST_ASSIGNMENT_STARTERS = [
   },
 ] as const
 
+const COACH_REVIEW_PROOF_SYNC_STEPS = [
+  {
+    label: 'Synced proof',
+    text: 'Coach-visible only after the assigned Level Up log reaches this review queue.',
+  },
+  {
+    label: 'Local boundary',
+    text: 'Browser-only player logs stay private until the player syncs or shares the proof.',
+  },
+  {
+    label: 'Next coach move',
+    text: 'Use the proof score, note, and due state to choose repeat, simplify, or add pressure.',
+  },
+]
+
 export default function CoachPage() {
   return (
     <SiteShell active="/coach">
@@ -86,6 +105,7 @@ function CoachContent() {
   const [studentName, setStudentName] = useState('')
   const [studentLevel, setStudentLevel] = useState('')
   const [studentIdentity, setStudentIdentity] = useState('relentless-competitor-4-0')
+  const [studentCustomIdentity, setStudentCustomIdentity] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [studentPhone, setStudentPhone] = useState('')
   const [contactPreference, setContactPreference] = useState<CoachStudentLink['contactPreference']>('in_app')
@@ -108,6 +128,8 @@ function CoachContent() {
   const [workspaceMessage, setWorkspaceMessage] = useState('')
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [lastCreatedAssignment, setLastCreatedAssignment] = useState<CoachAssignment | null>(null)
+  const [calendarLinkByStudentId, setCalendarLinkByStudentId] = useState<Record<string, string>>({})
+  const [calendarLinkLoadingStudentId, setCalendarLinkLoadingStudentId] = useState('')
 
   const loadCoachWorkspace = useCallback(async () => {
     if (!session?.access_token || !access.canUseCoachWorkflow) return
@@ -187,7 +209,9 @@ function CoachContent() {
           student: {
             playerName: studentName,
             identitySlug: studentIdentity,
-            levelLabel: studentLevel,
+            levelLabel: studentIdentity === CUSTOM_STUDENT_IDENTITY_ID
+              ? studentLevel || studentCustomIdentity.trim() || 'Custom path'
+              : studentLevel,
             playerEmail: inviteEmail,
             playerPhone: studentPhone,
             contactPreference,
@@ -207,6 +231,7 @@ function CoachContent() {
       setContactStudentId(json.student.id)
       setStudentName('')
       setStudentLevel('')
+      setStudentCustomIdentity('')
       setInviteEmail('')
       setStudentPhone('')
       setContactPreference('in_app')
@@ -226,7 +251,8 @@ function CoachContent() {
     event.preventDefault()
     if (!session?.access_token || !assignmentStudentId || !assignmentTitle.trim()) return
 
-    const template = getCoachAssignmentTemplate(assignmentTemplateId)
+    const customAssignmentTemplate = assignmentTemplateId === CUSTOM_ASSIGNMENT_TEMPLATE_ID
+    const template = customAssignmentTemplate ? null : getCoachAssignmentTemplate(assignmentTemplateId)
     const presetAssignment = assignmentPresetId ? buildSessionPresetAssignment(assignmentPresetId) : null
     const starterAssignment = assignmentStarterId
       ? FIRST_ASSIGNMENT_STARTERS.find((starter) => starter.id === assignmentStarterId) ?? null
@@ -244,6 +270,8 @@ function CoachContent() {
     const levelUpTracker = levelUpCard
       ? [levelUpCard.proof, levelUpCard.cue, levelUpCard.reward].filter(Boolean)
       : null
+    const normalizedLessonDateTime = lessonDateTime.trim()
+    const normalizedLessonFocus = lessonFocus.trim()
     setWorkspaceLoading(true)
     setWorkspaceMessage('')
 
@@ -262,9 +290,12 @@ function CoachContent() {
             dueDate: assignmentDueDate,
             status: 'assigned',
             assignment: {
-              templateId: presetAssignment ? assignmentPresetId : template.id,
-              detail: presetAssignment?.detail ?? template.detail,
-              ...template.assignment,
+              templateId: presetAssignment ? assignmentPresetId : template?.id ?? CUSTOM_ASSIGNMENT_TEMPLATE_ID,
+              detail: presetAssignment?.detail ?? template?.detail ?? (assignmentFocus || assignmentTitle),
+              ...(template?.assignment ?? {
+                tracker: ['Coach-defined target', 'Player proof returned', 'Next focus chosen'],
+                playerPlusPrompt: 'Log what changed and what needs the next rep.',
+              }),
               ...(presetAssignment
                 ? {
                     tracker: presetAssignment.tracker,
@@ -288,6 +319,13 @@ function CoachContent() {
                     expectedEvidence: starterAssignment?.evidence ?? levelUpCard.proof,
                     tracker: presetAssignment?.tracker ?? levelUpTracker,
                     portalHref: `/player-development/${savedStudents.find((student) => student.id === assignmentStudentId)?.identitySlug ?? 'relentless-competitor-4-0'}/level-up?card=${levelUpCard.id}`,
+                  }
+                : {}),
+              ...(normalizedLessonDateTime
+                ? {
+                    lessonDateTime: normalizedLessonDateTime,
+                    lessonFocus: normalizedLessonFocus || assignmentFocus || assignmentTitle,
+                    calendarLayer: 'coach_student_lesson',
                   }
                 : {}),
               source: 'coach-portal',
@@ -347,7 +385,56 @@ function CoachContent() {
     setWorkspaceMessage('Student added and invite link created.')
   }
 
+  async function createStudentCalendarLink(student: CoachStudentLink | null) {
+    if (!session?.access_token || !student) return
+
+    setCalendarLinkLoadingStudentId(student.id)
+    setWorkspaceMessage('')
+
+    try {
+      const response = await fetch('/api/coach/student-calendar-links', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ studentLinkId: student.id }),
+      })
+      const json = (await response.json()) as { ok?: boolean; calendarUrl?: string; message?: string }
+
+      if (!response.ok || !json.ok || !json.calendarUrl) {
+        throw new Error(json.message || 'Could not create calendar link.')
+      }
+
+      setCalendarLinkByStudentId((current) => ({ ...current, [student.id]: json.calendarUrl as string }))
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(json.calendarUrl)
+          setWorkspaceMessage(`Calendar subscribe link copied for ${student.playerName}.`)
+        } catch {
+          setWorkspaceMessage(`Calendar subscribe link created for ${student.playerName}. Open the feed to copy the URL.`)
+        }
+      } else {
+        setWorkspaceMessage(`Calendar subscribe link created for ${student.playerName}.`)
+      }
+    } catch (error) {
+      setWorkspaceMessage(error instanceof Error ? error.message : 'Could not create calendar link.')
+    } finally {
+      setCalendarLinkLoadingStudentId('')
+    }
+  }
+
   function handleAssignmentTemplateChange(templateId: string) {
+    if (templateId === CUSTOM_ASSIGNMENT_TEMPLATE_ID) {
+      setAssignmentTemplateId(CUSTOM_ASSIGNMENT_TEMPLATE_ID)
+      setAssignmentTitle('')
+      setAssignmentFocus('')
+      setAssignmentPresetId('')
+      setAssignmentStarterId('')
+      setAssignmentLevelUpCardId('')
+      return
+    }
+
     const template = getCoachAssignmentTemplate(templateId)
     setAssignmentTemplateId(template.id)
     setAssignmentTitle(template.title)
@@ -477,6 +564,18 @@ function CoachContent() {
   const lastAssignmentNotifyMessage = useMemo(
     () => (lastCreatedAssignment ? buildAssignmentNotifyMessage(lastCreatedAssignment, lastAssignmentSummary) : ''),
     [lastAssignmentSummary, lastCreatedAssignment],
+  )
+  const sharedLessonCalendarEvents = useMemo(
+    () => savedStudents
+      .flatMap((student) =>
+        buildCoachStudentCalendarEvents(
+          assignments.filter((assignment) => assignment.studentLinkId === student.id),
+          student,
+        ).map((event) => ({ ...event, studentName: student.playerName })),
+      )
+      .sort((left, right) => getCalendarEventSortKey(left).localeCompare(getCalendarEventSortKey(right)))
+      .slice(0, 4),
+    [assignments, savedStudents],
   )
   const assignmentsNeedingReview = useMemo(
     () => assignments.filter(assignmentNeedsCoachReview),
@@ -655,10 +754,24 @@ function CoachContent() {
             <label style={fieldStyle}>
               Development path
               <select className="tiq-focus-ring" value={studentIdentity} onChange={(event) => setStudentIdentity(event.target.value)} style={inputStyle}>
-                <option value="relentless-competitor-4-0">Relentless Competitor</option>
-                <option value="smart-attacker-4-0-to-4-5">Smart Attacker</option>
+                {PLAYER_DEVELOPMENT_IDENTITIES.map((identity) => (
+                  <option key={identity.slug} value={identity.slug}>{identity.title.replace(/^The /, '')}</option>
+                ))}
+                <option value={CUSTOM_STUDENT_IDENTITY_ID}>Custom path</option>
               </select>
             </label>
+            {studentIdentity === CUSTOM_STUDENT_IDENTITY_ID ? (
+              <label style={fieldStyle}>
+                Custom path name
+                <input
+                  className="tiq-focus-ring"
+                  value={studentCustomIdentity}
+                  onChange={(event) => setStudentCustomIdentity(event.target.value)}
+                  placeholder="Example: lefty doubles returner"
+                  style={inputStyle}
+                />
+              </label>
+            ) : null}
             <label style={fieldStyle}>
               Level / group
               <input className="tiq-focus-ring" value={studentLevel} onChange={(event) => setStudentLevel(event.target.value)} placeholder="4.0, varsity, clinic..." style={inputStyle} />
@@ -791,6 +904,7 @@ function CoachContent() {
             <label style={fieldStyle}>
               Template
               <select className="tiq-focus-ring" value={assignmentTemplateId} onChange={(event) => handleAssignmentTemplateChange(event.target.value)} style={inputStyle}>
+                <option value={CUSTOM_ASSIGNMENT_TEMPLATE_ID}>Custom assignment</option>
                 {COACH_ASSIGNMENT_TEMPLATES.map((template) => (
                   <option key={template.id} value={template.id}>{template.title}</option>
                 ))}
@@ -807,6 +921,14 @@ function CoachContent() {
             <label style={fieldStyle}>
               Due date
               <input className="tiq-focus-ring" type="date" value={assignmentDueDate} onChange={(event) => setAssignmentDueDate(event.target.value)} style={inputStyle} />
+            </label>
+            <label style={fieldStyle}>
+              Lesson date / time
+              <input className="tiq-focus-ring" type="datetime-local" value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} style={inputStyle} />
+            </label>
+            <label style={fieldStyle}>
+              Lesson focus note
+              <input className="tiq-focus-ring" value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
             </label>
             <div style={levelUpAssignmentPickerStyle}>
               <label style={fieldStyle}>
@@ -934,7 +1056,7 @@ function CoachContent() {
             <div style={sessionStepGridStyle}>
               <label style={fieldStyle}>
                 Date / time
-                <input className="tiq-focus-ring" value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} placeholder="Tue 4:30 PM" style={inputStyle} />
+                <input className="tiq-focus-ring" type="datetime-local" value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} style={inputStyle} />
               </label>
               <label style={fieldStyle}>
                 Lesson focus
@@ -962,6 +1084,46 @@ function CoachContent() {
               )}
             </div>
           </div>
+          {savedStudents.length ? (
+            <div style={sharedLessonCalendarStyle}>
+              <div style={sessionPlannerHeaderStyle}>
+                <div>
+                  <div style={eyebrowStyle}>Shared calendar</div>
+                  <h3 style={sessionPlannerTitleStyle}>Coach + student lessons.</h3>
+                </div>
+                <div style={sessionActionRowStyle}>
+                  {selectedContactStudent ? (
+                    <button
+                      type="button"
+                      onClick={() => void createStudentCalendarLink(selectedContactStudent)}
+                      disabled={calendarLinkLoadingStudentId === selectedContactStudent.id}
+                      style={smallPrimaryButtonStyle}
+                    >
+                      {calendarLinkLoadingStudentId === selectedContactStudent.id ? 'Creating...' : 'Create subscribe link'}
+                    </button>
+                  ) : null}
+                  {selectedContactStudent && calendarLinkByStudentId[selectedContactStudent.id] ? (
+                    <a href={calendarLinkByStudentId[selectedContactStudent.id]} style={smallGhostLinkStyle}>
+                      Open feed
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+              {sharedLessonCalendarEvents.length ? (
+                <div style={sharedLessonCalendarGridStyle}>
+                  {sharedLessonCalendarEvents.map((event) => (
+                    <div key={event.id} style={sharedLessonCalendarItemStyle}>
+                      <strong>{event.title}</strong>
+                      <span>{formatSharedCalendarEventDate(event)}</span>
+                      <em>{getSharedCalendarEventDetail(event)}</em>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={studentNextStyle}>Add a lesson date to an assignment, then create a private subscribe link for the coach and student calendar.</p>
+              )}
+            </div>
+          ) : null}
           <div style={reviewQueueStyle}>
             <div style={reviewQueueMetricStyle}>
               <span>Needs review</span>
@@ -1044,6 +1206,7 @@ function CoachContent() {
                 const levelUpProof = assignmentProofById.get(assignment.id)
                 const reviewReady = Boolean(playerCheckIn || levelUpProof)
                 const proofReviewDraft = levelUpProof ? buildLevelUpProofReviewDraft(levelUpProof, assignment) : null
+                const lessonDateTime = getAssignmentLessonDateTime(assignment.assignment)
                 return (
                   <article key={assignment.id} id={`coach-assignment-${assignment.id}`} style={assignmentCardStyle}>
                     <div style={assignmentTopStyle}>
@@ -1052,6 +1215,9 @@ function CoachContent() {
                     </div>
                     <span>{student?.playerName || 'Student'} / {assignment.focus || 'Coach assignment'}</span>
                     <span style={assignmentDueStyle(dueState.tone)}>{dueState.label}</span>
+                    {lessonDateTime ? (
+                      <span style={assignmentDueStyle('future')}>Lesson {formatLessonDateTimeForMessage(lessonDateTime)}</span>
+                    ) : null}
                     {student?.playerUserId ? (
                       <Link
                         href={buildCoachPlayerMessageHref(
@@ -1093,6 +1259,21 @@ function CoachContent() {
                         <div style={assignmentTopStyle}>
                           <strong>Level Up proof received</strong>
                           <span style={proofScoreBadgeStyle(levelUpProof.rating)}>{levelUpProof.rating}/5</span>
+                        </div>
+                        <div style={proofSourceCueStyle} aria-label="Coach review proof sync cue">
+                          <div style={proofSourceCueHeaderStyle}>
+                            <span>Coach review proof sync cue</span>
+                            <strong>Synced Level Up proof is coach-visible here.</strong>
+                            <small>If the player only saved locally, it will stay off this review queue until sync succeeds.</small>
+                          </div>
+                          <div style={proofSourceCueGridStyle}>
+                            {COACH_REVIEW_PROOF_SYNC_STEPS.map((step) => (
+                              <div key={step.label} style={proofSourceCueItemStyle}>
+                                <strong>{step.label}</strong>
+                                <small>{step.text}</small>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                         <span>{levelUpProof.drillTitle}: {levelUpProof.focusTitle}</span>
                         <em>{formatClock(levelUpProof.elapsedSeconds)} / {levelUpProof.feeling}</em>
@@ -1257,6 +1438,7 @@ function SessionStep({ label, value }: { label: string; value: string }) {
 }
 
 function getIdentityTitle(identitySlug: string) {
+  if (identitySlug === CUSTOM_STUDENT_IDENTITY_ID) return 'Custom path'
   return getPlayerDevelopmentIdentity(identitySlug).title
 }
 
@@ -1622,11 +1804,61 @@ function getSetupStatusLabel(student: CoachStudentLink) {
 }
 
 function buildLessonConfirmMessage(playerName: string, dateTime: string, focus: string) {
+  const formattedDateTime = formatLessonDateTimeForMessage(dateTime)
   const details = [
-    dateTime.trim() ? `Time: ${dateTime.trim()}` : 'Time: ',
+    formattedDateTime ? `Time: ${formattedDateTime}` : 'Time: ',
     focus.trim() ? `Focus: ${focus.trim()}` : 'Focus: ',
   ].join('  ')
   return `Let's confirm the next lesson for ${playerName}. ${details}`
+}
+
+function getAssignmentLessonDateTime(assignment: Record<string, unknown>) {
+  return typeof assignment.lessonDateTime === 'string' ? assignment.lessonDateTime.trim() : ''
+}
+
+function getCalendarEventSortKey(event: { date: string; time?: string }) {
+  return `${event.date || '9999-12-31'}T${event.time || '23:59'}`
+}
+
+function formatSharedCalendarEventDate(event: { date: string; time?: string }) {
+  return event.time ? formatLessonDateTimeForMessage(`${event.date}T${event.time}`) : formatCalendarDate(event.date)
+}
+
+function formatCalendarDate(value: string) {
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value || 'Date TBD'
+
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  }).format(parsed)
+}
+
+function getSharedCalendarEventDetail(event: { description?: string; studentName?: string }) {
+  const focusLine = event.description
+    ?.split('\n')
+    .find((line) => line.startsWith('Focus: '))
+    ?.replace('Focus: ', '')
+    .trim()
+
+  return focusLine || event.studentName || 'Coach/student calendar'
+}
+
+function formatLessonDateTimeForMessage(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) return trimmed.replace('T', ' ')
+
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(parsed)
 }
 
 function getDateInputDaysFromNow(days: number) {
@@ -2267,6 +2499,33 @@ const contactPanelStyle: CSSProperties = {
     'linear-gradient(135deg, rgba(116,190,255,0.1), rgba(155,225,29,0.055)), rgba(255,255,255,0.035)',
 }
 
+const sharedLessonCalendarStyle: CSSProperties = {
+  ...sessionPlannerStyle,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.06)), rgba(255,255,255,0.035)',
+}
+
+const sharedLessonCalendarGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 8,
+}
+
+const sharedLessonCalendarItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(5,11,22,0.3)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.35,
+  minWidth: 0,
+}
+
 const assignmentSendPanelStyle: CSSProperties = {
   ...sessionPlannerStyle,
   border: '1px solid rgba(155,225,29,0.28)',
@@ -2492,6 +2751,35 @@ const levelUpProofStyle: CSSProperties = {
   ...checkInReviewStyle,
   border: '1px solid rgba(155,225,29,0.22)',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.055))',
+}
+
+const proofSourceCueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 750,
+  lineHeight: 1.5,
+}
+
+const proofSourceCueHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+}
+
+const proofSourceCueGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
+}
+
+const proofSourceCueItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: 8,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(5,11,22,0.28)',
 }
 
 const proofNextMoveStyle: CSSProperties = {

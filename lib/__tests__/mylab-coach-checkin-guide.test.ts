@@ -13,6 +13,14 @@ describe('My Lab coach check-in guide', () => {
     expect(myLabSource).toContain('Use guided draft')
     expect(myLabSource).toContain('summary?.expectedEvidence')
     expect(myLabSource).toContain('Question for coach')
+    expect(myLabSource).toContain('/api/player/calendar-links')
+    expect(myLabSource).toContain('Coach lesson calendar')
+    expect(myLabSource).toContain('Subscribe link')
+    expect(myLabSource).toContain('buildPlayerCoachLessonEvents')
+    expect(myLabSource).toContain('MyLabCalendarPanel')
+    expect(myLabSource).toContain('LOCAL_PERSONAL_CALENDAR_KEY')
+    expect(myLabSource).toContain('Your tennis week, plus shared coach dates.')
+    expect(myLabSource).toContain('Add personal reminders here while coach lessons and assignment due dates flow in from Coach Hub.')
   })
 
   it('only syncs player assignment status for assignments linked to that player', () => {

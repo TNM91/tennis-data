@@ -47,6 +47,7 @@
     "qa:week-plan": "node scripts/customer-journey-week-plan.mjs",
     "qa:fixtures": "node scripts/customer-journey-fixture-checklist.mjs",
     "qa:fixture-gate": "node scripts/customer-journey-fixture-gate.mjs",
+    "qa:fixture-auth-smoke": "node scripts/customer-journey-fixture-auth-smoke.mjs",
     "qa:fixture-board": "node scripts/customer-journey-fixture-board.mjs",
     "qa:fixture-status": "node scripts/customer-journey-fixture-status.mjs",
     "qa:fixture-review": "node scripts/customer-journey-fixture-review.mjs",

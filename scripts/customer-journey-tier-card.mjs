@@ -1,12 +1,12 @@
-const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
-const normalizedQuery = rawQuery.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+import { customerJourneyDetails, normalizeQaQuery, tierAliases } from './customer-journey-qa-data.mjs'
 
-const tiers = [
-  {
-    id: 'free',
-    aliases: ['free', 'visitor', 'public'],
-    label: 'Free',
-    testerFixture: 'free_viewer',
+const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
+const normalizedQuery = normalizeQaQuery(rawQuery)
+
+const tierOrder = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court', 'admin_internal']
+const tierCardContent = {
+  free: {
+    preferredAlias: 'free',
     promise: 'Explore useful public tennis intelligence before being asked to upgrade.',
     testReadySignal: 'Public context, Data Assist, and upgrade handoff are understandable without private controls.',
     features: [
@@ -25,14 +25,10 @@ const tiers = [
         proof: 'Upload/review language is clear and does not imply instant trusted data.',
       },
     ],
-    journeys: ['free-public-discovery'],
     blockers: ['upgrade prompt appears before useful context', 'Data Assist implies instant trusted data', 'private workspace controls visible'],
   },
-  {
-    id: 'player_plus',
-    aliases: ['player', 'player-plus', 'playerplus', 'player_plus'],
-    label: 'Player',
-    testerFixture: 'player_plus_linked',
+  player_plus: {
+    preferredAlias: 'player',
     promise: 'Turn lessons, goals, and practice into visible progress with a player-linked home.',
     testReadySignal: 'Player can train on phone, log proof, return later, and understand the next useful action.',
     features: [
@@ -58,14 +54,10 @@ const tiers = [
         proof: 'Linked profile, identity context, recent work, and next action survive refresh.',
       },
     ],
-    journeys: ['player-level-up-mobile-loop', 'player-my-lab-return-state'],
     blockers: ['too much scroll before action', 'generic drill copy', 'local proof presented as synced', 'generic empty dashboard'],
   },
-  {
-    id: 'coach',
-    aliases: ['coach', 'coaches'],
-    label: 'Coach',
-    testerFixture: 'coach_primary',
+  coach: {
+    preferredAlias: 'coach',
     promise: 'Keep coach and player aligned between lessons through invite, assignment, proof, and lesson planning.',
     testReadySignal: 'Coach can assign one useful tool, review proof, and turn that into a practical next lesson.',
     features: [
@@ -91,14 +83,10 @@ const tiers = [
         proof: 'One-hour lesson blocks match identity, readiness, recent work, and assignment handoff.',
       },
     ],
-    journeys: ['coach-player-assigned-challenge', 'coach-lesson-support'],
     blockers: ['assignment visible to wrong player', 'coach cannot find proof', 'lesson plan disconnected from Level Up', 'player-facing copy in coach mode'],
   },
-  {
-    id: 'captain',
-    aliases: ['captain', 'team-captain'],
-    label: 'Captain',
-    testerFixture: 'captain_primary',
+  captain: {
+    preferredAlias: 'captain',
     promise: 'Move from availability and context to lineup choices and team communication.',
     testReadySignal: 'Captain can make a weekly decision and produce a useful team-facing update.',
     features: [
@@ -117,14 +105,10 @@ const tiers = [
         proof: 'Compete context points clearly into captain decisions when the user has Captain access.',
       },
     ],
-    journeys: ['captain-week-flow'],
     blockers: ['availability disconnected from lineup', 'projection unclear', 'message or brief dead end', 'Captain tier copy missing'],
   },
-  {
-    id: 'league',
-    aliases: ['league', 'coordinator', 'league-coordinator'],
-    label: 'League',
-    testerFixture: 'league_coordinator',
+  league: {
+    preferredAlias: 'league',
     promise: 'Run league structure, schedules, results, standings, and visibility from one operating workspace.',
     testReadySignal: 'Coordinator operations and public/member league context stay connected without exposing private controls.',
     features: [
@@ -143,14 +127,10 @@ const tiers = [
         proof: 'Public/member league page reflects intended context without private controls.',
       },
     ],
-    journeys: ['league-result-to-public-context'],
     blockers: ['result does not propagate', 'private controls visible publicly', 'standings context missing', 'fixture data unsafe'],
   },
-  {
-    id: 'full_court',
-    aliases: ['full-court', 'fullcourt', 'full_court', 'all-access'],
-    label: 'Full-Court',
-    testerFixture: 'full_court_operator',
+  full_court: {
+    preferredAlias: 'full-court',
     promise: 'Give a multi-role user clean access to every paid workspace without tier confusion.',
     testReadySignal: 'Player, Coach, Captain, and League workspaces open without stale locks or redundant upgrade prompts.',
     features: [
@@ -162,14 +142,10 @@ const tiers = [
         proof: 'Pricing explains access and every paid workspace opens cleanly for the full-access account.',
       },
     ],
-    journeys: ['full-court-access-pass'],
     blockers: ['paid workspace locked', 'redundant upgrade prompt', 'role navigation confusing'],
   },
-  {
-    id: 'admin_internal',
-    aliases: ['admin', 'internal', 'admin-internal', 'admin_internal'],
-    label: 'Admin/Internal',
-    testerFixture: 'admin_test',
+  admin_internal: {
+    preferredAlias: 'admin',
     promise: 'Protect access and tennis data quality with fixture-safe internal workflows.',
     testReadySignal: 'Access repair and imported-data review are understandable, reflected in product surfaces, and safe for test data.',
     features: [
@@ -188,15 +164,17 @@ const tiers = [
         proof: 'Fixture import stays isolated and unreviewed data is not treated as trusted.',
       },
     ],
-    journeys: ['admin-access-and-data-quality'],
     blockers: ['test data not isolated', 'access change not reflected', 'unreviewed data treated as trusted', 'no rollback note'],
   },
-]
+}
+const tiers = tierOrder.map(buildTier).filter((tier) => tier.journeys.length)
 
 function findTier() {
   if (!rawQuery) return null
 
-  return tiers.find((tier) => tier.aliases.includes(normalizedQuery) || tier.id.replace(/_/g, '-') === normalizedQuery)
+  const tierLabel = tierAliases.get(normalizedQuery)
+
+  return tiers.find((tier) => tier.aliases.includes(normalizedQuery) || tier.label === tierLabel)
 }
 
 function printList() {
@@ -204,7 +182,7 @@ function printList() {
   console.log('')
   console.log('Available tier cards:')
   for (const tier of tiers) {
-    console.log(`- ${tier.aliases[0]} (${tier.label})`)
+    console.log(`- ${tier.preferredAlias} (${tier.label})`)
   }
 }
 
@@ -236,6 +214,30 @@ function printTierCard(tier) {
   console.log('- npm run qa:results')
   console.log('')
   console.log('Closeout rule: a tier is not test-ready until each listed journey has pass evidence and no open p0/p1 row remains for that tier.')
+}
+
+function buildTier(id) {
+  const journeys = customerJourneyDetails.filter((journey) => journey.tierId === id)
+  const label = journeys[0]?.tier ?? id
+  const content = tierCardContent[id] ?? {}
+  const aliases = new Set([normalizeQaQuery(id), normalizeQaQuery(label), normalizeQaQuery(content.preferredAlias ?? '')])
+
+  for (const [alias, aliasLabel] of tierAliases) {
+    if (aliasLabel === label) aliases.add(alias)
+  }
+
+  return {
+    id,
+    aliases: [...aliases].filter(Boolean),
+    label,
+    testerFixture: journeys[0]?.accountFixture ?? 'missing fixture',
+    promise: content.promise ?? 'Missing tier promise.',
+    testReadySignal: content.testReadySignal ?? 'Missing tier ready signal.',
+    preferredAlias: content.preferredAlias ?? aliases.values().next().value,
+    features: content.features ?? [],
+    journeys: journeys.map((journey) => journey.id),
+    blockers: content.blockers ?? [...new Set(journeys.flatMap((journey) => journey.failFastSignals))],
+  }
 }
 
 console.log('TenAceIQ Customer Journey Tier Card')

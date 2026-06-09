@@ -19,7 +19,7 @@ Automation rule: every entry route in this agenda must be covered by `scripts/ve
 | 1 | Player Level Up mobile loop | Player | `/player-development/relentless-competitor-4-0/level-up` | critical | `player_plus_linked` | Active training becomes the main screen, proof saves honestly, and the next action is obvious. |
 | 2 | Coach to player assigned challenge | Coach | `/coach` | critical | `coach_primary` | Invite, assignment, player challenge, proof, and coach review close the loop without manual cleanup. |
 | 3 | Coach lesson support | Coach | `/player-development/relentless-competitor-4-0/coach-planner` | high | `coach_primary` | The planner is coach-facing, practical, and connected to the player Level Up path. |
-| 4 | Player My Lab return state | Player | `/mylab` | high | `player_plus_linked` | My Lab makes the player identity, linked profile, and next action clear after refresh. |
+| 4 | Player My Lab return state | Player | `/mylab` | high | `player_plus_linked` | My Lab makes the player identity, linked profile, Level Up return state, and next action clear after refresh. |
 | 5 | Captain week flow | Captain | `/captain` | high | `captain_primary` | Captain can make a weekly decision and produce a useful team-facing update. |
 | 6 | League result to public context | League | `/league-coordinator` | high | `league_coordinator` | Coordinator operation and member-facing league context stay connected without exposing private controls. |
 | 7 | Full-Court access pass | Full-Court | `/pricing` | medium | `full_court_operator` | All paid workspaces open cleanly and the user can tell which workspace fits the job. |

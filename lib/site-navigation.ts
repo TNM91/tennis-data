@@ -23,6 +23,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
   { href: '/level-up', label: 'Level Up' },
   { href: '/mylab', label: 'Open My Lab' },
+  { href: '/tactics', label: 'Tactics Tools' },
   { href: '/coach', label: 'Coach Hub' },
   { href: '/data-assist', label: 'Improve data' },
   { href: '/matchup', label: 'Prep matchup' },

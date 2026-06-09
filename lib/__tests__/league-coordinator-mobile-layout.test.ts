@@ -93,6 +93,31 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
   })
 
+  it('keeps source-to-public proof visible before sharing league pages', () => {
+    expect(source).toContain('SOURCE_TO_PUBLIC_PROOF_STEPS')
+    expect(source).toContain('Use a safe fixture')
+    expect(source).toContain('Open the public league page and compare schedule, result, and standings context against the source screen.')
+    expect(source).toContain('Private League Office controls must stay off public pages')
+    expect(source).toContain('aria-label="League source to public proof cue"')
+    expect(source).toContain('sourceToPublicProofStyle')
+    expect(source).toContain('sourceToPublicProofStepStyle')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
+  })
+
+  it('keeps the full League Office operation proof visible before the setup form', () => {
+    expect(source).toContain('LEAGUE_OFFICE_OPERATION_PROOF_STEPS')
+    expect(source).toContain('League Office operation proof cue')
+    expect(source).toContain('Prove the office changes the same season reality members see.')
+    expect(source).toContain('Season shell')
+    expect(source).toContain('Result source')
+    expect(source).toContain('Member context')
+    expect(source).toContain('Private boundary')
+    expect(source).toContain('aria-label="League Office operation proof cue"')
+    expect(source).toContain('leagueOfficeOperationProofStyle')
+    expect(source).toContain('leagueOfficeOperationProofGridStyle')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
+  })
+
   it('wraps coordinator registry and approval rows around long league names', () => {
     expect(source).toContain('requestCardContentStyle')
     for (const styleName of [
@@ -138,6 +163,10 @@ describe('League Coordinator mobile layout guards', () => {
       'leagueOpsHeaderCopyStyle',
       'leagueOpsScoreStyle',
       'leagueOpsTrackStyle',
+      'leagueOfficeOperationProofStyle',
+      'leagueOfficeOperationProofHeaderStyle',
+      'leagueOfficeOperationProofGridStyle',
+      'leagueOfficeOperationProofStepStyle',
       'startCardGridStyle',
       'leagueOpsCheckGridStyle',
       'detailsSummary',
@@ -177,6 +206,9 @@ describe('League Coordinator mobile layout guards', () => {
       'leagueOpsTextStyle',
       'leagueOpsHeaderCopyStyle',
       'leagueOpsScoreStyle',
+      'leagueOfficeOperationProofStyle',
+      'leagueOfficeOperationProofHeaderStyle',
+      'leagueOfficeOperationProofStepStyle',
       'startActionLabelStyle',
       'startCardCtaStyle',
       'leagueOpsCheckStyle',

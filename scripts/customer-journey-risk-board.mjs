@@ -1,113 +1,22 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, sessionByJourneyId, tierAliases } from './customer-journey-qa-data.mjs'
 
 const processMapPath = 'docs/customer-journey-process-map.md'
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
 const normalizedQuery = rawQuery.replace(/\s+/g, '-').replaceAll('_', '-')
 
-const tierAliases = {
-  free: ['free'],
-  player: ['player', 'player-plus', 'player+'],
-  coach: ['coach'],
-  captain: ['captain'],
-  league: ['league', 'coordinator'],
-  'full-court': ['full-court', 'fullcourt', 'full'],
-  'admin/internal': ['admin', 'admin-internal', 'internal'],
-}
-
-const journeyPlans = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    day: 'day1',
-    tier: 'Player',
-    risk: 'critical',
-    fixture: 'player_plus_linked',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    features: ['Level Up Portal', 'Level Up Content Library'],
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    day: 'day1',
-    tier: 'Coach',
-    risk: 'critical',
-    fixture: 'coach_primary',
-    route: '/coach',
-    features: ['Coach Hub', 'Coach Invite Link', 'Level Up Portal'],
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    day: 'day2',
-    tier: 'Coach',
-    risk: 'high',
-    fixture: 'coach_primary',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    features: ['Coach Lesson Planner', 'Level Up Content Library'],
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    day: 'day2',
-    tier: 'Player',
-    risk: 'high',
-    fixture: 'player_plus_linked',
-    route: '/mylab',
-    features: ['My Lab'],
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    day: 'day3',
-    tier: 'Captain',
-    risk: 'high',
-    fixture: 'captain_primary',
-    route: '/captain',
-    features: ['Captain Lineup Week', 'Compete Bridge'],
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    day: 'day4',
-    tier: 'League',
-    risk: 'high',
-    fixture: 'league_coordinator',
-    route: '/league-coordinator',
-    features: ['League Office', 'Public League Context'],
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    day: 'day5',
-    tier: 'Full-Court',
-    risk: 'medium',
-    fixture: 'full_court_operator',
-    route: '/pricing',
-    features: ['Full-Court Navigation'],
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    day: 'day4',
-    tier: 'Admin/Internal',
-    risk: 'high',
-    fixture: 'admin_test',
-    route: '/admin/access',
-    features: ['Admin Access Management', 'Admin Data Quality', 'Data Assist Entry'],
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    day: 'day5',
-    tier: 'Free',
-    risk: 'medium',
-    fixture: 'free_viewer',
-    route: '/explore',
-    features: ['Public Explore', 'Data Assist Entry'],
-  },
-]
+const journeyPlans = customerJourneyDetails.map((journey) => ({
+  id: journey.id,
+  label: journey.label,
+  day: sessionByJourneyId.get(journey.id)?.id ?? 'unassigned',
+  tier: journey.tier,
+  risk: journey.risk,
+  fixture: journey.accountFixture,
+  route: journey.entryRoute,
+  features: journey.riskFeatureLabels,
+}))
 
 const featureRows = parseFeatureRows(readFileSync(join(process.cwd(), processMapPath), 'utf8'))
 const ledgerRows = readFileSync(join(process.cwd(), resultsPath), 'utf8')
@@ -251,17 +160,16 @@ function getState({ rows, hasPassEvidence, hasScreenshotOrVideo, openHighPriorit
 function matchesQuery(plan) {
   if (!rawQuery) return true
 
-  const matchingTiers = Object.entries(tierAliases)
-    .filter(([tier, aliases]) => tier === normalizedQuery || aliases.includes(normalizedQuery))
-    .map(([tier]) => tier)
+  const tierLabel = tierAliases.get(normalizedQuery.replace(/-/g, '')) ?? tierAliases.get(normalizedQuery)
 
-  if (matchingTiers.length) return matchingTiers.includes(plan.tier.toLowerCase())
+  if (tierLabel) return plan.tier === tierLabel
   if (normalizedQuery === plan.day) return true
 
-  return [plan.id, plan.label, plan.tier, plan.risk, plan.fixture, plan.route, plan.features.join(' ')]
+  const haystack = [plan.id, plan.label, plan.tier, plan.risk, plan.fixture, plan.route, plan.features.join(' ')]
     .join(' ')
     .toLowerCase()
-    .includes(rawQuery)
+
+  return haystack.includes(rawQuery) || haystack.replace(/\s+/g, '-').includes(normalizedQuery)
 }
 
 function parseFeatureRows(source) {

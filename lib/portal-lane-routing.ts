@@ -1,5 +1,6 @@
 import type { ProductAccessState } from './access-model'
 import { getPrimaryNavTarget } from './primary-nav-access'
+import { getPlanUnlockHref } from './plan-intent'
 
 type PortalLaneRoutingInput = {
   laneId: 'find' | 'you' | 'coach' | 'team' | 'league'
@@ -20,15 +21,8 @@ export function getPortalLaneTarget({
   accessPending,
   profileLinked = true,
 }: PortalLaneRoutingInput) {
+  void profileLinked
   if (accessPending) return { href: fallbackHref, locked: false, requiredPlan: null }
-
-  if (laneId === 'you' && authenticated && access.canUseAdvancedPlayerInsights && !profileLinked) {
-    return { href: '/profile', locked: false, requiredPlan: null }
-  }
-
-  if (laneId === 'team' && authenticated && access.canUseCaptainWorkflow && !profileLinked) {
-    return { href: '/profile', locked: false, requiredPlan: null }
-  }
 
   if (laneId === 'coach') {
     return getPrimaryNavTarget('/coach', access, authenticated)
@@ -37,7 +31,11 @@ export function getPortalLaneTarget({
   if (laneId === 'league') {
     return access.canUseLeagueTools
       ? { href: '/league-coordinator', locked: false, requiredPlan: null }
-      : { href: fallbackHref, locked: false, requiredPlan: null }
+      : {
+          href: getPlanUnlockHref('league', '/league-coordinator'),
+          locked: true,
+          requiredPlan: 'league',
+        }
   }
 
   return getPrimaryNavTarget(planRoute, access, authenticated)

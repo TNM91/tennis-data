@@ -40,6 +40,8 @@ const fixtureReviewScriptSource = readFileSync(join(process.cwd(), 'scripts/cust
 const ledgerCheckScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-ledger-check.mjs'), 'utf8')
 const resultsSummaryScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-results-summary.mjs'), 'utf8')
 const nextJourneyScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-next.mjs'), 'utf8')
+const actionListScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-action-list.mjs'), 'utf8')
+const qaDataScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-data.mjs'), 'utf8')
 const ownerBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-owner-board.mjs'), 'utf8')
 const tierBoardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-tier-board.mjs'), 'utf8')
 const retestPlanScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-retest-plan.mjs'), 'utf8')
@@ -125,6 +127,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:tester-packet')
     expect(resultsDocSource).toContain('npm run qa:kickoff')
     expect(resultsDocSource).toContain('npm run qa:live-card')
+    expect(resultsDocSource).toContain('fixture blockers point to the matching `qa:fixture-gate` command')
     expect(resultsDocSource).toContain('npm run qa:device-card')
     expect(resultsDocSource).toContain('npm run qa:device-ledger')
     expect(resultsDocSource).toContain('npm run qa:device-status')
@@ -133,6 +136,7 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:fixture-board')
     expect(resultsDocSource).toContain('npm run qa:fixture-status')
     expect(resultsDocSource).toContain('npm run qa:fixture-review')
+    expect(resultsDocSource).toContain('auth redirect checks')
     expect(resultsDocSource).toContain('npm run qa:access-review')
     expect(resultsDocSource).toContain('npm run qa:tier-board')
     expect(resultsDocSource).toContain('npm run qa:feature-review')
@@ -232,17 +236,24 @@ describe('customer journey test results', () => {
     expect(proofGapScriptSource).toContain('Pass rows missing screenshot/video')
     expect(proofGapScriptSource).toContain('Open p0/p1 blockers')
     expect(proofGapScriptSource).toContain('Open follow-up proof rows')
+    expect(proofGapScriptSource).toContain('Fixture gate: npm run qa:fixture-gate --')
+    expect(proofGapScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
+    expect(proofGapScriptSource).toContain('Auth smoke: npm run qa:fixture-auth-smoke')
     expect(proofGapScriptSource).toContain('qa:kickoff')
     expect(proofGapScriptSource).toContain('qa:evidence-pack')
     expect(proofGapScriptSource).toContain('qa:ledger-check')
     expect(proofGapScriptSource).toContain('Proof gap rule')
+    expect(proofGapScriptSource).toContain('customerJourneyDetails')
+    expect(proofGapScriptSource).toContain('sessionByJourneyId')
+    expect(proofGapScriptSource).toContain('tierAliases')
+    expect(resultsDocSource).toContain('fixture-gap rows include the matching `qa:fixture-gate` command')
 
     expect(proofGapScriptSource).toContain('row.category')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(proofGapScriptSource, `${plan.id} missing from proof gap board`).toContain(plan.id)
-      expect(proofGapScriptSource, `${plan.entryRoute} missing from proof gap board`).toContain(plan.entryRoute)
-      expect(proofGapScriptSource, `${plan.personaFixture} missing from proof gap board`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -255,7 +266,7 @@ describe('customer journey test results', () => {
     expect(qaStartScriptSource).toContain('qa:next')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(qaStartScriptSource, `${plan.id} missing from QA start`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 
@@ -267,9 +278,11 @@ describe('customer journey test results', () => {
     expect(missionControlScriptSource).toContain('Sessions')
     expect(missionControlScriptSource).toContain('Tiers')
     expect(missionControlScriptSource).toContain('qa:launch')
+    expect(missionControlScriptSource).toContain('customerJourneySessions')
+    expect(missionControlScriptSource).toContain('customerJourneyDetails')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(missionControlScriptSource, `${plan.id} missing from mission control`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 
@@ -280,9 +293,12 @@ describe('customer journey test results', () => {
     expect(qaTodayScriptSource).toContain('qa:tester-packet')
     expect(qaTodayScriptSource).toContain('qa:ledger-check')
     expect(qaTodayScriptSource).toContain('qa:close-day')
+    expect(qaTodayScriptSource).toContain('customerJourneySessions')
+    expect(qaTodayScriptSource).toContain('customerJourneyDetails')
+    expect(qaTodayScriptSource).toContain('customerJourneyDeviceProfiles')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(qaTodayScriptSource, `${plan.id} missing from QA today`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 
@@ -295,11 +311,11 @@ describe('customer journey test results', () => {
     expect(sessionLedgerScriptSource).toContain('--date=yyyy-mm-dd --tester=<name> --device=<device/browser>')
     expect(sessionLedgerScriptSource).toContain('Defaults: date=')
     expect(sessionLedgerScriptSource).toContain('Paste these rows into docs/customer-journey-test-results.md')
+    expect(ledgerTemplateScriptSource).toContain('customerJourneyDetails')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(ledgerTemplateScriptSource, `${plan.id} missing from ledger template script`).toContain(plan.id)
-      expect(ledgerTemplateScriptSource, `${plan.entryRoute} missing from ledger template script`).toContain(plan.entryRoute)
-      expect(sessionLedgerScriptSource, `${plan.id} missing from session ledger script`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
     }
   })
 
@@ -313,9 +329,9 @@ describe('customer journey test results', () => {
     expect(readinessBriefScriptSource).toContain('qa:week-plan')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(readinessBriefScriptSource, `${plan.id} missing from readiness brief`).toContain(plan.id)
-      expect(readinessBriefScriptSource, `${plan.entryRoute} missing from readiness brief`).toContain(plan.entryRoute)
-      expect(readinessBriefScriptSource, `${plan.personaFixture} missing from readiness brief`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -325,10 +341,11 @@ describe('customer journey test results', () => {
     expect(routeReviewScriptSource).toContain('TenAceIQ Route Review')
     expect(routeReviewScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(routeReviewScriptSource).toContain('a route is not proven by loading')
+    expect(routeReviewScriptSource).toContain('customerJourneyDetails')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(routeReviewScriptSource, `${plan.id} missing from route review`).toContain(plan.id)
-      expect(routeReviewScriptSource, `${plan.entryRoute} missing from route review`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
     }
   })
 
@@ -338,12 +355,18 @@ describe('customer journey test results', () => {
     expect(liveJourneyCardScriptSource).toContain('TenAceIQ Live Journey Test Card')
     expect(liveJourneyCardScriptSource).toContain('Paste-ready ledger row')
     expect(liveJourneyCardScriptSource).toContain('blocked-state commands')
+    expect(liveJourneyCardScriptSource).toContain('Fixture preflight:')
+    expect(liveJourneyCardScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')
+    expect(liveJourneyCardScriptSource).toContain('auth smoke blocked')
+    expect(liveJourneyCardScriptSource).toContain('npm run qa:fixture-gate -- ')
     expect(liveJourneyCardScriptSource).toContain('docs/customer-journey-test-results.md')
+    expect(liveJourneyCardScriptSource).toContain('customerJourneyDetails')
+    expect(liveJourneyCardScriptSource).toContain('sessionByJourneyId')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(liveJourneyCardScriptSource, `${plan.id} missing from live card`).toContain(plan.id)
-      expect(liveJourneyCardScriptSource, `${plan.entryRoute} missing from live card`).toContain(plan.entryRoute)
-      expect(liveJourneyCardScriptSource, `${plan.personaFixture} missing from live card`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -356,15 +379,20 @@ describe('customer journey test results', () => {
     expect(kickoffScriptSource).toContain('Paste-ready ledger row')
     expect(kickoffScriptSource).toContain('qa:fixture-board')
     expect(kickoffScriptSource).toContain('qa:fixture-status')
+    expect(kickoffScriptSource).toContain('qa:fixture-gate')
+    expect(kickoffScriptSource).toContain('qa:fixture-auth-smoke -- --env')
+    expect(kickoffScriptSource).toContain('qa:fixture-auth-smoke')
     expect(kickoffScriptSource).toContain('qa:tester-packet')
     expect(kickoffScriptSource).toContain('qa:evidence-pack')
     expect(kickoffScriptSource).toContain('qa:live-card')
     expect(kickoffScriptSource).toContain('Kickoff rule')
+    expect(kickoffScriptSource).toContain('customerJourneyDetails')
+    expect(kickoffScriptSource).toContain('sessionByJourneyId')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(kickoffScriptSource, `${plan.id} missing from kickoff`).toContain(plan.id)
-      expect(kickoffScriptSource, `${plan.entryRoute} missing from kickoff`).toContain(plan.entryRoute)
-      expect(kickoffScriptSource, `${plan.personaFixture} missing from kickoff`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -374,12 +402,17 @@ describe('customer journey test results', () => {
     expect(testerPacketScriptSource).toContain('TenAceIQ Tester Packet')
     expect(testerPacketScriptSource).toContain('qa:device-ledger')
     expect(testerPacketScriptSource).toContain('qa:evidence-pack')
+    expect(testerPacketScriptSource).toContain('Fixture gate: npm run qa:fixture-gate --')
+    expect(testerPacketScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
+    expect(testerPacketScriptSource).toContain('Auth smoke: npm run qa:fixture-auth-smoke')
     expect(testerPacketScriptSource).toContain('mobile-ux-gap')
+    expect(testerPacketScriptSource).toContain('customerJourneySessions')
+    expect(testerPacketScriptSource).toContain('journeyById')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(testerPacketScriptSource, `${plan.id} missing from tester packet`).toContain(plan.id)
-      expect(testerPacketScriptSource, `${plan.entryRoute} missing from tester packet`).toContain(plan.entryRoute)
-      expect(testerPacketScriptSource, `${plan.personaFixture} missing from tester packet`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -390,17 +423,19 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:week-plan')
     expect(weekDashboardScriptSource).toContain('TenAceIQ Test Week Dashboard')
     expect(weekDashboardScriptSource).toContain('qa:proof-gaps')
+    expect(weekDashboardScriptSource).toContain('customerJourneySessions')
+    expect(weekDashboardScriptSource).toContain('customerJourneyDetails')
     expect(weekPlanScriptSource).toContain('TenAceIQ Test Week Plan')
     expect(weekPlanScriptSource).toContain('qa:tester-packet')
     expect(weekPlanScriptSource).toContain('required device pass')
+    expect(weekPlanScriptSource).toContain('customerJourneySessions')
+    expect(weekPlanScriptSource).toContain('customerJourneyDetails')
+    expect(weekPlanScriptSource).toContain('customerJourneyDeviceProfiles')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(weekDashboardScriptSource, `${plan.id} missing from week dashboard`).toContain(plan.id)
-      expect(weekDashboardScriptSource, `${plan.entryRoute} missing from week dashboard`).toContain(plan.entryRoute)
-      expect(weekDashboardScriptSource, `${plan.personaFixture} missing from week dashboard`).toContain(plan.personaFixture)
-      expect(weekPlanScriptSource, `${plan.id} missing from week plan`).toContain(plan.id)
-      expect(weekPlanScriptSource, `${plan.entryRoute} missing from week plan`).toContain(plan.entryRoute)
-      expect(weekPlanScriptSource, `${plan.personaFixture} missing from week plan`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -409,14 +444,16 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:device-card')
     expect(deviceJourneyCardScriptSource).toContain('TenAceIQ Device Journey Card')
     expect(deviceJourneyCardScriptSource).toContain('viewport-specific risk')
-    expect(deviceJourneyCardScriptSource).toContain('Phone')
-    expect(deviceJourneyCardScriptSource).toContain('Tablet / iPad')
-    expect(deviceJourneyCardScriptSource).toContain('Desktop')
+    expect(deviceJourneyCardScriptSource).toContain('customerJourneyDeviceProfiles')
+    expect(deviceJourneyCardScriptSource).toContain('customerJourneyDetails')
+    expect(qaDataScriptSource).toContain('Phone')
+    expect(qaDataScriptSource).toContain('Tablet / iPad')
+    expect(qaDataScriptSource).toContain('Desktop')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(deviceJourneyCardScriptSource, `${plan.id} missing from device card`).toContain(plan.id)
-      expect(deviceJourneyCardScriptSource, `${plan.entryRoute} missing from device card`).toContain(plan.entryRoute)
-      expect(deviceJourneyCardScriptSource, `${plan.personaFixture} missing from device card`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -427,11 +464,13 @@ describe('customer journey test results', () => {
     expect(deviceLedgerScriptSource).toContain('Paste these rows into docs/customer-journey-test-results.md')
     expect(deviceLedgerScriptSource).toContain('needs-follow-up')
     expect(deviceLedgerScriptSource).toContain('viewport-specific risk')
+    expect(deviceLedgerScriptSource).toContain('customerJourneyDeviceProfiles')
+    expect(deviceLedgerScriptSource).toContain('customerJourneyDetails')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(deviceLedgerScriptSource, `${plan.id} missing from device ledger`).toContain(plan.id)
-      expect(deviceLedgerScriptSource, `${plan.entryRoute} missing from device ledger`).toContain(plan.entryRoute)
-      expect(deviceLedgerScriptSource, `${plan.personaFixture} missing from device ledger`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -442,11 +481,13 @@ describe('customer journey test results', () => {
     expect(deviceStatusScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(deviceStatusScriptSource).toContain('Device coverage')
     expect(deviceStatusScriptSource).toContain('device/browser value')
+    expect(deviceStatusScriptSource).toContain('customerJourneyDeviceProfiles')
+    expect(deviceStatusScriptSource).toContain('customerJourneyDetails')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(deviceStatusScriptSource, `${plan.id} missing from device status`).toContain(plan.id)
-      expect(deviceStatusScriptSource, `${plan.entryRoute} missing from device status`).toContain(plan.entryRoute)
-      expect(deviceStatusScriptSource, `${plan.personaFixture} missing from device status`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -456,11 +497,13 @@ describe('customer journey test results', () => {
     expect(fixtureReviewScriptSource).toContain('TenAceIQ Fixture Review')
     expect(fixtureReviewScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(fixtureReviewScriptSource).toContain('a missing fixture is a fixture-gap')
+    expect(fixtureReviewScriptSource).toContain('customerJourneyDetails')
+    expect(fixtureReviewScriptSource).toContain('sessionByJourneyId')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(fixtureReviewScriptSource, `${plan.id} missing from fixture review`).toContain(plan.id)
-      expect(fixtureReviewScriptSource, `${plan.entryRoute} missing from fixture review`).toContain(plan.entryRoute)
-      expect(fixtureReviewScriptSource, `${plan.personaFixture} missing from fixture review`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -476,10 +519,12 @@ describe('customer journey test results', () => {
     expect(fixtureBoardScriptSource).toContain('safe data fixtures')
     expect(fixtureBoardScriptSource).toContain('fixture-gap')
     expect(fixtureBoardScriptSource).toContain('Fixture board rule')
+    expect(fixtureBoardScriptSource).toContain('customerJourneyDetails')
+    expect(fixtureBoardScriptSource).toContain('sessionByJourneyId')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(fixtureBoardScriptSource, `${plan.id} missing from fixture readiness board`).toContain(plan.id)
-      expect(fixtureBoardScriptSource, `${plan.personaFixture} missing from fixture readiness board`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -489,13 +534,18 @@ describe('customer journey test results', () => {
     expect(fixtureStatusScriptSource).toContain('TenAceIQ Fixture Status')
     expect(fixtureStatusScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(fixtureStatusScriptSource).toContain('fixture-gap')
+    expect(fixtureStatusScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')
+    expect(fixtureStatusScriptSource).toContain('npm run qa:fixture-auth-smoke')
+    expect(fixtureStatusScriptSource).toContain('Fixture gate: npm run qa:fixture-gate --')
     expect(fixtureStatusScriptSource).toContain('npm run qa:fixture-review -- <fixture>')
     expect(fixtureStatusScriptSource).toContain('npm run qa:retest -- <day-or-journey>')
+    expect(fixtureStatusScriptSource).toContain('customerJourneySessions')
+    expect(fixtureStatusScriptSource).toContain('journeyById')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(fixtureStatusScriptSource, `${plan.id} missing from fixture status`).toContain(plan.id)
-      expect(fixtureStatusScriptSource, `${plan.entryRoute} missing from fixture status`).toContain(plan.entryRoute)
-      expect(fixtureStatusScriptSource, `${plan.personaFixture} missing from fixture status`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -504,6 +554,8 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:ledger-check')
     expect(ledgerCheckScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(ledgerCheckScriptSource).toContain('Ledger check: not ready.')
+    expect(ledgerCheckScriptSource).toContain('Ledger check: valid.')
+    expect(ledgerCheckScriptSource).toContain('npm run qa:launch')
     expect(ledgerCheckScriptSource).toContain('Pass rows need screenshot/video evidence.')
     expect(ledgerCheckScriptSource).toContain('Non-pass rows need a concrete next action.')
 
@@ -525,9 +577,12 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:results')
     expect(resultsSummaryScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(resultsSummaryScriptSource).toContain('Open p0/p1 rows')
+    expect(resultsSummaryScriptSource).toContain('Open fixture-gap rows')
+    expect(resultsSummaryScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
+    expect(resultsSummaryScriptSource).toContain('Auth smoke: npm run qa:fixture-auth-smoke')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(resultsSummaryScriptSource, `${plan.id} missing from result summary script`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 
@@ -537,9 +592,12 @@ describe('customer journey test results', () => {
     expect(nextJourneyScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(nextJourneyScriptSource).toContain('Fix or decide these p0/p1 items before moving wider')
     expect(nextJourneyScriptSource).toContain('npm run qa:session --')
+    expect(nextJourneyScriptSource).toContain('npm run qa:fixture-gate --')
+    expect(nextJourneyScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')
+    expect(nextJourneyScriptSource).toContain('npm run qa:fixture-auth-smoke')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(nextJourneyScriptSource, `${plan.id} missing from next journey script`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 
@@ -549,10 +607,14 @@ describe('customer journey test results', () => {
     expect(retestPlanScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(retestPlanScriptSource).toContain('Retest open rows first')
     expect(retestPlanScriptSource).toContain('Still needs pass evidence')
+    expect(retestPlanScriptSource).toContain('Fixture gate: npm run qa:fixture-gate --')
+    expect(retestPlanScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
+    expect(retestPlanScriptSource).toContain('Auth smoke: npm run qa:fixture-auth-smoke')
     expect(retestPlanScriptSource).toContain('npm run qa:session-ledger --')
+    expect(resultsDocSource).toContain('fixture-gap retests include the matching `qa:fixture-gate` command')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(retestPlanScriptSource, `${plan.id} missing from retest plan script`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 
@@ -566,12 +628,19 @@ describe('customer journey test results', () => {
     expect(ownerBoardScriptSource).toContain('backup')
     expect(ownerBoardScriptSource).toContain('open p0/p1')
     expect(ownerBoardScriptSource).toContain('missing next action')
+    expect(ownerBoardScriptSource).toContain('Fixture gate: npm run qa:fixture-gate --')
+    expect(ownerBoardScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
+    expect(ownerBoardScriptSource).toContain('Auth smoke: npm run qa:fixture-auth-smoke')
     expect(ownerBoardScriptSource).toContain('Owner rule')
+    expect(ownerBoardScriptSource).toContain('customerJourneyDetails')
+    expect(ownerBoardScriptSource).toContain('sessionByJourneyId')
+    expect(resultsDocSource).toContain('fixture-gap rows point to the matching `qa:fixture-gate` command')
+    expect(resultsDocSource).toContain('npm run qa:action-list -- <day1-day5 | tier | journey | route | fixture | category>')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(ownerBoardScriptSource, `${plan.id} missing from owner board`).toContain(plan.id)
-      expect(ownerBoardScriptSource, `${plan.entryRoute} missing from owner board`).toContain(plan.entryRoute)
-      expect(ownerBoardScriptSource, `${plan.personaFixture} missing from owner board`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -585,9 +654,11 @@ describe('customer journey test results', () => {
     expect(tierBoardScriptSource).toContain('Proving journeys')
     expect(tierBoardScriptSource).toContain('Board rule')
     expect(tierBoardScriptSource).toContain('npm run qa:coverage --')
+    expect(tierBoardScriptSource).toContain('customerJourneyDetails')
+    expect(tierBoardScriptSource).toContain('sessionByJourneyId')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(tierBoardScriptSource, `${plan.id} missing from tier board`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 
@@ -601,29 +672,47 @@ describe('customer journey test results', () => {
     expect(changeImpactScriptSource).toContain('Session rerun queue')
     expect(changeImpactScriptSource).toContain('npm run qa:retest -- <day-or-journey>')
     expect(changeImpactScriptSource).toContain('fresh pass evidence')
+    expect(changeImpactScriptSource).toContain('journeyById')
+    expect(changeImpactScriptSource).toContain('sessionByJourneyId')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(changeImpactScriptSource, `${plan.id} missing from change impact`).toContain(plan.id)
-      expect(changeImpactScriptSource, `${plan.entryRoute} missing from change impact`).toContain(plan.entryRoute)
-      expect(changeImpactScriptSource, `${plan.personaFixture} missing from change impact`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
   it('keeps tester handoff aligned to open rows, evidence, and retest commands', () => {
     expect(packageSource).toContain('"qa:tester-handoff": "node scripts/customer-journey-tester-handoff.mjs"')
     expect(resultsDocSource).toContain('npm run qa:tester-handoff')
+    expect(resultsDocSource).toContain('fixture-gap rows include the matching `qa:fixture-gate` command')
     expect(testerHandoffScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(testerHandoffScriptSource).toContain('Carry forward')
     expect(testerHandoffScriptSource).toContain('Open p0/p1')
     expect(testerHandoffScriptSource).toContain('missing screenshot/video')
     expect(testerHandoffScriptSource).toContain('fixture-gap blockers')
+    expect(testerHandoffScriptSource).toContain('Fixture gate: npm run qa:fixture-gate --')
+    expect(testerHandoffScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
+    expect(testerHandoffScriptSource).toContain('Auth smoke: npm run qa:fixture-auth-smoke')
     expect(testerHandoffScriptSource).toContain('npm run qa:retest -- <day-or-journey>')
     expect(testerHandoffScriptSource).toContain('Handoff rule')
+    expect(testerHandoffScriptSource).toContain('customerJourneySessions')
+    expect(testerHandoffScriptSource).toContain('customerJourneyDetails')
+
+    expect(actionListScriptSource).toContain('sessionByJourneyId')
+    expect(actionListScriptSource).toContain('journeyById')
+    expect(actionListScriptSource).toContain('tierAliases')
+    expect(actionListScriptSource).toContain('Tier:')
+    expect(actionListScriptSource).toContain('Session:')
+    expect(actionListScriptSource).toContain('if (tierQuery)')
+    expect(actionListScriptSource).toContain('aliases.includes(normalizedQuery)')
+    expect(qaDataScriptSource).toContain('Full-Court')
+    expect(qaDataScriptSource).toContain('day1')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(testerHandoffScriptSource, `${plan.id} missing from tester handoff`).toContain(plan.id)
-      expect(testerHandoffScriptSource, `${plan.entryRoute} missing from tester handoff`).toContain(plan.entryRoute)
-      expect(testerHandoffScriptSource, `${plan.personaFixture} missing from tester handoff`).toContain(plan.personaFixture)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.personaFixture} missing from shared QA data`).toContain(plan.personaFixture)
     }
   })
 
@@ -646,9 +735,10 @@ describe('customer journey test results', () => {
     expect(featureReviewScriptSource).toContain('TenAceIQ Feature Review')
     expect(featureReviewScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(featureReviewScriptSource).toContain('Closeout rule: a feature is not ready')
+    expect(featureReviewScriptSource).toContain('customerJourneyDetails')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(featureReviewScriptSource, `${plan.id} missing from feature review`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 
@@ -670,10 +760,16 @@ describe('customer journey test results', () => {
     expect(resultsDocSource).toContain('npm run qa:scorecard')
     expect(scorecardScriptSource).toContain('docs/customer-journey-test-results.md')
     expect(scorecardScriptSource).toContain('TenAceIQ Customer Journey Scorecard')
+    expect(scorecardScriptSource).toContain('fixture blocked')
+    expect(scorecardScriptSource).toContain('npm run qa:fixture-gate --')
+    expect(scorecardScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')
+    expect(scorecardScriptSource).toContain('npm run qa:fixture-auth-smoke')
     expect(scorecardScriptSource).toContain('Closeout rule: use the scorecard')
+    expect(scorecardScriptSource).toContain('customerJourneyDetails')
+    expect(scorecardScriptSource).toContain('sessionByJourneyId')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(scorecardScriptSource, `${plan.id} missing from scorecard`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 
@@ -683,14 +779,19 @@ describe('customer journey test results', () => {
     expect(launchBoardScriptSource).toContain('TenAceIQ Launch Blocker Board')
     expect(launchBoardScriptSource).toContain('Product launch blockers')
     expect(launchBoardScriptSource).toContain('Fixture/test blockers')
+    expect(launchBoardScriptSource).toContain('Fixture gate: npm run qa:fixture-gate --')
+    expect(launchBoardScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
+    expect(launchBoardScriptSource).toContain('Auth smoke: npm run qa:fixture-auth-smoke')
     expect(launchBoardScriptSource).toContain('Quality follow-ups')
     expect(launchBoardScriptSource).toContain('Missing pass evidence')
     expect(launchBoardScriptSource).toContain('Pass rows missing screenshot/video')
     expect(launchBoardScriptSource).toContain('Launch board rule')
+    expect(launchBoardScriptSource).toContain('customerJourneyDetails')
+    expect(launchBoardScriptSource).toContain('sessionByJourneyId')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(launchBoardScriptSource, `${plan.id} missing from launch board`).toContain(plan.id)
-      expect(launchBoardScriptSource, `${plan.entryRoute} missing from launch board`).toContain(plan.entryRoute)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.entryRoute} missing from shared QA data`).toContain(plan.entryRoute)
     }
   })
 
@@ -698,10 +799,13 @@ describe('customer journey test results', () => {
     expect(packageSource).toContain('"qa:launch": "node scripts/customer-journey-launch-readiness.mjs"')
     expect(resultsDocSource).toContain('npm run qa:launch')
     expect(launchReadinessScriptSource).toContain('Launch readiness: not ready.')
+    expect(launchReadinessScriptSource).toContain('Fixture gate: npm run qa:fixture-gate --')
+    expect(launchReadinessScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
+    expect(launchReadinessScriptSource).toContain('Auth smoke: npm run qa:fixture-auth-smoke')
     expect(launchReadinessScriptSource).toContain('process.exit(1)')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {
-      expect(launchReadinessScriptSource, `${plan.id} missing from launch readiness script`).toContain(plan.id)
+      expect(qaDataScriptSource, `${plan.id} missing from shared QA data`).toContain(plan.id)
     }
   })
 })

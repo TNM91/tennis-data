@@ -71,7 +71,15 @@ export default function DataPolicyPage() {
         </div>
 
         <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. Takedown or correction requests</h2>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. No gambling use</h2>
+          <p>
+            TenAceIQ data, ratings, projections, matchup reads, and recommendations are not
+            intended for wagering, gambling, odds-making, or betting-related decisions.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>6. Takedown or correction requests</h2>
           <p>
             If you believe content or data on TenAceIQ should be corrected, reviewed, or removed,
             open a <Link href={dataSupportHref}>TenAceIQ support thread</Link>{' '}

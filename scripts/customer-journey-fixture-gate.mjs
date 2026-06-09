@@ -15,39 +15,45 @@ const gates = [
     rows: [
       {
         fixture: 'coach_primary',
-        action: 'Sign in as the coach test account and open /coach.',
+        action: 'Sign in as the coach test account and open /coach; if you land on /login?next=/coach, authenticate before scoring readiness.',
         ready: 'Coach Hub loads with student management, assignment creation, and review queue controls.',
         evidence: 'Coach Hub screen with no stale upgrade lock.',
+        blocked: 'Repair coach authentication, access, or Coach Hub entitlement before creating invites or assignments.',
       },
       {
         fixture: 'player_plus_linked',
         action: 'Sign in as the intended player and confirm the profile link used by My Lab and Level Up.',
         ready: 'Player can open /mylab and /player-development/relentless-competitor-4-0/level-up.',
         evidence: 'My Lab linked-player cue or Level Up player context.',
+        blocked: 'Repair Player access or linked-player profile before accepting a coach invite.',
       },
       {
         fixture: 'coach-invite-token',
         action: 'From coach_primary, create a disposable invite and accept it as player_plus_linked.',
         ready: 'The invite page names the relationship and the coach sees the linked player.',
-        evidence: 'Invite/link state plus Linking proof privacy cue.',
+        evidence: 'Invite/link state, Linking proof privacy cue, Invite acceptance proof cue, and Coach invite account proof cue.',
+        blocked: 'Create a fresh invite token, accept it with the intended player account, and confirm Coach Hub linked-player state.',
       },
       {
         fixture: 'level-up-assignment',
         action: 'From coach_primary, assign one exact Level Up card with a due date, coach note, and proof requirement.',
         ready: 'My Lab shows the assignment for the linked player only, with the exact card handoff.',
         evidence: 'Assignment id or assignment card with proof required.',
+        blocked: 'Create one exact assigned card after the coach-player link exists; do not substitute a generic drill screenshot.',
       },
       {
         fixture: 'level-up-completion',
         action: 'As player_plus_linked, open the assigned card, save a 0-5 proof rating, and add one tiny note.',
         ready: 'Save status is honest: local, Player+ synced, or coach-invited synced.',
         evidence: 'Player challenge screen and proof rating/note state.',
+        blocked: 'Complete the assigned card as the linked player and capture the save/sync status before coach review.',
       },
       {
         fixture: 'coach-review-proof',
         action: 'Return to coach_primary after completion.',
         ready: 'Coach review queue shows the same proof signal, note, due state, and next lesson implication.',
         evidence: 'Coach review proof sync cue and next-focus/next-assignment handoff.',
+        blocked: 'If the player UI says synced but Coach Hub cannot review it, log sync-gap or data-propagation-gap instead of fixture-gap.',
       },
     ],
   },
@@ -101,7 +107,17 @@ for (const gate of matchingGates) {
     console.log(`| ${row.fixture} | ${row.action} | ${row.ready} | ${row.evidence} |`)
   }
   console.log('')
+  console.log('If a ready signal is missing:')
+  console.log('| Fixture | Keep blocked until this is repaired | Ledger category |')
+  console.log('| --- | --- | --- |')
+  for (const row of gate.rows) {
+    const category = row.fixture === 'coach-review-proof' ? 'sync-gap or data-propagation-gap when sync is claimed; otherwise fixture-gap' : 'fixture-gap'
+    console.log(`| ${row.fixture} | ${row.blocked} | ${category} |`)
+  }
+  console.log('')
   console.log('Pass command:')
+  console.log('- npm run qa:fixture-auth-smoke -- --env')
+  console.log('- npm run qa:fixture-auth-smoke')
   console.log(`- ${gate.passCommand}`)
   console.log('')
 }

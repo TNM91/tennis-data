@@ -43,8 +43,9 @@ export default function HomePage() {
     <PublicPageShell active="home">
       <main style={pageWrapStyle}>
         <CommandHero
-          body="Find players, teams, coaches, tournaments, leagues, match prep, and the next useful tennis action, all in one place."
+          body="Whether you want to check stats, improve your game, prep a matchup, simplify captaining, find coaching help, or run a league, TenAceIQ keeps the next tennis move in one place."
           secondary={{ href: '#what-next', label: 'See What TenAceIQ Can Help With' }}
+          showBoard={false}
         />
         <div id="what-next">
           <ActionGrid />

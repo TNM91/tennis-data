@@ -1,83 +1,51 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, normalizeQaQuery, sessionByJourneyId, tierAliases } from './customer-journey-qa-data.mjs'
 
 const processMapPath = 'docs/customer-journey-process-map.md'
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
-const normalizedQuery = normalize(rawQuery)
+const normalizedQuery = normalizeQaQuery(rawQuery)
 
-const tiers = [
-  {
-    id: 'free',
-    aliases: ['free', 'visitor', 'public'],
-    label: 'Free',
-    fixture: 'free_viewer',
+const tierOrder = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court', 'admin_internal']
+const tierGuidance = {
+  free: {
+    preferredAlias: 'free',
     promise: 'Useful public tennis intelligence before upgrade pressure.',
-    journeys: ['free-public-discovery'],
-    day: 'day5',
     failFast: ['upgrade prompt before useful context', 'private workspace controls visible', 'Data Assist implies instant trusted data'],
   },
-  {
-    id: 'player_plus',
-    aliases: ['player', 'player-plus', 'playerplus', 'player_plus'],
-    label: 'Player',
-    fixture: 'player_plus_linked',
+  player_plus: {
+    preferredAlias: 'player',
     promise: 'Turn lessons, goals, and practice into visible progress.',
-    journeys: ['player-level-up-mobile-loop', 'player-my-lab-return-state'],
-    day: 'day1/day2',
     failFast: ['too much scroll before action', 'generic drill copy', 'local proof presented as synced', 'generic empty dashboard'],
   },
-  {
-    id: 'coach',
-    aliases: ['coach', 'coaches'],
-    label: 'Coach',
-    fixture: 'coach_primary',
+  coach: {
+    preferredAlias: 'coach',
     promise: 'Keep coach and player aligned between lessons.',
-    journeys: ['coach-player-assigned-challenge', 'coach-lesson-support'],
-    day: 'day1/day2',
     failFast: ['assignment visible to wrong player', 'coach cannot find proof', 'lesson plan disconnected from Level Up'],
   },
-  {
-    id: 'captain',
-    aliases: ['captain', 'team-captain'],
-    label: 'Captain',
-    fixture: 'captain_primary',
+  captain: {
+    preferredAlias: 'captain',
     promise: 'Move from availability and context to lineup choices and team communication.',
-    journeys: ['captain-week-flow'],
-    day: 'day3',
     failFast: ['availability disconnected from lineup', 'projection unclear', 'message or brief dead end'],
   },
-  {
-    id: 'league',
-    aliases: ['league', 'coordinator', 'league-coordinator'],
-    label: 'League',
-    fixture: 'league_coordinator',
+  league: {
+    preferredAlias: 'league',
     promise: 'Run league structure, schedules, results, standings, and visibility from one workspace.',
-    journeys: ['league-result-to-public-context'],
-    day: 'day4',
     failFast: ['result does not propagate', 'private controls visible publicly', 'standings context missing'],
   },
-  {
-    id: 'full_court',
-    aliases: ['full-court', 'fullcourt', 'full_court', 'all-access'],
-    label: 'Full-Court',
-    fixture: 'full_court_operator',
+  full_court: {
+    preferredAlias: 'full-court',
     promise: 'Clean access to every paid workspace without tier confusion.',
-    journeys: ['full-court-access-pass'],
-    day: 'day5',
     failFast: ['paid workspace locked', 'redundant upgrade prompt', 'role navigation confusing'],
   },
-  {
-    id: 'admin_internal',
-    aliases: ['admin', 'internal', 'admin-internal', 'admin_internal'],
-    label: 'Admin/Internal',
-    fixture: 'admin_test',
+  admin_internal: {
+    preferredAlias: 'admin',
     promise: 'Protect access and tennis data quality with fixture-safe internal workflows.',
-    journeys: ['admin-access-and-data-quality'],
-    day: 'day4',
     failFast: ['test data not isolated', 'access change not reflected', 'unreviewed data treated as trusted'],
   },
-]
+}
+const tiers = tierOrder.map(buildTier).filter((tier) => tier.journeys.length)
 
 const processMapSource = readFileSync(join(process.cwd(), processMapPath), 'utf8')
 const featureRows = parseFeatureMatrix(processMapSource)
@@ -181,7 +149,7 @@ function getNextCommand({ tier, openHighPriorityRows, missingPassJourneyIds, mis
   if (openHighPriorityRows.length) return `npm run qa:action-list ${tier.journeys[0]}`
   if (missingPassJourneyIds.length) return `npm run qa:journey -- ${missingPassJourneyIds[0]}`
   if (missingEvidenceJourneyIds.length) return `npm run qa:evidence-pack -- ${tier.day.split('/')[0]}`
-  return `npm run qa:coverage -- ${tier.aliases[0]}`
+  return `npm run qa:coverage -- ${tier.preferredAlias}`
 }
 
 function parseFeatureMatrix(source) {
@@ -226,15 +194,44 @@ function matchesQuery(tier) {
     .join(' ')
     .toLowerCase()
 
-  return haystack.includes(rawQuery) || tier.aliases.some((alias) => normalize(alias) === normalizedQuery) || normalize(tier.id) === normalizedQuery
+  return haystack.includes(rawQuery) || tier.aliases.includes(normalizedQuery) || normalizeQaQuery(tier.id) === normalizedQuery
 }
 
 function getSelectedTiers() {
   if (!rawQuery) return tiers
 
-  const exactTier = tiers.find((tier) => tier.aliases.some((alias) => normalize(alias) === normalizedQuery) || normalize(tier.id) === normalizedQuery)
+  const exactTier = tiers.find((tier) => tier.aliases.includes(normalizedQuery) || normalizeQaQuery(tier.id) === normalizedQuery)
 
   return exactTier ? [exactTier] : tiers.filter(matchesQuery)
+}
+
+function buildTier(id) {
+  const journeys = customerJourneyDetails.filter((journey) => journey.tierId === id)
+  const label = journeys[0]?.tier ?? id
+  const aliases = new Set([normalizeQaQuery(id), normalizeQaQuery(label)])
+  const day = [
+    ...new Set(
+      journeys
+        .map((journey) => sessionByJourneyId.get(journey.id)?.id)
+        .filter(Boolean),
+    ),
+  ].join('/')
+
+  for (const [alias, aliasLabel] of tierAliases) {
+    if (aliasLabel === label) aliases.add(alias)
+  }
+
+  return {
+    id,
+    aliases: [...aliases],
+    label,
+    fixture: journeys[0]?.accountFixture ?? 'missing fixture',
+    promise: tierGuidance[id]?.promise ?? 'Missing tier promise.',
+    preferredAlias: tierGuidance[id]?.preferredAlias ?? aliases.values().next().value,
+    journeys: journeys.map((journey) => journey.id),
+    day: day || 'missing day',
+    failFast: tierGuidance[id]?.failFast ?? [...new Set(journeys.flatMap((journey) => journey.failFastSignals))],
+  }
 }
 
 function parseMarkdownRow(line) {
@@ -257,8 +254,4 @@ function parseMarkdownRow(line) {
     notes: cells[10] ?? '',
     nextAction: cells[11] ?? '',
   }
-}
-
-function normalize(value) {
-  return value.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }

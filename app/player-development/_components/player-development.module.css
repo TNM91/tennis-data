@@ -235,7 +235,7 @@
 }
 
 .levelUpIdentityStrip {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
 }
 
@@ -253,6 +253,7 @@
 
 .levelUpIdentityButtons a {
   display: inline-flex;
+  flex: 1 1 150px;
   min-height: 42px;
   align-items: center;
   justify-content: center;
@@ -264,6 +265,8 @@
   font-size: 0.84rem;
   font-weight: 900;
   text-decoration: none;
+  text-align: center;
+  white-space: normal;
 }
 
 .levelUpIdentityButtons a[data-active='true'] {
@@ -381,7 +384,7 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.levelUpPortalLanes article,
+.levelUpPortalLanes a,
 .levelUpCardRail article,
 .levelUpModuleRail article,
 .levelUpLibraryGrid a {
@@ -395,6 +398,12 @@
   color: var(--foreground);
   padding: 13px;
   text-decoration: none;
+}
+
+.levelUpPortalLanes a:hover,
+.levelUpLibraryGrid a:hover {
+  border-color: rgba(155, 225, 29, 0.36);
+  background: rgba(155, 225, 29, 0.08);
 }
 
 .levelUpPortalLanes strong,
@@ -474,6 +483,7 @@
 }
 
 .levelUpPortalApp[data-session-focus='active'] .levelUpHero,
+.levelUpPortalApp[data-session-focus='active'] .levelUpLocalSyncProof,
 .levelUpPortalApp[data-session-focus='active'] .levelUpCoachAssignmentBanner,
 .levelUpPortalApp[data-session-focus='active'] .levelUpCoachChallengeInbox,
 .levelUpPortalApp[data-session-focus='active'] .levelUpTodayDashboard,
@@ -559,6 +569,7 @@
 .levelUpHero,
 .levelUpCoachAssignmentBanner,
 .levelUpSyncStatus,
+.levelUpLocalSyncProof,
 .levelUpTodayDashboard,
 .levelUpCoachChallengeInbox,
 .levelUpSessionBuilder,
@@ -634,6 +645,48 @@
 .levelUpSyncStatus[data-sync-status='error'] {
   border-color: rgba(116, 190, 255, 0.22);
   background: rgba(255, 255, 255, 0.045);
+}
+
+.levelUpLocalSyncProof {
+  grid-template-columns: minmax(180px, 0.34fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border-color: rgba(116, 190, 255, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+  padding: 12px 14px;
+}
+
+.levelUpLocalSyncProof > div:first-child,
+.levelUpLocalSyncProof > div:last-child {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.levelUpLocalSyncProof span {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpLocalSyncProof strong {
+  color: var(--foreground-strong);
+  font-size: 0.95rem;
+  line-height: 1.18;
+}
+
+.levelUpLocalSyncProof p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .levelUpOverviewGrid article {
@@ -6620,14 +6673,18 @@
 }
 
 .liveCompactSummary {
+  position: sticky;
+  top: 84px;
+  z-index: 3;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   border: 1px solid rgba(155, 225, 29, 0.2);
   border-radius: 14px;
-  background: rgba(155, 225, 29, 0.06);
+  background: linear-gradient(180deg, rgba(18, 36, 20, 0.98), rgba(9, 19, 35, 0.96));
   padding: 10px 12px;
+  box-shadow: 0 16px 32px rgba(2, 10, 24, 0.22);
 }
 
 .liveCompactSummary span {
@@ -6785,11 +6842,13 @@
 .liveAccessPanel,
 .liveAssignmentBanner,
 .liveSavedBanner,
+.liveSyncProofPanel,
 .liveCoachChallengeEntry,
 .liveUnlockPanel,
 .liveRecentList {
   display: grid;
   gap: 12px;
+  scroll-margin-top: 170px;
 }
 
 .liveCoachLoop,
@@ -6839,6 +6898,7 @@
 .liveAccessPanel,
 .liveAssignmentBanner,
 .liveSavedBanner,
+.liveSyncProofPanel,
 .liveCoachChallengeEntry,
 .liveUnlockPanel,
 .liveRecentList,
@@ -6856,6 +6916,7 @@
 .liveAccessPanel,
 .liveAssignmentBanner,
 .liveSavedBanner,
+.liveSyncProofPanel,
 .liveCoachChallengeEntry,
 .liveUnlockPanel,
 .liveRecentList,
@@ -6889,6 +6950,8 @@
 .liveCoachLoop span,
 .liveProgressPanel span,
 .liveSavedBanner span,
+.liveSyncProofPanel span,
+.liveSyncProofGrid span,
 .liveUnlockPanel span,
 .liveRecentList > span {
   display: inline-flex;
@@ -6915,6 +6978,7 @@
 .liveCoachLoop strong,
 .liveProgressPanel strong,
 .liveSavedBanner strong,
+.liveSyncProofPanel strong,
 .liveUnlockPanel strong,
 .liveRecentList strong {
   display: block;
@@ -6937,6 +7001,7 @@
 .liveCoachLoop p,
 .liveProgressPanel p,
 .liveSavedBanner p,
+.liveSyncProofPanel p,
 .liveUnlockPanel p,
 .liveRecentList p,
 .liveTracker small,
@@ -7333,6 +7398,38 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.liveSyncProofPanel {
+  grid-template-columns: minmax(200px, 0.34fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.liveSyncProofGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.liveSyncProofGrid article {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+}
+
+.liveSyncProofGrid span {
+  padding: 5px 8px;
+  font-size: 0.66rem;
+}
+
+.liveSyncProofGrid p {
+  margin: 0;
+  font-size: 0.8rem;
 }
 
 .liveUnlockPanel {
@@ -8779,6 +8876,105 @@
   margin: 7px 0 0;
   color: var(--muted-strong);
   font-size: 0.82rem;
+  line-height: 1.38;
+}
+
+.coachLevelUpHandoff {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  background: rgba(116, 190, 255, 0.08);
+  padding: 16px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.coachLevelUpHandoff span {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: var(--brand-green-3);
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coachLevelUpHandoff strong {
+  color: var(--foreground-strong);
+  line-height: 1.18;
+}
+
+.coachLevelUpHandoff p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.coachLessonSupportProof {
+  display: grid;
+  gap: 11px;
+  margin-top: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  background: rgba(155, 225, 29, 0.07);
+  padding: 16px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.coachLessonSupportProof > div:first-child {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.coachLessonSupportProof > div:first-child > span,
+.coachLessonSupportProofGrid span {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: var(--brand-green-3);
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coachLessonSupportProof strong {
+  color: var(--foreground-strong);
+  line-height: 1.18;
+}
+
+.coachLessonSupportProofGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.coachLessonSupportProofGrid article {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+
+.coachLessonSupportProofGrid p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.8rem;
   line-height: 1.38;
 }
 
@@ -11120,6 +11316,7 @@
   .coachFeelingGrid,
   .coachHourPlans,
   .lessonTemplate,
+  .coachLessonSupportProofGrid,
   .weekBlocks,
   .prescriptionGrid,
   .moduleTestCard,
@@ -11789,7 +11986,7 @@
     width: 100%;
   }
 
-  .levelUpPortalLanes article,
+  .levelUpPortalLanes a,
   .levelUpCardRail article,
   .levelUpModuleRail article,
   .levelUpLibraryGrid a,
@@ -11959,12 +12156,18 @@
 
   .liveCoachLoop,
   .liveProgressPanel,
+  .levelUpLocalSyncProof,
   .liveAccessPanel,
   .liveAccessGrid,
   .liveAssignmentBanner,
   .liveSavedBanner,
+  .liveSyncProofPanel,
   .liveUnlockPanel,
   .liveModeStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .liveSyncProofGrid {
     grid-template-columns: 1fr;
   }
 
@@ -12138,7 +12341,8 @@
   .liveFeelingGrid,
   .liveDrillChoices,
   .liveUnlockGrid,
-  .lessonTemplate {
+  .lessonTemplate,
+  .coachLessonSupportProofGrid {
     grid-template-columns: 1fr;
   }
 

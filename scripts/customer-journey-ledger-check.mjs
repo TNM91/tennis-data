@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { journeyById } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const statuses = ['pass', 'fail', 'blocked', 'needs-follow-up']
@@ -16,55 +17,6 @@ const categories = [
   'visual-polish',
   'product-logic',
 ]
-const plannedJourneys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    entryRoute: '/player-development/relentless-competitor-4-0/level-up',
-    accountFixture: 'player_plus_linked',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    entryRoute: '/coach',
-    accountFixture: 'coach_primary',
-  },
-  {
-    id: 'coach-lesson-support',
-    entryRoute: '/player-development/relentless-competitor-4-0/coach-planner',
-    accountFixture: 'coach_primary',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    entryRoute: '/mylab',
-    accountFixture: 'player_plus_linked',
-  },
-  {
-    id: 'captain-week-flow',
-    entryRoute: '/captain',
-    accountFixture: 'captain_primary',
-  },
-  {
-    id: 'league-result-to-public-context',
-    entryRoute: '/league-coordinator',
-    accountFixture: 'league_coordinator',
-  },
-  {
-    id: 'full-court-access-pass',
-    entryRoute: '/pricing',
-    accountFixture: 'full_court_operator',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    entryRoute: '/admin/access',
-    accountFixture: 'admin_test',
-  },
-  {
-    id: 'free-public-discovery',
-    entryRoute: '/explore',
-    accountFixture: 'free_viewer',
-  },
-]
-const plannedJourneyById = new Map(plannedJourneys.map((journey) => [journey.id, journey]))
-
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const ledgerSource = extractResultLedger(source)
 const rows = ledgerSource
@@ -110,12 +62,13 @@ if (issues.length) {
   process.exit(1)
 }
 
-console.log('Ledger check: ready.')
+console.log('Ledger check: valid.')
 console.log('Every recorded row has a valid journey, status, route, fixture, evidence expectations, and required action fields.')
+console.log('Run `npm run qa:launch` to check whether the full journey set is ready for launch.')
 
 function validateRow(row) {
   const rowIssues = []
-  const plannedJourney = plannedJourneyById.get(row.journeyId)
+  const plannedJourney = journeyById.get(row.journeyId)
 
   if (!row.date) {
     rowIssues.push(buildIssue(row, 'Date is required. Use yyyy-mm-dd.'))

@@ -1,106 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import {
+  fixtureGateJourneyIds,
+  journeyById,
+  normalizeQaQuery,
+  plannedJourneyIds,
+  resultRank,
+  sessionByJourneyId,
+  severityRank,
+} from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
-const normalizedQuery = rawQuery.replace(/\s+/g, '').replace('-', '')
-
-const sessions = [
-  {
-    id: 'day1',
-    aliases: ['1', 'day1', 'trustloop'],
-    label: 'Day 1 - Trust Loop',
-    journeyIds: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    aliases: ['2', 'day2', 'playercoach'],
-    label: 'Day 2 - Player And Coach Depth',
-    journeyIds: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    aliases: ['3', 'day3', 'captain'],
-    label: 'Day 3 - Captain Week',
-    journeyIds: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    aliases: ['4', 'day4', 'leagueadmin'],
-    label: 'Day 4 - League And Admin',
-    journeyIds: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    aliases: ['5', 'day5', 'regression'],
-    label: 'Day 5 - Full-Court And Free/Public Regression',
-    journeyIds: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
-const journeyDetails = [
-  {
-    id: 'player-level-up-mobile-loop',
-    entryRoute: '/player-development/relentless-competitor-4-0/level-up',
-    accountFixture: 'player_plus_linked',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    entryRoute: '/coach',
-    accountFixture: 'coach_primary',
-  },
-  {
-    id: 'coach-lesson-support',
-    entryRoute: '/player-development/relentless-competitor-4-0/coach-planner',
-    accountFixture: 'coach_primary',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    entryRoute: '/mylab',
-    accountFixture: 'player_plus_linked',
-  },
-  {
-    id: 'captain-week-flow',
-    entryRoute: '/captain',
-    accountFixture: 'captain_primary',
-  },
-  {
-    id: 'league-result-to-public-context',
-    entryRoute: '/league-coordinator',
-    accountFixture: 'league_coordinator',
-  },
-  {
-    id: 'full-court-access-pass',
-    entryRoute: '/pricing',
-    accountFixture: 'full_court_operator',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    entryRoute: '/admin/access',
-    accountFixture: 'admin_test',
-  },
-  {
-    id: 'free-public-discovery',
-    entryRoute: '/explore',
-    accountFixture: 'free_viewer',
-  },
-]
-const severityRank = {
-  p0: 0,
-  p1: 1,
-  p2: 2,
-  p3: 3,
-  '': 4,
-}
-const resultRank = {
-  fail: 0,
-  blocked: 1,
-  'needs-follow-up': 2,
-  pass: 3,
-  '': 4,
-}
-const journeyById = new Map(journeyDetails.map((journey) => [journey.id, journey]))
-const sessionByJourneyId = new Map(sessions.flatMap((session) => session.journeyIds.map((journeyId) => [journeyId, session])))
-const plannedJourneyIds = journeyDetails.map((journey) => journey.id)
+const normalizedQuery = normalizeQaQuery(rawQuery)
 
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const rows = extractResultLedger(source)
@@ -139,6 +51,13 @@ if (openRows.length) {
     console.log(`  Session: ${session?.id ?? 'unknown'}${session ? ` (${session.label})` : ''}`)
     console.log(`  Category: ${row.category || 'uncategorized'}`)
     console.log(`  Evidence: ${row.screenshotOrVideo || 'missing screenshot/video'}`)
+    if (row.category === 'fixture-gap') {
+      console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
+      if (fixtureGateJourneyIds.has(row.journeyId)) {
+        console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
+        console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+      }
+    }
     console.log(`  Next action: ${row.nextAction || 'missing next action'}`)
     console.log(`  Commands: npm run qa:journey -- ${row.journeyId}; npm run qa:session-status -- ${session?.id ?? '<day>'}`)
   }
@@ -154,6 +73,11 @@ if (missingPassJourneyIds.length) {
     console.log(`  Session: ${session?.id ?? 'unknown'}${session ? ` (${session.label})` : ''}`)
     console.log(`  Route: ${journey?.entryRoute ?? 'missing route'}`)
     console.log(`  Fixture: ${journey?.accountFixture ?? 'missing fixture'}`)
+    if (fixtureGateJourneyIds.has(journeyId)) {
+      console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
+      console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
+      console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+    }
     console.log(`  Commands: npm run qa:journey -- ${journeyId}; npm run qa:session-ledger -- ${session?.id ?? '<day>'}`)
   }
   console.log('')
@@ -188,7 +112,7 @@ function matchesQuery(row) {
     .join(' ')
     .toLowerCase()
     .replace(/\s+/g, '')
-    .replace('-', '')
+    .replace(/-/g, '')
     .includes(normalizedQuery)
 }
 
@@ -208,7 +132,7 @@ function matchesJourneyQuery(journeyId) {
     .join(' ')
     .toLowerCase()
     .replace(/\s+/g, '')
-    .replace('-', '')
+    .replace(/-/g, '')
     .includes(normalizedQuery)
 }
 

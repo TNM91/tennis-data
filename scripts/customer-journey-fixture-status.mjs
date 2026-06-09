@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneySessions, fixtureGateJourneyIds, journeyById } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const fixtureGuidePath = 'docs/customer-journey-test-fixtures.md'
@@ -25,103 +26,12 @@ const fixtureLabels = {
   'admin-access-repair': 'Admin access repair',
 }
 
-const sessions = [
-  {
-    id: 'day1',
-    label: 'Day 1 - Trust Loop',
-    question: 'Can player proof and coach assignment close the trust loop?',
-    journeys: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    label: 'Day 2 - Player And Coach Depth',
-    question: 'Can recent work become a useful next lesson and player return state?',
-    journeys: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    label: 'Day 3 - Captain Week',
-    question: 'Can a captain move from availability to lineup to communication?',
-    journeys: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    label: 'Day 4 - League And Admin',
-    question: 'Can operations, access repair, and data review stay fixture-safe?',
-    journeys: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    label: 'Day 5 - Full-Court And Free/Public Regression',
-    question: 'Can access and public discovery work without stale locks or premature upgrade pressure?',
-    journeys: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
-
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    fixtures: ['player_plus_linked', 'level-up-completion'],
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    route: '/coach',
-    fixtures: ['coach_primary', 'player_plus_linked', 'coach-invite-token', 'level-up-assignment', 'level-up-completion'],
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    fixtures: ['coach_primary', 'linked-player-profile', 'level-up-assignment'],
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    route: '/mylab',
-    fixtures: ['player_plus_linked', 'linked-player-profile'],
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    route: '/captain',
-    fixtures: ['captain_primary', 'captain-team-week'],
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    route: '/league-coordinator',
-    fixtures: ['league_coordinator', 'league-week'],
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    route: '/admin/access',
-    fixtures: ['admin_test', 'admin-access-repair', 'data-assist-upload'],
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    route: '/pricing',
-    fixtures: ['full_court_operator', 'full-court-access-state'],
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    route: '/explore',
-    fixtures: ['free_viewer', 'data-assist-upload'],
-  },
-]
-
-const journeyById = new Map(journeys.map((journey) => [journey.id, journey]))
 const rows = readFileSync(join(process.cwd(), resultsPath), 'utf8')
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
   .map(parseMarkdownRow)
 
-const filteredSessions = sessions.filter(matchesQuery)
+const filteredSessions = customerJourneySessions.filter(matchesQuery)
 
 console.log('TenAceIQ Fixture Status')
 console.log('')
@@ -146,6 +56,9 @@ for (const session of filteredSessions) {
 
 console.log('Use with:')
 console.log('- npm run qa:fixtures')
+console.log('- npm run qa:fixture-auth-smoke -- --env')
+console.log('- npm run qa:fixture-auth-smoke')
+console.log('- npm run qa:fixture-gate -- <journey | fixture | route | search>')
 console.log('- npm run qa:fixture-review -- <fixture>')
 console.log('- npm run qa:tester-packet -- <day1-day5> --device=<phone|tablet|desktop>')
 console.log('- npm run qa:issue')
@@ -154,12 +67,12 @@ console.log('')
 console.log('Closeout rule: a missing fixture is fixture-gap, not a product pass. Repair the fixture, then rerun the dependent journey.')
 
 function printSession(session) {
-  const sessionJourneys = session.journeys.map((journeyId) => journeyById.get(journeyId)).filter(Boolean)
-  const fixtureIds = [...new Set(sessionJourneys.flatMap((journey) => journey.fixtures))]
-  const fixtureGapRows = rows.filter((row) => session.journeys.includes(row.journeyId) && row.category === 'fixture-gap' && row.result !== 'pass')
+  const sessionJourneys = session.journeyIds.map((journeyId) => journeyById.get(journeyId)).filter(Boolean)
+  const fixtureIds = [...new Set(sessionJourneys.flatMap((journey) => journey.fixtureIds))]
+  const fixtureGapRows = rows.filter((row) => session.journeyIds.includes(row.journeyId) && row.category === 'fixture-gap' && row.result !== 'pass')
 
   console.log(session.label)
-  console.log(`  Question: ${session.question}`)
+  console.log(`  Question: ${session.closeoutQuestion}`)
   console.log(`  Fixture blockers in ledger: ${fixtureGapRows.length}`)
   console.log('  Required fixtures:')
   for (const fixtureId of fixtureIds) {
@@ -174,16 +87,25 @@ function printSession(session) {
   for (const journey of sessionJourneys) {
     const journeyRows = rows.filter((row) => row.journeyId === journey.id)
     const latest = journeyRows.at(-1)
+    const hasOpenFixtureGap = journeyRows.some((row) => row.category === 'fixture-gap' && row.result !== 'pass')
     const state = latest ? `${latest.result || 'logged'}${latest.category ? `/${latest.category}` : ''}` : 'not logged'
     console.log(`  - ${state}: ${journey.label} (${journey.id})`)
-    console.log(`    Route: ${journey.route}`)
-    console.log(`    Fixtures: ${journey.fixtures.join(', ')}`)
-    console.log(`    Command: npm run qa:journey -- ${journey.id}`)
+    console.log(`    Route: ${journey.entryRoute}`)
+    console.log(`    Fixtures: ${journey.fixtureIds.join(', ')}`)
+    if (hasOpenFixtureGap && fixtureGateJourneyIds.has(journey.id)) {
+      console.log(`    Fixture gate: npm run qa:fixture-gate -- ${journey.id}`)
+      console.log(`    Command: npm run qa:fixture-gate -- ${journey.id}`)
+    } else {
+      console.log(`    Command: npm run qa:journey -- ${journey.id}`)
+    }
   }
   if (fixtureGapRows.length) {
     console.log('  Open fixture-gap rows:')
     for (const row of fixtureGapRows) {
       console.log(`  - ${row.journeyId}: ${row.notes || 'missing note'}; next: ${row.nextAction || 'missing next action'}`)
+      if (fixtureGateJourneyIds.has(row.journeyId)) {
+        console.log(`    Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
+      }
     }
   }
   console.log(`  Start: npm run qa:tester-packet -- ${session.id} --device=<phone|tablet|desktop>`)
@@ -192,12 +114,12 @@ function printSession(session) {
 
 function matchesQuery(session) {
   if (!rawQuery) return true
-  const sessionJourneys = session.journeys.map((journeyId) => journeyById.get(journeyId)).filter(Boolean)
+  const sessionJourneys = session.journeyIds.map((journeyId) => journeyById.get(journeyId)).filter(Boolean)
   const haystack = [
     session.id,
     session.label,
-    session.question,
-    ...sessionJourneys.flatMap((journey) => [journey.id, journey.label, journey.route, ...journey.fixtures]),
+    session.closeoutQuestion,
+    ...sessionJourneys.flatMap((journey) => [journey.id, journey.label, journey.entryRoute, ...journey.fixtureIds]),
   ]
     .join(' ')
     .toLowerCase()

@@ -7,6 +7,7 @@ import SiteShell from '@/app/components/site-shell'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import UniversalSearch from '@/app/components/universal-search'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
+import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -45,6 +46,38 @@ const FIND_COMMAND_STEPS: Array<{
 ]
 
 const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLINE || null
+const FREE_TIER_STORY = getMembershipTier('free')
+const PUBLIC_DISCOVERY_PROOF_STEPS: Array<{
+  label: string
+  title: string
+  body: string
+  href: string
+}> = [
+  {
+    label: 'Find first',
+    title: FREE_TIER_STORY.shortPromise,
+    body: FREE_TIER_STORY.valueProps[0],
+    href: '/explore/search',
+  },
+  {
+    label: 'Public detail',
+    title: 'Open reviewed context',
+    body: 'Player, team, league, and ranking pages should help before asking for an upgrade.',
+    href: '/explore/players',
+  },
+  {
+    label: DATA_ASSIST_STORY.eyebrow,
+    title: DATA_ASSIST_STORY.cta,
+    body: DATA_ASSIST_STORY.shortCue,
+    href: DATA_ASSIST_STORY.href,
+  },
+  {
+    label: 'Next tier',
+    title: 'Know what unlocks',
+    body: 'Pricing explains when My Lab, Coach Hub, Team Hub, League Office, or Full-Court fits the job.',
+    href: '/pricing',
+  },
+]
 
 export default function ExplorePage() {
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -141,6 +174,22 @@ function FindCommandPanel() {
               </span>
             </Link>
           ))}
+      </div>
+
+      <div style={publicDiscoveryProofStyle} aria-label="Public discovery proof cue">
+        <div style={publicDiscoveryProofHeaderStyle}>
+          <span style={findCommandEyebrow}>Public discovery proof cue</span>
+          <strong style={publicDiscoveryProofTitleStyle}>Useful before upgrade.</strong>
+        </div>
+        <div style={publicDiscoveryProofGridStyle}>
+          {PUBLIC_DISCOVERY_PROOF_STEPS.map((step) => (
+            <Link key={step.label} href={step.href} style={publicDiscoveryProofItemStyle}>
+              <span style={publicDiscoveryProofLabelStyle}>{step.label}</span>
+              <strong>{step.title}</strong>
+              <small>{step.body}</small>
+            </Link>
+          ))}
+        </div>
       </div>
     </section>
   )
@@ -311,6 +360,58 @@ const findCommandCardTitle: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.15,
   overflowWrap: 'anywhere',
+}
+
+const publicDiscoveryProofStyle: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(5,11,22,0.34)',
+  minWidth: 0,
+}
+
+const publicDiscoveryProofHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+}
+
+const publicDiscoveryProofTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const publicDiscoveryProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const publicDiscoveryProofItemStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: '5px',
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(7,17,33,0.62)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const publicDiscoveryProofLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '10px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
 }
 
 const watermarkStyle: CSSProperties = {

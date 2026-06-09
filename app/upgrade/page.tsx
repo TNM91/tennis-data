@@ -49,8 +49,8 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
   player_plus: {
     eyebrow: 'Player unlock',
-    title: 'Make TenAceIQ personal.',
-    body: 'Continue with Player when you want My Lab, Improve data, Prep matchup, and Messages around your game.',
+    title: 'Unlock the Player path for $4.99/month.',
+    body: 'Player gives you My Lab, Level Up training cards, Tactics Tools, better data refreshes, matchup prep, follows, and messages around your game.',
     action: 'Continue with Player',
     checkoutAction: 'Unlock Player',
     setupAction: 'Preview Player setup',
@@ -116,11 +116,11 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   player_plus: {
     title: 'Player is active. Start in My Lab.',
-    body: 'Open My Lab, improve the data behind your tennis read, and prep your next match.',
+    body: 'Open My Lab, use Level Up, improve the data behind your tennis read, and prep your next match.',
     primaryAction: 'Open My Lab',
-    secondaryAction: 'Set profile',
-    secondaryHref: '/profile',
-    steps: ['Open My Lab', 'Set profile', 'Compare your next match'],
+    secondaryAction: 'Start Level Up',
+    secondaryHref: '/level-up',
+    steps: ['Open My Lab', 'Choose Level Up work', 'Compare your next match'],
   },
   coach: {
     title: 'Coach Hub is active. Build the next lesson.',
@@ -134,8 +134,8 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     title: 'Team Hub is active. Build the week.',
     body: 'Start with Team Hub, then turn scouting and lineup decisions into a cleaner match plan.',
     primaryAction: 'Open Team Hub',
-    secondaryAction: 'Set profile',
-    secondaryHref: '/profile',
+    secondaryAction: 'Build lineup',
+    secondaryHref: '/captain/lineup-builder',
     steps: ['Confirm team context', 'Review player readiness', 'Build a lineup plan'],
   },
   league: {

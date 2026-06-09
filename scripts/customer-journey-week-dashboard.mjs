@@ -1,141 +1,28 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, customerJourneySessions, tierAliases } from './customer-journey-qa-data.mjs'
 
 const flowMapPath = 'lib/customer-journey-flow-map.json'
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
 const normalizedQuery = normalize(rawQuery)
-const tierAliases = {
-  free: 'free',
-  player: 'player_plus',
-  playerplus: 'player_plus',
-  player_plus: 'player_plus',
-  coach: 'coach',
-  captain: 'captain',
-  league: 'league',
-  coordinator: 'league',
-  fullcourt: 'full_court',
-  full_court: 'full_court',
-  admin: 'admin_internal',
-  internal: 'admin_internal',
-}
+const sessions = customerJourneySessions.map((session) => ({
+  id: session.id,
+  label: session.shortLabel,
+  focus: session.focus,
+  journeys: session.journeyIds,
+}))
 
-const sessions = [
-  {
-    id: 'day1',
-    label: 'Day 1',
-    focus: 'Player and coach trust loop',
-    journeys: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    label: 'Day 2',
-    focus: 'Coach support and Player return state',
-    journeys: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    label: 'Day 3',
-    focus: 'Captain decision flow',
-    journeys: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    label: 'Day 4',
-    focus: 'League, admin, and data quality',
-    journeys: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    label: 'Day 5',
-    focus: 'Access, Free/Public, and final regression',
-    journeys: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
-
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    tierId: 'player_plus',
-    flowId: 'player-practice-progress-loop',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    fixture: 'player_plus_linked',
-    passSignal: 'Active training becomes the main screen, proof saves honestly, and the next action is obvious.',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    tierId: 'coach',
-    flowId: 'coach-assignment-lesson-loop',
-    route: '/coach',
-    fixture: 'coach_primary',
-    passSignal: 'Invite, assignment, player challenge, proof, and coach review close the loop without manual cleanup.',
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    tierId: 'coach',
-    flowId: 'coach-assignment-lesson-loop',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    fixture: 'coach_primary',
-    passSignal: 'The planner is coach-facing, practical, and connected to the player Level Up path.',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    tierId: 'player_plus',
-    flowId: 'player-practice-progress-loop',
-    route: '/mylab',
-    fixture: 'player_plus_linked',
-    passSignal: 'My Lab makes the player identity, linked profile, and next action clear after refresh.',
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    tierId: 'captain',
-    flowId: 'captain-week-decision-loop',
-    route: '/captain',
-    fixture: 'captain_primary',
-    passSignal: 'Captain can make a weekly decision and produce a useful team-facing update.',
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    tierId: 'league',
-    flowId: 'league-operation-visibility-loop',
-    route: '/league-coordinator',
-    fixture: 'league_coordinator',
-    passSignal: 'Coordinator operation and member-facing league context stay connected without exposing private controls.',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    tierId: 'admin_internal',
-    flowId: 'admin-access-data-quality-loop',
-    route: '/admin/access',
-    fixture: 'admin_test',
-    passSignal: 'Access/data repair is understandable, fixture-safe, and reflected in affected product surfaces.',
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    tierId: 'full_court',
-    flowId: 'full-court-role-switching-loop',
-    route: '/pricing',
-    fixture: 'full_court_operator',
-    passSignal: 'All paid workspaces open cleanly and the user can tell which workspace fits the job.',
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    tierId: 'free',
-    flowId: 'free-discovery-to-upgrade',
-    route: '/explore',
-    fixture: 'free_viewer',
-    passSignal: 'Public tennis intelligence is visible first, and upgrade/data-assist paths are clear.',
-  },
-]
+const journeys = customerJourneyDetails.map((journey) => ({
+  id: journey.id,
+  label: journey.label,
+  tier: journey.tier,
+  tierId: journey.tierId,
+  flowId: journey.flowId,
+  route: journey.entryRoute,
+  fixture: journey.accountFixture,
+  passSignal: journey.passSignal,
+}))
 
 const flowMaps = JSON.parse(readFileSync(join(process.cwd(), flowMapPath), 'utf8'))
 const flowById = new Map(flowMaps.map((flow) => [flow.id, flow]))
@@ -286,8 +173,8 @@ function matchesSession(session) {
   if (normalize(session.id) === normalizedQuery || normalize(session.label) === normalizedQuery) return true
 
   const sessionJourneys = session.journeys.map(getJourney)
-  const exactTierId = tierAliases[normalizedQuery.replace(/-/g, '_')] ?? tierAliases[normalizedQuery.replace(/-/g, '')]
-  if (exactTierId) return sessionJourneys.some((journey) => journey.tierId === exactTierId)
+  const tierLabel = tierAliases.get(normalizedQuery.replace(/-/g, '')) ?? tierAliases.get(normalizedQuery)
+  if (tierLabel) return sessionJourneys.some((journey) => journey.tier === tierLabel || journey.tierId === normalize(tierLabel).replace(/-/g, '_'))
 
   const sessionFlows = sessionJourneys.map((journey) => flowById.get(journey.flowId)).filter(Boolean)
   const haystack = [

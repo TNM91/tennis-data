@@ -2124,6 +2124,24 @@ function CoachPlannerPreview({
   printActive: boolean
 }) {
   const moduleCount = identity.coachLessons.length
+  const lessonSupportProof = [
+    {
+      label: 'Player identity',
+      body: `${identity.title} and the module focus stay visible before the coach chooses drills.`,
+    },
+    {
+      label: 'Readiness adapter',
+      body: 'The plan changes from the player feel check instead of running a fixed script.',
+    },
+    {
+      label: 'One-hour plan',
+      body: 'Warm-up, skill block, pressure block, and competitive close fit one lesson.',
+    },
+    {
+      label: 'Level Up handoff',
+      body: 'The lesson ends with one card, one 0-5 proof standard, and one Coach Hub review cue.',
+    },
+  ] as const
 
   return (
     <section
@@ -2182,6 +2200,30 @@ function CoachPlannerPreview({
           <TemplateBlock time="0:18-0:40" title="Main drill block" text="Theme drill with scoring, target cue, and pressure progression." />
           <TemplateBlock time="0:40-0:54" title="Competitive close" text="Live points with the module's identity constraint." />
           <TemplateBlock time="0:54-1:00" title="Homework handoff" text="Assign one measurable action and one TenAceIQ check-in." />
+        </div>
+        <div className={styles.coachLessonSupportProof} aria-label="Coach lesson support proof cue">
+          <div>
+            <span>Coach lesson support proof cue</span>
+            <strong>Prove the lesson supports the player path.</strong>
+          </div>
+          <div className={styles.coachLessonSupportProofGrid}>
+            {lessonSupportProof.map((item) => (
+              <article key={item.label}>
+                <span>{item.label}</span>
+                <p>{item.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+        <div className={styles.coachLevelUpHandoff}>
+          <span>Level Up assignment handoff</span>
+          <strong>End with one card, one proof standard, and one review cue.</strong>
+          <p>
+            Send the player into Level Up with a 0-5 proof rating, one tiny note, and the same focus you plan to review in Coach Hub.
+          </p>
+          <Link className="button-secondary" href={`/player-development/${identity.slug}/level-up`}>
+            Open Level Up path
+          </Link>
         </div>
         <CourtDiagram diagram="doubles-serve-pattern" title="Doubles pressure lanes" />
       </WorkbookPage>

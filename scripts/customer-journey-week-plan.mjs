@@ -1,130 +1,39 @@
+import { customerJourneyDetails, customerJourneyDeviceProfiles, customerJourneySessions } from './customer-journey-qa-data.mjs'
+
 const options = parseArgs(process.argv.slice(2))
 const tester = options.tester || '<name>'
 const date = options.date || 'yyyy-mm-dd'
 
-const deviceProfiles = {
-  phone: {
-    label: 'Phone',
-    value: 'phone',
-    reason: 'Proves fast actions, tap targets, collapse behavior, and no hidden next step.',
-  },
-  tablet: {
-    label: 'Tablet / iPad',
-    value: 'ipad',
-    reason: 'Proves lesson/planner/workflow usability on the device most likely used court-side.',
-  },
-  desktop: {
-    label: 'Desktop',
-    value: 'desktop',
-    reason: 'Proves operations, admin, lineup, and review workflows with full context visible.',
-  },
-}
+const deviceProfiles = Object.fromEntries(
+  customerJourneyDeviceProfiles.map((device) => [
+    device.id,
+    {
+      label: device.label,
+      value: device.deviceValue,
+      reason: device.priority,
+    },
+  ]),
+)
 
-const weeklyPlan = [
-  {
-    id: 'day1',
-    label: 'Day 1',
-    focus: 'Trust Loop',
-    question: 'Can player proof and coach assignment close the trust loop without sync or mobile confusion?',
-    journeys: [
-      {
-        id: 'player-level-up-mobile-loop',
-        route: '/player-development/relentless-competitor-4-0/level-up',
-        fixture: 'player_plus_linked',
-        devices: ['phone', 'tablet'],
-        risk: 'Player starts useful work and saves proof without extra scroll or fake sync.',
-      },
-      {
-        id: 'coach-player-assigned-challenge',
-        route: '/coach',
-        fixture: 'coach_primary',
-        devices: ['phone', 'tablet', 'desktop'],
-        risk: 'Coach assignment and player proof close the loop across roles.',
-      },
-    ],
-  },
-  {
-    id: 'day2',
-    label: 'Day 2',
-    focus: 'Player And Coach Depth',
-    question: 'Can recent work become a useful next lesson and a clear player return state?',
-    journeys: [
-      {
-        id: 'coach-lesson-support',
-        route: '/player-development/relentless-competitor-4-0/coach-planner',
-        fixture: 'coach_primary',
-        devices: ['tablet', 'desktop'],
-        risk: 'Coach planner supports the player journey instead of becoming disconnected content.',
-      },
-      {
-        id: 'player-my-lab-return-state',
-        route: '/mylab',
-        fixture: 'player_plus_linked',
-        devices: ['phone', 'desktop'],
-        risk: 'Player can return later and know what changed and what to do next.',
-      },
-    ],
-  },
-  {
-    id: 'day3',
-    label: 'Day 3',
-    focus: 'Captain Week',
-    question: 'Can a captain move from availability and context to lineup choice and team-facing communication?',
-    journeys: [
-      {
-        id: 'captain-week-flow',
-        route: '/captain',
-        fixture: 'captain_primary',
-        devices: ['phone', 'tablet', 'desktop'],
-        risk: 'Captain workflow stays decision-focused across quick updates and full lineup planning.',
-      },
-    ],
-  },
-  {
-    id: 'day4',
-    label: 'Day 4',
-    focus: 'League And Admin',
-    question: 'Can operations, public/member context, access repair, and data review stay fixture-safe and connected?',
-    journeys: [
-      {
-        id: 'league-result-to-public-context',
-        route: '/league-coordinator',
-        fixture: 'league_coordinator',
-        devices: ['tablet', 'desktop'],
-        risk: 'Coordinator operations connect to public/member context without exposing private controls.',
-      },
-      {
-        id: 'admin-access-and-data-quality',
-        route: '/admin/access',
-        fixture: 'admin_test',
-        devices: ['desktop'],
-        risk: 'Access and data repair stay safe, traceable, and reflected in the affected product surface.',
-      },
-    ],
-  },
-  {
-    id: 'day5',
-    label: 'Day 5',
-    focus: 'Full-Court And Free/Public Regression',
-    question: 'Can multi-role access and free discovery work without stale locks or premature upgrade pressure?',
-    journeys: [
-      {
-        id: 'full-court-access-pass',
-        route: '/pricing',
-        fixture: 'full_court_operator',
-        devices: ['phone', 'desktop'],
-        risk: 'Paid workspaces open cleanly without stale locks or redundant upgrade prompts.',
-      },
-      {
-        id: 'free-public-discovery',
-        route: '/explore',
-        fixture: 'free_viewer',
-        devices: ['phone', 'desktop'],
-        risk: 'Free user sees useful tennis intelligence before upgrade or data-assist handoff.',
-      },
-    ],
-  },
-]
+const journeyById = new Map(customerJourneyDetails.map((journey) => [journey.id, journey]))
+const weeklyPlan = customerJourneySessions.map((session) => ({
+  id: session.id,
+  label: session.shortLabel,
+  focus: session.focus,
+  question: session.closeoutQuestion,
+  journeys: session.journeyIds.map((journeyId) => {
+    const journey = journeyById.get(journeyId)
+    if (!journey) throw new Error(`Missing shared QA journey metadata for ${journeyId}`)
+
+    return {
+      id: journey.id,
+      route: journey.entryRoute,
+      fixture: journey.accountFixture,
+      devices: journey.requiredDeviceIds,
+      risk: journey.deviceRisk,
+    }
+  }),
+}))
 
 const filteredPlan = options.day ? weeklyPlan.filter((day) => day.id === normalizeDay(options.day)) : weeklyPlan
 

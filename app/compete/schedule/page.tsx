@@ -76,6 +76,9 @@ function CompeteScheduleContent() {
   const postedDateCount = matches.filter((match) => match.match_date).length
   const facilityCount = matches.filter((match) => cleanText(match.facility)).length
   const teamContextCount = matches.filter((match) => cleanText(match.home_team) || cleanText(match.away_team)).length
+  const scheduleReadyCount = matches.filter((match) =>
+    match.match_date && (cleanText(match.home_team) || cleanText(match.away_team)),
+  ).length
   const schedulerStatusItems = [
     {
       label: 'Dates',
@@ -93,6 +96,36 @@ function CompeteScheduleContent() {
       ready: matches.length > 0 && teamContextCount === matches.length,
     },
   ]
+  const calendarLayerItems = [
+    {
+      label: 'My calendar',
+      value: scheduleReadyCount ? `${scheduleReadyCount} visible` : 'Empty',
+      detail: 'Your private tennis view for matches, practices, lessons, and RSVPs.',
+      action: 'Open Messages',
+      href: '/messages#alerts',
+    },
+    {
+      label: 'Shared league',
+      value: matches.length ? `${matches.length} events` : 'Waiting',
+      detail: 'League Office dates everyone can trust before team prep starts.',
+      action: 'Upload dates',
+      href: dataAssistScheduleHref,
+    },
+    {
+      label: 'Team overlays',
+      value: teamContextCount ? `${teamContextCount} ready` : 'Needs teams',
+      detail: 'Captain views can layer team matches, availability, and lineup work.',
+      action: 'Open week',
+      href: '/captain/weekly-brief',
+    },
+    {
+      label: 'External sync',
+      value: 'Planned',
+      detail: 'Google, Outlook, and iCal should subscribe to the same TIQ calendar feed.',
+      action: 'Coordinate',
+      href: '/messages?compose=support&category=league&subject=Calendar%20sync',
+    },
+  ] as const
 
   useEffect(() => {
     let active = true
@@ -191,6 +224,27 @@ function CompeteScheduleContent() {
                 <strong>{item.label}</strong>
                 <em>{item.value}</em>
               </div>
+            ))}
+          </div>
+        </div>
+        <div style={calendarLayerPanelStyle} aria-label="Calendar layers">
+          <div style={calendarLayerHeaderStyle}>
+            <div>
+              <strong>Calendar layers</strong>
+              <span>Keep one personal tennis calendar, then layer shared league, team, coach, and message schedules on top.</span>
+            </div>
+            <Link href="/messages" style={calendarLayerActionStyle}>
+              Scheduling inbox
+            </Link>
+          </div>
+          <div style={calendarLayerGridStyle}>
+            {calendarLayerItems.map((item) => (
+              <Link key={item.label} href={item.href} style={calendarLayerCardStyle}>
+                <span style={calendarLayerMetaStyle}>{item.label}</span>
+                <strong>{item.value}</strong>
+                <em>{item.detail}</em>
+                <span style={calendarLayerActionTextStyle}>{item.action}</span>
+              </Link>
             ))}
           </div>
         </div>
@@ -430,6 +484,84 @@ const schedulerStatusItemStyle = {
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 850,
+  overflowWrap: 'anywhere',
+} as const
+
+const calendarLayerPanelStyle = {
+  display: 'grid',
+  gap: '12px',
+  minWidth: 0,
+  padding: '14px',
+  borderRadius: '20px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.52)',
+} as const
+
+const calendarLayerHeaderStyle = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: '10px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  lineHeight: 1.5,
+  overflowWrap: 'anywhere',
+} as const
+
+const calendarLayerGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+} as const
+
+const calendarLayerCardStyle = {
+  display: 'grid',
+  gap: '7px',
+  minWidth: 0,
+  minHeight: '150px',
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+} as const
+
+const calendarLayerMetaStyle = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+} as const
+
+const calendarLayerActionStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '34px',
+  maxWidth: '100%',
+  padding: '0 11px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
+} as const
+
+const calendarLayerActionTextStyle = {
+  color: '#d9f84a',
+  fontSize: '12px',
+  fontWeight: 950,
   overflowWrap: 'anywhere',
 } as const
 

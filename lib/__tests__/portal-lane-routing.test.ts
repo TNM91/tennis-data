@@ -12,7 +12,7 @@ const inactiveEntitlements: ProductEntitlementSnapshot = {
 }
 
 describe('portal lane routing', () => {
-  it('keeps the League lane public for guests and free members', () => {
+  it('locks the League lane for members without coordinator access', () => {
     const access = buildProductAccessState('member', inactiveEntitlements)
 
     expect(getPortalLaneTarget({
@@ -22,7 +22,11 @@ describe('portal lane routing', () => {
       access,
       authenticated: true,
       accessPending: false,
-    })).toEqual({ href: '/compete', locked: false, requiredPlan: null })
+    })).toEqual({
+      href: '/upgrade?plan=league&next=%2Fleague-coordinator',
+      locked: true,
+      requiredPlan: 'league',
+    })
   })
 
   it('opens the coordinator workspace for League and Full-Court users', () => {
@@ -91,7 +95,7 @@ describe('portal lane routing', () => {
     })).toEqual({ href: '/coach', locked: false, requiredPlan: 'coach' })
   })
 
-  it('routes paid You lane users to profile setup until their player identity is linked', () => {
+  it('routes paid You lane users directly to My Lab', () => {
     const access = buildProductAccessState('member', {
       ...inactiveEntitlements,
       playerPlusSubscriptionActive: true,
@@ -106,7 +110,7 @@ describe('portal lane routing', () => {
       authenticated: true,
       accessPending: false,
       profileLinked: false,
-    })).toEqual({ href: '/profile', locked: false, requiredPlan: null })
+    })).toEqual({ href: '/mylab', locked: false, requiredPlan: 'player_plus' })
 
     expect(getPortalLaneTarget({
       laneId: 'you',
@@ -119,7 +123,7 @@ describe('portal lane routing', () => {
     })).toEqual({ href: '/mylab', locked: false, requiredPlan: 'player_plus' })
   })
 
-  it('routes active Captain users to profile setup until their player identity is linked', () => {
+  it('routes active Captain users directly to the Captain workspace', () => {
     const access = buildProductAccessState('member', {
       ...inactiveEntitlements,
       captainSubscriptionActive: true,
@@ -134,7 +138,7 @@ describe('portal lane routing', () => {
       authenticated: true,
       accessPending: false,
       profileLinked: false,
-    })).toEqual({ href: '/profile', locked: false, requiredPlan: null })
+    })).toEqual({ href: '/captain', locked: false, requiredPlan: 'captain' })
 
     expect(getPortalLaneTarget({
       laneId: 'team',

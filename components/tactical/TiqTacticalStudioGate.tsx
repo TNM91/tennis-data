@@ -14,7 +14,11 @@ export default function TiqTacticalStudioGate() {
   const accessPending = authenticated && (!authResolved || entitlements === null)
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = buildProductAccessState(resolvedRole, entitlements)
-  const canOpenStudio = access.canUseCoachWorkflow || access.canUseCaptainWorkflow || access.currentPlanId === 'full_court'
+  const canOpenStudio =
+    access.canUseAdvancedPlayerInsights ||
+    access.canUseCoachWorkflow ||
+    access.canUseCaptainWorkflow ||
+    access.currentPlanId === 'full_court'
 
   if (accessPending) {
     return (
@@ -23,7 +27,7 @@ export default function TiqTacticalStudioGate() {
           <div>
             <div className={styles.eyebrow}>TIQ Tactical Studio</div>
             <h1>Loading your tactical workspace.</h1>
-            <p>Checking Coach, Captain, and Full-Court access.</p>
+            <p>Checking Player, Coach, Captain, and Full-Court access.</p>
           </div>
         </section>
       </div>
@@ -36,14 +40,14 @@ export default function TiqTacticalStudioGate() {
     <div className={styles.studio}>
       <section className={`${styles.hero} ${styles.gateHero}`}>
         <div className={styles.gateCopy}>
-          <div className={styles.eyebrow}>Coach unlock preview</div>
+          <div className={styles.eyebrow}>Player unlock preview</div>
           <h1>Build the drill board, then save the plan.</h1>
           <p>
-            TIQ Tactical Studio is part of Coach, Captain, and Full-Court access. Use it to map drills,
+            TIQ Tactical Studio is part of Player, Coach, Captain, and Full-Court access. Use it to map drills,
             point patterns, assignments, and player-ready briefings.
           </p>
           <div className={styles.actions}>
-            <Link className={styles.button} href="/pricing#coach">See Coach</Link>
+            <Link className={styles.button} href="/pricing#player_plus">See Player</Link>
             <Link className={styles.button} href="/pricing#full_court">See Full-Court</Link>
           </div>
         </div>
@@ -55,11 +59,11 @@ export default function TiqTacticalStudioGate() {
       </section>
 
       <UpgradePrompt
-        planId="coach"
-        headline="Unlock TIQ Tactical Studio with Coach."
-        body="Create reusable drill boards, save tactical scenarios, export briefings, and connect court work to player development."
-        result="Coach is built for lesson planning, student tracking, drill assignments, scheduling, and tactical player development."
-        ctaLabel="Unlock Coach"
+        planId="player_plus"
+        headline="Unlock TIQ Tactical Studio with Player."
+        body="Create reusable drill boards, save tactical scenarios, export briefings, and connect court work to your Level Up plan."
+        result="Player includes My Lab, Level Up, Tactics Tools, matchup prep, follows, and tennis messages."
+        ctaLabel="Unlock Player"
         secondaryHref="/pricing#captain"
         secondaryLabel="Compare Captain"
       />

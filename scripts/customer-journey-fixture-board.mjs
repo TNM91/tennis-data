@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, sessionByJourneyId } from './customer-journey-qa-data.mjs'
 
 const fixturesPath = 'docs/customer-journey-test-fixtures.md'
 const resultsPath = 'docs/customer-journey-test-results.md'
@@ -51,17 +52,7 @@ const fixtures = [
   { id: 'admin-access-repair', type: 'data', role: 'Admin access repair', setup: 'Test profile, starting access, target access, and rollback note.' },
 ]
 
-const journeys = [
-  { id: 'player-level-up-mobile-loop', session: 'day1', fixtures: ['player_plus_linked', 'level-up-completion'] },
-  { id: 'coach-player-assigned-challenge', session: 'day1', fixtures: ['coach_primary', 'player_plus_linked', 'coach-invite-token', 'level-up-assignment', 'level-up-completion'] },
-  { id: 'coach-lesson-support', session: 'day2', fixtures: ['coach_primary', 'linked-player-profile', 'level-up-assignment'] },
-  { id: 'player-my-lab-return-state', session: 'day2', fixtures: ['player_plus_linked', 'linked-player-profile'] },
-  { id: 'captain-week-flow', session: 'day3', fixtures: ['captain_primary', 'captain-team-week'] },
-  { id: 'league-result-to-public-context', session: 'day4', fixtures: ['league_coordinator', 'league-week'] },
-  { id: 'admin-access-and-data-quality', session: 'day4', fixtures: ['admin_test', 'admin-access-repair', 'data-assist-upload'] },
-  { id: 'full-court-access-pass', session: 'day5', fixtures: ['full_court_operator', 'full-court-access-state'] },
-  { id: 'free-public-discovery', session: 'day5', fixtures: ['free_viewer', 'data-assist-upload'] },
-]
+const journeys = customerJourneyDetails
 
 const rows = readFileSync(join(process.cwd(), resultsPath), 'utf8')
   .split('\n')
@@ -101,7 +92,7 @@ console.log('Fixture board rule: fixtures are not considered ready from memory. 
 
 function printGroup(group) {
   const groupFixtures = group.fixtures.map((fixtureId) => fixtures.find((fixture) => fixture.id === fixtureId)).filter(Boolean)
-  const dependentJourneys = journeys.filter((journey) => journey.fixtures.some((fixtureId) => group.fixtures.includes(fixtureId)))
+  const dependentJourneys = journeys.filter((journey) => journey.fixtureIds.some((fixtureId) => group.fixtures.includes(fixtureId)))
   const fixtureGapRows = rows.filter((row) => row.result !== 'pass' && row.category === 'fixture-gap' && dependentJourneys.some((journey) => journey.id === row.journeyId))
 
   console.log(`${group.label} (${group.id})`)
@@ -110,7 +101,7 @@ function printGroup(group) {
   console.log('  Fixtures to confirm:')
 
   for (const fixture of groupFixtures) {
-    const dependent = journeys.filter((journey) => journey.fixtures.includes(fixture.id))
+    const dependent = journeys.filter((journey) => journey.fixtureIds.includes(fixture.id))
     const seenRows = rows.filter((row) => row.accountFixture === fixture.id || row.notes.includes(fixture.id) || row.nextAction.includes(fixture.id))
     const openFixtureGap = seenRows.some((row) => row.result !== 'pass' && row.category === 'fixture-gap')
     const state = openFixtureGap ? 'open fixture-gap' : seenRows.length ? 'seen in ledger' : 'confirm before test'
@@ -126,8 +117,8 @@ function printGroup(group) {
     const journeyRows = rows.filter((row) => row.journeyId === journey.id)
     const latestRow = journeyRows.at(-1)
     const state = latestRow ? `${latestRow.result || 'logged'}${latestRow.category ? `/${latestRow.category}` : ''}` : 'missing result'
-    console.log(`  - ${state}: ${journey.id} (${journey.session})`)
-    console.log(`    Fixtures: ${journey.fixtures.join(', ')}`)
+    console.log(`  - ${state}: ${journey.id} (${sessionByJourneyId.get(journey.id)?.id ?? 'unassigned'})`)
+    console.log(`    Fixtures: ${journey.fixtureIds.join(', ')}`)
     console.log(`    Next: npm run qa:journey -- ${journey.id}`)
   }
 
@@ -146,13 +137,13 @@ function matchesGroup(group) {
   if (!rawQuery) return true
 
   const groupFixtures = group.fixtures.map((fixtureId) => fixtures.find((fixture) => fixture.id === fixtureId)).filter(Boolean)
-  const dependentJourneys = journeys.filter((journey) => journey.fixtures.some((fixtureId) => group.fixtures.includes(fixtureId)))
+  const dependentJourneys = journeys.filter((journey) => journey.fixtureIds.some((fixtureId) => group.fixtures.includes(fixtureId)))
   const haystack = [
     group.id,
     group.label,
     group.closeout,
     ...groupFixtures.flatMap((fixture) => [fixture.id, fixture.type, fixture.role, fixture.setup]),
-    ...dependentJourneys.flatMap((journey) => [journey.id, journey.session, ...journey.fixtures]),
+    ...dependentJourneys.flatMap((journey) => [journey.id, sessionByJourneyId.get(journey.id)?.id ?? '', ...journey.fixtureIds]),
   ]
     .join(' ')
     .toLowerCase()

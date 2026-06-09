@@ -1,19 +1,18 @@
-const dayOneJourneys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    fixtureIds: ['player_plus_linked', 'level-up-completion'],
-    entryRoute: '/player-development/relentless-competitor-4-0/level-up',
-    passSignal: 'Active training becomes the main screen, proof saves honestly, and the next action is obvious.',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    fixtureIds: ['coach_primary', 'player_plus_linked', 'coach-invite-token', 'level-up-assignment', 'level-up-completion'],
-    entryRoute: '/coach',
-    passSignal: 'Invite, assignment, player challenge, proof, and coach review close the loop without manual cleanup.',
-  },
-]
+import { customerJourneySessions, journeyById } from './customer-journey-qa-data.mjs'
+
+const dayOneSession = customerJourneySessions.find((session) => session.id === 'day1')
+const dayOneJourneys =
+  dayOneSession?.journeyIds.map((journeyId) => {
+    const journey = journeyById.get(journeyId)
+
+    return {
+      id: journeyId,
+      label: journey?.label ?? journeyId,
+      fixtureIds: journey?.fixtureIds ?? [],
+      entryRoute: journey?.entryRoute ?? 'missing entry route',
+      passSignal: journey?.passSignal ?? 'missing pass signal',
+    }
+  }) ?? []
 
 const docs = [
   'docs/customer-journey-day-one-runbook.md',

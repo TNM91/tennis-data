@@ -1,73 +1,30 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, customerJourneySessions } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 
-const sessions = [
-  {
-    id: 'day1',
-    label: 'Trust Loop',
-    journeys: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    label: 'Player And Coach Depth',
-    journeys: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    label: 'Captain Week',
-    journeys: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    label: 'League And Admin',
-    journeys: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    label: 'Full-Court And Free/Public Regression',
-    journeys: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
+const sessions = customerJourneySessions.map((session) => ({
+  id: session.id,
+  label: session.focus,
+  journeys: session.journeyIds,
+}))
 
-const tiers = [
-  {
-    id: 'player',
-    label: 'Player',
-    journeys: ['player-level-up-mobile-loop', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'coach',
-    label: 'Coach',
-    journeys: ['coach-player-assigned-challenge', 'coach-lesson-support'],
-  },
-  {
-    id: 'captain',
-    label: 'Captain',
-    journeys: ['captain-week-flow'],
-  },
-  {
-    id: 'league',
-    label: 'League',
-    journeys: ['league-result-to-public-context'],
-  },
-  {
-    id: 'full-court',
-    label: 'Full-Court',
-    journeys: ['full-court-access-pass'],
-  },
-  {
-    id: 'admin',
-    label: 'Admin/Internal',
-    journeys: ['admin-access-and-data-quality'],
-  },
-  {
-    id: 'free',
-    label: 'Free',
-    journeys: ['free-public-discovery'],
-  },
-]
+const tierDisplayIds = new Map([
+  ['player_plus', 'player'],
+  ['coach', 'coach'],
+  ['captain', 'captain'],
+  ['league', 'league'],
+  ['full_court', 'full-court'],
+  ['admin_internal', 'admin'],
+  ['free', 'free'],
+])
+
+const tiers = [...new Map(customerJourneyDetails.map((journey) => [journey.tierId, journey.tier])).entries()].map(([tierId, label]) => ({
+  id: tierDisplayIds.get(tierId) ?? tierId,
+  label,
+  journeys: customerJourneyDetails.filter((journey) => journey.tierId === tierId).map((journey) => journey.id),
+}))
 
 const plannedJourneyIds = [...new Set(sessions.flatMap((session) => session.journeys))]
 const rows = extractResultLedger(readFileSync(join(process.cwd(), resultsPath), 'utf8'))

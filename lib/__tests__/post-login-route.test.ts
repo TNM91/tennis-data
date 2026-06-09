@@ -26,12 +26,12 @@ describe('post-login product routing', () => {
     }, true)).toBe('/mylab')
   })
 
-  it('sends Player users to profile only when no player identity is linked yet', () => {
+  it('lands Player users in My Lab even when player identity still needs setup', () => {
     expect(getDefaultProductHomeRoute('member', {
       ...inactiveEntitlements,
       playerPlusSubscriptionActive: true,
       playerPlusSubscriptionStatus: 'active',
-    }, false)).toBe('/profile')
+    }, false)).toBe('/mylab')
   })
 
   it('lands Captain users in the Captain workspace once their player is linked', () => {
@@ -40,6 +40,14 @@ describe('post-login product routing', () => {
       captainSubscriptionActive: true,
       captainSubscriptionStatus: 'active',
     }, true)).toBe('/captain')
+  })
+
+  it('lands Captain users in the Captain workspace even when player identity still needs setup', () => {
+    expect(getDefaultProductHomeRoute('member', {
+      ...inactiveEntitlements,
+      captainSubscriptionActive: true,
+      captainSubscriptionStatus: 'active',
+    }, false)).toBe('/captain')
   })
 
   it('lands Coach users in the Coach workspace even before a player identity is linked', () => {

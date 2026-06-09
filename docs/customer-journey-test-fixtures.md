@@ -4,6 +4,9 @@ Use this with `docs/customer-journey-test-scripts.md` during next-week testing. 
 
 Run `npm run qa:fixtures` to print the account, data fixture, and setup-order checklist.
 Run `npm run qa:fixture-gate -- coach-player-assigned-challenge` to print the executable Day 1 coach-player fixture gate.
+Run `npm run qa:fixture-auth-smoke -- --env` to print the local auth env contract without requiring or printing credential values.
+Run `npm run qa:fixture-auth-smoke` after setting `TENACEIQ_QA_COACH_EMAIL`, `TENACEIQ_QA_COACH_PASSWORD`, `TENACEIQ_QA_PLAYER_EMAIL`, and `TENACEIQ_QA_PLAYER_PASSWORD` in `.env.local` to prove `coach_primary` and `player_plus_linked` can authenticate without printing credentials.
+Run `npm run qa:fixture-auth-smoke -- coach_primary` or `npm run qa:fixture-auth-smoke -- player_plus_linked` when only one Day 1 account is ready.
 Run `npm run qa:fixture-board` to group account access, player/coach links, team/league data, admin/data safety, dependent journeys, and fixture-gap rows.
 Run `npm run qa:fixture-status -- <day1-day5>` to see the fixtures, dependent journeys, and current fixture-gap blockers for a testing block.
 Run `npm run qa:fixture-review -- <fixture>` to inspect one fixture's setup needs, dependent journeys, routes, pass signals, and current ledger evidence.
@@ -98,12 +101,23 @@ Use this gate before retesting `coach-player-assigned-challenge`. Do not mark th
 
 | Fixture | Provisioning action | Ready signal | Evidence to capture |
 | --- | --- | --- | --- |
-| `coach_primary` | Sign in as the coach test account and open `/coach`. | Coach Hub loads with student management, assignment creation, and review queue controls. | Coach Hub screen with no stale upgrade lock. |
+| `coach_primary` | Sign in as the coach test account and open `/coach`; if you land on `/login?next=/coach`, authenticate before scoring readiness. | Coach Hub loads with student management, assignment creation, and review queue controls. | Coach Hub screen with no stale upgrade lock. |
 | `player_plus_linked` | Sign in as the intended player and confirm the profile link used by My Lab and Level Up. | Player can open `/mylab` and `/player-development/relentless-competitor-4-0/level-up`. | My Lab linked-player cue or Level Up player context. |
-| `coach-invite-token` | From `coach_primary`, create a disposable invite and accept it as `player_plus_linked`. | The invite page names the relationship and the coach sees the linked player. | Invite/link state plus Linking proof privacy cue. |
+| `coach-invite-token` | From `coach_primary`, create a disposable invite and accept it as `player_plus_linked`. | The invite page names the relationship and the coach sees the linked player. | Invite/link state, Linking proof privacy cue, Invite acceptance proof cue, and Coach invite account proof cue. |
 | `level-up-assignment` | From `coach_primary`, assign one exact Level Up card with a due date, coach note, and proof requirement. | My Lab shows the assignment for the linked player only, with the exact card handoff. | Assignment id or assignment card with proof required. |
 | `level-up-completion` | As `player_plus_linked`, open the assigned card, save a 0-5 proof rating, and add one tiny note. | Save status is honest: local, Player+ synced, or coach-invited synced. | Player challenge screen and proof rating/note state. |
 | Coach review proof | Return to `coach_primary` after completion. | Coach review queue shows the same proof signal, note, due state, and next lesson implication. | Coach review proof sync cue and next-focus/next-assignment handoff. |
+
+If a ready signal is missing:
+
+| Fixture | Keep blocked until this is repaired | Ledger category |
+| --- | --- | --- |
+| `coach_primary` | Repair coach authentication, access, or Coach Hub entitlement before creating invites or assignments. | `fixture-gap` |
+| `player_plus_linked` | Repair Player access or linked-player profile before accepting a coach invite. | `fixture-gap` |
+| `coach-invite-token` | Create a fresh invite token, accept it with the intended player account, and confirm Coach Hub linked-player state. | `fixture-gap` |
+| `level-up-assignment` | Create one exact assigned card after the coach-player link exists; do not substitute a generic drill screenshot. | `fixture-gap` |
+| `level-up-completion` | Complete the assigned card as the linked player and capture the save/sync status before coach review. | `fixture-gap` |
+| Coach review proof | If the player UI says synced but Coach Hub cannot review it, log `sync-gap` or `data-propagation-gap` instead of `fixture-gap`. | `sync-gap` or `data-propagation-gap` when sync is claimed; otherwise `fixture-gap` |
 
 If any ready signal is missing, log `blocked` with `fixture-gap` unless the UI clearly loaded but failed the product promise. If the UI says proof synced and the coach cannot find it, log `sync-gap` or `data-propagation-gap` instead.
 
@@ -116,6 +130,8 @@ If any ready signal is missing, log `blocked` with `fixture-gap` unless the UI c
 ## Do Not Store Here
 
 - Passwords
+- Test account secret values, including `TENACEIQ_QA_COACH_PASSWORD`
+- Test account secret values, including `TENACEIQ_QA_PLAYER_PASSWORD`
 - Live customer credentials
 - Stripe secrets
 - Personal data beyond fixture labels

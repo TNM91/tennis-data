@@ -42,15 +42,18 @@ Steps:
 5. Complete the active drill flow: timer/reps if available, proof rating, and one tiny note.
 6. Save proof.
 7. Confirm the save status is honest: local, Player+ synced, or coach-invited synced.
-8. Confirm next practice and coach update copy are useful and visible.
-9. Refresh and confirm the return state matches the expected sync mode.
+8. Confirm the Level Up local sync proof cue explains saved-first, connected-sync, and local-only v1 behavior.
+9. Confirm next practice and coach update copy are useful and visible.
+10. Refresh Level Up, open `/mylab`, and confirm the Level Up return-state panel matches the expected local or synced mode.
 
 Capture:
 
 - Phone screenshot of the active card.
 - Saved proof status text.
+- Level Up local sync proof cue.
 - Proof rating and tiny note.
 - Next recommendation.
+- My Lab Level Up return-state panel.
 - Any scroll/tap friction.
 
 Fail fast:
@@ -58,7 +61,7 @@ Fail fast:
 - Mark `mobile-ux-gap` if the active card is buried or the player must keep scrolling through old choices.
 - Mark `sync-gap` if local proof is presented as cloud or coach-visible sync.
 - Mark `content-quality-gap` if the card does not clearly connect to a tennis behavior.
-- Mark `return-state-gap` if refresh loses the player context or next action.
+- Mark `return-state-gap` if refresh loses the player context, Level Up proof, or next action.
 
 ## Journey 2: Coach To Player Assigned Challenge
 
@@ -84,10 +87,13 @@ Steps:
 Capture:
 
 - Invite or linked-player status.
+- Linking proof privacy cue.
+- Invite acceptance proof cue.
+- Coach invite account proof cue.
 - Assignment id or visible assignment details.
 - Player challenge screen.
 - Player proof result.
-- Coach review screen.
+- Coach review proof sync cue.
 - Next lesson or next focus handoff.
 
 Fail fast:

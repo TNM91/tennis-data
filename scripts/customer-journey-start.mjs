@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneySessions, normalizeQaQuery, plannedJourneyIds } from './customer-journey-qa-data.mjs'
 
 const options = parseArgs(process.argv.slice(2))
 const date = options.date || 'yyyy-mm-dd'
@@ -7,45 +8,6 @@ const tester = options.tester || '<name>'
 const device = normalizeDevice(options.device || 'phone')
 const resultsPath = 'docs/customer-journey-test-results.md'
 
-const sessions = [
-  {
-    id: 'day1',
-    label: 'Day 1 - Trust Loop',
-    defaultDevice: 'phone',
-    reason: 'Start with the trust loop: Level Up proof and coach assignment are the highest-risk connected flows.',
-    journeys: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    label: 'Day 2 - Player And Coach Depth',
-    defaultDevice: 'phone',
-    reason: 'Run after Day 1 has real rows so return state and lesson support build on the trust loop.',
-    journeys: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    label: 'Day 3 - Captain Week',
-    defaultDevice: 'phone',
-    reason: 'Captain testing should prove quick updates and full lineup decisions.',
-    journeys: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    label: 'Day 4 - League And Admin',
-    defaultDevice: 'desktop',
-    reason: 'League/admin testing needs the most complete context and safe fixture review.',
-    journeys: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    label: 'Day 5 - Full-Court And Free/Public Regression',
-    defaultDevice: 'phone',
-    reason: 'Regression should prove paid access and free discovery from a simple starting point.',
-    journeys: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
-
-const plannedJourneyIds = sessions.flatMap((session) => session.journeys)
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const rows = extractResultLedger(source)
   .split('\n')
@@ -55,8 +17,8 @@ const rows = extractResultLedger(source)
 
 const passedJourneyIds = new Set(rows.filter((row) => row.result === 'pass').map((row) => row.journeyId))
 const openHighPriorityRows = rows.filter((row) => (row.severity === 'p0' || row.severity === 'p1') && row.result !== 'pass')
-const firstIncompleteSession = sessions.find((session) => session.journeys.some((journeyId) => !passedJourneyIds.has(journeyId))) ?? sessions[0]
-const session = options.day ? sessions.find((item) => item.id === normalizeDay(options.day)) ?? firstIncompleteSession : firstIncompleteSession
+const firstIncompleteSession = customerJourneySessions.find((session) => session.journeyIds.some((journeyId) => !passedJourneyIds.has(journeyId))) ?? customerJourneySessions[0]
+const session = options.day ? customerJourneySessions.find((item) => item.aliases.includes(normalizeQaQuery(options.day))) ?? firstIncompleteSession : firstIncompleteSession
 const activeDevice = options.device ? device : session.defaultDevice
 
 console.log('TenAceIQ QA Start')
@@ -100,7 +62,7 @@ console.log('- npm run qa:next')
 console.log('')
 
 console.log('Journeys in this block:')
-for (const journeyId of session.journeys) {
+for (const journeyId of session.journeyIds) {
   const state = passedJourneyIds.has(journeyId) ? 'has pass row' : 'needs pass evidence'
   console.log(`- ${journeyId}: ${state}`)
 }
@@ -162,24 +124,6 @@ function extractResultLedger(markdown) {
 
   const endIndex = markdown.indexOf(endMarker, startIndex + startMarker.length)
   return endIndex === -1 ? markdown.slice(startIndex) : markdown.slice(startIndex, endIndex)
-}
-
-function normalizeDay(value) {
-  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, '')
-  const aliases = {
-    '1': 'day1',
-    '2': 'day2',
-    '3': 'day3',
-    '4': 'day4',
-    '5': 'day5',
-    day1: 'day1',
-    day2: 'day2',
-    day3: 'day3',
-    day4: 'day4',
-    day5: 'day5',
-  }
-
-  return aliases[normalized] ?? normalized
 }
 
 function normalizeDevice(value) {

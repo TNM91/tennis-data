@@ -57,6 +57,12 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('This panel is reading this browser only.')
     expect(source).toContain('Private windows can forget it')
     expect(source).toContain('Signed-in Player+ or coach-linked proof can sync history')
+    expect(source).toContain('My Lab refresh proof cue')
+    expect(source).toContain('What should still be clear after refresh?')
+    expect(source).toContain('Find yourself first so My Lab is not a generic dashboard.')
+    expect(source).toContain('Player record, follows, matchup notes, and coach context can anchor here.')
+    expect(source).toContain('Recent Level Up proof appears from this browser cache')
+    expect(source).toContain('No Level Up proof is shown unless this browser has saved it.')
     expect(source).toContain('Add one pressure layer, not a new habit.')
     expect(source).toContain('Repeat the same card cleaner.')
     expect(source).toContain('Scale down and chase one clean cue.')
@@ -124,6 +130,10 @@ describe('My Lab premium surface', () => {
       'levelUpReturnPrimaryStyle',
       'levelUpReturnMetricGridStyle',
       'levelUpReturnStorageNoteStyle',
+      'myLabRefreshProofCueStyle',
+      'myLabRefreshProofHeaderStyle',
+      'myLabRefreshProofGridStyle',
+      'myLabRefreshProofCardStyle',
       'quickProfileStyle',
       'setupPanelStyle',
       'starterPanelStyle',
@@ -218,6 +228,11 @@ describe('My Lab premium surface', () => {
       'levelUpReturnPrimaryTextStyle',
       'levelUpReturnStorageNoteStyle',
       'levelUpReturnStorageNoteStrongStyle',
+      'myLabRefreshProofCueStyle',
+      'myLabRefreshProofHeaderStyle',
+      'myLabRefreshProofCardStyle',
+      'myLabRefreshProofLabelStyle',
+      'myLabRefreshProofTextStyle',
       'todayReadCardStyle',
       'todayReadValueStyle',
       'matchPlanTextStyle',

@@ -1,94 +1,9 @@
+import { customerJourneySessions, journeyById, normalizeQaQuery } from './customer-journey-qa-data.mjs'
+
 const options = parseArgs(process.argv.slice(2))
 const rawQuery = options.session.trim().toLowerCase()
-const normalizedQuery = rawQuery.replace(/\s+/g, '').replace('-', '')
-
-const sessions = [
-  {
-    id: 'day1',
-    aliases: ['1', 'day1', 'trustloop'],
-    label: 'Day 1',
-    focus: 'Trust Loop',
-    journeyIds: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    aliases: ['2', 'day2', 'playercoach'],
-    label: 'Day 2',
-    focus: 'Player And Coach Depth',
-    journeyIds: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    aliases: ['3', 'day3', 'captain'],
-    label: 'Day 3',
-    focus: 'Captain Week',
-    journeyIds: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    aliases: ['4', 'day4', 'leagueadmin'],
-    label: 'Day 4',
-    focus: 'League And Admin',
-    journeyIds: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    aliases: ['5', 'day5', 'regression'],
-    label: 'Day 5',
-    focus: 'Full-Court And Free/Public Regression',
-    journeyIds: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
-
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    entryRoute: '/player-development/relentless-competitor-4-0/level-up',
-    accountFixture: 'player_plus_linked',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    entryRoute: '/coach',
-    accountFixture: 'coach_primary',
-  },
-  {
-    id: 'coach-lesson-support',
-    entryRoute: '/player-development/relentless-competitor-4-0/coach-planner',
-    accountFixture: 'coach_primary',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    entryRoute: '/mylab',
-    accountFixture: 'player_plus_linked',
-  },
-  {
-    id: 'captain-week-flow',
-    entryRoute: '/captain',
-    accountFixture: 'captain_primary',
-  },
-  {
-    id: 'league-result-to-public-context',
-    entryRoute: '/league-coordinator',
-    accountFixture: 'league_coordinator',
-  },
-  {
-    id: 'full-court-access-pass',
-    entryRoute: '/pricing',
-    accountFixture: 'full_court_operator',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    entryRoute: '/admin/access',
-    accountFixture: 'admin_test',
-  },
-  {
-    id: 'free-public-discovery',
-    entryRoute: '/explore',
-    accountFixture: 'free_viewer',
-  },
-]
-const journeyById = new Map(journeys.map((journey) => [journey.id, journey]))
-const session = sessions.find((item) => item.aliases.includes(normalizedQuery))
+const normalizedQuery = normalizeQaQuery(rawQuery)
+const session = customerJourneySessions.find((item) => item.aliases.includes(normalizedQuery))
 
 console.log('TenAceIQ Customer Journey Session Ledger Rows')
 console.log('')
@@ -98,15 +13,15 @@ if (!session) {
   console.log('       npm run qa:session-ledger -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>')
   console.log('')
   console.log('Available sessions:')
-  for (const item of sessions) {
-    console.log(`- ${item.id}: ${item.label} - ${item.focus}`)
+  for (const item of customerJourneySessions) {
+    console.log(`- ${item.id}: ${item.shortLabel} - ${item.focus}`)
   }
   console.log('')
   console.log('Use `npm run qa:ledger` when you want starter rows for every planned journey.')
   process.exit(rawQuery ? 1 : 0)
 }
 
-console.log(`${session.label}: ${session.focus}`)
+console.log(`${session.shortLabel}: ${session.focus}`)
 console.log('Paste these rows into docs/customer-journey-test-results.md under Result Ledger as you test this session.')
 if (options.date || options.tester || options.deviceBrowser) {
   console.log(

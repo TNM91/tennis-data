@@ -1,110 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, fixtureGateJourneyIds, sessionByJourneyId } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
 
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    tier: 'Player',
-    session: 'day1',
-    owner: 'Product + mobile QA',
-    backup: 'Coach workflow QA',
-    fixture: 'player_plus_linked',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    focus: 'Mobile usability, useful tennis work, saved proof, and honest sync state.',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    tier: 'Coach',
-    session: 'day1',
-    owner: 'Coach workflow QA',
-    backup: 'Product + mobile QA',
-    fixture: 'coach_primary',
-    route: '/coach',
-    focus: 'Coach assignment, player completion proof, and coach review loop.',
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    tier: 'Coach',
-    session: 'day2',
-    owner: 'Coach content QA',
-    backup: 'Product + mobile QA',
-    fixture: 'coach_primary',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    focus: 'Coach planner usefulness, lesson support, and alignment to player Level Up work.',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    tier: 'Player',
-    session: 'day2',
-    owner: 'Player workspace QA',
-    backup: 'Access and tier QA',
-    fixture: 'player_plus_linked',
-    route: '/mylab',
-    focus: 'Player return state, identity clarity, linked profile, and next action.',
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    tier: 'Captain',
-    session: 'day3',
-    owner: 'Captain workflow QA',
-    backup: 'Access and tier QA',
-    fixture: 'captain_primary',
-    route: '/captain',
-    focus: 'Captain decisions, weekly lineup work, readiness, and team-facing output.',
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    tier: 'League',
-    session: 'day4',
-    owner: 'League operations QA',
-    backup: 'Admin/data QA',
-    fixture: 'league_coordinator',
-    route: '/league-coordinator',
-    focus: 'Coordinator operation, public/member context, and no private control leakage.',
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    tier: 'Full-Court',
-    session: 'day5',
-    owner: 'Access and tier QA',
-    backup: 'Player workspace QA',
-    fixture: 'full_court_operator',
-    route: '/pricing',
-    focus: 'Paid workspace access, stale lock removal, and clear role navigation.',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    tier: 'Admin/Internal',
-    session: 'day4',
-    owner: 'Admin/data QA',
-    backup: 'League operations QA',
-    fixture: 'admin_test',
-    route: '/admin/access',
-    focus: 'Access repair, data quality, safe fixtures, and reflected product state.',
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    tier: 'Free',
-    session: 'day5',
-    owner: 'Public discovery QA',
-    backup: 'Access and tier QA',
-    fixture: 'free_viewer',
-    route: '/explore',
-    focus: 'Public tennis intelligence, useful free discovery, and clean upgrade handoff.',
-  },
-]
+const journeys = customerJourneyDetails.map((journey) => ({
+  id: journey.id,
+  label: journey.label,
+  tier: journey.tier,
+  session: sessionByJourneyId.get(journey.id)?.id ?? 'unassigned',
+  owner: journey.owner,
+  backup: journey.backupOwner,
+  fixture: journey.accountFixture,
+  route: journey.entryRoute,
+  focus: journey.ownerFocus,
+}))
 
 const rows = readFileSync(join(process.cwd(), resultsPath), 'utf8')
   .split('\n')
@@ -167,6 +78,7 @@ function buildOwnerRow(journey) {
   const hasPass = passRows.length > 0
   const hasEvidence = passRows.some((row) => row.screenshotOrVideo)
   const openRows = journeyRows.filter((row) => row.result && row.result !== 'pass')
+  const fixtureGapRows = openRows.filter((row) => row.category === 'fixture-gap')
   const openHighPriorityRows = openRows.filter((row) => row.severity === 'p0' || row.severity === 'p1')
   const missingNextActionRows = openRows.filter((row) => !row.nextAction)
   const state = getState({ journeyRows, hasPass, hasEvidence, openHighPriorityRows })
@@ -178,6 +90,7 @@ function buildOwnerRow(journey) {
     hasPass,
     hasEvidence,
     openRows,
+    fixtureGapRows,
     openHighPriorityRows,
     missingNextActionRows,
   }
@@ -194,6 +107,13 @@ function printOwnerRow(row) {
   console.log(`  Focus: ${journey.focus}`)
   console.log(`  Latest result: ${row.latestRow?.result || 'missing result row'}`)
   console.log(`  Open rows: ${row.openRows.length}; open p0/p1: ${row.openHighPriorityRows.length}; missing next action: ${row.missingNextActionRows.length}`)
+  if (row.fixtureGapRows.length) {
+    console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journey.id}`)
+    if (fixtureGateJourneyIds.has(journey.id)) {
+      console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
+      console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+    }
+  }
   console.log(`  Next: ${getNextCommand(row)}`)
 
   if (row.openHighPriorityRows.length) {
@@ -214,6 +134,8 @@ function getState({ journeyRows, hasPass, hasEvidence, openHighPriorityRows }) {
 
 function getNextCommand(row) {
   if (row.openHighPriorityRows.length) return `npm run qa:action-list ${row.journey.id}`
+  if (row.fixtureGapRows.length && fixtureGateJourneyIds.has(row.journey.id)) return `npm run qa:fixture-gate -- ${row.journey.id}; npm run qa:fixture-auth-smoke -- --env; npm run qa:fixture-auth-smoke`
+  if (row.fixtureGapRows.length) return `npm run qa:fixture-gate -- ${row.journey.id}`
   if (row.state === 'unassigned result' || row.state === 'needs pass') return `npm run qa:journey -- ${row.journey.id}`
   if (row.state === 'needs evidence') return `npm run qa:evidence-pack -- ${row.journey.session}`
   return `npm run qa:close-day -- ${row.journey.session}`

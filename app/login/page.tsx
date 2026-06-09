@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { loadUserProfileLink } from '@/lib/user-profile'
 import { FREE_POST_LOGIN_ROUTE, getDefaultProductHomeRoute } from '@/lib/post-login-route'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -27,7 +26,7 @@ const LOGIN_INTENT_COPY: Record<MembershipTierId, {
   },
   player_plus: {
     eyebrow: 'Player path',
-    destination: 'My Lab setup',
+    destination: 'My Lab',
   },
   coach: {
     eyebrow: 'Coach path',
@@ -58,13 +57,8 @@ async function getDefaultPostLoginRoute(
   entitlements?: ProductEntitlementSnapshot | null,
   userId?: string | null,
 ) {
-  const profileRes = await withLoginTimeout(
-    loadUserProfileLink(userId),
-    LOGIN_AUTH_TIMEOUT_MS,
-    { data: null, error: null, source: 'none', cloudSchemaReady: false },
-  )
-  const hasLinkedPlayer = Boolean(profileRes.data?.linked_player_id || profileRes.data?.linked_player_name)
-  return getDefaultProductHomeRoute(role, entitlements, hasLinkedPlayer)
+  void userId
+  return getDefaultProductHomeRoute(role, entitlements)
 }
 
 async function withLoginTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
@@ -88,12 +82,7 @@ async function resolvePostLoginRoute(
   if (candidate.startsWith('//')) return fallback
   if (candidate.startsWith('/login')) return fallback
   if (candidate.startsWith('/join')) return fallback
-  if (fallback === '/profile' && requiresPersonalIdentity(candidate)) return fallback
   return candidate
-}
-
-function requiresPersonalIdentity(candidate: string) {
-  return candidate.startsWith('/mylab') || candidate.startsWith('/matchup') || candidate.startsWith('/captain')
 }
 
 export default function LoginPage() {

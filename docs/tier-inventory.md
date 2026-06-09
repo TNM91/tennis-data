@@ -372,7 +372,7 @@ Completed rollout surfaces:
 - Legal pages upgraded with shared legal quick links.
 - Account recovery pages upgraded with icon-led reset steps.
 - Admin hub upgraded with branded tool icons.
-- Global navigation labels tightened to Find, You, Prep, Team, League, and Plans so the app reads as a simple product flow instead of an internal feature list.
+- Global navigation labels now use the public action map from `lib/site-navigation.ts`: Find, Prepare, Improve, Coaches, Teams, Tournaments, Leagues, Resources, and Pricing. Signed-in users also get a role-aware workspace shortcut so paid-role navigation stays direct without hiding public discovery.
 - Shared shell logic now treats public player, team, ranking, and league pages as Find mode, while reserving League mode for the league operations workspace.
 - Older visible directory links in Captain, Data Assist, Matchup, Compete Results, and How It Works now route through `/explore/*` so users stay in the new Find flow.
 - Pricing, upgrade, locked-plan, and shared product-story copy now use the clearer Find / You / Team / League language while preserving the formal TIQ League Coordinator plan name where needed.

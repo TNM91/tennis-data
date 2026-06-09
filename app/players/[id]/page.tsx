@@ -3889,7 +3889,7 @@ const scorecardMetricLabelStyle: CSSProperties = {
 }
 
 const scorecardMetricValueStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
+  color: 'var(--brand-lime)',
   fontSize: 'clamp(1.7rem, 3vw, 2.45rem)',
   lineHeight: 1,
   fontWeight: 950,

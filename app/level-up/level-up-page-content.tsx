@@ -30,6 +30,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           <div className={styles.levelUpRouteActions} aria-label="Level Up shortcuts">
             <Link className="button-primary" href="#level-up-flow">Start now</Link>
             <Link className="button-secondary" href="/mylab#coach-assignments">Coach work</Link>
+            <Link className="button-secondary" href="/tactics">Tactics Tools</Link>
           </div>
         </section>
 
@@ -66,37 +67,37 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           </div>
 
           <div className={styles.levelUpPortalLanes}>
-            <article>
+            <Link href="#coach-assigned-work">
               <span>Coach Assigned</span>
               <strong>Your coach work comes first.</strong>
               <p>Coach-invited players complete assigned cards and send simple proof back to the coach.</p>
-              <Link className="button-secondary" href="/mylab#coach-assignments">Open assignments</Link>
-            </article>
-            <article>
+              <span className={styles.levelUpLaneAction}>Open assignments</span>
+            </Link>
+            <Link href="#favorite-cards">
               <span>Favorites</span>
               <strong>Player+ quick starts.</strong>
               <p>Pin the cards you repeat most often so training starts in one tap.</p>
               <div className={styles.levelUpMiniList}>
                 {favoritePreview.map((card) => <small key={card.id}>{card.title}</small>)}
               </div>
-            </article>
-            <article>
+            </Link>
+            <Link href="#recommended-cards">
               <span>Recommended for Your Player Identity</span>
               <strong>{identity.title.replace(/^The /, '')}</strong>
               <p>{identity.mantra}</p>
               <div className={styles.levelUpMiniList}>
                 {recommendedCards.slice(0, 4).map((card) => <small key={card.id}>{card.title}</small>)}
               </div>
-            </article>
+            </Link>
           </div>
 
-          <div className={styles.levelUpCardRail} aria-label="Recommended quick start cards">
+          <div id="recommended-cards" className={styles.levelUpCardRail} aria-label="Recommended quick start cards">
             {quickStartCards.map((card) => (
               <LevelUpTrainingCard key={card.id} card={card} />
             ))}
           </div>
 
-          <div className={styles.levelUpModuleRail} aria-label="Recommended Level Up modules">
+          <div id="coach-assigned-work" className={styles.levelUpModuleRail} aria-label="Recommended Level Up modules">
             {recommendedModules.map((module) => (
               <article key={module.id}>
                 <span>{module.durationLabel}</span>
@@ -107,7 +108,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             ))}
           </div>
 
-          <div className={styles.levelUpLibraryGrid} aria-label="Level Up Library packs">
+          <div id="favorite-cards" className={styles.levelUpLibraryGrid} aria-label="Level Up Library packs">
             {libraryPacks.map((pack) => (
               <a key={pack} href="#level-up-flow">
                 <strong>{pack}</strong>
@@ -136,7 +137,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
 
 function LevelUpTrainingCard({ card }: { card: LevelUpCard }) {
   return (
-    <article>
+    <article id={`level-up-card-${card.id}`}>
       <div>
         <span>{card.pack}</span>
         <strong>{card.title}</strong>

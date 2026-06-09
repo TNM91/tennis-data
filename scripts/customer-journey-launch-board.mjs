@@ -1,20 +1,16 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, fixtureGateJourneyIds, sessionByJourneyId } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
 
-const journeys = [
-  { id: 'player-level-up-mobile-loop', tier: 'Player', session: 'day1', route: '/player-development/relentless-competitor-4-0/level-up' },
-  { id: 'coach-player-assigned-challenge', tier: 'Coach', session: 'day1', route: '/coach' },
-  { id: 'coach-lesson-support', tier: 'Coach', session: 'day2', route: '/player-development/relentless-competitor-4-0/coach-planner' },
-  { id: 'player-my-lab-return-state', tier: 'Player', session: 'day2', route: '/mylab' },
-  { id: 'captain-week-flow', tier: 'Captain', session: 'day3', route: '/captain' },
-  { id: 'league-result-to-public-context', tier: 'League', session: 'day4', route: '/league-coordinator' },
-  { id: 'full-court-access-pass', tier: 'Full-Court', session: 'day5', route: '/pricing' },
-  { id: 'admin-access-and-data-quality', tier: 'Admin/Internal', session: 'day4', route: '/admin/access' },
-  { id: 'free-public-discovery', tier: 'Free', session: 'day5', route: '/explore' },
-]
+const journeys = customerJourneyDetails.map((journey) => ({
+  id: journey.id,
+  tier: journey.tier,
+  session: sessionByJourneyId.get(journey.id)?.id ?? 'unassigned',
+  route: journey.entryRoute,
+}))
 
 const launchBlockingCategories = new Set(['sync-gap', 'access-gap', 'gating-gap', 'data-propagation-gap', 'product-logic'])
 const qualityCategories = new Set(['mobile-ux-gap', 'content-quality-gap', 'return-state-gap', 'visual-polish'])
@@ -34,6 +30,7 @@ const qualityFollowUps = rows.filter((row) => row.result !== 'pass' && qualityCa
 const unclassifiedOpenRows = rows.filter((row) => row.result !== 'pass' && !isLaunchBlocker(row) && !fixtureCategories.has(row.category) && !qualityCategories.has(row.category))
 const missingPassJourneys = visibleJourneys.filter((journey) => !rows.some((row) => row.journeyId === journey.id && row.result === 'pass'))
 const missingEvidenceJourneys = visibleJourneys.filter((journey) => rows.some((row) => row.journeyId === journey.id && row.result === 'pass') && !rows.some((row) => row.journeyId === journey.id && row.result === 'pass' && row.screenshotOrVideo))
+const fixtureBlockersByJourneyId = new Map(testBlockers.map((row) => [row.journeyId, row]))
 
 console.log('TenAceIQ Launch Blocker Board')
 console.log('')
@@ -89,7 +86,18 @@ if (missingPassJourneys.length) {
   for (const journey of missingPassJourneys) {
     console.log(`- ${journey.tier} ${journey.session}: ${journey.id}`)
     console.log(`  Route: ${journey.route}`)
-    console.log(`  Next: npm run qa:journey -- ${journey.id}`)
+    if (fixtureBlockersByJourneyId.has(journey.id)) {
+      console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journey.id}`)
+      if (fixtureGateJourneyIds.has(journey.id)) {
+        console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
+        console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+        console.log(`  Next: npm run qa:fixture-gate -- ${journey.id}; npm run qa:fixture-auth-smoke -- --env; npm run qa:fixture-auth-smoke`)
+      } else {
+        console.log(`  Next: npm run qa:fixture-gate -- ${journey.id}`)
+      }
+    } else {
+      console.log(`  Next: npm run qa:journey -- ${journey.id}`)
+    }
   }
 } else {
   console.log('- None')
@@ -135,6 +143,13 @@ function printSection({ title, rows: sectionRows, empty, fallbackCommand }) {
     console.log(`  Category: ${row.category || 'uncategorized'}`)
     console.log(`  Route: ${row.entryRoute || 'missing route'}`)
     console.log(`  Notes: ${row.notes || 'missing notes'}`)
+    if (row.category === 'fixture-gap') {
+      console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
+      if (fixtureGateJourneyIds.has(row.journeyId)) {
+        console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
+        console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+      }
+    }
     console.log(`  Next: ${row.nextAction || fallbackCommand}`)
   }
 

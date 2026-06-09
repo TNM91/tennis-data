@@ -7,7 +7,7 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
-import { getPlanDestinationHref, getPlanSignupHref } from '@/lib/plan-intent'
+import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
 import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
@@ -80,6 +80,67 @@ const WORKSPACE_PREVIEWS: Array<{
   },
 ]
 
+const FULL_COURT_WORKSPACE_PASS = [
+  {
+    label: 'My Lab',
+    href: '/mylab',
+    proof: 'Player workspace',
+  },
+  {
+    label: 'Coach Hub',
+    href: '/coach',
+    proof: 'Coach workspace',
+  },
+  {
+    label: 'Team Hub',
+    href: '/captain',
+    proof: 'Captain workspace',
+  },
+  {
+    label: 'League Office',
+    href: '/league-coordinator',
+    proof: 'League workspace',
+  },
+]
+
+const FULL_COURT_WORKSPACE_FIT_PROOF = [
+  {
+    label: 'Player job',
+    body: 'Use My Lab when the question is personal goals, follows, matchup prep, or Level Up return state.',
+  },
+  {
+    label: 'Coach job',
+    body: 'Use Coach Hub when the job is students, assignments, proof review, or the next lesson focus.',
+  },
+  {
+    label: 'Captain job',
+    body: 'Use Team Hub when match-week availability, lineups, scouting, and team updates drive the decision.',
+  },
+  {
+    label: 'League job',
+    body: 'Use League Office when structure, schedules, results, standings, and member visibility need one season workspace.',
+  },
+] as const
+
+const FULL_COURT_ROLE_SWITCHING_PROOF = [
+  {
+    label: 'Start',
+    body: 'Begin on Pricing with the Full-Court plan marked active and the access pass visible.',
+  },
+  {
+    label: 'Open',
+    body: 'Visit My Lab, Coach Hub, Team Hub, and League Office from the pass without upgrade prompts.',
+  },
+  {
+    label: 'Check',
+    body: 'Confirm each workspace names the tennis job it handles and does not show stale locks.',
+  },
+  {
+    label: 'Return',
+    body: 'Come back to Pricing and choose the next workspace without role-switching confusion.',
+  },
+] as const
+
 const JOB_CHOOSER: Array<{
   job: string
   cue: string
@@ -96,31 +157,31 @@ const JOB_CHOOSER: Array<{
     job: 'Improve my game',
     cue: 'Goals, matchup notes, follows, and your My Lab home base.',
     planId: 'player_plus',
-    href: getPlanSignupHref('player_plus'),
+    href: getPlanUnlockHref('player_plus'),
   },
   {
     job: 'Coach players',
     cue: 'Students, lessons, assignments, evidence, and Coach Hub follow-through.',
     planId: 'coach',
-    href: getPlanSignupHref('coach'),
+    href: getPlanUnlockHref('coach'),
   },
   {
     job: 'Captain match week',
     cue: 'Availability, lineups, scouting, messages, and Team Hub.',
     planId: 'captain',
-    href: getPlanSignupHref('captain'),
+    href: getPlanUnlockHref('captain'),
   },
   {
     job: 'Run a season or event',
     cue: 'League Office for one bounded league, ladder, or tournament season.',
     planId: 'league',
-    href: getPlanSignupHref('league'),
+    href: getPlanUnlockHref('league'),
   },
   {
     job: 'Connect everything',
     cue: 'All workspaces plus unlimited Tournament Desk operations.',
     planId: 'full_court',
-    href: getPlanSignupHref('full_court'),
+    href: getPlanUnlockHref('full_court'),
   },
 ]
 
@@ -205,6 +266,7 @@ function PricingContent() {
   const authenticated = Boolean(userId) || role !== 'public'
   const accessPending = authenticated && (!authResolved || entitlements === null)
   const recommendedPlanId = access.recommendedUpgradePlanId ?? access.currentPlanId
+  const fullCourtActive = !accessPending && access.currentPlanId === 'full_court'
 
   return (
     <main style={pageWrapStyle}>
@@ -297,6 +359,54 @@ function PricingContent() {
         </div>
       </section>
 
+      {fullCourtActive ? (
+        <section id="full-court-access-pass" style={fullCourtPassStyle} aria-labelledby="full-court-access-pass-title">
+          <div>
+            <div style={sectionEyebrowStyle}>Full-Court access pass</div>
+            <h2 id="full-court-access-pass-title" style={billingTitleStyle}>All paid workspaces are active.</h2>
+            <p style={heroTextStyle}>
+              Use this pass to capture My Lab, Coach Hub, Team Hub, and League Office without stale locks or repeated upgrade prompts.
+            </p>
+          </div>
+          <div style={fullCourtPassGridStyle}>
+            {FULL_COURT_WORKSPACE_PASS.map((workspace) => (
+              <Link key={workspace.href} href={workspace.href} style={fullCourtPassLinkStyle}>
+                <strong>{workspace.label}</strong>
+                <span>{workspace.proof}</span>
+              </Link>
+            ))}
+          </div>
+          <div style={fullCourtWorkspaceFitProofStyle} aria-label="Full-Court workspace fit proof cue">
+            <div style={fullCourtWorkspaceFitHeaderStyle}>
+              <span style={sectionEyebrowStyle}>Full-Court workspace fit proof cue</span>
+              <strong>Pick the right workspace for the tennis job.</strong>
+            </div>
+            <div style={fullCourtWorkspaceFitGridStyle}>
+              {FULL_COURT_WORKSPACE_FIT_PROOF.map((item) => (
+                <article key={item.label} style={fullCourtWorkspaceFitCardStyle}>
+                  <strong>{item.label}</strong>
+                  <span>{item.body}</span>
+                </article>
+              ))}
+            </div>
+          </div>
+          <div style={fullCourtRoleSwitchingProofStyle} aria-label="Full-Court role switching proof cue">
+            <div style={fullCourtWorkspaceFitHeaderStyle}>
+              <span style={sectionEyebrowStyle}>Full-Court role switching proof cue</span>
+              <strong>Prove every paid workspace opens without stale locks.</strong>
+            </div>
+            <div style={fullCourtRoleSwitchingProofGridStyle}>
+              {FULL_COURT_ROLE_SWITCHING_PROOF.map((item) => (
+                <article key={item.label} style={fullCourtRoleSwitchingProofCardStyle}>
+                  <strong>{item.label}</strong>
+                  <span>{item.body}</span>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <section id="compare" style={sectionStyle} aria-labelledby="compare-title">
         <SectionHeader eyebrow="Compare what unlocks" title="Compare by tennis job, not feature noise." body="Full-Court includes all focused workspaces and unlimited Tournament Desk operations." />
         <div style={tableWrapStyle}>
@@ -387,7 +497,8 @@ function isPlanActive(planId: PricingPlanId, access: ReturnType<typeof buildProd
 }
 
 function getPlanHref(planId: PricingPlanId, active: boolean) {
-  return active ? getPlanDestinationHref(planId) : getPlanSignupHref(planId)
+  if (active) return getPlanDestinationHref(planId)
+  return planId === 'free' ? getPlanSignupHref(planId) : getPlanUnlockHref(planId)
 }
 
 function getPlanCta(planId: PricingPlanId, active: boolean) {
@@ -709,6 +820,97 @@ const workspaceTitleStyle: CSSProperties = {
   fontSize: 25,
   lineHeight: 1.1,
   fontWeight: 950,
+}
+
+const fullCourtPassStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+  gap: 18,
+  alignItems: 'center',
+  padding: 20,
+  borderRadius: 20,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  minWidth: 0,
+}
+
+const fullCourtPassGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const fullCourtPassLinkStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const fullCourtWorkspaceFitProofStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  gridColumn: '1 / -1',
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  overflowWrap: 'anywhere',
+}
+
+const fullCourtWorkspaceFitHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const fullCourtWorkspaceFitGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const fullCourtWorkspaceFitCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.42,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const fullCourtRoleSwitchingProofStyle: CSSProperties = {
+  ...fullCourtWorkspaceFitProofStyle,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.06)',
+}
+
+const fullCourtRoleSwitchingProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const fullCourtRoleSwitchingProofCardStyle: CSSProperties = {
+  ...fullCourtWorkspaceFitCardStyle,
+  background: 'rgba(5,11,22,0.28)',
 }
 
 const chipRowStyle: CSSProperties = {

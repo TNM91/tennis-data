@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails } from './customer-journey-qa-data.mjs'
 
 const processMapPath = 'docs/customer-journey-process-map.md'
 const flowMapPath = 'lib/customer-journey-flow-map.json'
@@ -11,92 +12,62 @@ const featureContracts = [
   {
     id: 'free-public-explore',
     label: 'Public Explore',
-    provingJourneys: ['free-public-discovery'],
-    fixture: 'free_viewer',
   },
   {
     id: 'free-data-assist-entry',
     label: 'Data Assist Entry',
-    provingJourneys: ['free-public-discovery', 'admin-access-and-data-quality'],
-    fixture: 'free_viewer',
   },
   {
     id: 'player-my-lab',
     label: 'My Lab',
-    provingJourneys: ['player-my-lab-return-state'],
-    fixture: 'player_plus_linked',
   },
   {
     id: 'player-level-up',
     label: 'Level Up Portal',
-    provingJourneys: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-    fixture: 'player_plus_linked',
   },
   {
     id: 'player-level-up-content',
     label: 'Level Up Content Library',
-    provingJourneys: ['player-level-up-mobile-loop', 'coach-lesson-support'],
-    fixture: 'player_plus_linked',
   },
   {
     id: 'coach-hub',
     label: 'Coach Hub',
-    provingJourneys: ['coach-player-assigned-challenge'],
-    fixture: 'coach_primary',
   },
   {
     id: 'coach-invite-link',
     label: 'Coach Invite Link',
-    provingJourneys: ['coach-player-assigned-challenge'],
-    fixture: 'coach_primary',
   },
   {
     id: 'coach-lesson-planner',
     label: 'Coach Lesson Planner',
-    provingJourneys: ['coach-lesson-support'],
-    fixture: 'coach_primary',
   },
   {
     id: 'captain-lineup-week',
     label: 'Captain Lineup Week',
-    provingJourneys: ['captain-week-flow'],
-    fixture: 'captain_primary',
   },
   {
     id: 'captain-compete-bridge',
     label: 'Compete Bridge',
-    provingJourneys: ['captain-week-flow'],
-    fixture: 'captain_primary',
   },
   {
     id: 'league-office',
     label: 'League Office',
-    provingJourneys: ['league-result-to-public-context'],
-    fixture: 'league_coordinator',
   },
   {
     id: 'league-public-context',
     label: 'Public League Context',
-    provingJourneys: ['league-result-to-public-context'],
-    fixture: 'league_coordinator',
   },
   {
     id: 'full-court-navigation',
     label: 'Full-Court Navigation',
-    provingJourneys: ['full-court-access-pass'],
-    fixture: 'full_court_operator',
   },
   {
     id: 'admin-access-management',
     label: 'Admin Access Management',
-    provingJourneys: ['admin-access-and-data-quality'],
-    fixture: 'admin_test',
   },
   {
     id: 'admin-data-quality',
     label: 'Admin Data Quality',
-    provingJourneys: ['admin-access-and-data-quality'],
-    fixture: 'admin_test',
   },
 ]
 
@@ -190,6 +161,11 @@ function printFeature(feature) {
 
 function attachContract(feature) {
   const contract = featureContracts.find((item) => item.label === feature.label)
+  const provingJourneyDetails = customerJourneyDetails
+    .filter((journey) => journey.featureIds.includes(contract?.id ?? ''))
+    .sort((a, b) => Number(b.tier === feature.tier) - Number(a.tier === feature.tier))
+  const provingJourneys = provingJourneyDetails.map((journey) => journey.id)
+  const fixture = provingJourneyDetails.find((journey) => journey.tier === feature.tier)?.accountFixture ?? provingJourneyDetails[0]?.accountFixture ?? 'missing fixture'
 
   if (!contract) {
     return {
@@ -203,6 +179,8 @@ function attachContract(feature) {
   return {
     ...feature,
     ...contract,
+    provingJourneys,
+    fixture,
   }
 }
 

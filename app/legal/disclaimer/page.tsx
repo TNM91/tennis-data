@@ -55,7 +55,15 @@ export default function DisclaimerPage() {
         </div>
 
         <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. Inherent uncertainty</h2>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. Not for gambling</h2>
+          <p>
+            TenAceIQ is not designed for wagering, gambling, odds-making, or betting-related
+            decisions. Do not use platform outputs for those purposes.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>6. Inherent uncertainty</h2>
           <p>
             Sports outcomes are inherently uncertain. Real-world conditions, injuries,
             availability changes, incomplete information, and countless other factors may

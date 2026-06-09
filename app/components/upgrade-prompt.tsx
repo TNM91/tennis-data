@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
-import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { getPlanDestinationHref, getPlanUnlockHref } from '@/lib/plan-intent'
 import { buildUpgradePricingSnapshot, type UpgradeRequestRecord } from '@/lib/upgrade-requests'
 
 type UpgradePromptProps = {
@@ -41,7 +41,7 @@ export default function UpgradePrompt({
   const resolvedResult = result || plan.outcome
   const isSignedIn = Boolean(session?.user?.id)
   const canStartDirectCheckout = !ctaHref && authResolved && isSignedIn && planId !== 'free'
-  const resolvedCtaHref = ctaHref || (isSignedIn ? getPlanUnlockHref(planId) : getPlanSignupHref(planId))
+  const resolvedCtaHref = ctaHref || getPlanUnlockHref(planId)
   const resolvedSecondaryHref = secondaryHref || '/pricing'
   const unlockSteps = getUnlockSteps(planId)
 

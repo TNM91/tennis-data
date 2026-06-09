@@ -82,6 +82,9 @@ describe('My Lab mobile layout guards', () => {
       'workshopRowCopyStyle',
       'nextActionCardStyle',
       'compactSignalCopyStyle',
+      'myLabRefreshProofCueStyle',
+      'myLabRefreshProofGridStyle',
+      'myLabRefreshProofCardStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
@@ -108,6 +111,8 @@ describe('My Lab mobile layout guards', () => {
       'matchupQueueCardStyle',
       'workshopMatchRowStyle',
       'nextActionCardStyle',
+      'myLabRefreshProofLabelStyle',
+      'myLabRefreshProofTextStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
     }

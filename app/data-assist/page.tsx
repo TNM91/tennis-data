@@ -83,6 +83,21 @@ const dataAssistReviewFlow = [
   },
 ] as const
 
+const dataAssistUploadStateProof = [
+  {
+    label: 'Saved upload',
+    body: 'Files are tied to the signed-in profile and remain in upload history for review.',
+  },
+  {
+    label: 'Review state',
+    body: 'Clean reads can import; uncertain, duplicate, rejected, or flagged reads stay visible as review items.',
+  },
+  {
+    label: 'Trust boundary',
+    body: 'Unreviewed uploads do not change players, teams, leagues, rankings, Matchup, My Lab, or Coach Hub.',
+  },
+] as const
+
 const importTypes: Array<{
   id: DataAssistImportType
   label: string
@@ -1088,7 +1103,7 @@ function DataAssistReviewFlowPanel() {
   return (
     <section style={reviewFlowPanelStyle} aria-labelledby="data-assist-review-flow-title">
       <div style={reviewFlowHeaderStyle}>
-        <span style={reviewFlowEyebrowStyle}>Review flow</span>
+        <span style={reviewFlowEyebrowStyle}>Review-first handoff</span>
         <h2 id="data-assist-review-flow-title" style={reviewFlowTitleStyle}>What happens after an upload?</h2>
         <p style={copyStyle}>
           Data Assist is intentionally review-first. It should make records more useful without hiding uncertainty.
@@ -1102,6 +1117,20 @@ function DataAssistReviewFlowPanel() {
             <p style={reviewFlowCardTextStyle}>{item.body}</p>
           </article>
         ))}
+      </div>
+      <div style={uploadStateProofStyle} aria-label="Data Assist upload state proof cue">
+        <div style={uploadStateProofHeaderStyle}>
+          <span style={reviewFlowEyebrowStyle}>Upload state proof cue</span>
+          <strong style={uploadStateProofTitleStyle}>Know what changed and what did not.</strong>
+        </div>
+        <div style={uploadStateProofGridStyle}>
+          {dataAssistUploadStateProof.map((item) => (
+            <article key={item.label} style={uploadStateProofCardStyle}>
+              <span style={uploadStateProofLabelStyle}>{item.label}</span>
+              <p style={reviewFlowCardTextStyle}>{item.body}</p>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   )
@@ -1194,7 +1223,7 @@ function getAutoAssessmentMessage(
     return 'Scorecard read complete. Review the parsed export before any import is committed.'
   }
   if (assessment.decision === 'auto_ready') {
-    return 'Scorecard read complete. This scorecard passed auto-checks and is ready without admin review.'
+    return 'Scorecard read complete. This scorecard passed auto-checks; no public records change until the import check finishes.'
   }
   if (assessment.decision === 'member_confirm') {
     return 'Scorecard read complete. TenAceIQ found a usable scorecard export; confirm the read before import.'
@@ -2889,6 +2918,61 @@ const reviewFlowCardTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const uploadStateProofStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(min(100%, 220px), 0.36fr) minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'stretch',
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  padding: 12,
+  overflowWrap: 'anywhere',
+}
+
+const uploadStateProofHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  alignContent: 'start',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const uploadStateProofTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const uploadStateProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const uploadStateProofCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 10,
+  overflowWrap: 'anywhere',
+}
+
+const uploadStateProofLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
   overflowWrap: 'anywhere',
 }
 

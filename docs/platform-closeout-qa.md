@@ -164,7 +164,7 @@ Use `docs/platform-closeout-verification-log.md` to record production/local clos
 
 Add or extend scripts after this checklist is accepted:
 
-- `scripts/verify-platform-routes.mjs`: visit core public, player, coach, captain, league, admin routes and check title/body availability. Created 2026-06-04.
+- `scripts/verify-platform-routes.mjs`: visit core public, player, coach, captain, league, admin routes, check title/body availability, and report protected-route login redirects separately from page-copy matches. Created 2026-06-04.
 - `scripts/verify-platform-closeout.mjs`: run deterministic closeout checks, and include route, Level Up, and overflow browser smokes when base URL env vars are provided, `--browser-base=...` is passed, or `--live` is used. Created 2026-06-04.
 - `scripts/verify-tier-copy.mjs`: assert tier names, plan ids, access labels, primary-nav locks, and QA docs stay aligned with `lib/product-story.ts`. Created 2026-06-04.
 - `scripts/verify-platform-closeout-inventory.mjs`: assert closeout inventory coverage for Free, Player, Coach, Captain, League, Full-Court, and Admin/Internal features. Created 2026-06-04.

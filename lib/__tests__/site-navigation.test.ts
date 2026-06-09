@@ -61,5 +61,6 @@ describe('site navigation language', () => {
 
   it('surfaces Coach from account quick navigation', () => {
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/coach', label: 'Coach Hub' })
+    expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/tactics', label: 'Tactics Tools' })
   })
 })

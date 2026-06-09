@@ -1,23 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, fixtureGateJourneyIds, sessionByJourneyId, tierAliases } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
 const normalizedQuery = normalize(rawQuery)
-const tierAliases = {
-  free: 'free',
-  player: 'player_plus',
-  playerplus: 'player_plus',
-  player_plus: 'player_plus',
-  coach: 'coach',
-  captain: 'captain',
-  league: 'league',
-  coordinator: 'league',
-  fullcourt: 'full_court',
-  full_court: 'full_court',
-  admin: 'admin_internal',
-  internal: 'admin_internal',
-}
 const issueCategories = [
   'sync-gap',
   'access-gap',
@@ -31,98 +18,16 @@ const issueCategories = [
   'product-logic',
 ]
 
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    tier: 'Player',
-    tierId: 'player_plus',
-    session: 'day1',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    fixture: 'player_plus_linked',
-    passSignal: 'Active training becomes the main screen, proof saves honestly, and the next action is obvious.',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    tier: 'Coach',
-    tierId: 'coach',
-    session: 'day1',
-    route: '/coach',
-    fixture: 'coach_primary',
-    passSignal: 'Invite, assignment, player challenge, proof, and coach review close the loop without manual cleanup.',
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    tier: 'Coach',
-    tierId: 'coach',
-    session: 'day2',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    fixture: 'coach_primary',
-    passSignal: 'The planner is coach-facing, practical, and connected to the player Level Up path.',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    tier: 'Player',
-    tierId: 'player_plus',
-    session: 'day2',
-    route: '/mylab',
-    fixture: 'player_plus_linked',
-    passSignal: 'My Lab makes the player identity, linked profile, and next action clear after refresh.',
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    tier: 'Captain',
-    tierId: 'captain',
-    session: 'day3',
-    route: '/captain',
-    fixture: 'captain_primary',
-    passSignal: 'Captain can make a weekly decision and produce a useful team-facing update.',
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    tier: 'League',
-    tierId: 'league',
-    session: 'day4',
-    route: '/league-coordinator',
-    fixture: 'league_coordinator',
-    passSignal: 'Coordinator operation and member-facing league context stay connected without exposing private controls.',
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    tier: 'Full-Court',
-    tierId: 'full_court',
-    session: 'day5',
-    route: '/pricing',
-    fixture: 'full_court_operator',
-    passSignal: 'All paid workspaces open cleanly and the user can tell which workspace fits the job.',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    tier: 'Admin/Internal',
-    tierId: 'admin_internal',
-    session: 'day4',
-    route: '/admin/access',
-    fixture: 'admin_test',
-    passSignal: 'Access/data repair is understandable, fixture-safe, and reflected in affected product surfaces.',
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    tier: 'Free',
-    tierId: 'free',
-    session: 'day5',
-    route: '/explore',
-    fixture: 'free_viewer',
-    passSignal: 'Public tennis intelligence is visible first, and upgrade/data-assist paths are clear.',
-  },
-]
+const journeys = customerJourneyDetails.map((journey) => ({
+  id: journey.id,
+  label: journey.label,
+  tier: journey.tier,
+  tierId: journey.tierId,
+  session: sessionByJourneyId.get(journey.id)?.id ?? 'unassigned',
+  route: journey.entryRoute,
+  fixture: journey.accountFixture,
+  passSignal: journey.passSignal,
+}))
 
 const rows = readFileSync(join(process.cwd(), resultsPath), 'utf8')
   .split('\n')
@@ -170,6 +75,10 @@ printSection('Missing pass evidence', missingPass, (row) => {
   console.log(`- ${row.journey.label} (${row.journey.id})`)
   console.log(`  Tier/session: ${row.journey.tier} / ${row.journey.session}`)
   console.log(`  Need: log a real pass row that proves: ${row.journey.passSignal}`)
+  if (fixtureGateJourneyIds.has(row.journey.id)) {
+    console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journey.id}`)
+  }
+  printFixtureAuthCommands(row.journey.id, '  ')
   console.log(`  Next: npm run qa:kickoff -- ${row.journey.id}`)
 })
 
@@ -216,8 +125,8 @@ function matchesJourney(journey) {
   if (!rawQuery) return true
   if (/^day[1-5]$/.test(normalizedQuery)) return journey.session === normalizedQuery
 
-  const tierId = tierAliases[normalizedQuery.replace(/-/g, '_')] ?? tierAliases[normalizedQuery.replace(/-/g, '')]
-  if (tierId) return journey.tierId === tierId
+  const tierLabel = tierAliases.get(normalizedQuery.replace(/-/g, '_')) ?? tierAliases.get(normalizedQuery.replace(/-/g, ''))
+  if (tierLabel) return journey.tier === tierLabel
 
   if (issueCategories.includes(rawQuery)) {
     return rows.some((row) => row.journeyId === journey.id && row.category === rawQuery)
@@ -266,6 +175,10 @@ function printRows(label, issueRows) {
     console.log(`- ${row.severity || 'severity missing'} ${row.category || 'category missing'}: ${row.journeyId}`)
     console.log(`  Route: ${journey?.route || row.entryRoute || 'route missing'}`)
     console.log(`  Notes: ${row.notes || 'notes missing'}`)
+    if (row.category === 'fixture-gap') {
+      console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
+      printFixtureAuthCommands(row.journeyId, '  ')
+    }
     console.log(`  Next: ${row.nextAction || `npm run qa:kickoff -- ${row.journeyId}`}`)
   }
   console.log('')
@@ -303,4 +216,10 @@ function isBlankTemplateRow(row) {
 
 function normalize(value) {
   return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+function printFixtureAuthCommands(journeyId, indent) {
+  if (!fixtureGateJourneyIds.has(journeyId)) return
+  console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)
+  console.log(`${indent}Auth smoke: npm run qa:fixture-auth-smoke`)
 }

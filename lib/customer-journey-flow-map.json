@@ -10,7 +10,7 @@
     "testerRole": "Free/public tester",
     "fixtureIds": ["free_viewer", "data-assist-upload"],
     "accessCheck": "Signed-out or Free access can use public discovery and Data Assist entry without private workspace controls.",
-    "evidenceArtifact": "Public detail screenshot, Data Assist review-state screenshot, and pricing handoff screenshot.",
+    "evidenceArtifact": "Public discovery proof cue, public detail screenshot, Data Assist review-first handoff cue, Data Assist upload state proof cue, review-state screenshot, and pricing handoff screenshot.",
     "returnStateProof": "Return to Explore or Pricing and confirm the user still sees useful public context plus a clear next tier.",
     "primaryFeatureIds": ["free-public-explore", "free-data-assist-entry"],
     "steps": [
@@ -28,7 +28,7 @@
         "surface": "Data Assist",
         "route": "/data-assist",
         "productSignal": "Upload language makes review status clear instead of implying instant trusted data.",
-        "evidence": "Upload/review copy."
+        "evidence": "Data Assist review-first handoff cue, upload state proof cue, and upload/review copy."
       },
       {
         "stage": "unlock",
@@ -60,8 +60,8 @@
     "testerRole": "Player tester",
     "fixtureIds": ["player_plus_linked", "linked-player-profile", "level-up-completion"],
     "accessCheck": "Player access opens My Lab and Level Up; coach-linked assigned work is visible only when the relationship exists.",
-    "evidenceArtifact": "Mobile active-task screenshot, saved 0-5 proof screenshot, and next-action/return-state screenshot.",
-    "returnStateProof": "Refresh Level Up and My Lab, then confirm recent work and the next useful rep are pulled forward.",
+    "evidenceArtifact": "Mobile active-task screenshot, Level Up local sync proof cue, saved 0-5 proof screenshot, next-action screenshot, My Lab Level Up return-state panel, and My Lab refresh proof cue.",
+    "returnStateProof": "Refresh Level Up and My Lab, then confirm the Level Up return-state panel and My Lab refresh proof cue pull recent proof forward with honest local/synced copy.",
     "primaryFeatureIds": ["player-level-up", "player-level-up-content", "player-my-lab"],
     "steps": [
       {
@@ -86,15 +86,15 @@
         "surface": "Completion Logger",
         "route": "/player-development/[identity]/level-up",
         "productSignal": "Numbers come first and the note stays lightweight.",
-        "evidence": "Saved rating and note state."
+        "evidence": "Saved rating, note state, and Level Up local sync proof cue."
       },
       {
         "stage": "return",
         "action": "Return later to see progress and the next useful rep.",
         "surface": "My Lab",
         "route": "/mylab",
-        "productSignal": "Recent work and next action are pulled forward without a generic empty dashboard.",
-        "evidence": "Return-state screenshot after refresh."
+        "productSignal": "The Level Up return-state panel pulls recent work and next action forward without a generic empty dashboard.",
+        "evidence": "My Lab Level Up return-state panel and My Lab refresh proof cue after refresh."
       }
     ],
     "handoffs": [
@@ -118,7 +118,7 @@
     "testerRole": "Coach tester with linked player",
     "fixtureIds": ["coach_primary", "player_plus_linked", "coach-invite-token", "level-up-assignment", "level-up-completion"],
     "accessCheck": "Coach can invite, assign, and review only linked students; player sees only their assigned challenge and own proof.",
-    "evidenceArtifact": "Invite/link state, assignment card, player proof completion, and coach review screenshot.",
+    "evidenceArtifact": "Invite/link state, Linking proof privacy cue, Invite acceptance proof cue, Coach invite account proof cue, assignment card, player proof completion, coach review proof sync cue, Coach lesson support proof cue, and Level Up assignment handoff cue.",
     "returnStateProof": "Return to Coach Hub and coach planner, then confirm the latest proof informs the next lesson focus.",
     "primaryFeatureIds": ["coach-hub", "coach-invite-link", "coach-lesson-planner", "player-level-up"],
     "steps": [
@@ -128,7 +128,7 @@
         "surface": "Coach Invite",
         "route": "/coach/invite/[token]",
         "productSignal": "The relationship is clear to both coach and player.",
-        "evidence": "Linked player state."
+        "evidence": "Linked player state, Invite acceptance proof cue, and Coach invite account proof cue."
       },
       {
         "stage": "plan",
@@ -143,8 +143,8 @@
         "action": "Review the player's proof and quick note.",
         "surface": "Coach Student Detail",
         "route": "/coach",
-        "productSignal": "Coach can see score, note, due state, and next implication.",
-        "evidence": "Coach proof view."
+        "productSignal": "Coach can see score, note, due state, next implication, and whether proof is synced into the review queue.",
+        "evidence": "Coach review proof sync cue."
       },
       {
         "stage": "plan",
@@ -152,7 +152,7 @@
         "surface": "Coach Planner",
         "route": "/player-development/[identity]/coach-planner",
         "productSignal": "Lesson blocks match identity, readiness, and recent assigned work.",
-        "evidence": "Lesson plan handoff."
+        "evidence": "Coach lesson support proof cue, Level Up assignment handoff cue, and lesson plan handoff."
       }
     ],
     "handoffs": [
@@ -176,8 +176,8 @@
     "testerRole": "Captain tester",
     "fixtureIds": ["captain_primary", "captain-team-week"],
     "accessCheck": "Captain access includes team-week tools and Player value without exposing league coordinator controls.",
-    "evidenceArtifact": "Availability/readiness state, lineup option, opponent/team context, and team brief screenshot.",
-    "returnStateProof": "Return after a result or fixture update and confirm the next week starts from current team context.",
+    "evidenceArtifact": "Availability/readiness state, lineup option, save-status local honesty cue, Captain local sync proof cue, Captain decision handoff proof cue, Compete Bridge captain handoff cue, opponent/team context, and team brief screenshot.",
+    "returnStateProof": "Return after a result or fixture update and confirm the next week starts from current team context without implying browser-saved work is account sync.",
     "primaryFeatureIds": ["captain-lineup-week", "captain-compete-bridge"],
     "steps": [
       {
@@ -185,8 +185,8 @@
         "action": "Review availability, readiness, opponent context, and roster options.",
         "surface": "Captain Hub",
         "route": "/captain",
-        "productSignal": "The week opens with the decision inputs visible.",
-        "evidence": "Availability/readiness state."
+        "productSignal": "The week opens with the decision inputs visible and save status explains what carries forward.",
+        "evidence": "Availability/readiness state, save-status local honesty cue, Captain local sync proof cue, and Captain decision handoff proof cue."
       },
       {
         "stage": "act",
@@ -210,7 +210,7 @@
         "surface": "Compete / Captain",
         "route": "/compete",
         "productSignal": "Results and team context feed the next decision.",
-        "evidence": "Result/context handoff."
+        "evidence": "Compete Bridge captain handoff cue and result/context handoff."
       }
     ],
     "handoffs": [
@@ -218,7 +218,7 @@
         "toTierId": "league",
         "label": "League result context informs captain decisions.",
         "trigger": "Schedules or results are updated by the league/coordinator flow.",
-        "proof": "Captain can see the public/member-facing context that affects the week."
+        "proof": "Captain can see the public/member-facing context and Compete Bridge captain handoff cue that affects the week."
       }
     ],
     "testRisk": "high"
@@ -234,7 +234,7 @@
     "testerRole": "League coordinator tester",
     "fixtureIds": ["league_coordinator", "league-week"],
     "accessCheck": "Coordinator can manage league operations while public/member pages hide private controls.",
-    "evidenceArtifact": "Coordinator schedule/result state, standings update, public league page, and privacy check screenshot.",
+    "evidenceArtifact": "Coordinator schedule/result state, League Office operation proof cue, source-to-public proof cue, standings update, public league page, and privacy check screenshot.",
     "returnStateProof": "Return to League Office and public league detail after result entry to confirm the same match-week reality appears.",
     "primaryFeatureIds": ["league-office", "league-public-context"],
     "steps": [
@@ -260,7 +260,7 @@
         "surface": "League Detail",
         "route": "/leagues/[league]",
         "productSignal": "Members can see schedule/result/standing context without private controls.",
-        "evidence": "Public league screen and privacy check."
+        "evidence": "League Office operation proof cue, source-to-public proof cue, public league screen, and privacy check."
       },
       {
         "stage": "return",
@@ -292,7 +292,7 @@
     "testerRole": "Full-Court tester",
     "fixtureIds": ["full_court_operator", "full-court-access-state"],
     "accessCheck": "Full-Court access opens Player, Coach, Captain, and League workspaces with no stale paid locks.",
-    "evidenceArtifact": "Pricing tier copy plus one access screenshot from each paid workspace.",
+    "evidenceArtifact": "Pricing tier copy, Full-Court access pass cue, Full-Court workspace fit proof cue, Full-Court role switching proof cue, plus one access screenshot from each paid workspace.",
     "returnStateProof": "Return through navigation and confirm role switching remains clear without duplicate upgrade prompts.",
     "primaryFeatureIds": ["full-court-navigation", "player-my-lab", "coach-hub", "captain-lineup-week", "league-office"],
     "steps": [
@@ -318,7 +318,7 @@
         "surface": "Navigation",
         "route": "/pricing",
         "productSignal": "Role switching feels deliberate and understandable.",
-        "evidence": "Navigation/access pass."
+        "evidence": "Full-Court access pass cue, Full-Court workspace fit proof cue, and Full-Court role switching proof cue."
       }
     ],
     "handoffs": [
@@ -348,7 +348,7 @@
     "testerRole": "Admin/internal tester",
     "fixtureIds": ["admin_test", "admin-access-repair", "data-assist-upload"],
     "accessCheck": "Admin-only tools are protected, use safe fixtures, and do not expose private controls to non-admin tiers.",
-    "evidenceArtifact": "Access repair before/after screenshot, import queue review state, and affected surface confirmation.",
+    "evidenceArtifact": "Access repair before/after screenshot, fixture safety rollback cue, Admin access repair proof cue, import queue data trust guard cue, Admin import outcome proof cue, and affected surface confirmation.",
     "returnStateProof": "Return to the affected product surface and confirm access or data quality changed only where intended.",
     "primaryFeatureIds": ["admin-access-management", "admin-data-quality", "free-data-assist-entry"],
     "steps": [
@@ -358,7 +358,7 @@
         "surface": "Admin Access",
         "route": "/admin/access",
         "productSignal": "Starting tier, target tier, and affected surfaces are clear.",
-        "evidence": "Access repair before/after."
+        "evidence": "Access repair before/after, fixture safety rollback cue, and Admin access repair proof cue."
       },
       {
         "stage": "admin",
@@ -366,7 +366,7 @@
         "surface": "Import Queue",
         "route": "/admin/import-queue",
         "productSignal": "Fixture data stays isolated and unreviewed data is not treated as trusted.",
-        "evidence": "Import review state."
+        "evidence": "Import review state, data trust guard cue, and Admin import outcome proof cue."
       },
       {
         "stage": "return",

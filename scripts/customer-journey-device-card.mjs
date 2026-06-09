@@ -1,54 +1,8 @@
+import { customerJourneyDetails, customerJourneyDeviceProfiles, sessionByJourneyId } from './customer-journey-qa-data.mjs'
+
 const options = parseArgs(process.argv.slice(2))
 const rawQuery = options.query.trim().toLowerCase()
 const normalizedQuery = normalize(rawQuery)
-
-const deviceProfiles = [
-  {
-    id: 'phone',
-    aliases: ['phone', 'mobile', 'iphone', 'android'],
-    label: 'Phone',
-    viewport: '390 x 844',
-    defaultDevice: 'phone',
-    priority: 'Use first for Level Up, auth, player return state, and any flow with quick actions.',
-    checks: [
-      'Primary action is visible without hunting.',
-      'Prior selection/context collapses once work starts.',
-      'Tap targets are comfortable and do not overlap.',
-      'Cards, pills, tables, and notes do not force horizontal scroll.',
-      'A tester can capture proof and know the next action in under one minute.',
-    ],
-  },
-  {
-    id: 'tablet',
-    aliases: ['tablet', 'ipad'],
-    label: 'Tablet / iPad',
-    viewport: '820 x 1180',
-    defaultDevice: 'ipad',
-    priority: 'Use for coach lesson planning, captain decisions, league operations, and on-court review.',
-    checks: [
-      'Two-column layouts use the space without giant empty gaps.',
-      'Side panels do not bury the active task or proof controls.',
-      'Tables or dense lists remain readable without clipping.',
-      'The user can move from review to action without switching pages unnecessarily.',
-      'Copy still reads like an operating tool, not a marketing page.',
-    ],
-  },
-  {
-    id: 'desktop',
-    aliases: ['desktop', 'laptop', 'pc'],
-    label: 'Desktop',
-    viewport: '1440 x 900',
-    defaultDevice: 'desktop',
-    priority: 'Use for admin, league, captain, coach review, and final route-level polish.',
-    checks: [
-      'No massive empty spacing after navigation or selections.',
-      'Navigation, headers, and account controls do not overlap.',
-      'The main work surface stays visually connected to the selected task.',
-      'Dense data is scannable and has a clear next command.',
-      'Upgrade or access messaging matches the tier being tested.',
-    ],
-  },
-]
 
 const tierLabels = {
   free: 'Free',
@@ -60,98 +14,8 @@ const tierLabels = {
   admin_internal: 'Admin/Internal',
 }
 
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    tierId: 'player_plus',
-    session: 'day1',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    fixture: 'player_plus_linked',
-    primaryDevices: ['phone', 'tablet'],
-    deviceRisk: 'High phone risk: active work, proof, timer, and next action must stay close together.',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    tierId: 'coach',
-    session: 'day1',
-    route: '/coach',
-    fixture: 'coach_primary',
-    primaryDevices: ['phone', 'tablet', 'desktop'],
-    deviceRisk: 'Cross-device trust risk: coach review and player proof should not imply sync that is not real.',
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    tierId: 'coach',
-    session: 'day2',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    fixture: 'coach_primary',
-    primaryDevices: ['tablet', 'desktop'],
-    deviceRisk: 'Planning risk: iPad and desktop should make a one-hour lesson easier, not more crowded.',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    tierId: 'player_plus',
-    session: 'day2',
-    route: '/mylab',
-    fixture: 'player_plus_linked',
-    primaryDevices: ['phone', 'desktop'],
-    deviceRisk: 'Return-state risk: recent context and next action must be obvious after refresh.',
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    tierId: 'captain',
-    session: 'day3',
-    route: '/captain',
-    fixture: 'captain_primary',
-    primaryDevices: ['phone', 'tablet', 'desktop'],
-    deviceRisk: 'Decision risk: availability, lineup, projection, and team update must not feel like separate tools.',
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    tierId: 'league',
-    session: 'day4',
-    route: '/league-coordinator',
-    fixture: 'league_coordinator',
-    primaryDevices: ['tablet', 'desktop'],
-    deviceRisk: 'Operations risk: result entry, review, and public/member context need clear separation.',
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    tierId: 'full_court',
-    session: 'day5',
-    route: '/pricing',
-    fixture: 'full_court_operator',
-    primaryDevices: ['phone', 'desktop'],
-    deviceRisk: 'Access risk: paid workspaces should not show stale locks or redundant upgrade prompts.',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    tierId: 'admin_internal',
-    session: 'day4',
-    route: '/admin/access',
-    fixture: 'admin_test',
-    primaryDevices: ['desktop'],
-    deviceRisk: 'Admin risk: safe test data, access changes, and rollback notes must stay readable.',
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    tierId: 'free',
-    session: 'day5',
-    route: '/explore',
-    fixture: 'free_viewer',
-    primaryDevices: ['phone', 'desktop'],
-    deviceRisk: 'Public risk: useful tennis context should appear before upgrade pressure.',
-  },
-]
+const deviceProfiles = customerJourneyDeviceProfiles
+const journeys = customerJourneyDetails
 
 console.log('TenAceIQ Device Journey Card')
 console.log('')
@@ -168,7 +32,7 @@ if (!device && !matches.length) {
 
 if (device) printDevice(device)
 
-const visibleJourneys = matches.length ? matches : journeys.filter((journey) => device && journey.primaryDevices.includes(device.id))
+const visibleJourneys = matches.length ? matches : journeys.filter((journey) => device && journey.requiredDeviceIds.includes(device.id))
 
 if (!visibleJourneys.length) {
   console.log(`No journey matched "${rawQuery}".`)
@@ -199,14 +63,14 @@ function printDevice(profile) {
 }
 
 function printJourney(journey, profile) {
-  const deviceId = profile?.id ?? journey.primaryDevices[0]
+  const deviceId = profile?.id ?? journey.requiredDeviceIds[0]
   const deviceLabel = profile?.label ?? deviceProfiles.find((item) => item.id === deviceId)?.label ?? deviceId
-  const deviceName = profile?.defaultDevice ?? deviceId
+  const deviceName = profile?.deviceValue ?? deviceId
 
   console.log(`- ${journey.label} (${journey.id})`)
-  console.log(`  Tier: ${tierLabels[journey.tierId]} | Session: ${journey.session} | Device: ${deviceLabel}`)
-  console.log(`  Route: ${journey.route}`)
-  console.log(`  Fixture: ${journey.fixture}`)
+  console.log(`  Tier: ${tierLabels[journey.tierId]} | Session: ${sessionByJourneyId.get(journey.id)?.id ?? 'unassigned'} | Device: ${deviceLabel}`)
+  console.log(`  Route: ${journey.entryRoute}`)
+  console.log(`  Fixture: ${journey.accountFixture}`)
   console.log(`  Device risk: ${journey.deviceRisk}`)
   console.log(`  Command: npm run qa:live-card -- ${journey.id} --date=yyyy-mm-dd --tester=<name> --device=${deviceName}`)
 }
@@ -238,11 +102,11 @@ function searchableText(journey) {
     journey.label,
     journey.tierId,
     tierLabels[journey.tierId],
-    journey.session,
-    journey.route,
-    journey.fixture,
+    sessionByJourneyId.get(journey.id)?.id ?? '',
+    journey.entryRoute,
+    journey.accountFixture,
     journey.deviceRisk,
-    ...journey.primaryDevices,
+    ...journey.requiredDeviceIds,
   ]
     .join(' ')
     .toLowerCase()
@@ -258,7 +122,7 @@ function printUsage() {
   console.log('')
   console.log('Available journey device cards:')
   for (const journey of journeys) {
-    console.log(`- ${journey.id} (${journey.primaryDevices.join(', ')})`)
+    console.log(`- ${journey.id} (${journey.requiredDeviceIds.join(', ')})`)
   }
 }
 

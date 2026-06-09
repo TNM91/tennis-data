@@ -56,15 +56,17 @@ const portalLanes: PortalLane[] = [
   },
   {
     id: 'you',
-    label: 'My Lab',
-    cue: 'Open your lab',
+    label: 'Improve',
+    cue: 'Level up your game',
     route: '/mylab',
     planRoute: '/mylab',
     icon: 'myLab',
-    paths: ['/mylab', '/profile', '/messages', '/data-assist', '/matchup'],
+    paths: ['/mylab', '/profile', '/messages', '/data-assist', '/matchup', '/level-up', '/player-development', '/tactics'],
     searchScope: 'players',
     tasks: [
       { title: 'Open My Lab', detail: 'Your scorecard, goals, follows, and next read.', metric: 'Player', href: '/mylab', icon: 'myLab', requiredRoute: '/mylab' },
+      { title: 'Level Up', detail: 'Choose a training card, run the rep, and save proof.', metric: 'Player', href: '/level-up', icon: 'matchPrep', requiredRoute: '/mylab' },
+      { title: 'Tactics Tools', detail: 'Map the court pattern before practice or your next match.', metric: 'Player', href: '/tactics', icon: 'scenarioBuilder', requiredRoute: '/mylab' },
       { title: 'Improve data', detail: 'Upload, report, or refresh the tennis context behind your read.', metric: 'Player', href: dataAssistPortalHref, icon: 'reports', requiredRoute: '/mylab' },
       { title: 'Prep matchup', detail: 'Compare the court before you play.', metric: 'Player', href: '/matchup', icon: 'matchupAnalysis', requiredRoute: '/mylab' },
       { title: 'Review messages', detail: 'Keep tennis replies and alerts together.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/mylab' },
@@ -241,7 +243,7 @@ export default function PortalToolBar() {
         <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
           <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
           <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
-            {authenticated ? 'What do we want to work on today?' : 'Start with the tennis map, then unlock the workspace that saves your week.'}
+            {authenticated ? 'What do we want to work on today?' : 'Check stats, improve your game, prep matches, captain teams, or run league work from one tennis platform.'}
           </p>
         </div>
 

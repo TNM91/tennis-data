@@ -50,6 +50,7 @@ const requiredCommands = [
   'qa:week-plan',
   'qa:fixtures',
   'qa:fixture-gate',
+  'qa:fixture-auth-smoke',
   'qa:fixture-board',
   'qa:fixture-status',
   'qa:fixture-review',
@@ -142,6 +143,8 @@ console.log('- npm run qa:day1')
 console.log('- npm run qa:week-plan -- <day1-day5> --date=yyyy-mm-dd --tester=<name>')
 console.log('- npm run qa:fixtures')
 console.log('- npm run qa:fixture-gate -- <journey | fixture | route | search>')
+console.log('- npm run qa:fixture-auth-smoke -- --env')
+console.log('- npm run qa:fixture-auth-smoke')
 console.log('- npm run qa:fixture-board -- <group | fixture | day1-day5 | journey | account | data>')
 console.log('- npm run qa:fixture-status -- <day1-day5 | fixture | journey | route>')
 console.log('- npm run qa:fixture-review -- <fixture | tier | journey | route>')

@@ -47,13 +47,16 @@ export function AdminReviewPanel({
   children,
   compact = false,
   style,
+  ariaLabel,
 }: {
   children: ReactNode
   compact?: boolean
   style?: CSSProperties
+  ariaLabel?: string
 }) {
   return (
     <section
+      aria-label={ariaLabel}
       className="surface-card"
       style={{
         ...adminReviewPanelStyle,

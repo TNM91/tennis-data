@@ -1,27 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, customerJourneyDeviceProfiles, normalizeQaQuery, sessionByJourneyId } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
-const normalizedQuery = normalize(rawQuery)
+const normalizedQuery = normalizeQaQuery(rawQuery)
 
-const deviceProfiles = [
-  {
-    id: 'phone',
-    aliases: ['phone', 'mobile', 'iphone', 'ios', 'android'],
-    label: 'Phone',
-  },
-  {
-    id: 'tablet',
-    aliases: ['tablet', 'ipad'],
-    label: 'Tablet / iPad',
-  },
-  {
-    id: 'desktop',
-    aliases: ['desktop', 'laptop', 'pc', 'mac', 'windows'],
-    label: 'Desktop',
-  },
-]
+const deviceProfiles = customerJourneyDeviceProfiles
 
 const tierLabels = {
   free: 'Free',
@@ -33,89 +18,7 @@ const tierLabels = {
   admin_internal: 'Admin/Internal',
 }
 
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    tierId: 'player_plus',
-    session: 'day1',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    fixture: 'player_plus_linked',
-    requiredDevices: ['phone', 'tablet'],
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    tierId: 'coach',
-    session: 'day1',
-    route: '/coach',
-    fixture: 'coach_primary',
-    requiredDevices: ['phone', 'tablet', 'desktop'],
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    tierId: 'coach',
-    session: 'day2',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    fixture: 'coach_primary',
-    requiredDevices: ['tablet', 'desktop'],
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    tierId: 'player_plus',
-    session: 'day2',
-    route: '/mylab',
-    fixture: 'player_plus_linked',
-    requiredDevices: ['phone', 'desktop'],
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    tierId: 'captain',
-    session: 'day3',
-    route: '/captain',
-    fixture: 'captain_primary',
-    requiredDevices: ['phone', 'tablet', 'desktop'],
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    tierId: 'league',
-    session: 'day4',
-    route: '/league-coordinator',
-    fixture: 'league_coordinator',
-    requiredDevices: ['tablet', 'desktop'],
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    tierId: 'full_court',
-    session: 'day5',
-    route: '/pricing',
-    fixture: 'full_court_operator',
-    requiredDevices: ['phone', 'desktop'],
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    tierId: 'admin_internal',
-    session: 'day4',
-    route: '/admin/access',
-    fixture: 'admin_test',
-    requiredDevices: ['desktop'],
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    tierId: 'free',
-    session: 'day5',
-    route: '/explore',
-    fixture: 'free_viewer',
-    requiredDevices: ['phone', 'desktop'],
-  },
-]
+const journeys = customerJourneyDetails
 
 const rows = readFileSync(join(process.cwd(), resultsPath), 'utf8')
   .split('\n')
@@ -125,9 +28,9 @@ const rows = readFileSync(join(process.cwd(), resultsPath), 'utf8')
   .filter((row) => !isHeaderRow(row))
   .filter((row) => !isBlankTemplateRow(row))
 
-const queryDevice = deviceProfiles.find((profile) => profile.id === normalizedQuery || profile.aliases.map(normalize).includes(normalizedQuery))
+const queryDevice = deviceProfiles.find((profile) => normalizeQaQuery(profile.id) === normalizedQuery || profile.aliases.map(normalizeQaQuery).includes(normalizedQuery))
 const matchingJourneys = journeys.filter(matchesQuery)
-const visibleJourneys = queryDevice ? journeys.filter((journey) => journey.requiredDevices.includes(queryDevice.id)) : matchingJourneys
+const visibleJourneys = queryDevice ? journeys.filter((journey) => journey.requiredDeviceIds.includes(queryDevice.id)) : matchingJourneys
 const statusRows = visibleJourneys.map((journey) => buildDeviceStatus(journey, queryDevice?.id))
 const totalRequired = statusRows.reduce((sum, row) => sum + row.requiredDevices.length, 0)
 const totalPassed = statusRows.reduce((sum, row) => sum + row.passedDevices.length, 0)
@@ -158,7 +61,7 @@ console.log('| --- | --- | --- | --- | --- | --- | --- |')
 
 for (const row of statusRows) {
   console.log(
-    `| ${tierLabels[row.journey.tierId]} | ${row.journey.session} | ${row.journey.label} | ${formatDevices(row.requiredDevices)} | ${formatDevices(row.passedDevices)} | ${formatDevices(row.missingDevices)} | ${row.nextCommand} |`,
+    `| ${tierLabels[row.journey.tierId]} | ${sessionByJourneyId.get(row.journey.id)?.id ?? 'unassigned'} | ${row.journey.label} | ${formatDevices(row.requiredDevices)} | ${formatDevices(row.passedDevices)} | ${formatDevices(row.missingDevices)} | ${row.nextCommand} |`,
   )
 }
 
@@ -173,7 +76,7 @@ console.log('Closeout rule: device coverage needs pass rows with screenshot/vide
 
 function buildDeviceStatus(journey, activeDeviceId) {
   const journeyRows = rows.filter((row) => row.journeyId === journey.id)
-  const requiredDevices = activeDeviceId ? journey.requiredDevices.filter((deviceId) => deviceId === activeDeviceId) : journey.requiredDevices
+  const requiredDevices = activeDeviceId ? journey.requiredDeviceIds.filter((deviceId) => deviceId === activeDeviceId) : journey.requiredDeviceIds
   const passedDevices = requiredDevices.filter((deviceId) =>
     journeyRows.some((row) => row.result === 'pass' && row.screenshotOrVideo && getDeviceId(row.deviceBrowser) === deviceId),
   )
@@ -193,9 +96,9 @@ function buildDeviceStatus(journey, activeDeviceId) {
 
 function matchesQuery(journey) {
   if (!rawQuery) return true
-  if (queryDevice) return journey.requiredDevices.includes(queryDevice.id)
+  if (queryDevice) return journey.requiredDeviceIds.includes(queryDevice.id)
 
-  const tierId = Object.entries(tierLabels).find(([id, label]) => normalize(id) === normalizedQuery || normalize(label) === normalizedQuery)?.[0]
+  const tierId = Object.entries(tierLabels).find(([id, label]) => normalizeQaQuery(id.replace(/_/g, '')) === normalizedQuery || normalizeQaQuery(label) === normalizedQuery)?.[0]
   if (tierId) return journey.tierId === tierId
 
   return searchableText(journey).includes(rawQuery) || searchableText(journey).includes(normalizedQuery)
@@ -207,10 +110,10 @@ function searchableText(journey) {
     journey.label,
     journey.tierId,
     tierLabels[journey.tierId],
-    journey.session,
-    journey.route,
-    journey.fixture,
-    ...journey.requiredDevices,
+    sessionByJourneyId.get(journey.id)?.id ?? '',
+    journey.entryRoute,
+    journey.accountFixture,
+    ...journey.requiredDeviceIds,
   ]
     .join(' ')
     .toLowerCase()

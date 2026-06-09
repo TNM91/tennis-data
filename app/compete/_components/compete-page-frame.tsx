@@ -32,6 +32,18 @@ const HERO_SIGNALS = [
   },
 ]
 
+const CAPTAIN_HANDOFF_STEPS = [
+  'Capture schedule, result, and team context.',
+  'Carry it into availability, lineup, scenario, and team message.',
+  'Confirm Team Hub uses the same match-week reality.',
+]
+
+const CAPTAIN_HANDOFF_ACTIONS = [
+  { href: '/captain', label: 'Open Team Hub' },
+  { href: '/captain/lineup-builder', label: 'Build lineup' },
+  { href: '/captain/team-brief', label: 'Team brief' },
+]
+
 export default function CompetePageFrame({
   title,
   eyebrow,
@@ -145,6 +157,39 @@ export default function CompetePageFrame({
           </div>
 
           {children}
+
+          <section
+            aria-label="Captain match-week bridge cue"
+            style={{
+              ...captainBridgeStyle,
+              gridTemplateColumns: isTablet
+                ? 'minmax(0, 1fr)'
+                : captainBridgeStyle.gridTemplateColumns,
+            }}
+          >
+            <div style={captainBridgeCopyStyle}>
+              <div style={captainBridgeEyebrowStyle}>Captain match-week bridge</div>
+              <h2 style={captainBridgeTitleStyle}>Turn Compete context into Team Hub decisions.</h2>
+              <p style={captainBridgeTextStyle}>
+                Use teams, schedule, and results here to feed the captain week: availability, lineup, scenario, and team message.
+              </p>
+            </div>
+            <div style={captainBridgeStepsStyle}>
+              {CAPTAIN_HANDOFF_STEPS.map((step, index) => (
+                <div key={step} style={captainBridgeStepStyle}>
+                  <span style={captainBridgeStepNumberStyle}>{index + 1}</span>
+                  <span>{step}</span>
+                </div>
+              ))}
+            </div>
+            <div style={captainBridgeActionsStyle}>
+              {CAPTAIN_HANDOFF_ACTIONS.map((action) => (
+                <Link key={action.href} href={action.href} style={captainBridgeActionStyle}>
+                  {action.label}
+                </Link>
+              ))}
+            </div>
+          </section>
         </div>
       </section>
     </SiteShell>
@@ -363,6 +408,114 @@ const cardCtaStyle: CSSProperties = {
   maxWidth: '100%',
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const captainBridgeStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, auto)',
+  gap: '14px',
+  alignItems: 'center',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(12, 29, 34, 0.82), rgba(8, 16, 34, 0.76))',
+  boxShadow: '0 18px 48px rgba(2, 10, 24, 0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+}
+
+const captainBridgeCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  minWidth: 0,
+}
+
+const captainBridgeEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const captainBridgeTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '20px',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainBridgeTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+  fontWeight: 650,
+  overflowWrap: 'anywhere',
+}
+
+const captainBridgeStepsStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const captainBridgeStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
+  gap: '8px',
+  alignItems: 'center',
+  minWidth: 0,
+  color: 'rgba(223,238,255,0.86)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainBridgeStepNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 22,
+  height: 22,
+  borderRadius: '50%',
+  background: 'rgba(155,225,29,0.14)',
+  color: '#f5ffe2',
+  fontSize: '11px',
+  fontWeight: 950,
+}
+
+const captainBridgeActionsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const captainBridgeActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  minHeight: 34,
+  padding: '8px 11px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.11)',
+  color: '#f5ffe2',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 900,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const watermarkStyle: CSSProperties = {

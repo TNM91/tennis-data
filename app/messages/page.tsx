@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
@@ -51,6 +51,8 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ComposeMode = 'support' | 'direct'
 type SupportFilter = 'all' | 'billing' | 'league' | 'result' | 'data' | 'account' | 'general'
+type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'
+type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'system'
 
 type MessagePrefill = {
   mode: ComposeMode
@@ -118,6 +120,247 @@ function statusLabel(status: InternalConversation['status']) {
   if (status === 'waiting_on_user') return 'Waiting on user'
   if (status === 'closed') return 'Closed'
   return 'Open'
+}
+
+function supportStatusCopy(conversation: InternalConversation, role: InternalIdentity['role']) {
+  if (conversation.status === 'closed') return 'Resolved. Reopen it if more help is needed.'
+  if (conversation.status === 'waiting_on_admin') {
+    return role === 'admin'
+      ? 'Needs an admin reply.'
+      : 'We are reviewing this and will reply here.'
+  }
+  if (conversation.status === 'waiting_on_user') {
+    return role === 'admin'
+      ? 'Waiting on the user.'
+      : 'We replied and are waiting on you.'
+  }
+  return 'Open support thread.'
+}
+
+function conversationNeedsReply(conversation: InternalConversation, identity: InternalIdentity) {
+  if (conversation.conversationType === 'support') {
+    if (identity.role === 'admin') return conversation.status === 'waiting_on_admin'
+    return conversation.status === 'waiting_on_user' || conversation.isUnread
+  }
+  return conversation.isUnread
+}
+
+function isScheduleConversation(conversation: InternalConversation) {
+  const entityType = conversation.metadata.entityType || conversation.relatedEntityType
+  return entityType === 'tiq_schedule_item' || entityType === 'schedule_match'
+}
+
+function conversationMatchesInboxFilter(
+  conversation: InternalConversation,
+  identity: InternalIdentity,
+  filter: InboxFilter,
+) {
+  if (filter === 'needs_reply') return conversationNeedsReply(conversation, identity)
+  if (filter === 'unread') return conversation.isUnread
+  if (filter === 'support') return conversation.conversationType === 'support'
+  if (filter === 'direct') return conversation.conversationType === 'direct'
+  if (filter === 'league') return conversation.conversationType === 'league'
+  if (filter === 'schedule') return isScheduleConversation(conversation)
+  return true
+}
+
+function conversationMatchesThreadSearch(
+  conversation: InternalConversation,
+  identity: InternalIdentity,
+  query: string,
+) {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return true
+
+  const searchable = [
+    conversation.subject,
+    conversation.lastMessageBody,
+    conversationTypeLabel(conversation.conversationType),
+    statusLabel(conversation.status),
+    conversation.conversationType === 'support' ? supportCategoryLabel(conversation.relatedEntityType) : '',
+    conversation.conversationType === 'support' ? supportStatusCopy(conversation, identity.role) : '',
+    conversation.relatedEntityType,
+    conversation.relatedEntityId,
+    conversation.metadata.entityType,
+    conversation.metadata.entityId,
+    conversation.metadata.leagueName,
+    conversation.metadata.assignmentTitle,
+    conversation.metadata.assignmentFocus,
+  ].join(' ').toLowerCase()
+
+  return searchable.includes(normalized)
+}
+
+function inboxFilterLabel(filter: InboxFilter) {
+  if (filter === 'pinned') return 'Pinned'
+  if (filter === 'needs_reply') return 'Needs reply'
+  if (filter === 'unread') return 'Unread'
+  if (filter === 'support') return 'Support'
+  if (filter === 'direct') return 'Direct'
+  if (filter === 'league') return 'League'
+  if (filter === 'schedule') return 'Scheduling'
+  return 'All'
+}
+
+function alertFilterLabel(filter: AlertFilter) {
+  if (filter === 'unread') return 'Unread'
+  if (filter === 'message') return 'Messages'
+  if (filter === 'support') return 'Support'
+  if (filter === 'schedule') return 'Schedule'
+  if (filter === 'system') return 'System'
+  return 'All'
+}
+
+function notificationMatchesAlertFilter(notification: InternalNotification, filter: AlertFilter) {
+  if (filter === 'unread') return !notification.readAt
+  if (filter === 'all') return true
+  return notification.notificationType === filter
+}
+
+function replyPlaceholder(conversation: InternalConversation | null) {
+  if (!conversation) return 'Write a reply...'
+  if (conversation.conversationType === 'support') return 'Reply to this support request...'
+  if (conversation.conversationType === 'league') return 'Message this league room...'
+  if (isScheduleConversation(conversation)) return 'Add a schedule note...'
+  return 'Write a message...'
+}
+
+function getQuickReplyActions(conversation: InternalConversation | null, role: InternalIdentity['role']) {
+  if (!conversation) return []
+  if (conversation.conversationType === 'support') {
+    return role === 'admin'
+      ? [
+          { label: 'Reviewing', body: 'Thanks for sending this in. I am reviewing it now and will update this thread shortly.' },
+          { label: 'Need details', body: 'Can you send one more detail here so we can verify this accurately?' },
+          { label: 'Resolved note', body: 'This should be resolved now. Reply here if anything still looks off.' },
+        ]
+      : [
+          { label: 'Add details', body: 'Here are the extra details that may help:' },
+          { label: 'Still need help', body: 'I still need help with this. The issue I am seeing now is:' },
+          { label: 'Thanks', body: 'Thanks, that answers my question.' },
+        ]
+  }
+  if (isScheduleConversation(conversation)) {
+    return [
+      { label: 'Time works', body: 'That time works for me.' },
+      { label: 'Need alternate', body: 'I need an alternate time. I can make:' },
+      { label: 'Site note', body: 'Quick site note:' },
+    ]
+  }
+  if (conversation.conversationType === 'league') {
+    return [
+      { label: 'Availability', body: 'My availability for this league item is:' },
+      { label: 'Result note', body: 'Result note:' },
+      { label: 'Lineup note', body: 'Lineup note:' },
+    ]
+  }
+  return [
+    { label: 'Quick note', body: 'Quick note:' },
+    { label: 'Follow up', body: 'Following up on this:' },
+    { label: 'Looks good', body: 'Looks good to me.' },
+  ]
+}
+
+const composeSearchParamKeys = [
+  'compose',
+  'recipient',
+  'recipientProfileId',
+  'recipientPlayerId',
+  'subject',
+  'body',
+  'category',
+  'entityType',
+  'entityId',
+  'assignmentId',
+  'assignmentTitle',
+  'assignmentFocus',
+] as const
+
+function replaceThreadUrl(conversationId: string) {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  for (const key of composeSearchParamKeys) {
+    url.searchParams.delete(key)
+  }
+  if (conversationId) {
+    url.searchParams.set('thread', conversationId)
+  } else {
+    url.searchParams.delete('thread')
+  }
+  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+}
+
+function buildThreadShareUrl(conversationId: string) {
+  if (typeof window === 'undefined') return `/messages?thread=${encodeURIComponent(conversationId)}`
+  const url = new URL('/messages', window.location.origin)
+  url.searchParams.set('thread', conversationId)
+  return url.toString()
+}
+
+const messageDraftStoragePrefix = 'tenaceiq:messages:draft:'
+
+function messageDraftStorageKey(conversationId: string) {
+  return `${messageDraftStoragePrefix}${conversationId}`
+}
+
+function readMessageDraft(conversationId: string) {
+  if (typeof window === 'undefined' || !conversationId) return ''
+  try {
+    return window.localStorage.getItem(messageDraftStorageKey(conversationId)) || ''
+  } catch {
+    return ''
+  }
+}
+
+function writeMessageDraft(conversationId: string, value: string) {
+  if (typeof window === 'undefined' || !conversationId) return
+  try {
+    const key = messageDraftStorageKey(conversationId)
+    if (value.trim()) {
+      window.localStorage.setItem(key, value)
+    } else {
+      window.localStorage.removeItem(key)
+    }
+  } catch {
+    // Draft persistence is a convenience; messaging should still work without storage.
+  }
+}
+
+function removeMessageDraft(conversationId: string) {
+  writeMessageDraft(conversationId, '')
+}
+
+function getConversationDraftIds(conversations: InternalConversation[]) {
+  if (typeof window === 'undefined') return new Set<string>()
+  const draftIds = new Set<string>()
+  for (const conversation of conversations) {
+    if (readMessageDraft(conversation.id).trim()) draftIds.add(conversation.id)
+  }
+  return draftIds
+}
+
+function pinnedThreadsStorageKey(userId: string) {
+  return `tenaceiq:messages:pinned:${userId}`
+}
+
+function readPinnedThreadIds(userId: string) {
+  if (typeof window === 'undefined' || !userId) return new Set<string>()
+  try {
+    const raw = window.localStorage.getItem(pinnedThreadsStorageKey(userId))
+    const ids = raw ? JSON.parse(raw) : []
+    return new Set(Array.isArray(ids) ? ids.filter((id) => typeof id === 'string' && id.trim()) : [])
+  } catch {
+    return new Set<string>()
+  }
+}
+
+function writePinnedThreadIds(userId: string, threadIds: Set<string>) {
+  if (typeof window === 'undefined' || !userId) return
+  try {
+    window.localStorage.setItem(pinnedThreadsStorageKey(userId), JSON.stringify(Array.from(threadIds)))
+  } catch {
+    // Pins are local convenience state; the inbox still works without storage.
+  }
 }
 
 function buildConversationContextHref(conversation: InternalConversation | null, coachContacts: CoachMessageContact[]) {
@@ -304,11 +547,15 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [notificationPreferences, setNotificationPreferences] = useState<InternalNotificationPreferences | null>(null)
   const [coachContacts, setCoachContacts] = useState<CoachMessageContact[]>([])
   const [composeMode, setComposeMode] = useState<ComposeMode>(prefill.mode)
+  const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all')
+  const [alertFilter, setAlertFilter] = useState<AlertFilter>('all')
+  const [threadSearch, setThreadSearch] = useState('')
   const [supportCategory, setSupportCategory] = useState<SupportFilter>(prefill.category)
   const [supportFilter, setSupportFilter] = useState<SupportFilter>('all')
   const [recipientInput, setRecipientInput] = useState('')
   const [recipient, setRecipient] = useState<InternalRecipient | null>(null)
   const [recipientSearchResults, setRecipientSearchResults] = useState<InternalRecipient[]>([])
+  const [recipientSearchRan, setRecipientSearchRan] = useState(false)
   const [recipientSearching, setRecipientSearching] = useState(false)
   const [composeContext, setComposeContext] = useState<{ entityType: string; entityId: string }>({
     entityType: prefill.entityType,
@@ -319,6 +566,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [subject, setSubject] = useState(prefill.subject || (prefill.mode === 'support' ? 'Support request' : ''))
   const [body, setBody] = useState('')
   const [replyBody, setReplyBody] = useState('')
+  const [draftThreadIds, setDraftThreadIds] = useState<Set<string>>(() => new Set())
+  const [pinnedThreadIds, setPinnedThreadIds] = useState<Set<string>>(() => new Set())
   const [loading, setLoading] = useState(true)
   const [threadLoading, setThreadLoading] = useState(false)
   const [scheduleLoading, setScheduleLoading] = useState(false)
@@ -355,20 +604,94 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     () => buildConversationContextPresentation(selectedConversation, coachContacts),
     [coachContacts, selectedConversation],
   )
+  const quickReplyActions = useMemo(
+    () => getQuickReplyActions(selectedConversation, identity?.role ?? 'public'),
+    [identity?.role, selectedConversation],
+  )
   const unreadNotificationCount = useMemo(
     () => notifications.filter((notification) => !notification.readAt).length,
     [notifications],
   )
+  const alertFilters = useMemo(
+    () => (['all', 'unread', 'support', 'schedule', 'message', 'system'] as AlertFilter[]).map((filter) => ({
+      key: filter,
+      label: alertFilterLabel(filter),
+      count: notifications.filter((notification) => notificationMatchesAlertFilter(notification, filter)).length,
+    })),
+    [notifications],
+  )
+  const filteredNotifications = useMemo(
+    () => notifications.filter((notification) => notificationMatchesAlertFilter(notification, alertFilter)),
+    [alertFilter, notifications],
+  )
+  const inboxFilters = useMemo(() => {
+    if (!identity) return [] as Array<{ key: InboxFilter; label: string; count: number }>
+    return (['all', 'pinned', 'needs_reply', 'unread', 'support', 'direct', 'league', 'schedule'] as InboxFilter[]).map((filter) => ({
+      key: filter,
+      label: inboxFilterLabel(filter),
+      count: conversations.filter((conversation) =>
+        filter === 'pinned'
+          ? pinnedThreadIds.has(conversation.id)
+          : conversationMatchesInboxFilter(conversation, identity, filter),
+      ).length,
+    }))
+  }, [conversations, identity, pinnedThreadIds])
   const filteredConversations = useMemo(() => {
-    if (!identity || identity.role !== 'admin' || supportFilter === 'all') return conversations
-    return conversations.filter((conversation) =>
-      conversation.conversationType === 'support' && conversation.relatedEntityType === supportFilter,
-    )
-  }, [conversations, identity, supportFilter])
+    if (!identity) return conversations
+    return conversations.filter((conversation) => {
+      const matchesInbox = inboxFilter === 'pinned'
+        ? pinnedThreadIds.has(conversation.id)
+        : conversationMatchesInboxFilter(conversation, identity, inboxFilter)
+      const matchesSearch = conversationMatchesThreadSearch(conversation, identity, threadSearch)
+      const matchesSupportCategory = identity.role !== 'admin' || supportFilter === 'all'
+        ? true
+        : conversation.conversationType === 'support' && conversation.relatedEntityType === supportFilter
+      return matchesInbox && matchesSearch && matchesSupportCategory
+    }).sort((left, right) => {
+      const leftPinned = pinnedThreadIds.has(left.id) ? 1 : 0
+      const rightPinned = pinnedThreadIds.has(right.id) ? 1 : 0
+      if (leftPinned !== rightPinned) return rightPinned - leftPinned
+      return new Date(right.updatedAt || right.lastMessageAt || right.createdAt).getTime() -
+        new Date(left.updatedAt || left.lastMessageAt || left.createdAt).getTime()
+    })
+  }, [conversations, identity, inboxFilter, pinnedThreadIds, supportFilter, threadSearch])
   const unreadCount = useMemo(
     () => conversations.filter((conversation) => conversation.isUnread).length,
     [conversations],
   )
+  const needsReplyCount = useMemo(
+    () => identity ? conversations.filter((conversation) => conversationNeedsReply(conversation, identity)).length : 0,
+    [conversations, identity],
+  )
+  const pinnedCount = pinnedThreadIds.size
+  const hasActiveThreadFilters = Boolean(threadSearch.trim()) || inboxFilter !== 'all' || (identity?.role === 'admin' && supportFilter !== 'all')
+  const emptyInboxCopy = identity?.role === 'admin'
+    ? 'Support requests, user replies, league rooms, and scheduling alerts will land here.'
+    : identity?.role === 'captain'
+      ? 'Lineup notes, player replies, league messages, and schedule alerts will land here.'
+      : 'Coach notes, support replies, schedule updates, and player messages will land here.'
+  const filteredEmptyCopy = conversations.length && hasActiveThreadFilters
+    ? threadSearch.trim()
+      ? 'Try a different search or clear filters to see the rest of your inbox.'
+      : 'Clear filters to see the rest of your inbox.'
+    : emptyInboxCopy
+  const composeTargetLabel = composeMode === 'support'
+    ? `${supportCategoryLabel(supportCategory)} support`
+    : recipient
+      ? recipient.displayName
+      : recipientInput.trim()
+        ? 'Find and select a player'
+        : 'Choose a player'
+  const composeReadinessLabel = composeMode === 'support'
+    ? body.trim()
+      ? 'Ready to open'
+      : 'Add the support detail'
+    : recipient
+      ? body.trim()
+        ? 'Ready to send'
+        : 'Add the message'
+      : 'Select a recipient'
+  const canSubmitNewConversation = Boolean(body.trim()) && (composeMode === 'support' || Boolean(recipient))
   const dataAssistMessagesHref = '/data-assist?intent=upload-source&context=Messages'
   const emptyInboxActions = [
     { title: 'Open My Lab', href: '/mylab' },
@@ -465,6 +788,38 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   }, [authResolved, loadInbox])
 
   useEffect(() => {
+    if (identity?.role === 'admin' && inboxFilter === 'all' && needsReplyCount > 0) {
+      setInboxFilter('needs_reply')
+    }
+  }, [identity?.role, inboxFilter, needsReplyCount])
+
+  useEffect(() => {
+    if (!identity?.userId) {
+      setPinnedThreadIds(new Set())
+      return
+    }
+    setPinnedThreadIds(readPinnedThreadIds(identity.userId))
+  }, [identity?.userId])
+
+  useEffect(() => {
+    if (!identity?.userId) return
+    const conversationIds = new Set(conversations.map((conversation) => conversation.id))
+    setPinnedThreadIds((current) => {
+      const next = new Set(Array.from(current).filter((id) => conversationIds.has(id)))
+      if (next.size !== current.size) writePinnedThreadIds(identity.userId, next)
+      return next
+    })
+  }, [conversations, identity?.userId])
+
+  useEffect(() => {
+    setDraftThreadIds(getConversationDraftIds(conversations))
+  }, [conversations])
+
+  useEffect(() => {
+    setReplyBody(selectedConversation ? readMessageDraft(selectedConversation.id) : '')
+  }, [selectedConversation])
+
+  useEffect(() => {
     if (!selectedId) {
       setMessages([])
       setScheduleEvents([])
@@ -552,6 +907,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
 
     setRecipient(found)
+    setRecipientSearchRan(false)
     setMessage(`Ready to message ${found.displayName}.`)
     return found
   }
@@ -561,7 +917,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
     setComposeMode('direct')
     setSupportCategory('general')
-    setSelectedId('')
+    clearSelectedConversation()
     setError('')
     setMessage('')
     setRecipientSearching(true)
@@ -584,6 +940,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
       setRecipient(found)
       setRecipientInput(found.displayName)
+      setRecipientSearchRan(false)
       setSubject(nextSubject)
       setBody(nextBody)
       setComposeContext({ entityType: 'coach_player_link', entityId: contact.linkId })
@@ -600,6 +957,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     const query = recipientInput.trim()
     setRecipient(null)
     setRecipientSearchResults([])
+    setRecipientSearchRan(false)
     setError('')
     setMessage('')
     if (query.length < 2) {
@@ -611,14 +969,28 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     try {
       const results = await searchInternalRecipients(query, identity.userId)
       setRecipientSearchResults(results)
-      if (!results.length) {
-        setError('No TenAceIQ users matched that name or ID.')
-      }
+      setRecipientSearchRan(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Recipient search could not run.')
     } finally {
       setRecipientSearching(false)
     }
+  }
+
+  function selectConversation(conversationId: string) {
+    setSelectedId(conversationId)
+    replaceThreadUrl(conversationId)
+  }
+
+  function clearSelectedConversation() {
+    setSelectedId('')
+    replaceThreadUrl('')
+  }
+
+  function clearThreadFilters() {
+    setInboxFilter('all')
+    setSupportFilter('all')
+    setThreadSearch('')
   }
 
   async function saveDisplayName() {
@@ -670,10 +1042,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       setSubject(composeMode === 'support' ? 'Support request' : '')
       setRecipient(null)
       setRecipientInput('')
+      setRecipientSearchRan(false)
       setComposeContext({ entityType: '', entityId: '' })
-      setSelectedId(conversationId)
+      selectConversation(conversationId)
       await loadInbox()
-      setSelectedId(conversationId)
+      selectConversation(conversationId)
       setMessage(composeMode === 'support' ? 'Support thread opened.' : 'Conversation started.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Message could not be sent.')
@@ -689,7 +1062,15 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     setError('')
     setMessage('')
     try {
-      await sendInternalMessage(selectedConversation.id, identity.userId, replyBody)
+      await sendInternalMessage(selectedConversation.id, identity.userId, replyBody, {
+        senderRole: identity.role,
+      })
+      removeMessageDraft(selectedConversation.id)
+      setDraftThreadIds((current) => {
+        const next = new Set(current)
+        next.delete(selectedConversation.id)
+        return next
+      })
       setReplyBody('')
       setMessages(await listInternalMessages(selectedConversation.id))
       setConversations(await listInternalConversations(identity))
@@ -697,6 +1078,35 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       setError(err instanceof Error ? err.message : 'Reply could not be sent.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  function updateReplyDraft(value: string) {
+    setReplyBody(value)
+    if (!selectedConversation) return
+    writeMessageDraft(selectedConversation.id, value)
+    setDraftThreadIds((current) => {
+      const next = new Set(current)
+      if (value.trim()) {
+        next.add(selectedConversation.id)
+      } else {
+        next.delete(selectedConversation.id)
+      }
+      return next
+    })
+  }
+
+  function insertQuickReply(text: string) {
+    const nextBody = replyBody.trim()
+      ? `${replyBody.trim()}\n\n${text}`
+      : text
+    updateReplyDraft(nextBody)
+  }
+
+  function handleReplyKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && replyBody.trim() && !saving) {
+      event.preventDefault()
+      void submitReply()
     }
   }
 
@@ -737,7 +1147,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         )
       }
       if (notification.conversationId) {
-        setSelectedId(notification.conversationId)
+        selectConversation(notification.conversationId)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Alert could not be opened.')
@@ -755,6 +1165,57 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Alerts could not be updated.')
     }
+  }
+
+  async function markSelectedThreadRead() {
+    if (!identity || !selectedConversation) return
+    setError('')
+    try {
+      const read = await markInternalConversationRead(selectedConversation.id, identity.userId)
+      if (!read) throw new Error('Thread read state could not be updated.')
+      const readAt = new Date().toISOString()
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === selectedConversation.id
+            ? { ...conversation, isUnread: false, lastReadAt: readAt }
+            : conversation,
+        ),
+      )
+      setMessage('Thread marked read.')
+    } catch {
+      setError('Thread read state could not be updated.')
+    }
+  }
+
+  async function copySelectedThreadLink() {
+    if (!selectedConversation) return
+    setError('')
+    const href = buildThreadShareUrl(selectedConversation.id)
+    try {
+      await navigator.clipboard.writeText(href)
+      replaceThreadUrl(selectedConversation.id)
+      setMessage('Thread link copied.')
+    } catch {
+      replaceThreadUrl(selectedConversation.id)
+      setMessage('Thread link is ready in the address bar.')
+    }
+  }
+
+  function toggleSelectedThreadPinned() {
+    if (!identity || !selectedConversation) return
+    setError('')
+    setPinnedThreadIds((current) => {
+      const next = new Set(current)
+      if (next.has(selectedConversation.id)) {
+        next.delete(selectedConversation.id)
+        setMessage('Thread unpinned.')
+      } else {
+        next.add(selectedConversation.id)
+        setMessage('Thread pinned.')
+      }
+      writePinnedThreadIds(identity.userId, next)
+      return next
+    })
   }
 
   async function updateNotificationPreference(
@@ -851,6 +1312,20 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
   }
 
+  const showConversationOnMobile = isMobile && Boolean(selectedConversation)
+  const inboxPanelStyle = {
+    ...panelStyle,
+    ...(showConversationOnMobile ? hiddenPanelStyle : {}),
+  }
+  const threadPanelStyle = {
+    ...panelStyle,
+    ...(isMobile && !selectedConversation ? hiddenPanelStyle : {}),
+  }
+  const sidePanelStyle = {
+    ...panelStyle,
+    ...(showConversationOnMobile ? hiddenPanelStyle : {}),
+  }
+
   if (!authResolved || loading) {
     return (
       <section style={pageStyle}>
@@ -909,7 +1384,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         </section>
       ) : null}
       <section style={workspaceGridStyle(isTablet)}>
-        <aside style={panelStyle}>
+        <aside style={inboxPanelStyle}>
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={sectionHeaderStyle}>
             <div>
@@ -919,6 +1394,43 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             <button type="button" onClick={() => void loadInbox()} style={ghostButtonStyle}>
               Refresh
             </button>
+          </div>
+          <div style={triageSummaryStyle}>
+            <span>{needsReplyCount ? `${needsReplyCount} need reply` : 'No replies waiting'}</span>
+            <span>{unreadCount ? `${unreadCount} unread` : 'Inbox read'}</span>
+            {pinnedCount ? <span>{pinnedCount} pinned</span> : null}
+            {hasActiveThreadFilters ? <span>{filteredConversations.length} shown</span> : null}
+          </div>
+          <label style={fieldStyle}>
+            <span style={labelStyle}>Search threads</span>
+            <div style={lookupRowStyle(isMobile)}>
+              <input
+                value={threadSearch}
+                onChange={(event) => setThreadSearch(event.target.value)}
+                placeholder="Subject, message, status, league..."
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                onClick={() => setThreadSearch('')}
+                disabled={!threadSearch.trim()}
+                style={ghostButtonStyle}
+              >
+                Clear search
+              </button>
+            </div>
+          </label>
+          <div style={filterBarStyle}>
+            {inboxFilters.map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => setInboxFilter(filter.key)}
+                style={filterButtonStyle(inboxFilter === filter.key)}
+              >
+                {filter.label}{filter.count ? ` (${filter.count})` : ''}
+              </button>
+            ))}
           </div>
           {identity.role === 'admin' ? (
             <div style={filterBarStyle}>
@@ -941,16 +1453,27 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                 <button
                   key={conversation.id}
                   type="button"
-                  onClick={() => setSelectedId(conversation.id)}
+                  onClick={() => selectConversation(conversation.id)}
+                  aria-pressed={selectedId === conversation.id}
                   style={threadButtonStyle(selectedId === conversation.id, conversation.isUnread)}
                 >
                   <span style={threadTopStyle}>
                     <strong>{conversation.subject}</strong>
-                    <small style={conversation.isUnread ? unreadPillStyle : undefined}>
+                    <span style={threadBadgeRowStyle}>
+                      {pinnedThreadIds.has(conversation.id) ? <small style={pinnedPillStyle}>Pinned</small> : null}
+                      {conversationNeedsReply(conversation, identity) ? <small style={needsReplyPillStyle}>Needs reply</small> : null}
+                      {conversation.isUnread ? <small style={unreadPillStyle}>New</small> : null}
+                      {draftThreadIds.has(conversation.id) ? <small style={draftPillStyle}>Draft</small> : null}
+                    </span>
+                  </span>
+                  <span style={threadBadgeRowStyle}>
+                    <small style={threadTypePillStyle}>
                       {conversation.conversationType === 'support'
                         ? supportCategoryLabel(conversation.relatedEntityType)
                         : conversationTypeLabel(conversation.conversationType)}
                     </small>
+                    {isScheduleConversation(conversation) ? <small style={threadTypePillStyle}>Schedule</small> : null}
+                    <small style={statusPillStyle(conversation.status)}>{statusLabel(conversation.status)}</small>
                   </span>
                   <span style={threadPreviewStyle}>
                     {conversation.lastMessageSenderUserId === identity.userId ? 'You: ' : conversation.isUnread ? 'New: ' : ''}
@@ -964,9 +1487,14 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             </div>
           ) : (
             <div style={emptyInboxStyle}>
-              <strong>Inbox starts when tennis needs a reply.</strong>
-              <p style={copyStyle}>Support, player notes, scheduling threads, and RSVP alerts will land here.</p>
+              <strong>{conversations.length && hasActiveThreadFilters ? 'No threads match these filters.' : 'Inbox starts when tennis needs a reply.'}</strong>
+              <p style={copyStyle}>{filteredEmptyCopy}</p>
               <div style={emptyInboxActionRowStyle}>
+                {conversations.length && hasActiveThreadFilters ? (
+                  <button type="button" onClick={clearThreadFilters} style={ghostButtonStyle}>
+                    Clear filters
+                  </button>
+                ) : null}
                 {emptyInboxActions.map((action) => (
                   <Link key={action.href} href={action.href} style={emptyInboxActionStyle}>
                     {action.title}
@@ -977,13 +1505,35 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           )}
         </aside>
 
-        <section style={panelStyle}>
+        <section style={threadPanelStyle}>
           <div style={sectionHeaderStyle}>
             <div>
               <div className="section-kicker">Thread</div>
               <h2 style={sectionTitleStyle}>{selectedConversation?.subject || 'Select a conversation'}</h2>
             </div>
-            {selectedConversation ? <span style={pillStyle}>{statusLabel(selectedConversation.status)}</span> : null}
+            <div style={threadHeaderActionStyle}>
+              {isMobile && selectedConversation ? (
+                <button type="button" onClick={clearSelectedConversation} style={ghostButtonStyle}>
+                  Back to inbox
+                </button>
+              ) : null}
+              {selectedConversation?.isUnread ? (
+                <button type="button" onClick={() => void markSelectedThreadRead()} style={ghostButtonStyle}>
+                  Mark read
+                </button>
+              ) : null}
+              {selectedConversation ? (
+                <button type="button" onClick={() => void copySelectedThreadLink()} style={ghostButtonStyle}>
+                  Copy link
+                </button>
+              ) : null}
+              {selectedConversation ? (
+                <button type="button" onClick={toggleSelectedThreadPinned} style={ghostButtonStyle}>
+                  {pinnedThreadIds.has(selectedConversation.id) ? 'Unpin' : 'Pin'}
+                </button>
+              ) : null}
+              {selectedConversation ? <span style={statusPillStyle(selectedConversation.status)}>{statusLabel(selectedConversation.status)}</span> : null}
+            </div>
           </div>
 
           {selectedConversation && (selectedConversation.conversationType === 'support' || selectedConversation.conversationType === 'league' || selectedContextHref) ? (
@@ -991,6 +1541,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               <div>
                 <div style={labelStyle}>{selectedContextPresentation.label}</div>
                 <p style={copyStyle}>{selectedContextPresentation.text}</p>
+                {selectedConversation.conversationType === 'support' ? (
+                  <p style={supportStatusLineStyle}>{supportStatusCopy(selectedConversation, identity.role)}</p>
+                ) : null}
               </div>
               {selectedContextHref ? (
                 <Link href={selectedContextHref} style={ghostButtonStyle}>{selectedContextPresentation.cta}</Link>
@@ -1189,10 +1742,27 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
           {selectedConversation ? (
             <div style={replyBoxStyle}>
+              <div style={replyBoxHeaderStyle}>
+                <strong>{selectedConversation.conversationType === 'support' ? 'Support reply' : 'Reply'}</strong>
+                <span>{replyBody.trim().length} characters · Ctrl/Cmd Enter to send</span>
+              </div>
+              <div style={quickReplyRowStyle}>
+                {quickReplyActions.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    onClick={() => insertQuickReply(action.body)}
+                    style={quickReplyButtonStyle}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
               <textarea
                 value={replyBody}
-                onChange={(event) => setReplyBody(event.target.value)}
-                placeholder="Write a reply..."
+                onChange={(event) => updateReplyDraft(event.target.value)}
+                onKeyDown={handleReplyKeyDown}
+                placeholder={replyPlaceholder(selectedConversation)}
                 style={textareaStyle}
               />
               <button type="button" onClick={() => void submitReply()} disabled={saving || !replyBody.trim()} style={primaryButtonStyle}>
@@ -1202,7 +1772,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           ) : null}
         </section>
 
-        <aside style={panelStyle} id="alerts">
+        <aside style={sidePanelStyle} id="alerts">
           <div style={sectionHeaderStyle}>
             <div>
               <div className="section-kicker">Alerts</div>
@@ -1210,16 +1780,32 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             </div>
             {unreadNotificationCount ? (
               <button type="button" onClick={() => void markAlertsRead()} style={ghostButtonStyle}>
-                Mark read
+                Mark all read
               </button>
             ) : null}
           </div>
 
+          {notifications.length ? (
+            <div style={filterBarStyle}>
+              {alertFilters.map((filter) => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={() => setAlertFilter(filter.key)}
+                  aria-pressed={alertFilter === filter.key}
+                  style={filterButtonStyle(alertFilter === filter.key)}
+                >
+                  {filter.label}{filter.count ? ` (${filter.count})` : ''}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           {notificationsLoading ? (
             <p style={copyStyle}>Loading alerts...</p>
-          ) : notifications.length ? (
+          ) : filteredNotifications.length ? (
             <div style={notificationListStyle}>
-              {notifications.map((notification) => (
+              {filteredNotifications.map((notification) => (
                 <button
                   key={notification.id}
                   type="button"
@@ -1228,12 +1814,23 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                 >
                   <span style={notificationTopStyle}>
                     <strong>{notification.title || 'TenAceIQ alert'}</strong>
-                    {!notification.readAt ? <small style={unreadPillStyle}>New</small> : null}
+                    <span style={threadBadgeRowStyle}>
+                      <small style={threadTypePillStyle}>{alertFilterLabel(notification.notificationType)}</small>
+                      {!notification.readAt ? <small style={unreadPillStyle}>New</small> : null}
+                    </span>
                   </span>
                   <span style={threadPreviewStyle}>{notification.body || 'Open Messages to review.'}</span>
                   <span style={threadMetaStyle}>{formatMessageTime(notification.createdAt)}</span>
                 </button>
               ))}
+            </div>
+          ) : notifications.length ? (
+            <div style={emptyInboxStyle}>
+              <strong>No alerts match this filter.</strong>
+              <p style={copyStyle}>Show all alerts to get back to the full notification list.</p>
+              <button type="button" onClick={() => setAlertFilter('all')} style={ghostButtonStyle}>
+                Show all alerts
+              </button>
             </div>
           ) : (
             <p style={copyStyle}>No alerts yet. New messages, scheduling threads, and RSVP changes will land here.</p>
@@ -1322,12 +1919,19 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     setRecipientInput(event.target.value)
                     setRecipient(null)
                     setRecipientSearchResults([])
+                    setRecipientSearchRan(false)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      void searchRecipients()
+                    }
                   }}
                   placeholder="Search name or TIQ ID"
                   style={inputStyle}
                 />
                 <button type="button" onClick={() => void searchRecipients()} style={ghostButtonStyle}>
-                  {recipientSearching ? 'Finding' : 'Find'}
+                  {recipientSearching ? 'Finding' : 'Find player'}
                 </button>
               </div>
               {recipient ? <span style={hintStyle}>Selected {recipient.displayName}</span> : null}
@@ -1341,6 +1945,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                         setRecipient(result)
                         setRecipientInput(result.displayName)
                         setRecipientSearchResults([])
+                        setRecipientSearchRan(false)
                         setMessage(`Ready to message ${result.displayName}.`)
                         setError('')
                       }}
@@ -1354,6 +1959,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     </button>
                   ))}
                 </div>
+              ) : recipientSearchRan ? (
+                <p style={warningStyle}>No TenAceIQ users matched that name or ID.</p>
+              ) : recipientInput.trim() && !recipient ? (
+                <p style={hintStyle}>Use Find player, then choose the right match before sending.</p>
               ) : null}
             </label>
           ) : (
@@ -1383,7 +1992,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           </label>
 
           <label style={fieldStyle}>
-            <span style={labelStyle}>Message</span>
+            <div style={replyBoxHeaderStyle}>
+              <span style={labelStyle}>Message</span>
+              <span>{body.trim().length} characters</span>
+            </div>
             <textarea
               value={body}
               onChange={(event) => setBody(event.target.value)}
@@ -1392,7 +2004,27 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             />
           </label>
 
-          <button type="button" onClick={() => void submitNewConversation()} disabled={saving || !body.trim()} style={primaryButtonStyle}>
+          <div style={composeReviewStyle}>
+            <div style={composeReviewItemStyle}>
+              <span>Thread</span>
+              <strong>{composeMode === 'support' ? 'Support' : 'Player message'}</strong>
+            </div>
+            <div style={composeReviewItemStyle}>
+              <span>Send to</span>
+              <strong>{composeTargetLabel}</strong>
+            </div>
+            <div style={composeReviewItemStyle}>
+              <span>Status</span>
+              <strong>{composeReadinessLabel}</strong>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void submitNewConversation()}
+            disabled={saving || !canSubmitNewConversation}
+            style={saving || !canSubmitNewConversation ? disabledPrimaryButtonStyle : primaryButtonStyle}
+          >
             {saving ? 'Sending...' : composeMode === 'support' ? 'Open support thread' : 'Send message'}
           </button>
 
@@ -1426,6 +2058,10 @@ const panelStyle: CSSProperties = {
   gap: 14,
   minWidth: 0,
   overflow: 'hidden',
+}
+
+const hiddenPanelStyle: CSSProperties = {
+  display: 'none',
 }
 
 const watermarkStyle: CSSProperties = {
@@ -1566,6 +2202,29 @@ const preferencePanelStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.045)',
 }
 
+const composeReviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  minWidth: 0,
+}
+
+const composeReviewItemStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 8,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const preferenceGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
@@ -1613,6 +2272,23 @@ const threadListStyle: CSSProperties = {
   display: 'grid',
   gap: 9,
   minWidth: 0,
+}
+
+const triageSummaryStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const threadButtonStyle = (active: boolean, unread = false): CSSProperties => ({
@@ -1715,6 +2391,69 @@ const threadMetaStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const needsReplyPillStyle: CSSProperties = {
+  ...unreadPillStyle,
+  border: '1px solid rgba(251,191,36,0.34)',
+  background: 'rgba(251,191,36,0.16)',
+  color: '#fde68a',
+}
+
+const draftPillStyle: CSSProperties = {
+  ...unreadPillStyle,
+  border: '1px solid rgba(125,211,252,0.28)',
+  background: 'rgba(125,211,252,0.12)',
+  color: 'var(--brand-blue-2)',
+  overflowWrap: 'anywhere',
+}
+
+const pinnedPillStyle: CSSProperties = {
+  ...unreadPillStyle,
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.16)',
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const threadBadgeRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: 6,
+  minWidth: 0,
+}
+
+const threadTypePillStyle: CSSProperties = {
+  borderRadius: 999,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(125,211,252,0.07)',
+  color: 'var(--brand-blue-2)',
+  padding: '3px 7px',
+  fontSize: 11,
+  fontWeight: 950,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const statusPillStyle = (status: InternalConversationStatus): CSSProperties => ({
+  ...threadTypePillStyle,
+  border: status === 'waiting_on_admin'
+    ? '1px solid rgba(251,191,36,0.34)'
+    : status === 'waiting_on_user'
+      ? '1px solid rgba(125,211,252,0.22)'
+      : status === 'closed'
+        ? '1px solid rgba(148,163,184,0.20)'
+        : '1px solid rgba(155,225,29,0.24)',
+  background: status === 'waiting_on_admin'
+    ? 'rgba(251,191,36,0.14)'
+    : status === 'waiting_on_user'
+      ? 'rgba(125,211,252,0.08)'
+      : status === 'closed'
+        ? 'rgba(148,163,184,0.08)'
+        : 'rgba(155,225,29,0.09)',
+  color: status === 'waiting_on_admin' ? '#fde68a' : 'var(--foreground-strong)',
+})
+
 const emptyInboxStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -1777,6 +2516,24 @@ const contextPanelStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.18)',
   background: 'rgba(155,225,29,0.07)',
   minWidth: 0,
+}
+
+const threadHeaderActionStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+}
+
+const supportStatusLineStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: '#fde68a',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const opsPanelStyle: CSSProperties = {
@@ -1947,9 +2704,56 @@ const emptyThreadStyle: CSSProperties = {
 }
 
 const replyBoxStyle: CSSProperties = {
+  position: 'sticky',
+  bottom: 0,
   display: 'grid',
   gap: 10,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(2,8,23,0.82)',
+  boxShadow: '0 -12px 32px rgba(2,8,23,0.28)',
   minWidth: 0,
+}
+
+const replyBoxHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 900,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const quickReplyRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const quickReplyButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 34,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const segmentedStyle: CSSProperties = {
@@ -2101,6 +2905,15 @@ const primaryButtonStyle: CSSProperties = {
   textAlign: 'center',
 }
 
+const disabledPrimaryButtonStyle: CSSProperties = {
+  ...primaryButtonStyle,
+  opacity: 0.52,
+  cursor: 'not-allowed',
+  boxShadow: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const ghostButtonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -2154,3 +2967,4 @@ const errorStyle: CSSProperties = {
   fontWeight: 900,
   overflowWrap: 'anywhere',
 }
+

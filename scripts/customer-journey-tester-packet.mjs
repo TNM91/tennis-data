@@ -1,6 +1,8 @@
+import { customerJourneySessions, fixtureGateJourneyIds, journeyById, normalizeQaQuery } from './customer-journey-qa-data.mjs'
+
 const options = parseArgs(process.argv.slice(2))
 const rawSession = options.session.trim().toLowerCase()
-const normalizedSession = normalize(rawSession)
+const normalizedSession = normalizeQaQuery(rawSession)
 const normalizedDevice = normalize(options.device)
 
 const deviceProfiles = [
@@ -27,136 +29,8 @@ const deviceProfiles = [
   },
 ]
 
-const sessions = [
-  {
-    id: 'day1',
-    aliases: ['1', 'day1', 'trustloop', 'trust-loop'],
-    label: 'Day 1',
-    focus: 'Trust Loop',
-    question: 'Can player proof and coach assignment close the trust loop without sync or mobile confusion?',
-    journeyIds: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    aliases: ['2', 'day2', 'playercoach', 'player-coach'],
-    label: 'Day 2',
-    focus: 'Player And Coach Depth',
-    question: 'Can recent work become a useful next lesson and a clear player return state?',
-    journeyIds: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    aliases: ['3', 'day3', 'captain'],
-    label: 'Day 3',
-    focus: 'Captain Week',
-    question: 'Can a captain move from availability and context to lineup choice and team-facing communication?',
-    journeyIds: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    aliases: ['4', 'day4', 'leagueadmin', 'league-admin'],
-    label: 'Day 4',
-    focus: 'League And Admin',
-    question: 'Can operations, public/member context, access repair, and data review stay fixture-safe and connected?',
-    journeyIds: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    aliases: ['5', 'day5', 'regression'],
-    label: 'Day 5',
-    focus: 'Full-Court And Free/Public Regression',
-    question: 'Can multi-role access and free discovery work without stale locks or premature upgrade pressure?',
-    journeyIds: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
-
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    fixture: 'player_plus_linked',
-    requiredDevices: ['phone', 'tablet'],
-    passSignal: 'Active training becomes the main screen, proof saves honestly, and the next action is obvious.',
-    evidence: ['active card', 'saved proof status', 'next recommendation', 'tiny note behavior'],
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    route: '/coach',
-    fixture: 'coach_primary',
-    requiredDevices: ['phone', 'tablet', 'desktop'],
-    passSignal: 'Invite, assignment, player challenge, proof, and coach review close the loop without manual cleanup.',
-    evidence: ['invite link state', 'assignment card', 'player challenge screen', 'coach review proof'],
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    fixture: 'coach_primary',
-    requiredDevices: ['tablet', 'desktop'],
-    passSignal: 'The planner is coach-facing, practical, and connected to the player Level Up path.',
-    evidence: ['planner identity', 'warm-up block', 'skill block', 'assignment handoff'],
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    route: '/mylab',
-    fixture: 'player_plus_linked',
-    requiredDevices: ['phone', 'desktop'],
-    passSignal: 'My Lab makes the player identity, linked profile, and next action clear after refresh.',
-    evidence: ['linked profile state', 'identity signal', 'next action', 'post-refresh state'],
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    route: '/captain',
-    fixture: 'captain_primary',
-    requiredDevices: ['phone', 'tablet', 'desktop'],
-    passSignal: 'Captain can make a weekly decision and produce a useful team-facing update.',
-    evidence: ['availability state', 'lineup option', 'projection scenario result', 'team brief or message'],
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    route: '/league-coordinator',
-    fixture: 'league_coordinator',
-    requiredDevices: ['tablet', 'desktop'],
-    passSignal: 'Coordinator operation and member-facing league context stay connected without exposing private controls.',
-    evidence: ['result fixture', 'coordinator source screen', 'public league screen', 'privacy check'],
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    route: '/pricing',
-    fixture: 'full_court_operator',
-    requiredDevices: ['phone', 'desktop'],
-    passSignal: 'All paid workspaces open cleanly and the user can tell which workspace fits the job.',
-    evidence: ['pricing tier copy', 'player workspace', 'coach workspace', 'captain workspace', 'league workspace'],
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    route: '/admin/access',
-    fixture: 'admin_test',
-    requiredDevices: ['desktop'],
-    passSignal: 'Access/data repair is understandable, fixture-safe, and reflected in affected product surfaces.',
-    evidence: ['test profile', 'starting access', 'target access', 'import review status', 'affected surface'],
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    route: '/explore',
-    fixture: 'free_viewer',
-    requiredDevices: ['phone', 'desktop'],
-    passSignal: 'Public tennis intelligence is visible first, and upgrade/data-assist paths are clear.',
-    evidence: ['explore route', 'public detail page', 'pricing handoff', 'data assist review language'],
-  },
-]
-
-const session = sessions.find((item) => item.aliases.map(normalize).includes(normalizedSession))
+const session = customerJourneySessions.find((item) => item.aliases.includes(normalizedSession))
 const device = deviceProfiles.find((profile) => profile.id === normalizedDevice || profile.aliases.map(normalize).includes(normalizedDevice))
-const journeyById = new Map(journeys.map((journey) => [journey.id, journey]))
 const tester = options.tester || '<name>'
 const date = options.date || 'yyyy-mm-dd'
 
@@ -173,7 +47,7 @@ if (!session || !device) {
   console.log('- npm run qa:tester-packet -- day4 --device=desktop --date=2026-06-05 --tester=nick')
   console.log('')
   console.log('Available sessions:')
-  for (const item of sessions) console.log(`- ${item.id}: ${item.label} - ${item.focus}`)
+  for (const item of customerJourneySessions) console.log(`- ${item.id}: ${item.shortLabel} - ${item.focus}`)
   console.log('')
   console.log('Available devices:')
   for (const item of deviceProfiles) console.log(`- ${item.id}: ${item.label} (${item.viewport})`)
@@ -181,11 +55,11 @@ if (!session || !device) {
 }
 
 const sessionJourneys = session.journeyIds.map((journeyId) => journeyById.get(journeyId)).filter(Boolean)
-const deviceJourneys = sessionJourneys.filter((journey) => journey.requiredDevices.includes(device.id))
-const skippedJourneys = sessionJourneys.filter((journey) => !journey.requiredDevices.includes(device.id))
+const deviceJourneys = sessionJourneys.filter((journey) => journey.requiredDeviceIds.includes(device.id))
+const skippedJourneys = sessionJourneys.filter((journey) => !journey.requiredDeviceIds.includes(device.id))
 
-console.log(`${session.label}: ${session.focus}`)
-console.log(`Question: ${session.question}`)
+console.log(`${session.shortLabel}: ${session.focus}`)
+console.log(`Question: ${session.closeoutQuestion}`)
 console.log(`Tester: ${tester}`)
 console.log(`Date: ${date}`)
 console.log(`Device: ${device.label} (${device.viewport})`)
@@ -212,10 +86,15 @@ console.log('')
 console.log('Journeys To Walk On This Device:')
 for (const journey of deviceJourneys) {
   console.log(`- ${journey.label} (${journey.id})`)
-  console.log(`  Route: ${journey.route}`)
-  console.log(`  Fixture: ${journey.fixture}`)
+  console.log(`  Route: ${journey.entryRoute}`)
+  console.log(`  Fixture: ${journey.accountFixture}`)
   console.log(`  Pass: ${journey.passSignal}`)
   console.log(`  Capture: ${journey.evidence.join('; ')}`)
+  if (fixtureGateJourneyIds.has(journey.id)) {
+    console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journey.id}`)
+    console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
+    console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+  }
   console.log(`  Live card: npm run qa:live-card -- ${journey.id} --date=${date} --tester=${slug(tester)} --device=${device.value}`)
 }
 
@@ -223,7 +102,7 @@ if (skippedJourneys.length) {
   console.log('')
   console.log('Not Required For This Device:')
   for (const journey of skippedJourneys) {
-    console.log(`- ${journey.label} (${journey.id}) requires ${journey.requiredDevices.join(', ')}`)
+    console.log(`- ${journey.label} (${journey.id}) requires ${journey.requiredDeviceIds.join(', ')}`)
   }
 }
 

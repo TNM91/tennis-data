@@ -1,35 +1,11 @@
-const weeklyPlan = [
-  {
-    day: 'Day 1',
-    focus: 'Trust Loop',
-    journeyIds: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-    fixtures: ['player_plus_linked', 'coach_primary', 'coach-invite-token', 'level-up-assignment', 'level-up-completion'],
-  },
-  {
-    day: 'Day 2',
-    focus: 'Player And Coach Depth',
-    journeyIds: ['coach-lesson-support', 'player-my-lab-return-state'],
-    fixtures: ['coach_primary', 'player_plus_linked', 'linked-player-profile', 'level-up-assignment'],
-  },
-  {
-    day: 'Day 3',
-    focus: 'Captain Week',
-    journeyIds: ['captain-week-flow'],
-    fixtures: ['captain_primary', 'captain-team-week'],
-  },
-  {
-    day: 'Day 4',
-    focus: 'League And Admin',
-    journeyIds: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-    fixtures: ['league_coordinator', 'league-week', 'admin_test', 'admin-access-repair', 'data-assist-upload'],
-  },
-  {
-    day: 'Day 5',
-    focus: 'Full-Court And Free/Public Regression',
-    journeyIds: ['full-court-access-pass', 'free-public-discovery'],
-    fixtures: ['full_court_operator', 'full-court-access-state', 'free_viewer', 'data-assist-upload'],
-  },
-]
+import { customerJourneySessions } from './customer-journey-qa-data.mjs'
+
+const weeklyPlan = customerJourneySessions.map((session) => ({
+  day: session.shortLabel,
+  focus: session.focus,
+  journeyIds: session.journeyIds,
+  fixtures: session.fixtureIds,
+}))
 
 const docs = [
   'docs/customer-journey-weekly-runbook.md',

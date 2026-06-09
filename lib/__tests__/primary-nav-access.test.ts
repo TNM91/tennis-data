@@ -1,13 +1,40 @@
 import { describe, expect, it } from 'vitest'
 import { buildProductAccessState } from '../access-model'
-import { getPrimaryNavLockedLabel, getPrimaryNavLockedTitle, getPrimaryNavTarget } from '../primary-nav-access'
+import {
+  canUsePrimaryNavItem,
+  getPrimaryNavLockedLabel,
+  getPrimaryNavLockedTitle,
+  getPrimaryNavTarget,
+  getRequiredPlanForPrimaryNav,
+} from '../primary-nav-access'
 
 describe('primary nav access', () => {
-  it('routes public locked tools through join with the required plan intent', () => {
+  it('routes public locked tools through upgrade preview with the required plan intent', () => {
     const access = buildProductAccessState('public')
 
     expect(getPrimaryNavTarget('/mylab', access, false)).toEqual({
-      href: '/join?plan=player_plus&next=%2Fmylab',
+      href: '/upgrade?plan=player_plus&next=%2Fmylab',
+      locked: true,
+      requiredPlan: 'player_plus',
+    })
+  })
+
+  it('treats Tactics Tools as a Player access surface', () => {
+    const freeAccess = buildProductAccessState('member')
+    const playerAccess = buildProductAccessState('member', {
+      playerPlusSubscriptionActive: true,
+      playerPlusSubscriptionStatus: 'active',
+      captainSubscriptionActive: false,
+      captainSubscriptionStatus: 'inactive',
+      tiqTeamLeagueEntryEnabled: false,
+      tiqIndividualLeagueCreatorEnabled: false,
+    })
+
+    expect(getRequiredPlanForPrimaryNav('/tactics')).toBe('player_plus')
+    expect(canUsePrimaryNavItem(freeAccess, '/tactics')).toBe(false)
+    expect(canUsePrimaryNavItem(playerAccess, '/tactics')).toBe(true)
+    expect(getPrimaryNavTarget('/tactics', freeAccess, true)).toEqual({
+      href: '/upgrade?plan=player_plus&next=%2Ftactics',
       locked: true,
       requiredPlan: 'player_plus',
     })

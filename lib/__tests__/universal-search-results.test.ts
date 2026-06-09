@@ -84,7 +84,7 @@ describe('universal search result model', () => {
     expect(source).toContain("keywords: ['request review', 'request data review', 'data review', 'review source', 'missing data', 'refresh data']")
   })
 
-  it('routes private action results through signup or upgrade intent', () => {
+  it('routes private action results through upgrade intent', () => {
     expect(source).toContain("requiredPlan: 'captain'")
     expect(source).toContain("requiredPlan: 'player_plus'")
     expect(source).toContain("href: '/league-coordinator/tournaments'")
@@ -92,6 +92,6 @@ describe('universal search result model', () => {
     expect(source).toContain("href: '/league-coordinator'")
     expect(source).toContain("requiredPlan: 'league'")
     expect(source).toContain('getPlanUnlockHref(item.requiredPlan, destinationHref)')
-    expect(source).toContain('getPlanSignupHref(item.requiredPlan, upgradeHref)')
+    expect(source).not.toContain('getPlanSignupHref')
   })
 })

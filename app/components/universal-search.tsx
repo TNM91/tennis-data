@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useId, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/components/auth-provider'
-import { getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { getPlanUnlockHref } from '@/lib/plan-intent'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import type { ProductUsageEventName, ProductUsageEventSurface } from '@/lib/product-usage-events'
 import type { PricingPlanId } from '@/lib/pricing-plans'
@@ -431,13 +431,14 @@ function getSearchIntentEvent(query: string, group?: SearchGroup | null): { even
 }
 
 function buildResultHref(item: SearchResult, query: string, signedIn = false) {
+  void signedIn
   const q = query.trim()
   const destinationHref = appendSearchQuery(item.href, q)
 
   if (!item.requiredPlan) return destinationHref
 
   const upgradeHref = getPlanUnlockHref(item.requiredPlan, destinationHref)
-  return signedIn ? upgradeHref : getPlanSignupHref(item.requiredPlan, upgradeHref)
+  return upgradeHref
 }
 
 function appendSearchQuery(href: string, query: string) {

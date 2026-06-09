@@ -1,7 +1,8 @@
 'use client'
 
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
-import { notifyConversationParticipants, notifyInternalAdmins } from '@/lib/internal-notifications'
+import { createInternalNotifications, notifyConversationParticipants, notifyInternalAdmins } from '@/lib/internal-notifications'
+import { getSupportReplyStatus, shouldNotifySupportAdminsForReply } from '@/lib/internal-message-routing'
 import { supabase } from '@/lib/supabase'
 
 export type InternalConversationType = 'direct' | 'support' | 'league' | 'system'
@@ -542,7 +543,10 @@ export async function createSupportConversation(
     participant_role: identity.role === 'admin' ? 'admin' : 'member',
   })
 
-  await sendInternalMessage(conversation.id, identity.userId, cleanBody)
+  await sendInternalMessage(conversation.id, identity.userId, cleanBody, {
+    senderRole: identity.role,
+    skipSupportAdminNotification: true,
+  })
   await notifyInternalAdmins({
     actorUserId: identity.userId,
     title: 'New support request',
@@ -609,7 +613,9 @@ export async function createDirectConversation(
   const participantResult = await supabase.from('internal_conversation_participants').insert(participants)
   if (participantResult.error) throw new Error(participantResult.error.message)
 
-  await sendInternalMessage(conversation.id, identity.userId, cleanBody)
+  await sendInternalMessage(conversation.id, identity.userId, cleanBody, {
+    senderRole: identity.role,
+  })
   return conversation.id
 }
 
@@ -677,7 +683,9 @@ export async function createLeagueConversation(
   const participantResult = await supabase.from('internal_conversation_participants').insert(participants)
   if (participantResult.error) throw new Error(participantResult.error.message)
 
-  await sendInternalMessage(conversation.id, identity.userId, cleanBody)
+  await sendInternalMessage(conversation.id, identity.userId, cleanBody, {
+    senderRole: identity.role,
+  })
   return conversation.id
 }
 
@@ -690,10 +698,32 @@ export async function sendInternalMessage(
     notificationTitle?: string
     notificationBody?: string
     scheduleEventId?: string | null
+    senderRole?: UserRole
+    skipSupportAutoStatus?: boolean
+    skipSupportAdminNotification?: boolean
   },
 ) {
   const cleanBody = body.trim()
   if (!cleanBody) throw new Error('Add a message first.')
+
+  const conversationResult = await supabase
+    .from('internal_conversations')
+    .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, metadata, created_at, updated_at')
+    .eq('id', conversationId)
+    .maybeSingle()
+  if (conversationResult.error) throw new Error(conversationResult.error.message)
+  const conversation = (conversationResult.data ?? null) as ConversationRow | null
+  if (!conversation) throw new Error('Conversation was not found.')
+
+  let senderRole = options?.senderRole
+  if (!senderRole) {
+    const senderResult = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', senderUserId)
+      .maybeSingle()
+    senderRole = normalizeUserRole((senderResult.data as ProfileIdentityRow | null)?.role || '')
+  }
 
   const { error } = await supabase.from('internal_messages').insert({
     conversation_id: conversationId,
@@ -704,9 +734,18 @@ export async function sendInternalMessage(
 
   if (error) throw new Error(error.message)
 
+  const nextStatus = getSupportReplyStatus({
+    conversationType: conversation.conversation_type,
+    senderRole,
+    skipSupportAutoStatus: options?.skipSupportAutoStatus,
+  })
+
   await supabase
     .from('internal_conversations')
-    .update({ updated_at: new Date().toISOString() })
+    .update({
+      updated_at: new Date().toISOString(),
+      ...(nextStatus ? { status: nextStatus } : {}),
+    })
     .eq('id', conversationId)
 
   await notifyConversationParticipants({
@@ -717,6 +756,33 @@ export async function sendInternalMessage(
     body: options?.notificationBody || 'Open Messages to reply.',
     scheduleEventId: options?.scheduleEventId,
   })
+
+  if (shouldNotifySupportAdminsForReply({
+    conversationType: conversation.conversation_type,
+    senderRole,
+    skipSupportAdminNotification: options?.skipSupportAdminNotification,
+  })) {
+    const assignedAdminUserId = conversation.assigned_admin_user_id?.trim()
+    if (assignedAdminUserId) {
+      await createInternalNotifications({
+        recipientProfileIds: [assignedAdminUserId],
+        actorUserId: senderUserId,
+        notificationType: 'support',
+        title: 'Support reply needs review',
+        body: `${conversation.subject || 'Support thread'} has a new user reply.`,
+        href: `/messages?thread=${encodeURIComponent(conversationId)}`,
+        conversationId,
+      }).catch(() => undefined)
+    } else {
+      await notifyInternalAdmins({
+        actorUserId: senderUserId,
+        title: 'Support reply needs review',
+        body: `${conversation.subject || 'Support thread'} has a new user reply.`,
+        href: `/messages?thread=${encodeURIComponent(conversationId)}`,
+        conversationId,
+      })
+    }
+  }
 }
 
 export async function markInternalConversationRead(conversationId: string, userId: string) {
@@ -774,6 +840,8 @@ export async function updateInternalConversationOps(input: {
       notificationBody: status === 'closed'
         ? 'Your TenAceIQ support thread was closed.'
         : 'Open Messages to review the latest support update.',
+      senderRole: input.identity.role,
+      skipSupportAutoStatus: true,
     })
   }
 

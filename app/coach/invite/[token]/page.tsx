@@ -197,6 +197,31 @@ const invitePathSteps = [
   },
 ] as const
 
+const inviteTrustChecks = [
+  'Accepting links this player account to this coach relationship.',
+  'The coach can see coach-assigned work, synced proof, recaps, and review status for that relationship.',
+  'Private local-only Level Up logs stay off the coach review queue until the player syncs or shares them.',
+] as const
+
+const inviteAcceptanceProofChecks = [
+  'Invite page shows the expected coach relationship and invited player email.',
+  'Accepted status appears after the player signs in and accepts.',
+  'Coach Hub shows the linked player before any assigned proof is reviewed.',
+] as const
+
+function getSignedInAccountLabel(email: string, userId: string | null) {
+  if (email) return email
+  if (userId) return `Signed in account ${userId.slice(0, 8)}`
+  return 'Not signed in'
+}
+
+function getInviteAccountMatch(inviteEmail: string, signedInEmail: string, signedIn: boolean) {
+  if (!inviteEmail) return 'No email lock'
+  if (signedInEmail && signedInEmail.trim().toLowerCase() === inviteEmail.trim().toLowerCase()) return 'Email matches invite'
+  if (signedIn) return 'Signed-in email must match invite before accepting'
+  return 'Sign in with invited email'
+}
+
 export default function CoachInvitePage() {
   return (
     <SiteShell active="/coach">
@@ -227,6 +252,10 @@ function CoachInviteContent() {
   if (invite?.inviteEmail) signupParams.set('email', invite.inviteEmail)
   const playerPlusHref = `/join?${signupParams.toString()}`
   const loginHref = `/login?next=${encodeURIComponent(nextHref)}`
+  const signedInEmail = session?.user?.email ?? ''
+  const invitedEmailLabel = invite?.inviteEmail || 'Open invite'
+  const signedInAccountLabel = getSignedInAccountLabel(signedInEmail, userId)
+  const inviteAccountMatch = getInviteAccountMatch(invite?.inviteEmail ?? '', signedInEmail, Boolean(userId))
 
   const loadInvite = useCallback(async () => {
     if (!token) return
@@ -391,6 +420,51 @@ function CoachInviteContent() {
                 {invite.message}
               </div>
             ) : null}
+
+            <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach link proof">
+              <span style={pageStyles.eyebrow}>Linking proof</span>
+              <h2 style={{ margin: '8px 0 10px', color: '#0b1730', fontSize: 22, lineHeight: 1.12 }}>
+                Know what your coach can see.
+              </h2>
+              <ul style={{ margin: 0, paddingLeft: 18, color: '#435775', fontSize: 14, lineHeight: 1.65, fontWeight: 760 }}>
+                {inviteTrustChecks.map((check) => (
+                  <li key={check}>{check}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach invite acceptance proof">
+              <span style={pageStyles.eyebrow}>Acceptance proof</span>
+              <h2 style={{ margin: '8px 0 10px', color: '#0b1730', fontSize: 22, lineHeight: 1.12 }}>
+                Confirm the link before testing assignments.
+              </h2>
+              <ul style={{ margin: 0, paddingLeft: 18, color: '#435775', fontSize: 14, lineHeight: 1.65, fontWeight: 760 }}>
+                {inviteAcceptanceProofChecks.map((check) => (
+                  <li key={check}>{check}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach invite account proof cue">
+              <span style={pageStyles.eyebrow}>Account proof cue</span>
+              <h2 style={{ margin: '8px 0 10px', color: '#0b1730', fontSize: 22, lineHeight: 1.12 }}>
+                Confirm the account before accepting.
+              </h2>
+              <div style={{ display: 'grid', gap: 10, color: '#435775', fontSize: 14, lineHeight: 1.45, fontWeight: 760 }}>
+                <div>
+                  <strong style={{ color: '#0b1730' }}>Invite:</strong> {statusLabel} for {studentName}
+                </div>
+                <div>
+                  <strong style={{ color: '#0b1730' }}>Invited email:</strong> {invitedEmailLabel}
+                </div>
+                <div>
+                  <strong style={{ color: '#0b1730' }}>Signed-in account:</strong> {signedInAccountLabel}
+                </div>
+                <div>
+                  <strong style={{ color: '#0b1730' }}>Acceptance check:</strong> {inviteAccountMatch}
+                </div>
+              </div>
+            </div>
 
             <p style={{ ...pageStyles.copy, marginTop: 18, fontSize: 14 }}>
               The printed workbook remains a standalone development tool. Your coach invite unlocks assigned work and

@@ -184,6 +184,38 @@ type CaptainCommandStep = {
   premium?: boolean
 }
 
+type CaptainSaveSignal = {
+  label: string
+  state: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
+}
+
+const CAPTAIN_LOCAL_SYNC_PROOF_CHECKS = [
+  'Browser-saved: selected team week, lineups, event notes, response status, and week status.',
+  'Linked context: roster, schedule, and team history from profile links or reviewed Data Assist imports.',
+  'Not account sync yet: browser-saved week work should not be treated as cross-device proof.',
+] as const
+
+const CAPTAIN_DECISION_HANDOFF_PROOF_STEPS = [
+  {
+    label: 'Availability',
+    detail: 'Start with who is in, out, maybe, or still needs a follow-up.',
+  },
+  {
+    label: 'Lineup option',
+    detail: 'Save at least one playable court plan before messaging the team.',
+  },
+  {
+    label: 'Scenario check',
+    detail: 'Compare one projection or alternative when the lineup call is not obvious.',
+  },
+  {
+    label: 'Team send',
+    detail: 'Open the weekly brief, team brief, or message prep after the decision is ready.',
+  },
+] as const
+
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
   'Set your player identity in My Lab so Captain can find your profile team.',
   'Upload a reviewed team summary or schedule through Data Assist when roster or match history is missing.',
@@ -1392,6 +1424,73 @@ function CaptainHubContent() {
     workspaceState.messagingReady,
   ])
 
+  const captainSaveSignals = useMemo<CaptainSaveSignal[]>(() => [
+    {
+      label: 'Team scope',
+      state: hasTeamScope ? 'Remembered locally' : 'Not set',
+      detail: hasTeamScope
+        ? 'This browser remembers the selected team week so the hub can resume the same captain lane.'
+        : 'Choose a team before lineup, notes, and message prep can attach to a week.',
+      tone: hasTeamScope ? 'good' : 'info',
+    },
+    {
+      label: 'Week work',
+      state: workspaceState.briefReady ? 'Browser proof' : 'Not saved yet',
+      detail: workspaceState.briefReady
+        ? 'Lineups, event notes, response status, and week status are browser-saved proof until account sync is added.'
+        : 'Lineup and message prep will appear here after this browser saves weekly context.',
+      tone: workspaceState.briefReady ? 'warn' : 'info',
+    },
+    {
+      label: 'Team history',
+      state: selectedFromCaptainScope ? 'Linked context' : 'Needs data',
+      detail: selectedFromCaptainScope
+        ? `Roster and schedule scope comes from ${selectedCaptainScopeSourceLabel}. Data Assist can refresh it after review.`
+        : 'Use a linked player profile, roster history, or reviewed Data Assist upload for team context.',
+      tone: selectedFromCaptainScope ? 'good' : 'warn',
+    },
+  ], [hasTeamScope, selectedCaptainScopeSourceLabel, selectedFromCaptainScope, workspaceState.briefReady])
+
+  const captainDecisionHandoffProof = useMemo(() => CAPTAIN_DECISION_HANDOFF_PROOF_STEPS.map((step) => {
+    if (step.label === 'Availability') {
+      return {
+        ...step,
+        state: workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : 'Clear',
+        tone: workspaceState.pendingResponseCount > 0 ? 'warn' : 'good',
+      }
+    }
+
+    if (step.label === 'Lineup option') {
+      return {
+        ...step,
+        state: workspaceState.lineupReady ? `${workspaceState.lineupCount} saved` : 'Draft needed',
+        tone: workspaceState.lineupReady ? 'good' : 'info',
+      }
+    }
+
+    if (step.label === 'Scenario check') {
+      return {
+        ...step,
+        state: workspaceState.scenarioReady || matches.length > 0 ? 'Available' : 'Needs match context',
+        tone: workspaceState.scenarioReady || matches.length > 0 ? 'good' : 'info',
+      }
+    }
+
+    return {
+      ...step,
+      state: workspaceState.messagingReady || workspaceState.briefReady ? 'Ready' : 'Needs lineup or event details',
+      tone: workspaceState.messagingReady || workspaceState.briefReady ? 'good' : 'warn',
+    }
+  }), [
+    matches.length,
+    workspaceState.briefReady,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+    workspaceState.pendingResponseCount,
+    workspaceState.scenarioReady,
+  ])
+
   const captainReadinessChecks = useMemo(() => [
     {
       label: 'Team scope',
@@ -1727,6 +1826,65 @@ function CaptainHubContent() {
             detail={workspaceState.briefReady ? 'Open the captain or team brief' : 'Add lineup, event, or response context'}
             tone={workspaceState.briefReady ? 'good' : 'info'}
           />
+        </section>
+
+        <section style={captainSaveStatusShell} aria-label="Captain save status">
+          <div style={captainSaveStatusHeader}>
+            <div>
+              <div style={sectionKicker}>Save status</div>
+              <h2 style={captainSaveStatusTitle}>Know what carries forward.</h2>
+            </div>
+            <span style={badgeSlate}>Local honesty</span>
+          </div>
+
+          <div style={captainSaveStatusGrid}>
+            {captainSaveSignals.map((signal) => (
+              <div key={signal.label} style={captainSaveStatusCard}>
+                <div style={captainSaveStatusTop}>
+                  <span style={captainSaveStatusLabel}>{signal.label}</span>
+                  <span style={signal.tone === 'good' ? badgeGreen : signal.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {signal.state}
+                  </span>
+                </div>
+                <p style={captainSaveStatusText}>{signal.detail}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={captainLocalSyncProofStyle} aria-label="Captain local sync proof cue">
+            <div>
+              <span style={captainSaveStatusLabel}>Captain local sync proof</span>
+              <h3 style={captainLocalSyncProofTitleStyle}>Separate browser proof from linked team history.</h3>
+            </div>
+            <div style={captainLocalSyncProofGridStyle}>
+              {CAPTAIN_LOCAL_SYNC_PROOF_CHECKS.map((check) => (
+                <div key={check} style={captainLocalSyncProofItemStyle}>
+                  <span style={captainLocalSyncProofDotStyle} aria-hidden="true" />
+                  <span>{check}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={captainDecisionHandoffProofStyle} aria-label="Captain decision handoff proof cue">
+            <div>
+              <span style={captainSaveStatusLabel}>Captain decision handoff proof cue</span>
+              <h3 style={captainLocalSyncProofTitleStyle}>Move from availability to lineup to team send.</h3>
+            </div>
+            <div style={captainDecisionHandoffProofGridStyle}>
+              {captainDecisionHandoffProof.map((step) => (
+                <div key={step.label} style={captainDecisionHandoffProofItemStyle}>
+                  <div style={captainDecisionHandoffProofTopStyle}>
+                    <strong>{step.label}</strong>
+                    <span style={step.tone === 'good' ? badgeGreen : step.tone === 'warn' ? warnBadge : badgeBlue}>
+                      {step.state}
+                    </span>
+                  </div>
+                  <span>{step.detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section style={commandCenterShell}>
@@ -2866,6 +3024,162 @@ const statusDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.6,
+}
+
+const captainSaveStatusShell: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-panel-bg-strong) 94%)',
+}
+
+const captainSaveStatusHeader: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+}
+
+const captainSaveStatusTitle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  fontWeight: 900,
+  lineHeight: 1.15,
+  letterSpacing: 0,
+}
+
+const captainSaveStatusGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: 12,
+}
+
+const captainSaveStatusCard: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const captainSaveStatusTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+}
+
+const captainSaveStatusLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
+const captainSaveStatusText: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 700,
+  lineHeight: 1.6,
+}
+
+const captainLocalSyncProofStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
+const captainLocalSyncProofTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 16,
+  fontWeight: 900,
+  lineHeight: 1.2,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainLocalSyncProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainLocalSyncProofItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 12px) minmax(0, 1fr)',
+  gap: 8,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainLocalSyncProofDotStyle: CSSProperties = {
+  width: 8,
+  height: 8,
+  marginTop: 6,
+  borderRadius: '50%',
+  background: 'var(--brand-green)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.10)',
+}
+
+const captainDecisionHandoffProofStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(116,190,255,0.06)',
+}
+
+const captainDecisionHandoffProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainDecisionHandoffProofItemStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 8,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.55,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionHandoffProofTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const commandCenterShell: CSSProperties = {

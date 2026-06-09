@@ -683,6 +683,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
         </div>
       ) : null}
       <LevelUpSyncStatus state={completionSyncState} />
+      <LevelUpLocalSyncProof />
       <LevelUpHero identityTitle={identityTitle} recommendationCopy={profile.recommendationCopy} />
 
       <LevelUpCoachAssignmentBanner
@@ -8389,6 +8390,22 @@ function LevelUpSyncStatus({ state }: { state: CompletionSyncState }) {
     <aside className={styles.levelUpSyncStatus} data-sync-status={state.status} aria-live="polite">
       <span>{state.status === 'synced' ? 'History synced' : state.status === 'syncing' ? 'Saving proof' : 'Proof saved'}</span>
       <strong>{state.message}</strong>
+    </aside>
+  )
+}
+
+function LevelUpLocalSyncProof() {
+  return (
+    <aside className={styles.levelUpLocalSyncProof} aria-label="Level Up local sync proof">
+      <div>
+        <span>Level Up local sync proof</span>
+        <strong>Know what follows you.</strong>
+      </div>
+      <div>
+        <p>Saved first: rating, tiny note, timer, focus, and proof history stay in this browser immediately.</p>
+        <p>Syncs when connected: Player+ history or coach-invited proof can reach Level Up sessions after sign-in.</p>
+        <p>Local-only in v1: favorites and copied coach-update sent markers stay on this device for now.</p>
+      </div>
     </aside>
   )
 }

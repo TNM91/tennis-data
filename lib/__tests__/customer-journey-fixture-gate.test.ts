@@ -1,21 +1,42 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const packageSource = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
 const qaStatusScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-status.mjs'), 'utf8')
 const gateScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-gate.mjs'), 'utf8')
+const authSmokeScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-fixture-auth-smoke.mjs'), 'utf8')
+const liveCardScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-live-card.mjs'), 'utf8')
+const qaDataScriptSource = readFileSync(join(process.cwd(), 'scripts/customer-journey-qa-data.mjs'), 'utf8')
 const qaIndexSource = readFileSync(join(process.cwd(), 'docs/customer-journey-qa-index.md'), 'utf8')
 const fixturesDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-fixtures.md'), 'utf8')
 const resultsDocSource = readFileSync(join(process.cwd(), 'docs/customer-journey-test-results.md'), 'utf8')
+const scriptDir = join(process.cwd(), 'scripts')
+const fixtureGateSetSources = readdirSync(scriptDir)
+  .filter((file) => file.endsWith('.mjs'))
+  .map((file) => ({
+    file,
+    source: readFileSync(join(scriptDir, file), 'utf8'),
+  }))
+  .filter(({ source }) => /fixtureGateJourneyIds = new Set/.test(source))
 
 describe('customer journey fixture gate', () => {
   it('adds an executable Day 1 coach-player fixture gate command', () => {
     expect(packageSource).toContain('"qa:fixture-gate": "node scripts/customer-journey-fixture-gate.mjs"')
+    expect(packageSource).toContain('"qa:fixture-auth-smoke": "node scripts/customer-journey-fixture-auth-smoke.mjs"')
     expect(qaStatusScriptSource).toContain('qa:fixture-gate')
+    expect(qaStatusScriptSource).toContain('qa:fixture-auth-smoke')
+    expect(qaStatusScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')
     expect(qaIndexSource).toContain('npm run qa:fixture-gate')
+    expect(qaIndexSource).toContain('npm run qa:fixture-auth-smoke')
+    expect(qaIndexSource).toContain('npm run qa:fixture-auth-smoke -- --env')
     expect(fixturesDocSource).toContain('npm run qa:fixture-gate -- coach-player-assigned-challenge')
+    expect(fixturesDocSource).toContain('npm run qa:fixture-auth-smoke -- --env')
+    expect(fixturesDocSource).toContain('TENACEIQ_QA_COACH_EMAIL')
+    expect(fixturesDocSource).toContain('TENACEIQ_QA_COACH_PASSWORD')
     expect(resultsDocSource).toContain('npm run qa:fixture-gate -- <journey|fixture|route|search>')
+    expect(resultsDocSource).toContain('npm run qa:fixture-auth-smoke')
+    expect(resultsDocSource).toContain('npm run qa:fixture-auth-smoke -- --env')
     expect(gateScriptSource).toContain('Day 1 Coach-Player Fixture Gate')
     expect(gateScriptSource).toContain('coach-player-assigned-challenge')
     expect(gateScriptSource).toContain('coach_primary')
@@ -24,12 +45,56 @@ describe('customer journey fixture gate', () => {
     expect(gateScriptSource).toContain('level-up-assignment')
     expect(gateScriptSource).toContain('level-up-completion')
     expect(gateScriptSource).toContain('Coach review queue shows the same proof signal')
+    expect(gateScriptSource).toContain('If a ready signal is missing:')
+    expect(gateScriptSource).toContain('/login?next=/coach')
+    expect(gateScriptSource).toContain('Repair coach authentication, access, or Coach Hub entitlement')
+    expect(gateScriptSource).toContain('Repair Player access or linked-player profile')
+    expect(gateScriptSource).toContain('Create a fresh invite token')
+    expect(gateScriptSource).toContain('do not substitute a generic drill screenshot')
+    expect(gateScriptSource).toContain('capture the save/sync status before coach review')
     expect(gateScriptSource).toContain('npm run qa:live-card -- coach-player-assigned-challenge')
+    expect(gateScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')
+    expect(gateScriptSource).toContain('npm run qa:fixture-auth-smoke')
+    expect(authSmokeScriptSource).toContain('TENACEIQ_QA_COACH_EMAIL')
+    expect(authSmokeScriptSource).toContain('TENACEIQ_QA_COACH_PASSWORD')
+    expect(authSmokeScriptSource).toContain('TENACEIQ_QA_PLAYER_EMAIL')
+    expect(authSmokeScriptSource).toContain('TENACEIQ_QA_PLAYER_PASSWORD')
+    expect(authSmokeScriptSource).toContain('day1')
+    expect(authSmokeScriptSource).toContain('player_plus_linked')
+    expect(authSmokeScriptSource).toContain('/mylab')
+    expect(authSmokeScriptSource).toContain('TenAceIQ Fixture Auth Smoke Env Contract')
+    expect(authSmokeScriptSource).toContain('Store real values in .env.local or the shell only')
+    expect(authSmokeScriptSource).toContain('Credential values are intentionally never printed')
+    expect(authSmokeScriptSource).toContain('missing credential env')
+    expect(authSmokeScriptSource).toContain('Coach Hub signal visible')
+    expect(authSmokeScriptSource).toContain('My Lab linked-player signal visible')
+    expect(liveCardScriptSource).toContain('Fixture preflight:')
+    expect(liveCardScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')
+    expect(liveCardScriptSource).toContain('auth smoke blocked')
+    expect(liveCardScriptSource).toContain('npm run qa:fixture-gate -- ')
+    expect(liveCardScriptSource).toContain('redirected to login')
+    expect(liveCardScriptSource).toContain('fixture shape unclear')
   })
 
   it('keeps fixture-gap and sync-gap closeout rules visible', () => {
     expect(gateScriptSource).toContain('open fixture-gap')
     expect(gateScriptSource).toContain('if a ready signal is missing')
     expect(gateScriptSource).toContain('sync-gap or data-propagation-gap')
+  })
+
+  it('keeps fixture-auth preflight journey sets aligned across QA commands', () => {
+    expect(fixtureGateSetSources.map(({ file }) => file)).toEqual(['customer-journey-qa-data.mjs'])
+
+    for (const { file, source } of fixtureGateSetSources) {
+      const match = source.match(/fixtureGateJourneyIds = new Set\(\[([^\]]*)\]\)/)
+      expect(match?.[1], `${file} should declare fixture-gated journeys with a literal set`).toBeTruthy()
+
+      const journeyIds = [...match![1].matchAll(/'([^']+)'/g)].map((item) => item[1])
+      expect(journeyIds, `${file} fixture-gated journey drifted`).toEqual(['coach-player-assigned-challenge'])
+    }
+
+    expect(qaDataScriptSource).toContain('fixtureGateJourneyIds')
+    expect(qaDataScriptSource).toContain('customerJourneySessions')
+    expect(qaDataScriptSource).toContain('customerJourneyDetails')
   })
 })

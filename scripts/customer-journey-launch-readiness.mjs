@@ -1,40 +1,37 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fixtureGateJourneyIds, plannedJourneyIds } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
-const plannedJourneys = [
-  'player-level-up-mobile-loop',
-  'coach-player-assigned-challenge',
-  'coach-lesson-support',
-  'player-my-lab-return-state',
-  'captain-week-flow',
-  'league-result-to-public-context',
-  'full-court-access-pass',
-  'admin-access-and-data-quality',
-  'free-public-discovery',
-]
 
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const rows = source
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
   .map(parseMarkdownRow)
-  .filter((row) => plannedJourneys.includes(row.journeyId))
+  .filter((row) => plannedJourneyIds.includes(row.journeyId))
 
 const passJourneyIds = new Set(rows.filter((row) => row.result === 'pass').map((row) => row.journeyId))
-const missingPassJourneyIds = plannedJourneys.filter((journeyId) => !passJourneyIds.has(journeyId))
+const missingPassJourneyIds = plannedJourneyIds.filter((journeyId) => !passJourneyIds.has(journeyId))
 const openHighPriorityRows = rows.filter((row) => (row.severity === 'p0' || row.severity === 'p1') && row.result !== 'pass')
 
 console.log('TenAceIQ Customer Journey Launch Readiness')
 console.log('')
 console.log(`Source: ${resultsPath}`)
-console.log(`Pass journeys: ${passJourneyIds.size}/${plannedJourneys.length}`)
+console.log(`Pass journeys: ${passJourneyIds.size}/${plannedJourneyIds.length}`)
 console.log(`Open p0/p1 rows: ${openHighPriorityRows.length}`)
 console.log('')
 
 if (missingPassJourneyIds.length) {
   console.log('Journeys missing pass evidence:')
-  for (const journeyId of missingPassJourneyIds) console.log(`- ${journeyId}`)
+  for (const journeyId of missingPassJourneyIds) {
+    console.log(`- ${journeyId}`)
+    if (fixtureGateJourneyIds.has(journeyId)) {
+      console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
+      console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
+      console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+    }
+  }
 } else {
   console.log('Journeys missing pass evidence:')
   console.log('- None')

@@ -1,5 +1,5 @@
 import type { ProductAccessState } from './access-model'
-import { getPlanSignupHref, getPlanUnlockHref } from './plan-intent'
+import { getPlanUnlockHref } from './plan-intent'
 import type { PricingPlanId } from './pricing-plans'
 import { getMembershipTier, PRODUCT_MODE_LANGUAGE } from './product-story'
 
@@ -14,8 +14,8 @@ export const PRIMARY_NAV_VISUALS: Record<string, { step: string; intent: string;
 }
 
 export function getRequiredPlanForPrimaryNav(href: string): PricingPlanId | null {
-  if (href === '/mylab' || href === '/matchup') return 'player_plus'
-  if (href === '/coach' || href === '/tactics') return 'coach'
+  if (href === '/mylab' || href === '/matchup' || href === '/tactics') return 'player_plus'
+  if (href === '/coach') return 'coach'
   if (href === '/captain') return 'captain'
   if (href === '/league-coordinator') return 'league'
   return null
@@ -44,6 +44,7 @@ export function getPrimaryNavLockedTitle(label: string, requiredPlan: PricingPla
 }
 
 export function getPrimaryNavTarget(href: string, access: ProductAccessState, authenticated: boolean) {
+  void authenticated
   const requiredPlan = getRequiredPlanForPrimaryNav(href)
   const locked = Boolean(requiredPlan && !canUsePrimaryNavItem(access, href))
 
@@ -52,7 +53,7 @@ export function getPrimaryNavTarget(href: string, access: ProductAccessState, au
   }
 
   return {
-    href: authenticated ? getPlanUnlockHref(requiredPlan, href) : getPlanSignupHref(requiredPlan, href),
+    href: getPlanUnlockHref(requiredPlan, href),
     locked,
     requiredPlan,
   }

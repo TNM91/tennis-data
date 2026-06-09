@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneySessions, fixtureGateJourneyIds } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const args = parseArgs(process.argv.slice(2))
@@ -7,43 +8,13 @@ const rawDayQuery = args.positionals[0]?.trim().toLowerCase() ?? ''
 const normalizedDayQuery = rawDayQuery.replace(/\s+/g, '').replace('-', '')
 const dateFilter = args.flags.date ?? ''
 
-const sessions = [
-  {
-    id: 'day1',
-    aliases: ['1', 'day1', 'trustloop'],
-    label: 'Day 1',
-    focus: 'Trust Loop',
-    journeyIds: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    aliases: ['2', 'day2', 'playercoach'],
-    label: 'Day 2',
-    focus: 'Player And Coach Depth',
-    journeyIds: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    aliases: ['3', 'day3', 'captain'],
-    label: 'Day 3',
-    focus: 'Captain Week',
-    journeyIds: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    aliases: ['4', 'day4', 'leagueadmin'],
-    label: 'Day 4',
-    focus: 'League And Admin',
-    journeyIds: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    aliases: ['5', 'day5', 'regression'],
-    label: 'Day 5',
-    focus: 'Full-Court And Free/Public Regression',
-    journeyIds: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
+const sessions = customerJourneySessions.map((session) => ({
+  id: session.id,
+  aliases: session.aliases,
+  label: session.shortLabel,
+  focus: session.focus,
+  journeyIds: session.journeyIds,
+}))
 
 const plannedJourneyIds = sessions.flatMap((session) => session.journeyIds)
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
@@ -100,6 +71,7 @@ function printSessionCloseout(session) {
   const missingResultJourneyIds = session.journeyIds.filter((journeyId) => !testedJourneyIds.has(journeyId))
   const missingPassJourneyIds = session.journeyIds.filter((journeyId) => !passJourneyIds.has(journeyId))
   const openRows = sessionRows.filter((row) => row.result !== 'pass')
+  const openFixtureRows = openRows.filter((row) => row.category === 'fixture-gap')
   const openHighPriorityRows = openRows.filter((row) => row.severity === 'p0' || row.severity === 'p1')
   const missingEvidenceRows = sessionRows.filter((row) => !row.screenshotOrVideo)
   const missingNextActionRows = openRows.filter((row) => !row.nextAction)
@@ -118,6 +90,7 @@ function printSessionCloseout(session) {
   console.log(`  Missing result rows: ${missingResultJourneyIds.length}`)
   console.log(`  Missing pass evidence: ${missingPassJourneyIds.length}`)
   console.log(`  Missing screenshot/video: ${missingEvidenceRows.length}`)
+  console.log(`  Fixture blockers: ${openFixtureRows.length}`)
   console.log(`  Open p0/p1: ${openHighPriorityRows.length}`)
   console.log(`  Open rows missing next action: ${missingNextActionRows.length}`)
   console.log('  Journey closeout:')
@@ -139,6 +112,13 @@ function printSessionCloseout(session) {
 
       for (const row of openJourneyRows) {
         console.log(`    Open: ${row.severity || 'unscored'} ${row.result || 'unknown'} ${row.category || 'uncategorized'}`)
+        if (row.category === 'fixture-gap') {
+          console.log(`    Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
+          if (fixtureGateJourneyIds.has(journeyId)) {
+            console.log('    Auth env: npm run qa:fixture-auth-smoke -- --env')
+            console.log('    Auth smoke: npm run qa:fixture-auth-smoke')
+          }
+        }
         console.log(`    Next: ${row.nextAction || 'add a next action before closeout'}`)
       }
     }
@@ -149,7 +129,14 @@ function printSessionCloseout(session) {
   if (retestJourneyIds.length) {
     console.log('  Retest queue:')
     for (const journeyId of retestJourneyIds) {
-      console.log(`  - npm run qa:retest -- ${journeyId}`)
+      const hasFixtureBlocker = openFixtureRows.some((row) => row.journeyId === journeyId)
+      if (hasFixtureBlocker && fixtureGateJourneyIds.has(journeyId)) {
+        console.log(`  - npm run qa:fixture-gate -- ${journeyId}`)
+        console.log('  - npm run qa:fixture-auth-smoke -- --env')
+        console.log('  - npm run qa:fixture-auth-smoke')
+        continue
+      }
+      console.log(`  - ${hasFixtureBlocker ? `npm run qa:fixture-gate -- ${journeyId}` : `npm run qa:retest -- ${journeyId}`}`)
     }
     console.log(`  - npm run qa:retest -- ${session.id}`)
   }

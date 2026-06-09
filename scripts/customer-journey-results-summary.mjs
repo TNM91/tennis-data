@@ -1,18 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fixtureGateJourneyIds, plannedJourneyIds } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
-const plannedJourneys = [
-  'player-level-up-mobile-loop',
-  'coach-player-assigned-challenge',
-  'coach-lesson-support',
-  'player-my-lab-return-state',
-  'captain-week-flow',
-  'league-result-to-public-context',
-  'full-court-access-pass',
-  'admin-access-and-data-quality',
-  'free-public-discovery',
-]
 const statuses = ['pass', 'fail', 'blocked', 'needs-follow-up']
 
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
@@ -20,7 +10,7 @@ const rows = source
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
   .map(parseMarkdownRow)
-  .filter((row) => plannedJourneys.includes(row.journeyId))
+  .filter((row) => plannedJourneyIds.includes(row.journeyId))
 
 const byStatus = Object.fromEntries(statuses.map((status) => [status, 0]))
 const testedJourneyIds = new Set()
@@ -35,13 +25,14 @@ for (const row of rows) {
   }
 }
 
-const missingJourneyIds = plannedJourneys.filter((journeyId) => !testedJourneyIds.has(journeyId))
+const missingJourneyIds = plannedJourneyIds.filter((journeyId) => !testedJourneyIds.has(journeyId))
+const fixtureGapRows = rows.filter((row) => row.result !== 'pass' && row.category === 'fixture-gap')
 
 console.log('TenAceIQ Customer Journey Result Summary')
 console.log('')
 console.log(`Source: ${resultsPath}`)
 console.log(`Ledger rows found: ${rows.length}`)
-console.log(`Journeys with at least one result: ${testedJourneyIds.size}/${plannedJourneys.length}`)
+console.log(`Journeys with at least one result: ${testedJourneyIds.size}/${plannedJourneyIds.length}`)
 console.log('')
 
 console.log('By result:')
@@ -70,6 +61,19 @@ if (highPriorityOpenRows.length === 0) {
 }
 
 console.log('')
+console.log('Open fixture-gap rows:')
+if (fixtureGapRows.length === 0) {
+  console.log('- None')
+} else {
+  for (const row of fixtureGapRows) {
+    console.log(`- ${row.result}: ${row.journeyId}`)
+    console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
+    printFixtureAuthCommands(row.journeyId, '  ')
+    console.log(`  Next action: ${row.nextAction || 'missing next action'}`)
+  }
+}
+
+console.log('')
 console.log('Closeout rule: every journey needs a pass row before the week is closed, and every p0/p1 needs a fix or explicit launch decision.')
 
 function parseMarkdownRow(line) {
@@ -92,4 +96,10 @@ function parseMarkdownRow(line) {
     notes: cells[10] ?? '',
     nextAction: cells[11] ?? '',
   }
+}
+
+function printFixtureAuthCommands(journeyId, indent) {
+  if (!fixtureGateJourneyIds.has(journeyId)) return
+  console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)
+  console.log(`${indent}Auth smoke: npm run qa:fixture-auth-smoke`)
 }

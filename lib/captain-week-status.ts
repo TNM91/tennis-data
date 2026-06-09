@@ -22,7 +22,7 @@ type StoredCaptainWeekStatus = CaptainWeekStatusScope & {
 const CAPTAIN_WEEK_STATUS_STORAGE_KEY = 'tenaceiq_captain_week_status'
 
 function safePart(value: string | null | undefined) {
-  return (value || '').trim().toLowerCase() || '—'
+  return (value || '').trim().toLowerCase() || 'empty'
 }
 
 export function buildCaptainWeekStatusKey(scope: CaptainWeekStatusScope) {

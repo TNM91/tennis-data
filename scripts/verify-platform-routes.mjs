@@ -39,11 +39,13 @@ const routeChecks = [
   {
     tier: 'Player',
     route: '/mylab',
+    requiresAuth: true,
     expectedAny: ['My Lab', 'Player', 'Unlock My Lab'],
   },
   {
     tier: 'Player',
     route: '/matchup',
+    requiresAuth: true,
     expectedAny: ['Matchup', 'Player', 'Compare'],
   },
   {
@@ -54,11 +56,13 @@ const routeChecks = [
   {
     tier: 'Coach',
     route: '/coach',
+    requiresAuth: true,
     expectedAny: ['Coach', 'students', 'assignments', 'Unlock Coach'],
   },
   {
     tier: 'Coach',
     route: '/tactics',
+    requiresAuth: true,
     expectedAny: ['Tactical', 'Coach', 'Captain'],
   },
   {
@@ -69,31 +73,37 @@ const routeChecks = [
   {
     tier: 'Captain',
     route: '/captain',
+    requiresAuth: true,
     expectedAny: ['Captain', 'lineup', 'team'],
   },
   {
     tier: 'Captain',
     route: '/captain/lineup-builder',
+    requiresAuth: true,
     expectedAny: ['Lineup', 'Captain', 'team'],
   },
   {
     tier: 'League',
     route: '/league-coordinator',
+    requiresAuth: true,
     expectedAny: ['League', 'Coordinator', 'season'],
   },
   {
     tier: 'League',
     route: '/league-coordinator/results',
+    requiresAuth: true,
     expectedAny: ['Results', 'League', 'Team'],
   },
   {
     tier: 'Admin',
     route: '/admin',
+    requiresAuth: true,
     expectedAny: ['Admin', 'Access', 'Import'],
   },
   {
     tier: 'Admin',
     route: '/admin/access',
+    requiresAuth: true,
     expectedAny: ['Admin Access', 'entitlements', 'League Office', 'TENACEIQ ACCESS', 'Sign in'],
   },
 ]
@@ -101,6 +111,7 @@ const routeChecks = [
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
 const findings = []
+const authRedirects = []
 
 page.on('console', (message) => {
   if (message.type() !== 'error') return
@@ -124,6 +135,28 @@ try {
 
       const text = await page.locator('body').innerText({ timeout: 10_000 })
       const compactText = text.replace(/\s+/g, ' ').trim()
+      const currentUrl = new URL(page.url())
+      const redirectedToLogin = currentUrl.pathname === '/login' && currentUrl.searchParams.get('next') === check.route
+
+      if (redirectedToLogin) {
+        if (check.requiresAuth) {
+          authRedirects.push({
+            route: check.route,
+            tier: check.tier,
+            redirectedTo: `${currentUrl.pathname}?next=${currentUrl.searchParams.get('next')}`,
+          })
+          continue
+        }
+
+        findings.push({
+          route: check.route,
+          tier: check.tier,
+          type: 'unexpected-auth-redirect',
+          text: compactText.slice(0, 500),
+        })
+        continue
+      }
+
       const matched = check.expectedAny.some((needle) => compactText.toLowerCase().includes(needle.toLowerCase()))
 
       if (!compactText || compactText === 'PREPARING TENACEIQ...' || compactText.length < 40) {
@@ -164,5 +197,6 @@ console.log(JSON.stringify({
   ok: true,
   baseUrl,
   checked: routeChecks.length,
+  authRedirects,
   tiers: [...new Set(routeChecks.map((check) => check.tier))],
 }, null, 2))

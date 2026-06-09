@@ -1,61 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, normalizeQaQuery, tierAliases } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
-const normalizedQuery = rawQuery.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+const normalizedQuery = normalizeQaQuery(rawQuery)
 
-const tiers = [
-  {
-    id: 'free',
-    aliases: ['free', 'visitor', 'public'],
-    label: 'Free',
-    fixture: 'free_viewer',
-    journeys: ['free-public-discovery'],
-  },
-  {
-    id: 'player_plus',
-    aliases: ['player', 'player-plus', 'playerplus', 'player_plus'],
-    label: 'Player',
-    fixture: 'player_plus_linked',
-    journeys: ['player-level-up-mobile-loop', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'coach',
-    aliases: ['coach', 'coaches'],
-    label: 'Coach',
-    fixture: 'coach_primary',
-    journeys: ['coach-player-assigned-challenge', 'coach-lesson-support'],
-  },
-  {
-    id: 'captain',
-    aliases: ['captain', 'team-captain'],
-    label: 'Captain',
-    fixture: 'captain_primary',
-    journeys: ['captain-week-flow'],
-  },
-  {
-    id: 'league',
-    aliases: ['league', 'coordinator', 'league-coordinator'],
-    label: 'League',
-    fixture: 'league_coordinator',
-    journeys: ['league-result-to-public-context'],
-  },
-  {
-    id: 'full_court',
-    aliases: ['full-court', 'fullcourt', 'full_court', 'all-access'],
-    label: 'Full-Court',
-    fixture: 'full_court_operator',
-    journeys: ['full-court-access-pass'],
-  },
-  {
-    id: 'admin_internal',
-    aliases: ['admin', 'internal', 'admin-internal', 'admin_internal'],
-    label: 'Admin/Internal',
-    fixture: 'admin_test',
-    journeys: ['admin-access-and-data-quality'],
-  },
-]
+const tierOrder = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court', 'admin_internal']
+const tiers = tierOrder.map(buildTier).filter((tier) => tier.journeys.length)
 
 const plannedJourneyIds = tiers.flatMap((tier) => tier.journeys)
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
@@ -93,9 +45,28 @@ console.log('- npm run qa:launch')
 function getSelectedTiers() {
   if (!rawQuery) return tiers
 
-  const tier = tiers.find((item) => item.aliases.includes(normalizedQuery) || item.id.replace(/_/g, '-') === normalizedQuery)
+  const tierLabel = tierAliases.get(normalizedQuery)
+  const tier = tiers.find((item) => item.aliases.includes(normalizedQuery) || item.label === tierLabel)
 
   return tier ? [tier] : []
+}
+
+function buildTier(id) {
+  const journeys = customerJourneyDetails.filter((journey) => journey.tierId === id)
+  const label = journeys[0]?.tier ?? id
+  const aliases = new Set([normalizeQaQuery(id), normalizeQaQuery(id.replace(/_/g, '-')), normalizeQaQuery(label)])
+
+  for (const [alias, aliasLabel] of tierAliases) {
+    if (aliasLabel === label) aliases.add(alias)
+  }
+
+  return {
+    id,
+    aliases: [...aliases],
+    label,
+    fixture: journeys[0]?.accountFixture ?? 'missing fixture',
+    journeys: journeys.map((journey) => journey.id),
+  }
 }
 
 function printTierStatus(tier) {

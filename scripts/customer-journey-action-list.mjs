@@ -1,40 +1,26 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import {
+  fixtureGateJourneyIds,
+  journeyById,
+  normalizeQaQuery,
+  plannedJourneyIds,
+  resultRank,
+  sessionByJourneyId,
+  severityRank,
+  tierAliases,
+} from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
-const plannedJourneys = [
-  'player-level-up-mobile-loop',
-  'coach-player-assigned-challenge',
-  'coach-lesson-support',
-  'player-my-lab-return-state',
-  'captain-week-flow',
-  'league-result-to-public-context',
-  'full-court-access-pass',
-  'admin-access-and-data-quality',
-  'free-public-discovery',
-]
-const severityRank = {
-  p0: 0,
-  p1: 1,
-  p2: 2,
-  p3: 3,
-  '': 4,
-}
-const resultRank = {
-  fail: 0,
-  blocked: 1,
-  'needs-follow-up': 2,
-  pass: 3,
-  '': 4,
-}
+const normalizedQuery = normalizeQaQuery(rawQuery)
 
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const rows = source
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
   .map(parseMarkdownRow)
-  .filter((row) => plannedJourneys.includes(row.journeyId))
+  .filter((row) => plannedJourneyIds.includes(row.journeyId))
   .filter((row) => row.result !== 'pass')
   .filter(matchesQuery)
   .sort(sortActionRows)
@@ -65,12 +51,22 @@ console.log(`Missing next action: ${missingNextActionRows.length}`)
 console.log('')
 
 for (const row of rows) {
+  const journey = journeyById.get(row.journeyId)
   console.log(`- ${row.severity || 'unscored'} ${row.result || 'unknown'}: ${row.journeyId}`)
+  console.log(`  Tier: ${journey?.tier || 'not mapped'}`)
+  console.log(`  Session: ${sessionByJourneyId.get(row.journeyId)?.label || 'not mapped'}`)
   console.log(`  Category: ${row.category || 'uncategorized'}`)
   console.log(`  Fixture: ${row.accountFixture || 'missing fixture'}`)
   console.log(`  Device/browser: ${row.deviceBrowser || 'not recorded'}`)
   console.log(`  Evidence: ${row.screenshotOrVideo || 'missing screenshot/video'}`)
   console.log(`  Notes: ${row.notes || 'none'}`)
+  if (row.category === 'fixture-gap') {
+    console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
+    if (fixtureGateJourneyIds.has(row.journeyId)) {
+      console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
+      console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+    }
+  }
   console.log(`  Next action: ${row.nextAction || 'missing next action'}`)
 }
 
@@ -86,8 +82,18 @@ console.log('Closeout rule: p0/p1 needs a fix or explicit launch decision, and e
 
 function matchesQuery(row) {
   if (!rawQuery) return true
+  const journey = journeyById.get(row.journeyId)
+  const session = sessionByJourneyId.get(row.journeyId)
+  const tierQuery = tierAliases.get(normalizedQuery)
+
+  if (session?.aliases.includes(normalizedQuery)) return true
+  if (tierQuery) return journey?.tier === tierQuery
 
   return [
+    journey?.tier,
+    journey?.label,
+    session?.id,
+    session?.label,
     row.journeyId,
     row.result,
     row.category,
@@ -109,7 +115,7 @@ function sortActionRows(a, b) {
   const resultDelta = (resultRank[a.result] ?? 4) - (resultRank[b.result] ?? 4)
   if (resultDelta !== 0) return resultDelta
 
-  return plannedJourneys.indexOf(a.journeyId) - plannedJourneys.indexOf(b.journeyId)
+  return plannedJourneyIds.indexOf(a.journeyId) - plannedJourneyIds.indexOf(b.journeyId)
 }
 
 function parseMarkdownRow(line) {

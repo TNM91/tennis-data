@@ -1,73 +1,55 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, normalizeQaQuery, tierAliases } from './customer-journey-qa-data.mjs'
 
 const processMapPath = 'docs/customer-journey-process-map.md'
 const flowMapPath = 'lib/customer-journey-flow-map.json'
 
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
-const normalizedQuery = rawQuery.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+const normalizedQuery = normalizeQaQuery(rawQuery)
 const processMapSource = readFileSync(join(process.cwd(), processMapPath), 'utf8')
 const flowMaps = JSON.parse(readFileSync(join(process.cwd(), flowMapPath), 'utf8'))
 
 const matrixRows = readFeatureMatrix()
-const tierChecks = [
-  {
-    id: 'free',
-    aliases: ['free', 'visitor', 'public'],
-    label: 'Free',
-    provingJourneys: ['free-public-discovery'],
-    fixture: 'free_viewer',
-    denyChecks: ['Private workspace controls stay hidden.', 'Upgrade copy appears after useful public context.', 'Data Assist does not imply instant trusted data.'],
-  },
-  {
-    id: 'player_plus',
-    aliases: ['player', 'player-plus', 'playerplus', 'player_plus'],
-    label: 'Player',
-    provingJourneys: ['player-level-up-mobile-loop', 'player-my-lab-return-state'],
-    fixture: 'player_plus_linked',
-    denyChecks: ['Coach review tools stay out of player mode.', 'Captain, league, and admin controls stay hidden.', 'Local proof is not described as synced unless the account is linked.'],
-  },
-  {
-    id: 'coach',
-    aliases: ['coach', 'coaches'],
-    label: 'Coach',
-    provingJourneys: ['coach-player-assigned-challenge', 'coach-lesson-support'],
-    fixture: 'coach_primary',
-    denyChecks: ['Coach sees only linked students or safe fixtures.', 'Player proof is reviewable without account takeover.', 'Captain, league, and admin controls stay hidden.'],
-  },
-  {
-    id: 'captain',
-    aliases: ['captain', 'team-captain'],
-    label: 'Captain',
-    provingJourneys: ['captain-week-flow'],
-    fixture: 'captain_primary',
-    denyChecks: ['Coach assignment tools stay hidden.', 'League office and admin controls stay hidden.', 'Team communication does not expose private player-only data.'],
-  },
-  {
-    id: 'league',
-    aliases: ['league', 'coordinator', 'league-coordinator'],
-    label: 'League',
-    provingJourneys: ['league-result-to-public-context'],
-    fixture: 'league_coordinator',
-    denyChecks: ['Private coordinator controls do not appear on public league pages.', 'Captain lineup controls stay outside league operations.', 'Fixture data is clearly safe test data.'],
-  },
-  {
-    id: 'full_court',
-    aliases: ['full-court', 'fullcourt', 'full_court', 'all-access'],
-    label: 'Full-Court',
-    provingJourneys: ['full-court-access-pass'],
-    fixture: 'full_court_operator',
-    denyChecks: ['No paid workspace shows stale locks.', 'Role switching is understandable.', 'Upgrade prompts do not repeat inside included workspaces.'],
-  },
-  {
-    id: 'admin_internal',
-    aliases: ['admin', 'internal', 'admin-internal', 'admin_internal'],
-    label: 'Admin/Internal',
-    provingJourneys: ['admin-access-and-data-quality'],
-    fixture: 'admin_test',
-    denyChecks: ['Only safe fixtures are touched during test week.', 'Unreviewed imports do not become trusted public context.', 'Access repair leaves an audit-ready before/after signal.'],
-  },
-]
+const tierOrder = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court', 'admin_internal']
+const denyChecksByTier = {
+  free: [
+    'Private workspace controls stay hidden.',
+    'Upgrade copy appears after useful public context.',
+    'Data Assist does not imply instant trusted data.',
+  ],
+  player_plus: [
+    'Coach review tools stay out of player mode.',
+    'Captain, league, and admin controls stay hidden.',
+    'Local proof is not described as synced unless the account is linked.',
+  ],
+  coach: [
+    'Coach sees only linked students or safe fixtures.',
+    'Player proof is reviewable without account takeover.',
+    'Captain, league, and admin controls stay hidden.',
+  ],
+  captain: [
+    'Coach assignment tools stay hidden.',
+    'League office and admin controls stay hidden.',
+    'Team communication does not expose private player-only data.',
+  ],
+  league: [
+    'Private coordinator controls do not appear on public league pages.',
+    'Captain lineup controls stay outside league operations.',
+    'Fixture data is clearly safe test data.',
+  ],
+  full_court: [
+    'No paid workspace shows stale locks.',
+    'Role switching is understandable.',
+    'Upgrade prompts do not repeat inside included workspaces.',
+  ],
+  admin_internal: [
+    'Only safe fixtures are touched during test week.',
+    'Unreviewed imports do not become trusted public context.',
+    'Access repair leaves an audit-ready before/after signal.',
+  ],
+}
+const tierChecks = tierOrder.map(buildTierCheck).filter((tier) => tier.provingJourneys.length)
 
 const selectedTiers = selectTiers()
 
@@ -100,7 +82,28 @@ console.log('Closeout rule: access is not ready until the expected tier can use 
 function selectTiers() {
   if (!rawQuery) return tierChecks
 
-  return tierChecks.filter((tier) => tier.aliases.includes(normalizedQuery) || tier.id.replace(/_/g, '-') === normalizedQuery)
+  const tierLabel = tierAliases.get(normalizedQuery)
+
+  return tierChecks.filter((tier) => tier.aliases.includes(normalizedQuery) || tier.label === tierLabel)
+}
+
+function buildTierCheck(id) {
+  const journeys = customerJourneyDetails.filter((journey) => journey.tierId === id)
+  const label = journeys[0]?.tier ?? id
+  const aliases = new Set([normalizeQaQuery(id), normalizeQaQuery(label)])
+
+  for (const [alias, aliasLabel] of tierAliases) {
+    if (aliasLabel === label) aliases.add(alias)
+  }
+
+  return {
+    id,
+    aliases: [...aliases],
+    label,
+    provingJourneys: journeys.map((journey) => journey.id),
+    fixture: journeys[0]?.accountFixture ?? 'missing fixture',
+    denyChecks: denyChecksByTier[id] ?? [],
+  }
 }
 
 function printUsage() {

@@ -27,20 +27,21 @@ Level Up should always be useful on court. It saves locally first so the player 
 ## Manual Test Script
 
 1. Open Level Up as a signed-out or Free preview user.
-2. Complete one card and confirm the status says local, not synced.
-3. Refresh and confirm the local proof remains.
-4. Sign in as `player_plus_linked`.
-5. Complete one self-guided card.
-6. Confirm the status says synced to Level Up history.
-7. Refresh or use another browser session if available and confirm remote history is pulled back.
-8. Sign in through the coach-invited player fixture.
-9. Complete an assigned coach card with sharing enabled.
-10. Confirm the assignment completion and proof appear to the coach.
-11. Favorite a card.
-12. Confirm the favorite survives refresh on the same device.
-13. Do not treat favorites as cross-device until backend persistence exists.
-14. Copy a coach update.
-15. Confirm the UI says copied/manual, not automatically delivered.
+2. Confirm the Level Up local sync proof cue names saved-first proof, connected sync, and local-only v1 items.
+3. Complete one card and confirm the status says local, not synced.
+4. Refresh and confirm the local proof remains.
+5. Sign in as `player_plus_linked`.
+6. Complete one self-guided card.
+7. Confirm the status says synced to Level Up history.
+8. Refresh or use another browser session if available and confirm remote history is pulled back.
+9. Sign in through the coach-invited player fixture.
+10. Complete an assigned coach card with sharing enabled.
+11. Confirm the assignment completion and proof appear to the coach.
+12. Favorite a card.
+13. Confirm the favorite survives refresh on the same device.
+14. Do not treat favorites as cross-device until backend persistence exists.
+15. Copy a coach update.
+16. Confirm the UI says copied/manual, not automatically delivered.
 
 ## What To Record
 
@@ -53,6 +54,7 @@ Level Up should always be useful on court. It saves locally first so the player 
 | Local storage key observed |  |
 | API route observed |  |
 | UI status text |  |
+| Level Up local sync proof cue | seen / missing |
 | Coach-visible? | yes / no / not expected |
 | Result | pass / fail / sync gap / fixture gap |
 | Notes |  |

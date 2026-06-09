@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails } from './customer-journey-qa-data.mjs'
 
 const processMapPath = 'docs/customer-journey-process-map.md'
 const flowMapPath = 'lib/customer-journey-flow-map.json'
@@ -7,71 +8,13 @@ const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
 const normalizedQuery = normalize(rawQuery)
 
-const journeyPlans = [
-  {
-    id: 'player-level-up-mobile-loop',
-    tier: 'Player',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    fixture: 'player_plus_linked',
-    passSignal: 'Active training becomes the main screen, proof saves honestly, and the next action is obvious.',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    tier: 'Coach',
-    route: '/coach',
-    fixture: 'coach_primary',
-    passSignal: 'Invite, assignment, player challenge, proof, and coach review close the loop without manual cleanup.',
-  },
-  {
-    id: 'coach-lesson-support',
-    tier: 'Coach',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    fixture: 'coach_primary',
-    passSignal: 'The planner is coach-facing, practical, and connected to the player Level Up path.',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    tier: 'Player',
-    route: '/mylab',
-    fixture: 'player_plus_linked',
-    passSignal: 'My Lab makes the player identity, linked profile, and next action clear after refresh.',
-  },
-  {
-    id: 'captain-week-flow',
-    tier: 'Captain',
-    route: '/captain',
-    fixture: 'captain_primary',
-    passSignal: 'Captain can make a weekly decision and produce a useful team-facing update.',
-  },
-  {
-    id: 'league-result-to-public-context',
-    tier: 'League',
-    route: '/league-coordinator',
-    fixture: 'league_coordinator',
-    passSignal: 'Coordinator operation and member-facing league context stay connected without exposing private controls.',
-  },
-  {
-    id: 'full-court-access-pass',
-    tier: 'Full-Court',
-    route: '/pricing',
-    fixture: 'full_court_operator',
-    passSignal: 'All paid workspaces open cleanly and the user can tell which workspace fits the job.',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    tier: 'Admin/Internal',
-    route: '/admin/access',
-    fixture: 'admin_test',
-    passSignal: 'Access/data repair is understandable, fixture-safe, and reflected in affected product surfaces.',
-  },
-  {
-    id: 'free-public-discovery',
-    tier: 'Free',
-    route: '/explore',
-    fixture: 'free_viewer',
-    passSignal: 'Public tennis intelligence is visible first, and upgrade/data-assist paths are clear.',
-  },
-]
+const journeyPlans = customerJourneyDetails.map((journey) => ({
+  id: journey.id,
+  tier: journey.tier,
+  route: journey.entryRoute,
+  fixture: journey.accountFixture,
+  passSignal: journey.passSignal,
+}))
 
 const processMapSource = readFileSync(join(process.cwd(), processMapPath), 'utf8')
 const flowMaps = JSON.parse(readFileSync(join(process.cwd(), flowMapPath), 'utf8'))

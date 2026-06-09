@@ -1,113 +1,9 @@
+import { customerJourneySessions, journeyById, normalizeQaQuery } from './customer-journey-qa-data.mjs'
+
 const options = parseArgs(process.argv.slice(2))
 const rawQuery = options.session.trim().toLowerCase()
-const normalizedQuery = rawQuery.replace(/\s+/g, '').replace('-', '')
-
-const sessions = [
-  {
-    id: 'day1',
-    aliases: ['1', 'day1', 'trustloop'],
-    label: 'Day 1',
-    focus: 'Trust Loop',
-    journeyIds: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    aliases: ['2', 'day2', 'playercoach'],
-    label: 'Day 2',
-    focus: 'Player And Coach Depth',
-    journeyIds: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    aliases: ['3', 'day3', 'captain'],
-    label: 'Day 3',
-    focus: 'Captain Week',
-    journeyIds: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    aliases: ['4', 'day4', 'leagueadmin'],
-    label: 'Day 4',
-    focus: 'League And Admin',
-    journeyIds: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    aliases: ['5', 'day5', 'regression'],
-    label: 'Day 5',
-    focus: 'Full-Court And Free/Public Regression',
-    journeyIds: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
-
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    entryRoute: '/player-development/relentless-competitor-4-0/level-up',
-    accountFixture: 'player_plus_linked',
-    evidence: ['active-card', 'saved-proof-status', 'next-recommendation', 'tiny-note'],
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    entryRoute: '/coach',
-    accountFixture: 'coach_primary',
-    evidence: ['invite-link-state', 'assignment-card', 'player-challenge-screen', 'coach-review-proof'],
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    entryRoute: '/player-development/relentless-competitor-4-0/coach-planner',
-    accountFixture: 'coach_primary',
-    evidence: ['planner-identity', 'warm-up-block', 'skill-block', 'assignment-handoff'],
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    entryRoute: '/mylab',
-    accountFixture: 'player_plus_linked',
-    evidence: ['linked-profile-state', 'identity-signal', 'next-action', 'post-refresh-state'],
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    entryRoute: '/captain',
-    accountFixture: 'captain_primary',
-    evidence: ['availability-state', 'lineup-option', 'projection-result', 'team-brief'],
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    entryRoute: '/league-coordinator',
-    accountFixture: 'league_coordinator',
-    evidence: ['result-fixture', 'coordinator-source', 'public-league-page', 'privacy-check'],
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    entryRoute: '/pricing',
-    accountFixture: 'full_court_operator',
-    evidence: ['pricing-tier-copy', 'player-workspace', 'coach-workspace', 'league-workspace'],
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    entryRoute: '/admin/access',
-    accountFixture: 'admin_test',
-    evidence: ['test-profile', 'starting-access', 'target-access', 'import-review-status', 'affected-surface'],
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    entryRoute: '/explore',
-    accountFixture: 'free_viewer',
-    evidence: ['explore-route', 'public-detail-page', 'pricing-handoff', 'data-assist-review-language'],
-  },
-]
-
-const journeyById = new Map(journeys.map((journey) => [journey.id, journey]))
-const session = sessions.find((item) => item.aliases.includes(normalizedQuery))
+const normalizedQuery = normalizeQaQuery(rawQuery)
+const session = customerJourneySessions.find((item) => item.aliases.includes(normalizedQuery))
 
 console.log('TenAceIQ Customer Journey Evidence Pack')
 console.log('')
@@ -117,8 +13,8 @@ if (!session) {
   console.log('       npm run qa:evidence-pack -- day1 --date=yyyy-mm-dd --tester=<name> --device=<device/browser>')
   console.log('')
   console.log('Available sessions:')
-  for (const item of sessions) {
-    console.log(`- ${item.id}: ${item.label} - ${item.focus}`)
+  for (const item of customerJourneySessions) {
+    console.log(`- ${item.id}: ${item.shortLabel} - ${item.focus}`)
   }
   process.exit(rawQuery ? 1 : 0)
 }
@@ -128,7 +24,7 @@ const deviceSlug = slugify(options.deviceBrowser || 'device')
 const testerSlug = slugify(options.tester || 'tester')
 const folder = `docs/qa-evidence/${datePrefix}/${session.id}`
 
-console.log(`${session.label}: ${session.focus}`)
+console.log(`${session.shortLabel}: ${session.focus}`)
 console.log(`Evidence folder: ${folder}`)
 console.log('Evidence guide: docs/qa-evidence/README.md')
 if (options.date || options.tester || options.deviceBrowser) {
@@ -144,7 +40,7 @@ for (const journeyId of session.journeyIds) {
   console.log(`- ${journey.label} (${journey.id})`)
   console.log(`  Route: ${journey.entryRoute}`)
   console.log(`  Fixture: ${journey.accountFixture}`)
-  for (const evidenceName of journey.evidence) {
+  for (const evidenceName of journey.evidenceSlugs) {
     console.log(`  - ${folder}/${datePrefix}-${session.id}-${journey.id}-${evidenceName}-${deviceSlug}-${testerSlug}.png`)
   }
 }
@@ -155,7 +51,7 @@ for (const journeyId of session.journeyIds) {
   const journey = journeyById.get(journeyId)
   if (!journey) continue
 
-  const evidenceCell = journey.evidence
+  const evidenceCell = journey.evidenceSlugs
     .map((evidenceName) => `${datePrefix}-${session.id}-${journey.id}-${evidenceName}-${deviceSlug}-${testerSlug}.png`)
     .join('; ')
 

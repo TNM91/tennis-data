@@ -77,11 +77,12 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     name: 'Player',
     shortPromise: 'Personalize TenAceIQ around your game.',
     audience: 'Players who want clearer prep and a personalized tennis home',
-    upgradeCue: 'Unlock My Lab, data refreshes, matchups, and messages.',
+    upgradeCue: 'Unlock My Lab, Level Up, data refreshes, matchups, and messages.',
     description:
-      'Unlock My Lab, refresh the tennis context behind your read, compare matchups, and keep tennis messages together.',
+      'Unlock My Lab, Level Up training cards, Tactics Tools, refreshed tennis context, matchup prep, and tennis messages together.',
     valueProps: [
       'Unlock My Lab',
+      'Use Level Up cards and Tactics Tools to improve your game',
       'Improve the data behind your tennis read',
       'Prep matchups before you play',
       'Review tennis messages in one place',
@@ -262,6 +263,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
     copy: 'Unlock My Lab, improve the data behind your tennis read, prep matchups, and keep messages together.',
     bullets: [
       'Make My Lab your tennis home',
+      'Use Level Up to choose and track focused court work',
       'Refresh player and match context',
       'Prep matchups before you play',
     ],

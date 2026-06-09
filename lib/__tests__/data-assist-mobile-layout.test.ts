@@ -36,6 +36,10 @@ describe('Data Assist mobile layout guards', () => {
       'reviewFlowHeaderStyle',
       'reviewFlowGridStyle',
       'reviewFlowCardStyle',
+      'uploadStateProofStyle',
+      'uploadStateProofHeaderStyle',
+      'uploadStateProofGridStyle',
+      'uploadStateProofCardStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }

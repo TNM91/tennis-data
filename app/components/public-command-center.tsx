@@ -223,6 +223,7 @@ export function CommandHero({
   secondary,
   showSearch = true,
   searchPlaceholder,
+  showBoard = true,
 }: {
   eyebrow?: string
   title?: string
@@ -231,9 +232,10 @@ export function CommandHero({
   secondary?: { href: string; label: string }
   showSearch?: boolean
   searchPlaceholder?: string
+  showBoard?: boolean
 }) {
   return (
-    <section style={heroStyle}>
+    <section style={showBoard ? heroStyle : heroSingleColumnStyle}>
       <div style={heroCopyStyle}>
         <div style={eyebrowStyle}>{eyebrow}</div>
         <h1 style={heroTitleStyle}>{title}</h1>
@@ -254,37 +256,39 @@ export function CommandHero({
           </div>
         ) : null}
       </div>
-      <div style={heroPanelStyle}>
-        <div style={heroPanelHeaderStyle}>
-          <span style={panelKickerStyle}>Portal board</span>
-          <strong style={panelTitleStyle}>Start with the tennis job.</strong>
-          <p style={panelCopyStyle}>Search is the front door. These shortcuts take visitors straight to the next useful move.</p>
-        </div>
-        <div style={miniCourtStyle} aria-label="TenAceIQ portal board preview">
-          <span aria-hidden="true" style={courtNetStyle} />
-          <span aria-hidden="true" style={courtServiceLineStyle('top')} />
-          <span aria-hidden="true" style={courtServiceLineStyle('bottom')} />
-          <div style={courtBoardStyle}>
-            <span style={courtBoardKickerStyle}>Today</span>
-            <strong style={courtBoardTitleStyle}>Find, prepare, improve, lead, run, or fix data.</strong>
+      {showBoard ? (
+        <div style={heroPanelStyle}>
+          <div style={heroPanelHeaderStyle}>
+            <span style={panelKickerStyle}>Portal board</span>
+            <strong style={panelTitleStyle}>Start with the tennis job.</strong>
+            <p style={panelCopyStyle}>Search is the front door. These shortcuts take visitors straight to the next useful move.</p>
           </div>
+          <div style={miniCourtStyle} aria-label="TenAceIQ portal board preview">
+            <span aria-hidden="true" style={courtNetStyle} />
+            <span aria-hidden="true" style={courtServiceLineStyle('top')} />
+            <span aria-hidden="true" style={courtServiceLineStyle('bottom')} />
+            <div style={courtBoardStyle}>
+              <span style={courtBoardKickerStyle}>Today</span>
+              <strong style={courtBoardTitleStyle}>Find, prepare, improve, lead, run, or fix data.</strong>
+            </div>
+          </div>
+          <div style={heroBoardGridStyle}>
+            {heroBoardActions.map((action) => (
+              <TrackedProductLink
+                key={action.label}
+                href={action.href}
+                style={heroBoardActionStyle}
+                ariaLabel={`${action.label}: ${action.detail}`}
+                event={getPublicLinkEvent(action.label, action.href, 'hero-board')}
+              >
+                <span style={heroBoardActionLabelStyle}>{action.label}</span>
+                <span style={heroBoardActionDetailStyle}>{action.detail}</span>
+              </TrackedProductLink>
+            ))}
+          </div>
+          <p style={panelFooterStyle}>More Tennis. Less Chaos. means the next click should already feel obvious.</p>
         </div>
-        <div style={heroBoardGridStyle}>
-          {heroBoardActions.map((action) => (
-            <TrackedProductLink
-              key={action.label}
-              href={action.href}
-              style={heroBoardActionStyle}
-              ariaLabel={`${action.label}: ${action.detail}`}
-              event={getPublicLinkEvent(action.label, action.href, 'hero-board')}
-            >
-              <span style={heroBoardActionLabelStyle}>{action.label}</span>
-              <span style={heroBoardActionDetailStyle}>{action.detail}</span>
-            </TrackedProductLink>
-          ))}
-        </div>
-        <p style={panelFooterStyle}>More Tennis. Less Chaos. means the next click should already feel obvious.</p>
-      </div>
+      ) : null}
     </section>
   )
 }
@@ -458,6 +462,11 @@ const heroStyle: CSSProperties = {
   gap: 18,
   alignItems: 'stretch',
   minWidth: 0,
+}
+
+const heroSingleColumnStyle: CSSProperties = {
+  ...heroStyle,
+  gridTemplateColumns: 'minmax(0, 1fr)',
 }
 
 const heroCopyStyle: CSSProperties = {

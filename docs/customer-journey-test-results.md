@@ -48,7 +48,7 @@ Run `npm run qa:session-ledger -- <day1-day5>` to print starter rows only for th
 Run `npm run qa:week-plan -- --date=yyyy-mm-dd --tester=<name>` when planning the full week across required phone, iPad/tablet, and desktop passes.
 Run `npm run qa:tester-packet -- <day1-day5> --device=<phone|tablet|desktop>` when one tester needs the run order for a specific session and device.
 Run `npm run qa:kickoff -- <journey-id>` when a tester is ready to walk one journey and needs fixtures, route, evidence, paste-ready row, and closeout gates together.
-Run `npm run qa:live-card -- <journey-id>` when you want the route, task, evidence filenames, paste-ready ledger row, and blocked-state commands for one journey.
+Run `npm run qa:live-card -- <journey-id>` when you want the route, task, evidence filenames, paste-ready ledger row, and blocked-state commands for one journey; fixture blockers point to the matching `qa:fixture-gate` command.
 Run `npm run qa:device-card -- <phone|tablet|desktop>` when deciding what the current viewport must prove before a pass row is trusted.
 Run `npm run qa:device-ledger -- <phone|tablet|desktop>` to print paste-ready rows for required device passes with evidence filenames prefilled.
 Run `npm run qa:device-status -- <phone|tablet|desktop>` after logging rows to see which required device passes still need evidence.
@@ -58,30 +58,32 @@ Run `npm run qa:next` after logging results to see the next incomplete journey o
 Run `npm run qa:session-status` after testing to summarize readiness by Day 1 through Day 5 session.
 Run `npm run qa:triage` when choosing issue category, severity, and next action.
 Run `npm run qa:issue` when deciding the result, category, severity, stop/continue call, and retest path for a discovered issue.
-Run `npm run qa:proof-gaps -- <day1-day5>` after testing to see missing pass rows, missing screenshot/video, open blockers, and follow-up proof before signoff.
+Run `npm run qa:proof-gaps -- <day1-day5>` after testing to see missing pass rows, missing screenshot/video, open blockers, and follow-up proof before signoff; fixture-gap rows include the matching `qa:fixture-gate` command.
 Run `npm run qa:ledger-check` after editing rows to catch invalid status, category, severity, fixture, route, evidence, or next-action fields.
 Run `npm run qa:route-review -- <route>` when a result is about what the current page should prove.
 Run `npm run qa:access-review -- <tier>` when a result is about wrong access, missing unlocks, stale locks, or protected controls.
 Run `npm run qa:tier-board -- <tier>` when a result needs the tier promise, feature pain points, proving journeys, evidence state, blockers, and next command together.
 Run `npm run qa:feature-review -- <feature>` when a result is about one feature's route, pain point, proving journey, connected flow, or handoff.
 Run `npm run qa:trace -- <tier|journey|feature|route>` when a result needs to be reviewed against tier promise, access rule, proving journeys, handoffs, and ledger evidence together.
-Run `npm run qa:fixture-gate -- <journey|fixture|route|search>` when a fixture-gap row needs a concrete browser setup gate.
+Run `npm run qa:fixture-gate -- <journey|fixture|route|search>` when a fixture-gap row needs a concrete browser setup gate, including ready signals, auth redirect checks, and what to repair when a signal is missing.
+Run `npm run qa:fixture-auth-smoke -- --env` when the local Day 1 auth env contract is unclear; it prints key names only, never credential values.
+Run `npm run qa:fixture-auth-smoke` when Day 1 `coach_primary` and `player_plus_linked` credentials are available in `.env.local` and you need to prove Coach Hub plus My Lab open without printing secrets.
 Run `npm run qa:fixture-board` when a result is blocked by account access, player/coach link state, safe data setup, or fixture readiness across multiple journeys.
 Run `npm run qa:fixture-status -- <day1-day5>` when checking whether a testing block has required fixtures or open fixture-gap blockers.
 Run `npm run qa:fixture-review -- <fixture>` when a result is blocked by account setup, linked state, test data, or safe fixture shape.
 Run `npm run qa:week-dashboard -- <day1-day5>` when you need the compact week state by tier, fixture, access check, evidence proof, blocker state, and next command.
 Run `npm run qa:results` after testing to summarize status counts, missing journeys, and open p0/p1 rows.
-Run `npm run qa:action-list` after testing to list the concrete fixes, blockers, and follow-ups by priority.
-Run `npm run qa:owner-board` after action review so every open journey or blocker has a named owner lane and next command.
-Run `npm run qa:retest -- <day-or-journey>` after fixes to list the exact journeys that need fresh pass evidence.
+Run `npm run qa:action-list -- <day1-day5 | tier | journey | route | fixture | category>` after testing to list the concrete fixes, blockers, and follow-ups by priority; fixture-gap rows include the matching `qa:fixture-gate` command.
+Run `npm run qa:owner-board` after action review so every open journey or blocker has a named owner lane and next command; fixture-gap rows point to the matching `qa:fixture-gate` command.
+Run `npm run qa:retest -- <day-or-journey>` after fixes to list the exact journeys that need fresh pass evidence; fixture-gap retests include the matching `qa:fixture-gate` command.
 Run `npm run qa:change-impact -- --files=<comma-separated-files>` after product changes so impacted journeys get fresh evidence.
 Run `npm run qa:daily-summary -- <yyyy-mm-dd>` after testing to recap the day and name the top fix.
-Run `npm run qa:close-day -- <day1-day5>` before calling a testing day done so missing pass evidence, screenshots/video, next actions, and retests are visible.
-Run `npm run qa:tester-handoff -- <day1-day5>` before handing a session to another tester so open rows, missing evidence, fixture-gap blockers, and next commands are visible.
+Run `npm run qa:close-day -- <day1-day5>` before calling a testing day done so missing pass evidence, screenshots/video, fixture blockers, next actions, and retests are visible.
+Run `npm run qa:tester-handoff -- <day1-day5>` before handing a session to another tester so open rows, missing evidence, fixture-gap blockers, and next commands are visible; fixture-gap rows point to the matching `qa:fixture-gate` command.
 Run `npm run qa:tier-status` after testing to summarize readiness by role-based tier.
-Run `npm run qa:scorecard` before signoff meetings to see each tier, session, evidence state, blocker count, and next command in one table.
-Run `npm run qa:signoff` before launch readiness so every journey owner, evidence state, and blocker is visible.
-Run `npm run qa:launch-board` before the hard launch gate to separate product blockers, fixture/test blockers, quality follow-ups, and missing evidence.
+Run `npm run qa:scorecard` before signoff meetings to see each tier, session, evidence state, blocker count, and next command in one table; fixture blockers point to the matching `qa:fixture-gate` command.
+Run `npm run qa:signoff` before launch readiness so every journey owner, evidence state, and blocker is visible; fixture blockers point to the matching `qa:fixture-gate` command.
+Run `npm run qa:launch-board` before the hard launch gate to separate product blockers, fixture/test blockers, quality follow-ups, and missing evidence; fixture blockers point to the matching `qa:fixture-gate` command.
 Run `npm run qa:launch` after testing is logged. It should fail until every journey has a `pass` row and no p0/p1 row remains open.
 
 | Date | Tester | Device/browser | Account fixture | Journey ID | Entry route | Result | Category | Severity | Screenshot/video | Notes | Next action |

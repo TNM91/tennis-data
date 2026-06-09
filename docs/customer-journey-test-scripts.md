@@ -63,9 +63,10 @@ Route: `/explore`
 
 1. Open `/explore` as a signed-out or Free user.
 2. Navigate to players, teams, leagues, and rankings from the public surfaces.
-3. Open at least one public detail page if seeded data is available.
-4. Confirm the page gives tennis context before asking the user to upgrade.
-5. Confirm upgrade prompts point to the relevant tier and do not overpromise.
+3. Confirm the Public discovery proof cue connects search value, public detail, Data Assist, and pricing.
+4. Open at least one public detail page if seeded data is available.
+5. Confirm the page gives tennis context before asking the user to upgrade.
+6. Confirm upgrade prompts point to the relevant tier and do not overpromise.
 
 Pass signal: the user can find public tennis context and understands what paid access adds.
 
@@ -75,9 +76,11 @@ Route: `/data-assist`
 
 1. Open `/data-assist`.
 2. Confirm the page explains what users can upload or contribute.
-3. Try the upload/review entry using a safe fixture if one is available.
-4. Confirm the workflow makes review status clear and does not imply unreviewed data is already trusted.
-5. Record whether admin review is required to finish the flow.
+3. Confirm the Review-first handoff cue explains what happens after an upload.
+4. Confirm the Data Assist upload state proof cue separates saved upload, review state, and trusted-record boundaries.
+5. Try the upload/review entry using a safe fixture if one is available.
+6. Confirm the workflow makes review status clear and does not imply unreviewed data is already trusted.
+7. Record whether admin review is required to finish the flow.
 
 Pass signal: a user with stale tennis context knows how to contribute data and understands the review handoff.
 
@@ -92,10 +95,12 @@ Route: `/mylab`
 1. Sign in with a Player account or a higher tier that includes Player access.
 2. Open `/mylab`.
 3. Confirm the player identity, linked tennis context, and next useful action are visible.
-4. Open matchup/profile/message entry points if available.
-5. Refresh the page and confirm the return state still makes sense.
+4. Confirm the Level Up return-state panel shows recent proof or clearly says no proof exists in this browser yet.
+5. Confirm the My Lab refresh proof cue names identity, linked profile context, next action, and the Level Up refresh boundary.
+6. Open matchup/profile/message entry points if available.
+7. Refresh the page and confirm the return state still makes sense.
 
-Pass signal: the player has one personal home and can tell what to do next.
+Pass signal: the player has one personal home, can see what Level Up work carried forward, and can tell what to do next.
 
 ### Level Up Portal
 
@@ -107,8 +112,9 @@ Route: `/player-development/relentless-competitor-4-0/level-up`
 4. Start the card and confirm prior selections collapse or stop dominating the screen.
 5. Run timer/reps/round controls if the card supports them.
 6. Enter a proof rating and one tiny note.
-7. Save, copy/share the coach update if available, and choose the next recommendation.
-8. Refresh and confirm local saved state behaves honestly.
+7. Confirm the Level Up local sync proof cue says what is saved first, what syncs when connected, and what stays local-only in v1.
+8. Save, copy/share the coach update if available, and choose the next recommendation.
+9. Refresh Level Up, open `/mylab`, and confirm the Level Up return-state panel shows recent proof with honest local saved state behavior.
 
 Pass signal: a player can start training quickly on court, score proof, and know what to do next without excess scrolling.
 
@@ -146,10 +152,13 @@ Route: `/coach/invite/[token]`
 
 1. Create a disposable coach invite.
 2. Open the invite link as a player who is not linked yet.
-3. Register or sign in.
-4. Confirm the player is linked to the coach.
-5. Confirm the player can see coach-assigned or coach-connected Level Up context.
-6. Return to the coach account and confirm the player appears linked.
+3. Confirm the Linking proof privacy cue explains what the coach can see.
+4. Confirm the Invite acceptance proof cue names invite status, accepted player account, and Coach Hub linked-player proof.
+5. Confirm the Coach invite account proof cue shows invited email, signed-in account, invite status, and acceptance check.
+6. Register or sign in.
+7. Confirm the player is linked to the coach.
+8. Confirm the player can see coach-assigned or coach-connected Level Up context.
+9. Return to the coach account and confirm the player appears linked.
 
 Pass signal: coach-player relationship is established without manual back-channel cleanup.
 
@@ -162,8 +171,10 @@ Example: `/player-development/relentless-competitor-4-0/coach-planner`
 1. Open the coach planner for Relentless Competitor.
 2. Confirm language is coach-facing, not player-facing.
 3. Review the one-hour lesson plan for warm-up, skill block, pressure block, and assignment handoff.
-4. Confirm the planner supports Level Up work instead of feeling separate from it.
-5. Repeat briefly for one attacking identity and one doubles/net identity.
+4. Confirm the Coach lesson support proof cue connects player identity, readiness adapter, one-hour plan, and Level Up handoff.
+5. Confirm the Level Up assignment handoff cue asks for one card, one proof standard, and one review cue.
+6. Confirm the planner supports Level Up work instead of feeling separate from it.
+7. Repeat briefly for one attacking identity and one doubles/net identity.
 
 Pass signal: the coach can use the planner to support the player’s Level Up journey.
 
@@ -178,7 +189,7 @@ This is the highest-priority linked workflow.
 5. Player signs in and opens Level Up.
 6. Player sees the assigned challenge without hunting.
 7. Player starts the challenge, completes proof rating, adds one tiny note, and sends/saves update.
-8. Coach returns to review the proof.
+8. Coach returns to review the proof and confirms the review card says only synced Level Up proof is coach-visible.
 9. Coach chooses the next focus or lesson support.
 
 Pass signal: assignment, completion, proof, and next focus create a closed loop between coach and player.
@@ -196,10 +207,13 @@ Route: `/captain`
 1. Sign in with a Captain account.
 2. Open `/captain`.
 3. Review availability/readiness state.
-4. Open lineup builder and create a plausible lineup.
-5. Open lineup projection or scenario builder and compare one alternative.
-6. Open messaging, weekly brief, or team brief.
-7. Confirm the workflow leads from decision to communication.
+4. Confirm the Save status cue explains what is remembered locally and what comes from linked team history.
+5. Confirm the Captain local sync proof cue separates browser-saved work, linked team context, and non-synced week proof.
+6. Confirm the Captain decision handoff proof cue connects availability, lineup, scenario check, and team send.
+7. Open lineup builder and create a plausible lineup.
+8. Open lineup projection or scenario builder and compare one alternative.
+9. Open messaging, weekly brief, or team brief.
+10. Confirm the workflow leads from decision to communication without implying browser-saved work is account sync.
 
 Pass signal: the captain can move from availability to lineup to team communication without losing context.
 
@@ -209,8 +223,10 @@ Route: `/compete`
 
 1. Open `/compete`.
 2. Visit compete teams, schedule, and results.
-3. Confirm public/team context connects to captain actions where appropriate.
-4. Confirm upgrade prompts are clear when the user lacks Captain access.
+3. Confirm the Captain match-week bridge cue explains how teams, schedule, and results feed Team Hub decisions.
+4. Open the Team Hub, lineup, or team brief action from the bridge.
+5. Confirm public/team context connects to captain actions where appropriate.
+6. Confirm upgrade prompts are clear when the user lacks Captain access.
 
 Pass signal: competition context helps the captain act rather than becoming a separate public page cluster.
 
@@ -225,8 +241,10 @@ Route: `/league-coordinator`
 1. Sign in with a League or Full-Court account.
 2. Open `/league-coordinator`.
 3. Confirm the coordinator can see structure, results, individual results, and tournaments.
-4. Enter or review a safe result fixture if available.
-5. Confirm the workflow indicates what becomes public/member-visible.
+4. Confirm the League Office operation proof cue connects season shell, result source, member context, and private boundary.
+5. Confirm the source-to-public proof cue explains safe fixture, member view, and privacy checks.
+6. Enter or review a safe result fixture if available.
+7. Confirm the workflow indicates what becomes public/member-visible.
 
 Pass signal: the coordinator can operate the league without unclear spreadsheet handoffs.
 
@@ -251,9 +269,12 @@ Route: `/pricing`, then Player/Coach/Captain/League surfaces
 
 1. Sign in with a Full-Court account.
 2. Open `/pricing` and confirm Full-Court language is clear.
-3. Visit `/mylab`, `/coach`, `/captain`, and `/league-coordinator`.
-4. Confirm each workspace is available without stale locks or redundant upgrade prompts.
-5. Confirm navigation does not bury the user in every possible tool at once.
+3. Confirm the Full-Court access pass cue says all paid workspaces are active.
+4. Confirm the Full-Court workspace fit proof cue explains which tennis job belongs in each workspace.
+5. Confirm the Full-Court role switching proof cue names start, open, check, and return proof.
+6. Visit `/mylab`, `/coach`, `/captain`, and `/league-coordinator`.
+7. Confirm each workspace is available without stale locks or redundant upgrade prompts.
+8. Confirm navigation does not bury the user in every possible tool at once.
 
 Pass signal: the user can move across roles cleanly and knows which workspace fits the job.
 
@@ -268,9 +289,11 @@ Route: `/admin/access`
 1. Sign in with an admin account.
 2. Open `/admin/access`.
 3. Search or load a test profile.
-4. Review current tier/access state.
-5. Activate, repair, or inspect access using a safe test account.
-6. Confirm affected gated pages respond to the access state.
+4. Confirm the Fixture safety cue asks for test profiles, starting access, target access, affected surface, and rollback note.
+5. Confirm the Admin access repair proof cue names starting access, target access, affected surface, and rollback note.
+6. Review current tier/access state.
+7. Activate, repair, or inspect access using a safe test account.
+8. Confirm affected gated pages respond to the access state.
 
 Pass signal: admin access changes are understandable, reversible in test, and reflected in user-facing gates.
 
@@ -280,9 +303,11 @@ Route: `/admin/import-queue`
 
 1. Open `/admin/import-queue`.
 2. Review a safe import fixture.
-3. Check anomaly, dedupe, missing scorecard, or match report handoff where relevant.
-4. Confirm unreviewed data is not treated as trusted intelligence.
-5. Confirm final accepted data appears in the intended product surface.
+3. Confirm the Data trust guard cue keeps unreviewed uploads pending or rejected until reviewed.
+4. Confirm the Admin import outcome proof cue names safe fixture, review state, affected surface, and rollback/audit evidence.
+5. Check anomaly, dedupe, missing scorecard, or match report handoff where relevant.
+6. Confirm unreviewed data is not treated as trusted intelligence.
+7. Confirm final accepted data appears in the intended product surface.
 
 Pass signal: data quality workflows protect the product and leave a clear review path.
 

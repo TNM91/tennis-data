@@ -1,54 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneySessions, fixtureGateJourneyIds, normalizeQaQuery, plannedJourneyIds } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv[2]?.trim().toLowerCase() ?? ''
-const normalizedQuery = rawQuery.replace(/\s+/g, '').replace('-', '')
-
-const sessions = [
-  {
-    id: 'day1',
-    aliases: ['1', 'day1', 'trustloop'],
-    label: 'Day 1',
-    focus: 'Trust Loop',
-    journeyIds: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-    closeoutQuestion: 'Can player proof and coach assignment close the trust loop without sync or mobile confusion?',
-  },
-  {
-    id: 'day2',
-    aliases: ['2', 'day2', 'playercoach'],
-    label: 'Day 2',
-    focus: 'Player And Coach Depth',
-    journeyIds: ['coach-lesson-support', 'player-my-lab-return-state'],
-    closeoutQuestion: 'Can recent work become a useful next lesson and a clear player return state?',
-  },
-  {
-    id: 'day3',
-    aliases: ['3', 'day3', 'captain'],
-    label: 'Day 3',
-    focus: 'Captain Week',
-    journeyIds: ['captain-week-flow'],
-    closeoutQuestion: 'Can a captain move from availability and context to lineup choice and team-facing communication?',
-  },
-  {
-    id: 'day4',
-    aliases: ['4', 'day4', 'leagueadmin'],
-    label: 'Day 4',
-    focus: 'League And Admin',
-    journeyIds: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-    closeoutQuestion: 'Can operations, public/member context, access repair, and data review stay fixture-safe and connected?',
-  },
-  {
-    id: 'day5',
-    aliases: ['5', 'day5', 'regression'],
-    label: 'Day 5',
-    focus: 'Full-Court And Free/Public Regression',
-    journeyIds: ['full-court-access-pass', 'free-public-discovery'],
-    closeoutQuestion: 'Can multi-role access and free discovery work without stale locks or premature upgrade pressure?',
-  },
-]
-
-const plannedJourneyIds = sessions.flatMap((session) => session.journeyIds)
+const normalizedQuery = normalizeQaQuery(rawQuery)
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const rows = source
   .split('\n')
@@ -82,9 +38,9 @@ console.log('- npm run qa:results')
 console.log('- npm run qa:launch')
 
 function getSelectedSessions() {
-  if (!rawQuery) return sessions
+  if (!rawQuery) return customerJourneySessions
 
-  return sessions.filter((session) => session.aliases.includes(normalizedQuery))
+  return customerJourneySessions.filter((session) => session.aliases.includes(normalizedQuery))
 }
 
 function printSessionStatus(session) {
@@ -94,19 +50,26 @@ function printSessionStatus(session) {
   const missingPassJourneyIds = session.journeyIds.filter((journeyId) => !passJourneyIds.has(journeyId))
   const missingAnyResultJourneyIds = session.journeyIds.filter((journeyId) => !testedJourneyIds.has(journeyId))
   const openHighPriorityRows = sessionRows.filter((row) => (row.severity === 'p0' || row.severity === 'p1') && row.result !== 'pass')
+  const openFixtureRows = sessionRows.filter((row) => row.category === 'fixture-gap' && row.result !== 'pass')
   const status = missingPassJourneyIds.length || openHighPriorityRows.length ? 'not ready' : 'ready'
 
-  console.log(`${session.label}: ${status}`)
+  console.log(`${session.shortLabel}: ${status}`)
   console.log(`  Focus: ${session.focus}`)
   console.log(`  Question: ${session.closeoutQuestion}`)
   console.log(`  Pass journeys: ${passJourneyIds.size}/${session.journeyIds.length}`)
   console.log(`  Ledger rows: ${sessionRows.length}`)
+  console.log(`  Fixture blockers: ${openFixtureRows.length}`)
   console.log(`  Open p0/p1: ${openHighPriorityRows.length}`)
   console.log('  Journeys:')
 
   for (const journeyId of session.journeyIds) {
-    const marker = passJourneyIds.has(journeyId) ? 'pass' : testedJourneyIds.has(journeyId) ? 'needs review' : 'missing'
+    const hasFixtureBlocker = openFixtureRows.some((row) => row.journeyId === journeyId)
+    const marker = passJourneyIds.has(journeyId) ? 'pass' : hasFixtureBlocker ? 'fixture blocked' : testedJourneyIds.has(journeyId) ? 'needs review' : 'missing'
     console.log(`  - ${marker}: ${journeyId}`)
+    if (hasFixtureBlocker) {
+      console.log(`    Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
+      printFixtureAuthCommands(journeyId, '    ')
+    }
   }
 
   if (missingAnyResultJourneyIds.length) {
@@ -119,6 +82,14 @@ function printSessionStatus(session) {
       console.log(`  - ${row.severity} ${row.result}: ${row.journeyId}`)
       console.log(`    Category: ${row.category || 'uncategorized'}`)
       console.log(`    Next action: ${row.nextAction || 'missing next action'}`)
+    }
+  }
+
+  if (openFixtureRows.length) {
+    console.log('  Fixture blockers:')
+    for (const row of openFixtureRows) {
+      console.log(`  - ${row.journeyId}: npm run qa:fixture-gate -- ${row.journeyId}`)
+      printFixtureAuthCommands(row.journeyId, '    ')
     }
   }
 
@@ -145,4 +116,10 @@ function parseMarkdownRow(line) {
     notes: cells[10] ?? '',
     nextAction: cells[11] ?? '',
   }
+}
+
+function printFixtureAuthCommands(journeyId, indent) {
+  if (!fixtureGateJourneyIds.has(journeyId)) return
+  console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)
+  console.log(`${indent}Auth smoke: npm run qa:fixture-auth-smoke`)
 }

@@ -105,6 +105,25 @@ describe('upgrade and compete mobile layout guards', () => {
     expect(styleBlock(competeFrameSource, 'cardCtaStyle')).toContain("whiteSpace: 'normal'")
   })
 
+  it('shows a shrink-safe captain bridge cue on Compete surfaces', () => {
+    expect(competeFrameSource).toContain('aria-label="Captain match-week bridge cue"')
+    expect(competeFrameSource).toContain('Captain match-week bridge')
+    expect(competeFrameSource).toContain('Turn Compete context into Team Hub decisions.')
+    expect(competeFrameSource).toContain('availability, lineup, scenario, and team message')
+    expect(competeFrameSource).toContain("href: '/captain'")
+    expect(competeFrameSource).toContain("href: '/captain/lineup-builder'")
+    expect(competeFrameSource).toContain("href: '/captain/team-brief'")
+    expect(competeFrameSource).toContain('CAPTAIN_HANDOFF_STEPS')
+    expect(styleBlock(competeFrameSource, 'captainBridgeStyle')).toContain('minWidth: 0')
+    expect(styleBlock(competeFrameSource, 'captainBridgeStepStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
+    )
+    expect(styleBlock(competeFrameSource, 'captainBridgeStepStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(competeFrameSource, 'captainBridgeActionsStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(competeFrameSource, 'captainBridgeActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(competeFrameSource, 'captainBridgeActionStyle')).toContain("whiteSpace: 'normal'")
+  })
+
   it('keeps compete action rows and links shrink-safe', () => {
     for (const source of [competeLeaguesSource, competeResultsSource]) {
       expect(styleBlock(source, 'rowActionStackStyle')).toContain('minWidth: 0')

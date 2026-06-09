@@ -1,68 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, tierAliases } from './customer-journey-qa-data.mjs'
 
 const processMapPath = 'docs/customer-journey-process-map.md'
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
 const normalizedQuery = rawQuery.replace(/\s+/g, '-').replaceAll('_', '-')
 
-const tierAliases = {
-  free: ['free'],
-  player: ['player', 'player-plus', 'player+'],
-  coach: ['coach'],
-  captain: ['captain'],
-  league: ['league', 'coordinator'],
-  'full-court': ['full-court', 'fullcourt', 'full'],
-  'admin/internal': ['admin', 'admin-internal', 'internal'],
-}
-
-const journeyPlans = [
-  {
-    id: 'player-level-up-mobile-loop',
-    fixture: 'player_plus_linked',
-    featureLabels: ['Level Up Portal', 'Level Up Content Library'],
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    fixture: 'coach_primary',
-    featureLabels: ['Coach Hub', 'Coach Invite Link', 'Level Up Portal'],
-  },
-  {
-    id: 'coach-lesson-support',
-    fixture: 'coach_primary',
-    featureLabels: ['Coach Lesson Planner', 'Level Up Content Library'],
-  },
-  {
-    id: 'player-my-lab-return-state',
-    fixture: 'player_plus_linked',
-    featureLabels: ['My Lab'],
-  },
-  {
-    id: 'captain-week-flow',
-    fixture: 'captain_primary',
-    featureLabels: ['Captain Lineup Week', 'Compete Bridge'],
-  },
-  {
-    id: 'league-result-to-public-context',
-    fixture: 'league_coordinator',
-    featureLabels: ['League Office', 'Public League Context'],
-  },
-  {
-    id: 'full-court-access-pass',
-    fixture: 'full_court_operator',
-    featureLabels: ['Full-Court Navigation'],
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    fixture: 'admin_test',
-    featureLabels: ['Admin Access Management', 'Admin Data Quality', 'Data Assist Entry'],
-  },
-  {
-    id: 'free-public-discovery',
-    fixture: 'free_viewer',
-    featureLabels: ['Public Explore', 'Data Assist Entry'],
-  },
-]
+const journeyPlans = customerJourneyDetails.map((journey) => ({
+  id: journey.id,
+  fixture: journey.accountFixture,
+  featureLabels: journey.riskFeatureLabels,
+}))
 
 const processMapSource = readFileSync(join(process.cwd(), processMapPath), 'utf8')
 const resultsSource = readFileSync(join(process.cwd(), resultsPath), 'utf8')
@@ -175,11 +124,8 @@ function getOpenHighPriorityRows(journeyId) {
 function matchesQuery(feature) {
   if (!rawQuery) return true
 
-  const matchingTiers = Object.entries(tierAliases)
-    .filter(([tier, aliases]) => tier === normalizedQuery || aliases.includes(normalizedQuery))
-    .map(([tier]) => tier)
-
-  if (matchingTiers.length) return matchingTiers.includes(feature.tier.toLowerCase())
+  const tierLabel = tierAliases.get(normalizedQuery.replace(/-/g, '')) ?? tierAliases.get(normalizedQuery)
+  if (tierLabel) return feature.tier === tierLabel
 
   const haystack = [feature.tier, feature.feature, feature.stage, feature.route, feature.painPoint, feature.status, feature.verification]
     .join(' ')

@@ -1,6 +1,6 @@
 import type { ProductAccessState } from './access-model'
 import { getPrimaryNavTarget } from './primary-nav-access'
-import { getPlanSignupHref, getPlanUnlockHref } from './plan-intent'
+import { getPlanUnlockHref } from './plan-intent'
 
 type PortalTaskTargetInput = {
   href: string
@@ -21,20 +21,13 @@ export function getPortalTaskTarget({
   accessPending,
   profileLinked = true,
 }: PortalTaskTargetInput) {
+  void profileLinked
   if (accessPending) return { href, title, locked: false, requiredPlan: null }
-
-  if (href === '/mylab' && authenticated && access.canUseAdvancedPlayerInsights && !profileLinked) {
-    return { href: '/profile', title: 'Set profile', locked: false, requiredPlan: null }
-  }
-
-  if (requiredRoute === '/captain' && authenticated && access.canUseCaptainWorkflow && !profileLinked) {
-    return { href: '/profile', title: 'Set profile', locked: false, requiredPlan: null }
-  }
 
   const target = getPrimaryNavTarget(requiredRoute, access, authenticated)
   if (target.locked && href === '/league-coordinator/tournaments') {
     return {
-      href: authenticated ? getPlanUnlockHref('full_court', href) : getPlanSignupHref('full_court', href),
+      href: getPlanUnlockHref('full_court', href),
       title,
       locked: true,
       requiredPlan: 'full_court',

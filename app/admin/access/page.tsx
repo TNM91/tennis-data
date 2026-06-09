@@ -12,6 +12,7 @@ import {
   AdminReviewHero,
   AdminReviewPanel,
   AdminStatusPanel,
+  adminSubPanelStyle,
 } from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
@@ -109,6 +110,25 @@ type AccessAudit = {
   warnings: string[]
   lastConvertedRequest: ConvertedUpgradeRequest | null
 }
+
+const ADMIN_ACCESS_REPAIR_PROOF_STEPS = [
+  {
+    label: 'Starting access',
+    text: 'Capture the current Player, Coach, Captain, League Office, and Stripe-managed state before editing.',
+  },
+  {
+    label: 'Target access',
+    text: 'Name the tier or entitlement the test profile should have after the repair.',
+  },
+  {
+    label: 'Affected surface',
+    text: 'Check the exact My Lab, Coach Hub, Captain, League Office, pricing, or gated route expected to change.',
+  },
+  {
+    label: 'Rollback note',
+    text: 'Record how to return the fixture to its original access state before saving.',
+  },
+]
 
 const STATUS_OPTIONS: CaptainSubscriptionStatus[] = [
   'inactive',
@@ -636,6 +656,56 @@ export default function AdminAccessPage() {
             Control who has Player+, Coach, and {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain
             workflows, plus who can run TIQ team or individual leagues at {TIQ_SEASON_FEE_PRICE_LABEL}.
           </AdminReviewHero>
+
+          <AdminStatusPanel
+            tone="success"
+            text="Fixture safety: use test profiles only. Capture starting access, target access, affected surface, and rollback note before saving."
+          >
+            <Link href="/admin/import-queue" className="button-ghost">
+              Review import queue
+            </Link>
+          </AdminStatusPanel>
+
+          <AdminReviewPanel
+            ariaLabel="Admin access repair proof cue"
+            style={{ marginTop: 18 }}
+          >
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ color: 'var(--foreground)', fontSize: '1rem', fontWeight: 900 }}>
+                Admin access repair proof cue
+              </div>
+              <p className="subtle-text" style={{ margin: 0 }}>
+                Prove the access repair uses a test profile and changes only the intended tennis workspace.
+              </p>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gap: 10,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+                marginTop: 14,
+              }}
+            >
+              {ADMIN_ACCESS_REPAIR_PROOF_STEPS.map((step) => (
+                <div
+                  key={step.label}
+                  style={{
+                    ...adminSubPanelStyle,
+                    background: 'rgba(255,255,255,0.035)',
+                    display: 'grid',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
+                    {step.label}
+                  </div>
+                  <div className="subtle-text">
+                    {step.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </AdminReviewPanel>
 
           <AdminReviewPanel compact style={{ marginTop: 18 }}>
             <div

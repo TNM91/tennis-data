@@ -2164,8 +2164,8 @@ const clearFilterButton: CSSProperties = {
   fontWeight: 800,
   cursor: 'pointer',
   maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  whiteSpace: 'nowrap',
+  overflowWrap: 'normal',
   textAlign: 'center',
 }
 
@@ -2329,7 +2329,7 @@ const compactMiniValueStyle: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: 0,
+  minWidth: 1180,
 }
 
 const tableHead: CSSProperties = {
@@ -2342,8 +2342,8 @@ const tableHead: CSSProperties = {
   fontWeight: 800,
   borderBottom: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(6,16,32,0.78)',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  whiteSpace: 'nowrap',
+  overflowWrap: 'normal',
 }
 
 const activeTableHead: CSSProperties = {
@@ -2373,7 +2373,7 @@ const rowActionPrimaryStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minWidth: 0,
+  minWidth: 88,
   minHeight: '32px',
   padding: '0 11px',
   borderRadius: 999,
@@ -2384,8 +2384,9 @@ const rowActionPrimaryStyle: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  whiteSpace: 'nowrap',
+  overflowWrap: 'normal',
+  wordBreak: 'keep-all',
   textAlign: 'center',
 }
 
@@ -2404,7 +2405,7 @@ const rankingNextActionPanel: CSSProperties = {
   background: 'var(--shell-panel-bg-strong)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
+  minWidth: 88,
 }
 
 const rankingNextActionHead: CSSProperties = {
@@ -2479,7 +2480,7 @@ const rankingNextActionCta: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   textAlign: 'center',
-  whiteSpace: 'normal',
+  whiteSpace: 'nowrap',
   overflowWrap: 'anywhere',
 }
 
@@ -2703,8 +2704,9 @@ const rankBadge: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  whiteSpace: 'nowrap',
+  overflowWrap: 'normal',
+  wordBreak: 'keep-all',
 }
 
 const playerLink: CSSProperties = {
@@ -2717,7 +2719,7 @@ const playerLink: CSSProperties = {
 const rankingPlayerIdentityStyle: CSSProperties = {
   display: 'grid',
   gap: '6px',
-  minWidth: 0,
+  minWidth: 88,
 }
 
 const rankingAwardBadgeRowStyle: CSSProperties = {
@@ -2839,7 +2841,7 @@ const statusPill: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
-  whiteSpace: 'normal',
+  whiteSpace: 'nowrap',
   textAlign: 'center',
   overflowWrap: 'anywhere',
   minWidth: 0,

@@ -44,6 +44,25 @@ function statusBadgeClass(status: QueueStatus) {
   return 'badge badge-blue'
 }
 
+const ADMIN_IMPORT_OUTCOME_PROOF_STEPS = [
+  {
+    label: 'Safe fixture',
+    text: 'Use data-assist-upload or another test import before touching real customer records.',
+  },
+  {
+    label: 'Review state',
+    text: 'Pending or rejected uploads stay out of trusted tennis intelligence until admin review.',
+  },
+  {
+    label: 'Affected surface',
+    text: 'Name the player, team, league, ranking, Matchup, My Lab, Coach Hub, or League Office surface expected to change.',
+  },
+  {
+    label: 'Rollback/audit',
+    text: 'Record rollback or audit notes before marking an import processed.',
+  },
+]
+
 export default function AdminImportQueuePage() {
   const router = useRouter()
   const [rows, setRows] = useState<ImportQueueRow[]>([])
@@ -127,6 +146,52 @@ export default function AdminImportQueuePage() {
             Captured uploads land here only when they cannot safely become trusted data without admin confirmation.
             Open an item in the admin import center to review, fix, and commit through the fallback workflow.
           </AdminReviewHero>
+
+          <AdminStatusPanel
+            tone="success"
+            text="Data trust guard: use safe import fixtures only. Keep unreviewed uploads in pending or rejected until reviewed, and record rollback or audit notes before marking processed."
+          />
+
+          <AdminReviewPanel
+            ariaLabel="Admin import outcome proof cue"
+            style={{ marginTop: 18 }}
+          >
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ color: 'var(--foreground)', fontSize: '1rem', fontWeight: 900 }}>
+                Admin import outcome proof cue
+              </div>
+              <p className="subtle-text" style={{ margin: 0 }}>
+                Prove what changed and what stayed guarded before imported tennis data becomes trusted.
+              </p>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gap: 10,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+                marginTop: 14,
+              }}
+            >
+              {ADMIN_IMPORT_OUTCOME_PROOF_STEPS.map((step) => (
+                <div
+                  key={step.label}
+                  style={{
+                    ...adminSubPanelStyle,
+                    background: 'rgba(255,255,255,0.035)',
+                    display: 'grid',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
+                    {step.label}
+                  </div>
+                  <div className="subtle-text">
+                    {step.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </AdminReviewPanel>
 
           <AdminReviewPanel style={{ marginTop: 18 }}>
             <div style={adminReviewHeaderRowStyle}>

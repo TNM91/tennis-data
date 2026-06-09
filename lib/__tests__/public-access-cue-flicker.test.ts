@@ -100,6 +100,9 @@ describe('public access cue flicker guards', () => {
   it('keeps upgrade access state on the shared auth provider', () => {
     const source = readAppFile('app/upgrade/page.tsx')
     expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(source).toContain("import SiteShell from '@/app/components/site-shell'")
+    expect(source).toContain('<SiteShell active="">')
+    expect(source).toContain('<UpgradeContent resolvedSearchParams={resolvedSearchParams} />')
     expect(source).toContain('const { role, userId, entitlements, authResolved, session, refreshAuth } = useAuth()')
     expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
     expect(source).toContain('const authLoading = !authResolved')

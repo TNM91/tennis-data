@@ -1,5 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import {
+  customerJourneyDetails,
+  customerJourneySessions,
+  fixtureGateJourneyIds,
+  resultRank,
+  severityRank,
+} from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const args = parseArgs(process.argv.slice(2))
@@ -8,115 +15,21 @@ const normalizedQuery = normalize(rawQuery)
 const dateFilter = args.flags.date ?? ''
 const testerFilter = args.flags.tester?.toLowerCase() ?? ''
 
-const sessions = [
-  {
-    id: 'day1',
-    aliases: ['1', 'day1', 'trustloop'],
-    label: 'Day 1',
-    focus: 'Trust Loop',
-    journeyIds: ['player-level-up-mobile-loop', 'coach-player-assigned-challenge'],
-  },
-  {
-    id: 'day2',
-    aliases: ['2', 'day2', 'playercoach'],
-    label: 'Day 2',
-    focus: 'Player And Coach Depth',
-    journeyIds: ['coach-lesson-support', 'player-my-lab-return-state'],
-  },
-  {
-    id: 'day3',
-    aliases: ['3', 'day3', 'captain'],
-    label: 'Day 3',
-    focus: 'Captain Week',
-    journeyIds: ['captain-week-flow'],
-  },
-  {
-    id: 'day4',
-    aliases: ['4', 'day4', 'leagueadmin'],
-    label: 'Day 4',
-    focus: 'League And Admin',
-    journeyIds: ['league-result-to-public-context', 'admin-access-and-data-quality'],
-  },
-  {
-    id: 'day5',
-    aliases: ['5', 'day5', 'regression'],
-    label: 'Day 5',
-    focus: 'Full-Court And Free/Public Regression',
-    journeyIds: ['full-court-access-pass', 'free-public-discovery'],
-  },
-]
+const sessions = customerJourneySessions.map((session) => ({
+  id: session.id,
+  aliases: session.aliases,
+  label: session.shortLabel,
+  focus: session.focus,
+  journeyIds: session.journeyIds,
+}))
 
-const journeyDetails = [
-  {
-    id: 'player-level-up-mobile-loop',
-    tier: 'player',
-    entryRoute: '/player-development/relentless-competitor-4-0/level-up',
-    accountFixture: 'player_plus_linked',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    tier: 'coach',
-    entryRoute: '/coach',
-    accountFixture: 'coach_primary',
-  },
-  {
-    id: 'coach-lesson-support',
-    tier: 'coach',
-    entryRoute: '/player-development/relentless-competitor-4-0/coach-planner',
-    accountFixture: 'coach_primary',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    tier: 'player',
-    entryRoute: '/mylab',
-    accountFixture: 'player_plus_linked',
-  },
-  {
-    id: 'captain-week-flow',
-    tier: 'captain',
-    entryRoute: '/captain',
-    accountFixture: 'captain_primary',
-  },
-  {
-    id: 'league-result-to-public-context',
-    tier: 'league',
-    entryRoute: '/league-coordinator',
-    accountFixture: 'league_coordinator',
-  },
-  {
-    id: 'full-court-access-pass',
-    tier: 'full-court',
-    entryRoute: '/pricing',
-    accountFixture: 'full_court_operator',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    tier: 'admin',
-    entryRoute: '/admin/access',
-    accountFixture: 'admin_test',
-  },
-  {
-    id: 'free-public-discovery',
-    tier: 'free',
-    entryRoute: '/explore',
-    accountFixture: 'free_viewer',
-  },
-]
+const journeyDetails = customerJourneyDetails.map((journey) => ({
+  id: journey.id,
+  tier: journey.tier,
+  entryRoute: journey.entryRoute,
+  accountFixture: journey.accountFixture,
+}))
 
-const severityRank = {
-  p0: 0,
-  p1: 1,
-  p2: 2,
-  p3: 3,
-  '': 4,
-}
-const resultRank = {
-  fail: 0,
-  blocked: 1,
-  'needs-follow-up': 2,
-  pass: 3,
-  '': 4,
-}
 const journeyById = new Map(journeyDetails.map((journey) => [journey.id, journey]))
 const sessionByJourneyId = new Map(sessions.flatMap((session) => session.journeyIds.map((journeyId) => [journeyId, session])))
 const plannedJourneyIds = journeyDetails.map((journey) => journey.id)
@@ -189,6 +102,9 @@ printCarryForward()
 console.log('')
 console.log('Next commands:')
 console.log('- npm run qa:fixture-status -- <day1-day5 | fixture | journey | route>')
+console.log('- npm run qa:fixture-gate -- <journey | fixture | route | search>')
+console.log('- npm run qa:fixture-auth-smoke -- --env')
+console.log('- npm run qa:fixture-auth-smoke')
 console.log('- npm run qa:tester-packet -- <day1-day5> --device=<phone|tablet|desktop>')
 console.log('- npm run qa:retest -- <day-or-journey>')
 console.log('- npm run qa:action-list')
@@ -225,6 +141,8 @@ function printCarryForward() {
     console.log(`- fixture-gap blockers: ${fixtureGapRows.length}`)
     for (const row of fixtureGapRows) {
       console.log(`  - ${row.journeyId}: ${row.accountFixture || 'missing fixture'}; next ${row.nextAction || 'npm run qa:fixture-review -- <fixture>'}`)
+      console.log(`    Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
+      printFixtureAuthCommands(row.journeyId, '    ')
     }
   }
 
@@ -258,6 +176,10 @@ function printRow(row) {
   console.log(`  - ${row.severity || 'unscored'} ${row.result || 'unknown'}: ${row.journeyId}`)
   console.log(`    Session: ${session?.id ?? 'unknown'}${session ? ` (${session.focus})` : ''}`)
   console.log(`    Category: ${row.category || 'uncategorized'}`)
+  if (row.category === 'fixture-gap') {
+    console.log(`    Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
+    printFixtureAuthCommands(row.journeyId, '    ')
+  }
   console.log(`    Evidence: ${row.screenshotOrVideo || 'missing screenshot/video'}`)
   console.log(`    Notes: ${row.notes || 'none'}`)
   console.log(`    Next action: ${row.nextAction || 'missing next action'}`)
@@ -271,7 +193,17 @@ function printJourneyNeed(journeyId, need) {
   console.log(`    Session: ${session?.id ?? 'unknown'}${session ? ` (${session.focus})` : ''}`)
   console.log(`    Route: ${journey?.entryRoute ?? 'missing route'}`)
   console.log(`    Fixture: ${journey?.accountFixture ?? 'missing fixture'}`)
+  if (fixtureGateJourneyIds.has(journeyId)) {
+    console.log(`    Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
+  }
+  printFixtureAuthCommands(journeyId, '    ')
   console.log(`    Commands: npm run qa:tester-packet -- ${session?.id ?? '<day>'} --device=<phone|tablet|desktop>; npm run qa:retest -- ${journeyId}`)
+}
+
+function printFixtureAuthCommands(journeyId, indent) {
+  if (!fixtureGateJourneyIds.has(journeyId)) return
+  console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)
+  console.log(`${indent}Auth smoke: npm run qa:fixture-auth-smoke`)
 }
 
 function selectSessions() {

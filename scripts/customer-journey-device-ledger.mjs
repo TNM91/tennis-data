@@ -1,27 +1,10 @@
+import { customerJourneyDetails, customerJourneyDeviceProfiles, normalizeQaQuery, sessionByJourneyId } from './customer-journey-qa-data.mjs'
+
 const options = parseArgs(process.argv.slice(2))
 const rawQuery = options.query.trim().toLowerCase()
-const normalizedQuery = normalize(rawQuery)
+const normalizedQuery = normalizeQaQuery(rawQuery)
 
-const deviceProfiles = [
-  {
-    id: 'phone',
-    aliases: ['phone', 'mobile', 'iphone', 'ios', 'android'],
-    label: 'Phone',
-    deviceValue: 'phone',
-  },
-  {
-    id: 'tablet',
-    aliases: ['tablet', 'ipad'],
-    label: 'Tablet / iPad',
-    deviceValue: 'ipad',
-  },
-  {
-    id: 'desktop',
-    aliases: ['desktop', 'laptop', 'pc', 'mac', 'windows'],
-    label: 'Desktop',
-    deviceValue: 'desktop',
-  },
-]
+const deviceProfiles = customerJourneyDeviceProfiles
 
 const tierLabels = {
   free: 'Free',
@@ -33,102 +16,11 @@ const tierLabels = {
   admin_internal: 'Admin/Internal',
 }
 
-const journeys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    tierId: 'player_plus',
-    session: 'day1',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-    fixture: 'player_plus_linked',
-    requiredDevices: ['phone', 'tablet'],
-    evidence: ['active-card', 'saved-proof-status', 'next-recommendation', 'tiny-note-behavior'],
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    tierId: 'coach',
-    session: 'day1',
-    route: '/coach',
-    fixture: 'coach_primary',
-    requiredDevices: ['phone', 'tablet', 'desktop'],
-    evidence: ['invite-link-state', 'assignment-card', 'player-challenge-screen', 'coach-review-proof'],
-  },
-  {
-    id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    tierId: 'coach',
-    session: 'day2',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-    fixture: 'coach_primary',
-    requiredDevices: ['tablet', 'desktop'],
-    evidence: ['planner-identity', 'warm-up-block', 'skill-block', 'assignment-handoff'],
-  },
-  {
-    id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    tierId: 'player_plus',
-    session: 'day2',
-    route: '/mylab',
-    fixture: 'player_plus_linked',
-    requiredDevices: ['phone', 'desktop'],
-    evidence: ['linked-profile-state', 'identity-signal', 'next-action', 'post-refresh-state'],
-  },
-  {
-    id: 'captain-week-flow',
-    label: 'Captain week flow',
-    tierId: 'captain',
-    session: 'day3',
-    route: '/captain',
-    fixture: 'captain_primary',
-    requiredDevices: ['phone', 'tablet', 'desktop'],
-    evidence: ['availability-state', 'lineup-option', 'projection-scenario-result', 'team-brief-or-message'],
-  },
-  {
-    id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    tierId: 'league',
-    session: 'day4',
-    route: '/league-coordinator',
-    fixture: 'league_coordinator',
-    requiredDevices: ['tablet', 'desktop'],
-    evidence: ['result-fixture', 'coordinator-source-screen', 'public-league-screen', 'privacy-check'],
-  },
-  {
-    id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    tierId: 'full_court',
-    session: 'day5',
-    route: '/pricing',
-    fixture: 'full_court_operator',
-    requiredDevices: ['phone', 'desktop'],
-    evidence: ['pricing-tier-copy', 'player-workspace', 'coach-workspace', 'captain-workspace', 'league-workspace'],
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    tierId: 'admin_internal',
-    session: 'day4',
-    route: '/admin/access',
-    fixture: 'admin_test',
-    requiredDevices: ['desktop'],
-    evidence: ['test-profile', 'starting-access', 'target-access', 'import-review-status', 'affected-surface'],
-  },
-  {
-    id: 'free-public-discovery',
-    label: 'Free public discovery',
-    tierId: 'free',
-    session: 'day5',
-    route: '/explore',
-    fixture: 'free_viewer',
-    requiredDevices: ['phone', 'desktop'],
-    evidence: ['explore-route', 'public-detail-page', 'pricing-handoff', 'data-assist-review-language'],
-  },
-]
+const journeys = customerJourneyDetails
 
-const queryDevice = deviceProfiles.find((profile) => profile.id === normalizedQuery || profile.aliases.map(normalize).includes(normalizedQuery))
+const queryDevice = deviceProfiles.find((profile) => normalizeQaQuery(profile.id) === normalizedQuery || profile.aliases.map(normalizeQaQuery).includes(normalizedQuery))
 const matchingJourneys = journeys.filter(matchesQuery)
-const visibleJourneys = queryDevice ? journeys.filter((journey) => journey.requiredDevices.includes(queryDevice.id)) : matchingJourneys
+const visibleJourneys = queryDevice ? journeys.filter((journey) => journey.requiredDeviceIds.includes(queryDevice.id)) : matchingJourneys
 const ledgerRows = visibleJourneys.flatMap((journey) => buildRowsForJourney(journey, queryDevice?.id))
 
 console.log('TenAceIQ Device Ledger Rows')
@@ -177,21 +69,22 @@ console.log('')
 console.log('Closeout rule: change `needs-follow-up` to `pass` only after the screenshots/videos prove the viewport-specific risk.')
 
 function buildRowsForJourney(journey, activeDeviceId) {
-  const requiredDevices = activeDeviceId ? journey.requiredDevices.filter((deviceId) => deviceId === activeDeviceId) : journey.requiredDevices
+  const requiredDevices = activeDeviceId ? journey.requiredDeviceIds.filter((deviceId) => deviceId === activeDeviceId) : journey.requiredDeviceIds
 
   return requiredDevices.map((deviceId) => {
     const device = deviceProfiles.find((profile) => profile.id === deviceId)
     const deviceValue = device?.deviceValue ?? deviceId
-    const evidenceCell = journey.evidence
-      .map((evidenceName) => `${options.date || 'yyyy-mm-dd'}-${journey.session}-${journey.id}-${evidenceName}-${deviceValue}-${slug(options.tester || 'tester')}.png`)
+    const sessionId = sessionByJourneyId.get(journey.id)?.id ?? 'unassigned'
+    const evidenceCell = journey.evidenceSlugs
+      .map((evidenceName) => `${options.date || 'yyyy-mm-dd'}-${sessionId}-${journey.id}-${evidenceName}-${deviceValue}-${slug(options.tester || 'tester')}.png`)
       .join('; ')
 
     return {
       journeyId: journey.id,
       label: journey.label,
       tierId: journey.tierId,
-      route: journey.route,
-      fixture: journey.fixture,
+      route: journey.entryRoute,
+      fixture: journey.accountFixture,
       deviceValue,
       deviceLabel: device?.label ?? deviceId,
       evidenceCell,
@@ -201,9 +94,9 @@ function buildRowsForJourney(journey, activeDeviceId) {
 
 function matchesQuery(journey) {
   if (!rawQuery) return true
-  if (queryDevice) return journey.requiredDevices.includes(queryDevice.id)
+  if (queryDevice) return journey.requiredDeviceIds.includes(queryDevice.id)
 
-  const tierId = Object.entries(tierLabels).find(([id, label]) => normalize(id) === normalizedQuery || normalize(label) === normalizedQuery)?.[0]
+  const tierId = Object.entries(tierLabels).find(([id, label]) => normalizeQaQuery(id.replace(/_/g, '')) === normalizedQuery || normalizeQaQuery(label) === normalizedQuery)?.[0]
   if (tierId) return journey.tierId === tierId
 
   return searchableText(journey).includes(rawQuery) || searchableText(journey).includes(normalizedQuery)
@@ -215,10 +108,10 @@ function searchableText(journey) {
     journey.label,
     journey.tierId,
     tierLabels[journey.tierId],
-    journey.session,
-    journey.route,
-    journey.fixture,
-    ...journey.requiredDevices,
+    sessionByJourneyId.get(journey.id)?.id ?? '',
+    journey.entryRoute,
+    journey.accountFixture,
+    ...journey.requiredDeviceIds,
   ]
     .join(' ')
     .toLowerCase()

@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import UniversalSearch from '@/app/components/universal-search'
 import { useAuth } from '@/app/components/auth-provider'
-import { buildProductAccessState } from '@/lib/access-model'
+import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
 import { supabase } from '@/lib/supabase'
@@ -52,6 +52,15 @@ function UtilityLink({
       {children}
     </Link>
   )
+}
+
+function getHeaderWorkspaceShortcut(access: ProductAccessState, authenticated: boolean) {
+  if (!authenticated) return null
+  if (access.canUseLeagueTools) return { href: '/league-coordinator', label: 'League Office' }
+  if (access.canUseCaptainWorkflow) return { href: '/captain', label: 'Team Hub' }
+  if (access.canUseCoachWorkflow) return { href: '/coach', label: 'Coach Hub' }
+  if (access.canUseAdvancedPlayerInsights) return { href: '/mylab', label: 'My Lab' }
+  return { href: '/explore', label: 'Find tennis' }
 }
 
 export default function SiteHeader({ active }: { active?: string }) {
@@ -144,6 +153,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   const firstName = linkedPlayerName.split(' ')[0] || ''
   const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
   const signInHref = `/login?next=${encodeURIComponent(pathname || '/')}`
+  const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)
 
   return (
     <header
@@ -258,6 +268,11 @@ export default function SiteHeader({ active }: { active?: string }) {
                     ) : null}
                     {accountLabel}
                   </span>
+                ) : null}
+                {workspaceShortcut ? (
+                  <Link href={workspaceShortcut.href} style={workspaceShortcutStyle}>
+                    {workspaceShortcut.label}
+                  </Link>
                 ) : null}
                 {role === 'admin' ? (
                   <UtilityLink href="/admin">Admin dashboard</UtilityLink>
@@ -382,6 +397,12 @@ export default function SiteHeader({ active }: { active?: string }) {
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                       <span style={mobilePlainItemTextStyle}>Admin dashboard</span>
                       <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                    </Link>
+                  ) : null}
+                  {workspaceShortcut ? (
+                    <Link href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
+                      <span style={mobilePlainItemTextStyle}>{workspaceShortcut.label}</span>
+                      <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                     </Link>
                   ) : null}
                   <button
@@ -534,6 +555,15 @@ const primaryCtaStyle = {
   boxShadow: '0 12px 24px color-mix(in srgb, var(--brand-green) 14%, transparent), inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 } as const
 
+const workspaceShortcutStyle = {
+  ...primaryCtaStyle,
+  minHeight: '38px',
+  padding: '0 14px',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+} as const
+
 const menuButtonStyle = {
   width: '40px',
   height: '40px',
@@ -566,6 +596,12 @@ const mobileItemStyle = {
   overflowWrap: 'anywhere',
   gap: '12px',
   textAlign: 'left' as const,
+} as const
+
+const mobileWorkspaceItemStyle = {
+  ...mobileItemStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
 } as const
 
 const mobilePlainItemTextStyle = {

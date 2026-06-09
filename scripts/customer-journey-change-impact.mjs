@@ -1,14 +1,11 @@
+import { journeyById, sessionByJourneyId } from './customer-journey-qa-data.mjs'
+
 const args = parseArgs(process.argv.slice(2))
 const changedFiles = getChangedFilesFromArgs()
 
-const journeyPlans = [
+const journeyPatterns = [
   {
     id: 'player-level-up-mobile-loop',
-    label: 'Player Level Up mobile loop',
-    session: 'day1',
-    tier: 'Player',
-    fixture: 'player_plus_linked',
-    route: '/player-development/relentless-competitor-4-0/level-up',
     patterns: [
       'app/player-development/[identity]/level-up',
       'app/level-up',
@@ -19,11 +16,6 @@ const journeyPlans = [
   },
   {
     id: 'coach-player-assigned-challenge',
-    label: 'Coach to player assigned challenge',
-    session: 'day1',
-    tier: 'Coach',
-    fixture: 'coach_primary',
-    route: '/coach',
     patterns: [
       'app/coach',
       'app/api/coach',
@@ -35,68 +27,48 @@ const journeyPlans = [
   },
   {
     id: 'coach-lesson-support',
-    label: 'Coach lesson support',
-    session: 'day2',
-    tier: 'Coach',
-    fixture: 'coach_primary',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
     patterns: ['app/player-development/[identity]/coach-planner', 'lib/player-development', 'lib/level-up'],
   },
   {
     id: 'player-my-lab-return-state',
-    label: 'Player My Lab return state',
-    session: 'day2',
-    tier: 'Player',
-    fixture: 'player_plus_linked',
-    route: '/mylab',
     patterns: ['app/mylab', 'app/profile', 'app/api/profile', 'lib/player', 'lib/product-story.ts'],
   },
   {
     id: 'captain-week-flow',
-    label: 'Captain week flow',
-    session: 'day3',
-    tier: 'Captain',
-    fixture: 'captain_primary',
-    route: '/captain',
     patterns: ['app/captain', 'lib/captain', 'app/compete', 'lib/primary-nav-access.ts'],
   },
   {
     id: 'league-result-to-public-context',
-    label: 'League result to public context',
-    session: 'day4',
-    tier: 'League',
-    fixture: 'league_coordinator',
-    route: '/league-coordinator',
     patterns: ['app/league-coordinator', 'app/explore/leagues', 'app/leagues', 'app/api/leagues', 'lib/leagues'],
   },
   {
     id: 'full-court-access-pass',
-    label: 'Full-Court access pass',
-    session: 'day5',
-    tier: 'Full-Court',
-    fixture: 'full_court_operator',
-    route: '/pricing',
     patterns: ['app/pricing', 'app/upgrade', 'app/api/checkout', 'lib/pricing-plans.ts', 'lib/access-model.ts', 'lib/product-story.ts'],
   },
   {
     id: 'admin-access-and-data-quality',
-    label: 'Admin access and data quality',
-    session: 'day4',
-    tier: 'Admin/Internal',
-    fixture: 'admin_test',
-    route: '/admin/access',
     patterns: ['app/admin', 'app/api/data-assist', 'app/api/import', 'lib/admin', 'supabase/migrations'],
   },
   {
     id: 'free-public-discovery',
-    label: 'Free public discovery',
-    session: 'day5',
-    tier: 'Free',
-    fixture: 'free_viewer',
-    route: '/explore',
     patterns: ['app/explore', 'app/players', 'app/rankings', 'app/teams', 'lib/product-story.ts', 'lib/primary-nav-access.ts'],
   },
 ]
+
+const journeyPlans = journeyPatterns.map((plan) => {
+  const journey = journeyById.get(plan.id)
+  if (!journey) throw new Error(`Missing shared QA journey metadata for ${plan.id}`)
+
+  return {
+    id: journey.id,
+    label: journey.label,
+    session: sessionByJourneyId.get(journey.id)?.id ?? 'unassigned',
+    tier: journey.tier,
+    fixture: journey.accountFixture,
+    route: journey.entryRoute,
+    patterns: plan.patterns,
+  }
+})
 
 const sharedPatterns = [
   {

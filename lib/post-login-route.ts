@@ -8,12 +8,13 @@ export function getDefaultProductHomeRoute(
   entitlements?: ProductEntitlementSnapshot | null,
   hasLinkedPlayer = true,
 ) {
+  void hasLinkedPlayer
   const access = buildProductAccessState(role, entitlements)
 
   if (access.canUseLeagueTools) return '/league-coordinator'
-  if (access.canUseCaptainWorkflow) return hasLinkedPlayer ? '/captain' : '/profile'
+  if (access.canUseCaptainWorkflow) return '/captain'
   if (access.canUseCoachWorkflow) return '/coach'
-  if (access.canUseAdvancedPlayerInsights) return hasLinkedPlayer ? '/mylab' : '/profile'
+  if (access.canUseAdvancedPlayerInsights) return '/mylab'
 
   return FREE_POST_LOGIN_ROUTE
 }

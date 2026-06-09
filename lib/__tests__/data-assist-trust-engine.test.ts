@@ -37,7 +37,9 @@ describe('Data Assist trust engine', () => {
 
   it('explains the review-first upload flow before users choose a file', () => {
     expect(source).toContain('const dataAssistReviewFlow')
+    expect(source).toContain('const dataAssistUploadStateProof')
     expect(source).toContain('DataAssistReviewFlowPanel')
+    expect(source).toContain('Review-first handoff')
     expect(source).toContain('What happens after an upload?')
     expect(source).toContain('Data Assist is intentionally review-first.')
     expect(source).toContain('Upload source')
@@ -45,6 +47,15 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('Confirm or flag')
     expect(source).toContain('Feed tennis context')
     expect(source).toContain('Reviewed data can improve players, teams, leagues, rankings, Matchup, My Lab, and Coach Hub.')
+    expect(source).toContain('Data Assist upload state proof cue')
+    expect(source).toContain('Upload state proof cue')
+    expect(source).toContain('Know what changed and what did not.')
+    expect(source).toContain('Saved upload')
+    expect(source).toContain('Review state')
+    expect(source).toContain('Trust boundary')
+    expect(source).toContain('Unreviewed uploads do not change players, teams, leagues, rankings, Matchup, My Lab, or Coach Hub.')
+    expect(source).toContain('no public records change until the import check finishes')
+    expect(source).not.toContain('ready without admin review')
   })
 
   it('acknowledges review/report URL intents from public trust links', () => {

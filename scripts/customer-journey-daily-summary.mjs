@@ -1,41 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { plannedJourneyIds, resultRank, severityRank } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawDateFilter = process.argv.slice(2).join(' ').trim()
 const statuses = ['pass', 'fail', 'blocked', 'needs-follow-up']
-const plannedJourneys = [
-  'player-level-up-mobile-loop',
-  'coach-player-assigned-challenge',
-  'coach-lesson-support',
-  'player-my-lab-return-state',
-  'captain-week-flow',
-  'league-result-to-public-context',
-  'full-court-access-pass',
-  'admin-access-and-data-quality',
-  'free-public-discovery',
-]
-const severityRank = {
-  p0: 0,
-  p1: 1,
-  p2: 2,
-  p3: 3,
-  '': 4,
-}
-const resultRank = {
-  fail: 0,
-  blocked: 1,
-  'needs-follow-up': 2,
-  pass: 3,
-  '': 4,
-}
 
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const rows = source
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
   .map(parseMarkdownRow)
-  .filter((row) => plannedJourneys.includes(row.journeyId))
+  .filter((row) => plannedJourneyIds.includes(row.journeyId))
   .filter((row) => !rawDateFilter || row.date === rawDateFilter)
 
 console.log('TenAceIQ Customer Journey Daily Summary')
@@ -62,7 +38,7 @@ for (const [date, dailyRows] of rowsByDate) {
 
   console.log(`Date: ${date || 'missing date'}`)
   console.log(`Rows logged: ${dailyRows.length}`)
-  console.log(`Journeys tested: ${summary.journeyIds.size}/${plannedJourneys.length}`)
+  console.log(`Journeys tested: ${summary.journeyIds.size}/${plannedJourneyIds.length}`)
   console.log(`Open p0/p1: ${summary.openHighPriorityRows.length}`)
   console.log(`Missing next action on non-pass rows: ${summary.missingNextActionRows.length}`)
   console.log('By result:')
@@ -147,7 +123,7 @@ function sortRows(a, b) {
   const resultDelta = (resultRank[a.result] ?? 4) - (resultRank[b.result] ?? 4)
   if (resultDelta !== 0) return resultDelta
 
-  return plannedJourneys.indexOf(a.journeyId) - plannedJourneys.indexOf(b.journeyId)
+  return plannedJourneyIds.indexOf(a.journeyId) - plannedJourneyIds.indexOf(b.journeyId)
 }
 
 function parseMarkdownRow(line) {

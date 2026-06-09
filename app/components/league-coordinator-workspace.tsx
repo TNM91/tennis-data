@@ -170,6 +170,40 @@ const RESULT_ENTRY_HANDOFF_STEPS = [
   },
 ]
 
+const SOURCE_TO_PUBLIC_PROOF_STEPS = [
+  {
+    title: 'Use a safe fixture',
+    text: 'Record or review a seeded league result before treating the public page as changed.',
+  },
+  {
+    title: 'Check the member view',
+    text: 'Open the public league page and compare schedule, result, and standings context against the source screen.',
+  },
+  {
+    title: 'Verify privacy',
+    text: 'Private League Office controls must stay off public pages; only member-facing context should be visible.',
+  },
+]
+
+const LEAGUE_OFFICE_OPERATION_PROOF_STEPS = [
+  {
+    title: 'Season shell',
+    text: 'Format, season window, participants, and schedule rules are clear before results are entered.',
+  },
+  {
+    title: 'Result source',
+    text: 'Team or player result entry uses reviewed scorecards or safe fixtures before standings move.',
+  },
+  {
+    title: 'Member context',
+    text: 'Schedule, result, standings, and awards context can be checked from the public league page.',
+  },
+  {
+    title: 'Private boundary',
+    text: 'League Office setup, approval, and correction controls stay inside coordinator access.',
+  },
+] as const
+
 function formatDateTime(value: string) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
@@ -1407,6 +1441,15 @@ export function LeagueCoordinatorWorkspace() {
             </span>
           </div>
 
+          <div style={sourceToPublicProofStyle} aria-label="League source to public proof cue">
+            {SOURCE_TO_PUBLIC_PROOF_STEPS.map((step) => (
+              <div key={step.title} style={sourceToPublicProofStepStyle}>
+                <strong>{step.title}</strong>
+                <span>{step.text}</span>
+              </div>
+            ))}
+          </div>
+
           <div style={publicReadinessFilterRowStyle} aria-label="Public page readiness filter">
             {[
               { value: 'all', label: 'All', count: publicPageReadinessRows.length },
@@ -1816,6 +1859,20 @@ export function LeagueCoordinatorWorkspace() {
                 <small>{item.detail}</small>
               </Link>
             ))}
+          </div>
+          <div style={leagueOfficeOperationProofStyle} aria-label="League Office operation proof cue">
+            <div style={leagueOfficeOperationProofHeaderStyle}>
+              <span style={sectionEyebrow}>League Office operation proof cue</span>
+              <strong>Prove the office changes the same season reality members see.</strong>
+            </div>
+            <div style={leagueOfficeOperationProofGridStyle}>
+              {LEAGUE_OFFICE_OPERATION_PROOF_STEPS.map((step) => (
+                <article key={step.title} style={leagueOfficeOperationProofStepStyle}>
+                  <strong>{step.title}</strong>
+                  <span>{step.text}</span>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -3326,6 +3383,28 @@ const resultHandoffStepStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const sourceToPublicProofStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const sourceToPublicProofStepStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  padding: '13px',
+  borderRadius: '16px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.45,
+  fontWeight: 750,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const reviewQueueGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
@@ -3659,6 +3738,46 @@ const leagueOpsCheckCompleteStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
   background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
   color: 'var(--foreground-strong)',
+}
+
+const leagueOfficeOperationProofStyle: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  minWidth: 0,
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  overflowWrap: 'anywhere',
+}
+
+const leagueOfficeOperationProofHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueOfficeOperationProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const leagueOfficeOperationProofStepStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  minWidth: 0,
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 750,
+  lineHeight: 1.42,
+  overflowWrap: 'anywhere',
 }
 
 const panelCard: CSSProperties = {

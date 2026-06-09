@@ -12,7 +12,7 @@ const inactiveEntitlements: ProductEntitlementSnapshot = {
 }
 
 describe('portal task targets', () => {
-  it('turns the My Lab task into profile setup until a paid user links a player', () => {
+  it('keeps the My Lab task direct for paid users', () => {
     const access = buildProductAccessState('member', {
       ...inactiveEntitlements,
       playerPlusSubscriptionActive: true,
@@ -27,7 +27,7 @@ describe('portal task targets', () => {
       authenticated: true,
       accessPending: false,
       profileLinked: false,
-    })).toEqual({ href: '/profile', title: 'Set profile', locked: false, requiredPlan: null })
+    })).toEqual({ href: '/mylab', title: 'Open My Lab', locked: false, requiredPlan: 'player_plus' })
   })
 
   it('keeps the My Lab task direct once the paid user has a linked player', () => {
@@ -67,7 +67,7 @@ describe('portal task targets', () => {
     })
   })
 
-  it('turns Team subtasks into profile setup until an active Captain links a player', () => {
+  it('keeps Team subtasks direct for active Captain users', () => {
     const access = buildProductAccessState('member', {
       ...inactiveEntitlements,
       captainSubscriptionActive: true,
@@ -82,7 +82,7 @@ describe('portal task targets', () => {
       authenticated: true,
       accessPending: false,
       profileLinked: false,
-    })).toEqual({ href: '/profile', title: 'Set profile', locked: false, requiredPlan: null })
+    })).toEqual({ href: '/captain/lineup-builder', title: 'Build lineup', locked: false, requiredPlan: 'captain' })
 
     expect(getPortalTaskTarget({
       href: '/captain/lineup-builder',
@@ -122,7 +122,7 @@ describe('portal task targets', () => {
       accessPending: false,
       profileLinked: false,
     })).toEqual({
-      href: '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments',
+      href: '/upgrade?plan=full_court&next=%2Fleague-coordinator%2Ftournaments',
       title: 'Build tournament',
       locked: true,
       requiredPlan: 'full_court',

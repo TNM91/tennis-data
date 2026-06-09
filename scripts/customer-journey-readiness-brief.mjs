@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, plannedJourneyIds, sessionByJourneyId } from './customer-journey-qa-data.mjs'
 
 const root = process.cwd()
 const resultsPath = 'docs/customer-journey-test-results.md'
@@ -28,79 +29,22 @@ const requiredStartCommands = [
   'qa:launch',
 ]
 
-const plannedJourneys = [
-  {
-    id: 'player-level-up-mobile-loop',
-    session: 'day1',
-    fixture: 'player_plus_linked',
-    route: '/player-development/relentless-competitor-4-0/level-up',
-  },
-  {
-    id: 'coach-player-assigned-challenge',
-    session: 'day1',
-    fixture: 'coach_primary',
-    route: '/coach',
-  },
-  {
-    id: 'coach-lesson-support',
-    session: 'day2',
-    fixture: 'coach_primary',
-    route: '/player-development/relentless-competitor-4-0/coach-planner',
-  },
-  {
-    id: 'player-my-lab-return-state',
-    session: 'day2',
-    fixture: 'player_plus_linked',
-    route: '/mylab',
-  },
-  {
-    id: 'captain-week-flow',
-    session: 'day3',
-    fixture: 'captain_primary',
-    route: '/captain',
-  },
-  {
-    id: 'league-result-to-public-context',
-    session: 'day4',
-    fixture: 'league_coordinator',
-    route: '/league-coordinator',
-  },
-  {
-    id: 'full-court-access-pass',
-    session: 'day5',
-    fixture: 'full_court_operator',
-    route: '/pricing',
-  },
-  {
-    id: 'admin-access-and-data-quality',
-    session: 'day4',
-    fixture: 'admin_test',
-    route: '/admin/access',
-  },
-  {
-    id: 'free-public-discovery',
-    session: 'day5',
-    fixture: 'free_viewer',
-    route: '/explore',
-  },
-]
-
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const resultsSource = existsSync(join(root, resultsPath)) ? readFileSync(join(root, resultsPath), 'utf8') : ''
 const rows = extractResultLedger(resultsSource)
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
   .map(parseMarkdownRow)
-  .filter((row) => plannedJourneys.some((journey) => journey.id === row.journeyId))
+  .filter((row) => plannedJourneyIds.includes(row.journeyId))
 
 const missingDocs = requiredDocs.filter((doc) => !existsSync(join(root, doc)))
 const missingCommands = requiredStartCommands.filter((command) => !packageJson.scripts?.[command])
 const journeyIdsWithRows = new Set(rows.map((row) => row.journeyId))
 const passJourneyIds = new Set(rows.filter((row) => row.result === 'pass').map((row) => row.journeyId))
-const missingResultJourneys = plannedJourneys.filter((journey) => !journeyIdsWithRows.has(journey.id))
-const missingPassJourneys = plannedJourneys.filter((journey) => !passJourneyIds.has(journey.id))
+const missingResultJourneys = customerJourneyDetails.filter((journey) => !journeyIdsWithRows.has(journey.id))
+const missingPassJourneys = customerJourneyDetails.filter((journey) => !passJourneyIds.has(journey.id))
 const openHighPriorityRows = rows.filter((row) => (row.severity === 'p0' || row.severity === 'p1') && row.result !== 'pass')
-const fixtureIds = [...new Set(plannedJourneys.map((journey) => journey.fixture))]
+const fixtureIds = [...new Set(customerJourneyDetails.map((journey) => journey.accountFixture))]
 const isReadyToStart = missingDocs.length === 0 && missingCommands.length === 0
 const isLaunchReady = isReadyToStart && missingPassJourneys.length === 0 && openHighPriorityRows.length === 0
 
@@ -129,15 +73,15 @@ if (missingCommands.length) {
 console.log('')
 console.log('Ledger State:')
 console.log(`- Result rows recorded: ${rows.length}`)
-console.log(`- Journeys with any result: ${journeyIdsWithRows.size}/${plannedJourneys.length}`)
-console.log(`- Journeys with pass evidence: ${passJourneyIds.size}/${plannedJourneys.length}`)
+console.log(`- Journeys with any result: ${journeyIdsWithRows.size}/${plannedJourneyIds.length}`)
+console.log(`- Journeys with pass evidence: ${passJourneyIds.size}/${plannedJourneyIds.length}`)
 console.log(`- Open p0/p1 rows: ${openHighPriorityRows.length}`)
 console.log(`- Launch ready from ledger: ${isLaunchReady ? 'yes' : 'no'}`)
 
 console.log('')
 console.log('Missing Result Rows:')
 if (missingResultJourneys.length) {
-  for (const journey of missingResultJourneys) console.log(`- ${journey.session}: ${journey.id} (${journey.route})`)
+  for (const journey of missingResultJourneys) console.log(`- ${sessionByJourneyId.get(journey.id)?.id ?? 'unknown'}: ${journey.id} (${journey.entryRoute})`)
 } else {
   console.log('- None')
 }
@@ -145,7 +89,7 @@ if (missingResultJourneys.length) {
 console.log('')
 console.log('Missing Pass Evidence:')
 if (missingPassJourneys.length) {
-  for (const journey of missingPassJourneys) console.log(`- ${journey.session}: ${journey.id}`)
+  for (const journey of missingPassJourneys) console.log(`- ${sessionByJourneyId.get(journey.id)?.id ?? 'unknown'}: ${journey.id}`)
 } else {
   console.log('- None')
 }

@@ -779,6 +779,28 @@ export default function PlayerLiveWorkbench({
         </div>
       ) : null}
 
+      <aside className={styles.liveSyncProofPanel} aria-label="Level Up local sync proof">
+        <div>
+          <span>Level Up local sync proof</span>
+          <strong>Know what follows you.</strong>
+          <p>Level Up saves the court work first, then syncs only when the access path is connected.</p>
+        </div>
+        <div className={styles.liveSyncProofGrid}>
+          <article>
+            <span>Saved first</span>
+            <p>Rating, tiny note, timer, focus, and proof history stay in this browser immediately.</p>
+          </article>
+          <article>
+            <span>Syncs when connected</span>
+            <p>Player+ history or coach-invited proof can reach Level Up sessions after sign-in.</p>
+          </article>
+          <article>
+            <span>Local-only in v1</span>
+            <p>Favorites and copied coach-update sent markers stay on this device for now.</p>
+          </article>
+        </div>
+      </aside>
+
       <div className={styles.liveProgressPanel} aria-label="Training progress summary">
         <article>
           <span>Overall</span>

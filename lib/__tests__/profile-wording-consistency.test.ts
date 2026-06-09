@@ -26,15 +26,16 @@ describe('profile wording consistency', () => {
     expect(captain).not.toContain('Link profile</Link>')
   })
 
-  it('keeps Matchup, Upgrade, and league fallbacks on set-profile language', () => {
+  it('keeps Matchup and league fallbacks on set-profile language while paid upgrade handoff stays product-led', () => {
     const matchup = source('app/matchup/page.tsx')
     const upgrade = source('app/upgrade/page.tsx')
     const tiqLeague = source('app/explore/leagues/tiq/[league]/page.tsx')
 
     expect(matchup).toContain('Set your profile before running your own matchups.')
     expect(matchup).not.toContain('Improve profile')
-    expect(upgrade).toContain("secondaryAction: 'Set profile'")
-    expect(upgrade).toContain("'Set profile'")
+    expect(upgrade).toContain("secondaryAction: 'Start Level Up'")
+    expect(upgrade).toContain("secondaryAction: 'Build lineup'")
+    expect(upgrade).toContain("steps: ['Open My Lab', 'Choose Level Up work', 'Compare your next match']")
     expect(tiqLeague).toContain('Player profile needed')
     expect(tiqLeague).not.toContain('Needs linked player record')
   })

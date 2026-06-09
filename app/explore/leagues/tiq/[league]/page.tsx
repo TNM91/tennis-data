@@ -1221,6 +1221,9 @@ function TiqLeagueDetailContent() {
   const individualLeader = league?.leagueFormat === 'individual' ? individualStandings[0] || null : null
   const teamLeader = league?.leagueFormat === 'team' ? teamStandings[0] || null : null
   const leaderName = individualLeader?.playerName || teamLeader?.teamName || ''
+  const scheduleSubscribeHref = league
+    ? `/api/calendar/tiq-league/${encodeURIComponent(league.id)}/calendar.ics`
+    : ''
   const leaderRows = useMemo<LeagueLeaderRow[]>(() => {
     if (!league) return []
 
@@ -2434,7 +2437,10 @@ function TiqLeagueDetailContent() {
                   </h2>
                   <p style={sectionText}>{scheduleRulesText}</p>
                 </div>
-                <span style={pillSlate}>{seasonWindowText}</span>
+                <div style={scheduleHeaderActionRowStyle}>
+                  <span style={pillSlate}>{seasonWindowText}</span>
+                  <GhostLink href={scheduleSubscribeHref}>Subscribe calendar</GhostLink>
+                </div>
               </div>
 
               <div style={scheduleMetaGridStyle}>
@@ -4179,6 +4185,15 @@ const scheduleViewToggleStyle: CSSProperties = {
   maxWidth: '100%',
   minWidth: 0,
   flexWrap: 'wrap',
+}
+
+const scheduleHeaderActionRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: '8px',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const scheduleViewToggleButtonStyle: CSSProperties = {

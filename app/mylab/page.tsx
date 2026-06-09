@@ -60,6 +60,7 @@ import {
   type CoachAssignment,
   type CoachStudentLink,
 } from '@/lib/coach-storage'
+import { buildCoachStudentCalendarEvents } from '@/lib/coach-calendar'
 
 type EntityType = 'player' | 'team' | 'league'
 type FeedType = 'match' | 'rating' | 'achievement' | 'community' | 'team' | 'league'
@@ -203,6 +204,23 @@ type LabGoalState = {
 
 type GoalTemplate = Pick<LabGoalState, 'goal' | 'progressUpdate' | 'doingWell' | 'improveNext' | 'notes'>
 
+type PersonalCalendarItem = {
+  id: string
+  title: string
+  date: string
+  time: string
+  kind: 'practice' | 'match' | 'lesson' | 'reminder'
+  createdAt: string
+}
+
+type PlayerCoachCalendarPreviewEvent = {
+  id: string
+  title: string
+  dateLabel: string
+  sortKey: string
+  source: 'shared'
+}
+
 type MyLabLevelUpProof = {
   id: string
   cardId: string
@@ -220,6 +238,7 @@ const LOCAL_GOAL_KEY = 'tenaceiq-my-lab-goal-v1'
 const LOCAL_NOTEBOOK_KEY = 'tenaceiq-my-lab-notebook-v1'
 const LOCAL_GOAL_STATE_KEY = 'tenaceiq-my-lab-goal-state-v1'
 const LOCAL_GOALS_KEY = 'tenaceiq-my-lab-goals-v2'
+const LOCAL_PERSONAL_CALENDAR_KEY = 'tenaceiq-my-lab-personal-calendar-v1'
 const LEVEL_UP_COMPLETIONS_KEY = 'tiq-level-up-completions'
 
 const EMPTY_LAB_GOAL: LabGoalState = {
@@ -436,6 +455,49 @@ function writeLocalGoals(userId: string | null, playerId: string | null | undefi
   window.localStorage.setItem(scopedLabStorageKey(LOCAL_GOALS_KEY, userId, playerId), JSON.stringify(value))
 }
 
+function normalizePersonalCalendarItem(value: Partial<PersonalCalendarItem> | null | undefined): PersonalCalendarItem | null {
+  const title = cleanText(value?.title)
+  const date = cleanText(value?.date)
+  if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
+
+  return {
+    id: cleanText(value?.id) || `calendar-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    title,
+    date,
+    time: /^\d{2}:\d{2}$/.test(cleanText(value?.time)) ? cleanText(value?.time) : '',
+    kind: isPersonalCalendarKind(value?.kind) ? value.kind : 'reminder',
+    createdAt: cleanText(value?.createdAt) || new Date().toISOString(),
+  }
+}
+
+function isPersonalCalendarKind(value: unknown): value is PersonalCalendarItem['kind'] {
+  return value === 'practice' || value === 'match' || value === 'lesson' || value === 'reminder'
+}
+
+function readLocalPersonalCalendarItems(userId: string | null, playerId: string | null | undefined): PersonalCalendarItem[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(scopedLabStorageKey(LOCAL_PERSONAL_CALENDAR_KEY, userId, playerId))
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((item) => normalizePersonalCalendarItem(item as Partial<PersonalCalendarItem>))
+      .filter((item): item is PersonalCalendarItem => Boolean(item))
+  } catch {
+    return []
+  }
+}
+
+function writeLocalPersonalCalendarItems(
+  userId: string | null,
+  playerId: string | null | undefined,
+  value: PersonalCalendarItem[],
+) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(scopedLabStorageKey(LOCAL_PERSONAL_CALENDAR_KEY, userId, playerId), JSON.stringify(value))
+}
+
 function readLocalLevelUpCompletions(): LevelUpCompletion[] {
   if (typeof window === 'undefined') return []
   try {
@@ -528,6 +590,11 @@ function buildSinglesMatchupHref(linkedPlayerId: string | null | undefined, oppo
   if (opponentId) params.set('playerB', opponentId)
   return `/matchup?${params.toString()}`
 }
+
+const MY_LAB_NOTEBOOK_HREF = '/mylab#player-notebook'
+const MY_LAB_RECENT_MATCHES_HREF = '/mylab#recent-matches'
+const MY_LAB_SCORECARD_HREF = '/mylab#scorecard-summary'
+const MY_LAB_GOAL_PROGRESS_HREF = '/mylab#goal-progress'
 
 function getMatchupRead(gap: number) {
   if (gap <= 0.08) return 'Very close'
@@ -735,6 +802,9 @@ function MyLabPageInner() {
   const [coachAssignments, setCoachAssignments] = useState<CoachAssignment[]>([])
   const [coachAssignmentsLoading, setCoachAssignmentsLoading] = useState(false)
   const [coachAssignmentsMessage, setCoachAssignmentsMessage] = useState('')
+  const [coachCalendarLinkByStudentId, setCoachCalendarLinkByStudentId] = useState<Record<string, string>>({})
+  const [coachCalendarLinkLoadingId, setCoachCalendarLinkLoadingId] = useState('')
+  const [personalCalendarItems, setPersonalCalendarItems] = useState<PersonalCalendarItem[]>([])
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
@@ -761,6 +831,10 @@ function MyLabPageInner() {
     setActiveGoalId(nextGoals[0]?.id || EMPTY_LAB_GOAL.id)
     setNotebookSavedLabel('All changes saved')
     setLastSavedAt(nextGoals.find((goal) => goal.updatedAt)?.updatedAt || null)
+  }, [userId, profileLink?.linked_player_id])
+
+  useEffect(() => {
+    setPersonalCalendarItems(readLocalPersonalCalendarItems(userId, profileLink?.linked_player_id))
   }, [userId, profileLink?.linked_player_id])
 
   useEffect(() => {
@@ -1096,6 +1170,72 @@ function MyLabPageInner() {
       )
     },
     [session?.access_token],
+  )
+
+  const createPlayerCoachCalendarLink = useCallback(
+    async (studentLinkId: string) => {
+      if (!session?.access_token) {
+        throw new Error('Sign in to create a coach lesson calendar link.')
+      }
+
+      setCoachCalendarLinkLoadingId(studentLinkId)
+      try {
+        const response = await fetch('/api/player/calendar-links', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ studentLinkId }),
+        })
+        const json = (await response.json()) as { ok?: boolean; calendarUrl?: string; message?: string }
+        if (!response.ok || !json.ok || !json.calendarUrl) {
+          throw new Error(json.message || 'Could not create calendar link.')
+        }
+
+        setCoachCalendarLinkByStudentId((current) => ({ ...current, [studentLinkId]: json.calendarUrl as string }))
+        return json.calendarUrl
+      } finally {
+        setCoachCalendarLinkLoadingId('')
+      }
+    },
+    [session?.access_token],
+  )
+
+  const addPersonalCalendarItem = useCallback(
+    (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => {
+      const nextItem = normalizePersonalCalendarItem({
+        ...input,
+        id: `calendar-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        createdAt: new Date().toISOString(),
+      })
+      if (!nextItem) return false
+
+      setPersonalCalendarItems((current) => {
+        const next = [nextItem, ...current].sort((left, right) => getPersonalCalendarSortKey(left).localeCompare(getPersonalCalendarSortKey(right)))
+        writeLocalPersonalCalendarItems(userId, profileLink?.linked_player_id, next)
+        return next
+      })
+      return true
+    },
+    [profileLink?.linked_player_id, userId],
+  )
+
+  const removePersonalCalendarItem = useCallback(
+    (itemId: string) => {
+      setPersonalCalendarItems((current) => {
+        const next = current.filter((item) => item.id !== itemId)
+        writeLocalPersonalCalendarItems(userId, profileLink?.linked_player_id, next)
+        return next
+      })
+    },
+    [profileLink?.linked_player_id, userId],
+  )
+
+  const coachLinkMapForCalendar = useMemo(() => new Map(coachLinks.map((link) => [link.id, link])), [coachLinks])
+  const sharedCoachCalendarEvents = useMemo(
+    () => buildPlayerCoachLessonEvents(coachAssignments, coachLinkMapForCalendar).slice(0, 6),
+    [coachAssignments, coachLinkMapForCalendar],
   )
 
   const myMatchReportByMatchId = useMemo(() => {
@@ -2144,7 +2284,7 @@ function MyLabPageInner() {
     ? '/profile'
     : topMatchupCandidate
       ? matchupHref
-      : '#player-notebook'
+      : MY_LAB_NOTEBOOK_HREF
   const nextMoveCta = !isProfileConfirmed
     ? 'Set profile'
     : topMatchupCandidate
@@ -2230,14 +2370,14 @@ function MyLabPageInner() {
       label: 'During play',
       title: activeGoal.goal.trim() || 'Play with one focus',
       body: activeGoal.improveNext || improvementDefault,
-      href: '#player-notebook',
+      href: MY_LAB_NOTEBOOK_HREF,
       cta: 'See focus',
     },
     {
       label: 'After play',
       title: activeGoal.progressUpdate.trim() ? 'Update the result' : 'Log what happened',
       body: activeGoal.progressUpdate || 'Add the score, the pattern that mattered, and what to test next.',
-      href: '#player-notebook',
+      href: MY_LAB_NOTEBOOK_HREF,
       cta: 'Log update',
     },
   ]
@@ -2281,7 +2421,7 @@ function MyLabPageInner() {
       label: 'How am I doing?',
       value: recentRecordLabel,
       note: lastMatchSummary,
-      href: '#recent-matches',
+      href: MY_LAB_RECENT_MATCHES_HREF,
       cta: 'Review matches',
       icon: 'reports' as TiqFeatureIconName,
     },
@@ -2289,7 +2429,7 @@ function MyLabPageInner() {
       label: 'What should I focus on?',
       value: activeGoal.goal.trim() ? goalStatusLabel(activeGoal.progressStatus) : 'Choose one',
       note: focusSuggestion,
-      href: '#player-notebook',
+      href: MY_LAB_NOTEBOOK_HREF,
       cta: 'Open notebook',
       icon: 'myLab' as TiqFeatureIconName,
     },
@@ -2302,7 +2442,7 @@ function MyLabPageInner() {
       note: isNewSelfRatedProfile
         ? 'Your self-rated profile is live. Add a scorecard or match signal when ready.'
         : 'Ratings, recent matches, goals, follows, and the next useful read.',
-      href: '#scorecard-summary',
+      href: MY_LAB_SCORECARD_HREF,
       cta: 'Stay here',
       icon: 'myLab' as TiqFeatureIconName,
     },
@@ -2659,6 +2799,15 @@ function MyLabPageInner() {
           <LevelUpReturnStatePanel
             proofs={levelUpProofs}
             signedIn={Boolean(session?.access_token)}
+            playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+            nextMoveLabel={nextMoveCta}
+          />
+
+          <MyLabCalendarPanel
+            personalItems={personalCalendarItems}
+            sharedCoachEvents={sharedCoachCalendarEvents}
+            onAddPersonalItem={addPersonalCalendarItem}
+            onRemovePersonalItem={removePersonalCalendarItem}
           />
 
           <PlayerCoachAssignmentsPanel
@@ -2667,6 +2816,9 @@ function MyLabPageInner() {
             loading={coachAssignmentsLoading}
             message={coachAssignmentsMessage}
             onComplete={completeCoachAssignment}
+            calendarLinksByStudentId={coachCalendarLinkByStudentId}
+            calendarLinkLoadingId={coachCalendarLinkLoadingId}
+            onCreateCalendarLink={createPlayerCoachCalendarLink}
           />
 
           {linkedPlayer ? (
@@ -3720,7 +3872,7 @@ function PlayerDevelopmentPathPanel({
   currentGoal: string
 }) {
   const primaryIdentity = PLAYER_DEVELOPMENT_IDENTITIES[0]
-  const nextIdentity = PLAYER_DEVELOPMENT_IDENTITIES[1]
+  const featuredIdentities = PLAYER_DEVELOPMENT_IDENTITIES.slice(0, 4)
 
   return (
     <section style={developmentPathPanelStyle}>
@@ -3743,7 +3895,7 @@ function PlayerDevelopmentPathPanel({
       </div>
 
       <div style={developmentPathGridStyle}>
-        {[primaryIdentity, nextIdentity].filter(Boolean).map((identity) => (
+        {featuredIdentities.map((identity) => (
           <Link href={`/player-development/${identity.slug}`} key={identity.slug} style={developmentIdentityCardStyle}>
             <div style={metricLabelStyle}>{identity.ratingBand}</div>
             <div style={developmentIdentityTitleStyle}>{identity.title}</div>
@@ -3760,8 +3912,8 @@ function PlayerDevelopmentPathPanel({
       <div style={developmentActionRowStyle}>
         <Link href={`/level-up/${primaryIdentity.slug}`} style={miniActionLinkStyle}>Level Up now</Link>
         <Link href="/player-development" style={miniActionLinkStyle}>Open paths</Link>
-        <Link href={`/player-development/${primaryIdentity.slug}/coach-planner`} style={miniActionLinkStyle}>Coach planner</Link>
-        <Link href="#goal-progress" style={miniActionLinkStyle}>Update My Lab goal</Link>
+        <Link href="/tactics" style={miniActionLinkStyle}>Tactics Tools</Link>
+        <Link href={MY_LAB_GOAL_PROGRESS_HREF} style={miniActionLinkStyle}>Update My Lab goal</Link>
       </div>
     </section>
   )
@@ -3770,13 +3922,39 @@ function PlayerDevelopmentPathPanel({
 function LevelUpReturnStatePanel({
   proofs,
   signedIn,
+  playerLabel,
+  nextMoveLabel,
 }: {
   proofs: MyLabLevelUpProof[]
   signedIn: boolean
+  playerLabel: string
+  nextMoveLabel: string
 }) {
   const latestProof = proofs[0]
   const nextProof = proofs[1]
   const proofCountLabel = proofs.length ? `${proofs.length}` : 'None'
+  const refreshProofItems = [
+    {
+      label: 'Identity',
+      body: playerLabel ? `${playerLabel} is the active My Lab player.` : 'Find yourself first so My Lab is not a generic dashboard.',
+    },
+    {
+      label: 'Linked profile',
+      body: playerLabel
+        ? 'Player record, follows, matchup notes, and coach context can anchor here.'
+        : 'Set a profile before treating follows, matchups, or coach context as personalized.',
+    },
+    {
+      label: 'Next action',
+      body: `${nextMoveLabel || 'Open one useful card'} stays visible after refresh.`,
+    },
+    {
+      label: 'Refresh boundary',
+      body: latestProof
+        ? 'Recent Level Up proof appears from this browser cache; sync depends on signed-in Player+ or coach link.'
+        : 'No Level Up proof is shown unless this browser has saved it.',
+    },
+  ]
 
   return (
     <section style={levelUpReturnPanelStyle}>
@@ -3825,6 +4003,116 @@ function LevelUpReturnStatePanel({
             : 'This panel is reading this browser only. Private windows can forget it; sign in through Player+ or a coach invite before expecting proof to follow you across devices.'}
         </span>
       </div>
+
+      <div style={myLabRefreshProofCueStyle} aria-label="My Lab refresh proof cue">
+        <div style={myLabRefreshProofHeaderStyle}>
+          <span style={metricLabelStyle}>My Lab refresh proof cue</span>
+          <strong style={levelUpReturnStorageNoteStrongStyle}>What should still be clear after refresh?</strong>
+        </div>
+        <div style={myLabRefreshProofGridStyle}>
+          {refreshProofItems.map((item) => (
+            <article key={item.label} style={myLabRefreshProofCardStyle}>
+              <span style={myLabRefreshProofLabelStyle}>{item.label}</span>
+              <p style={myLabRefreshProofTextStyle}>{item.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function MyLabCalendarPanel({
+  personalItems,
+  sharedCoachEvents,
+  onAddPersonalItem,
+  onRemovePersonalItem,
+}: {
+  personalItems: PersonalCalendarItem[]
+  sharedCoachEvents: PlayerCoachCalendarPreviewEvent[]
+  onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => boolean
+  onRemovePersonalItem: (itemId: string) => void
+}) {
+  const [title, setTitle] = useState('')
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
+  const [kind, setKind] = useState<PersonalCalendarItem['kind']>('practice')
+  const [message, setMessage] = useState('')
+  const mergedItems = useMemo(
+    () => [
+      ...sharedCoachEvents,
+      ...personalItems.map((item) => ({
+        id: item.id,
+        title: item.title,
+        dateLabel: formatPersonalCalendarItemDate(item),
+        sortKey: getPersonalCalendarSortKey(item),
+        source: 'personal' as const,
+        kind: item.kind,
+      })),
+    ].sort((left, right) => left.sortKey.localeCompare(right.sortKey)).slice(0, 8),
+    [personalItems, sharedCoachEvents],
+  )
+
+  return (
+    <section id="my-calendar" style={myCalendarPanelStyle}>
+      <div style={developmentPathHeaderStyle}>
+        <div style={sectionTitleClusterStyle}>
+          <TiqFeatureIcon name="schedule" size="md" variant="surface" />
+          <div style={sectionHeaderCopyStyle}>
+            <p style={sectionKickerStyle}>My calendar</p>
+            <h3 style={compactSectionTitleStyle}>Your tennis week, plus shared coach dates.</h3>
+            <p style={sectionTextStyle}>Add personal reminders here while coach lessons and assignment due dates flow in from Coach Hub.</p>
+          </div>
+        </div>
+      </div>
+
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          const saved = onAddPersonalItem({ title, date, time, kind })
+          if (!saved) {
+            setMessage('Add a title and date.')
+            return
+          }
+          setTitle('')
+          setDate('')
+          setTime('')
+          setKind('practice')
+          setMessage('Calendar item added.')
+        }}
+        style={myCalendarFormStyle}
+      >
+        <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Practice, match, reminder..." style={myCalendarInputStyle} />
+        <input type="date" value={date} onChange={(event) => setDate(event.target.value)} style={myCalendarInputStyle} />
+        <input type="time" value={time} onChange={(event) => setTime(event.target.value)} style={myCalendarInputStyle} />
+        <select value={kind} onChange={(event) => setKind(event.target.value as PersonalCalendarItem['kind'])} style={myCalendarInputStyle}>
+          <option value="practice">Practice</option>
+          <option value="match">Match</option>
+          <option value="lesson">Lesson</option>
+          <option value="reminder">Reminder</option>
+        </select>
+        <button type="submit" style={coachCheckInButtonStyle}>Add</button>
+      </form>
+
+      {mergedItems.length ? (
+        <div style={myCalendarGridStyle}>
+          {mergedItems.map((item) => (
+            <div key={`${item.source}:${item.id}`} style={myCalendarItemStyle(item.source)}>
+              <div style={metricLabelStyle}>{item.source === 'shared' ? 'Shared' : item.kind}</div>
+              <strong>{item.title}</strong>
+              <span>{item.dateLabel}</span>
+              {item.source === 'personal' ? (
+                <button type="button" onClick={() => onRemovePersonalItem(item.id)} style={calendarRemoveButtonStyle}>
+                  Remove
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={emptyStateStyle}>No calendar items yet. Add one tennis reminder or connect a coach lesson.</div>
+      )}
+      {message ? <div style={coachCheckInMessageStyle}>{message}</div> : null}
     </section>
   )
 }
@@ -3835,12 +4123,18 @@ function PlayerCoachAssignmentsPanel({
   loading,
   message,
   onComplete,
+  calendarLinksByStudentId,
+  calendarLinkLoadingId,
+  onCreateCalendarLink,
 }: {
   assignments: CoachAssignment[]
   coachLinks: CoachStudentLink[]
   loading: boolean
   message: string
   onComplete: (assignmentId: string, recap: string, evidence: string) => Promise<void>
+  calendarLinksByStudentId: Record<string, string>
+  calendarLinkLoadingId: string
+  onCreateCalendarLink: (studentLinkId: string) => Promise<string>
 }) {
   const coachLinkMap = useMemo(() => new Map(coachLinks.map((link) => [link.id, link])), [coachLinks])
   const sortedAssignments = useMemo(() => sortPlayerAssignmentsForAction(assignments), [assignments])
@@ -3857,11 +4151,16 @@ function PlayerCoachAssignmentsPanel({
   const nextAssignmentActionPlan = nextAssignment
     ? buildPlayerAssignmentActionPlan(nextAssignment, nextAssignmentSummary, nextDueState?.label ?? '')
     : []
+  const coachLessonEvents = useMemo(
+    () => buildPlayerCoachLessonEvents(assignments, coachLinkMap).slice(0, 3),
+    [assignments, coachLinkMap],
+  )
   const [activeAssignmentId, setActiveAssignmentId] = useState('')
   const [recap, setRecap] = useState('')
   const [evidence, setEvidence] = useState('')
   const [savingAssignmentId, setSavingAssignmentId] = useState('')
   const [checkInMessage, setCheckInMessage] = useState('')
+  const [calendarMessage, setCalendarMessage] = useState('')
 
   const beginPlayerCheckIn = (assignment: CoachAssignment) => {
     setActiveAssignmentId(assignment.id)
@@ -3884,6 +4183,28 @@ function PlayerCoachAssignmentsPanel({
       setCheckInMessage(err instanceof Error ? err.message : 'Could not complete coach assignment.')
     } finally {
       setSavingAssignmentId('')
+    }
+  }
+
+  const createCalendarLink = async () => {
+    if (!activeCoachLink) return
+
+    setCalendarMessage('')
+    try {
+      const calendarUrl = await onCreateCalendarLink(activeCoachLink.id)
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(calendarUrl)
+          setCalendarMessage('Coach lesson calendar link copied.')
+          return
+        } catch {
+          setCalendarMessage('Coach lesson calendar link created. Open the feed to copy the URL.')
+          return
+        }
+      }
+      setCalendarMessage('Coach lesson calendar link created.')
+    } catch (err) {
+      setCalendarMessage(err instanceof Error ? err.message : 'Could not create coach lesson calendar link.')
     }
   }
 
@@ -3913,6 +4234,45 @@ function PlayerCoachAssignmentsPanel({
         <SummaryCard label="Open assignments" value={openAssignments.length ? String(openAssignments.length) : 'First read'} note="Coach-created work appears after setup" />
         <SummaryCard label="Completed" value={completedAssignments.length ? String(completedAssignments.length) : 'Later'} note="Finished coach follow-through" />
       </div>
+
+      {activeCoachLink ? (
+        <div style={playerCoachCalendarStyle}>
+          <div style={coachCalendarHeaderStyle}>
+            <div style={coachCalendarCopyStyle}>
+              <strong>Coach lesson calendar</strong>
+              <span>Subscribe once to see coach lessons and assignment due dates beside your personal calendar.</span>
+            </div>
+            <div style={developmentActionRowStyle}>
+              <button
+                type="button"
+                onClick={() => void createCalendarLink()}
+                disabled={calendarLinkLoadingId === activeCoachLink.id}
+                style={coachCheckInButtonStyle}
+              >
+                {calendarLinkLoadingId === activeCoachLink.id ? 'Creating' : 'Subscribe link'}
+              </button>
+              {calendarLinksByStudentId[activeCoachLink.id] ? (
+                <a href={calendarLinksByStudentId[activeCoachLink.id]} style={coachCheckInGhostLinkStyle}>
+                  Open feed
+                </a>
+              ) : null}
+            </div>
+          </div>
+          {coachLessonEvents.length ? (
+            <div style={playerCoachCalendarGridStyle}>
+              {coachLessonEvents.map((event) => (
+                <span key={event.id} style={playerCoachCalendarItemStyle}>
+                  <strong>{event.title}</strong>
+                  <em>{event.dateLabel}</em>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span style={metricNoteStyle}>Your next scheduled coach lesson appears here after your coach adds a lesson date to an assignment.</span>
+          )}
+          {calendarMessage ? <span style={coachCheckInMessageStyle}>{calendarMessage}</span> : null}
+        </div>
+      ) : null}
 
       {nextAssignment ? (
         <div style={coachHubNextActionStyle}>
@@ -4209,6 +4569,55 @@ function buildAssignmentLevelUpHref(
   return `/level-up/${encodeURIComponent(identitySlug)}?${params.toString()}`
 }
 
+function buildPlayerCoachLessonEvents(
+  assignments: CoachAssignment[],
+  coachLinkMap: Map<string, CoachStudentLink>,
+) {
+  return Array.from(coachLinkMap.values())
+    .flatMap((coachLink) =>
+      buildCoachStudentCalendarEvents(
+        assignments.filter((assignment) => assignment.studentLinkId === coachLink.id),
+        coachLink,
+      ),
+    )
+    .sort((left, right) => getPlayerCoachCalendarSortKey(left).localeCompare(getPlayerCoachCalendarSortKey(right)))
+    .map((event) => ({
+      id: event.id,
+      title: event.title,
+      sortKey: getPlayerCoachCalendarSortKey(event),
+      source: 'shared' as const,
+      dateLabel: event.time
+        ? formatPlayerCoachCalendarDate(`${event.date}T${event.time}`)
+        : formatPlayerCoachCalendarDate(event.date),
+    }))
+}
+
+function getPlayerCoachCalendarSortKey(event: { date: string; time?: string }) {
+  return `${event.date || '9999-12-31'}T${event.time || '23:59'}`
+}
+
+function formatPlayerCoachCalendarDate(value: string) {
+  const normalized = value.includes('T') ? value : `${value}T12:00:00`
+  const parsed = new Date(normalized)
+  if (Number.isNaN(parsed.getTime())) return value || 'Date TBD'
+
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: value.includes('T') ? 'numeric' : undefined,
+    minute: value.includes('T') ? '2-digit' : undefined,
+  }).format(parsed)
+}
+
+function getPersonalCalendarSortKey(item: Pick<PersonalCalendarItem, 'date' | 'time'>) {
+  return `${item.date || '9999-12-31'}T${item.time || '23:59'}`
+}
+
+function formatPersonalCalendarItemDate(item: Pick<PersonalCalendarItem, 'date' | 'time'>) {
+  return item.time ? formatPlayerCoachCalendarDate(`${item.date}T${item.time}`) : formatPlayerCoachCalendarDate(item.date)
+}
+
 function getAssignmentLevelUpCardId(assignment: CoachAssignment) {
   const cardId = typeof assignment.assignment.cardId === 'string' ? assignment.assignment.cardId.trim() : ''
   if (!cardId) return ''
@@ -4473,18 +4882,189 @@ const levelUpReturnStorageNoteStrongStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const myLabRefreshProofCueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  overflowWrap: 'anywhere',
+}
+
+const myLabRefreshProofHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const myLabRefreshProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const myLabRefreshProofCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'var(--shell-panel-bg)',
+  overflowWrap: 'anywhere',
+}
+
+const myLabRefreshProofLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const myLabRefreshProofTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const myCalendarPanelStyle: CSSProperties = {
+  ...developmentPathPanelStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background:
+    'radial-gradient(circle at 8% 0%, rgba(116,190,255,0.14), transparent 30%), linear-gradient(180deg, rgba(13,29,58,0.88) 0%, rgba(6,17,35,0.98) 100%)',
+}
+
+const myCalendarFormStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const myCalendarInputStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 38,
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '8px 10px',
+  font: 'inherit',
+  fontSize: 13,
+  boxSizing: 'border-box',
+  minWidth: 0,
+}
+
+const myCalendarGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+function myCalendarItemStyle(source: 'shared' | 'personal'): CSSProperties {
+  const shared = source === 'shared'
+  return {
+    display: 'grid',
+    gap: 5,
+    padding: 12,
+    borderRadius: 14,
+    border: shared
+      ? '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)'
+      : '1px solid var(--shell-panel-border)',
+    background: shared
+      ? 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)'
+      : 'var(--shell-chip-bg)',
+    color: 'var(--shell-copy-muted)',
+    fontSize: 12,
+    lineHeight: 1.35,
+    minWidth: 0,
+  }
+}
+
+const calendarRemoveButtonStyle: CSSProperties = {
+  border: 0,
+  background: 'transparent',
+  color: 'var(--brand-blue-2)',
+  cursor: 'pointer',
+  font: 'inherit',
+  fontSize: 12,
+  fontWeight: 900,
+  padding: 0,
+  justifySelf: 'start',
+}
+
 const coachAssignmentPanelStyle: CSSProperties = {
   ...developmentPathPanelStyle,
   background:
-    'radial-gradient(circle at 86% 0%, rgba(116,190,255,0.16), transparent 30%), linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(246,251,255,0.96) 100%)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, rgba(15,37,67,0.14) 82%)',
-  color: '#0b1730',
+    'radial-gradient(circle at 86% 0%, rgba(116,190,255,0.18), transparent 30%), linear-gradient(180deg, rgba(13,29,58,0.90) 0%, rgba(6,17,35,0.98) 100%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  color: 'var(--foreground)',
 }
 
 const coachAssignmentMetricsStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 12,
+}
+
+const playerCoachCalendarStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  minWidth: 0,
+}
+
+const coachCalendarHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const coachCalendarCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 760,
+  minWidth: 0,
+}
+
+const playerCoachCalendarGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerCoachCalendarItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.35,
+  minWidth: 0,
 }
 
 const coachAssignmentGridStyle: CSSProperties = {
@@ -4500,10 +5080,10 @@ const coachHubNextActionStyle: CSSProperties = {
   alignItems: 'center',
   padding: 16,
   borderRadius: 20,
-  border: '1px solid rgba(93,143,18,0.2)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
   background:
-    'radial-gradient(circle at 92% 18%, rgba(155,225,29,0.18), transparent 34%), linear-gradient(135deg, rgba(255,255,255,1), rgba(238,248,229,0.94))',
-  boxShadow: '0 18px 42px rgba(5,18,40,0.08)',
+    'radial-gradient(circle at 92% 18%, rgba(155,225,29,0.16), transparent 34%), rgba(255,255,255,0.05)',
+  boxShadow: '0 18px 42px rgba(5,18,40,0.16)',
   minWidth: 0,
 }
 
@@ -4511,7 +5091,7 @@ const coachHubNextCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
   minWidth: 0,
-  color: '#435775',
+  color: 'var(--shell-copy-muted)',
   fontSize: '.92rem',
   lineHeight: 1.45,
 }
@@ -4536,9 +5116,9 @@ const coachAssignmentActionItemStyle: CSSProperties = {
   gap: 3,
   padding: 10,
   borderRadius: 14,
-  border: '1px solid rgba(15,37,67,0.1)',
-  background: 'rgba(255,255,255,0.78)',
-  color: '#435775',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '.82rem',
   lineHeight: 1.35,
 }
@@ -4550,9 +5130,9 @@ const coachAssignmentCardStyle: CSSProperties = {
   minHeight: 150,
   padding: 16,
   borderRadius: 18,
-  border: '1px solid rgba(15,37,67,0.12)',
-  background: 'linear-gradient(180deg, rgba(255,255,255,1), rgba(243,248,255,0.96))',
-  boxShadow: '0 18px 40px rgba(5,18,40,0.08)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.035))',
+  boxShadow: '0 18px 40px rgba(5,18,40,0.16)',
 }
 
 const coachAssignmentMetaStyle: CSSProperties = {
@@ -4561,7 +5141,7 @@ const coachAssignmentMetaStyle: CSSProperties = {
   gap: 8,
   alignItems: 'center',
   justifyContent: 'space-between',
-  color: '#55708e',
+  color: 'var(--shell-copy-muted)',
   fontSize: '.82rem',
   fontWeight: 800,
 }
@@ -4593,9 +5173,9 @@ const coachAssignmentEmptyStyle: CSSProperties = {
   gap: 10,
   padding: 16,
   borderRadius: 18,
-  border: '1px dashed rgba(15,37,67,0.18)',
-  background: 'rgba(255,255,255,0.78)',
-  color: '#435775',
+  border: '1px dashed rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
 }
 
@@ -4611,9 +5191,9 @@ const coachAssignmentSummaryStyle: CSSProperties = {
   gap: 7,
   padding: 12,
   borderRadius: 16,
-  border: '1px solid rgba(15,37,67,0.1)',
-  background: 'rgba(255,255,255,0.82)',
-  color: '#435775',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '.88rem',
   lineHeight: 1.45,
 }
