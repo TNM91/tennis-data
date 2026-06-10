@@ -51,6 +51,18 @@ export async function POST(request: Request) {
   const tokenHash = hashCalendarFeedToken(token)
   const now = new Date().toISOString()
 
+  const { error: revokeError } = await auth.supabase
+    .from('calendar_feed_tokens')
+    .update({ status: 'revoked', updated_at: now })
+    .eq('scope_type', 'coach_student')
+    .eq('scope_id', studentLinkId)
+    .eq('owner_user_id', auth.userId)
+    .eq('status', 'active')
+
+  if (revokeError) {
+    return Response.json({ ok: false, message: revokeError.message }, { status: 500 })
+  }
+
   const { error: insertError } = await auth.supabase
     .from('calendar_feed_tokens')
     .insert({
@@ -78,4 +90,43 @@ export async function POST(request: Request) {
     calendarUrl: calendarUrl.toString(),
     playerName: cleanText(coachLink.player_name) || 'Player',
   })
+}
+
+export async function DELETE(request: Request) {
+  const auth = await getSignedInPlayerApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  const url = new URL(request.url)
+  const studentLinkId = cleanText(url.searchParams.get('studentLinkId'))
+  if (!studentLinkId) {
+    return Response.json({ ok: false, message: 'Student link id is required.' }, { status: 400 })
+  }
+
+  const { data: linkData, error: linkError } = await auth.supabase
+    .from('coach_player_links')
+    .select('id')
+    .eq('id', studentLinkId)
+    .eq('player_user_id', auth.userId)
+    .maybeSingle()
+
+  if (linkError) return Response.json({ ok: false, message: linkError.message }, { status: 500 })
+
+  const coachLink = linkData as PlayerCoachCalendarLinkRow | null
+  if (!coachLink?.id) {
+    return Response.json({ ok: false, message: 'Coach link was not found for this player.' }, { status: 404 })
+  }
+
+  const { error: revokeError } = await auth.supabase
+    .from('calendar_feed_tokens')
+    .update({ status: 'revoked', updated_at: new Date().toISOString() })
+    .eq('scope_type', 'coach_student')
+    .eq('scope_id', studentLinkId)
+    .eq('owner_user_id', auth.userId)
+    .eq('status', 'active')
+
+  if (revokeError) {
+    return Response.json({ ok: false, message: revokeError.message }, { status: 500 })
+  }
+
+  return Response.json({ ok: true })
 }

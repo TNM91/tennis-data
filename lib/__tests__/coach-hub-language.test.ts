@@ -28,6 +28,8 @@ describe('Coach Hub naming', () => {
     expect(coachPage).toContain('sharedLessonCalendarEvents')
     expect(coachPage).toContain('/api/coach/student-calendar-links')
     expect(coachPage).toContain('Create subscribe link')
+    expect(coachPage).toContain('Revoke feed')
+    expect(coachPage).toContain('revokeStudentCalendarLink')
     expect(coachPage).toContain('Synced proof')
     expect(coachPage).toContain('Local boundary')
     expect(coachPage).toContain('Next coach move')

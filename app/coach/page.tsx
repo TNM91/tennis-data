@@ -424,6 +424,36 @@ function CoachContent() {
     }
   }
 
+  async function revokeStudentCalendarLink(student: CoachStudentLink | null) {
+    if (!session?.access_token || !student) return
+
+    setCalendarLinkLoadingStudentId(student.id)
+    setWorkspaceMessage('')
+
+    try {
+      const response = await fetch(`/api/coach/student-calendar-links?studentLinkId=${encodeURIComponent(student.id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const json = (await response.json()) as { ok?: boolean; message?: string }
+
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message || 'Could not revoke calendar link.')
+      }
+
+      setCalendarLinkByStudentId((current) => {
+        const next = { ...current }
+        delete next[student.id]
+        return next
+      })
+      setWorkspaceMessage(`Calendar subscribe link revoked for ${student.playerName}.`)
+    } catch (error) {
+      setWorkspaceMessage(error instanceof Error ? error.message : 'Could not revoke calendar link.')
+    } finally {
+      setCalendarLinkLoadingStudentId('')
+    }
+  }
+
   function handleAssignmentTemplateChange(templateId: string) {
     if (templateId === CUSTOM_ASSIGNMENT_TEMPLATE_ID) {
       setAssignmentTemplateId(CUSTOM_ASSIGNMENT_TEMPLATE_ID)
@@ -1106,6 +1136,16 @@ function CoachContent() {
                     <a href={calendarLinkByStudentId[selectedContactStudent.id]} style={smallGhostLinkStyle}>
                       Open feed
                     </a>
+                  ) : null}
+                  {selectedContactStudent && calendarLinkByStudentId[selectedContactStudent.id] ? (
+                    <button
+                      type="button"
+                      onClick={() => void revokeStudentCalendarLink(selectedContactStudent)}
+                      disabled={calendarLinkLoadingStudentId === selectedContactStudent.id}
+                      style={smallGhostButtonStyle}
+                    >
+                      Revoke feed
+                    </button>
                   ) : null}
                 </div>
               </div>

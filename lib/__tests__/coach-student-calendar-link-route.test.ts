@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
 let insertedCalendarToken: Record<string, unknown> | null = null
+let revokedCalendarTokenPayloads: Array<Record<string, unknown>> = []
+let revokedCalendarTokenFilters: Array<[string, unknown]> = []
 
 const coachSupabase = {
   from(table: string) {
@@ -26,6 +28,17 @@ const coachSupabase = {
     }
 
     return {
+      update(payload: Record<string, unknown>) {
+        revokedCalendarTokenPayloads.push(payload)
+        return this
+      },
+      eq(field: string, value: unknown) {
+        revokedCalendarTokenFilters.push([field, value])
+        return this
+      },
+      then(resolve: (value: { error: null }) => void) {
+        resolve({ error: null })
+      },
       async insert(payload: Record<string, unknown>) {
         insertedCalendarToken = payload
         return { error: null }
@@ -50,6 +63,8 @@ vi.mock('@/lib/calendar-feed-tokens', () => ({
 describe('coach student calendar link route', () => {
   it('creates a private subscribe URL for a coach-owned student link', async () => {
     insertedCalendarToken = null
+    revokedCalendarTokenPayloads = []
+    revokedCalendarTokenFilters = []
     const route = await import('../../app/api/coach/student-calendar-links/route')
     const response = await route.POST(new Request('https://tenaceiq.com/api/coach/student-calendar-links', {
       method: 'POST',
@@ -72,5 +87,34 @@ describe('coach student calendar link route', () => {
       status: 'active',
     })
     expect(insertedCalendarToken).not.toHaveProperty('token', 'private-token')
+    expect(revokedCalendarTokenPayloads[0]).toMatchObject({ status: 'revoked' })
+    expect(revokedCalendarTokenFilters).toEqual([
+      ['scope_type', 'coach_student'],
+      ['scope_id', 'student-1'],
+      ['owner_user_id', 'coach-1'],
+      ['status', 'active'],
+    ])
+  })
+
+  it('revokes active coach-owned calendar feeds for a student link', async () => {
+    insertedCalendarToken = null
+    revokedCalendarTokenPayloads = []
+    revokedCalendarTokenFilters = []
+    const route = await import('../../app/api/coach/student-calendar-links/route')
+    const response = await route.DELETE(new Request('https://tenaceiq.com/api/coach/student-calendar-links?studentLinkId=student-1', {
+      method: 'DELETE',
+    }))
+    const body = (await response.json()) as { ok?: boolean }
+
+    expect(response.status).toBe(200)
+    expect(body).toEqual({ ok: true })
+    expect(insertedCalendarToken).toBeNull()
+    expect(revokedCalendarTokenPayloads[0]).toMatchObject({ status: 'revoked' })
+    expect(revokedCalendarTokenFilters).toEqual([
+      ['scope_type', 'coach_student'],
+      ['scope_id', 'student-1'],
+      ['owner_user_id', 'coach-1'],
+      ['status', 'active'],
+    ])
   })
 })

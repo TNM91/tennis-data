@@ -16,6 +16,8 @@ describe('My Lab coach check-in guide', () => {
     expect(myLabSource).toContain('/api/player/calendar-links')
     expect(myLabSource).toContain('Coach lesson calendar')
     expect(myLabSource).toContain('Subscribe link')
+    expect(myLabSource).toContain('Revoke feed')
+    expect(myLabSource).toContain('revokePlayerCoachCalendarLink')
     expect(myLabSource).toContain('buildPlayerCoachLessonEvents')
     expect(myLabSource).toContain('MyLabCalendarPanel')
     expect(myLabSource).toContain('LOCAL_PERSONAL_CALENDAR_KEY')

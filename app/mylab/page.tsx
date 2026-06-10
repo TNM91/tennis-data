@@ -1202,6 +1202,35 @@ function MyLabPageInner() {
     [session?.access_token],
   )
 
+  const revokePlayerCoachCalendarLink = useCallback(
+    async (studentLinkId: string) => {
+      if (!session?.access_token) {
+        throw new Error('Sign in to revoke a coach lesson calendar link.')
+      }
+
+      setCoachCalendarLinkLoadingId(studentLinkId)
+      try {
+        const response = await fetch(`/api/player/calendar-links?studentLinkId=${encodeURIComponent(studentLinkId)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        const json = (await response.json()) as { ok?: boolean; message?: string }
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Could not revoke calendar link.')
+        }
+
+        setCoachCalendarLinkByStudentId((current) => {
+          const next = { ...current }
+          delete next[studentLinkId]
+          return next
+        })
+      } finally {
+        setCoachCalendarLinkLoadingId('')
+      }
+    },
+    [session?.access_token],
+  )
+
   const addPersonalCalendarItem = useCallback(
     (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => {
       const nextItem = normalizePersonalCalendarItem({
@@ -2819,6 +2848,7 @@ function MyLabPageInner() {
             calendarLinksByStudentId={coachCalendarLinkByStudentId}
             calendarLinkLoadingId={coachCalendarLinkLoadingId}
             onCreateCalendarLink={createPlayerCoachCalendarLink}
+            onRevokeCalendarLink={revokePlayerCoachCalendarLink}
           />
 
           {linkedPlayer ? (
@@ -4126,6 +4156,7 @@ function PlayerCoachAssignmentsPanel({
   calendarLinksByStudentId,
   calendarLinkLoadingId,
   onCreateCalendarLink,
+  onRevokeCalendarLink,
 }: {
   assignments: CoachAssignment[]
   coachLinks: CoachStudentLink[]
@@ -4135,6 +4166,7 @@ function PlayerCoachAssignmentsPanel({
   calendarLinksByStudentId: Record<string, string>
   calendarLinkLoadingId: string
   onCreateCalendarLink: (studentLinkId: string) => Promise<string>
+  onRevokeCalendarLink: (studentLinkId: string) => Promise<void>
 }) {
   const coachLinkMap = useMemo(() => new Map(coachLinks.map((link) => [link.id, link])), [coachLinks])
   const sortedAssignments = useMemo(() => sortPlayerAssignmentsForAction(assignments), [assignments])
@@ -4208,6 +4240,18 @@ function PlayerCoachAssignmentsPanel({
     }
   }
 
+  const revokeCalendarLink = async () => {
+    if (!activeCoachLink) return
+
+    setCalendarMessage('')
+    try {
+      await onRevokeCalendarLink(activeCoachLink.id)
+      setCalendarMessage('Coach lesson calendar link revoked.')
+    } catch (err) {
+      setCalendarMessage(err instanceof Error ? err.message : 'Could not revoke coach lesson calendar link.')
+    }
+  }
+
   return (
     <section id="coach-assignments" style={coachAssignmentPanelStyle}>
       <div style={developmentPathHeaderStyle}>
@@ -4255,6 +4299,16 @@ function PlayerCoachAssignmentsPanel({
                 <a href={calendarLinksByStudentId[activeCoachLink.id]} style={coachCheckInGhostLinkStyle}>
                   Open feed
                 </a>
+              ) : null}
+              {calendarLinksByStudentId[activeCoachLink.id] ? (
+                <button
+                  type="button"
+                  onClick={() => void revokeCalendarLink()}
+                  disabled={calendarLinkLoadingId === activeCoachLink.id}
+                  style={coachCheckInGhostButtonStyle}
+                >
+                  Revoke feed
+                </button>
               ) : null}
             </div>
           </div>
