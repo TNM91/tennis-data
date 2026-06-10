@@ -222,6 +222,12 @@ type PlayerCoachCalendarPreviewEvent = {
   source: 'shared'
 }
 
+type PersonalCalendarFeedStatus = {
+  active: boolean
+  createdAt: string | null
+  lastUsedAt: string | null
+}
+
 type MyLabLevelUpProof = {
   id: string
   cardId: string
@@ -809,6 +815,11 @@ function MyLabPageInner() {
   const [personalCalendarSyncLabel, setPersonalCalendarSyncLabel] = useState('Browser calendar')
   const [personalCalendarFeedUrl, setPersonalCalendarFeedUrl] = useState('')
   const [personalCalendarFeedLoading, setPersonalCalendarFeedLoading] = useState(false)
+  const [personalCalendarFeedStatus, setPersonalCalendarFeedStatus] = useState<PersonalCalendarFeedStatus>({
+    active: false,
+    createdAt: null,
+    lastUsedAt: null,
+  })
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
@@ -882,6 +893,50 @@ function MyLabPageInner() {
     const timeout = window.setTimeout(() => setNotebookSavedLabel('All changes saved'), 1800)
     return () => window.clearTimeout(timeout)
   }, [notebookSavedLabel])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    if (!session?.access_token) {
+      setPersonalCalendarFeedUrl('')
+      setPersonalCalendarFeedStatus({ active: false, createdAt: null, lastUsedAt: null })
+      return
+    }
+
+    let active = true
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/player/personal-calendar-link', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        const json = (await response.json()) as {
+          ok?: boolean
+          active?: boolean
+          createdAt?: string | null
+          lastUsedAt?: string | null
+          message?: string
+        }
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Could not load calendar feed status.')
+        }
+
+        if (!active) return
+        setPersonalCalendarFeedStatus({
+          active: Boolean(json.active),
+          createdAt: json.createdAt ?? null,
+          lastUsedAt: json.lastUsedAt ?? null,
+        })
+      } catch {
+        if (!active) return
+        setPersonalCalendarFeedStatus({ active: false, createdAt: null, lastUsedAt: null })
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, session?.access_token])
 
   useEffect(() => {
     setTiqAwards(readTiqAwardsRegistry())
@@ -1288,6 +1343,7 @@ function MyLabPageInner() {
       }
 
       setPersonalCalendarFeedUrl(json.calendarUrl)
+      setPersonalCalendarFeedStatus({ active: true, createdAt: new Date().toISOString(), lastUsedAt: null })
       return json.calendarUrl
     } finally {
       setPersonalCalendarFeedLoading(false)
@@ -1311,6 +1367,7 @@ function MyLabPageInner() {
       }
 
       setPersonalCalendarFeedUrl('')
+      setPersonalCalendarFeedStatus({ active: false, createdAt: null, lastUsedAt: null })
     } finally {
       setPersonalCalendarFeedLoading(false)
     }
@@ -2957,6 +3014,8 @@ function MyLabPageInner() {
             sharedCoachEvents={sharedCoachCalendarEvents}
             syncLabel={personalCalendarSyncLabel}
             calendarFeedUrl={personalCalendarFeedUrl}
+            calendarFeedActive={personalCalendarFeedStatus.active}
+            calendarFeedLastUsedAt={personalCalendarFeedStatus.lastUsedAt}
             calendarFeedLoading={personalCalendarFeedLoading}
             onCreateCalendarFeed={createPersonalCalendarFeedLink}
             onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
@@ -4182,6 +4241,8 @@ function MyLabCalendarPanel({
   sharedCoachEvents,
   syncLabel,
   calendarFeedUrl,
+  calendarFeedActive,
+  calendarFeedLastUsedAt,
   calendarFeedLoading,
   onCreateCalendarFeed,
   onRevokeCalendarFeed,
@@ -4192,6 +4253,8 @@ function MyLabCalendarPanel({
   sharedCoachEvents: PlayerCoachCalendarPreviewEvent[]
   syncLabel: string
   calendarFeedUrl: string
+  calendarFeedActive: boolean
+  calendarFeedLastUsedAt: string | null
   calendarFeedLoading: boolean
   onCreateCalendarFeed: () => Promise<string>
   onRevokeCalendarFeed: () => Promise<void>
@@ -4218,6 +4281,11 @@ function MyLabCalendarPanel({
     ].sort((left, right) => left.sortKey.localeCompare(right.sortKey)).slice(0, 8),
     [personalItems, sharedCoachEvents],
   )
+  const feedStatusLabel = calendarFeedUrl
+    ? 'New feed link ready.'
+    : calendarFeedActive
+      ? `Subscribed${calendarFeedLastUsedAt ? `, last checked ${safeDate(calendarFeedLastUsedAt)}` : '. Create a new link to copy it again.'}`
+      : 'Not subscribed yet.'
 
   const createFeedLink = async () => {
     setMessage('')
@@ -4259,6 +4327,7 @@ function MyLabCalendarPanel({
             <h3 style={compactSectionTitleStyle}>Your tennis week, plus shared coach dates.</h3>
             <p style={sectionTextStyle}>Add personal reminders here while coach lessons and assignment due dates flow in from Coach Hub.</p>
             <span style={metricNoteStyle}>{syncLabel}</span>
+            <span style={metricNoteStyle}>{feedStatusLabel}</span>
           </div>
         </div>
         <div style={developmentActionRowStyle}>
@@ -4268,14 +4337,14 @@ function MyLabCalendarPanel({
             disabled={calendarFeedLoading}
             style={coachCheckInButtonStyle}
           >
-            {calendarFeedLoading ? 'Creating' : 'Subscribe calendar'}
+            {calendarFeedLoading ? 'Creating' : calendarFeedUrl || calendarFeedActive ? 'Replace link' : 'Subscribe calendar'}
           </button>
           {calendarFeedUrl ? (
             <a href={calendarFeedUrl} style={coachCheckInGhostLinkStyle}>
               Open feed
             </a>
           ) : null}
-          {calendarFeedUrl ? (
+          {calendarFeedUrl || calendarFeedActive ? (
             <button
               type="button"
               onClick={() => void revokeFeedLink()}

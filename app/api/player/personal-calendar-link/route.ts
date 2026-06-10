@@ -9,6 +9,42 @@ function buildPlayerCalendarUrl(request: Request, userId: string, token: string)
   return calendarUrl.toString()
 }
 
+type CalendarFeedStatusRow = {
+  id?: string | null
+  created_at?: string | null
+  last_used_at?: string | null
+  updated_at?: string | null
+}
+
+export async function GET(request: Request) {
+  const auth = await getSignedInPlayerApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  const { data, error } = await auth.supabase
+    .from('calendar_feed_tokens')
+    .select('id, created_at, last_used_at, updated_at')
+    .eq('scope_type', 'player_calendar')
+    .eq('scope_id', auth.userId)
+    .eq('owner_user_id', auth.userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    return Response.json({ ok: false, message: error.message }, { status: 500 })
+  }
+
+  const activeFeed = data as CalendarFeedStatusRow | null
+  return Response.json({
+    ok: true,
+    active: Boolean(activeFeed?.id),
+    createdAt: activeFeed?.created_at ?? null,
+    lastUsedAt: activeFeed?.last_used_at ?? null,
+    updatedAt: activeFeed?.updated_at ?? null,
+  })
+}
+
 export async function POST(request: Request) {
   const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth.response
