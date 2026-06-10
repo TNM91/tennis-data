@@ -211,6 +211,7 @@ type PersonalCalendarItem = {
   time: string
   kind: 'practice' | 'match' | 'lesson' | 'reminder'
   createdAt: string
+  updatedAt?: string
 }
 
 type PlayerCoachCalendarPreviewEvent = {
@@ -464,7 +465,7 @@ function normalizePersonalCalendarItem(value: Partial<PersonalCalendarItem> | nu
     id: cleanText(value?.id) || `calendar-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     title,
     date,
-    time: /^\d{2}:\d{2}$/.test(cleanText(value?.time)) ? cleanText(value?.time) : '',
+    time: /^([01]\d|2[0-3]):[0-5]\d$/.test(cleanText(value?.time)) ? cleanText(value?.time) : '',
     kind: isPersonalCalendarKind(value?.kind) ? value.kind : 'reminder',
     createdAt: cleanText(value?.createdAt) || new Date().toISOString(),
   }
@@ -805,6 +806,7 @@ function MyLabPageInner() {
   const [coachCalendarLinkByStudentId, setCoachCalendarLinkByStudentId] = useState<Record<string, string>>({})
   const [coachCalendarLinkLoadingId, setCoachCalendarLinkLoadingId] = useState('')
   const [personalCalendarItems, setPersonalCalendarItems] = useState<PersonalCalendarItem[]>([])
+  const [personalCalendarSyncLabel, setPersonalCalendarSyncLabel] = useState('Browser calendar')
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
@@ -834,8 +836,44 @@ function MyLabPageInner() {
   }, [userId, profileLink?.linked_player_id])
 
   useEffect(() => {
-    setPersonalCalendarItems(readLocalPersonalCalendarItems(userId, profileLink?.linked_player_id))
-  }, [userId, profileLink?.linked_player_id])
+    if (!authResolved) return
+
+    const localItems = readLocalPersonalCalendarItems(userId, profileLink?.linked_player_id)
+    if (!session?.access_token) {
+      setPersonalCalendarItems(localItems)
+      setPersonalCalendarSyncLabel('Browser calendar')
+      return
+    }
+
+    let active = true
+    setPersonalCalendarSyncLabel('Syncing calendar')
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/player/calendar-items', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        const json = (await response.json()) as { ok?: boolean; items?: PersonalCalendarItem[]; message?: string }
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Could not load calendar items.')
+        }
+
+        if (!active) return
+        const items = (json.items ?? []).sort((left, right) => getPersonalCalendarSortKey(left).localeCompare(getPersonalCalendarSortKey(right)))
+        setPersonalCalendarItems(items.length ? items : localItems)
+        writeLocalPersonalCalendarItems(userId, profileLink?.linked_player_id, items.length ? items : localItems)
+        setPersonalCalendarSyncLabel('Account calendar')
+      } catch {
+        if (!active) return
+        setPersonalCalendarItems(localItems)
+        setPersonalCalendarSyncLabel('Browser calendar')
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, profileLink?.linked_player_id, session?.access_token, userId])
 
   useEffect(() => {
     if (notebookSavedLabel !== 'Saved just now') return
@@ -1232,13 +1270,37 @@ function MyLabPageInner() {
   )
 
   const addPersonalCalendarItem = useCallback(
-    (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => {
+    async (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => {
       const nextItem = normalizePersonalCalendarItem({
         ...input,
         id: `calendar-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         createdAt: new Date().toISOString(),
       })
       if (!nextItem) return false
+
+      if (session?.access_token) {
+        const response = await fetch('/api/player/calendar-items', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ item: nextItem }),
+        })
+        const json = (await response.json()) as { ok?: boolean; item?: PersonalCalendarItem; message?: string }
+        if (!response.ok || !json.ok || !json.item) {
+          throw new Error(json.message || 'Could not save calendar item.')
+        }
+
+        setPersonalCalendarItems((current) => {
+          const next = [json.item as PersonalCalendarItem, ...current.filter((item) => item.id !== json.item?.id)]
+            .sort((left, right) => getPersonalCalendarSortKey(left).localeCompare(getPersonalCalendarSortKey(right)))
+          writeLocalPersonalCalendarItems(userId, profileLink?.linked_player_id, next)
+          return next
+        })
+        setPersonalCalendarSyncLabel('Account calendar')
+        return true
+      }
 
       setPersonalCalendarItems((current) => {
         const next = [nextItem, ...current].sort((left, right) => getPersonalCalendarSortKey(left).localeCompare(getPersonalCalendarSortKey(right)))
@@ -1247,18 +1309,29 @@ function MyLabPageInner() {
       })
       return true
     },
-    [profileLink?.linked_player_id, userId],
+    [profileLink?.linked_player_id, session?.access_token, userId],
   )
 
   const removePersonalCalendarItem = useCallback(
-    (itemId: string) => {
+    async (itemId: string) => {
+      if (session?.access_token) {
+        const response = await fetch(`/api/player/calendar-items?id=${encodeURIComponent(itemId)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        const json = (await response.json()) as { ok?: boolean; message?: string }
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Could not remove calendar item.')
+        }
+      }
+
       setPersonalCalendarItems((current) => {
         const next = current.filter((item) => item.id !== itemId)
         writeLocalPersonalCalendarItems(userId, profileLink?.linked_player_id, next)
         return next
       })
     },
-    [profileLink?.linked_player_id, userId],
+    [profileLink?.linked_player_id, session?.access_token, userId],
   )
 
   const coachLinkMapForCalendar = useMemo(() => new Map(coachLinks.map((link) => [link.id, link])), [coachLinks])
@@ -2835,6 +2908,7 @@ function MyLabPageInner() {
           <MyLabCalendarPanel
             personalItems={personalCalendarItems}
             sharedCoachEvents={sharedCoachCalendarEvents}
+            syncLabel={personalCalendarSyncLabel}
             onAddPersonalItem={addPersonalCalendarItem}
             onRemovePersonalItem={removePersonalCalendarItem}
           />
@@ -4055,19 +4129,22 @@ function LevelUpReturnStatePanel({
 function MyLabCalendarPanel({
   personalItems,
   sharedCoachEvents,
+  syncLabel,
   onAddPersonalItem,
   onRemovePersonalItem,
 }: {
   personalItems: PersonalCalendarItem[]
   sharedCoachEvents: PlayerCoachCalendarPreviewEvent[]
-  onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => boolean
-  onRemovePersonalItem: (itemId: string) => void
+  syncLabel: string
+  onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => Promise<boolean>
+  onRemovePersonalItem: (itemId: string) => Promise<void>
 }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [kind, setKind] = useState<PersonalCalendarItem['kind']>('practice')
   const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
   const mergedItems = useMemo(
     () => [
       ...sharedCoachEvents,
@@ -4092,6 +4169,7 @@ function MyLabCalendarPanel({
             <p style={sectionKickerStyle}>My calendar</p>
             <h3 style={compactSectionTitleStyle}>Your tennis week, plus shared coach dates.</h3>
             <p style={sectionTextStyle}>Add personal reminders here while coach lessons and assignment due dates flow in from Coach Hub.</p>
+            <span style={metricNoteStyle}>{syncLabel}</span>
           </div>
         </div>
       </div>
@@ -4099,16 +4177,26 @@ function MyLabCalendarPanel({
       <form
         onSubmit={(event) => {
           event.preventDefault()
-          const saved = onAddPersonalItem({ title, date, time, kind })
-          if (!saved) {
-            setMessage('Add a title and date.')
-            return
-          }
-          setTitle('')
-          setDate('')
-          setTime('')
-          setKind('practice')
-          setMessage('Calendar item added.')
+          setSaving(true)
+          setMessage('')
+          void (async () => {
+            try {
+              const saved = await onAddPersonalItem({ title, date, time, kind })
+              if (!saved) {
+                setMessage('Add a title and date.')
+                return
+              }
+              setTitle('')
+              setDate('')
+              setTime('')
+              setKind('practice')
+              setMessage('Calendar item added.')
+            } catch (error) {
+              setMessage(error instanceof Error ? error.message : 'Could not save calendar item.')
+            } finally {
+              setSaving(false)
+            }
+          })()
         }}
         style={myCalendarFormStyle}
       >
@@ -4121,7 +4209,7 @@ function MyLabCalendarPanel({
           <option value="lesson">Lesson</option>
           <option value="reminder">Reminder</option>
         </select>
-        <button type="submit" style={coachCheckInButtonStyle}>Add</button>
+        <button type="submit" disabled={saving} style={coachCheckInButtonStyle}>{saving ? 'Saving' : 'Add'}</button>
       </form>
 
       {mergedItems.length ? (
@@ -4132,7 +4220,16 @@ function MyLabCalendarPanel({
               <strong>{item.title}</strong>
               <span>{item.dateLabel}</span>
               {item.source === 'personal' ? (
-                <button type="button" onClick={() => onRemovePersonalItem(item.id)} style={calendarRemoveButtonStyle}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMessage('')
+                    void onRemovePersonalItem(item.id).catch((error: unknown) => {
+                      setMessage(error instanceof Error ? error.message : 'Could not remove calendar item.')
+                    })
+                  }}
+                  style={calendarRemoveButtonStyle}
+                >
                   Remove
                 </button>
               ) : null}
