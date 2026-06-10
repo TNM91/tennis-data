@@ -228,6 +228,12 @@ type PersonalCalendarFeedStatus = {
   lastUsedAt: string | null
 }
 
+type CoachCalendarFeedStatus = {
+  active: boolean
+  createdAt: string | null
+  lastUsedAt: string | null
+}
+
 type MyLabLevelUpProof = {
   id: string
   cardId: string
@@ -810,6 +816,7 @@ function MyLabPageInner() {
   const [coachAssignmentsLoading, setCoachAssignmentsLoading] = useState(false)
   const [coachAssignmentsMessage, setCoachAssignmentsMessage] = useState('')
   const [coachCalendarLinkByStudentId, setCoachCalendarLinkByStudentId] = useState<Record<string, string>>({})
+  const [coachCalendarFeedStatusByStudentId, setCoachCalendarFeedStatusByStudentId] = useState<Record<string, CoachCalendarFeedStatus>>({})
   const [coachCalendarLinkLoadingId, setCoachCalendarLinkLoadingId] = useState('')
   const [personalCalendarItems, setPersonalCalendarItems] = useState<PersonalCalendarItem[]>([])
   const [personalCalendarSyncLabel, setPersonalCalendarSyncLabel] = useState('Browser calendar')
@@ -1202,6 +1209,8 @@ function MyLabPageInner() {
       setCoachAssignments([])
       setCoachAssignmentsMessage('')
       setCoachAssignmentsLoading(false)
+      setCoachCalendarLinkByStudentId({})
+      setCoachCalendarFeedStatusByStudentId({})
       return
     }
 
@@ -1233,6 +1242,56 @@ function MyLabPageInner() {
         setCoachAssignmentsMessage(err instanceof Error ? err.message : 'Could not load coach assignments.')
       } finally {
         if (active) setCoachAssignmentsLoading(false)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, session?.access_token])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    if (!session?.access_token) {
+      setCoachCalendarFeedStatusByStudentId({})
+      return
+    }
+
+    let active = true
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/player/calendar-links', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        const json = (await response.json()) as {
+          ok?: boolean
+          feeds?: Array<{ studentLinkId?: string; createdAt?: string | null; lastUsedAt?: string | null }>
+          message?: string
+        }
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Could not load coach calendar feed status.')
+        }
+
+        if (!active) return
+        setCoachCalendarFeedStatusByStudentId(
+          Object.fromEntries(
+            (json.feeds ?? [])
+              .filter((feed) => cleanText(feed.studentLinkId))
+              .map((feed) => [
+                cleanText(feed.studentLinkId),
+                {
+                  active: true,
+                  createdAt: feed.createdAt ?? null,
+                  lastUsedAt: feed.lastUsedAt ?? null,
+                },
+              ]),
+          ),
+        )
+      } catch {
+        if (!active) return
+        setCoachCalendarFeedStatusByStudentId({})
       }
     })()
 
@@ -1289,6 +1348,10 @@ function MyLabPageInner() {
         }
 
         setCoachCalendarLinkByStudentId((current) => ({ ...current, [studentLinkId]: json.calendarUrl as string }))
+        setCoachCalendarFeedStatusByStudentId((current) => ({
+          ...current,
+          [studentLinkId]: { active: true, createdAt: new Date().toISOString(), lastUsedAt: null },
+        }))
         return json.calendarUrl
       } finally {
         setCoachCalendarLinkLoadingId('')
@@ -1315,6 +1378,11 @@ function MyLabPageInner() {
         }
 
         setCoachCalendarLinkByStudentId((current) => {
+          const next = { ...current }
+          delete next[studentLinkId]
+          return next
+        })
+        setCoachCalendarFeedStatusByStudentId((current) => {
           const next = { ...current }
           delete next[studentLinkId]
           return next
@@ -3030,6 +3098,7 @@ function MyLabPageInner() {
             message={coachAssignmentsMessage}
             onComplete={completeCoachAssignment}
             calendarLinksByStudentId={coachCalendarLinkByStudentId}
+            calendarFeedStatusByStudentId={coachCalendarFeedStatusByStudentId}
             calendarLinkLoadingId={coachCalendarLinkLoadingId}
             onCreateCalendarLink={createPlayerCoachCalendarLink}
             onRevokeCalendarLink={revokePlayerCoachCalendarLink}
@@ -4434,6 +4503,7 @@ function PlayerCoachAssignmentsPanel({
   message,
   onComplete,
   calendarLinksByStudentId,
+  calendarFeedStatusByStudentId,
   calendarLinkLoadingId,
   onCreateCalendarLink,
   onRevokeCalendarLink,
@@ -4444,6 +4514,7 @@ function PlayerCoachAssignmentsPanel({
   message: string
   onComplete: (assignmentId: string, recap: string, evidence: string) => Promise<void>
   calendarLinksByStudentId: Record<string, string>
+  calendarFeedStatusByStudentId: Record<string, CoachCalendarFeedStatus>
   calendarLinkLoadingId: string
   onCreateCalendarLink: (studentLinkId: string) => Promise<string>
   onRevokeCalendarLink: (studentLinkId: string) => Promise<void>
@@ -4463,6 +4534,14 @@ function PlayerCoachAssignmentsPanel({
   const nextAssignmentActionPlan = nextAssignment
     ? buildPlayerAssignmentActionPlan(nextAssignment, nextAssignmentSummary, nextDueState?.label ?? '')
     : []
+  const activeCoachCalendarUrl = activeCoachLink ? calendarLinksByStudentId[activeCoachLink.id] : ''
+  const activeCoachCalendarStatus = activeCoachLink ? calendarFeedStatusByStudentId[activeCoachLink.id] : null
+  const activeCoachCalendarSubscribed = Boolean(activeCoachCalendarUrl || activeCoachCalendarStatus?.active)
+  const activeCoachCalendarStatusLabel = activeCoachCalendarUrl
+    ? 'New coach feed link ready.'
+    : activeCoachCalendarStatus?.active
+      ? `Subscribed${activeCoachCalendarStatus.lastUsedAt ? `, last checked ${safeDate(activeCoachCalendarStatus.lastUsedAt)}` : '. Create a new link to copy it again.'}`
+      : 'Not subscribed yet.'
   const coachLessonEvents = useMemo(
     () => buildPlayerCoachLessonEvents(assignments, coachLinkMap).slice(0, 3),
     [assignments, coachLinkMap],
@@ -4565,6 +4644,7 @@ function PlayerCoachAssignmentsPanel({
             <div style={coachCalendarCopyStyle}>
               <strong>Coach lesson calendar</strong>
               <span>Subscribe once to see coach lessons and assignment due dates beside your personal calendar.</span>
+              <span>{activeCoachCalendarStatusLabel}</span>
             </div>
             <div style={developmentActionRowStyle}>
               <button
@@ -4573,14 +4653,14 @@ function PlayerCoachAssignmentsPanel({
                 disabled={calendarLinkLoadingId === activeCoachLink.id}
                 style={coachCheckInButtonStyle}
               >
-                {calendarLinkLoadingId === activeCoachLink.id ? 'Creating' : 'Subscribe link'}
+                {calendarLinkLoadingId === activeCoachLink.id ? 'Creating' : activeCoachCalendarSubscribed ? 'Replace link' : 'Subscribe link'}
               </button>
-              {calendarLinksByStudentId[activeCoachLink.id] ? (
-                <a href={calendarLinksByStudentId[activeCoachLink.id]} style={coachCheckInGhostLinkStyle}>
+              {activeCoachCalendarUrl ? (
+                <a href={activeCoachCalendarUrl} style={coachCheckInGhostLinkStyle}>
                   Open feed
                 </a>
               ) : null}
-              {calendarLinksByStudentId[activeCoachLink.id] ? (
+              {activeCoachCalendarSubscribed ? (
                 <button
                   type="button"
                   onClick={() => void revokeCalendarLink()}
