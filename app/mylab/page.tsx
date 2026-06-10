@@ -210,7 +210,9 @@ type PersonalCalendarItem = {
   date: string
   time: string
   location: string
-  kind: 'practice' | 'match' | 'lesson' | 'reminder'
+  kind: 'practice' | 'match' | 'lesson' | 'reminder' | 'availability'
+  recurrenceRule: '' | 'FREQ=DAILY' | 'FREQ=WEEKLY' | 'FREQ=MONTHLY'
+  availabilityStatus: '' | 'available' | 'unavailable'
   createdAt: string
   updatedAt?: string
 }
@@ -218,6 +220,8 @@ type PersonalCalendarItem = {
 type PlayerCoachCalendarPreviewEvent = {
   id: string
   title: string
+  date: string
+  time: string
   dateLabel: string
   sortKey: string
   source: 'shared'
@@ -481,12 +485,27 @@ function normalizePersonalCalendarItem(value: Partial<PersonalCalendarItem> | nu
     time: /^([01]\d|2[0-3]):[0-5]\d$/.test(cleanText(value?.time)) ? cleanText(value?.time) : '',
     location: cleanText(value?.location).slice(0, 160),
     kind: isPersonalCalendarKind(value?.kind) ? value.kind : 'reminder',
+    recurrenceRule: normalizePersonalCalendarRecurrenceRule(value?.recurrenceRule),
+    availabilityStatus: normalizePersonalCalendarAvailabilityStatus(value?.availabilityStatus),
     createdAt: cleanText(value?.createdAt) || new Date().toISOString(),
+    updatedAt: cleanText(value?.updatedAt) || undefined,
   }
 }
 
 function isPersonalCalendarKind(value: unknown): value is PersonalCalendarItem['kind'] {
-  return value === 'practice' || value === 'match' || value === 'lesson' || value === 'reminder'
+  return value === 'practice' || value === 'match' || value === 'lesson' || value === 'reminder' || value === 'availability'
+}
+
+function normalizePersonalCalendarRecurrenceRule(value: unknown): PersonalCalendarItem['recurrenceRule'] {
+  const cleaned = cleanText(value).toUpperCase()
+  if (cleaned === 'DAILY') return 'FREQ=DAILY'
+  if (cleaned === 'WEEKLY') return 'FREQ=WEEKLY'
+  if (cleaned === 'MONTHLY') return 'FREQ=MONTHLY'
+  return cleaned === 'FREQ=DAILY' || cleaned === 'FREQ=WEEKLY' || cleaned === 'FREQ=MONTHLY' ? cleaned : ''
+}
+
+function normalizePersonalCalendarAvailabilityStatus(value: unknown): PersonalCalendarItem['availabilityStatus'] {
+  return value === 'available' || value === 'unavailable' ? value : ''
 }
 
 function readLocalPersonalCalendarItems(userId: string | null, playerId: string | null | undefined): PersonalCalendarItem[] {
@@ -1444,10 +1463,10 @@ function MyLabPageInner() {
   }, [session?.access_token])
 
   const addPersonalCalendarItem = useCallback(
-    async (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'location' | 'kind'>) => {
+    async (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'location' | 'kind' | 'recurrenceRule' | 'availabilityStatus'> & { id?: string }) => {
       const nextItem = normalizePersonalCalendarItem({
         ...input,
-        id: `calendar-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        id: input.id || `calendar-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         createdAt: new Date().toISOString(),
       })
       if (!nextItem) return false
@@ -1477,7 +1496,8 @@ function MyLabPageInner() {
       }
 
       setPersonalCalendarItems((current) => {
-        const next = [nextItem, ...current].sort((left, right) => getPersonalCalendarSortKey(left).localeCompare(getPersonalCalendarSortKey(right)))
+        const next = [nextItem, ...current.filter((item) => item.id !== nextItem.id)]
+          .sort((left, right) => getPersonalCalendarSortKey(left).localeCompare(getPersonalCalendarSortKey(right)))
         writeLocalPersonalCalendarItems(userId, profileLink?.linked_player_id, next)
         return next
       })
@@ -1513,6 +1533,17 @@ function MyLabPageInner() {
     () => buildPlayerCoachLessonEvents(coachAssignments, coachLinkMapForCalendar).slice(0, 6),
     [coachAssignments, coachLinkMapForCalendar],
   )
+  const activeCoachCalendarFeeds = useMemo(
+    () => Object.values(coachCalendarFeedStatusByStudentId).filter((status) => status.active),
+    [coachCalendarFeedStatusByStudentId],
+  )
+  const latestCoachCalendarFeedUse = useMemo(() => (
+    activeCoachCalendarFeeds
+      .map((status) => status.lastUsedAt)
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null
+  ), [activeCoachCalendarFeeds])
 
   const myMatchReportByMatchId = useMemo(() => {
     const map = new Map<string, MatchAccuracyReport>()
@@ -3086,6 +3117,8 @@ function MyLabPageInner() {
             calendarFeedUrl={personalCalendarFeedUrl}
             calendarFeedActive={personalCalendarFeedStatus.active}
             calendarFeedLastUsedAt={personalCalendarFeedStatus.lastUsedAt}
+            coachFeedActiveCount={activeCoachCalendarFeeds.length}
+            coachFeedLastUsedAt={latestCoachCalendarFeedUse}
             calendarFeedLoading={personalCalendarFeedLoading}
             onCreateCalendarFeed={createPersonalCalendarFeedLink}
             onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
@@ -4314,6 +4347,8 @@ function MyLabCalendarPanel({
   calendarFeedUrl,
   calendarFeedActive,
   calendarFeedLastUsedAt,
+  coachFeedActiveCount,
+  coachFeedLastUsedAt,
   calendarFeedLoading,
   onCreateCalendarFeed,
   onRevokeCalendarFeed,
@@ -4326,10 +4361,12 @@ function MyLabCalendarPanel({
   calendarFeedUrl: string
   calendarFeedActive: boolean
   calendarFeedLastUsedAt: string | null
+  coachFeedActiveCount: number
+  coachFeedLastUsedAt: string | null
   calendarFeedLoading: boolean
   onCreateCalendarFeed: () => Promise<string>
   onRevokeCalendarFeed: () => Promise<void>
-  onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'location' | 'kind'>) => Promise<boolean>
+  onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'location' | 'kind' | 'recurrenceRule' | 'availabilityStatus'> & { id?: string }) => Promise<boolean>
   onRemovePersonalItem: (itemId: string) => Promise<void>
 }) {
   const [title, setTitle] = useState('')
@@ -4337,23 +4374,53 @@ function MyLabCalendarPanel({
   const [time, setTime] = useState('')
   const [location, setLocation] = useState('')
   const [kind, setKind] = useState<PersonalCalendarItem['kind']>('practice')
+  const [recurrenceRule, setRecurrenceRule] = useState<PersonalCalendarItem['recurrenceRule']>('')
+  const [availabilityStatus, setAvailabilityStatus] = useState<PersonalCalendarItem['availabilityStatus']>('available')
+  const [editingItemId, setEditingItemId] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const conflictKeys = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const item of personalItems) {
+      if (!item.date || !item.time) continue
+      const key = `${item.date}T${item.time}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    for (const item of sharedCoachEvents) {
+      if (!item.date || !item.time) continue
+      const key = `${item.date}T${item.time}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key))
+  }, [personalItems, sharedCoachEvents])
+  const conflictCount = conflictKeys.size
+  const availabilityItems = useMemo(
+    () => personalItems.filter((item) => item.kind === 'availability').slice(0, 4),
+    [personalItems],
+  )
   const mergedItems = useMemo(
     () => [
-      ...sharedCoachEvents,
+      ...sharedCoachEvents.map((item) => ({
+        ...item,
+        hasConflict: item.time ? conflictKeys.has(`${item.date}T${item.time}`) : false,
+      })),
       ...personalItems.map((item) => ({
         id: item.id,
         title: item.title,
+        date: item.date,
+        time: item.time,
         dateLabel: formatPersonalCalendarItemDate(item),
         sortKey: getPersonalCalendarSortKey(item),
         source: 'personal' as const,
         location: item.location,
         kind: item.kind,
+        recurrenceRule: item.recurrenceRule,
+        availabilityStatus: item.availabilityStatus,
+        hasConflict: item.time ? conflictKeys.has(`${item.date}T${item.time}`) : false,
       })),
     ].sort((left, right) => left.sortKey.localeCompare(right.sortKey)).slice(0, 8),
-    [personalItems, sharedCoachEvents],
+    [conflictKeys, personalItems, sharedCoachEvents],
   )
   const webcalFeedUrl = calendarFeedUrl ? toWebcalUrl(calendarFeedUrl) : ''
   const feedStatusLabel = calendarFeedUrl
@@ -4390,6 +4457,31 @@ function MyLabCalendarPanel({
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not revoke calendar feed.')
     }
+  }
+
+  const resetCalendarForm = () => {
+    setTitle('')
+    setDate('')
+    setTime('')
+    setLocation('')
+    setKind('practice')
+    setRecurrenceRule('')
+    setAvailabilityStatus('available')
+    setEditingItemId('')
+  }
+
+  const startEditingItem = (itemId: string) => {
+    const item = personalItems.find((candidate) => candidate.id === itemId)
+    if (!item) return
+    setMessage('')
+    setEditingItemId(item.id)
+    setTitle(item.title)
+    setDate(item.date)
+    setTime(item.time)
+    setLocation(item.location)
+    setKind(item.kind)
+    setRecurrenceRule(item.recurrenceRule)
+    setAvailabilityStatus(item.availabilityStatus || 'available')
   }
 
   return (
@@ -4459,6 +4551,37 @@ function MyLabCalendarPanel({
         </div>
       ) : null}
 
+      <div style={calendarAuditGridStyle}>
+        <div style={calendarAuditItemStyle}>
+          <span>My feed</span>
+          <strong>{calendarFeedActive ? 'Active' : 'Off'}</strong>
+          <small>{calendarFeedLastUsedAt ? `Fetched ${safeDate(calendarFeedLastUsedAt)}` : calendarFeedActive ? 'Waiting for calendar app' : 'Create a subscription link'}</small>
+        </div>
+        <div style={calendarAuditItemStyle}>
+          <span>Coach feeds</span>
+          <strong>{coachFeedActiveCount || 0}</strong>
+          <small>{coachFeedLastUsedAt ? `Latest fetch ${safeDate(coachFeedLastUsedAt)}` : coachFeedActiveCount ? 'Waiting for calendar app' : 'No active shared feeds'}</small>
+        </div>
+        <div style={calendarAuditItemStyle}>
+          <span>Conflicts</span>
+          <strong>{conflictCount}</strong>
+          <small>{conflictCount ? 'Review matching start times' : 'No exact date/time conflicts'}</small>
+        </div>
+      </div>
+
+      {availabilityItems.length ? (
+        <div style={availabilityOverlayStyle}>
+          <strong>Availability overlay</strong>
+          <div style={availabilityOverlayListStyle}>
+            {availabilityItems.map((item) => (
+              <span key={item.id} style={availabilityPillStyle(item.availabilityStatus)}>
+                {item.availabilityStatus === 'unavailable' ? 'Unavailable' : 'Available'} - {formatPersonalCalendarItemDate(item)}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <form
         onSubmit={(event) => {
           event.preventDefault()
@@ -4466,17 +4589,22 @@ function MyLabCalendarPanel({
           setMessage('')
           void (async () => {
             try {
-              const saved = await onAddPersonalItem({ title, date, time, location, kind })
+              const saved = await onAddPersonalItem({
+                id: editingItemId || undefined,
+                title,
+                date,
+                time,
+                location,
+                kind,
+                recurrenceRule,
+                availabilityStatus: kind === 'availability' ? availabilityStatus : '',
+              })
               if (!saved) {
                 setMessage('Add a title and date.')
                 return
               }
-              setTitle('')
-              setDate('')
-              setTime('')
-              setLocation('')
-              setKind('practice')
-              setMessage('Calendar item added.')
+              resetCalendarForm()
+              setMessage(editingItemId ? 'Calendar item updated.' : 'Calendar item added.')
             } catch (error) {
               setMessage(error instanceof Error ? error.message : 'Could not save calendar item.')
             } finally {
@@ -4495,8 +4623,26 @@ function MyLabCalendarPanel({
           <option value="match">Match</option>
           <option value="lesson">Lesson</option>
           <option value="reminder">Reminder</option>
+          <option value="availability">Availability</option>
         </select>
-        <button type="submit" disabled={saving} style={coachCheckInButtonStyle}>{saving ? 'Saving' : 'Add'}</button>
+        <select value={recurrenceRule} onChange={(event) => setRecurrenceRule(event.target.value as PersonalCalendarItem['recurrenceRule'])} style={myCalendarInputStyle}>
+          <option value="">Does not repeat</option>
+          <option value="FREQ=DAILY">Daily</option>
+          <option value="FREQ=WEEKLY">Weekly</option>
+          <option value="FREQ=MONTHLY">Monthly</option>
+        </select>
+        {kind === 'availability' ? (
+          <select value={availabilityStatus} onChange={(event) => setAvailabilityStatus(event.target.value as PersonalCalendarItem['availabilityStatus'])} style={myCalendarInputStyle}>
+            <option value="available">Available</option>
+            <option value="unavailable">Unavailable</option>
+          </select>
+        ) : null}
+        <button type="submit" disabled={saving} style={coachCheckInButtonStyle}>{saving ? 'Saving' : editingItemId ? 'Save' : 'Add'}</button>
+        {editingItemId ? (
+          <button type="button" onClick={resetCalendarForm} style={coachCheckInGhostButtonStyle}>
+            Cancel
+          </button>
+        ) : null}
       </form>
 
       {mergedItems.length ? (
@@ -4506,20 +4652,34 @@ function MyLabCalendarPanel({
               <div style={metricLabelStyle}>{item.source === 'shared' ? 'Shared' : item.kind}</div>
               <strong>{item.title}</strong>
               <span>{item.dateLabel}</span>
+              {item.hasConflict ? <span style={calendarConflictPillStyle}>Conflict</span> : null}
               {'location' in item && item.location ? <span>{item.location}</span> : null}
               {item.source === 'personal' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMessage('')
-                    void onRemovePersonalItem(item.id).catch((error: unknown) => {
-                      setMessage(error instanceof Error ? error.message : 'Could not remove calendar item.')
-                    })
-                  }}
-                  style={calendarRemoveButtonStyle}
-                >
-                  Remove
-                </button>
+                <>
+                  {item.recurrenceRule ? <span>{formatCalendarRecurrence(item.recurrenceRule)}</span> : null}
+                  {item.kind === 'availability' ? (
+                    <span style={availabilityPillStyle(item.availabilityStatus)}>
+                      {item.availabilityStatus === 'unavailable' ? 'Unavailable' : 'Available'}
+                    </span>
+                  ) : null}
+                  <div style={calendarItemActionRowStyle}>
+                    <button type="button" onClick={() => startEditingItem(item.id)} style={calendarRemoveButtonStyle}>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMessage('')
+                        void onRemovePersonalItem(item.id).catch((error: unknown) => {
+                          setMessage(error instanceof Error ? error.message : 'Could not remove calendar item.')
+                        })
+                      }}
+                      style={calendarRemoveButtonStyle}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </>
               ) : null}
             </div>
           ))}
@@ -5068,6 +5228,8 @@ function buildPlayerCoachLessonEvents(
     .map((event) => ({
       id: event.id,
       title: event.title,
+      date: event.date,
+      time: event.time || '',
       sortKey: getPlayerCoachCalendarSortKey(event),
       source: 'shared' as const,
       dateLabel: event.time
@@ -5100,6 +5262,13 @@ function getPersonalCalendarSortKey(item: Pick<PersonalCalendarItem, 'date' | 't
 
 function formatPersonalCalendarItemDate(item: Pick<PersonalCalendarItem, 'date' | 'time'>) {
   return item.time ? formatPlayerCoachCalendarDate(`${item.date}T${item.time}`) : formatPlayerCoachCalendarDate(item.date)
+}
+
+function formatCalendarRecurrence(value: PersonalCalendarItem['recurrenceRule']) {
+  if (value === 'FREQ=DAILY') return 'Repeats daily'
+  if (value === 'FREQ=WEEKLY') return 'Repeats weekly'
+  if (value === 'FREQ=MONTHLY') return 'Repeats monthly'
+  return ''
 }
 
 function toWebcalUrl(value: string) {
@@ -5487,6 +5656,65 @@ const calendarHelpItemStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const calendarAuditGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const calendarAuditItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-chip-bg) 94%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const availabilityOverlayStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+  minWidth: 0,
+}
+
+const availabilityOverlayListStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+function availabilityPillStyle(status: PersonalCalendarItem['availabilityStatus']): CSSProperties {
+  const unavailable = status === 'unavailable'
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    maxWidth: '100%',
+    borderRadius: 999,
+    padding: '4px 8px',
+    border: unavailable
+      ? '1px solid color-mix(in srgb, #fca5a5 45%, var(--shell-panel-border) 55%)'
+      : '1px solid color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)',
+    background: unavailable
+      ? 'color-mix(in srgb, #ef4444 12%, var(--shell-chip-bg) 88%)'
+      : 'color-mix(in srgb, var(--brand-lime) 12%, var(--shell-chip-bg) 88%)',
+    color: 'var(--foreground-strong)',
+    fontSize: 11,
+    fontWeight: 900,
+    overflowWrap: 'anywhere',
+  }
+}
+
 const myCalendarGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
@@ -5512,6 +5740,26 @@ function myCalendarItemStyle(source: 'shared' | 'personal'): CSSProperties {
     lineHeight: 1.35,
     minWidth: 0,
   }
+}
+
+const calendarConflictPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  justifySelf: 'start',
+  borderRadius: 999,
+  padding: '3px 7px',
+  border: '1px solid color-mix(in srgb, #fbbf24 45%, var(--shell-panel-border) 55%)',
+  background: 'color-mix(in srgb, #f59e0b 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+}
+
+const calendarItemActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
 }
 
 const calendarRemoveButtonStyle: CSSProperties = {

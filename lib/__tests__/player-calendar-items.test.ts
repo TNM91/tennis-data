@@ -10,6 +10,7 @@ describe('player calendar items', () => {
   it('normalizes calendar item kind values', () => {
     expect(normalizePlayerCalendarKind('practice')).toBe('practice')
     expect(normalizePlayerCalendarKind('match')).toBe('match')
+    expect(normalizePlayerCalendarKind('availability')).toBe('availability')
     expect(normalizePlayerCalendarKind('unknown')).toBe('reminder')
   })
 
@@ -24,6 +25,7 @@ describe('player calendar items', () => {
           time: '16:30',
           location: ' Court 4 ',
           kind: 'practice',
+          recurrenceRule: 'weekly',
         },
         'player-1',
       ),
@@ -35,12 +37,18 @@ describe('player calendar items', () => {
       scheduled_time: '16:30',
       location: 'Court 4',
       kind: 'practice',
+      recurrence_rule: 'FREQ=WEEKLY',
+      availability_status: '',
     })
 
     expect(buildPlayerCalendarItemPayload({ title: 'No date', date: 'soon' }, 'player-1')).toBeNull()
     expect(buildPlayerCalendarItemPayload({ title: 'Bad time', date: '2026-06-12', time: 'later' }, 'player-1')).toMatchObject({
       scheduled_time: '',
       kind: 'reminder',
+    })
+    expect(buildPlayerCalendarItemPayload({ title: 'Free hit', date: '2026-06-12', kind: 'availability' }, 'player-1')).toMatchObject({
+      kind: 'availability',
+      availability_status: 'available',
     })
   })
 
@@ -54,6 +62,8 @@ describe('player calendar items', () => {
         scheduled_time: null,
         location: 'Indoor Court 2',
         kind: 'lesson',
+        recurrence_rule: 'FREQ=MONTHLY',
+        availability_status: '',
         created_at: '2026-06-10T12:00:00.000Z',
         updated_at: '2026-06-10T12:00:00.000Z',
       }),
@@ -64,6 +74,8 @@ describe('player calendar items', () => {
       time: '',
       location: 'Indoor Court 2',
       kind: 'lesson',
+      recurrenceRule: 'FREQ=MONTHLY',
+      availabilityStatus: '',
       createdAt: '2026-06-10T12:00:00.000Z',
       updatedAt: '2026-06-10T12:00:00.000Z',
     })

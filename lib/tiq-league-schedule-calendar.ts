@@ -23,6 +23,7 @@ export type TennisCalendarEvent = {
   description?: string
   url?: string
   durationMinutes?: number
+  recurrenceRule?: string
 }
 
 function formatScheduleDateLabel(value: string) {
@@ -135,6 +136,11 @@ function buildIcsDateLines(date: string, time: string, timeZone: string, duratio
   ]
 }
 
+function sanitizeIcsRule(value: string | undefined) {
+  const cleaned = (value || '').trim().toUpperCase()
+  return /^FREQ=(DAILY|WEEKLY|MONTHLY)(;[A-Z0-9_-]+=[A-Z0-9_,+-]+)*$/.test(cleaned) ? cleaned : ''
+}
+
 export function buildScheduleCalendarFeed(
   items: TiqLeagueScheduleItem[],
   options: ScheduleCalendarFeedOptions = {},
@@ -178,6 +184,7 @@ export function buildTennisCalendarFeed(
 
   for (const event of events) {
     if (!event.id || !event.date) continue
+    const recurrenceRule = sanitizeIcsRule(event.recurrenceRule)
 
     lines.push(
       'BEGIN:VEVENT',
@@ -187,6 +194,7 @@ export function buildTennisCalendarFeed(
       `LOCATION:${escapeIcsText(event.location || '')}`,
       `URL:${escapeIcsText(event.url || productUrl)}`,
       ...buildIcsDateLines(event.date, event.time || '', timeZone, event.durationMinutes ?? durationMinutes),
+      ...(recurrenceRule ? [`RRULE:${recurrenceRule}`] : []),
       'END:VEVENT',
     )
   }

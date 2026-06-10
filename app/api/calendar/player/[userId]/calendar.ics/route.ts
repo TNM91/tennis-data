@@ -19,7 +19,7 @@ import { supabaseUrl } from '@/lib/supabase'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const playerCalendarSelect = 'id,player_user_id,title,scheduled_date,scheduled_time,location,kind,created_at,updated_at'
+const playerCalendarSelect = 'id,player_user_id,title,scheduled_date,scheduled_time,location,kind,recurrence_rule,availability_status,created_at,updated_at'
 const coachStudentSelect = 'id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,player_email,player_phone,contact_preference,setup_status,status,notes,updated_at'
 const assignmentSelect = 'id,student_link_id,title,focus,due_date,status,assignment_json,updated_at'
 
@@ -53,15 +53,21 @@ function getServiceClient() {
 }
 
 function buildPlayerItemEvent(item: PlayerCalendarItem, request: Request): TennisCalendarEvent {
+  const availabilityLine = item.availabilityStatus
+    ? `Availability: ${item.availabilityStatus === 'available' ? 'Available' : 'Unavailable'}`
+    : ''
+  const recurrenceLine = item.recurrenceRule ? `Repeats: ${item.recurrenceRule.replace('FREQ=', '').toLowerCase()}` : ''
+
   return {
     id: `player-calendar-${item.id}`,
     title: item.title,
     date: item.date,
     time: item.time,
     location: item.location,
-    description: [`My calendar: ${item.kind}`, item.time ? `Time: ${item.time}` : 'All day'].join('\n'),
+    description: [`My calendar: ${item.kind}`, availabilityLine, recurrenceLine, item.time ? `Time: ${item.time}` : 'All day'].filter(Boolean).join('\n'),
     url: new URL('/mylab#my-calendar', request.url).toString(),
     durationMinutes: item.time ? 60 : undefined,
+    recurrenceRule: item.recurrenceRule,
   }
 }
 

@@ -12,6 +12,8 @@ const calendarRows = [
     scheduled_time: '16:30',
     location: 'Court 4',
     kind: 'practice',
+    recurrence_rule: 'FREQ=WEEKLY',
+    availability_status: '',
     created_at: '2026-06-10T12:00:00.000Z',
     updated_at: '2026-06-10T12:00:00.000Z',
   },
@@ -100,6 +102,7 @@ describe('player calendar items route', () => {
           time: '09:00',
           location: 'Indoor Court 2',
           kind: 'practice',
+          recurrenceRule: 'weekly',
         },
       }),
     }))
@@ -114,12 +117,15 @@ describe('player calendar items route', () => {
       scheduled_time: '09:00',
       location: 'Indoor Court 2',
       kind: 'practice',
+      recurrence_rule: 'FREQ=WEEKLY',
+      availability_status: '',
     })
     expect(body.item).toMatchObject({
       id: 'item-2',
       title: 'Return practice',
       date: '2026-06-13',
       location: 'Indoor Court 2',
+      recurrenceRule: 'FREQ=WEEKLY',
     })
   })
 

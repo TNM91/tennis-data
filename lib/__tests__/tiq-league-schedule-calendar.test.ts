@@ -109,6 +109,7 @@ describe('buildScheduleCalendarDays', () => {
         description: 'Coach/student lesson\nFocus: Serve + first ball',
         url: 'https://tenaceiq.com/coach#coach-lesson-frame',
         durationMinutes: 60,
+        recurrenceRule: 'FREQ=WEEKLY',
       },
     ], {
       calendarName: 'Coach + student lessons',
@@ -121,6 +122,7 @@ describe('buildScheduleCalendarDays', () => {
     expect(feed).toContain('DESCRIPTION:Coach/student lesson\\nFocus: Serve + first ball')
     expect(feed).toContain('DTSTART;TZID=America/Chicago:20260612T163000')
     expect(feed).toContain('DTEND;TZID=America/Chicago:20260612T173000')
+    expect(feed).toContain('RRULE:FREQ=WEEKLY')
     expect(feed).toContain('URL:https://tenaceiq.com/coach#coach-lesson-frame')
   })
 })

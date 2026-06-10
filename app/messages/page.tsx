@@ -80,6 +80,14 @@ type CoachMessageContact = {
   status: CoachStudentLink['status']
 }
 
+type CalendarQuickAddCandidate = {
+  title: string
+  date: string
+  time: string
+  location: string
+  sourceLabel: string
+}
+
 function formatMessageTime(value: string) {
   if (!value) return ''
   try {
@@ -223,6 +231,34 @@ function replyPlaceholder(conversation: InternalConversation | null) {
   if (conversation.conversationType === 'league') return 'Message this league room...'
   if (isScheduleConversation(conversation)) return 'Add a schedule note...'
   return 'Write a message...'
+}
+
+function detectCalendarQuickAddCandidate(
+  text: string,
+  fallbackTitle: string,
+  sourceLabel: string,
+): CalendarQuickAddCandidate | null {
+  const cleaned = text.trim().replace(/\s+/g, ' ')
+  if (!cleaned) return null
+
+  const dateMatch = cleaned.match(/\b(20\d{2}-\d{2}-\d{2})(?:[ T]+([01]?\d|2[0-3]):([0-5]\d))?/)
+  if (!dateMatch?.[1]) return null
+
+  const parsed = new Date(`${dateMatch[1]}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return null
+
+  const beforeDate = cleaned.slice(0, dateMatch.index).replace(/\b(on|for|at)\s*$/i, '').trim()
+  const afterDate = cleaned.slice((dateMatch.index ?? 0) + dateMatch[0].length)
+  const locationMatch = afterDate.match(/(?:\bat\s+|@\s*)([A-Za-z0-9 .,#'&-]{3,80})/)
+  const title = beforeDate && beforeDate.length >= 4 ? beforeDate.slice(0, 90) : fallbackTitle || 'Message calendar item'
+
+  return {
+    title,
+    date: dateMatch[1],
+    time: dateMatch[2] && dateMatch[3] ? `${dateMatch[2].padStart(2, '0')}:${dateMatch[3]}` : '',
+    location: locationMatch?.[1]?.trim().replace(/[.!?]$/, '').slice(0, 80) || '',
+    sourceLabel,
+  }
 }
 
 function getQuickReplyActions(conversation: InternalConversation | null, role: InternalIdentity['role']) {
@@ -535,7 +571,7 @@ function MessagesLoadingShell() {
 }
 
 function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
-  const { userId, authResolved } = useAuth()
+  const { userId, authResolved, session } = useAuth()
   const { isTablet, isMobile } = useViewportBreakpoints()
   const [identity, setIdentity] = useState<InternalIdentity | null>(null)
   const [conversations, setConversations] = useState<InternalConversation[]>([])
@@ -577,6 +613,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [preferenceSaving, setPreferenceSaving] = useState('')
   const [conversationActionSaving, setConversationActionSaving] = useState('')
   const [scheduleActionSaving, setScheduleActionSaving] = useState('')
+  const [calendarQuickAddSaving, setCalendarQuickAddSaving] = useState('')
   const [scheduleEditOpen, setScheduleEditOpen] = useState(false)
   const [scheduleDraftDate, setScheduleDraftDate] = useState('')
   const [scheduleDraftTime, setScheduleDraftTime] = useState('')
@@ -607,6 +644,18 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const quickReplyActions = useMemo(
     () => getQuickReplyActions(selectedConversation, identity?.role ?? 'public'),
     [identity?.role, selectedConversation],
+  )
+  const replyCalendarCandidate = useMemo(() => {
+    const fallbackTitle = selectedConversation?.subject || 'Message calendar item'
+    const draftCandidate = detectCalendarQuickAddCandidate(replyBody, fallbackTitle, 'reply draft')
+    if (draftCandidate) return draftCandidate
+
+    const latestIncoming = [...messages].reverse().find((item) => item.senderUserId !== identity?.userId)
+    return latestIncoming ? detectCalendarQuickAddCandidate(latestIncoming.body, fallbackTitle, 'latest message') : null
+  }, [identity?.userId, messages, replyBody, selectedConversation?.subject])
+  const composeCalendarCandidate = useMemo(
+    () => detectCalendarQuickAddCandidate(body, subject || 'Message calendar item', 'new message'),
+    [body, subject],
   )
   const unreadNotificationCount = useMemo(
     () => notifications.filter((notification) => !notification.readAt).length,
@@ -1078,6 +1127,44 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       setError(err instanceof Error ? err.message : 'Reply could not be sent.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function addMessageCandidateToCalendar(candidate: CalendarQuickAddCandidate, sourceId: string) {
+    if (!session?.access_token) {
+      setError('Sign in with a player account to save this to My Calendar.')
+      return
+    }
+
+    setCalendarQuickAddSaving(sourceId)
+    setError('')
+    setMessage('')
+    try {
+      const response = await fetch('/api/player/calendar-items', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          item: {
+            title: candidate.title,
+            date: candidate.date,
+            time: candidate.time,
+            location: candidate.location,
+            kind: 'reminder',
+          },
+        }),
+      })
+      const json = (await response.json()) as { ok?: boolean; message?: string }
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message || 'Could not add this to My Calendar.')
+      }
+      setMessage('Added to My Calendar.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add this to My Calendar.')
+    } finally {
+      setCalendarQuickAddSaving('')
     }
   }
 
@@ -1758,6 +1845,25 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   </button>
                 ))}
               </div>
+              {replyCalendarCandidate ? (
+                <div style={calendarQuickAddStyle}>
+                  <div>
+                    <strong>Calendar suggestion</strong>
+                    <span>
+                      {replyCalendarCandidate.title} - {replyCalendarCandidate.date}{replyCalendarCandidate.time ? ` ${replyCalendarCandidate.time}` : ''}
+                      {replyCalendarCandidate.location ? ` - ${replyCalendarCandidate.location}` : ''} - {replyCalendarCandidate.sourceLabel}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void addMessageCandidateToCalendar(replyCalendarCandidate, 'reply')}
+                    disabled={calendarQuickAddSaving === 'reply'}
+                    style={ghostButtonStyle}
+                  >
+                    {calendarQuickAddSaving === 'reply' ? 'Adding...' : 'Add to My Calendar'}
+                  </button>
+                </div>
+              ) : null}
               <textarea
                 value={replyBody}
                 onChange={(event) => updateReplyDraft(event.target.value)}
@@ -2002,6 +2108,25 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               placeholder={composeMode === 'support' ? 'What do you need help with?' : 'Write a player-to-player note...'}
               style={textareaStyle}
             />
+            {composeCalendarCandidate ? (
+              <div style={calendarQuickAddStyle}>
+                <div>
+                  <strong>Calendar suggestion</strong>
+                  <span>
+                    {composeCalendarCandidate.title} - {composeCalendarCandidate.date}{composeCalendarCandidate.time ? ` ${composeCalendarCandidate.time}` : ''}
+                    {composeCalendarCandidate.location ? ` - ${composeCalendarCandidate.location}` : ''} - {composeCalendarCandidate.sourceLabel}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void addMessageCandidateToCalendar(composeCalendarCandidate, 'compose')}
+                  disabled={calendarQuickAddSaving === 'compose'}
+                  style={ghostButtonStyle}
+                >
+                  {calendarQuickAddSaving === 'compose' ? 'Adding...' : 'Add to My Calendar'}
+                </button>
+              </div>
+            ) : null}
           </label>
 
           <div style={composeReviewStyle}>
@@ -2754,6 +2879,22 @@ const quickReplyButtonStyle: CSSProperties = {
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   textAlign: 'center',
+}
+
+const calendarQuickAddStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  alignItems: 'center',
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const segmentedStyle: CSSProperties = {
