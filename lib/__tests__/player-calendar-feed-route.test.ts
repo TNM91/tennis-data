@@ -58,6 +58,7 @@ vi.mock('@supabase/supabase-js', () => ({
                   title: 'Serve reps',
                   scheduled_date: '2026-06-12',
                   scheduled_time: '16:30',
+                  location: 'Court 4',
                   kind: 'practice',
                   created_at: '2026-06-10T12:00:00.000Z',
                   updated_at: '2026-06-10T12:00:00.000Z',
@@ -132,6 +133,7 @@ vi.mock('@supabase/supabase-js', () => ({
                 assignment_json: {
                   lessonDateTime: '2026-06-13T09:00',
                   lessonFocus: 'Return targets',
+                  lessonLocation: 'Indoor Court 2',
                 },
                 updated_at: '2026-06-09T12:00:00.000Z',
               },
@@ -191,8 +193,10 @@ describe('player calendar feed route', () => {
     expect(response.headers.get('content-disposition')).toBe('inline; filename="tenaceiq-my-calendar.ics"')
     expect(body).toContain('X-WR-CALNAME:TenAceIQ My Calendar')
     expect(body).toContain('SUMMARY:Serve reps')
+    expect(body).toContain('LOCATION:Court 4')
     expect(body).toContain('DTSTART;TZID=America/Chicago:20260612T163000')
     expect(body).toContain('SUMMARY:Lesson: Taylor Player')
+    expect(body).toContain('LOCATION:Indoor Court 2')
     expect(body).toContain('SUMMARY:Coach assignment due: Return plan')
     expect(body).toContain('URL:https://tenaceiq.com/mylab#coach-assignments')
     expect(tokenQueryFilters).toEqual(expect.arrayContaining([

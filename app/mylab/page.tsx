@@ -209,6 +209,7 @@ type PersonalCalendarItem = {
   title: string
   date: string
   time: string
+  location: string
   kind: 'practice' | 'match' | 'lesson' | 'reminder'
   createdAt: string
   updatedAt?: string
@@ -478,6 +479,7 @@ function normalizePersonalCalendarItem(value: Partial<PersonalCalendarItem> | nu
     title,
     date,
     time: /^([01]\d|2[0-3]):[0-5]\d$/.test(cleanText(value?.time)) ? cleanText(value?.time) : '',
+    location: cleanText(value?.location).slice(0, 160),
     kind: isPersonalCalendarKind(value?.kind) ? value.kind : 'reminder',
     createdAt: cleanText(value?.createdAt) || new Date().toISOString(),
   }
@@ -1442,7 +1444,7 @@ function MyLabPageInner() {
   }, [session?.access_token])
 
   const addPersonalCalendarItem = useCallback(
-    async (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => {
+    async (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'location' | 'kind'>) => {
       const nextItem = normalizePersonalCalendarItem({
         ...input,
         id: `calendar-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -4327,15 +4329,17 @@ function MyLabCalendarPanel({
   calendarFeedLoading: boolean
   onCreateCalendarFeed: () => Promise<string>
   onRevokeCalendarFeed: () => Promise<void>
-  onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => Promise<boolean>
+  onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'location' | 'kind'>) => Promise<boolean>
   onRemovePersonalItem: (itemId: string) => Promise<void>
 }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
+  const [location, setLocation] = useState('')
   const [kind, setKind] = useState<PersonalCalendarItem['kind']>('practice')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const mergedItems = useMemo(
     () => [
       ...sharedCoachEvents,
@@ -4345,15 +4349,17 @@ function MyLabCalendarPanel({
         dateLabel: formatPersonalCalendarItemDate(item),
         sortKey: getPersonalCalendarSortKey(item),
         source: 'personal' as const,
+        location: item.location,
         kind: item.kind,
       })),
     ].sort((left, right) => left.sortKey.localeCompare(right.sortKey)).slice(0, 8),
     [personalItems, sharedCoachEvents],
   )
+  const webcalFeedUrl = calendarFeedUrl ? toWebcalUrl(calendarFeedUrl) : ''
   const feedStatusLabel = calendarFeedUrl
     ? 'New feed link ready.'
     : calendarFeedActive
-      ? `Subscribed${calendarFeedLastUsedAt ? `, last checked ${safeDate(calendarFeedLastUsedAt)}` : '. Create a new link to copy it again.'}`
+      ? `Subscribed${calendarFeedLastUsedAt ? `, calendar app last fetched ${safeDate(calendarFeedLastUsedAt)}` : '. Create a new link to copy it again.'}`
       : 'Not subscribed yet.'
 
   const createFeedLink = async () => {
@@ -4413,6 +4419,11 @@ function MyLabCalendarPanel({
               Open feed
             </a>
           ) : null}
+          {webcalFeedUrl ? (
+            <a href={webcalFeedUrl} style={coachCheckInGhostLinkStyle}>
+              Add to calendar
+            </a>
+          ) : null}
           {calendarFeedUrl || calendarFeedActive ? (
             <button
               type="button"
@@ -4423,8 +4434,30 @@ function MyLabCalendarPanel({
               Revoke feed
             </button>
           ) : null}
+          <button type="button" onClick={() => setHelpOpen((current) => !current)} style={coachCheckInGhostButtonStyle}>
+            Calendar help
+          </button>
         </div>
       </div>
+
+      {helpOpen ? (
+        <div style={calendarHelpPanelStyle}>
+          <div style={calendarHelpGridStyle}>
+            <div style={calendarHelpItemStyle}>
+              <strong>Apple Calendar</strong>
+              <span>Use Add to calendar on iPhone or Mac. If asked, confirm the subscription.</span>
+            </div>
+            <div style={calendarHelpItemStyle}>
+              <strong>Google Calendar</strong>
+              <span>Open the feed, copy the URL, then add it under Other calendars by URL.</span>
+            </div>
+            <div style={calendarHelpItemStyle}>
+              <strong>Outlook</strong>
+              <span>Use Add calendar from web, paste the feed URL, then save it as a subscribed calendar.</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <form
         onSubmit={(event) => {
@@ -4433,7 +4466,7 @@ function MyLabCalendarPanel({
           setMessage('')
           void (async () => {
             try {
-              const saved = await onAddPersonalItem({ title, date, time, kind })
+              const saved = await onAddPersonalItem({ title, date, time, location, kind })
               if (!saved) {
                 setMessage('Add a title and date.')
                 return
@@ -4441,6 +4474,7 @@ function MyLabCalendarPanel({
               setTitle('')
               setDate('')
               setTime('')
+              setLocation('')
               setKind('practice')
               setMessage('Calendar item added.')
             } catch (error) {
@@ -4455,6 +4489,7 @@ function MyLabCalendarPanel({
         <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Practice, match, reminder..." style={myCalendarInputStyle} />
         <input type="date" value={date} onChange={(event) => setDate(event.target.value)} style={myCalendarInputStyle} />
         <input type="time" value={time} onChange={(event) => setTime(event.target.value)} style={myCalendarInputStyle} />
+        <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Court or facility" style={myCalendarInputStyle} />
         <select value={kind} onChange={(event) => setKind(event.target.value as PersonalCalendarItem['kind'])} style={myCalendarInputStyle}>
           <option value="practice">Practice</option>
           <option value="match">Match</option>
@@ -4471,6 +4506,7 @@ function MyLabCalendarPanel({
               <div style={metricLabelStyle}>{item.source === 'shared' ? 'Shared' : item.kind}</div>
               <strong>{item.title}</strong>
               <span>{item.dateLabel}</span>
+              {'location' in item && item.location ? <span>{item.location}</span> : null}
               {item.source === 'personal' ? (
                 <button
                   type="button"
@@ -4526,7 +4562,6 @@ function PlayerCoachAssignmentsPanel({
   const overdueAssignments = openAssignments.filter((assignment) => getCoachAssignmentDueState(assignment.dueDate).tone === 'overdue')
   const dueTodayAssignments = openAssignments.filter((assignment) => getCoachAssignmentDueState(assignment.dueDate).tone === 'today')
   const assignmentCards = (openAssignments.length ? openAssignments : sortedAssignments).slice(0, 4)
-  const activeCoachLink = coachLinks[0]
   const nextAssignment = openAssignments[0] ?? sortedAssignments[0] ?? null
   const nextDueState = nextAssignment ? getCoachAssignmentDueState(nextAssignment.dueDate) : null
   const nextAssignmentSummary = nextAssignment ? getCoachAssignmentSummary(nextAssignment.assignment) : null
@@ -4534,17 +4569,23 @@ function PlayerCoachAssignmentsPanel({
   const nextAssignmentActionPlan = nextAssignment
     ? buildPlayerAssignmentActionPlan(nextAssignment, nextAssignmentSummary, nextDueState?.label ?? '')
     : []
+  const [selectedCoachCalendarStudentId, setSelectedCoachCalendarStudentId] = useState('')
+  const activeCoachLink = coachLinks.find((link) => link.id === selectedCoachCalendarStudentId) ?? coachLinks[0]
   const activeCoachCalendarUrl = activeCoachLink ? calendarLinksByStudentId[activeCoachLink.id] : ''
+  const activeCoachCalendarWebcalUrl = activeCoachCalendarUrl ? toWebcalUrl(activeCoachCalendarUrl) : ''
   const activeCoachCalendarStatus = activeCoachLink ? calendarFeedStatusByStudentId[activeCoachLink.id] : null
   const activeCoachCalendarSubscribed = Boolean(activeCoachCalendarUrl || activeCoachCalendarStatus?.active)
   const activeCoachCalendarStatusLabel = activeCoachCalendarUrl
     ? 'New coach feed link ready.'
     : activeCoachCalendarStatus?.active
-      ? `Subscribed${activeCoachCalendarStatus.lastUsedAt ? `, last checked ${safeDate(activeCoachCalendarStatus.lastUsedAt)}` : '. Create a new link to copy it again.'}`
+      ? `Subscribed${activeCoachCalendarStatus.lastUsedAt ? `, calendar app last fetched ${safeDate(activeCoachCalendarStatus.lastUsedAt)}` : '. Create a new link to copy it again.'}`
       : 'Not subscribed yet.'
   const coachLessonEvents = useMemo(
-    () => buildPlayerCoachLessonEvents(assignments, coachLinkMap).slice(0, 3),
-    [assignments, coachLinkMap],
+    () => buildPlayerCoachLessonEvents(
+      activeCoachLink ? assignments.filter((assignment) => assignment.studentLinkId === activeCoachLink.id) : assignments,
+      coachLinkMap,
+    ).slice(0, 3),
+    [activeCoachLink, assignments, coachLinkMap],
   )
   const [activeAssignmentId, setActiveAssignmentId] = useState('')
   const [recap, setRecap] = useState('')
@@ -4552,6 +4593,17 @@ function PlayerCoachAssignmentsPanel({
   const [savingAssignmentId, setSavingAssignmentId] = useState('')
   const [checkInMessage, setCheckInMessage] = useState('')
   const [calendarMessage, setCalendarMessage] = useState('')
+
+  useEffect(() => {
+    if (!coachLinks.length) {
+      setSelectedCoachCalendarStudentId('')
+      return
+    }
+
+    if (!selectedCoachCalendarStudentId || !coachLinks.some((link) => link.id === selectedCoachCalendarStudentId)) {
+      setSelectedCoachCalendarStudentId(coachLinks[0].id)
+    }
+  }, [coachLinks, selectedCoachCalendarStudentId])
 
   const beginPlayerCheckIn = (assignment: CoachAssignment) => {
     setActiveAssignmentId(assignment.id)
@@ -4646,6 +4698,19 @@ function PlayerCoachAssignmentsPanel({
               <span>Subscribe once to see coach lessons and assignment due dates beside your personal calendar.</span>
               <span>{activeCoachCalendarStatusLabel}</span>
             </div>
+            {coachLinks.length > 1 ? (
+              <select
+                value={activeCoachLink?.id || ''}
+                onChange={(event) => setSelectedCoachCalendarStudentId(event.target.value)}
+                style={myCalendarInputStyle}
+              >
+                {coachLinks.map((link) => (
+                  <option key={link.id} value={link.id}>
+                    {link.playerName}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <div style={developmentActionRowStyle}>
               <button
                 type="button"
@@ -4658,6 +4723,11 @@ function PlayerCoachAssignmentsPanel({
               {activeCoachCalendarUrl ? (
                 <a href={activeCoachCalendarUrl} style={coachCheckInGhostLinkStyle}>
                   Open feed
+                </a>
+              ) : null}
+              {activeCoachCalendarWebcalUrl ? (
+                <a href={activeCoachCalendarWebcalUrl} style={coachCheckInGhostLinkStyle}>
+                  Add to calendar
                 </a>
               ) : null}
               {activeCoachCalendarSubscribed ? (
@@ -5032,6 +5102,20 @@ function formatPersonalCalendarItemDate(item: Pick<PersonalCalendarItem, 'date' 
   return item.time ? formatPlayerCoachCalendarDate(`${item.date}T${item.time}`) : formatPlayerCoachCalendarDate(item.date)
 }
 
+function toWebcalUrl(value: string) {
+  try {
+    const url = new URL(value)
+    if (url.protocol === 'https:' || url.protocol === 'http:') {
+      url.protocol = 'webcal:'
+      return url.toString()
+    }
+  } catch {
+    return value
+  }
+
+  return value
+}
+
 function getAssignmentLevelUpCardId(assignment: CoachAssignment) {
   const cardId = typeof assignment.assignment.cardId === 'string' ? assignment.assignment.cardId.trim() : ''
   if (!cardId) return ''
@@ -5375,6 +5459,31 @@ const myCalendarInputStyle: CSSProperties = {
   font: 'inherit',
   fontSize: 13,
   boxSizing: 'border-box',
+  minWidth: 0,
+}
+
+const calendarHelpPanelStyle: CSSProperties = {
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  minWidth: 0,
+}
+
+const calendarHelpGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const calendarHelpItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 750,
   minWidth: 0,
 }
 

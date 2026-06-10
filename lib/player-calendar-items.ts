@@ -5,6 +5,7 @@ export type PlayerCalendarItem = {
   title: string
   date: string
   time: string
+  location: string
   kind: PlayerCalendarKind
   createdAt: string
   updatedAt: string
@@ -16,6 +17,7 @@ export type PlayerCalendarItemRow = {
   title: string
   scheduled_date: string
   scheduled_time: string | null
+  location?: string | null
   kind: string
   created_at: string
   updated_at: string
@@ -26,6 +28,7 @@ export type PlayerCalendarItemInput = {
   title?: unknown
   date?: unknown
   time?: unknown
+  location?: unknown
   kind?: unknown
 }
 
@@ -45,6 +48,7 @@ export function mapPlayerCalendarItemRow(row: PlayerCalendarItemRow): PlayerCale
     title: row.title,
     date: row.scheduled_date,
     time: row.scheduled_time ?? '',
+    location: cleanText(row.location),
     kind: normalizePlayerCalendarKind(row.kind),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -59,6 +63,7 @@ export function buildPlayerCalendarItemPayload(input: PlayerCalendarItemInput, p
   const rawTime = cleanText(input.time)
   const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(rawTime) ? rawTime : ''
   const now = new Date().toISOString()
+  const location = cleanText(input.location).slice(0, 160)
 
   return {
     id: cleanText(input.id) || `player-calendar-${crypto.randomUUID()}`,
@@ -66,6 +71,7 @@ export function buildPlayerCalendarItemPayload(input: PlayerCalendarItemInput, p
     title,
     scheduled_date: date,
     scheduled_time: time,
+    location,
     kind: normalizePlayerCalendarKind(input.kind),
     updated_at: now,
   }

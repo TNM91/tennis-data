@@ -8,7 +8,7 @@ import {
 
 export const runtime = 'nodejs'
 
-const calendarItemSelect = 'id,player_user_id,title,scheduled_date,scheduled_time,kind,created_at,updated_at'
+const calendarItemSelect = 'id,player_user_id,title,scheduled_date,scheduled_time,location,kind,created_at,updated_at'
 
 type SaveCalendarItemBody = {
   item?: PlayerCalendarItemInput

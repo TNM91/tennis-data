@@ -10,6 +10,7 @@ const calendarRows = [
     title: 'Serve reps',
     scheduled_date: '2026-06-12',
     scheduled_time: '16:30',
+    location: 'Court 4',
     kind: 'practice',
     created_at: '2026-06-10T12:00:00.000Z',
     updated_at: '2026-06-10T12:00:00.000Z',
@@ -97,6 +98,7 @@ describe('player calendar items route', () => {
           title: 'Return practice',
           date: '2026-06-13',
           time: '09:00',
+          location: 'Indoor Court 2',
           kind: 'practice',
         },
       }),
@@ -110,12 +112,14 @@ describe('player calendar items route', () => {
       title: 'Return practice',
       scheduled_date: '2026-06-13',
       scheduled_time: '09:00',
+      location: 'Indoor Court 2',
       kind: 'practice',
     })
     expect(body.item).toMatchObject({
       id: 'item-2',
       title: 'Return practice',
       date: '2026-06-13',
+      location: 'Indoor Court 2',
     })
   })
 

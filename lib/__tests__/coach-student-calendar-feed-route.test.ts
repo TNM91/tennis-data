@@ -94,6 +94,7 @@ vi.mock('@supabase/supabase-js', () => ({
                 assignment_json: {
                   lessonDateTime: '2026-06-12T16:30',
                   lessonFocus: 'Serve rhythm',
+                  lessonLocation: 'Court 7',
                 },
                 updated_at: '2026-06-09T12:00:00.000Z',
               },
@@ -148,6 +149,7 @@ describe('coach student calendar feed route', () => {
     expect(response.headers.get('content-disposition')).toBe('inline; filename="tenaceiq-coach-student-1.ics"')
     expect(body).toContain('X-WR-CALNAME:Taylor Player coach lessons')
     expect(body).toContain('SUMMARY:Lesson: Taylor Player')
+    expect(body).toContain('LOCATION:Court 7')
     expect(body).toContain('DTSTART;TZID=America/Chicago:20260612T163000')
     expect(body).toContain('SUMMARY:Coach assignment due: Serve target ladder')
     expect(body).toContain('URL:https://tenaceiq.com/mylab#coach-assignments')

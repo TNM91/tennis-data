@@ -15,6 +15,7 @@ function assignment(overrides: Partial<CoachAssignment>): CoachAssignment {
     assignment: {
       lessonDateTime: '2026-06-12T16:30',
       lessonFocus: 'Serve rhythm',
+      lessonLocation: 'Court 7',
     },
     updatedAt: '2026-06-09T12:00:00.000Z',
     ...overrides,
@@ -36,6 +37,7 @@ describe('coach calendar events', () => {
         title: 'Lesson: Taylor Player',
         date: '2026-06-12',
         time: '16:30',
+        location: 'Court 7',
         durationMinutes: 60,
       }),
       expect.objectContaining({
@@ -52,7 +54,8 @@ describe('coach calendar events', () => {
 
     expect(feed).toContain('X-WR-CALNAME:Taylor Player coach calendar')
     expect(feed).toContain('SUMMARY:Lesson: Taylor Player')
-    expect(feed).toContain('DESCRIPTION:Coach/student lesson for Taylor Player.\\nFocus: Serve rhythm\\nFollow-up: Serve target ladder')
+    expect(feed).toContain('LOCATION:Court 7')
+    expect(feed).toContain('DESCRIPTION:Coach/student lesson for Taylor Player.\\nFocus: Serve rhythm\\nLocation: Court 7\\nFollow-up: Serve target ladder')
     expect(feed).toContain('DTSTART;TZID=America/Chicago:20260612T163000')
     expect(feed).toContain('DTEND;TZID=America/Chicago:20260612T173000')
     expect(feed).toContain('SUMMARY:Coach assignment due: Serve target ladder')

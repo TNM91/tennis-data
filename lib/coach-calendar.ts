@@ -20,6 +20,10 @@ function lessonFocus(assignment: CoachAssignment) {
   return cleanText(assignment.assignment.lessonFocus) || assignment.focus || assignment.title
 }
 
+function lessonLocation(assignment: CoachAssignment) {
+  return cleanText(assignment.assignment.lessonLocation)
+}
+
 export function buildCoachStudentCalendarEvents(
   assignments: CoachAssignment[],
   student: Pick<CoachStudentLink, 'id' | 'playerName'>,
@@ -31,14 +35,17 @@ export function buildCoachStudentCalendarEvents(
 
     const lessonDateTime = splitDateTime(assignment.assignment.lessonDateTime)
     if (lessonDateTime) {
+      const location = lessonLocation(assignment)
       events.push({
         id: `coach-lesson-${assignment.id}`,
         title: `Lesson: ${student.playerName}`,
         date: lessonDateTime.date,
         time: lessonDateTime.time,
+        location,
         description: [
           `Coach/student lesson for ${student.playerName}.`,
           lessonFocus(assignment) ? `Focus: ${lessonFocus(assignment)}` : '',
+          location ? `Location: ${location}` : '',
           assignment.title ? `Follow-up: ${assignment.title}` : '',
         ].filter(Boolean).join('\n'),
         url: `/coach#coach-lesson-frame`,

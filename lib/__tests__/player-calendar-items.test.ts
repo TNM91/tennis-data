@@ -22,6 +22,7 @@ describe('player calendar items', () => {
           title: ' Serve reps ',
           date: '2026-06-12',
           time: '16:30',
+          location: ' Court 4 ',
           kind: 'practice',
         },
         'player-1',
@@ -32,6 +33,7 @@ describe('player calendar items', () => {
       title: 'Serve reps',
       scheduled_date: '2026-06-12',
       scheduled_time: '16:30',
+      location: 'Court 4',
       kind: 'practice',
     })
 
@@ -50,6 +52,7 @@ describe('player calendar items', () => {
         title: 'Practice block',
         scheduled_date: '2026-06-12',
         scheduled_time: null,
+        location: 'Indoor Court 2',
         kind: 'lesson',
         created_at: '2026-06-10T12:00:00.000Z',
         updated_at: '2026-06-10T12:00:00.000Z',
@@ -59,6 +62,7 @@ describe('player calendar items', () => {
       title: 'Practice block',
       date: '2026-06-12',
       time: '',
+      location: 'Indoor Court 2',
       kind: 'lesson',
       createdAt: '2026-06-10T12:00:00.000Z',
       updatedAt: '2026-06-10T12:00:00.000Z',

@@ -121,6 +121,7 @@ function CoachContent() {
   const [contactStudentId, setContactStudentId] = useState('')
   const [lessonDateTime, setLessonDateTime] = useState('')
   const [lessonFocus, setLessonFocus] = useState('')
+  const [lessonLocation, setLessonLocation] = useState('')
   const [sessionPresetId, setSessionPresetId] = useState(COACH_SESSION_PRESETS[0]?.id ?? '')
   const [reviewAssignmentId, setReviewAssignmentId] = useState('')
   const [reviewNote, setReviewNote] = useState('')
@@ -272,6 +273,7 @@ function CoachContent() {
       : null
     const normalizedLessonDateTime = lessonDateTime.trim()
     const normalizedLessonFocus = lessonFocus.trim()
+    const normalizedLessonLocation = lessonLocation.trim()
     setWorkspaceLoading(true)
     setWorkspaceMessage('')
 
@@ -322,9 +324,10 @@ function CoachContent() {
                   }
                 : {}),
               ...(normalizedLessonDateTime
-                ? {
+                  ? {
                     lessonDateTime: normalizedLessonDateTime,
                     lessonFocus: normalizedLessonFocus || assignmentFocus || assignmentTitle,
+                    lessonLocation: normalizedLessonLocation,
                     calendarLayer: 'coach_student_lesson',
                   }
                 : {}),
@@ -350,6 +353,7 @@ function CoachContent() {
       setAssignmentPresetId('')
       setAssignmentStarterId('')
       setAssignmentLevelUpCardId('')
+      setLessonLocation('')
       setWorkspaceMessage('Assignment created. Send it now so the player knows exactly what to do next.')
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not create assignment.')
@@ -580,8 +584,8 @@ function CoachContent() {
     [selectedLevelUpAssignmentCard],
   )
   const lessonMessage = useMemo(
-    () => buildLessonConfirmMessage(selectedContactStudent?.playerName ?? 'your lesson', lessonDateTime, lessonFocus),
-    [lessonDateTime, lessonFocus, selectedContactStudent?.playerName],
+    () => buildLessonConfirmMessage(selectedContactStudent?.playerName ?? 'your lesson', lessonDateTime, lessonFocus, lessonLocation),
+    [lessonDateTime, lessonFocus, lessonLocation, selectedContactStudent?.playerName],
   )
   const lastCreatedAssignmentStudent = useMemo(
     () => (lastCreatedAssignment ? savedStudents.find((student) => student.id === lastCreatedAssignment.studentLinkId) ?? null : null),
@@ -960,6 +964,10 @@ function CoachContent() {
               Lesson focus note
               <input className="tiq-focus-ring" value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
             </label>
+            <label style={fieldStyle}>
+              Lesson location
+              <input className="tiq-focus-ring" value={lessonLocation} onChange={(event) => setLessonLocation(event.target.value)} placeholder="Court or facility" style={inputStyle} />
+            </label>
             <div style={levelUpAssignmentPickerStyle}>
               <label style={fieldStyle}>
                 Assign exact Level Up card
@@ -1092,6 +1100,10 @@ function CoachContent() {
                 Lesson focus
                 <input className="tiq-focus-ring" value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
               </label>
+              <label style={fieldStyle}>
+                Location
+                <input className="tiq-focus-ring" value={lessonLocation} onChange={(event) => setLessonLocation(event.target.value)} placeholder="Court or facility" style={inputStyle} />
+              </label>
             </div>
             <p style={studentNextStyle}>{lessonMessage}</p>
             <div style={sessionActionRowStyle}>
@@ -1135,6 +1147,11 @@ function CoachContent() {
                   {selectedContactStudent && calendarLinkByStudentId[selectedContactStudent.id] ? (
                     <a href={calendarLinkByStudentId[selectedContactStudent.id]} style={smallGhostLinkStyle}>
                       Open feed
+                    </a>
+                  ) : null}
+                  {selectedContactStudent && calendarLinkByStudentId[selectedContactStudent.id] ? (
+                    <a href={toWebcalUrl(calendarLinkByStudentId[selectedContactStudent.id])} style={smallGhostLinkStyle}>
+                      Add to calendar
                     </a>
                   ) : null}
                   {selectedContactStudent && calendarLinkByStudentId[selectedContactStudent.id] ? (
@@ -1843,12 +1860,13 @@ function getSetupStatusLabel(student: CoachStudentLink) {
   return 'Manual student'
 }
 
-function buildLessonConfirmMessage(playerName: string, dateTime: string, focus: string) {
+function buildLessonConfirmMessage(playerName: string, dateTime: string, focus: string, location = '') {
   const formattedDateTime = formatLessonDateTimeForMessage(dateTime)
   const details = [
     formattedDateTime ? `Time: ${formattedDateTime}` : 'Time: ',
     focus.trim() ? `Focus: ${focus.trim()}` : 'Focus: ',
-  ].join('  ')
+    location.trim() ? `Location: ${location.trim()}` : '',
+  ].filter(Boolean).join('  ')
   return `Let's confirm the next lesson for ${playerName}. ${details}`
 }
 
@@ -1862,6 +1880,20 @@ function getCalendarEventSortKey(event: { date: string; time?: string }) {
 
 function formatSharedCalendarEventDate(event: { date: string; time?: string }) {
   return event.time ? formatLessonDateTimeForMessage(`${event.date}T${event.time}`) : formatCalendarDate(event.date)
+}
+
+function toWebcalUrl(value: string) {
+  try {
+    const url = new URL(value)
+    if (url.protocol === 'https:' || url.protocol === 'http:') {
+      url.protocol = 'webcal:'
+      return url.toString()
+    }
+  } catch {
+    return value
+  }
+
+  return value
 }
 
 function formatCalendarDate(value: string) {
