@@ -807,6 +807,8 @@ function MyLabPageInner() {
   const [coachCalendarLinkLoadingId, setCoachCalendarLinkLoadingId] = useState('')
   const [personalCalendarItems, setPersonalCalendarItems] = useState<PersonalCalendarItem[]>([])
   const [personalCalendarSyncLabel, setPersonalCalendarSyncLabel] = useState('Browser calendar')
+  const [personalCalendarFeedUrl, setPersonalCalendarFeedUrl] = useState('')
+  const [personalCalendarFeedLoading, setPersonalCalendarFeedLoading] = useState(false)
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
@@ -1268,6 +1270,51 @@ function MyLabPageInner() {
     },
     [session?.access_token],
   )
+
+  const createPersonalCalendarFeedLink = useCallback(async () => {
+    if (!session?.access_token) {
+      throw new Error('Sign in to subscribe to your account calendar.')
+    }
+
+    setPersonalCalendarFeedLoading(true)
+    try {
+      const response = await fetch('/api/player/personal-calendar-link', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const json = (await response.json()) as { ok?: boolean; calendarUrl?: string; message?: string }
+      if (!response.ok || !json.ok || !json.calendarUrl) {
+        throw new Error(json.message || 'Could not create calendar feed.')
+      }
+
+      setPersonalCalendarFeedUrl(json.calendarUrl)
+      return json.calendarUrl
+    } finally {
+      setPersonalCalendarFeedLoading(false)
+    }
+  }, [session?.access_token])
+
+  const revokePersonalCalendarFeedLink = useCallback(async () => {
+    if (!session?.access_token) {
+      throw new Error('Sign in to revoke your account calendar feed.')
+    }
+
+    setPersonalCalendarFeedLoading(true)
+    try {
+      const response = await fetch('/api/player/personal-calendar-link', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const json = (await response.json()) as { ok?: boolean; message?: string }
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message || 'Could not revoke calendar feed.')
+      }
+
+      setPersonalCalendarFeedUrl('')
+    } finally {
+      setPersonalCalendarFeedLoading(false)
+    }
+  }, [session?.access_token])
 
   const addPersonalCalendarItem = useCallback(
     async (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => {
@@ -2909,6 +2956,10 @@ function MyLabPageInner() {
             personalItems={personalCalendarItems}
             sharedCoachEvents={sharedCoachCalendarEvents}
             syncLabel={personalCalendarSyncLabel}
+            calendarFeedUrl={personalCalendarFeedUrl}
+            calendarFeedLoading={personalCalendarFeedLoading}
+            onCreateCalendarFeed={createPersonalCalendarFeedLink}
+            onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
             onAddPersonalItem={addPersonalCalendarItem}
             onRemovePersonalItem={removePersonalCalendarItem}
           />
@@ -4130,12 +4181,20 @@ function MyLabCalendarPanel({
   personalItems,
   sharedCoachEvents,
   syncLabel,
+  calendarFeedUrl,
+  calendarFeedLoading,
+  onCreateCalendarFeed,
+  onRevokeCalendarFeed,
   onAddPersonalItem,
   onRemovePersonalItem,
 }: {
   personalItems: PersonalCalendarItem[]
   sharedCoachEvents: PlayerCoachCalendarPreviewEvent[]
   syncLabel: string
+  calendarFeedUrl: string
+  calendarFeedLoading: boolean
+  onCreateCalendarFeed: () => Promise<string>
+  onRevokeCalendarFeed: () => Promise<void>
   onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'kind'>) => Promise<boolean>
   onRemovePersonalItem: (itemId: string) => Promise<void>
 }) {
@@ -4160,6 +4219,36 @@ function MyLabCalendarPanel({
     [personalItems, sharedCoachEvents],
   )
 
+  const createFeedLink = async () => {
+    setMessage('')
+    try {
+      const calendarUrl = await onCreateCalendarFeed()
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(calendarUrl)
+          setMessage('My Calendar feed copied.')
+          return
+        } catch {
+          setMessage('My Calendar feed created. Open the feed to copy the URL.')
+          return
+        }
+      }
+      setMessage('My Calendar feed created.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not create calendar feed.')
+    }
+  }
+
+  const revokeFeedLink = async () => {
+    setMessage('')
+    try {
+      await onRevokeCalendarFeed()
+      setMessage('My Calendar feed revoked.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not revoke calendar feed.')
+    }
+  }
+
   return (
     <section id="my-calendar" style={myCalendarPanelStyle}>
       <div style={developmentPathHeaderStyle}>
@@ -4171,6 +4260,31 @@ function MyLabCalendarPanel({
             <p style={sectionTextStyle}>Add personal reminders here while coach lessons and assignment due dates flow in from Coach Hub.</p>
             <span style={metricNoteStyle}>{syncLabel}</span>
           </div>
+        </div>
+        <div style={developmentActionRowStyle}>
+          <button
+            type="button"
+            onClick={() => void createFeedLink()}
+            disabled={calendarFeedLoading}
+            style={coachCheckInButtonStyle}
+          >
+            {calendarFeedLoading ? 'Creating' : 'Subscribe calendar'}
+          </button>
+          {calendarFeedUrl ? (
+            <a href={calendarFeedUrl} style={coachCheckInGhostLinkStyle}>
+              Open feed
+            </a>
+          ) : null}
+          {calendarFeedUrl ? (
+            <button
+              type="button"
+              onClick={() => void revokeFeedLink()}
+              disabled={calendarFeedLoading}
+              style={coachCheckInGhostButtonStyle}
+            >
+              Revoke feed
+            </button>
+          ) : null}
         </div>
       </div>
 
