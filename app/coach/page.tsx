@@ -43,6 +43,12 @@ import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentity } from '@/l
 const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
 const CUSTOM_ASSIGNMENT_TEMPLATE_ID = 'custom-assignment'
 
+type CoachCalendarFeedStatus = {
+  active: boolean
+  createdAt: string | null
+  lastUsedAt: string | null
+}
+
 const FIRST_ASSIGNMENT_STARTERS = [
   {
     id: 'movement',
@@ -130,6 +136,7 @@ function CoachContent() {
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [lastCreatedAssignment, setLastCreatedAssignment] = useState<CoachAssignment | null>(null)
   const [calendarLinkByStudentId, setCalendarLinkByStudentId] = useState<Record<string, string>>({})
+  const [calendarFeedStatusByStudentId, setCalendarFeedStatusByStudentId] = useState<Record<string, CoachCalendarFeedStatus>>({})
   const [calendarLinkLoadingStudentId, setCalendarLinkLoadingStudentId] = useState('')
 
   const loadCoachWorkspace = useCallback(async () => {
@@ -191,6 +198,56 @@ function CoachContent() {
   useEffect(() => {
     void loadCoachWorkspace()
   }, [loadCoachWorkspace])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    if (!session?.access_token || !access.canUseCoachWorkflow) {
+      setCalendarFeedStatusByStudentId({})
+      return
+    }
+
+    let active = true
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/coach/student-calendar-links', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        const json = (await response.json()) as {
+          ok?: boolean
+          feeds?: Array<{ studentLinkId?: string; createdAt?: string | null; lastUsedAt?: string | null }>
+          message?: string
+        }
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Could not load coach calendar feed status.')
+        }
+
+        if (!active) return
+        setCalendarFeedStatusByStudentId(
+          Object.fromEntries(
+            (json.feeds ?? [])
+              .filter((feed) => cleanText(feed.studentLinkId))
+              .map((feed) => [
+                cleanText(feed.studentLinkId),
+                {
+                  active: true,
+                  createdAt: feed.createdAt ?? null,
+                  lastUsedAt: feed.lastUsedAt ?? null,
+                },
+              ]),
+          ),
+        )
+      } catch {
+        if (!active) return
+        setCalendarFeedStatusByStudentId({})
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [access.canUseCoachWorkflow, authResolved, session?.access_token])
 
   async function handleAddStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -411,6 +468,10 @@ function CoachContent() {
       }
 
       setCalendarLinkByStudentId((current) => ({ ...current, [student.id]: json.calendarUrl as string }))
+      setCalendarFeedStatusByStudentId((current) => ({
+        ...current,
+        [student.id]: { active: true, createdAt: new Date().toISOString(), lastUsedAt: null },
+      }))
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         try {
           await navigator.clipboard.writeText(json.calendarUrl)
@@ -446,6 +507,11 @@ function CoachContent() {
       }
 
       setCalendarLinkByStudentId((current) => {
+        const next = { ...current }
+        delete next[student.id]
+        return next
+      })
+      setCalendarFeedStatusByStudentId((current) => {
         const next = { ...current }
         delete next[student.id]
         return next
@@ -599,6 +665,14 @@ function CoachContent() {
     () => (lastCreatedAssignment ? buildAssignmentNotifyMessage(lastCreatedAssignment, lastAssignmentSummary) : ''),
     [lastAssignmentSummary, lastCreatedAssignment],
   )
+  const selectedCalendarUrl = selectedContactStudent ? calendarLinkByStudentId[selectedContactStudent.id] : ''
+  const selectedCalendarStatus = selectedContactStudent ? calendarFeedStatusByStudentId[selectedContactStudent.id] : null
+  const selectedCalendarSubscribed = Boolean(selectedCalendarUrl || selectedCalendarStatus?.active)
+  const selectedCalendarStatusLabel = selectedCalendarUrl
+    ? 'New calendar link ready.'
+    : selectedCalendarStatus?.active
+      ? `Subscribed${selectedCalendarStatus.lastUsedAt ? `, calendar app last fetched ${formatCalendarStatusDate(selectedCalendarStatus.lastUsedAt)}` : '. Create a new link to copy it again.'}`
+      : 'Not subscribed yet.'
   const sharedLessonCalendarEvents = useMemo(
     () => savedStudents
       .flatMap((student) =>
@@ -1132,6 +1206,7 @@ function CoachContent() {
                 <div>
                   <div style={eyebrowStyle}>Shared calendar</div>
                   <h3 style={sessionPlannerTitleStyle}>Coach + student lessons.</h3>
+                  <p style={studentNextStyle}>{selectedContactStudent ? `${selectedContactStudent.playerName}: ${selectedCalendarStatusLabel}` : 'Choose a student to manage a calendar feed.'}</p>
                 </div>
                 <div style={sessionActionRowStyle}>
                   {selectedContactStudent ? (
@@ -1141,20 +1216,20 @@ function CoachContent() {
                       disabled={calendarLinkLoadingStudentId === selectedContactStudent.id}
                       style={smallPrimaryButtonStyle}
                     >
-                      {calendarLinkLoadingStudentId === selectedContactStudent.id ? 'Creating...' : 'Create subscribe link'}
+                      {calendarLinkLoadingStudentId === selectedContactStudent.id ? 'Creating...' : selectedCalendarSubscribed ? 'Replace link' : 'Create subscribe link'}
                     </button>
                   ) : null}
-                  {selectedContactStudent && calendarLinkByStudentId[selectedContactStudent.id] ? (
-                    <a href={calendarLinkByStudentId[selectedContactStudent.id]} style={smallGhostLinkStyle}>
+                  {selectedContactStudent && selectedCalendarUrl ? (
+                    <a href={selectedCalendarUrl} style={smallGhostLinkStyle}>
                       Open feed
                     </a>
                   ) : null}
-                  {selectedContactStudent && calendarLinkByStudentId[selectedContactStudent.id] ? (
-                    <a href={toWebcalUrl(calendarLinkByStudentId[selectedContactStudent.id])} style={smallGhostLinkStyle}>
+                  {selectedContactStudent && selectedCalendarUrl ? (
+                    <a href={toWebcalUrl(selectedCalendarUrl)} style={smallGhostLinkStyle}>
                       Add to calendar
                     </a>
                   ) : null}
-                  {selectedContactStudent && calendarLinkByStudentId[selectedContactStudent.id] ? (
+                  {selectedContactStudent && selectedCalendarSubscribed ? (
                     <button
                       type="button"
                       onClick={() => void revokeStudentCalendarLink(selectedContactStudent)}
@@ -1878,6 +1953,10 @@ function getCalendarEventSortKey(event: { date: string; time?: string }) {
   return `${event.date || '9999-12-31'}T${event.time || '23:59'}`
 }
 
+function cleanText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 function formatSharedCalendarEventDate(event: { date: string; time?: string }) {
   return event.time ? formatLessonDateTimeForMessage(`${event.date}T${event.time}`) : formatCalendarDate(event.date)
 }
@@ -1904,6 +1983,18 @@ function formatCalendarDate(value: string) {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+  }).format(parsed)
+}
+
+function formatCalendarStatusDate(value: string) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value || 'recently'
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   }).format(parsed)
 }
 
