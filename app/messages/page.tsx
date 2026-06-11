@@ -1135,7 +1135,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             date: candidate.date,
             time: candidate.time,
             location: candidate.location,
-            kind: 'reminder',
+            kind: candidate.kind,
+            availabilityStatus: candidate.availabilityStatus,
           },
         }),
       })
@@ -1892,6 +1893,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                           <span>
                             {messageCalendarCandidate.date}{messageCalendarCandidate.time ? ` ${messageCalendarCandidate.time}` : ''}
                             {messageCalendarCandidate.location ? ` - ${messageCalendarCandidate.location}` : ''}
+                            {messageCalendarCandidate.availabilityStatus ? ` - ${messageCalendarCandidate.availabilityStatus}` : ''}
                           </span>
                           <button
                             type="button"
@@ -1940,7 +1942,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     <strong>Calendar suggestion</strong>
                     <span>
                       {replyCalendarCandidate.title} - {replyCalendarCandidate.date}{replyCalendarCandidate.time ? ` ${replyCalendarCandidate.time}` : ''}
-                      {replyCalendarCandidate.location ? ` - ${replyCalendarCandidate.location}` : ''} - {replyCalendarCandidate.sourceLabel}
+                      {replyCalendarCandidate.location ? ` - ${replyCalendarCandidate.location}` : ''}
+                      {replyCalendarCandidate.availabilityStatus ? ` - ${replyCalendarCandidate.availabilityStatus}` : ''} - {replyCalendarCandidate.sourceLabel}
                     </span>
                   </div>
                   <button
@@ -2203,7 +2206,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   <strong>Calendar suggestion</strong>
                   <span>
                     {composeCalendarCandidate.title} - {composeCalendarCandidate.date}{composeCalendarCandidate.time ? ` ${composeCalendarCandidate.time}` : ''}
-                    {composeCalendarCandidate.location ? ` - ${composeCalendarCandidate.location}` : ''} - {composeCalendarCandidate.sourceLabel}
+                    {composeCalendarCandidate.location ? ` - ${composeCalendarCandidate.location}` : ''}
+                    {composeCalendarCandidate.availabilityStatus ? ` - ${composeCalendarCandidate.availabilityStatus}` : ''} - {composeCalendarCandidate.sourceLabel}
                   </span>
                 </div>
                 <button

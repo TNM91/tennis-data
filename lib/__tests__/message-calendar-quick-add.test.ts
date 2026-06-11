@@ -15,6 +15,8 @@ describe('message calendar quick add parser', () => {
       date: '2026-06-18',
       time: '18:30',
       location: 'Court 4',
+      kind: 'reminder',
+      availabilityStatus: '',
       sourceLabel: 'reply draft',
     })
   })
@@ -46,6 +48,36 @@ describe('message calendar quick add parser', () => {
       date: '2026-06-18',
       time: '18:00',
       location: 'Forest Lake',
+    })
+  })
+
+  it('detects availability language before concrete dates', () => {
+    expect(
+      detectCalendarQuickAddCandidate(
+        "I'm unavailable 6/18/2026 at 6pm",
+        'Fallback',
+        'reply draft',
+      ),
+    ).toMatchObject({
+      title: "I'm unavailable",
+      date: '2026-06-18',
+      time: '18:00',
+      kind: 'availability',
+      availabilityStatus: 'unavailable',
+    })
+
+    expect(
+      detectCalendarQuickAddCandidate(
+        'Available June 20, 2026 at 9am',
+        'Fallback',
+        'reply draft',
+      ),
+    ).toMatchObject({
+      title: 'Available',
+      date: '2026-06-20',
+      time: '09:00',
+      kind: 'availability',
+      availabilityStatus: 'available',
     })
   })
 

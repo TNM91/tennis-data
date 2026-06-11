@@ -3,6 +3,8 @@ export type CalendarQuickAddCandidate = {
   date: string
   time: string
   location: string
+  kind: 'reminder' | 'availability'
+  availabilityStatus: '' | 'available' | 'unavailable'
   sourceLabel: string
 }
 
@@ -142,6 +144,13 @@ function findTimeMatch(text: string): TimeMatchResult {
   return { value: '', endIndex: 0 }
 }
 
+function inferAvailabilityStatus(value: string): CalendarQuickAddCandidate['availabilityStatus'] {
+  const normalized = value.toLowerCase()
+  if (/\b(unavailable|not available|can't|cannot|out|busy|away)\b/.test(normalized)) return 'unavailable'
+  if (/\b(available|free|open)\b/.test(normalized)) return 'available'
+  return ''
+}
+
 export function detectCalendarQuickAddCandidate(
   text: string,
   fallbackTitle: string,
@@ -159,12 +168,15 @@ export function detectCalendarQuickAddCandidate(
   const locationSource = afterDate.slice(timeMatch.endIndex)
   const locationMatch = locationSource.match(/(?:\bat\s+|@\s*)([A-Za-z0-9 .,#'&-]{3,80})/)
   const title = beforeDate && beforeDate.length >= 4 ? beforeDate.slice(0, 90) : fallbackTitle || 'Message calendar item'
+  const availabilityStatus = inferAvailabilityStatus(beforeDate)
 
   return {
     title,
     date: `${dateMatch.year}-${pad2(dateMatch.month)}-${pad2(dateMatch.day)}`,
     time: timeMatch.value,
     location: locationMatch?.[1]?.trim().replace(/[.!?]$/, '').slice(0, 80) || '',
+    kind: availabilityStatus ? 'availability' : 'reminder',
+    availabilityStatus,
     sourceLabel,
   }
 }
@@ -176,6 +188,8 @@ export function buildCalendarQuickAddItemId(candidate: CalendarQuickAddCandidate
     candidate.date,
     candidate.time,
     candidate.location,
+    candidate.kind,
+    candidate.availabilityStatus,
   ].join('|')
   const scopeSlug = slugifyCalendarIdPart(scope) || 'message'
   const titleSlug = slugifyCalendarIdPart(candidate.title).slice(0, 32) || 'calendar-item'
