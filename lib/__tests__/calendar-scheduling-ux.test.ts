@@ -18,6 +18,8 @@ describe('calendar scheduling UX', () => {
   it('keeps Messages calendar quick-add wired to the player calendar endpoint', () => {
     expect(messagesSource).toContain('detectCalendarQuickAddCandidate')
     expect(messagesSource).toContain('buildCalendarQuickAddItemId')
+    expect(messagesSource).toContain('messageCalendarCandidates')
+    expect(messagesSource).toContain('messageCalendarActionStyle')
     expect(messagesSource).toContain('addScheduleEventToCalendar')
     expect(messagesSource).toContain('message-schedule-')
     expect(messagesSource).toContain('/api/player/calendar-items')

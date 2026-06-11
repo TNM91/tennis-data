@@ -616,16 +616,20 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   )
   const replyCalendarCandidate = useMemo(() => {
     const fallbackTitle = selectedConversation?.subject || 'Message calendar item'
-    const draftCandidate = detectCalendarQuickAddCandidate(replyBody, fallbackTitle, 'reply draft')
-    if (draftCandidate) return draftCandidate
-
-    const latestIncoming = [...messages].reverse().find((item) => item.senderUserId !== identity?.userId)
-    return latestIncoming ? detectCalendarQuickAddCandidate(latestIncoming.body, fallbackTitle, 'latest message') : null
-  }, [identity?.userId, messages, replyBody, selectedConversation?.subject])
+    return detectCalendarQuickAddCandidate(replyBody, fallbackTitle, 'reply draft')
+  }, [replyBody, selectedConversation?.subject])
   const composeCalendarCandidate = useMemo(
     () => detectCalendarQuickAddCandidate(body, subject || 'Message calendar item', 'new message'),
     [body, subject],
   )
+  const messageCalendarCandidates = useMemo(() => {
+    const fallbackTitle = selectedConversation?.subject || 'Message calendar item'
+    return messages.reduce((map, item) => {
+      const candidate = detectCalendarQuickAddCandidate(item.body, fallbackTitle, item.senderUserId === identity?.userId ? 'your message' : 'thread message')
+      if (candidate) map.set(item.id, candidate)
+      return map
+    }, new Map<string, CalendarQuickAddCandidate>())
+  }, [identity?.userId, messages, selectedConversation?.subject])
   const unreadNotificationCount = useMemo(
     () => notifications.filter((notification) => !notification.readAt).length,
     [notifications],
@@ -1846,10 +1850,28 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             ) : messages.length ? (
               messages.map((item) => {
                 const mine = item.senderUserId === identity.userId
+                const messageCalendarCandidate = messageCalendarCandidates.get(item.id)
+                const messageCalendarSavingId = `message-${item.id}`
                 return (
                   <div key={item.id} style={messageBubbleWrapStyle(mine)}>
                     <div style={messageBubbleStyle(mine)}>
                       <p>{item.body}</p>
+                      {messageCalendarCandidate ? (
+                        <div style={messageCalendarActionStyle}>
+                          <span>
+                            {messageCalendarCandidate.date}{messageCalendarCandidate.time ? ` ${messageCalendarCandidate.time}` : ''}
+                            {messageCalendarCandidate.location ? ` - ${messageCalendarCandidate.location}` : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void addMessageCandidateToCalendar(messageCalendarCandidate, messageCalendarSavingId)}
+                            disabled={calendarQuickAddSaving === messageCalendarSavingId}
+                            style={quickReplyButtonStyle}
+                          >
+                            {calendarQuickAddSaving === messageCalendarSavingId ? 'Adding...' : 'Add to My Calendar'}
+                          </button>
+                        </div>
+                      ) : null}
                       <span>{mine ? 'You' : 'Them'} · {formatMessageTime(item.createdAt)}</span>
                     </div>
                   </div>
@@ -2929,6 +2951,22 @@ const calendarQuickAddStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const messageCalendarActionStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 7,
+  alignItems: 'start',
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, transparent 92%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 850,
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
