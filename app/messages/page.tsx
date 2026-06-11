@@ -1199,6 +1199,37 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
   }
 
+  async function removeMessageCalendarItem(calendarItemId: string, sourceId: string) {
+    if (!session?.access_token) {
+      setError('Sign in with a player account to update My Calendar.')
+      return
+    }
+
+    setCalendarQuickAddSaving(sourceId)
+    setError('')
+    setMessage('')
+    try {
+      const response = await fetch(`/api/player/calendar-items?id=${encodeURIComponent(calendarItemId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const json = (await response.json()) as { ok?: boolean; message?: string }
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message || 'Could not remove this from My Calendar.')
+      }
+      setCalendarQuickAddedItemIds((current) => {
+        const next = new Set(current)
+        next.delete(calendarItemId)
+        return next
+      })
+      setMessage('Removed from My Calendar.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not remove this from My Calendar.')
+    } finally {
+      setCalendarQuickAddSaving('')
+    }
+  }
+
   async function addScheduleEventToCalendar(event: InternalScheduleEvent) {
     if (!session?.access_token) {
       setError('Sign in with a player account to save this to My Calendar.')
@@ -1808,16 +1839,22 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   {selectedScheduleEvent ? (
                     <button
                       type="button"
-                      onClick={() => void addScheduleEventToCalendar(selectedScheduleEvent)}
+                      onClick={() => {
+                        const calendarItemId = `message-schedule-${selectedScheduleEvent.id}`
+                        return calendarQuickAddedItemIds.has(calendarItemId)
+                          ? void removeMessageCalendarItem(calendarItemId, selectedScheduleEvent.id)
+                          : void addScheduleEventToCalendar(selectedScheduleEvent)
+                      }}
                       disabled={
                         selectedScheduleEvent.status === 'cancelled' ||
-                        calendarQuickAddSaving === selectedScheduleEvent.id ||
-                        calendarQuickAddedItemIds.has(`message-schedule-${selectedScheduleEvent.id}`)
+                        calendarQuickAddSaving === selectedScheduleEvent.id
                       }
                       style={ghostButtonStyle}
                     >
                       {calendarQuickAddedItemIds.has(`message-schedule-${selectedScheduleEvent.id}`)
-                        ? 'Saved'
+                        ? calendarQuickAddSaving === selectedScheduleEvent.id
+                          ? 'Removing...'
+                          : 'Remove'
                         : calendarQuickAddSaving === selectedScheduleEvent.id
                           ? 'Adding...'
                           : 'Add to My Calendar'}
@@ -1940,11 +1977,21 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                           </span>
                           <button
                             type="button"
-                            onClick={() => void addMessageCandidateToCalendar(messageCalendarCandidate, messageCalendarSavingId)}
-                            disabled={messageCalendarSaved || calendarQuickAddSaving === messageCalendarSavingId}
+                            onClick={() => (
+                              messageCalendarSaved
+                                ? void removeMessageCalendarItem(messageCalendarItemId, messageCalendarSavingId)
+                                : void addMessageCandidateToCalendar(messageCalendarCandidate, messageCalendarSavingId)
+                            )}
+                            disabled={calendarQuickAddSaving === messageCalendarSavingId}
                             style={quickReplyButtonStyle}
                           >
-                            {messageCalendarSaved ? 'Saved' : calendarQuickAddSaving === messageCalendarSavingId ? 'Adding...' : 'Add to My Calendar'}
+                            {messageCalendarSaved
+                              ? calendarQuickAddSaving === messageCalendarSavingId
+                                ? 'Removing...'
+                                : 'Remove'
+                              : calendarQuickAddSaving === messageCalendarSavingId
+                                ? 'Adding...'
+                                : 'Add to My Calendar'}
                           </button>
                         </div>
                       ) : null}
@@ -1992,11 +2039,21 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => void addMessageCandidateToCalendar(replyCalendarCandidate, 'reply')}
-                    disabled={replyCalendarSaved || calendarQuickAddSaving === 'reply'}
+                    onClick={() => (
+                      replyCalendarSaved
+                        ? void removeMessageCalendarItem(replyCalendarItemId, 'reply')
+                        : void addMessageCandidateToCalendar(replyCalendarCandidate, 'reply')
+                    )}
+                    disabled={calendarQuickAddSaving === 'reply'}
                     style={ghostButtonStyle}
                   >
-                    {replyCalendarSaved ? 'Saved' : calendarQuickAddSaving === 'reply' ? 'Adding...' : 'Add to My Calendar'}
+                    {replyCalendarSaved
+                      ? calendarQuickAddSaving === 'reply'
+                        ? 'Removing...'
+                        : 'Remove'
+                      : calendarQuickAddSaving === 'reply'
+                        ? 'Adding...'
+                        : 'Add to My Calendar'}
                   </button>
                 </div>
               ) : null}
@@ -2257,11 +2314,21 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => void addMessageCandidateToCalendar(composeCalendarCandidate, 'compose')}
-                  disabled={composeCalendarSaved || calendarQuickAddSaving === 'compose'}
+                  onClick={() => (
+                    composeCalendarSaved
+                      ? void removeMessageCalendarItem(composeCalendarItemId, 'compose')
+                      : void addMessageCandidateToCalendar(composeCalendarCandidate, 'compose')
+                  )}
+                  disabled={calendarQuickAddSaving === 'compose'}
                   style={ghostButtonStyle}
                 >
-                  {composeCalendarSaved ? 'Saved' : calendarQuickAddSaving === 'compose' ? 'Adding...' : 'Add to My Calendar'}
+                  {composeCalendarSaved
+                    ? calendarQuickAddSaving === 'compose'
+                      ? 'Removing...'
+                      : 'Remove'
+                    : calendarQuickAddSaving === 'compose'
+                      ? 'Adding...'
+                      : 'Add to My Calendar'}
                 </button>
               </div>
             ) : null}
