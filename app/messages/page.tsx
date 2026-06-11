@@ -85,6 +85,11 @@ type CoachMessageContact = {
   status: CoachStudentLink['status']
 }
 
+type PlayerCalendarItemsResponse = {
+  ok?: boolean
+  items?: Array<{ id?: string }>
+}
+
 function formatMessageTime(value: string) {
   if (!value) return ''
   try {
@@ -816,6 +821,35 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     if (!authResolved) return
     void loadInbox()
   }, [authResolved, loadInbox])
+
+  useEffect(() => {
+    if (!session?.access_token) {
+      setCalendarQuickAddedItemIds(new Set())
+      return
+    }
+
+    let active = true
+    fetch('/api/player/calendar-items', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then(async (response) => {
+        const json = (await response.json()) as PlayerCalendarItemsResponse
+        if (!active || !response.ok || !json.ok) return
+        const savedIds = new Set(
+          (json.items ?? [])
+            .map((item) => item.id || '')
+            .filter((id) => id.startsWith('message-calendar-') || id.startsWith('message-schedule-')),
+        )
+        setCalendarQuickAddedItemIds(savedIds)
+      })
+      .catch(() => {
+        if (active) setCalendarQuickAddedItemIds(new Set())
+      })
+
+    return () => {
+      active = false
+    }
+  }, [session?.access_token])
 
   useEffect(() => {
     if (identity?.role === 'admin' && inboxFilter === 'all' && needsReplyCount > 0) {

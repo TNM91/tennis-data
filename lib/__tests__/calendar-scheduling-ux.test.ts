@@ -21,6 +21,8 @@ describe('calendar scheduling UX', () => {
     expect(messagesSource).toContain('messageCalendarCandidates')
     expect(messagesSource).toContain('messageCalendarActionStyle')
     expect(messagesSource).toContain('calendarQuickAddedItemIds')
+    expect(messagesSource).toContain('PlayerCalendarItemsResponse')
+    expect(messagesSource).toContain("id.startsWith('message-calendar-') || id.startsWith('message-schedule-')")
     expect(messagesSource).toContain("'Saved'")
     expect(messagesSource).toContain('candidate.availabilityStatus')
     expect(messagesSource).toContain('candidate.recurrenceRule')
