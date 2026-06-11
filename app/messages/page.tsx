@@ -1168,6 +1168,50 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
   }
 
+  async function addScheduleEventToCalendar(event: InternalScheduleEvent) {
+    if (!session?.access_token) {
+      setError('Sign in with a player account to save this to My Calendar.')
+      return
+    }
+    if (!event.scheduledDate) {
+      setError('This schedule thread needs a date before it can be added to My Calendar.')
+      return
+    }
+
+    setCalendarQuickAddSaving(event.id)
+    setError('')
+    setMessage('')
+    try {
+      const response = await fetch('/api/player/calendar-items', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          item: {
+            id: `message-schedule-${event.id}`,
+            title: event.title || selectedConversation?.subject || 'Scheduled tennis session',
+            date: event.scheduledDate,
+            time: event.scheduledTime,
+            location: event.facility,
+            kind: event.eventType === 'tiq_league_match' ? 'match' : 'practice',
+            recurrenceRule: event.recurrenceRule,
+          },
+        }),
+      })
+      const json = (await response.json()) as { ok?: boolean; message?: string }
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message || 'Could not add this schedule to My Calendar.')
+      }
+      setMessage('Schedule added to My Calendar.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add this schedule to My Calendar.')
+    } finally {
+      setCalendarQuickAddSaving('')
+    }
+  }
+
   function updateReplyDraft(value: string) {
     setReplyBody(value)
     if (!selectedConversation) return
@@ -1711,6 +1755,16 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   <span style={selectedScheduleEvent?.status === 'cancelled' ? pillDangerStyle : pillStyle}>
                     {selectedScheduleEvent?.status === 'cancelled' ? 'Cancelled' : selectedScheduleEvent?.status || 'Proposed'}
                   </span>
+                  {selectedScheduleEvent ? (
+                    <button
+                      type="button"
+                      onClick={() => void addScheduleEventToCalendar(selectedScheduleEvent)}
+                      disabled={selectedScheduleEvent.status === 'cancelled' || calendarQuickAddSaving === selectedScheduleEvent.id}
+                      style={ghostButtonStyle}
+                    >
+                      {calendarQuickAddSaving === selectedScheduleEvent.id ? 'Adding...' : 'Add to My Calendar'}
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
