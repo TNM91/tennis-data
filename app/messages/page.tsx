@@ -1166,6 +1166,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       return
     }
 
+    const calendarItemId = `message-schedule-${event.id}`
     setCalendarQuickAddSaving(event.id)
     setError('')
     setMessage('')
@@ -1178,7 +1179,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         },
         body: JSON.stringify({
           item: {
-            id: `message-schedule-${event.id}`,
+            id: calendarItemId,
             title: event.title || selectedConversation?.subject || 'Scheduled tennis session',
             date: event.scheduledDate,
             time: event.scheduledTime,
@@ -1192,6 +1193,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       if (!response.ok || !json.ok) {
         throw new Error(json.message || 'Could not add this schedule to My Calendar.')
       }
+      setCalendarQuickAddedItemIds((current) => {
+        const next = new Set(current)
+        next.add(calendarItemId)
+        return next
+      })
       setMessage('Schedule added to My Calendar.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add this schedule to My Calendar.')
@@ -1760,10 +1766,18 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     <button
                       type="button"
                       onClick={() => void addScheduleEventToCalendar(selectedScheduleEvent)}
-                      disabled={selectedScheduleEvent.status === 'cancelled' || calendarQuickAddSaving === selectedScheduleEvent.id}
+                      disabled={
+                        selectedScheduleEvent.status === 'cancelled' ||
+                        calendarQuickAddSaving === selectedScheduleEvent.id ||
+                        calendarQuickAddedItemIds.has(`message-schedule-${selectedScheduleEvent.id}`)
+                      }
                       style={ghostButtonStyle}
                     >
-                      {calendarQuickAddSaving === selectedScheduleEvent.id ? 'Adding...' : 'Add to My Calendar'}
+                      {calendarQuickAddedItemIds.has(`message-schedule-${selectedScheduleEvent.id}`)
+                        ? 'Saved'
+                        : calendarQuickAddSaving === selectedScheduleEvent.id
+                          ? 'Adding...'
+                          : 'Add to My Calendar'}
                     </button>
                   ) : null}
                 </div>

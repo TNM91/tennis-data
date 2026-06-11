@@ -24,6 +24,7 @@ describe('calendar scheduling UX', () => {
     expect(messagesSource).toContain("'Saved'")
     expect(messagesSource).toContain('addScheduleEventToCalendar')
     expect(messagesSource).toContain('message-schedule-')
+    expect(messagesSource).toContain('calendarQuickAddedItemIds.has(`message-schedule-${selectedScheduleEvent.id}`)')
     expect(messagesSource).toContain('/api/player/calendar-items')
     expect(messagesSource).toContain('Calendar suggestion')
     expect(messagesSource).toContain('Add to My Calendar')
