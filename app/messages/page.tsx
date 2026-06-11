@@ -46,6 +46,7 @@ import {
   type InternalNotificationPreferences,
   type InternalNotificationPreferencePatch,
 } from '@/lib/internal-notification-preferences'
+import { detectCalendarQuickAddCandidate, type CalendarQuickAddCandidate } from '@/lib/message-calendar-quick-add'
 import type { CoachStudentLink } from '@/lib/coach-storage'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -78,14 +79,6 @@ type CoachMessageContact = {
   identitySlug: string
   levelLabel: string
   status: CoachStudentLink['status']
-}
-
-type CalendarQuickAddCandidate = {
-  title: string
-  date: string
-  time: string
-  location: string
-  sourceLabel: string
 }
 
 function formatMessageTime(value: string) {
@@ -231,34 +224,6 @@ function replyPlaceholder(conversation: InternalConversation | null) {
   if (conversation.conversationType === 'league') return 'Message this league room...'
   if (isScheduleConversation(conversation)) return 'Add a schedule note...'
   return 'Write a message...'
-}
-
-function detectCalendarQuickAddCandidate(
-  text: string,
-  fallbackTitle: string,
-  sourceLabel: string,
-): CalendarQuickAddCandidate | null {
-  const cleaned = text.trim().replace(/\s+/g, ' ')
-  if (!cleaned) return null
-
-  const dateMatch = cleaned.match(/\b(20\d{2}-\d{2}-\d{2})(?:[ T]+([01]?\d|2[0-3]):([0-5]\d))?/)
-  if (!dateMatch?.[1]) return null
-
-  const parsed = new Date(`${dateMatch[1]}T12:00:00`)
-  if (Number.isNaN(parsed.getTime())) return null
-
-  const beforeDate = cleaned.slice(0, dateMatch.index).replace(/\b(on|for|at)\s*$/i, '').trim()
-  const afterDate = cleaned.slice((dateMatch.index ?? 0) + dateMatch[0].length)
-  const locationMatch = afterDate.match(/(?:\bat\s+|@\s*)([A-Za-z0-9 .,#'&-]{3,80})/)
-  const title = beforeDate && beforeDate.length >= 4 ? beforeDate.slice(0, 90) : fallbackTitle || 'Message calendar item'
-
-  return {
-    title,
-    date: dateMatch[1],
-    time: dateMatch[2] && dateMatch[3] ? `${dateMatch[2].padStart(2, '0')}:${dateMatch[3]}` : '',
-    location: locationMatch?.[1]?.trim().replace(/[.!?]$/, '').slice(0, 80) || '',
-    sourceLabel,
-  }
 }
 
 function getQuickReplyActions(conversation: InternalConversation | null, role: InternalIdentity['role']) {
