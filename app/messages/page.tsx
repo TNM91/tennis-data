@@ -46,7 +46,11 @@ import {
   type InternalNotificationPreferences,
   type InternalNotificationPreferencePatch,
 } from '@/lib/internal-notification-preferences'
-import { detectCalendarQuickAddCandidate, type CalendarQuickAddCandidate } from '@/lib/message-calendar-quick-add'
+import {
+  buildCalendarQuickAddItemId,
+  detectCalendarQuickAddCandidate,
+  type CalendarQuickAddCandidate,
+} from '@/lib/message-calendar-quick-add'
 import type { CoachStudentLink } from '@/lib/coach-storage'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -1113,6 +1117,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         },
         body: JSON.stringify({
           item: {
+            id: buildCalendarQuickAddItemId(
+              candidate,
+              selectedConversation?.id ? `thread-${selectedConversation.id}-${sourceId}` : sourceId,
+            ),
             title: candidate.title,
             date: candidate.date,
             time: candidate.time,

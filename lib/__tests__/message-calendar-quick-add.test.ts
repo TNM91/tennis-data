@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectCalendarQuickAddCandidate } from '../message-calendar-quick-add'
+import { buildCalendarQuickAddItemId, detectCalendarQuickAddCandidate } from '../message-calendar-quick-add'
 
 describe('message calendar quick add parser', () => {
   it('detects ISO dates with 24-hour time and location', () => {
@@ -52,5 +52,30 @@ describe('message calendar quick add parser', () => {
   it('requires concrete valid dates', () => {
     expect(detectCalendarQuickAddCandidate('Hit next Tuesday at 6pm', 'Fallback', 'reply draft')).toBeNull()
     expect(detectCalendarQuickAddCandidate('Hit 2/31/2026 at 6pm', 'Fallback', 'reply draft')).toBeNull()
+  })
+
+  it('builds stable calendar item ids for duplicate-safe message saves', () => {
+    const candidate = detectCalendarQuickAddCandidate(
+      'Doubles practice 6/18/2026 at 6:30 PM @ Indoor Court 2',
+      'Fallback',
+      'new message',
+    )
+    const laterCandidate = detectCalendarQuickAddCandidate(
+      'Doubles practice 6/18/2026 at 7:30 PM @ Indoor Court 2',
+      'Fallback',
+      'new message',
+    )
+
+    expect(candidate).not.toBeNull()
+    expect(laterCandidate).not.toBeNull()
+    if (!candidate || !laterCandidate) return
+
+    const firstId = buildCalendarQuickAddItemId(candidate, 'thread-conversation-1-reply')
+    const secondId = buildCalendarQuickAddItemId(candidate, 'thread-conversation-1-reply')
+
+    expect(firstId).toBe(secondId)
+    expect(firstId).toMatch(/^message-calendar-thread-conversation-1-reply-2026-06-18-18-30-/)
+    expect(firstId.length).toBeLessThanOrEqual(96)
+    expect(buildCalendarQuickAddItemId(laterCandidate, 'thread-conversation-1-reply')).not.toBe(firstId)
   })
 })

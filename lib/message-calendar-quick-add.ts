@@ -6,6 +6,8 @@ export type CalendarQuickAddCandidate = {
   sourceLabel: string
 }
 
+const maxCalendarItemIdLength = 96
+
 type DateMatchResult = {
   year: number
   month: number
@@ -48,6 +50,23 @@ const monthNames: Record<string, number> = {
 
 function pad2(value: number) {
   return value.toString().padStart(2, '0')
+}
+
+function slugifyCalendarIdPart(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function hashCalendarQuickAddValue(value: string) {
+  let hash = 0
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(hash, 31) + value.charCodeAt(index)
+    hash |= 0
+  }
+  return Math.abs(hash).toString(36)
 }
 
 function isValidDate(year: number, month: number, day: number) {
@@ -148,4 +167,20 @@ export function detectCalendarQuickAddCandidate(
     location: locationMatch?.[1]?.trim().replace(/[.!?]$/, '').slice(0, 80) || '',
     sourceLabel,
   }
+}
+
+export function buildCalendarQuickAddItemId(candidate: CalendarQuickAddCandidate, scope: string) {
+  const raw = [
+    scope,
+    candidate.title,
+    candidate.date,
+    candidate.time,
+    candidate.location,
+  ].join('|')
+  const scopeSlug = slugifyCalendarIdPart(scope) || 'message'
+  const titleSlug = slugifyCalendarIdPart(candidate.title).slice(0, 32) || 'calendar-item'
+  const dateSlug = slugifyCalendarIdPart([candidate.date, candidate.time].filter(Boolean).join('-')) || 'date'
+  const hash = hashCalendarQuickAddValue(raw)
+
+  return `message-calendar-${scopeSlug}-${dateSlug}-${titleSlug}-${hash}`.slice(0, maxCalendarItemIdLength)
 }
