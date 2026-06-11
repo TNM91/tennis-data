@@ -22,5 +22,7 @@ describe('calendar scheduling UX', () => {
     expect(messagesSource).toContain('/api/player/calendar-items')
     expect(messagesSource).toContain('Calendar suggestion')
     expect(messagesSource).toContain('Add to My Calendar')
+    expect(messagesSource).toContain('View My Calendar')
+    expect(messagesSource).toContain('/mylab#my-calendar')
   })
 })

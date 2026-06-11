@@ -1456,6 +1456,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     ...panelStyle,
     ...(showConversationOnMobile ? hiddenPanelStyle : {}),
   }
+  const showCalendarFollowThrough = message.includes('My Calendar')
 
   if (!authResolved || loading) {
     return (
@@ -1487,6 +1488,14 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   return (
     <section style={pageStyle}>
       <PlayerSuitePanel active="messages" playerLabel="Inbox" />
+      {showCalendarFollowThrough ? (
+        <div style={calendarFollowThroughStyle}>
+          <span>{message}</span>
+          <Link href="/mylab#my-calendar" style={ghostButtonStyle}>
+            View My Calendar
+          </Link>
+        </div>
+      ) : null}
       {coachContacts.length ? (
         <section style={coachContactsPanelStyle}>
           <div>
@@ -2947,6 +2956,23 @@ const calendarQuickAddStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const calendarFollowThroughStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
