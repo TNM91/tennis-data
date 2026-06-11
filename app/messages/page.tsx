@@ -583,6 +583,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [conversationActionSaving, setConversationActionSaving] = useState('')
   const [scheduleActionSaving, setScheduleActionSaving] = useState('')
   const [calendarQuickAddSaving, setCalendarQuickAddSaving] = useState('')
+  const [calendarQuickAddedItemIds, setCalendarQuickAddedItemIds] = useState<Set<string>>(() => new Set())
   const [scheduleEditOpen, setScheduleEditOpen] = useState(false)
   const [scheduleDraftDate, setScheduleDraftDate] = useState('')
   const [scheduleDraftTime, setScheduleDraftTime] = useState('')
@@ -1103,12 +1104,20 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
   }
 
+  function getMessageCalendarItemId(candidate: CalendarQuickAddCandidate, sourceId: string) {
+    return buildCalendarQuickAddItemId(
+      candidate,
+      selectedConversation?.id ? `thread-${selectedConversation.id}-${sourceId}` : sourceId,
+    )
+  }
+
   async function addMessageCandidateToCalendar(candidate: CalendarQuickAddCandidate, sourceId: string) {
     if (!session?.access_token) {
       setError('Sign in with a player account to save this to My Calendar.')
       return
     }
 
+    const calendarItemId = getMessageCalendarItemId(candidate, sourceId)
     setCalendarQuickAddSaving(sourceId)
     setError('')
     setMessage('')
@@ -1121,10 +1130,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         },
         body: JSON.stringify({
           item: {
-            id: buildCalendarQuickAddItemId(
-              candidate,
-              selectedConversation?.id ? `thread-${selectedConversation.id}-${sourceId}` : sourceId,
-            ),
+            id: calendarItemId,
             title: candidate.title,
             date: candidate.date,
             time: candidate.time,
@@ -1137,6 +1143,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       if (!response.ok || !json.ok) {
         throw new Error(json.message || 'Could not add this to My Calendar.')
       }
+      setCalendarQuickAddedItemIds((current) => {
+        const next = new Set(current)
+        next.add(calendarItemId)
+        return next
+      })
       setMessage('Added to My Calendar.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add this to My Calendar.')
@@ -1434,6 +1445,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     ...(showConversationOnMobile ? hiddenPanelStyle : {}),
   }
   const showCalendarFollowThrough = message.includes('My Calendar')
+  const replyCalendarItemId = replyCalendarCandidate ? getMessageCalendarItemId(replyCalendarCandidate, 'reply') : ''
+  const replyCalendarSaved = Boolean(replyCalendarItemId && calendarQuickAddedItemIds.has(replyCalendarItemId))
+  const composeCalendarItemId = composeCalendarCandidate ? getMessageCalendarItemId(composeCalendarCandidate, 'compose') : ''
+  const composeCalendarSaved = Boolean(composeCalendarItemId && calendarQuickAddedItemIds.has(composeCalendarItemId))
 
   if (!authResolved || loading) {
     return (
@@ -1852,6 +1867,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                 const mine = item.senderUserId === identity.userId
                 const messageCalendarCandidate = messageCalendarCandidates.get(item.id)
                 const messageCalendarSavingId = `message-${item.id}`
+                const messageCalendarItemId = messageCalendarCandidate ? getMessageCalendarItemId(messageCalendarCandidate, messageCalendarSavingId) : ''
+                const messageCalendarSaved = Boolean(messageCalendarItemId && calendarQuickAddedItemIds.has(messageCalendarItemId))
                 return (
                   <div key={item.id} style={messageBubbleWrapStyle(mine)}>
                     <div style={messageBubbleStyle(mine)}>
@@ -1865,10 +1882,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                           <button
                             type="button"
                             onClick={() => void addMessageCandidateToCalendar(messageCalendarCandidate, messageCalendarSavingId)}
-                            disabled={calendarQuickAddSaving === messageCalendarSavingId}
+                            disabled={messageCalendarSaved || calendarQuickAddSaving === messageCalendarSavingId}
                             style={quickReplyButtonStyle}
                           >
-                            {calendarQuickAddSaving === messageCalendarSavingId ? 'Adding...' : 'Add to My Calendar'}
+                            {messageCalendarSaved ? 'Saved' : calendarQuickAddSaving === messageCalendarSavingId ? 'Adding...' : 'Add to My Calendar'}
                           </button>
                         </div>
                       ) : null}
@@ -1915,10 +1932,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   <button
                     type="button"
                     onClick={() => void addMessageCandidateToCalendar(replyCalendarCandidate, 'reply')}
-                    disabled={calendarQuickAddSaving === 'reply'}
+                    disabled={replyCalendarSaved || calendarQuickAddSaving === 'reply'}
                     style={ghostButtonStyle}
                   >
-                    {calendarQuickAddSaving === 'reply' ? 'Adding...' : 'Add to My Calendar'}
+                    {replyCalendarSaved ? 'Saved' : calendarQuickAddSaving === 'reply' ? 'Adding...' : 'Add to My Calendar'}
                   </button>
                 </div>
               ) : null}
@@ -2178,10 +2195,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                 <button
                   type="button"
                   onClick={() => void addMessageCandidateToCalendar(composeCalendarCandidate, 'compose')}
-                  disabled={calendarQuickAddSaving === 'compose'}
+                  disabled={composeCalendarSaved || calendarQuickAddSaving === 'compose'}
                   style={ghostButtonStyle}
                 >
-                  {calendarQuickAddSaving === 'compose' ? 'Adding...' : 'Add to My Calendar'}
+                  {composeCalendarSaved ? 'Saved' : calendarQuickAddSaving === 'compose' ? 'Adding...' : 'Add to My Calendar'}
                 </button>
               </div>
             ) : null}
