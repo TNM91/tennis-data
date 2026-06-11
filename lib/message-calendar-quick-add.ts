@@ -151,6 +151,12 @@ function inferAvailabilityStatus(value: string): CalendarQuickAddCandidate['avai
   return ''
 }
 
+function buildCandidateTitle(rawTitle: string, fallbackTitle: string, availabilityStatus: CalendarQuickAddCandidate['availabilityStatus']) {
+  if (availabilityStatus === 'available') return 'Available'
+  if (availabilityStatus === 'unavailable') return 'Unavailable'
+  return rawTitle && rawTitle.length >= 4 ? rawTitle.slice(0, 90) : fallbackTitle || 'Message calendar item'
+}
+
 export function detectCalendarQuickAddCandidate(
   text: string,
   fallbackTitle: string,
@@ -167,8 +173,8 @@ export function detectCalendarQuickAddCandidate(
   const timeMatch = findTimeMatch(afterDate)
   const locationSource = afterDate.slice(timeMatch.endIndex)
   const locationMatch = locationSource.match(/(?:\bat\s+|@\s*)([A-Za-z0-9 .,#'&-]{3,80})/)
-  const title = beforeDate && beforeDate.length >= 4 ? beforeDate.slice(0, 90) : fallbackTitle || 'Message calendar item'
-  const availabilityStatus = inferAvailabilityStatus(beforeDate)
+  const availabilityStatus = inferAvailabilityStatus(`${beforeDate} ${afterDate}`)
+  const title = buildCandidateTitle(beforeDate, fallbackTitle, availabilityStatus)
 
   return {
     title,

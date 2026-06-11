@@ -59,7 +59,7 @@ describe('message calendar quick add parser', () => {
         'reply draft',
       ),
     ).toMatchObject({
-      title: "I'm unavailable",
+      title: 'Unavailable',
       date: '2026-06-18',
       time: '18:00',
       kind: 'availability',
@@ -76,6 +76,36 @@ describe('message calendar quick add parser', () => {
       title: 'Available',
       date: '2026-06-20',
       time: '09:00',
+      kind: 'availability',
+      availabilityStatus: 'available',
+    })
+  })
+
+  it('detects availability language after concrete dates', () => {
+    expect(
+      detectCalendarQuickAddCandidate(
+        '6/21/2026 at 10am unavailable',
+        'Fallback',
+        'thread message',
+      ),
+    ).toMatchObject({
+      title: 'Unavailable',
+      date: '2026-06-21',
+      time: '10:00',
+      kind: 'availability',
+      availabilityStatus: 'unavailable',
+    })
+
+    expect(
+      detectCalendarQuickAddCandidate(
+        '6/22/2026 11am open',
+        'Fallback',
+        'thread message',
+      ),
+    ).toMatchObject({
+      title: 'Available',
+      date: '2026-06-22',
+      time: '11:00',
       kind: 'availability',
       availabilityStatus: 'available',
     })
