@@ -5,6 +5,7 @@ export type CalendarQuickAddCandidate = {
   location: string
   kind: 'reminder' | 'availability'
   availabilityStatus: '' | 'available' | 'unavailable'
+  recurrenceRule: '' | 'FREQ=DAILY' | 'FREQ=WEEKLY' | 'FREQ=MONTHLY'
   sourceLabel: string
 }
 
@@ -151,6 +152,16 @@ function inferAvailabilityStatus(value: string): CalendarQuickAddCandidate['avai
   return ''
 }
 
+function inferRecurrenceRule(value: string): CalendarQuickAddCandidate['recurrenceRule'] {
+  const normalized = value.toLowerCase()
+  if (/\b(every\s+day|daily)\b/.test(normalized)) return 'FREQ=DAILY'
+  if (/\b(every\s+week|weekly|every\s+(mon|monday|tue|tues|tuesday|wed|weds|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday|sun|sunday))\b/.test(normalized)) {
+    return 'FREQ=WEEKLY'
+  }
+  if (/\b(every\s+month|monthly)\b/.test(normalized)) return 'FREQ=MONTHLY'
+  return ''
+}
+
 function buildCandidateTitle(rawTitle: string, fallbackTitle: string, availabilityStatus: CalendarQuickAddCandidate['availabilityStatus']) {
   if (availabilityStatus === 'available') return 'Available'
   if (availabilityStatus === 'unavailable') return 'Unavailable'
@@ -174,6 +185,7 @@ export function detectCalendarQuickAddCandidate(
   const locationSource = afterDate.slice(timeMatch.endIndex)
   const locationMatch = locationSource.match(/(?:\bat\s+|@\s*)([A-Za-z0-9 .,#'&-]{3,80})/)
   const availabilityStatus = inferAvailabilityStatus(`${beforeDate} ${afterDate}`)
+  const recurrenceRule = inferRecurrenceRule(`${beforeDate} ${afterDate}`)
   const title = buildCandidateTitle(beforeDate, fallbackTitle, availabilityStatus)
 
   return {
@@ -183,6 +195,7 @@ export function detectCalendarQuickAddCandidate(
     location: locationMatch?.[1]?.trim().replace(/[.!?]$/, '').slice(0, 80) || '',
     kind: availabilityStatus ? 'availability' : 'reminder',
     availabilityStatus,
+    recurrenceRule,
     sourceLabel,
   }
 }
@@ -196,6 +209,7 @@ export function buildCalendarQuickAddItemId(candidate: CalendarQuickAddCandidate
     candidate.location,
     candidate.kind,
     candidate.availabilityStatus,
+    candidate.recurrenceRule,
   ].join('|')
   const scopeSlug = slugifyCalendarIdPart(scope) || 'message'
   const titleSlug = slugifyCalendarIdPart(candidate.title).slice(0, 32) || 'calendar-item'

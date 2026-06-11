@@ -230,6 +230,13 @@ function replyPlaceholder(conversation: InternalConversation | null) {
   return 'Write a message...'
 }
 
+function quickAddRecurrenceLabel(value: CalendarQuickAddCandidate['recurrenceRule']) {
+  if (value === 'FREQ=DAILY') return 'repeats daily'
+  if (value === 'FREQ=WEEKLY') return 'repeats weekly'
+  if (value === 'FREQ=MONTHLY') return 'repeats monthly'
+  return ''
+}
+
 function getQuickReplyActions(conversation: InternalConversation | null, role: InternalIdentity['role']) {
   if (!conversation) return []
   if (conversation.conversationType === 'support') {
@@ -1137,6 +1144,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             location: candidate.location,
             kind: candidate.kind,
             availabilityStatus: candidate.availabilityStatus,
+            recurrenceRule: candidate.recurrenceRule,
           },
         }),
       })
@@ -1894,6 +1902,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                             {messageCalendarCandidate.date}{messageCalendarCandidate.time ? ` ${messageCalendarCandidate.time}` : ''}
                             {messageCalendarCandidate.location ? ` - ${messageCalendarCandidate.location}` : ''}
                             {messageCalendarCandidate.availabilityStatus ? ` - ${messageCalendarCandidate.availabilityStatus}` : ''}
+                            {messageCalendarCandidate.recurrenceRule ? ` - ${quickAddRecurrenceLabel(messageCalendarCandidate.recurrenceRule)}` : ''}
                           </span>
                           <button
                             type="button"
@@ -1943,7 +1952,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     <span>
                       {replyCalendarCandidate.title} - {replyCalendarCandidate.date}{replyCalendarCandidate.time ? ` ${replyCalendarCandidate.time}` : ''}
                       {replyCalendarCandidate.location ? ` - ${replyCalendarCandidate.location}` : ''}
-                      {replyCalendarCandidate.availabilityStatus ? ` - ${replyCalendarCandidate.availabilityStatus}` : ''} - {replyCalendarCandidate.sourceLabel}
+                      {replyCalendarCandidate.availabilityStatus ? ` - ${replyCalendarCandidate.availabilityStatus}` : ''}
+                      {replyCalendarCandidate.recurrenceRule ? ` - ${quickAddRecurrenceLabel(replyCalendarCandidate.recurrenceRule)}` : ''} - {replyCalendarCandidate.sourceLabel}
                     </span>
                   </div>
                   <button
@@ -2207,7 +2217,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   <span>
                     {composeCalendarCandidate.title} - {composeCalendarCandidate.date}{composeCalendarCandidate.time ? ` ${composeCalendarCandidate.time}` : ''}
                     {composeCalendarCandidate.location ? ` - ${composeCalendarCandidate.location}` : ''}
-                    {composeCalendarCandidate.availabilityStatus ? ` - ${composeCalendarCandidate.availabilityStatus}` : ''} - {composeCalendarCandidate.sourceLabel}
+                    {composeCalendarCandidate.availabilityStatus ? ` - ${composeCalendarCandidate.availabilityStatus}` : ''}
+                    {composeCalendarCandidate.recurrenceRule ? ` - ${quickAddRecurrenceLabel(composeCalendarCandidate.recurrenceRule)}` : ''} - {composeCalendarCandidate.sourceLabel}
                   </span>
                 </div>
                 <button

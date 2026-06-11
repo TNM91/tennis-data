@@ -23,6 +23,8 @@ describe('calendar scheduling UX', () => {
     expect(messagesSource).toContain('calendarQuickAddedItemIds')
     expect(messagesSource).toContain("'Saved'")
     expect(messagesSource).toContain('candidate.availabilityStatus')
+    expect(messagesSource).toContain('candidate.recurrenceRule')
+    expect(messagesSource).toContain('quickAddRecurrenceLabel')
     expect(messagesSource).toContain('addScheduleEventToCalendar')
     expect(messagesSource).toContain('message-schedule-')
     expect(messagesSource).toContain('calendarQuickAddedItemIds.has(`message-schedule-${selectedScheduleEvent.id}`)')

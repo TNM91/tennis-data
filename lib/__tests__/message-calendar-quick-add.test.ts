@@ -17,6 +17,7 @@ describe('message calendar quick add parser', () => {
       location: 'Court 4',
       kind: 'reminder',
       availabilityStatus: '',
+      recurrenceRule: '',
       sourceLabel: 'reply draft',
     })
   })
@@ -108,6 +109,62 @@ describe('message calendar quick add parser', () => {
       time: '11:00',
       kind: 'availability',
       availabilityStatus: 'available',
+    })
+  })
+
+  it('detects recurrence language around concrete dates', () => {
+    expect(
+      detectCalendarQuickAddCandidate(
+        'Weekly doubles practice 6/24/2026 at 6pm @ Court 1',
+        'Fallback',
+        'reply draft',
+      ),
+    ).toMatchObject({
+      title: 'Weekly doubles practice',
+      date: '2026-06-24',
+      time: '18:00',
+      recurrenceRule: 'FREQ=WEEKLY',
+    })
+
+    expect(
+      detectCalendarQuickAddCandidate(
+        '6/25/2026 7am every day',
+        'Fallback',
+        'reply draft',
+      ),
+    ).toMatchObject({
+      date: '2026-06-25',
+      time: '07:00',
+      recurrenceRule: 'FREQ=DAILY',
+    })
+
+    expect(
+      detectCalendarQuickAddCandidate(
+        'Video check-in 6/26/2026 at 8pm monthly',
+        'Fallback',
+        'reply draft',
+      ),
+    ).toMatchObject({
+      title: 'Video check-in',
+      date: '2026-06-26',
+      time: '20:00',
+      recurrenceRule: 'FREQ=MONTHLY',
+    })
+  })
+
+  it('saves recurring availability from message language', () => {
+    expect(
+      detectCalendarQuickAddCandidate(
+        'Unavailable every week 6/27/2026 at 5pm',
+        'Fallback',
+        'thread message',
+      ),
+    ).toMatchObject({
+      title: 'Unavailable',
+      date: '2026-06-27',
+      kind: 'availability',
+      availabilityStatus: 'unavailable',
+      recurrenceRule: 'FREQ=WEEKLY',
     })
   })
 
