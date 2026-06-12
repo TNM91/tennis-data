@@ -3,10 +3,13 @@ import {
   PERSONAL_DAILY_QUESTS,
   buildPersonalQuestHeatmap,
   buildPersonalQuestStats,
+  buildPersonalQuestTrendCards,
   buildQuestFeedback,
+  buildSmartQuestRecommendation,
   isPersonalQuestOwner,
   type DailyLog,
   type DailyQuestCompletion,
+  type Measurement,
 } from '../personal-quest'
 
 describe('personal quest access', () => {
@@ -47,6 +50,60 @@ describe('personal quest daily helpers', () => {
     expect(buildQuestFeedback(lunchQuest!, 'completed')).toContain('Lunch Boss took damage.')
     expect(buildQuestFeedback(coreQuest!, 'completed')).toContain('Streak protected.')
     expect(buildQuestFeedback(coreQuest!, 'removed')).toContain('reopened')
+  })
+
+  it('recommends boss-aware next quests by mode', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'protein_breakfast', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'water_80_oz', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-09', xp_awarded: 15 },
+    ]
+    const logs: DailyLog[] = [{ log_date: '2026-06-12', ipa_count: 1, notes: '' }]
+
+    const recommendation = buildSmartQuestRecommendation({
+      completions,
+      logs,
+      today: '2026-06-12',
+      weekStart: '2026-06-07',
+      mode: 'morning',
+    })
+
+    expect(recommendation.quest?.id).toBe('no_chips_lunch')
+    expect(recommendation.reason).toContain('Lunch Boss')
+  })
+
+  it('builds weekly trend cards without requiring weight or calories', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'water_80_oz', completed_on: '2026-06-11', xp_awarded: 10 },
+      { quest_id: 'water_80_oz', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'core_workout', completed_on: '2026-06-12', xp_awarded: 10 },
+    ]
+    const logs: DailyLog[] = [
+      { log_date: '2026-06-05', ipa_count: 4, notes: '' },
+      { log_date: '2026-06-12', ipa_count: 1, notes: '' },
+    ]
+    const measurements: Measurement[] = [
+      { measured_on: '2026-06-01', waist_inches: 36 },
+      { measured_on: '2026-06-08', waist_inches: 35.5 },
+    ]
+
+    const cards = buildPersonalQuestTrendCards({
+      completions,
+      logs,
+      measurements,
+      today: '2026-06-12',
+      weekStart: '2026-06-07',
+    })
+
+    expect(cards.map((card) => card.label)).toEqual([
+      'Waist trend',
+      'Avg quests/day',
+      'IPA trend',
+      'Best habit',
+      'Weakest habit',
+    ])
+    expect(cards.find((card) => card.label === 'Waist trend')?.detail).toBe('-0.5')
+    expect(cards.find((card) => card.label === 'Best habit')?.value).toBe('Water goal')
   })
 })
 

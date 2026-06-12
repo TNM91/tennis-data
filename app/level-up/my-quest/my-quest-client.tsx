@@ -7,13 +7,18 @@ import {
   PERSONAL_QUEST_PHOTO_BUCKET,
   buildPersonalQuestHeatmap,
   buildPersonalQuestStats,
+  buildPersonalQuestTrendCards,
   buildQuestFeedback,
+  buildSmartQuestRecommendation,
+  getDefaultPersonalQuestRule,
   getTodayKey,
   getWeekEndKey,
   getWeekStartKey,
   isPersonalQuestOwner,
   type DailyLog,
   type DailyQuestCompletion,
+  type Measurement,
+  type PersonalQuestMode,
   type PersonalQuestDefinition,
   type ProgressPhoto,
   type ProgressPhotoType,
@@ -39,18 +44,24 @@ export default function MyQuestClient() {
   const [loadState, setLoadState] = useState<LoadState>('checking')
   const [completions, setCompletions] = useState<DailyQuestCompletion[]>([])
   const [logs, setLogs] = useState<DailyLog[]>([])
+  const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [weeklyReview, setWeeklyReview] = useState<WeeklyReview | null>(null)
   const [photos, setPhotos] = useState<PhotoPreview[]>([])
+  const [mode, setMode] = useState<PersonalQuestMode>(() => new Date().getHours() < 15 ? 'morning' : 'evening')
   const [ipaInput, setIpaInput] = useState('0')
   const [notesInput, setNotesInput] = useState('')
   const [waistInput, setWaistInput] = useState('')
+  const [weeklyRule, setWeeklyRule] = useState(getDefaultPersonalQuestRule())
   const [reviewWin, setReviewWin] = useState('')
   const [reviewMiss, setReviewMiss] = useState('')
   const [reviewFocus, setReviewFocus] = useState('')
   const [savingTracker, setSavingTracker] = useState(false)
   const [savingReview, setSavingReview] = useState(false)
+  const [savingRule, setSavingRule] = useState(false)
   const [pendingQuest, setPendingQuest] = useState('')
   const [uploadingType, setUploadingType] = useState<ProgressPhotoType | ''>('')
+  const [compareType, setCompareType] = useState<ProgressPhotoType>('front')
+  const [celebration, setCelebration] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -85,6 +96,21 @@ export default function MyQuestClient() {
       .reduce((sum, item) => sum + Math.max(0, item.xp_awarded), 0),
     [completions, today],
   )
+  const smartQuest = useMemo(
+    () => buildSmartQuestRecommendation({ completions, logs, today, weekStart, mode }),
+    [completions, logs, mode, today, weekStart],
+  )
+  const trendCards = useMemo(
+    () => buildPersonalQuestTrendCards({ completions, logs, measurements, today, weekStart }),
+    [completions, logs, measurements, today, weekStart],
+  )
+  const comparePhotos = useMemo(() => {
+    const matching = photos.filter((photo) => photo.photo_type === compareType)
+    return {
+      latest: matching[0] ?? null,
+      previous: matching[1] ?? null,
+    }
+  }, [compareType, photos])
 
   const weeklyIpaCount = useMemo(
     () => logs
@@ -107,12 +133,18 @@ export default function MyQuestClient() {
     setError('')
 
     const [
+      profileResult,
       completionResult,
       logResult,
       measurementResult,
       reviewResult,
       photoResult,
     ] = await Promise.all([
+      supabase
+        .from('personal_quest_profiles')
+        .select('weekly_rule')
+        .eq('user_id', ownerId)
+        .maybeSingle(),
       supabase
         .from('personal_daily_quest_completions')
         .select('quest_id, completed_on, xp_awarded')
@@ -145,6 +177,7 @@ export default function MyQuestClient() {
         .limit(12),
     ])
 
+    if (profileResult.error) throw new Error(profileResult.error.message)
     if (completionResult.error) throw new Error(completionResult.error.message)
     if (logResult.error) throw new Error(logResult.error.message)
     if (measurementResult.error) throw new Error(measurementResult.error.message)
@@ -153,13 +186,15 @@ export default function MyQuestClient() {
 
     const nextCompletions = (completionResult.data ?? []) as DailyQuestCompletion[]
     const nextLogs = (logResult.data ?? []) as DailyLog[]
-    const nextMeasurements = (measurementResult.data ?? []) as Array<{ measured_on: string; waist_inches: number | null }>
+    const nextMeasurements = (measurementResult.data ?? []) as Measurement[]
     const nextReview = (reviewResult.data ?? null) as WeeklyReview | null
     const nextPhotos = (photoResult.data ?? []) as ProgressPhoto[]
 
     setCompletions(nextCompletions)
     setLogs(nextLogs)
+    setMeasurements(nextMeasurements)
     setWeeklyReview(nextReview)
+    setWeeklyRule((profileResult.data as { weekly_rule?: string } | null)?.weekly_rule || getDefaultPersonalQuestRule())
     setIpaInput(String(nextLogs.find((log) => log.log_date === today)?.ipa_count ?? 0))
     setNotesInput(nextLogs.find((log) => log.log_date === today)?.notes ?? '')
     setWaistInput(
@@ -178,6 +213,7 @@ export default function MyQuestClient() {
       user_id: ownerId,
       season_slug: 'operation-visible-abs',
       display_name: 'Nathan',
+      weekly_rule: (profileResult.data as { weekly_rule?: string } | null)?.weekly_rule || getDefaultPersonalQuestRule(),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
 
@@ -216,6 +252,28 @@ export default function MyQuestClient() {
     if (!unlocked.length) return
     void supabase.from('personal_achievements').upsert(unlocked, { onConflict: 'user_id,achievement_id' })
   }, [authUser?.id, loadState, ownerAllowed, stats.achievements, userId])
+
+  useEffect(() => {
+    const ownerId = authUser?.id ?? userId
+    if (!ownerId || !ownerAllowed || loadState !== 'ready') return
+
+    const storageKey = `personal-quest-celebrations:${ownerId}`
+    const seen = new Set((window.localStorage.getItem(storageKey) || '').split(',').filter(Boolean))
+    const milestones = [
+      `level:${stats.level.title}`,
+      ...stats.achievements.filter((achievement) => achievement.unlocked).map((achievement) => `badge:${achievement.id}`),
+    ]
+    const nextMilestone = milestones.find((item) => !seen.has(item))
+    if (!nextMilestone) return
+
+    seen.add(nextMilestone)
+    window.localStorage.setItem(storageKey, Array.from(seen).join(','))
+    const message = nextMilestone.startsWith('level:')
+      ? `${stats.level.title} unlocked. New level banked.`
+      : `${stats.achievements.find((achievement) => `badge:${achievement.id}` === nextMilestone)?.title ?? 'Badge'} unlocked.`
+    const timeout = window.setTimeout(() => setCelebration(message), 0)
+    return () => window.clearTimeout(timeout)
+  }, [authUser?.id, loadState, ownerAllowed, stats.achievements, stats.level.title, userId])
 
   async function toggleQuest(quest: PersonalQuestDefinition) {
     const ownerId = authUser?.id ?? userId
@@ -355,11 +413,41 @@ export default function MyQuestClient() {
       setWeeklyReview(nextReview)
       if (waist !== null) {
         setWaistInput(String(waist))
+        setMeasurements((current) => upsertByDate(current, { measured_on: weekStart, waist_inches: waist }, 'measured_on'))
       }
       setMessage('Weekly review saved.')
     }
 
     setSavingReview(false)
+  }
+
+  async function saveWeeklyRule() {
+    const ownerId = authUser?.id ?? userId
+    if (!ownerId) return
+
+    setSavingRule(true)
+    setError('')
+    setMessage('')
+
+    const cleanRule = weeklyRule.trim().slice(0, 220) || getDefaultPersonalQuestRule()
+    const { error: upsertError } = await supabase
+      .from('personal_quest_profiles')
+      .upsert({
+        user_id: ownerId,
+        season_slug: 'operation-visible-abs',
+        display_name: 'Nathan',
+        weekly_rule: cleanRule,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' })
+
+    if (upsertError) {
+      setError(upsertError.message)
+    } else {
+      setWeeklyRule(cleanRule)
+      setMessage('Weekly rule locked in.')
+    }
+
+    setSavingRule(false)
   }
 
   async function uploadPhoto(type: ProgressPhotoType, event: ChangeEvent<HTMLInputElement>) {
@@ -462,7 +550,9 @@ export default function MyQuestClient() {
           <p className={styles.heroText}>Season 1 private quest board. Stack the habits, keep the streak alive, and beat the weekly bosses.</p>
           <div className={styles.heroActions}>
             <a href="#today-quests">Today</a>
+            <a href="#trend-strip">Trends</a>
             <a href="#weekly-review">Review</a>
+            <a href="#photo-compare">Photos</a>
             <a href="#phone-mode">Phone</a>
           </div>
         </div>
@@ -488,6 +578,27 @@ export default function MyQuestClient() {
 
       {error ? <div className={styles.errorNotice}>{error}</div> : null}
       {message ? <div className={styles.successNotice}>{message}</div> : null}
+      {celebration ? (
+        <div className={styles.celebrationOverlay} role="dialog" aria-modal="true" aria-label="Milestone unlocked">
+          <div className={styles.celebrationPanel}>
+            <p className={styles.eyebrow}>Milestone</p>
+            <h2>{celebration}</h2>
+            <button type="button" className={styles.primaryButton} onClick={() => setCelebration('')}>
+              Back to quest
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <section id="trend-strip" className={styles.trendStrip}>
+        {trendCards.map((card) => (
+          <div key={card.label} className={styles.trendCard} data-tone={card.tone}>
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+            <small>{card.detail}</small>
+          </div>
+        ))}
+      </section>
 
       {isSunday ? (
         <WeeklyReviewPanel
@@ -518,6 +629,40 @@ export default function MyQuestClient() {
             <strong>{todayXp}</strong>
             <span>XP today</span>
           </div>
+        </div>
+        <div className={styles.modeToggle} aria-label="Quest mode">
+          <button type="button" data-active={mode === 'morning' ? 'true' : 'false'} onClick={() => setMode('morning')}>
+            Morning
+          </button>
+          <button type="button" data-active={mode === 'evening' ? 'true' : 'false'} onClick={() => setMode('evening')}>
+            Evening
+          </button>
+        </div>
+        <div className={styles.smartQuestCard}>
+          <div>
+            <p className={styles.eyebrow}>Smart Next Quest</p>
+            <h3>{smartQuest.quest?.title ?? 'Daily board cleared'}</h3>
+            <p>{smartQuest.reason}</p>
+          </div>
+          {smartQuest.quest ? (
+            <button type="button" className={styles.primaryButton} onClick={() => void toggleQuest(smartQuest.quest!)} disabled={Boolean(pendingQuest)}>
+              {smartQuest.cta}
+            </button>
+          ) : null}
+        </div>
+        <div className={styles.weeklyRuleCard}>
+          <label className={styles.field}>
+            <span>Today&apos;s rule</span>
+            <input
+              value={weeklyRule}
+              onChange={(event) => setWeeklyRule(event.target.value)}
+              onBlur={() => void saveWeeklyRule()}
+              aria-label="Today rule"
+            />
+          </label>
+          <button type="button" className={styles.primaryButton} onClick={() => void saveWeeklyRule()} disabled={savingRule}>
+            {savingRule ? 'Saving rule' : 'Lock rule'}
+          </button>
         </div>
         <ProgressBar value={Math.round((todayCompletedCount / PERSONAL_DAILY_QUESTS.length) * 100)} label={`${todayRemainingCount} quests left`} />
         <div className={styles.todayQuickGrid}>
@@ -688,6 +833,24 @@ export default function MyQuestClient() {
               </label>
             ))}
           </div>
+          <div id="photo-compare" className={styles.photoCompare}>
+            <div className={styles.compareTabs} aria-label="Photo compare type">
+              {PHOTO_TYPES.map((type) => (
+                <button
+                  key={type.id}
+                  type="button"
+                  data-active={compareType === type.id ? 'true' : 'false'}
+                  onClick={() => setCompareType(type.id)}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+            <div className={styles.compareGrid}>
+              <ComparePhoto label="Latest" photo={comparePhotos.latest} />
+              <ComparePhoto label="Previous" photo={comparePhotos.previous} />
+            </div>
+          </div>
           <div className={styles.photoGrid}>
             {photos.length ? photos.map((photo) => (
               <figure key={photo.id} className={styles.photoCard}>
@@ -834,6 +997,20 @@ function Heatmap({ days }: { days: ReturnType<typeof buildPersonalQuestHeatmap> 
         />
       ))}
     </div>
+  )
+}
+
+function ComparePhoto({ label, photo }: { label: string; photo: PhotoPreview | null }) {
+  return (
+    <figure className={styles.comparePhoto}>
+      {photo?.signedUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={photo.signedUrl} alt={`${label} ${photo.photo_type} progress`} />
+      ) : (
+        <div className={styles.compareEmpty}>Add {label.toLowerCase()} photo</div>
+      )}
+      <figcaption>{label}</figcaption>
+    </figure>
   )
 }
 

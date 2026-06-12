@@ -187,6 +187,90 @@
   margin-top: 14px;
 }
 
+.trendStrip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.trendCard {
+  min-width: 0;
+  min-height: 112px;
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: linear-gradient(180deg, rgba(15, 34, 64, 0.64), rgba(8, 19, 38, 0.88));
+}
+
+.trendCard[data-tone='green'] {
+  border-color: color-mix(in srgb, var(--brand-green) 42%, transparent);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(var(--brand-green-rgb), 0.15), transparent 44%),
+    linear-gradient(180deg, rgba(15, 34, 64, 0.64), rgba(8, 19, 38, 0.88));
+}
+
+.trendCard[data-tone='amber'] {
+  border-color: rgba(255, 205, 94, 0.34);
+}
+
+.trendCard span,
+.trendCard small {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.trendCard span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trendCard strong {
+  min-width: 0;
+  color: var(--foreground-strong);
+  font-size: 1.2rem;
+  line-height: 1.08;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.celebrationOverlay {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(2, 8, 20, 0.74);
+  backdrop-filter: blur(10px);
+}
+
+.celebrationPanel {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 42%, transparent);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(var(--brand-green-rgb), 0.2), transparent 40%),
+    linear-gradient(145deg, rgba(7, 18, 38, 0.98), rgba(10, 26, 50, 0.98));
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.4);
+}
+
+.celebrationPanel h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.8rem, 7vw, 3rem);
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
 .todayCommand {
   display: grid;
   gap: 14px;
@@ -247,6 +331,72 @@
   display: grid;
   gap: 8px;
   min-width: 0;
+}
+
+.modeToggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 5px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(2, 10, 24, 0.3);
+}
+
+.modeToggle button,
+.compareTabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.modeToggle button[data-active='true'],
+.compareTabs button[data-active='true'] {
+  background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.22), rgba(24, 54, 34, 0.92));
+  color: var(--foreground-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.smartQuestCard,
+.weeklyRuleCard {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 32%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 40%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.smartQuestCard {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.32fr);
+  align-items: center;
+}
+
+.smartQuestCard h3 {
+  margin: 4px 0 6px;
+  color: var(--foreground-strong);
+  font-size: clamp(1.25rem, 4vw, 1.8rem);
+  line-height: 1.08;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.smartQuestCard p {
+  margin: 0;
+  color: var(--shell-copy-muted);
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.weeklyRuleCard {
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 0.22fr);
+  align-items: end;
 }
 
 .metricTile {
@@ -651,6 +801,66 @@
   gap: 8px;
 }
 
+.photoCompare {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(2, 10, 24, 0.28);
+}
+
+.compareTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.compareGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.comparePhoto {
+  min-width: 0;
+  margin: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.comparePhoto img,
+.compareEmpty {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  color: var(--muted-strong);
+  font-weight: 850;
+  text-align: center;
+}
+
+.compareEmpty {
+  padding: 12px;
+  background: rgba(2, 10, 24, 0.36);
+}
+
+.comparePhoto figcaption {
+  padding: 8px;
+  color: var(--foreground-strong);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .photoUpload {
   display: grid;
   place-items: center;
@@ -750,8 +960,14 @@
   .hero,
   .sectionGrid,
   .statGrid,
+  .trendStrip,
   .phonePanel,
   .bossGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .smartQuestCard,
+  .weeklyRuleCard {
     grid-template-columns: 1fr;
   }
 
@@ -794,6 +1010,7 @@
   .questGrid,
   .todayQuickGrid,
   .reviewMetrics,
+  .compareGrid,
   .photoGrid,
   .badgeGrid {
     grid-template-columns: 1fr;

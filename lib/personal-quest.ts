@@ -52,6 +52,10 @@ export type Measurement = {
   waist_inches: number | null
 }
 
+export type PersonalQuestProfile = {
+  weekly_rule: string
+}
+
 export type WeeklyReview = {
   week_start: string
   waist_inches: number | null
@@ -114,6 +118,21 @@ export type PersonalQuestHeatmapDay = {
   isToday: boolean
 }
 
+export type PersonalQuestMode = 'morning' | 'evening'
+
+export type SmartQuestRecommendation = {
+  quest: PersonalQuestDefinition | null
+  reason: string
+  cta: string
+}
+
+export type PersonalQuestTrendCard = {
+  label: string
+  value: string
+  detail: string
+  tone: 'green' | 'blue' | 'amber'
+}
+
 export type WeeklyBossProgress = {
   key: WeeklyBossKey
   title: string
@@ -161,6 +180,7 @@ export const PERSONAL_ACHIEVEMENTS: AchievementDefinition[] = [
 
 const QUEST_BY_ID = new Map(PERSONAL_DAILY_QUESTS.map((quest) => [quest.id, quest]))
 const DAY_MS = 24 * 60 * 60 * 1000
+const DEFAULT_WEEKLY_RULE = 'No chips. Water before coffee refill. Kitchen closed at 8.'
 
 export function isPersonalQuestOwner(user: { id?: string | null; email?: string | null } | null | undefined) {
   if (!user) return false
@@ -174,6 +194,10 @@ export function isPersonalQuestOwner(user: { id?: string | null; email?: string 
 
 export function getQuestXp(questId: string) {
   return QUEST_BY_ID.get(questId as PersonalQuestId)?.xp ?? 0
+}
+
+export function getDefaultPersonalQuestRule() {
+  return DEFAULT_WEEKLY_RULE
 }
 
 export function getTodayKey(date = new Date()) {
@@ -290,6 +314,129 @@ export function buildQuestFeedback(quest: PersonalQuestDefinition, action: 'comp
   }
 
   return `${quest.shortTitle} complete. +${quest.xp} XP. ${quest.bossKey ? bossCopy[quest.bossKey] : 'Streak protected.'}`
+}
+
+export function buildSmartQuestRecommendation(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  today: string
+  weekStart: string
+  mode: PersonalQuestMode
+}): SmartQuestRecommendation {
+  const completedToday = new Set(input.completions.filter((item) => item.completed_on === input.today).map((item) => item.quest_id))
+  const incomplete = PERSONAL_DAILY_QUESTS.filter((quest) => !completedToday.has(quest.id))
+
+  if (!incomplete.length) {
+    return {
+      quest: null,
+      reason: 'Daily board cleared. Bank the win and protect the evening.',
+      cta: 'All quests done',
+    }
+  }
+
+  const weekEnd = getWeekEndKey(input.weekStart)
+  const weeklyCompletions = input.completions.filter((item) => item.completed_on >= input.weekStart && item.completed_on <= weekEnd)
+  const bossNeeds = new Map<PersonalQuestId, string>()
+  const lunchDays = countQuestDays(weeklyCompletions, 'no_chips_lunch')
+  const creamerDays = countQuestDays(weeklyCompletions, 'creamer_goal')
+  const waterDays = countQuestDays(weeklyCompletions, 'water_80_oz')
+
+  if (lunchDays < 5) bossNeeds.set('no_chips_lunch', `Lunch Boss needs ${5 - lunchDays} more chip-free ${5 - lunchDays === 1 ? 'lunch' : 'lunches'}.`)
+  if (creamerDays < 5) bossNeeds.set('creamer_goal', `Creamer Boss needs ${5 - creamerDays} more clean ${5 - creamerDays === 1 ? 'day' : 'days'}.`)
+  if (waterDays < 5) bossNeeds.set('water_80_oz', `Water Boss needs ${5 - waterDays} more water ${5 - waterDays === 1 ? 'day' : 'days'}.`)
+
+  const priority: PersonalQuestId[] = input.mode === 'morning'
+    ? ['protein_breakfast', 'water_80_oz', 'no_chips_lunch', 'creamer_goal', 'activity_20_min', 'core_workout', 'alcohol_limit', 'no_food_after_8']
+    : ['water_80_oz', 'core_workout', 'alcohol_limit', 'no_food_after_8', 'activity_20_min', 'no_chips_lunch', 'creamer_goal', 'protein_breakfast']
+
+  const bossQuest = priority
+    .map((id) => incomplete.find((quest) => quest.id === id && bossNeeds.has(id)))
+    .find(Boolean)
+  const quest = bossQuest ?? priority.map((id) => incomplete.find((item) => item.id === id)).find(Boolean) ?? incomplete[0]
+  const modeReason = input.mode === 'morning'
+    ? 'Morning mode favors early, low-friction points.'
+    : 'Evening mode protects the close: core, IPA limit, and kitchen closed.'
+
+  return {
+    quest,
+    reason: bossNeeds.get(quest.id) ?? modeReason,
+    cta: `Complete ${quest.shortTitle}`,
+  }
+}
+
+export function buildPersonalQuestTrendCards(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  measurements: Measurement[]
+  today: string
+  weekStart: string
+}): PersonalQuestTrendCard[] {
+  const currentWeekEnd = getWeekEndKey(input.weekStart)
+  const previousWeekStart = getTodayKey(new Date(parseDateKey(input.weekStart).getTime() - DAY_MS * 7))
+  const previousWeekEnd = getWeekEndKey(previousWeekStart)
+  const currentCompletions = input.completions.filter((item) => item.completed_on >= input.weekStart && item.completed_on <= currentWeekEnd)
+  const previousCompletions = input.completions.filter((item) => item.completed_on >= previousWeekStart && item.completed_on <= previousWeekEnd)
+  const currentWeekQuestDays = new Set(currentCompletions.map((item) => item.completed_on)).size || 1
+  const avgQuests = currentCompletions.length / currentWeekQuestDays
+  const currentIpas = sumIpas(input.logs, input.weekStart, currentWeekEnd)
+  const previousIpas = sumIpas(input.logs, previousWeekStart, previousWeekEnd)
+  const sortedMeasurements = [...input.measurements]
+    .filter((item) => typeof item.waist_inches === 'number')
+    .sort((a, b) => b.measured_on.localeCompare(a.measured_on))
+  const latestWaist = sortedMeasurements[0]?.waist_inches ?? null
+  const priorWaist = sortedMeasurements.find((item) => item.measured_on < (sortedMeasurements[0]?.measured_on ?? ''))?.waist_inches ?? null
+  const habitCounts = PERSONAL_DAILY_QUESTS.map((quest) => ({
+    quest,
+    current: countQuestDays(currentCompletions, quest.id),
+    previous: countQuestDays(previousCompletions, quest.id),
+  }))
+  const best = [...habitCounts].sort((a, b) => b.current - a.current || b.previous - a.previous)[0]
+  const weakest = [...habitCounts].sort((a, b) => a.current - b.current || a.previous - b.previous)[0]
+
+  return [
+    {
+      label: 'Waist trend',
+      value: latestWaist === null ? 'Set baseline' : `${latestWaist}"`,
+      detail: latestWaist !== null && priorWaist !== null ? formatSignedDelta(latestWaist - priorWaist) : 'Weekly measurement',
+      tone: latestWaist !== null && priorWaist !== null && latestWaist <= priorWaist ? 'green' : 'blue',
+    },
+    {
+      label: 'Avg quests/day',
+      value: avgQuests.toFixed(1),
+      detail: `${currentCompletions.length} completions this week`,
+      tone: avgQuests >= 5 ? 'green' : 'blue',
+    },
+    {
+      label: 'IPA trend',
+      value: `${currentIpas}`,
+      detail: previousIpas ? `${formatSignedDelta(currentIpas - previousIpas)} vs last week` : 'This week total',
+      tone: previousIpas && currentIpas > previousIpas ? 'amber' : 'green',
+    },
+    {
+      label: 'Best habit',
+      value: best?.quest.shortTitle ?? 'Start',
+      detail: best ? `${best.current}/7 this week` : 'No completions yet',
+      tone: 'green',
+    },
+    {
+      label: 'Weakest habit',
+      value: weakest?.quest.shortTitle ?? 'Start',
+      detail: weakest ? `${weakest.current}/7 this week` : 'Pick one next',
+      tone: weakest && weakest.current <= 1 ? 'amber' : 'blue',
+    },
+  ]
+}
+
+function sumIpas(logs: DailyLog[], start: string, end: string) {
+  return logs
+    .filter((log) => log.log_date >= start && log.log_date <= end)
+    .reduce((sum, log) => sum + Math.max(0, log.ipa_count || 0), 0)
+}
+
+function formatSignedDelta(value: number) {
+  const rounded = Math.round(value * 10) / 10
+  if (rounded === 0) return 'No change'
+  return `${rounded > 0 ? '+' : ''}${rounded}`
 }
 
 function calculateLevel(totalXp: number) {

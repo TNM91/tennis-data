@@ -6,6 +6,10 @@ const migrationSource = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260612000100_create_personal_quest.sql'),
   'utf8',
 )
+const weeklyRuleMigrationSource = readFileSync(
+  join(process.cwd(), 'supabase/migrations/20260612000200_add_personal_quest_weekly_rule.sql'),
+  'utf8',
+)
 
 const personalTables = [
   'personal_quest_profiles',
@@ -46,10 +50,15 @@ describe('personal quest schema privacy contract', () => {
   })
 
   it('keeps the tracker habit-based without calories or scale weight', () => {
-    const lower = migrationSource.toLowerCase()
+    const lower = `${migrationSource}\n${weeklyRuleMigrationSource}`.toLowerCase()
     expect(lower).not.toContain('calorie')
     expect(lower).not.toContain('calories')
     expect(lower).not.toContain('body_weight')
     expect(lower).not.toContain('scale_weight')
+  })
+
+  it('adds the private weekly rule to the RLS-protected profile table', () => {
+    expect(weeklyRuleMigrationSource).toContain('alter table public.personal_quest_profiles')
+    expect(weeklyRuleMigrationSource).toContain('add column if not exists weekly_rule text not null')
   })
 })
