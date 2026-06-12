@@ -98,6 +98,7 @@ type SelectedThreadCalendarCue =
       detail: string
       sourceId: string
       itemId: string
+      targetId: string
       candidate: CalendarQuickAddCandidate
       saved: boolean
       disabled: boolean
@@ -110,6 +111,7 @@ type SelectedThreadCalendarCue =
       detail: string
       sourceId: string
       itemId: string
+      targetId: string
       event: InternalScheduleEvent
       saved: boolean
       disabled: boolean
@@ -1595,6 +1597,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         ].filter(Boolean).join(' | '),
         sourceId,
         itemId,
+        targetId: `message-calendar-cue-${messageCue.messageId}`,
         candidate,
         saved,
         disabled: false,
@@ -1615,6 +1618,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         ].filter(Boolean).join(' | '),
         sourceId: selectedScheduleEvent.id,
         itemId,
+        targetId: 'message-schedule-panel',
         event: selectedScheduleEvent,
         saved: calendarQuickAddedItemIds.has(itemId),
         disabled: selectedScheduleEvent.status === 'cancelled',
@@ -1635,6 +1639,14 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       return
     }
     void addScheduleEventToCalendar(selectedThreadCalendarCue.event)
+  }
+
+  function scrollToSelectedThreadCalendarCue() {
+    if (!selectedThreadCalendarCue || typeof document === 'undefined') return
+    document.getElementById(selectedThreadCalendarCue.targetId)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
   }
 
   if (!authResolved || loading) {
@@ -1880,6 +1892,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     View calendar
                   </Link>
                 ) : null}
+                <button type="button" onClick={scrollToSelectedThreadCalendarCue} style={ghostButtonStyle}>
+                  Show cue
+                </button>
                 <button
                   type="button"
                   onClick={handleSelectedThreadCalendarCueAction}
@@ -1967,7 +1982,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               <p style={copyStyle}>Checking schedule details...</p>
             </div>
           ) : scheduleEvents.length ? (
-            <div style={schedulePanelStyle}>
+            <div id="message-schedule-panel" style={schedulePanelStyle}>
               <div style={schedulePanelHeaderStyle}>
                 <div>
                   <div style={labelStyle}>Schedule</div>
@@ -2118,7 +2133,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     <div style={messageBubbleStyle(mine)}>
                       <p>{item.body}</p>
                       {messageCalendarCandidate ? (
-                        <div style={messageCalendarActionStyle}>
+                        <div id={`message-calendar-cue-${item.id}`} style={messageCalendarActionStyle}>
                           <span>
                             {messageCalendarCandidate.date}{messageCalendarCandidate.time ? ` ${messageCalendarCandidate.time}` : ''}
                             {messageCalendarCandidate.location ? ` - ${messageCalendarCandidate.location}` : ''}
