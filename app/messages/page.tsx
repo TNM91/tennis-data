@@ -103,6 +103,7 @@ type SelectedThreadCalendarCue =
       saved: boolean
       disabled: boolean
       cueCount: number
+      unsavedCueCount: number
     }
   | {
       kind: 'schedule'
@@ -116,6 +117,7 @@ type SelectedThreadCalendarCue =
       saved: boolean
       disabled: boolean
       cueCount: number
+      unsavedCueCount: number
     }
 
 function formatMessageTime(value: string) {
@@ -1581,7 +1583,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         saved: calendarQuickAddedItemIds.has(itemId),
       }
     })
+    const scheduleCueSaved = selectedScheduleEvent
+      ? calendarQuickAddedItemIds.has(`message-schedule-${selectedScheduleEvent.id}`)
+      : false
     const cueCount = messageCueItems.length + (selectedScheduleEvent ? 1 : 0)
+    const unsavedCueCount = messageCueItems.filter((item) => !item.saved).length + (selectedScheduleEvent && !scheduleCueSaved ? 1 : 0)
     const messageCue = messageCueItems.find((item) => !item.saved) ?? messageCueItems[0]
     if (messageCue) {
       const { candidate, itemId, saved, sourceId } = messageCue
@@ -1603,6 +1609,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         saved,
         disabled: false,
         cueCount,
+        unsavedCueCount,
       }
     }
     if (selectedScheduleEvent) {
@@ -1621,9 +1628,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         itemId,
         targetId: 'message-schedule-panel',
         event: selectedScheduleEvent,
-        saved: calendarQuickAddedItemIds.has(itemId),
+        saved: scheduleCueSaved,
         disabled: selectedScheduleEvent.status === 'cancelled',
         cueCount,
+        unsavedCueCount,
       }
     }
     return null
@@ -1886,6 +1894,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   <strong>{selectedThreadCalendarCue.title}</strong>
                   {selectedThreadCalendarCue.detail ? ` | ${selectedThreadCalendarCue.detail}` : ''}
                   {selectedThreadCalendarCue.cueCount > 1 ? ` | ${selectedThreadCalendarCue.cueCount} cues in thread` : ''}
+                  {selectedThreadCalendarCue.unsavedCueCount > 0 ? ` | ${selectedThreadCalendarCue.unsavedCueCount} still unsaved` : ''}
                 </p>
               </div>
               <div style={selectedThreadCalendarCueActionStyle}>
