@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  PERSONAL_DAILY_QUESTS,
+  buildPersonalQuestHeatmap,
   buildPersonalQuestStats,
+  buildQuestFeedback,
   isPersonalQuestOwner,
   type DailyLog,
   type DailyQuestCompletion,
@@ -11,6 +14,39 @@ describe('personal quest access', () => {
     expect(isPersonalQuestOwner({ id: 'user-1', email: 'nmeinert91@gmail.com' })).toBe(true)
     expect(isPersonalQuestOwner({ id: 'accc3471-8912-491c-b8d9-4a84dcc7c42e', email: 'other@example.com' })).toBe(true)
     expect(isPersonalQuestOwner({ id: 'user-2', email: 'player@example.com' })).toBe(false)
+  })
+})
+
+describe('personal quest daily helpers', () => {
+  it('builds a bounded 90-day heatmap with intensity and today markers', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'protein_breakfast', completed_on: '2026-06-11', xp_awarded: 10 },
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-12', xp_awarded: 15 },
+      { quest_id: 'creamer_goal', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'water_80_oz', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'activity_20_min', completed_on: '2026-06-12', xp_awarded: 15 },
+      { quest_id: 'core_workout', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'alcohol_limit', completed_on: '2026-06-12', xp_awarded: 15 },
+      { quest_id: 'no_food_after_8', completed_on: '2026-06-12', xp_awarded: 10 },
+    ]
+
+    const heatmap = buildPersonalQuestHeatmap({ completions, today: '2026-06-12', days: 3 })
+
+    expect(heatmap).toHaveLength(3)
+    expect(heatmap[0]).toMatchObject({ date: '2026-06-10', intensity: 0, isToday: false })
+    expect(heatmap[1]).toMatchObject({ date: '2026-06-11', completedCount: 1, intensity: 1 })
+    expect(heatmap[2]).toMatchObject({ date: '2026-06-12', completedCount: 7, xp: 85, intensity: 4, isToday: true })
+  })
+
+  it('returns game feedback for quest completion and removal', () => {
+    const lunchQuest = PERSONAL_DAILY_QUESTS.find((quest) => quest.id === 'no_chips_lunch')
+    const coreQuest = PERSONAL_DAILY_QUESTS.find((quest) => quest.id === 'core_workout')
+
+    expect(lunchQuest).toBeDefined()
+    expect(coreQuest).toBeDefined()
+    expect(buildQuestFeedback(lunchQuest!, 'completed')).toContain('Lunch Boss took damage.')
+    expect(buildQuestFeedback(coreQuest!, 'completed')).toContain('Streak protected.')
+    expect(buildQuestFeedback(coreQuest!, 'removed')).toContain('reopened')
   })
 })
 

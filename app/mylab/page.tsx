@@ -42,6 +42,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
+import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -867,6 +868,10 @@ function MyLabPageInner() {
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const accessPending = !authResolved || (Boolean(userId) && entitlements === null)
+  const canOpenPersonalQuest = isPersonalQuestOwner({
+    id: session?.user?.id ?? userId,
+    email: session?.user?.email,
+  })
 
   useEffect(() => {
     const nextGoals = readLocalGoals(userId, profileLink?.linked_player_id)
@@ -2775,6 +2780,16 @@ function MyLabPageInner() {
       cta: 'Open Matchup',
       icon: 'matchupAnalysis' as TiqFeatureIconName,
     },
+    ...(canOpenPersonalQuest
+      ? [{
+          label: 'My Quest',
+          value: 'Today first',
+          note: 'Private habit XP, streak, boss battles, and weekly review.',
+          href: '/level-up/my-quest',
+          cta: 'Open Quest',
+          icon: 'myLab' as TiqFeatureIconName,
+        }]
+      : []),
     {
       label: 'Review messages',
       value: 'Inbox',

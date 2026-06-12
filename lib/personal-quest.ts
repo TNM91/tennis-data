@@ -105,6 +105,15 @@ export type PersonalQuestStats = {
   bosses: WeeklyBossProgress[]
 }
 
+export type PersonalQuestHeatmapDay = {
+  date: string
+  completedCount: number
+  totalCount: number
+  xp: number
+  intensity: 0 | 1 | 2 | 3 | 4
+  isToday: boolean
+}
+
 export type WeeklyBossProgress = {
   key: WeeklyBossKey
   title: string
@@ -229,6 +238,58 @@ export function buildPersonalQuestStats(input: {
     achievements,
     bosses,
   }
+}
+
+export function buildPersonalQuestHeatmap(input: {
+  completions: DailyQuestCompletion[]
+  today: string
+  days?: number
+}): PersonalQuestHeatmapDay[] {
+  const totalCount = PERSONAL_DAILY_QUESTS.length
+  const days = Math.max(1, Math.min(120, input.days ?? 90))
+  const completionsByDate = new Map<string, DailyQuestCompletion[]>()
+
+  for (const completion of input.completions) {
+    const current = completionsByDate.get(completion.completed_on) ?? []
+    current.push(completion)
+    completionsByDate.set(completion.completed_on, current)
+  }
+
+  const todayDate = parseDateKey(input.today)
+  const startDate = new Date(todayDate.getTime() - DAY_MS * (days - 1))
+
+  return Array.from({ length: days }, (_, index) => {
+    const date = getTodayKey(new Date(startDate.getTime() + DAY_MS * index))
+    const dayCompletions = completionsByDate.get(date) ?? []
+    const completedCount = new Set(dayCompletions.map((item) => item.quest_id)).size
+    const xp = dayCompletions.reduce((sum, item) => sum + Math.max(0, item.xp_awarded || getQuestXp(item.quest_id)), 0)
+    const ratio = totalCount ? completedCount / totalCount : 0
+    const intensity = ratio >= 0.875 ? 4 : ratio >= 0.625 ? 3 : ratio >= 0.375 ? 2 : ratio > 0 ? 1 : 0
+
+    return {
+      date,
+      completedCount,
+      totalCount,
+      xp,
+      intensity,
+      isToday: date === input.today,
+    }
+  })
+}
+
+export function buildQuestFeedback(quest: PersonalQuestDefinition, action: 'completed' | 'removed') {
+  if (action === 'removed') {
+    return `${quest.shortTitle} reopened. XP adjusted.`
+  }
+
+  const bossCopy: Partial<Record<WeeklyBossKey, string>> = {
+    ipa: 'IPA Boss took damage.',
+    lunch: 'Lunch Boss took damage.',
+    creamer: 'Creamer Boss took damage.',
+    water: 'Water Boss took damage.',
+  }
+
+  return `${quest.shortTitle} complete. +${quest.xp} XP. ${quest.bossKey ? bossCopy[quest.bossKey] : 'Streak protected.'}`
 }
 
 function calculateLevel(totalXp: number) {

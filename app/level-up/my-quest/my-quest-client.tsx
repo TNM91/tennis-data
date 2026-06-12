@@ -5,7 +5,9 @@ import { useAuth } from '@/app/components/auth-provider'
 import {
   PERSONAL_DAILY_QUESTS,
   PERSONAL_QUEST_PHOTO_BUCKET,
+  buildPersonalQuestHeatmap,
   buildPersonalQuestStats,
+  buildQuestFeedback,
   getTodayKey,
   getWeekEndKey,
   getWeekStartKey,
@@ -58,6 +60,7 @@ export default function MyQuestClient() {
   const today = useMemo(() => getTodayKey(), [])
   const weekStart = useMemo(() => getWeekStartKey(), [])
   const weekEnd = useMemo(() => getWeekEndKey(weekStart), [weekStart])
+  const isSunday = useMemo(() => new Date(`${today}T00:00:00`).getDay() === 0, [today])
 
   const stats = useMemo(
     () => buildPersonalQuestStats({ completions, logs, today, weekStart }),
@@ -70,6 +73,18 @@ export default function MyQuestClient() {
   )
 
   const bossBonus = stats.weeklyBossXp
+  const heatmapDays = useMemo(
+    () => buildPersonalQuestHeatmap({ completions, today, days: 90 }),
+    [completions, today],
+  )
+  const todayCompletedCount = completedToday.size
+  const todayRemainingCount = Math.max(0, PERSONAL_DAILY_QUESTS.length - todayCompletedCount)
+  const todayXp = useMemo(
+    () => completions
+      .filter((item) => item.completed_on === today)
+      .reduce((sum, item) => sum + Math.max(0, item.xp_awarded), 0),
+    [completions, today],
+  )
 
   const weeklyIpaCount = useMemo(
     () => logs
@@ -224,6 +239,8 @@ export default function MyQuestClient() {
       if (deleteError) {
         setCompletions(before)
         setError(deleteError.message)
+      } else {
+        setMessage(buildQuestFeedback(quest, 'removed'))
       }
       setPendingQuest('')
       return
@@ -248,6 +265,8 @@ export default function MyQuestClient() {
     if (upsertError) {
       setCompletions((current) => current.filter((item) => !(item.completed_on === today && item.quest_id === quest.id)))
       setError(upsertError.message)
+    } else {
+      setMessage(buildQuestFeedback(quest, 'completed'))
     }
 
     setPendingQuest('')
@@ -441,6 +460,11 @@ export default function MyQuestClient() {
           <p className={styles.eyebrow}>Level Up: My Quest</p>
           <h1>Operation Visible Abs</h1>
           <p className={styles.heroText}>Season 1 private quest board. Stack the habits, keep the streak alive, and beat the weekly bosses.</p>
+          <div className={styles.heroActions}>
+            <a href="#today-quests">Today</a>
+            <a href="#weekly-review">Review</a>
+            <a href="#phone-mode">Phone</a>
+          </div>
         </div>
         <div className={styles.levelPanel}>
           <div className={styles.levelTopline}>
@@ -465,34 +489,93 @@ export default function MyQuestClient() {
       {error ? <div className={styles.errorNotice}>{error}</div> : null}
       {message ? <div className={styles.successNotice}>{message}</div> : null}
 
+      {isSunday ? (
+        <WeeklyReviewPanel
+          weeklyReview={weeklyReview}
+          statsWeeklyXp={stats.weeklyXp}
+          weeklyIpaCount={weeklyIpaCount}
+          weeklyChipFreeLunches={weeklyChipFreeLunches}
+          waistInput={waistInput}
+          reviewWin={reviewWin}
+          reviewMiss={reviewMiss}
+          reviewFocus={reviewFocus}
+          savingReview={savingReview}
+          setWaistInput={setWaistInput}
+          setReviewWin={setReviewWin}
+          setReviewMiss={setReviewMiss}
+          setReviewFocus={setReviewFocus}
+          saveWeeklyReview={saveWeeklyReview}
+        />
+      ) : null}
+
+      <section id="today-quests" className={styles.todayCommand}>
+        <div className={styles.todayHeader}>
+          <div>
+            <p className={styles.eyebrow}>Today&apos;s Quest</p>
+            <h2>{todayCompletedCount}/{PERSONAL_DAILY_QUESTS.length} complete</h2>
+          </div>
+          <div className={styles.todayScore}>
+            <strong>{todayXp}</strong>
+            <span>XP today</span>
+          </div>
+        </div>
+        <ProgressBar value={Math.round((todayCompletedCount / PERSONAL_DAILY_QUESTS.length) * 100)} label={`${todayRemainingCount} quests left`} />
+        <div className={styles.todayQuickGrid}>
+          {PERSONAL_DAILY_QUESTS.map((quest) => {
+            const complete = completedToday.has(quest.id)
+            return (
+              <button
+                key={quest.id}
+                type="button"
+                className={`${styles.questCard} ${complete ? styles.questCardComplete : ''}`}
+                onClick={() => void toggleQuest(quest)}
+                disabled={Boolean(pendingQuest)}
+              >
+                <span className={styles.questCheck}>{complete ? 'OK' : '+'}</span>
+                <span>
+                  <strong>{quest.title}</strong>
+                  <small>+{quest.xp} XP</small>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <div className={styles.quickTrackerRow}>
+          <label className={styles.inlineStepper}>
+            <span>IPAs</span>
+            <div className={styles.stepper}>
+              <button type="button" onClick={() => void adjustIpa(-1)} aria-label="Decrease IPA count">-</button>
+              <input
+                value={ipaInput}
+                inputMode="numeric"
+                onChange={(event) => setIpaInput(event.target.value)}
+                onBlur={() => void saveDailyTrackers()}
+                aria-label="IPA count today"
+              />
+              <button type="button" onClick={() => void adjustIpa(1)} aria-label="Increase IPA count">+</button>
+            </div>
+          </label>
+          <button type="button" className={styles.primaryButton} onClick={() => void saveDailyTrackers()} disabled={savingTracker}>
+            {savingTracker ? 'Saving' : 'Save today'}
+          </button>
+        </div>
+      </section>
+
       <section className={styles.sectionGrid}>
         <div className={styles.questPanel}>
           <div className={styles.sectionHeader}>
             <div>
-              <p className={styles.eyebrow}>Daily Quests</p>
-              <h2>Today&apos;s XP</h2>
+              <p className={styles.eyebrow}>Consistency</p>
+              <h2>90-day grid</h2>
             </div>
-            <span className={styles.scorePill}>{today}</span>
+            <span className={styles.scorePill}>{stats.currentStreak} day streak</span>
           </div>
-          <div className={styles.questGrid}>
-            {PERSONAL_DAILY_QUESTS.map((quest) => {
-              const complete = completedToday.has(quest.id)
-              return (
-                <button
-                  key={quest.id}
-                  type="button"
-                  className={`${styles.questCard} ${complete ? styles.questCardComplete : ''}`}
-                  onClick={() => void toggleQuest(quest)}
-                  disabled={Boolean(pendingQuest)}
-                >
-                  <span className={styles.questCheck}>{complete ? 'OK' : '+'}</span>
-                  <span>
-                    <strong>{quest.title}</strong>
-                    <small>+{quest.xp} XP</small>
-                  </span>
-                </button>
-              )
-            })}
+          <Heatmap days={heatmapDays} />
+          <div className={styles.heatmapLegend}>
+            <span>No quests</span>
+            <span>Partial</span>
+            <span>Strong</span>
+            <span>Perfect</span>
           </div>
         </div>
 
@@ -534,6 +617,19 @@ export default function MyQuestClient() {
         </div>
       </section>
 
+      <section id="phone-mode" className={styles.phonePanel}>
+        <div>
+          <p className={styles.eyebrow}>Phone Mode</p>
+          <h2>Home-screen ready</h2>
+          <p>Open this private route from Safari, add TenAceIQ to your Home Screen, and it will run as a standalone app with the same Nathan-only access gate.</p>
+        </div>
+        <div className={styles.phoneSteps}>
+          <span>Share</span>
+          <span>Add to Home Screen</span>
+          <span>Open My Quest</span>
+        </div>
+      </section>
+
       <section className={styles.bossPanel}>
         <div className={styles.sectionHeader}>
           <div>
@@ -557,44 +653,24 @@ export default function MyQuestClient() {
       </section>
 
       <section className={styles.sectionGrid}>
-        <div className={styles.reviewPanel}>
-          <div className={styles.sectionHeader}>
-            <div>
-              <p className={styles.eyebrow}>Sunday Check-In</p>
-              <h2>Weekly review</h2>
-            </div>
-            <span className={styles.scorePill}>{weeklyReview ? 'Saved' : 'Open'}</span>
-          </div>
-          <div className={styles.reviewMetrics}>
-            <MetricTile label="Weekly XP" value={`${stats.weeklyXp}`} hint="with bonus" compact />
-            <MetricTile label="IPAs" value={`${weeklyIpaCount}`} hint="this week" compact />
-            <MetricTile label="Chip-free lunches" value={`${weeklyChipFreeLunches}`} hint="this week" compact />
-          </div>
-          <label className={styles.field}>
-            <span>Waist this week</span>
-            <input
-              value={waistInput}
-              inputMode="decimal"
-              onChange={(event) => setWaistInput(event.target.value)}
-              placeholder="Inches"
-            />
-          </label>
-          <label className={styles.field}>
-            <span>Biggest win</span>
-            <textarea value={reviewWin} onChange={(event) => setReviewWin(event.target.value)} rows={3} />
-          </label>
-          <label className={styles.field}>
-            <span>Biggest miss</span>
-            <textarea value={reviewMiss} onChange={(event) => setReviewMiss(event.target.value)} rows={3} />
-          </label>
-          <label className={styles.field}>
-            <span>Focus for next week</span>
-            <textarea value={reviewFocus} onChange={(event) => setReviewFocus(event.target.value)} rows={3} />
-          </label>
-          <button type="button" className={styles.primaryButton} onClick={() => void saveWeeklyReview()} disabled={savingReview}>
-            {savingReview ? 'Saving review' : 'Save weekly review'}
-          </button>
-        </div>
+        {!isSunday ? (
+          <WeeklyReviewPanel
+            weeklyReview={weeklyReview}
+            statsWeeklyXp={stats.weeklyXp}
+            weeklyIpaCount={weeklyIpaCount}
+            weeklyChipFreeLunches={weeklyChipFreeLunches}
+            waistInput={waistInput}
+            reviewWin={reviewWin}
+            reviewMiss={reviewMiss}
+            reviewFocus={reviewFocus}
+            savingReview={savingReview}
+            setWaistInput={setWaistInput}
+            setReviewWin={setReviewWin}
+            setReviewMiss={setReviewMiss}
+            setReviewFocus={setReviewFocus}
+            saveWeeklyReview={saveWeeklyReview}
+          />
+        ) : null}
 
         <div className={styles.photoPanel}>
           <div className={styles.sectionHeader}>
@@ -666,8 +742,97 @@ function MetricTile({
   return (
     <div className={`${styles.metricTile} ${compact ? styles.metricTileCompact : ''}`}>
       <span>{label}</span>
-      <strong>{accent === 'fire' ? <span className={styles.fireIcon} aria-label="Streak fire">🔥</span> : null}{value}</strong>
+      <strong>{accent === 'fire' ? <span className={styles.fireIcon} aria-label="Streak fire">FIRE</span> : null}{value}</strong>
       <small>{hint}</small>
+    </div>
+  )
+}
+
+function WeeklyReviewPanel({
+  weeklyReview,
+  statsWeeklyXp,
+  weeklyIpaCount,
+  weeklyChipFreeLunches,
+  waistInput,
+  reviewWin,
+  reviewMiss,
+  reviewFocus,
+  savingReview,
+  setWaistInput,
+  setReviewWin,
+  setReviewMiss,
+  setReviewFocus,
+  saveWeeklyReview,
+}: {
+  weeklyReview: WeeklyReview | null
+  statsWeeklyXp: number
+  weeklyIpaCount: number
+  weeklyChipFreeLunches: number
+  waistInput: string
+  reviewWin: string
+  reviewMiss: string
+  reviewFocus: string
+  savingReview: boolean
+  setWaistInput: (value: string) => void
+  setReviewWin: (value: string) => void
+  setReviewMiss: (value: string) => void
+  setReviewFocus: (value: string) => void
+  saveWeeklyReview: () => Promise<void>
+}) {
+  return (
+    <div id="weekly-review" className={styles.reviewPanel}>
+      <div className={styles.sectionHeader}>
+        <div>
+          <p className={styles.eyebrow}>Sunday Check-In</p>
+          <h2>Weekly review</h2>
+        </div>
+        <span className={styles.scorePill}>{weeklyReview ? 'Saved' : 'Open'}</span>
+      </div>
+      <div className={styles.reviewMetrics}>
+        <MetricTile label="Weekly XP" value={`${statsWeeklyXp}`} hint="with bonus" compact />
+        <MetricTile label="IPAs" value={`${weeklyIpaCount}`} hint="this week" compact />
+        <MetricTile label="Chip-free lunches" value={`${weeklyChipFreeLunches}`} hint="this week" compact />
+      </div>
+      <label className={styles.field}>
+        <span>Waist this week</span>
+        <input
+          value={waistInput}
+          inputMode="decimal"
+          onChange={(event) => setWaistInput(event.target.value)}
+          placeholder="Inches"
+        />
+      </label>
+      <label className={styles.field}>
+        <span>Biggest win</span>
+        <textarea value={reviewWin} onChange={(event) => setReviewWin(event.target.value)} rows={3} />
+      </label>
+      <label className={styles.field}>
+        <span>Biggest miss</span>
+        <textarea value={reviewMiss} onChange={(event) => setReviewMiss(event.target.value)} rows={3} />
+      </label>
+      <label className={styles.field}>
+        <span>Focus for next week</span>
+        <textarea value={reviewFocus} onChange={(event) => setReviewFocus(event.target.value)} rows={3} />
+      </label>
+      <button type="button" className={styles.primaryButton} onClick={() => void saveWeeklyReview()} disabled={savingReview}>
+        {savingReview ? 'Saving review' : 'Save weekly review'}
+      </button>
+    </div>
+  )
+}
+
+function Heatmap({ days }: { days: ReturnType<typeof buildPersonalQuestHeatmap> }) {
+  return (
+    <div className={styles.heatmapGrid} aria-label="90-day consistency grid">
+      {days.map((day) => (
+        <span
+          key={day.date}
+          className={styles.heatmapDay}
+          data-intensity={day.intensity}
+          data-today={day.isToday ? 'true' : 'false'}
+          title={`${day.date}: ${day.completedCount}/${day.totalCount} quests, ${day.xp} XP`}
+        />
+      ))}
     </div>
   )
 }
