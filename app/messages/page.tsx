@@ -56,7 +56,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ComposeMode = 'support' | 'direct'
 type SupportFilter = 'all' | 'billing' | 'league' | 'result' | 'data' | 'account' | 'general'
-type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'
+type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'calendar' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'
 type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'system'
 
 type MessagePrefill = {
@@ -160,12 +160,21 @@ function isScheduleConversation(conversation: InternalConversation) {
   return entityType === 'tiq_schedule_item' || entityType === 'schedule_match'
 }
 
+function conversationCalendarQuickAddCandidate(conversation: InternalConversation) {
+  return detectCalendarQuickAddCandidate(conversation.lastMessageBody, conversation.subject || 'Message calendar item', 'latest message')
+}
+
+function conversationHasCalendarOpportunity(conversation: InternalConversation) {
+  return isScheduleConversation(conversation) || Boolean(conversationCalendarQuickAddCandidate(conversation))
+}
+
 function conversationMatchesInboxFilter(
   conversation: InternalConversation,
   identity: InternalIdentity,
   filter: InboxFilter,
 ) {
   if (filter === 'needs_reply') return conversationNeedsReply(conversation, identity)
+  if (filter === 'calendar') return conversationHasCalendarOpportunity(conversation)
   if (filter === 'unread') return conversation.isUnread
   if (filter === 'support') return conversation.conversationType === 'support'
   if (filter === 'direct') return conversation.conversationType === 'direct'
@@ -196,6 +205,7 @@ function conversationMatchesThreadSearch(
     conversation.metadata.leagueName,
     conversation.metadata.assignmentTitle,
     conversation.metadata.assignmentFocus,
+    conversationHasCalendarOpportunity(conversation) ? 'calendar date availability schedule' : '',
   ].join(' ').toLowerCase()
 
   return searchable.includes(normalized)
@@ -204,6 +214,7 @@ function conversationMatchesThreadSearch(
 function inboxFilterLabel(filter: InboxFilter) {
   if (filter === 'pinned') return 'Pinned'
   if (filter === 'needs_reply') return 'Needs reply'
+  if (filter === 'calendar') return 'Calendar'
   if (filter === 'unread') return 'Unread'
   if (filter === 'support') return 'Support'
   if (filter === 'direct') return 'Direct'
@@ -661,7 +672,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   )
   const inboxFilters = useMemo(() => {
     if (!identity) return [] as Array<{ key: InboxFilter; label: string; count: number }>
-    return (['all', 'pinned', 'needs_reply', 'unread', 'support', 'direct', 'league', 'schedule'] as InboxFilter[]).map((filter) => ({
+    return (['all', 'pinned', 'needs_reply', 'calendar', 'unread', 'support', 'direct', 'league', 'schedule'] as InboxFilter[]).map((filter) => ({
       key: filter,
       label: inboxFilterLabel(filter),
       count: conversations.filter((conversation) =>
@@ -1661,8 +1672,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
           {filteredConversations.length ? (
             <div style={threadListStyle}>
-              {filteredConversations.map((conversation) => (
-                <button
+              {filteredConversations.map((conversation) => {
+                const latestCalendarCandidate = conversationCalendarQuickAddCandidate(conversation)
+                const hasCalendarOpportunity = isScheduleConversation(conversation) || Boolean(latestCalendarCandidate)
+                return (
+                  <button
                   key={conversation.id}
                   type="button"
                   onClick={() => selectConversation(conversation.id)}
@@ -1674,6 +1688,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     <span style={threadBadgeRowStyle}>
                       {pinnedThreadIds.has(conversation.id) ? <small style={pinnedPillStyle}>Pinned</small> : null}
                       {conversationNeedsReply(conversation, identity) ? <small style={needsReplyPillStyle}>Needs reply</small> : null}
+                      {hasCalendarOpportunity ? <small style={calendarPillStyle}>Calendar cue</small> : null}
                       {conversation.isUnread ? <small style={unreadPillStyle}>New</small> : null}
                       {draftThreadIds.has(conversation.id) ? <small style={draftPillStyle}>Draft</small> : null}
                     </span>
@@ -1685,6 +1700,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                         : conversationTypeLabel(conversation.conversationType)}
                     </small>
                     {isScheduleConversation(conversation) ? <small style={threadTypePillStyle}>Schedule</small> : null}
+                    {latestCalendarCandidate?.availabilityStatus ? <small style={threadTypePillStyle}>Availability</small> : null}
                     <small style={statusPillStyle(conversation.status)}>{statusLabel(conversation.status)}</small>
                   </span>
                   <span style={threadPreviewStyle}>
@@ -1695,7 +1711,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     {statusLabel(conversation.status)} · {formatMessageTime(conversation.lastMessageAt)}
                   </span>
                 </button>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div style={emptyInboxStyle}>
@@ -2733,6 +2750,14 @@ const draftPillStyle: CSSProperties = {
   border: '1px solid rgba(125,211,252,0.28)',
   background: 'rgba(125,211,252,0.12)',
   color: 'var(--brand-blue-2)',
+  overflowWrap: 'anywhere',
+}
+
+const calendarPillStyle: CSSProperties = {
+  ...unreadPillStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 18%, transparent 82%)',
+  color: 'var(--foreground-strong)',
   overflowWrap: 'anywhere',
 }
 
