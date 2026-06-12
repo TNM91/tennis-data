@@ -7,6 +7,7 @@ import BrandWordmark from '@/app/components/brand-wordmark'
 import UniversalSearch from '@/app/components/universal-search'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
+import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
 import { supabase } from '@/lib/supabase'
@@ -67,7 +68,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   void active
   const pathname = usePathname()
   const router = useRouter()
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const { role, userId, session, entitlements, authResolved } = useAuth()
   const { screenWidth, isTablet, isMobile } = useViewportBreakpoints()
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -154,6 +155,10 @@ export default function SiteHeader({ active }: { active?: string }) {
   const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
   const signInHref = `/login?next=${encodeURIComponent(pathname || '/')}`
   const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)
+  const canOpenPersonalQuest = isPersonalQuestOwner({
+    id: session?.user?.id ?? userId,
+    email: session?.user?.email,
+  })
 
   return (
     <header
@@ -249,6 +254,9 @@ export default function SiteHeader({ active }: { active?: string }) {
                 {PRIMARY_NAV_ITEMS.map((item) => (
                   <UtilityLink key={item.href} href={item.href}>{item.label}</UtilityLink>
                 ))}
+                {canOpenPersonalQuest ? (
+                  <UtilityLink href="/level-up/my-quest">My Quest</UtilityLink>
+                ) : null}
                 <button
                   type="button"
                   aria-label={searchOpen ? 'Close site search' : 'Open site search'}
@@ -393,6 +401,12 @@ export default function SiteHeader({ active }: { active?: string }) {
                       <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                     </Link>
                   ))}
+                  {canOpenPersonalQuest ? (
+                    <Link href="/level-up/my-quest" onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
+                      <span style={mobilePlainItemTextStyle}>My Quest</span>
+                      <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
+                    </Link>
+                  ) : null}
                   {role === 'admin' ? (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                       <span style={mobilePlainItemTextStyle}>Admin dashboard</span>

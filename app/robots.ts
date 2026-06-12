@@ -19,6 +19,7 @@ export default function robots(): MetadataRoute.Robots {
         '/api/',
         '/login',
         '/join',
+        '/level-up/my-quest',
         '/forget-password',
         '/reset-password',
         '/tournaments/*/preferences',

@@ -1,0 +1,625 @@
+.pageShell {
+  position: relative;
+  width: min(1180px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 28px 0 72px;
+  color: var(--foreground);
+}
+
+.loadingPanel {
+  min-height: 62vh;
+  display: grid;
+  placeItems: center;
+  gap: 14px;
+  color: var(--muted-strong);
+  font-weight: 850;
+}
+
+.notFoundPanel {
+  min-height: 62vh;
+  display: grid;
+  placeItems: center;
+  align-content: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--foreground-strong);
+}
+
+.notFoundPanel h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1.08;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.notFoundCode {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(4rem, 18vw, 7rem);
+  line-height: 0.9;
+  font-weight: 950;
+  opacity: 0.18;
+}
+
+.loaderBall {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 34% 28%, #f8ffd6 0%, #cdf86d 34%, var(--brand-green) 70%, #6ca60d 100%);
+  box-shadow: 0 0 28px rgba(var(--brand-green-rgb), 0.35);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 20%, transparent);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(var(--brand-green-rgb), 0.15), transparent 30%),
+    radial-gradient(circle at 90% 10%, rgba(93, 159, 232, 0.16), transparent 32%),
+    linear-gradient(145deg, rgba(7, 18, 38, 0.98), rgba(10, 26, 50, 0.96) 56%, rgba(4, 12, 27, 0.98));
+  box-shadow: 0 28px 80px rgba(2, 8, 20, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.heroCopy {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #dff8c2;
+  font-size: 0.74rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(2.4rem, 8vw, 5rem);
+  line-height: 0.96;
+  letter-spacing: 0;
+  font-weight: 950;
+  max-width: 740px;
+}
+
+.heroText {
+  margin: 0;
+  max-width: 620px;
+  color: var(--shell-copy-muted);
+  font-size: clamp(1rem, 2vw, 1.12rem);
+  line-height: 1.62;
+  font-weight: 650;
+}
+
+.levelPanel,
+.questPanel,
+.trackerPanel,
+.bossPanel,
+.reviewPanel,
+.photoPanel,
+.achievementPanel,
+.metricTile {
+  border: 1px solid color-mix(in srgb, var(--shell-panel-border) 80%, rgba(var(--brand-green-rgb), 0.14) 20%);
+  background:
+    linear-gradient(180deg, rgba(15, 34, 64, 0.74), rgba(8, 19, 38, 0.9)),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: 0 22px 60px rgba(2, 8, 20, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.levelPanel {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.levelTopline,
+.levelMeta,
+.bossTopline,
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.levelTopline span,
+.levelMeta,
+.bossCard small,
+.progressWrap small,
+.metricTile small {
+  color: var(--muted-strong);
+  font-weight: 800;
+}
+
+.levelTopline strong {
+  color: var(--foreground-strong);
+  font-size: 1.55rem;
+  font-weight: 950;
+  text-align: right;
+}
+
+.levelMeta {
+  font-size: 0.82rem;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.metricTile {
+  min-width: 0;
+  min-height: 124px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.metricTileCompact {
+  min-height: 96px;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.metricTile span {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metricTile strong {
+  min-width: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.35rem, 4vw, 2.2rem);
+  line-height: 1.05;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.metricTileCompact strong {
+  font-size: 1.28rem;
+}
+
+.fireIcon {
+  display: inline-block;
+  margin-right: 6px;
+  filter: drop-shadow(0 0 10px rgba(255, 169, 46, 0.4));
+}
+
+.sectionGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: start;
+}
+
+.questPanel,
+.trackerPanel,
+.bossPanel,
+.reviewPanel,
+.photoPanel,
+.achievementPanel {
+  border-radius: 22px;
+  padding: clamp(16px, 3vw, 22px);
+}
+
+.sectionHeader {
+  margin-bottom: 16px;
+}
+
+.sectionHeader h2 {
+  margin: 4px 0 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.35rem, 4vw, 2rem);
+  line-height: 1.08;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.scorePill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  max-width: 190px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 32%, transparent);
+  background: rgba(var(--brand-green-rgb), 0.1);
+  color: var(--foreground-strong);
+  font-size: 0.74rem;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.questGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.questCard {
+  appearance: none;
+  min-height: 86px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 17px;
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 18%, transparent);
+  background: linear-gradient(145deg, rgba(17, 39, 73, 0.82), rgba(9, 21, 42, 0.96));
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.questCard:disabled {
+  cursor: wait;
+  opacity: 0.78;
+}
+
+.questCard:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--brand-green) 42%, transparent);
+}
+
+.questCardComplete {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(var(--brand-green-rgb), 0.2), transparent 36%),
+    linear-gradient(145deg, rgba(18, 58, 34, 0.82), rgba(8, 28, 24, 0.96));
+  border-color: color-mix(in srgb, var(--brand-green) 54%, transparent);
+}
+
+.questCheck {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--brand-green);
+  font-size: 1.32rem;
+  font-weight: 950;
+}
+
+.questCard strong,
+.bossCard strong,
+.badgeCard strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+  line-height: 1.16;
+  overflow-wrap: anywhere;
+}
+
+.questCard small {
+  display: block;
+  margin-top: 6px;
+  color: #dff8c2;
+  font-weight: 900;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  min-width: 0;
+}
+
+.field span {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 18%, transparent);
+  background: rgba(2, 10, 24, 0.36);
+  color: var(--foreground-strong);
+  font: inherit;
+  font-weight: 750;
+  padding: 13px 14px;
+  outline: none;
+}
+
+.field textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: color-mix(in srgb, var(--brand-green) 48%, transparent);
+  box-shadow: 0 0 0 3px rgba(var(--brand-green-rgb), 0.09);
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 52px;
+  gap: 8px;
+}
+
+.stepper button,
+.primaryButton,
+.photoUpload {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 36%, transparent);
+  background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.18), rgba(24, 54, 34, 0.9));
+  color: var(--foreground-strong);
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.stepper button {
+  font-size: 1.4rem;
+}
+
+.primaryButton {
+  width: 100%;
+  margin-top: 14px;
+  font-size: 0.95rem;
+}
+
+.primaryButton:disabled {
+  opacity: 0.68;
+  cursor: wait;
+}
+
+.bossPanel,
+.achievementPanel {
+  margin-top: 14px;
+}
+
+.bossGrid,
+.badgeGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bossCard,
+.badgeCard {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.bossComplete,
+.badgeUnlocked {
+  border-color: color-mix(in srgb, var(--brand-green) 48%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.14), transparent 38%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.bossTopline span {
+  color: #dff8c2;
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.progressWrap {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.progressTrack {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.26);
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand-green), #dffb75);
+  box-shadow: 0 0 18px rgba(var(--brand-green-rgb), 0.42);
+}
+
+.reviewMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.photoButtons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.photoUpload {
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.photoUpload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.photoCard {
+  min-width: 0;
+  margin: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(2, 10, 24, 0.3);
+}
+
+.photoCard img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.photoCard figcaption {
+  padding: 8px;
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.emptyVault {
+  grid-column: 1 / -1;
+  min-height: 118px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(116, 190, 255, 0.22);
+  border-radius: 14px;
+  color: var(--muted-strong);
+  font-weight: 850;
+  text-align: center;
+}
+
+.badgeGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.badgeIcon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--brand-green);
+  font-size: 1.18rem;
+  font-weight: 950;
+}
+
+.errorNotice,
+.successNotice {
+  margin-top: 14px;
+  padding: 13px 14px;
+  border-radius: 15px;
+  font-weight: 850;
+}
+
+.errorNotice {
+  border: 1px solid rgba(255, 170, 120, 0.24);
+  background: rgba(116, 38, 18, 0.34);
+  color: var(--error-text);
+}
+
+.successNotice {
+  border: 1px solid color-mix(in srgb, var(--brand-green) 34%, transparent);
+  background: rgba(var(--brand-green-rgb), 0.1);
+  color: #dff8c2;
+}
+
+@media (max-width: 980px) {
+  .hero,
+  .sectionGrid,
+  .statGrid,
+  .bossGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .levelPanel {
+    min-height: 170px;
+  }
+
+  .bossGrid,
+  .badgeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .pageShell {
+    width: min(100% - 18px, 1180px);
+    padding-top: 14px;
+  }
+
+  .hero,
+  .questPanel,
+  .trackerPanel,
+  .bossPanel,
+  .reviewPanel,
+  .photoPanel,
+  .achievementPanel {
+    border-radius: 18px;
+  }
+
+  .hero {
+    padding: 20px;
+  }
+
+  .questGrid,
+  .reviewMetrics,
+  .photoGrid,
+  .badgeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .photoButtons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sectionHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .scorePill {
+    max-width: 100%;
+  }
+}
