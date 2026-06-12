@@ -101,6 +101,7 @@ type SelectedThreadCalendarCue =
       candidate: CalendarQuickAddCandidate
       saved: boolean
       disabled: boolean
+      cueCount: number
     }
   | {
       kind: 'schedule'
@@ -112,6 +113,7 @@ type SelectedThreadCalendarCue =
       event: InternalScheduleEvent
       saved: boolean
       disabled: boolean
+      cueCount: number
     }
 
 function formatMessageTime(value: string) {
@@ -1565,11 +1567,21 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const composeCalendarItemId = composeCalendarCandidate ? getMessageCalendarItemId(composeCalendarCandidate, 'compose') : ''
   const composeCalendarSaved = Boolean(composeCalendarItemId && calendarQuickAddedItemIds.has(composeCalendarItemId))
   const selectedThreadCalendarCue = useMemo<SelectedThreadCalendarCue | null>(() => {
-    const [messageCue] = Array.from(messageCalendarCandidates.entries())
-    if (messageCue) {
-      const [messageId, candidate] = messageCue
+    const messageCueItems = Array.from(messageCalendarCandidates.entries()).map(([messageId, candidate]) => {
       const sourceId = `message-${messageId}`
       const itemId = getMessageCalendarItemId(candidate, sourceId)
+      return {
+        messageId,
+        sourceId,
+        itemId,
+        candidate,
+        saved: calendarQuickAddedItemIds.has(itemId),
+      }
+    })
+    const cueCount = messageCueItems.length + (selectedScheduleEvent ? 1 : 0)
+    const messageCue = messageCueItems.find((item) => !item.saved) ?? messageCueItems[0]
+    if (messageCue) {
+      const { candidate, itemId, saved, sourceId } = messageCue
       return {
         kind: 'message',
         label: candidate.availabilityStatus ? 'Availability cue' : 'Calendar cue',
@@ -1584,8 +1596,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         sourceId,
         itemId,
         candidate,
-        saved: calendarQuickAddedItemIds.has(itemId),
+        saved,
         disabled: false,
+        cueCount,
       }
     }
     if (selectedScheduleEvent) {
@@ -1605,6 +1618,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         event: selectedScheduleEvent,
         saved: calendarQuickAddedItemIds.has(itemId),
         disabled: selectedScheduleEvent.status === 'cancelled',
+        cueCount,
       }
     }
     return null
@@ -1854,6 +1868,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                 <p style={calendarCueSummaryStyle}>
                   <strong>{selectedThreadCalendarCue.title}</strong>
                   {selectedThreadCalendarCue.detail ? ` | ${selectedThreadCalendarCue.detail}` : ''}
+                  {selectedThreadCalendarCue.cueCount > 1 ? ` | ${selectedThreadCalendarCue.cueCount} cues in thread` : ''}
                 </p>
               </div>
               <div style={selectedThreadCalendarCueActionStyle}>
