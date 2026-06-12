@@ -90,6 +90,30 @@ type PlayerCalendarItemsResponse = {
   items?: Array<{ id?: string }>
 }
 
+type SelectedThreadCalendarCue =
+  | {
+      kind: 'message'
+      label: string
+      title: string
+      detail: string
+      sourceId: string
+      itemId: string
+      candidate: CalendarQuickAddCandidate
+      saved: boolean
+      disabled: boolean
+    }
+  | {
+      kind: 'schedule'
+      label: string
+      title: string
+      detail: string
+      sourceId: string
+      itemId: string
+      event: InternalScheduleEvent
+      saved: boolean
+      disabled: boolean
+    }
+
 function formatMessageTime(value: string) {
   if (!value) return ''
   try {
@@ -1540,12 +1564,14 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const replyCalendarSaved = Boolean(replyCalendarItemId && calendarQuickAddedItemIds.has(replyCalendarItemId))
   const composeCalendarItemId = composeCalendarCandidate ? getMessageCalendarItemId(composeCalendarCandidate, 'compose') : ''
   const composeCalendarSaved = Boolean(composeCalendarItemId && calendarQuickAddedItemIds.has(composeCalendarItemId))
-  const selectedThreadCalendarCue = useMemo(() => {
+  const selectedThreadCalendarCue = useMemo<SelectedThreadCalendarCue | null>(() => {
     const [messageCue] = Array.from(messageCalendarCandidates.entries())
     if (messageCue) {
       const [messageId, candidate] = messageCue
-      const itemId = getMessageCalendarItemId(candidate, `message-${messageId}`)
+      const sourceId = `message-${messageId}`
+      const itemId = getMessageCalendarItemId(candidate, sourceId)
       return {
+        kind: 'message',
         label: candidate.availabilityStatus ? 'Availability cue' : 'Calendar cue',
         title: candidate.title,
         detail: [
@@ -1555,11 +1581,17 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           candidate.availabilityStatus,
           quickAddRecurrenceLabel(candidate.recurrenceRule),
         ].filter(Boolean).join(' | '),
+        sourceId,
+        itemId,
+        candidate,
         saved: calendarQuickAddedItemIds.has(itemId),
+        disabled: false,
       }
     }
     if (selectedScheduleEvent) {
+      const itemId = `message-schedule-${selectedScheduleEvent.id}`
       return {
+        kind: 'schedule',
         label: 'Schedule thread',
         title: selectedScheduleEvent.title || selectedConversation?.subject || 'Scheduled tennis session',
         detail: [
@@ -1568,11 +1600,28 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           selectedScheduleEvent.facility,
           selectedScheduleEvent.status === 'cancelled' ? 'Cancelled' : selectedScheduleEvent.status || 'Proposed',
         ].filter(Boolean).join(' | '),
-        saved: calendarQuickAddedItemIds.has(`message-schedule-${selectedScheduleEvent.id}`),
+        sourceId: selectedScheduleEvent.id,
+        itemId,
+        event: selectedScheduleEvent,
+        saved: calendarQuickAddedItemIds.has(itemId),
+        disabled: selectedScheduleEvent.status === 'cancelled',
       }
     }
     return null
   }, [calendarQuickAddedItemIds, getMessageCalendarItemId, messageCalendarCandidates, selectedConversation?.subject, selectedScheduleEvent])
+
+  function handleSelectedThreadCalendarCueAction() {
+    if (!selectedThreadCalendarCue) return
+    if (selectedThreadCalendarCue.saved) {
+      void removeMessageCalendarItem(selectedThreadCalendarCue.itemId, selectedThreadCalendarCue.sourceId)
+      return
+    }
+    if (selectedThreadCalendarCue.kind === 'message') {
+      void addMessageCandidateToCalendar(selectedThreadCalendarCue.candidate, selectedThreadCalendarCue.sourceId)
+      return
+    }
+    void addScheduleEventToCalendar(selectedThreadCalendarCue.event)
+  }
 
   if (!authResolved || loading) {
     return (
@@ -1807,9 +1856,25 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   {selectedThreadCalendarCue.detail ? ` | ${selectedThreadCalendarCue.detail}` : ''}
                 </p>
               </div>
-              <span style={selectedThreadCalendarCue.saved ? savedCalendarPillStyle : calendarPillStyle}>
-                {selectedThreadCalendarCue.saved ? 'Saved to My Calendar' : 'Ready to save'}
-              </span>
+              <div style={selectedThreadCalendarCueActionStyle}>
+                <span style={selectedThreadCalendarCue.saved ? savedCalendarPillStyle : calendarPillStyle}>
+                  {selectedThreadCalendarCue.saved ? 'Saved to My Calendar' : 'Ready to save'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSelectedThreadCalendarCueAction}
+                  disabled={selectedThreadCalendarCue.disabled || calendarQuickAddSaving === selectedThreadCalendarCue.sourceId}
+                  style={ghostButtonStyle}
+                >
+                  {selectedThreadCalendarCue.saved
+                    ? calendarQuickAddSaving === selectedThreadCalendarCue.sourceId
+                      ? 'Removing...'
+                      : 'Remove'
+                    : calendarQuickAddSaving === selectedThreadCalendarCue.sourceId
+                      ? 'Adding...'
+                      : 'Save to My Calendar'}
+                </button>
+              </div>
             </div>
           ) : null}
 
@@ -3237,6 +3302,15 @@ const calendarCueSummaryStyle: CSSProperties = {
   lineHeight: 1.4,
   fontWeight: 850,
   overflowWrap: 'anywhere',
+}
+
+const selectedThreadCalendarCueActionStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
 }
 
 const segmentedStyle: CSSProperties = {
