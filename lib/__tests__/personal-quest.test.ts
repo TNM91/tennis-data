@@ -4,9 +4,11 @@ import {
   buildPersonalQuestHeatmap,
   buildPersonalQuestBossForecast,
   buildPersonalQuestBossCalendar,
+  buildPersonalQuestBossWarnings,
   buildPersonalQuestCombos,
   buildPersonalQuestAchievementDetails,
   buildPersonalQuestDailyRecap,
+  buildPersonalQuestDayModes,
   buildPersonalQuestFinale,
   buildPersonalQuestGamePlan,
   buildPersonalQuestLoadouts,
@@ -15,10 +17,15 @@ import {
   buildPersonalQuestRepairSummary,
   buildPersonalQuestReminders,
   buildPhotoCaptureGuidance,
+  buildPersonalQuestRecapToast,
   buildPersonalQuestSeasonMap,
+  buildPersonalQuestSeasonTimeline,
   buildPersonalQuestStats,
+  buildPersonalQuestStreakShield,
   buildPersonalQuestTrendCards,
+  buildPersonalQuestMomentumNudges,
   buildPersonalQuestWaistTrend,
+  buildPersonalQuestWeeklyGrade,
   buildQuestFeedback,
   buildSmartQuestRecommendation,
   buildStreakFreezeStatus,
@@ -307,6 +314,42 @@ describe('personal quest daily helpers', () => {
     expect(guidance).toContainEqual(expect.objectContaining({ id: 'front', status: 'ready' }))
     expect(guidance).toContainEqual(expect.objectContaining({ id: 'side', status: 'due' }))
     expect(guidance).toContainEqual(expect.objectContaining({ id: 'flex', status: 'empty' }))
+  })
+
+  it('builds lock-screen game loop helpers', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'protein_breakfast', completed_on: '2026-06-10', xp_awarded: 10 },
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-10', xp_awarded: 15 },
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-11', xp_awarded: 15 },
+      { quest_id: 'protein_breakfast', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-12', xp_awarded: 15 },
+      { quest_id: 'water_80_oz', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'activity_20_min', completed_on: '2026-06-12', xp_awarded: 15 },
+      { quest_id: 'core_workout', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'alcohol_limit', completed_on: '2026-06-12', xp_awarded: 15 },
+    ]
+    const logs: DailyLog[] = [{ log_date: '2026-06-12', ipa_count: 6, notes: '' }]
+    const freezes: PersonalStreakFreeze[] = []
+    const today = '2026-06-12'
+    const weekStart = '2026-06-07'
+    const stats = buildPersonalQuestStats({ completions, logs, freezes, today, weekStart })
+    const forecast = buildPersonalQuestBossForecast({ completions, logs, today, weekStart })
+    const warnings = buildPersonalQuestBossWarnings(forecast)
+    const shield = buildPersonalQuestStreakShield({ completions, freezes, today })
+    const grade = buildPersonalQuestWeeklyGrade({ stats, weeklyReviewSaved: true })
+    const nudges = buildPersonalQuestMomentumNudges({ completions, logs, today, weekStart })
+    const modes = buildPersonalQuestDayModes({ completions, logs, today, weekStart })
+    const timeline = buildPersonalQuestSeasonTimeline({ stats })
+    const recap = buildPersonalQuestDailyRecap({ completions, logs, freezes, today, weekStart })
+    const toast = buildPersonalQuestRecapToast({ recap, shield, warnings })
+
+    expect(warnings).toContainEqual(expect.objectContaining({ key: 'ipa', tone: 'amber' }))
+    expect(shield).toMatchObject({ tier: 'elite', label: 'Elite day' })
+    expect(grade.score).toBeGreaterThan(0)
+    expect(nudges).toContainEqual(expect.objectContaining({ id: 'ipa-close' }))
+    expect(modes).toContainEqual(expect.objectContaining({ id: 'travel', recommended: true }))
+    expect(timeline).toContainEqual(expect.objectContaining({ week: 1, status: 'current' }))
+    expect(toast.title).toContain('XP')
   })
 })
 

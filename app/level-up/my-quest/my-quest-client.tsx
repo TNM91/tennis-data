@@ -7,9 +7,11 @@ import {
   PERSONAL_QUEST_PHOTO_BUCKET,
   buildPersonalQuestBossForecast,
   buildPersonalQuestBossCalendar,
+  buildPersonalQuestBossWarnings,
   buildPersonalQuestCombos,
   buildPersonalQuestAchievementDetails,
   buildPersonalQuestDailyRecap,
+  buildPersonalQuestDayModes,
   buildPersonalQuestFinale,
   buildPersonalQuestGamePlan,
   buildPersonalQuestHeatmap,
@@ -19,10 +21,15 @@ import {
   buildPersonalQuestRepairSummary,
   buildPersonalQuestReminders,
   buildPhotoCaptureGuidance,
+  buildPersonalQuestRecapToast,
   buildPersonalQuestSeasonMap,
+  buildPersonalQuestSeasonTimeline,
   buildPersonalQuestStats,
+  buildPersonalQuestStreakShield,
   buildPersonalQuestTrendCards,
+  buildPersonalQuestMomentumNudges,
   buildPersonalQuestWaistTrend,
+  buildPersonalQuestWeeklyGrade,
   buildQuestFeedback,
   buildSmartQuestRecommendation,
   buildStreakFreezeStatus,
@@ -161,6 +168,22 @@ export default function MyQuestClient() {
     () => buildPhotoCaptureGuidance(photos, today),
     [photos, today],
   )
+  const dayModes = useMemo(
+    () => buildPersonalQuestDayModes({ completions, logs, today, weekStart }),
+    [completions, logs, today, weekStart],
+  )
+  const streakShield = useMemo(
+    () => buildPersonalQuestStreakShield({ completions, freezes: streakFreezes, today }),
+    [completions, streakFreezes, today],
+  )
+  const weeklyGrade = useMemo(
+    () => buildPersonalQuestWeeklyGrade({ stats, weeklyReviewSaved: Boolean(weeklyReview) }),
+    [stats, weeklyReview],
+  )
+  const seasonTimeline = useMemo(
+    () => buildPersonalQuestSeasonTimeline({ stats }),
+    [stats],
+  )
   const todayCompletedCount = completedToday.size
   const todayRemainingCount = Math.max(0, PERSONAL_DAILY_QUESTS.length - todayCompletedCount)
   const todayXp = useMemo(
@@ -221,6 +244,14 @@ export default function MyQuestClient() {
     () => buildPersonalQuestBossForecast({ completions, logs, today, weekStart }),
     [completions, logs, today, weekStart],
   )
+  const bossWarnings = useMemo(
+    () => buildPersonalQuestBossWarnings(bossForecast),
+    [bossForecast],
+  )
+  const momentumNudges = useMemo(
+    () => buildPersonalQuestMomentumNudges({ completions, logs, today, weekStart }),
+    [completions, logs, today, weekStart],
+  )
   const bossCalendar = useMemo(
     () => buildPersonalQuestBossCalendar({ completions, logs, today, weekStart }),
     [completions, logs, today, weekStart],
@@ -236,6 +267,10 @@ export default function MyQuestClient() {
   const freezeStatus = useMemo(
     () => buildStreakFreezeStatus({ completions, freezes: streakFreezes, today }),
     [completions, streakFreezes, today],
+  )
+  const recapToast = useMemo(
+    () => buildPersonalQuestRecapToast({ recap: dailyRecap, shield: streakShield, warnings: bossWarnings }),
+    [bossWarnings, dailyRecap, streakShield],
   )
   const comparePhotos = useMemo(() => {
     const matching = photos.filter((photo) => photo.photo_type === compareType)
@@ -831,10 +866,12 @@ export default function MyQuestClient() {
           <h1>Operation Visible Abs</h1>
           <p className={styles.heroText}>Season 1 private quest board. Stack the habits, keep the streak alive, and beat the weekly bosses.</p>
           <div className={styles.heroActions}>
-            <a href="#quick-add">Quick</a>
+            <a href="#lock-screen">Lock</a>
             <a href="#today-quests">Today</a>
+            <a href="#boss-warnings">Boss</a>
             <a href="#month-view">Month</a>
             <a href="#repair-day">Repair</a>
+            <a href="#season-timeline">Timeline</a>
             <a href="#season-map">Season</a>
             <a href="#momentum">Momentum</a>
             <a href="#trend-strip">Trends</a>
@@ -877,15 +914,46 @@ export default function MyQuestClient() {
         </div>
       ) : null}
 
-      <section id="quick-add" className={styles.quickAddPanel}>
+      <section id="lock-screen" className={`${styles.quickAddPanel} ${styles.lockScreenPanel}`}>
         <div className={styles.quickAddHeader}>
           <div>
-            <p className={styles.eyebrow}>Quick Add</p>
-            <h2>{todayCompletedCount}/{PERSONAL_DAILY_QUESTS.length} today</h2>
+            <p className={styles.eyebrow}>Today Lock Screen</p>
+            <h2>{streakShield.label}</h2>
           </div>
           <div className={styles.quickAddScore}>
             <strong>{todayXp}</strong>
             <span>XP</span>
+          </div>
+        </div>
+        <div className={styles.lockScreenMetrics}>
+          <div className={styles.lockScreenMetric} data-tone={streakShield.tier}>
+            <span>Shield</span>
+            <strong>{todayCompletedCount}/{PERSONAL_DAILY_QUESTS.length}</strong>
+            <small>{streakShield.detail}</small>
+          </div>
+          <div className={styles.lockScreenMetric}>
+            <span>Next</span>
+            <strong>{smartQuest.quest?.shortTitle ?? 'Done'}</strong>
+            <small>{smartQuest.reason}</small>
+          </div>
+          <div className={styles.lockScreenMetric}>
+            <span>Week grade</span>
+            <strong>{weeklyGrade.grade}</strong>
+            <small>{weeklyGrade.label} | {weeklyGrade.score}/100</small>
+          </div>
+          <div className={styles.lockScreenStepper}>
+            <span>IPAs</span>
+            <div className={styles.stepper}>
+              <button type="button" onClick={() => void adjustIpa(-1)} aria-label="Decrease IPA count">-</button>
+              <input
+                value={ipaInput}
+                inputMode="numeric"
+                onChange={(event) => setIpaInput(event.target.value)}
+                onBlur={() => void saveDailyTrackers()}
+                aria-label="IPA count today"
+              />
+              <button type="button" onClick={() => void adjustIpa(1)} aria-label="Increase IPA count">+</button>
+            </div>
           </div>
         </div>
         <div className={styles.quickAddQuestGrid}>
@@ -907,7 +975,7 @@ export default function MyQuestClient() {
           })}
         </div>
         <div className={styles.quickAddFooter}>
-          <span>{smartQuest.quest ? `Next: ${smartQuest.quest.shortTitle}` : 'Board cleared'}</span>
+          <span>{recapToast.title}</span>
           <button type="button" onClick={() => smartQuest.quest ? void toggleQuest(smartQuest.quest) : undefined} disabled={!smartQuest.quest || Boolean(pendingQuest)}>
             {smartQuest.quest ? smartQuest.cta : 'Done'}
           </button>
@@ -942,11 +1010,30 @@ export default function MyQuestClient() {
         </div>
       </section>
 
+      <section id="boss-warnings" className={styles.warningPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Boss Warnings</p>
+            <h2>Week pressure</h2>
+          </div>
+          <span className={styles.scorePill}>{weeklyGrade.grade} grade</span>
+        </div>
+        <div className={styles.warningGrid}>
+          {bossWarnings.map((warning) => (
+            <div key={warning.key} className={styles.warningCard} data-tone={warning.tone}>
+              <span>{warning.title}</span>
+              <strong>{warning.message}</strong>
+              <small>{warning.cta}</small>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section id="momentum" className={styles.momentumPanel}>
         <div className={styles.sectionHeader}>
           <div>
             <p className={styles.eyebrow}>Momentum Score</p>
-            <h2>{momentum.score}/100 · {momentum.label}</h2>
+            <h2>{momentum.score}/100 | {momentum.label}</h2>
           </div>
           <span className={styles.scorePill}>{momentum.trend}</span>
         </div>
@@ -964,6 +1051,14 @@ export default function MyQuestClient() {
               </div>
             ))}
           </div>
+        </div>
+        <div className={styles.nudgeGrid}>
+          {momentumNudges.map((nudge) => (
+            <div key={nudge.id} className={styles.nudgeCard} data-tone={nudge.tone}>
+              <span>{nudge.title}</span>
+              <strong>{nudge.detail}</strong>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -1021,6 +1116,26 @@ export default function MyQuestClient() {
         </div>
       </section>
 
+      <section id="season-timeline" className={styles.timelinePanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Season Timeline</p>
+            <h2>Season 1 chapters</h2>
+          </div>
+          <span className={styles.scorePill}>{stats.totalXp.toLocaleString()} XP</span>
+        </div>
+        <div className={styles.timelineGrid}>
+          {seasonTimeline.map((chapter) => (
+            <div key={chapter.week} className={styles.timelineCard} data-status={chapter.status}>
+              <span>Week {chapter.week} | {chapter.target}</span>
+              <strong>{chapter.title}</strong>
+              <small>{chapter.detail}</small>
+              <ProgressBar value={chapter.progress} label={`${chapter.progress}% chapter`} />
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className={styles.recapPanel}>
         <div className={styles.sectionHeader}>
           <div>
@@ -1045,6 +1160,11 @@ export default function MyQuestClient() {
             <strong>{dailyRecap.tomorrow}</strong>
             <small>Next open.</small>
           </div>
+        </div>
+        <div className={styles.recapToast} data-tone={recapToast.tone}>
+          <span>Private recap</span>
+          <strong>{recapToast.title}</strong>
+          <small>{recapToast.detail}</small>
         </div>
       </section>
 
@@ -1116,6 +1236,24 @@ export default function MyQuestClient() {
           <button type="button" data-active={mode === 'recovery' ? 'true' : 'false'} onClick={() => setMode('recovery')}>
             Recovery
           </button>
+        </div>
+        <div className={styles.dayModeGrid}>
+          {dayModes.map((dayMode) => (
+            <button
+              key={dayMode.id}
+              type="button"
+              className={styles.dayModeCard}
+              data-recommended={dayMode.recommended ? 'true' : 'false'}
+              data-complete={dayMode.completed ? 'true' : 'false'}
+              onClick={() => void completeQuestStack({ label: dayMode.title, questIds: dayMode.questIds })}
+              disabled={Boolean(pendingStack || pendingQuest)}
+            >
+              <span>{dayMode.recommended ? 'Recommended mode' : `${dayMode.progress}%`}</span>
+              <strong>{pendingStack === dayMode.title ? 'Completing' : dayMode.title}</strong>
+              <small>{dayMode.detail}</small>
+              <ProgressBar value={dayMode.progress} label={dayMode.completed ? 'Mode complete' : `${dayMode.progress}% mode`} />
+            </button>
+          ))}
         </div>
         <div className={styles.smartQuestCard}>
           <div>

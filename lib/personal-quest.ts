@@ -299,6 +299,62 @@ export type PersonalQuestPhotoGuidance = {
   status: 'ready' | 'due' | 'empty'
 }
 
+export type PersonalQuestDayModeId = 'standard' | 'travel' | 'tennis' | 'recovery' | 'weekend'
+
+export type PersonalQuestDayMode = {
+  id: PersonalQuestDayModeId
+  title: string
+  detail: string
+  questIds: PersonalQuestId[]
+  progress: number
+  completed: boolean
+  recommended: boolean
+}
+
+export type PersonalQuestBossWarning = {
+  key: WeeklyBossKey
+  title: string
+  message: string
+  tone: 'green' | 'amber' | 'red'
+  cta: string
+}
+
+export type PersonalQuestStreakShield = {
+  tier: 'open' | 'protected' | 'strong' | 'elite' | 'perfect'
+  label: string
+  detail: string
+  progress: number
+}
+
+export type PersonalQuestWeeklyGrade = {
+  grade: 'S' | 'A' | 'B' | 'Salvaged' | 'Open'
+  score: number
+  label: string
+  detail: string
+}
+
+export type PersonalQuestMomentumNudge = {
+  id: string
+  title: string
+  detail: string
+  tone: 'green' | 'blue' | 'amber'
+}
+
+export type PersonalQuestSeasonWeek = {
+  week: number
+  title: string
+  target: string
+  detail: string
+  status: 'cleared' | 'current' | 'locked'
+  progress: number
+}
+
+export type PersonalQuestRecapToast = {
+  title: string
+  detail: string
+  tone: 'green' | 'amber' | 'blue'
+}
+
 export type WeeklyBossProgress = {
   key: WeeklyBossKey
   title: string
@@ -1191,6 +1247,213 @@ export function buildPhotoCaptureGuidance(photos: ProgressPhoto[], today: string
   })
 }
 
+export function buildPersonalQuestDayModes(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  today: string
+  weekStart: string
+}): PersonalQuestDayMode[] {
+  const completedToday = new Set(input.completions.filter((item) => item.completed_on === input.today).map((item) => item.quest_id))
+  const day = parseDateKey(input.today).getDay()
+  const weekEnd = getWeekEndKey(input.weekStart)
+  const weeklyIpas = sumIpas(input.logs, input.weekStart, weekEnd)
+  const modes: Array<Omit<PersonalQuestDayMode, 'progress' | 'completed' | 'recommended'>> = [
+    {
+      id: 'standard',
+      title: 'Standard Day',
+      detail: 'Balanced habit board for a normal workday.',
+      questIds: ['protein_breakfast', 'no_chips_lunch', 'creamer_goal', 'water_80_oz', 'activity_20_min', 'core_workout', 'alcohol_limit', 'no_food_after_8'],
+    },
+    {
+      id: 'travel',
+      title: 'Travel Day',
+      detail: 'Portable guardrails when the day gets weird.',
+      questIds: ['water_80_oz', 'no_chips_lunch', 'alcohol_limit', 'no_food_after_8'],
+    },
+    {
+      id: 'tennis',
+      title: 'Tennis Day',
+      detail: 'Fuel, hydrate, move, and close clean.',
+      questIds: ['protein_breakfast', 'water_80_oz', 'activity_20_min', 'core_workout', 'no_food_after_8'],
+    },
+    {
+      id: 'recovery',
+      title: 'Recovery Day',
+      detail: 'Minimum friction while the streak stays alive.',
+      questIds: ['water_80_oz', 'creamer_goal', 'protein_breakfast', 'no_food_after_8'],
+    },
+    {
+      id: 'weekend',
+      title: 'Weekend Defense',
+      detail: 'Protect IPA, lunch, water, and kitchen close.',
+      questIds: ['no_chips_lunch', 'water_80_oz', 'alcohol_limit', 'no_food_after_8'],
+    },
+  ]
+  const recommendedId: PersonalQuestDayModeId = day === 0 || day === 6
+    ? 'weekend'
+    : weeklyIpas >= 5
+      ? 'travel'
+      : completedToday.has('activity_20_min')
+        ? 'tennis'
+        : completedToday.size <= 1 && day >= 4
+          ? 'recovery'
+          : 'standard'
+
+  return modes.map((mode) => {
+    const completeCount = mode.questIds.filter((id) => completedToday.has(id)).length
+    return {
+      ...mode,
+      progress: Math.round((completeCount / mode.questIds.length) * 100),
+      completed: completeCount === mode.questIds.length,
+      recommended: mode.id === recommendedId,
+    }
+  })
+}
+
+export function buildPersonalQuestBossWarnings(forecast: PersonalQuestBossForecast[]): PersonalQuestBossWarning[] {
+  const warnings = forecast.map((item): PersonalQuestBossWarning => {
+    const tone: PersonalQuestBossWarning['tone'] = item.status === 'at-risk' ? 'red' : item.status === 'needs-action' ? 'amber' : 'green'
+    const cta = item.key === 'ipa'
+      ? item.status === 'at-risk'
+        ? 'Stop the bleed'
+        : 'Hold tonight'
+      : item.key === 'lunch'
+        ? 'Win lunch'
+        : item.key === 'creamer'
+          ? 'Keep coffee clean'
+          : 'Front-load water'
+    return {
+      key: item.key,
+      title: item.title,
+      message: `${item.headline}. ${item.detail}`,
+      tone,
+      cta,
+    }
+  })
+
+  return warnings
+    .sort((a, b) => warningRank(b.tone) - warningRank(a.tone))
+    .slice(0, 4)
+}
+
+export function buildPersonalQuestStreakShield(input: {
+  completions: DailyQuestCompletion[]
+  freezes: PersonalStreakFreeze[]
+  today: string
+}): PersonalQuestStreakShield {
+  const completedCount = new Set(input.completions.filter((item) => item.completed_on === input.today).map((item) => item.quest_id)).size
+  const protectedToday = input.freezes.some((item) => item.freeze_date === input.today)
+  const progress = Math.round((completedCount / PERSONAL_DAILY_QUESTS.length) * 100)
+
+  if (completedCount === PERSONAL_DAILY_QUESTS.length) {
+    return { tier: 'perfect', label: 'Perfect day', detail: '8/8 cleared. Full board glow.', progress: 100 }
+  }
+  if (completedCount >= 6) {
+    return { tier: 'elite', label: 'Elite day', detail: '6+ quests banked. Strong close.', progress }
+  }
+  if (completedCount >= 4) {
+    return { tier: 'strong', label: 'Strong day', detail: '4+ quests banked. Momentum is real.', progress }
+  }
+  if (completedCount >= 1 || protectedToday) {
+    return {
+      tier: 'protected',
+      label: protectedToday ? 'Shielded day' : 'Streak protected',
+      detail: protectedToday ? 'Freeze used. No XP awarded.' : 'Any quest keeps the streak alive.',
+      progress: Math.max(progress, 13),
+    }
+  }
+  return { tier: 'open', label: 'Shield open', detail: 'Complete any quest to protect the streak.', progress: 0 }
+}
+
+export function buildPersonalQuestWeeklyGrade(input: {
+  stats: PersonalQuestStats
+  weeklyReviewSaved: boolean
+}): PersonalQuestWeeklyGrade {
+  const questScore = Math.min(40, Math.round((input.stats.weeklyQuestXp / 420) * 40))
+  const bossScore = Math.min(35, input.stats.bosses.filter((boss) => boss.completed).length * 9)
+  const streakScore = input.stats.currentStreak >= 7 ? 15 : input.stats.currentStreak >= 3 ? 8 : input.stats.currentStreak > 0 ? 4 : 0
+  const reviewScore = input.weeklyReviewSaved ? 10 : 0
+  const score = Math.min(100, questScore + bossScore + streakScore + reviewScore)
+  const grade: PersonalQuestWeeklyGrade['grade'] = score >= 90 ? 'S' : score >= 75 ? 'A' : score >= 55 ? 'B' : score >= 30 ? 'Salvaged' : 'Open'
+
+  return {
+    grade,
+    score,
+    label: grade === 'S' ? 'Boss week' : grade === 'A' ? 'Clean week' : grade === 'B' ? 'Building week' : grade === 'Salvaged' ? 'Saved week' : 'Week open',
+    detail: `${input.stats.weeklyQuestXp} quest XP, ${input.stats.weeklyBossXp} boss XP, ${input.weeklyReviewSaved ? 'review saved' : 'review open'}.`,
+  }
+}
+
+export function buildPersonalQuestMomentumNudges(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  today: string
+  weekStart: string
+}): PersonalQuestMomentumNudge[] {
+  const weekEnd = getWeekEndKey(input.weekStart)
+  const weeklyCompletions = input.completions.filter((item) => item.completed_on >= input.weekStart && item.completed_on <= weekEnd)
+  const completedToday = new Set(input.completions.filter((item) => item.completed_on === input.today).map((item) => item.quest_id))
+  const weeklyIpas = sumIpas(input.logs, input.weekStart, weekEnd)
+  const nudges: PersonalQuestMomentumNudge[] = []
+
+  if (!completedToday.size) {
+    nudges.push({ id: 'first-point', title: 'Start tiny', detail: 'One quest protects the streak. Water or creamer is the clean opener.', tone: 'amber' })
+  }
+  if (weeklyIpas >= 5) {
+    nudges.push({ id: 'ipa-close', title: 'IPA line is thin', detail: `${Math.max(0, 6 - weeklyIpas)} left this week. Tonight is a close-clean night.`, tone: 'amber' })
+  }
+  if (hasQuestStreak(input.completions, 'no_chips_lunch', input.today, 3)) {
+    nudges.push({ id: 'lunch-streak', title: 'Lunch is heating up', detail: 'Chip-free lunch is at 3 straight. Do not break the easy win.', tone: 'green' })
+  }
+  if (parseDateKey(input.today).getDay() === 0 || parseDateKey(input.today).getDay() === 6) {
+    const waterDays = countQuestDays(weeklyCompletions, 'water_80_oz')
+    nudges.push({ id: 'weekend-water', title: 'Weekend water first', detail: `${waterDays}/5 water days banked. Front-load it before the day gets loose.`, tone: waterDays >= 5 ? 'green' : 'blue' })
+  }
+  if (!completedToday.has('no_food_after_8')) {
+    nudges.push({ id: 'kitchen-close', title: 'Close the kitchen', detail: 'Tonight is a clean finish opportunity. Bank the +10 XP.', tone: 'blue' })
+  }
+
+  return nudges.slice(0, 4)
+}
+
+export function buildPersonalQuestSeasonTimeline(input: {
+  stats: PersonalQuestStats
+}): PersonalQuestSeasonWeek[] {
+  const weeks: Array<Omit<PersonalQuestSeasonWeek, 'status' | 'progress'>> = [
+    { week: 1, title: 'Foundation', target: '500 XP', detail: 'Establish the daily board.' },
+    { week: 2, title: 'Consistency', target: '1,000 XP', detail: 'Make streak protection boring.' },
+    { week: 3, title: 'Boss Control', target: '2,000 XP', detail: 'Clear lunch, water, creamer, and IPA pressure.' },
+    { week: 4, title: 'Visible Push', target: '3,500 XP', detail: 'Stack elite days and Sunday reviews.' },
+    { week: 5, title: 'Final Boss', target: '5,000 XP', detail: 'Open Visible Abs Week.' },
+    { week: 6, title: 'Six Pack Mode', target: '7,500 XP', detail: 'Finish the season with the full board.' },
+  ]
+  const targets = [500, 1000, 2000, 3500, 5000, 7500]
+
+  return weeks.map((week, index) => {
+    const previousTarget = targets[index - 1] ?? 0
+    const target = targets[index]
+    const progress = Math.max(0, Math.min(100, Math.round(((input.stats.totalXp - previousTarget) / Math.max(1, target - previousTarget)) * 100)))
+    return {
+      ...week,
+      status: input.stats.totalXp >= target ? 'cleared' : input.stats.totalXp >= previousTarget ? 'current' : 'locked',
+      progress,
+    }
+  })
+}
+
+export function buildPersonalQuestRecapToast(input: {
+  recap: PersonalQuestDailyRecap
+  shield: PersonalQuestStreakShield
+  warnings: PersonalQuestBossWarning[]
+}): PersonalQuestRecapToast {
+  const topWarning = input.warnings.find((warning) => warning.tone !== 'green')
+  return {
+    title: `+${input.recap.xp} XP. ${input.shield.label}.`,
+    detail: topWarning ? `${topWarning.title}: ${topWarning.message}` : input.recap.tomorrow,
+    tone: input.shield.tier === 'open' ? 'amber' : topWarning?.tone === 'red' ? 'amber' : 'green',
+  }
+}
+
 function buildIpaForecast(ipaCount: number, daysLeft: number): PersonalQuestBossForecast {
   const remaining = 6 - ipaCount
   if (remaining < 0) {
@@ -1390,6 +1653,22 @@ function buildCountBoss(
 
 function countQuestDays(completions: DailyQuestCompletion[], questId: PersonalQuestId) {
   return new Set(completions.filter((item) => item.quest_id === questId).map((item) => item.completed_on)).size
+}
+
+function hasQuestStreak(completions: DailyQuestCompletion[], questId: PersonalQuestId, today: string, days: number) {
+  const questDays = new Set(completions.filter((item) => item.quest_id === questId).map((item) => item.completed_on))
+  const cursor = parseDateKey(today)
+  for (let index = 0; index < days; index += 1) {
+    if (!questDays.has(getTodayKey(cursor))) return false
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return true
+}
+
+function warningRank(tone: PersonalQuestBossWarning['tone']) {
+  if (tone === 'red') return 3
+  if (tone === 'amber') return 2
+  return 1
 }
 
 function countIpaGoalWeeks(logs: DailyLog[], today: string) {

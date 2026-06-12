@@ -127,9 +127,11 @@
 .levelPanel,
 .quickAddPanel,
 .gamePlanPanel,
+.warningPanel,
 .momentumPanel,
 .monthPanel,
 .seasonPanel,
+.timelinePanel,
 .recapPanel,
 .finalePanel,
 .todayCommand,
@@ -158,9 +160,11 @@
 }
 
 .gamePlanPanel,
+.warningPanel,
 .momentumPanel,
 .monthPanel,
 .seasonPanel,
+.timelinePanel,
 .recapPanel,
 .finalePanel,
 .quickAddPanel,
@@ -563,6 +567,175 @@
 .quickAddFooter button:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.lockScreenPanel {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(var(--brand-green-rgb), 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(15, 34, 64, 0.8), rgba(8, 19, 38, 0.94));
+}
+
+.lockScreenMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lockScreenMetric,
+.lockScreenStepper {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border-radius: 15px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(2, 10, 24, 0.28);
+}
+
+.lockScreenMetric[data-tone='protected'],
+.lockScreenMetric[data-tone='strong'],
+.lockScreenMetric[data-tone='elite'],
+.lockScreenMetric[data-tone='perfect'] {
+  border-color: color-mix(in srgb, var(--brand-green) 42%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 42%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.lockScreenMetric span,
+.lockScreenMetric small,
+.lockScreenStepper > span,
+.warningCard span,
+.warningCard small,
+.nudgeCard span,
+.timelineCard span,
+.timelineCard small,
+.recapToast span,
+.recapToast small {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.lockScreenMetric span,
+.lockScreenStepper > span,
+.warningCard span,
+.nudgeCard span,
+.timelineCard span,
+.recapToast span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lockScreenMetric strong,
+.warningCard strong,
+.nudgeCard strong,
+.timelineCard strong,
+.recapToast strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+  line-height: 1.14;
+  overflow-wrap: anywhere;
+}
+
+.warningGrid,
+.nudgeGrid,
+.timelineGrid,
+.dayModeGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.warningGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.nudgeGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.timelineGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.dayModeGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.warningCard,
+.nudgeCard,
+.timelineCard,
+.dayModeCard,
+.recapToast {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.warningCard[data-tone='green'],
+.nudgeCard[data-tone='green'],
+.timelineCard[data-status='cleared'],
+.timelineCard[data-status='current'],
+.dayModeCard[data-recommended='true'],
+.dayModeCard[data-complete='true'],
+.recapToast[data-tone='green'] {
+  border-color: color-mix(in srgb, var(--brand-green) 44%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.warningCard[data-tone='amber'],
+.nudgeCard[data-tone='amber'],
+.recapToast[data-tone='amber'] {
+  border-color: rgba(255, 205, 94, 0.34);
+}
+
+.warningCard[data-tone='red'] {
+  border-color: rgba(255, 120, 92, 0.42);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(255, 120, 92, 0.12), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.timelineCard[data-status='locked'] {
+  opacity: 0.68;
+}
+
+.dayModeCard {
+  appearance: none;
+  min-height: 158px;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dayModeCard:disabled {
+  cursor: wait;
+  opacity: 0.74;
+}
+
+.dayModeCard span,
+.dayModeCard small {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.dayModeCard span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dayModeCard strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+  line-height: 1.14;
 }
 
 .momentumLayout {
@@ -1782,14 +1955,18 @@
   .statGrid,
   .planGrid,
   .momentumLayout,
+  .lockScreenMetrics,
   .repairBody,
   .seasonMap,
   .recapGrid,
   .trendStrip,
+  .warningGrid,
+  .nudgeGrid,
   .loadoutGrid,
   .reminderGrid,
   .phonePanel,
   .finaleBody,
+  .timelineGrid,
   .bossCalendarGrid,
   .strategyGrid,
   .bossGrid {
@@ -1801,6 +1978,7 @@
   .freezeCard,
   .comboGrid,
   .forecastGrid,
+  .dayModeGrid,
   .photoGuidanceGrid {
     grid-template-columns: 1fr;
   }
@@ -1830,9 +2008,11 @@
   .hero,
   .quickAddPanel,
   .gamePlanPanel,
+  .warningPanel,
   .momentumPanel,
   .monthPanel,
   .seasonPanel,
+  .timelinePanel,
   .recapPanel,
   .finalePanel,
   .todayCommand,
@@ -1855,6 +2035,11 @@
   .todayQuickGrid,
   .quickAddQuestGrid,
   .repairQuestGrid,
+  .lockScreenMetrics,
+  .warningGrid,
+  .nudgeGrid,
+  .timelineGrid,
+  .dayModeGrid,
   .stackGrid,
   .loadoutGrid,
   .reminderGrid,
