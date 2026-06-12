@@ -3,12 +3,19 @@ import {
   PERSONAL_DAILY_QUESTS,
   buildPersonalQuestHeatmap,
   buildPersonalQuestBossForecast,
+  buildPersonalQuestBossCalendar,
   buildPersonalQuestCombos,
+  buildPersonalQuestAchievementDetails,
+  buildPersonalQuestDailyRecap,
+  buildPersonalQuestFinale,
   buildPersonalQuestGamePlan,
   buildPersonalQuestLoadouts,
+  buildPersonalQuestMomentum,
+  buildPersonalQuestReminders,
   buildPersonalQuestSeasonMap,
   buildPersonalQuestStats,
   buildPersonalQuestTrendCards,
+  buildPersonalQuestWaistTrend,
   buildQuestFeedback,
   buildSmartQuestRecommendation,
   buildStreakFreezeStatus,
@@ -184,6 +191,50 @@ describe('personal quest daily helpers', () => {
     expect(freezeStatus.usedThisMonth).toBe(1)
     expect(freezeStatus.remainingThisMonth).toBe(1)
     expect(freezeStatus.canUseToday).toBe(true)
+  })
+
+  it('builds recap, momentum, boss calendar, reminders, waist trend, and finale data', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'water_80_oz', completed_on: '2026-06-08', xp_awarded: 10 },
+      { quest_id: 'water_80_oz', completed_on: '2026-06-09', xp_awarded: 10 },
+      { quest_id: 'core_workout', completed_on: '2026-06-10', xp_awarded: 10 },
+      { quest_id: 'protein_breakfast', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'water_80_oz', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'no_food_after_8', completed_on: '2026-06-12', xp_awarded: 10 },
+    ]
+    const logs: DailyLog[] = [{ log_date: '2026-06-12', ipa_count: 5, notes: '' }]
+    const freezes: PersonalStreakFreeze[] = [{ freeze_date: '2026-06-11', reason: 'Save the day' }]
+    const measurements: Measurement[] = [
+      { measured_on: '2026-05-31', waist_inches: 36 },
+      { measured_on: '2026-06-07', waist_inches: 35.5 },
+      { measured_on: '2026-06-12', waist_inches: 35 },
+    ]
+    const today = '2026-06-12'
+    const weekStart = '2026-06-07'
+
+    const recap = buildPersonalQuestDailyRecap({ completions, logs, freezes, today, weekStart })
+    const momentum = buildPersonalQuestMomentum({ completions, freezes, today })
+    const calendar = buildPersonalQuestBossCalendar({ completions, logs, today, weekStart })
+    const reminders = buildPersonalQuestReminders({ completions, today, isSunday: false })
+    const waist = buildPersonalQuestWaistTrend(measurements)
+    const finale = buildPersonalQuestFinale(5100)
+
+    expect(recap.xp).toBe(30)
+    expect(momentum.days).toHaveLength(7)
+    expect(calendar).toContainEqual(expect.objectContaining({ key: 'ipa', headline: '1 left' }))
+    expect(reminders).toContainEqual(expect.objectContaining({ id: 'lunch', active: true }))
+    expect(waist.label).toBe('-1 since first point')
+    expect(finale.unlocked).toBe(true)
+  })
+
+  it('builds achievement drawer details with fastest path copy', () => {
+    const details = buildPersonalQuestAchievementDetails([
+      { id: 'water_warrior', title: 'Water Warrior', metric: 'waterDays', target: 14, progress: 9, unlocked: false },
+      { id: 'streak_7', title: '7-Day Streak', metric: 'streak', target: 7, progress: 7, unlocked: true },
+    ])
+
+    expect(details[0]).toMatchObject({ remaining: 5, fastestPath: '5 more water-goal days.' })
+    expect(details[1]).toMatchObject({ remaining: 0, fastestPath: 'Unlocked. Keep it banked.' })
   })
 })
 

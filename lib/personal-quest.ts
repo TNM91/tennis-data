@@ -124,7 +124,7 @@ export type PersonalQuestHeatmapDay = {
   isToday: boolean
 }
 
-export type PersonalQuestMode = 'morning' | 'evening'
+export type PersonalQuestMode = 'morning' | 'evening' | 'recovery'
 
 export type SmartQuestRecommendation = {
   quest: PersonalQuestDefinition | null
@@ -192,6 +192,72 @@ export type PersonalQuestFreezeStatus = {
   protectedToday: boolean
   targetDate: string
   detail: string
+}
+
+export type PersonalQuestDailyRecap = {
+  title: string
+  xp: number
+  completedCount: number
+  totalCount: number
+  streakStatus: string
+  bossMisses: string[]
+  tomorrow: string
+}
+
+export type PersonalQuestMomentum = {
+  score: number
+  label: string
+  detail: string
+  trend: 'up' | 'steady' | 'down'
+  days: Array<{
+    date: string
+    score: number
+    label: string
+  }>
+}
+
+export type PersonalQuestBossCalendarItem = {
+  key: WeeklyBossKey
+  title: string
+  headline: string
+  detail: string
+  progress: number
+  tone: 'green' | 'amber' | 'red'
+}
+
+export type PersonalQuestReminder = {
+  id: string
+  title: string
+  time: string
+  detail: string
+  active: boolean
+}
+
+export type PersonalQuestWaistTrend = {
+  latest: number | null
+  delta: number | null
+  label: string
+  points: Array<{
+    date: string
+    value: number
+    progress: number
+  }>
+}
+
+export type PersonalQuestAchievementDetail = AchievementDefinition & {
+  progress: number
+  unlocked: boolean
+  remaining: number
+  fastestPath: string
+}
+
+export type PersonalQuestFinale = {
+  unlocked: boolean
+  progress: number
+  title: string
+  detail: string
+  challenge: string
+  badge: string
 }
 
 export type WeeklyBossProgress = {
@@ -409,7 +475,9 @@ export function buildSmartQuestRecommendation(input: {
 
   const priority: PersonalQuestId[] = input.mode === 'morning'
     ? ['protein_breakfast', 'water_80_oz', 'no_chips_lunch', 'creamer_goal', 'activity_20_min', 'core_workout', 'alcohol_limit', 'no_food_after_8']
-    : ['water_80_oz', 'core_workout', 'alcohol_limit', 'no_food_after_8', 'activity_20_min', 'no_chips_lunch', 'creamer_goal', 'protein_breakfast']
+    : input.mode === 'recovery'
+      ? ['water_80_oz', 'creamer_goal', 'protein_breakfast', 'no_food_after_8', 'core_workout', 'alcohol_limit', 'no_chips_lunch', 'activity_20_min']
+      : ['water_80_oz', 'core_workout', 'alcohol_limit', 'no_food_after_8', 'activity_20_min', 'no_chips_lunch', 'creamer_goal', 'protein_breakfast']
 
   const bossQuest = priority
     .map((id) => incomplete.find((quest) => quest.id === id && bossNeeds.has(id)))
@@ -417,7 +485,9 @@ export function buildSmartQuestRecommendation(input: {
   const quest = bossQuest ?? priority.map((id) => incomplete.find((item) => item.id === id)).find(Boolean) ?? incomplete[0]
   const modeReason = input.mode === 'morning'
     ? 'Morning mode favors early, low-friction points.'
-    : 'Evening mode protects the close: core, IPA limit, and kitchen closed.'
+    : input.mode === 'recovery'
+      ? 'Recovery mode keeps the streak alive with the smallest useful wins.'
+      : 'Evening mode protects the close: core, IPA limit, and kitchen closed.'
 
   return {
     quest,
@@ -708,6 +778,199 @@ export function buildStreakFreezeStatus(input: {
   }
 }
 
+export function buildPersonalQuestDailyRecap(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  freezes: PersonalStreakFreeze[]
+  today: string
+  weekStart: string
+}): PersonalQuestDailyRecap {
+  const todayCompletions = input.completions.filter((item) => item.completed_on === input.today)
+  const completedCount = new Set(todayCompletions.map((item) => item.quest_id)).size
+  const xp = todayCompletions.reduce((sum, item) => sum + Math.max(0, item.xp_awarded || getQuestXp(item.quest_id)), 0)
+  const protectedToday = input.freezes.some((item) => item.freeze_date === input.today)
+  const bossMisses = buildPersonalQuestBossForecast(input)
+    .filter((item) => item.status === 'at-risk' || item.status === 'needs-action')
+    .slice(0, 2)
+    .map((item) => `${item.title}: ${item.headline}`)
+  const missed = PERSONAL_DAILY_QUESTS.find((quest) => !todayCompletions.some((item) => item.quest_id === quest.id))
+
+  return {
+    title: completedCount === PERSONAL_DAILY_QUESTS.length ? 'Perfect day locked' : completedCount >= 5 ? 'Strong day' : protectedToday ? 'Streak saved' : 'Still in play',
+    xp,
+    completedCount,
+    totalCount: PERSONAL_DAILY_QUESTS.length,
+    streakStatus: protectedToday ? 'Freeze used; streak protected.' : completedCount ? 'Streak alive.' : 'Streak needs a quest.',
+    bossMisses,
+    tomorrow: missed ? `Open with ${missed.shortTitle}.` : 'Repeat the clean board tomorrow.',
+  }
+}
+
+export function buildPersonalQuestMomentum(input: {
+  completions: DailyQuestCompletion[]
+  freezes: PersonalStreakFreeze[]
+  today: string
+}): PersonalQuestMomentum {
+  const total = PERSONAL_DAILY_QUESTS.length
+  const todayDate = parseDateKey(input.today)
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = getTodayKey(new Date(todayDate.getTime() - DAY_MS * (6 - index)))
+    const completedCount = new Set(input.completions.filter((item) => item.completed_on === date).map((item) => item.quest_id)).size
+    const frozen = input.freezes.some((item) => item.freeze_date === date)
+    const score = Math.max(frozen ? 35 : 0, Math.round((completedCount / total) * 100))
+    return {
+      date,
+      score,
+      label: frozen ? 'Freeze' : `${completedCount}/${total}`,
+    }
+  })
+  const score = Math.round(days.reduce((sum, day) => sum + day.score, 0) / days.length)
+  const previous = days.slice(0, 4).reduce((sum, day) => sum + day.score, 0) / 4
+  const recent = days.slice(4).reduce((sum, day) => sum + day.score, 0) / 3
+  const trend = recent > previous + 6 ? 'up' : recent < previous - 6 ? 'down' : 'steady'
+
+  return {
+    score,
+    label: score >= 80 ? 'Surging' : score >= 60 ? 'Building' : score >= 40 ? 'Uneven' : 'Needs spark',
+    detail: trend === 'up' ? 'Last 3 days are stronger.' : trend === 'down' ? 'Last 3 days are slipping.' : 'Last 7 days are steady.',
+    trend,
+    days,
+  }
+}
+
+export function buildPersonalQuestBossCalendar(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  today: string
+  weekStart: string
+}): PersonalQuestBossCalendarItem[] {
+  const weekEnd = getWeekEndKey(input.weekStart)
+  const daysLeft = Math.max(0, Math.ceil((parseDateKey(weekEnd).getTime() - parseDateKey(input.today).getTime()) / DAY_MS))
+  const weeklyCompletions = input.completions.filter((item) => item.completed_on >= input.weekStart && item.completed_on <= weekEnd)
+  const ipaCount = sumIpas(input.logs, input.weekStart, weekEnd)
+  const ipaRemaining = 6 - ipaCount
+  const countItems: Array<{ key: WeeklyBossKey; title: string; value: number; target: number; unit: string }> = [
+    { key: 'lunch', title: 'Lunch Boss', value: countQuestDays(weeklyCompletions, 'no_chips_lunch'), target: 5, unit: 'chip-free lunches' },
+    { key: 'creamer', title: 'Creamer Boss', value: countQuestDays(weeklyCompletions, 'creamer_goal'), target: 5, unit: 'creamer days' },
+    { key: 'water', title: 'Water Boss', value: countQuestDays(weeklyCompletions, 'water_80_oz'), target: 5, unit: 'water days' },
+  ]
+
+  return [
+    {
+      key: 'ipa',
+      title: 'IPA Budget',
+      headline: ipaRemaining >= 0 ? `${ipaRemaining} left` : `${Math.abs(ipaRemaining)} over`,
+      detail: `${daysLeft ? `${daysLeft} days left` : 'Week ends tonight'}; goal <= 6.`,
+      progress: Math.max(0, Math.min(100, Math.round((Math.max(0, ipaRemaining) / 6) * 100))),
+      tone: ipaRemaining < 0 ? 'red' : ipaRemaining <= 1 ? 'amber' : 'green',
+    },
+    ...countItems.map((item) => {
+      const needed = Math.max(0, item.target - item.value)
+      const tone: PersonalQuestBossCalendarItem['tone'] = needed === 0 ? 'green' : needed > daysLeft + 1 ? 'red' : needed > daysLeft ? 'amber' : 'green'
+      return {
+        key: item.key,
+        title: item.title,
+        headline: needed ? `${needed} needed` : 'Done',
+        detail: `${item.value}/${item.target} ${item.unit}; ${daysLeft ? `${daysLeft} days left` : 'week ends tonight'}.`,
+        progress: Math.min(100, Math.round((item.value / item.target) * 100)),
+        tone,
+      }
+    }),
+  ]
+}
+
+export function buildPersonalQuestReminders(input: {
+  completions: DailyQuestCompletion[]
+  today: string
+  isSunday: boolean
+}): PersonalQuestReminder[] {
+  const completedToday = new Set(input.completions.filter((item) => item.completed_on === input.today).map((item) => item.quest_id))
+  return [
+    {
+      id: 'morning',
+      title: 'Morning stack',
+      time: 'AM',
+      detail: 'Protein, creamer, water.',
+      active: !completedToday.has('protein_breakfast') || !completedToday.has('creamer_goal') || !completedToday.has('water_80_oz'),
+    },
+    {
+      id: 'lunch',
+      title: 'Lunch boss',
+      time: 'Lunch',
+      detail: 'Chip-free lunch keeps the weekly boss alive.',
+      active: !completedToday.has('no_chips_lunch'),
+    },
+    {
+      id: 'close',
+      title: '8 PM close',
+      time: 'Night',
+      detail: 'IPA limit and kitchen closed.',
+      active: !completedToday.has('alcohol_limit') || !completedToday.has('no_food_after_8'),
+    },
+    {
+      id: 'review',
+      title: 'Sunday review',
+      time: 'Sun',
+      detail: 'Waist, wins, misses, next focus.',
+      active: input.isSunday,
+    },
+  ]
+}
+
+export function buildPersonalQuestWaistTrend(measurements: Measurement[]): PersonalQuestWaistTrend {
+  const points = [...measurements]
+    .filter((item): item is Measurement & { waist_inches: number } => typeof item.waist_inches === 'number')
+    .sort((a, b) => a.measured_on.localeCompare(b.measured_on))
+    .slice(-8)
+  const values = points.map((point) => point.waist_inches)
+  const latest = values.at(-1) ?? null
+  const first = values[0] ?? null
+  const min = values.length ? Math.min(...values) : 0
+  const max = values.length ? Math.max(...values) : 0
+  const delta = latest !== null && first !== null ? Math.round((latest - first) * 10) / 10 : null
+
+  return {
+    latest,
+    delta,
+    label: latest === null ? 'Set baseline' : delta === null ? 'Baseline set' : `${formatSignedDelta(delta)} since first point`,
+    points: points.map((point) => ({
+      date: point.measured_on,
+      value: point.waist_inches,
+      progress: max === min ? 50 : Math.round(((max - point.waist_inches) / (max - min)) * 100),
+    })),
+  }
+}
+
+export function buildPersonalQuestAchievementDetails(
+  achievements: Array<AchievementDefinition & { progress: number; unlocked: boolean }>,
+): PersonalQuestAchievementDetail[] {
+  return achievements.map((achievement) => {
+    const remaining = Math.max(0, achievement.target - achievement.progress)
+    return {
+      ...achievement,
+      remaining,
+      fastestPath: achievement.unlocked
+        ? 'Unlocked. Keep it banked.'
+        : buildAchievementFastPath(achievement.metric, remaining),
+    }
+  })
+}
+
+export function buildPersonalQuestFinale(totalXp: number): PersonalQuestFinale {
+  const target = 5000
+  const unlocked = totalXp >= target
+  return {
+    unlocked,
+    progress: Math.min(100, Math.round((totalXp / target) * 100)),
+    title: unlocked ? 'Visible Abs Week' : 'Final Boss Locked',
+    detail: unlocked ? 'Season 1 finale is open.' : `${Math.max(0, target - totalXp).toLocaleString()} XP until Visible Abs Week.`,
+    challenge: unlocked
+      ? 'Clear 6 of 8 quests for 7 straight days and finish Sunday review.'
+      : 'Keep stacking daily quests and weekly boss XP.',
+    badge: 'Visible Abs Week Finisher',
+  }
+}
+
 function buildIpaForecast(ipaCount: number, daysLeft: number): PersonalQuestBossForecast {
   const remaining = 6 - ipaCount
   if (remaining < 0) {
@@ -771,6 +1034,17 @@ function formatSignedDelta(value: number) {
   const rounded = Math.round(value * 10) / 10
   if (rounded === 0) return 'No change'
   return `${rounded > 0 ? '+' : ''}${rounded}`
+}
+
+function buildAchievementFastPath(metric: AchievementMetric, remaining: number) {
+  const unit = remaining === 1 ? 'more' : 'more'
+  if (metric === 'chipFreeLunches') return `${remaining} ${unit} chip-free ${remaining === 1 ? 'lunch' : 'lunches'}.`
+  if (metric === 'creamerDays') return `${remaining} ${unit} creamer-goal ${remaining === 1 ? 'day' : 'days'}.`
+  if (metric === 'ipaGoalWeeks') return `${remaining} ${unit} IPA-goal ${remaining === 1 ? 'week' : 'weeks'}.`
+  if (metric === 'waterDays') return `${remaining} ${unit} water-goal ${remaining === 1 ? 'day' : 'days'}.`
+  if (metric === 'activitySessions') return `${remaining} ${unit} movement ${remaining === 1 ? 'session' : 'sessions'}.`
+  if (metric === 'coreWorkouts') return `${remaining} ${unit} core ${remaining === 1 ? 'workout' : 'workouts'}.`
+  return `${remaining} ${unit} streak ${remaining === 1 ? 'day' : 'days'}.`
 }
 
 function calculateLevel(totalXp: number) {

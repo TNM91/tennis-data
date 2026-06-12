@@ -126,7 +126,10 @@
 
 .levelPanel,
 .gamePlanPanel,
+.momentumPanel,
 .seasonPanel,
+.recapPanel,
+.finalePanel,
 .todayCommand,
 .questPanel,
 .trackerPanel,
@@ -152,7 +155,10 @@
 }
 
 .gamePlanPanel,
-.seasonPanel {
+.momentumPanel,
+.seasonPanel,
+.recapPanel,
+.finalePanel {
   margin-top: 14px;
   border-radius: 22px;
   padding: clamp(16px, 3vw, 22px);
@@ -206,6 +212,9 @@
 .planGrid,
 .seasonMap,
 .loadoutGrid,
+.recapGrid,
+.reminderGrid,
+.bossCalendarGrid,
 .strategyGrid {
   display: grid;
   gap: 10px;
@@ -228,9 +237,21 @@
   margin-bottom: 12px;
 }
 
+.recapGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reminderGrid,
+.bossCalendarGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .planCard,
 .seasonNode,
 .loadoutCard,
+.recapCard,
+.reminderCard,
+.bossCalendarCard,
 .strategyCard {
   min-width: 0;
   display: grid;
@@ -268,6 +289,8 @@
 .seasonNode[data-status='current'],
 .loadoutCard[data-recommended='true'],
 .loadoutCard[data-complete='true'],
+.reminderCard[data-active='true'],
+.bossCalendarCard[data-tone='green'],
 .strategyCard[data-tone='green'] {
   border-color: color-mix(in srgb, var(--brand-green) 44%, transparent);
   background:
@@ -283,6 +306,12 @@
   border-color: rgba(255, 205, 94, 0.34);
 }
 
+.bossCalendarCard[data-tone='amber'],
+.strategyCard[data-tone='amber'] {
+  border-color: rgba(255, 205, 94, 0.34);
+}
+
+.bossCalendarCard[data-tone='red'],
 .strategyCard[data-tone='red'] {
   border-color: rgba(255, 120, 92, 0.38);
   background:
@@ -293,6 +322,9 @@
 .planCard span,
 .seasonNode span,
 .loadoutCard span,
+.recapCard span,
+.reminderCard span,
+.bossCalendarCard span,
 .strategyCard span {
   color: var(--muted-strong);
   font-size: 0.72rem;
@@ -304,6 +336,9 @@
 .planCard strong,
 .seasonNode strong,
 .loadoutCard strong,
+.recapCard strong,
+.reminderCard strong,
+.bossCalendarCard strong,
 .strategyCard strong {
   color: var(--foreground-strong);
   font-weight: 950;
@@ -316,6 +351,9 @@
 }
 
 .loadoutCard small,
+.recapCard small,
+.reminderCard small,
+.bossCalendarCard small,
 .strategyCard small {
   color: var(--muted-strong);
   font-size: 0.78rem;
@@ -408,6 +446,75 @@
   padding: clamp(16px, 3vw, 22px);
 }
 
+.momentumLayout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.momentumMeter {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 34%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 42%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.momentumMeter strong {
+  color: var(--foreground-strong);
+  font-size: clamp(2.6rem, 8vw, 4.2rem);
+  line-height: 0.92;
+  font-weight: 950;
+}
+
+.momentumMeter span {
+  color: var(--muted-strong);
+  font-weight: 850;
+}
+
+.momentumDays {
+  min-height: 150px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(2, 10, 24, 0.28);
+}
+
+.momentumDay {
+  min-width: 0;
+  min-height: 126px;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+  align-items: end;
+}
+
+.momentumDay span {
+  display: block;
+  width: 100%;
+  min-height: 8px;
+  border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(180deg, #dffb75, var(--brand-green));
+  box-shadow: 0 0 14px rgba(var(--brand-green-rgb), 0.22);
+}
+
+.momentumDay small {
+  color: var(--muted-strong);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-align: center;
+}
+
 .todayHeader,
 .quickTrackerRow {
   display: flex;
@@ -464,7 +571,7 @@
 
 .modeToggle {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 5px;
   border-radius: 16px;
@@ -940,9 +1047,98 @@
   cursor: wait;
 }
 
+.waistTrendCard {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(2, 10, 24, 0.28);
+}
+
+.waistTrendHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.waistTrendHeader span,
+.waistTrendHeader small {
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.waistTrendHeader span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.waistTrendHeader strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--foreground-strong);
+  font-size: 1.45rem;
+  font-weight: 950;
+}
+
+.waistChart {
+  min-height: 112px;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 7px;
+  align-items: end;
+}
+
+.waistChart span {
+  display: block;
+  min-height: 8px;
+  border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(180deg, #dffb75, var(--brand-green));
+  box-shadow: 0 0 14px rgba(var(--brand-green-rgb), 0.22);
+}
+
+.waistChart em {
+  grid-column: 1 / -1;
+  align-self: center;
+  color: var(--muted-strong);
+  font-style: normal;
+  font-weight: 850;
+  text-align: center;
+}
+
 .bossPanel,
 .achievementPanel {
   margin-top: 14px;
+}
+
+.finalePanel[data-unlocked='true'] {
+  border-color: color-mix(in srgb, var(--brand-green) 48%, transparent);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(var(--brand-green-rgb), 0.16), transparent 40%),
+    linear-gradient(180deg, rgba(15, 34, 64, 0.74), rgba(8, 19, 38, 0.9));
+}
+
+.finaleBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.36fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.finaleBody strong {
+  color: var(--foreground-strong);
+  font-size: 1.15rem;
+  font-weight: 950;
+}
+
+.finaleBody p {
+  margin: 6px 0 0;
+  color: var(--shell-copy-muted);
+  font-weight: 750;
+  line-height: 1.45;
 }
 
 .phonePanel {
@@ -1007,6 +1203,17 @@
   border-radius: 16px;
   border: 1px solid rgba(116, 190, 255, 0.13);
   background: rgba(255, 255, 255, 0.045);
+}
+
+.badgeCard {
+  appearance: none;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.badgeCard:hover {
+  border-color: color-mix(in srgb, var(--brand-green) 42%, transparent);
 }
 
 .bossComplete,
@@ -1179,6 +1386,71 @@
   text-align: center;
 }
 
+.drawerOverlay {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: grid;
+  justify-items: end;
+  padding: 16px;
+  background: rgba(2, 8, 20, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.achievementDrawer {
+  width: min(420px, 100%);
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 38%, transparent);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(var(--brand-green-rgb), 0.15), transparent 42%),
+    linear-gradient(180deg, rgba(15, 34, 64, 0.96), rgba(8, 19, 38, 0.98));
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.42);
+}
+
+.drawerStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.drawerPath {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.drawerPath span {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.drawerPath strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+}
+
+.iconButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 32%, transparent);
+  background: rgba(var(--brand-green-rgb), 0.1);
+  color: var(--foreground-strong);
+  font-weight: 950;
+  cursor: pointer;
+}
+
 .badgeGrid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
@@ -1220,10 +1492,15 @@
   .sectionGrid,
   .statGrid,
   .planGrid,
+  .momentumLayout,
   .seasonMap,
+  .recapGrid,
   .trendStrip,
   .loadoutGrid,
+  .reminderGrid,
   .phonePanel,
+  .finaleBody,
+  .bossCalendarGrid,
   .strategyGrid,
   .bossGrid {
     grid-template-columns: 1fr;
@@ -1259,7 +1536,10 @@
 
   .hero,
   .gamePlanPanel,
+  .momentumPanel,
   .seasonPanel,
+  .recapPanel,
+  .finalePanel,
   .todayCommand,
   .questPanel,
   .trackerPanel,
@@ -1279,9 +1559,12 @@
   .todayQuickGrid,
   .stackGrid,
   .loadoutGrid,
+  .reminderGrid,
+  .bossCalendarGrid,
   .reviewMetrics,
   .compareGrid,
   .photoGrid,
+  .drawerStats,
   .badgeGrid {
     grid-template-columns: 1fr;
   }

@@ -6,13 +6,20 @@ import {
   PERSONAL_DAILY_QUESTS,
   PERSONAL_QUEST_PHOTO_BUCKET,
   buildPersonalQuestBossForecast,
+  buildPersonalQuestBossCalendar,
   buildPersonalQuestCombos,
+  buildPersonalQuestAchievementDetails,
+  buildPersonalQuestDailyRecap,
+  buildPersonalQuestFinale,
   buildPersonalQuestGamePlan,
   buildPersonalQuestHeatmap,
   buildPersonalQuestLoadouts,
+  buildPersonalQuestMomentum,
+  buildPersonalQuestReminders,
   buildPersonalQuestSeasonMap,
   buildPersonalQuestStats,
   buildPersonalQuestTrendCards,
+  buildPersonalQuestWaistTrend,
   buildQuestFeedback,
   buildSmartQuestRecommendation,
   buildStreakFreezeStatus,
@@ -28,6 +35,7 @@ import {
   type PersonalQuestId,
   type PersonalQuestMode,
   type PersonalQuestDefinition,
+  type PersonalQuestAchievementDetail,
   type PersonalStreakFreeze,
   type ProgressPhoto,
   type ProgressPhotoType,
@@ -96,6 +104,7 @@ export default function MyQuestClient() {
   const [uploadingType, setUploadingType] = useState<ProgressPhotoType | ''>('')
   const [compareType, setCompareType] = useState<ProgressPhotoType>('front')
   const [compareMode, setCompareMode] = useState<PhotoCompareMode>('latest_previous')
+  const [selectedAchievementId, setSelectedAchievementId] = useState('')
   const [celebration, setCelebration] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -147,12 +156,44 @@ export default function MyQuestClient() {
     () => buildPersonalQuestSeasonMap(stats.totalXp),
     [stats.totalXp],
   )
+  const dailyRecap = useMemo(
+    () => buildPersonalQuestDailyRecap({ completions, logs, freezes: streakFreezes, today, weekStart }),
+    [completions, logs, streakFreezes, today, weekStart],
+  )
+  const momentum = useMemo(
+    () => buildPersonalQuestMomentum({ completions, freezes: streakFreezes, today }),
+    [completions, streakFreezes, today],
+  )
+  const reminders = useMemo(
+    () => buildPersonalQuestReminders({ completions, today, isSunday }),
+    [completions, isSunday, today],
+  )
+  const waistTrend = useMemo(
+    () => buildPersonalQuestWaistTrend(measurements),
+    [measurements],
+  )
+  const finale = useMemo(
+    () => buildPersonalQuestFinale(stats.totalXp),
+    [stats.totalXp],
+  )
+  const achievementDetails = useMemo(
+    () => buildPersonalQuestAchievementDetails(stats.achievements),
+    [stats.achievements],
+  )
+  const selectedAchievement = useMemo(
+    () => achievementDetails.find((achievement) => achievement.id === selectedAchievementId) ?? null,
+    [achievementDetails, selectedAchievementId],
+  )
   const trendCards = useMemo(
     () => buildPersonalQuestTrendCards({ completions, logs, measurements, today, weekStart }),
     [completions, logs, measurements, today, weekStart],
   )
   const bossForecast = useMemo(
     () => buildPersonalQuestBossForecast({ completions, logs, today, weekStart }),
+    [completions, logs, today, weekStart],
+  )
+  const bossCalendar = useMemo(
+    () => buildPersonalQuestBossCalendar({ completions, logs, today, weekStart }),
     [completions, logs, today, weekStart],
   )
   const bossStrategy = useMemo(
@@ -730,6 +771,7 @@ export default function MyQuestClient() {
           <div className={styles.heroActions}>
             <a href="#today-quests">Today</a>
             <a href="#season-map">Season</a>
+            <a href="#momentum">Momentum</a>
             <a href="#trend-strip">Trends</a>
             <a href="#weekly-review">Review</a>
             <a href="#photo-compare">Photos</a>
@@ -753,7 +795,7 @@ export default function MyQuestClient() {
         <MetricTile label="XP Total" value={stats.totalXp.toLocaleString()} hint={stats.level.title} />
         <MetricTile label="Current Streak" value={`${stats.currentStreak}`} hint="days" accent="fire" />
         <MetricTile label="Weekly Score" value={`${stats.weeklyXp.toLocaleString()}`} hint={`${stats.weeklyQuestXp} quest + ${bossBonus} bonus XP`} />
-        <MetricTile label="Next Milestone" value={stats.nextMilestone} hint="target" compact />
+        <MetricTile label="Momentum" value={`${momentum.score}`} hint={momentum.label} compact />
       </div>
 
       {error ? <div className={styles.errorNotice}>{error}</div> : null}
@@ -798,6 +840,31 @@ export default function MyQuestClient() {
         </div>
       </section>
 
+      <section id="momentum" className={styles.momentumPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Momentum Score</p>
+            <h2>{momentum.score}/100 · {momentum.label}</h2>
+          </div>
+          <span className={styles.scorePill}>{momentum.trend}</span>
+        </div>
+        <div className={styles.momentumLayout}>
+          <div className={styles.momentumMeter}>
+            <strong>{momentum.score}</strong>
+            <span>{momentum.detail}</span>
+            <ProgressBar value={momentum.score} label={`${momentum.score}% momentum`} />
+          </div>
+          <div className={styles.momentumDays}>
+            {momentum.days.map((day) => (
+              <div key={day.date} className={styles.momentumDay}>
+                <span style={{ height: `${Math.max(8, day.score)}%` }} />
+                <small>{day.label}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section id="season-map" className={styles.seasonPanel}>
         <div className={styles.sectionHeader}>
           <div>
@@ -814,6 +881,50 @@ export default function MyQuestClient() {
               <ProgressBar value={node.progress} label={node.status} />
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className={styles.recapPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Daily Recap</p>
+            <h2>{dailyRecap.title}</h2>
+          </div>
+          <span className={styles.scorePill}>{dailyRecap.xp} XP</span>
+        </div>
+        <div className={styles.recapGrid}>
+          <div className={styles.recapCard}>
+            <span>Board</span>
+            <strong>{dailyRecap.completedCount}/{dailyRecap.totalCount}</strong>
+            <small>{dailyRecap.streakStatus}</small>
+          </div>
+          <div className={styles.recapCard}>
+            <span>Boss misses</span>
+            <strong>{dailyRecap.bossMisses.length ? dailyRecap.bossMisses[0] : 'None'}</strong>
+            <small>{dailyRecap.bossMisses[1] ?? 'No extra pressure.'}</small>
+          </div>
+          <div className={styles.recapCard}>
+            <span>Tomorrow</span>
+            <strong>{dailyRecap.tomorrow}</strong>
+            <small>Next open.</small>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.finalePanel} data-unlocked={finale.unlocked ? 'true' : 'false'}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Season 1 Finale</p>
+            <h2>{finale.title}</h2>
+          </div>
+          <span className={styles.scorePill}>{finale.badge}</span>
+        </div>
+        <div className={styles.finaleBody}>
+          <div>
+            <strong>{finale.detail}</strong>
+            <p>{finale.challenge}</p>
+          </div>
+          <ProgressBar value={finale.progress} label={`${finale.progress}% finale progress`} />
         </div>
       </section>
 
@@ -863,6 +974,9 @@ export default function MyQuestClient() {
           </button>
           <button type="button" data-active={mode === 'evening' ? 'true' : 'false'} onClick={() => setMode('evening')}>
             Evening
+          </button>
+          <button type="button" data-active={mode === 'recovery' ? 'true' : 'false'} onClick={() => setMode('recovery')}>
+            Recovery
           </button>
         </div>
         <div className={styles.smartQuestCard}>
@@ -933,6 +1047,15 @@ export default function MyQuestClient() {
           <button type="button" className={styles.primaryButton} onClick={() => void saveWeeklyRule()} disabled={savingRule}>
             {savingRule ? 'Saving rule' : 'Lock rule'}
           </button>
+        </div>
+        <div className={styles.reminderGrid}>
+          {reminders.map((reminder) => (
+            <div key={reminder.id} className={styles.reminderCard} data-active={reminder.active ? 'true' : 'false'}>
+              <span>{reminder.time}</span>
+              <strong>{reminder.title}</strong>
+              <small>{reminder.detail}</small>
+            </div>
+          ))}
         </div>
         <ProgressBar value={Math.round((todayCompletedCount / PERSONAL_DAILY_QUESTS.length) * 100)} label={`${todayRemainingCount} quests left`} />
         <div className={styles.todayQuickGrid}>
@@ -1039,6 +1162,22 @@ export default function MyQuestClient() {
           <button type="button" className={styles.primaryButton} onClick={() => void saveDailyTrackers()} disabled={savingTracker}>
             {savingTracker ? 'Saving' : 'Save daily log'}
           </button>
+          <div className={styles.waistTrendCard}>
+            <div className={styles.waistTrendHeader}>
+              <div>
+                <span>Waist trend</span>
+                <strong>{waistTrend.latest === null ? 'Baseline' : `${waistTrend.latest}"`}</strong>
+              </div>
+              <small>{waistTrend.label}</small>
+            </div>
+            <div className={styles.waistChart} aria-label="Waist trend mini chart">
+              {waistTrend.points.length ? waistTrend.points.map((point) => (
+                <span key={point.date} title={`${point.date}: ${point.value}"`} style={{ height: `${Math.max(8, point.progress)}%` }} />
+              )) : (
+                <em>Add weekly waist measurement.</em>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1070,6 +1209,16 @@ export default function MyQuestClient() {
               <strong>{forecast.headline}</strong>
               <small>{forecast.detail}</small>
               <ProgressBar value={forecast.progress} label={forecast.status.replace('-', ' ')} />
+            </div>
+          ))}
+        </div>
+        <div className={styles.bossCalendarGrid}>
+          {bossCalendar.map((item) => (
+            <div key={item.key} className={styles.bossCalendarCard} data-tone={item.tone}>
+              <span>{item.title}</span>
+              <strong>{item.headline}</strong>
+              <small>{item.detail}</small>
+              <ProgressBar value={item.progress} label={`${item.progress}% boss pace`} />
             </div>
           ))}
         </div>
@@ -1187,16 +1336,59 @@ export default function MyQuestClient() {
           </span>
         </div>
         <div className={styles.badgeGrid}>
-          {stats.achievements.map((achievement) => (
-            <div key={achievement.id} className={`${styles.badgeCard} ${achievement.unlocked ? styles.badgeUnlocked : ''}`}>
+          {achievementDetails.map((achievement) => (
+            <button
+              key={achievement.id}
+              type="button"
+              className={`${styles.badgeCard} ${achievement.unlocked ? styles.badgeUnlocked : ''}`}
+              onClick={() => setSelectedAchievementId(achievement.id)}
+            >
               <span className={styles.badgeIcon}>{achievement.unlocked ? '*' : '-'}</span>
               <strong>{achievement.title}</strong>
               <ProgressBar value={Math.min(100, Math.round((achievement.progress / achievement.target) * 100))} label={`${achievement.progress}/${achievement.target}`} />
-            </div>
+            </button>
           ))}
         </div>
       </section>
+
+      {selectedAchievement ? (
+        <AchievementDetailDrawer achievement={selectedAchievement} onClose={() => setSelectedAchievementId('')} />
+      ) : null}
     </section>
+  )
+}
+
+function AchievementDetailDrawer({
+  achievement,
+  onClose,
+}: {
+  achievement: PersonalQuestAchievementDetail
+  onClose: () => void
+}) {
+  const progress = Math.min(100, Math.round((achievement.progress / achievement.target) * 100))
+  return (
+    <div className={styles.drawerOverlay} role="dialog" aria-modal="true" aria-label={`${achievement.title} achievement detail`}>
+      <div className={styles.achievementDrawer}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Achievement Detail</p>
+            <h2>{achievement.title}</h2>
+          </div>
+          <button type="button" className={styles.iconButton} onClick={onClose} aria-label="Close achievement detail">
+            X
+          </button>
+        </div>
+        <div className={styles.drawerStats}>
+          <MetricTile label="Progress" value={`${achievement.progress}/${achievement.target}`} hint={`${progress}%`} compact />
+          <MetricTile label="Remaining" value={`${achievement.remaining}`} hint={achievement.unlocked ? 'unlocked' : 'to unlock'} compact />
+        </div>
+        <ProgressBar value={progress} label={`${progress}% complete`} />
+        <div className={styles.drawerPath}>
+          <span>Fastest path</span>
+          <strong>{achievement.fastestPath}</strong>
+        </div>
+      </div>
+    </div>
   )
 }
 
