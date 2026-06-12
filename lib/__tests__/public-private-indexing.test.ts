@@ -8,6 +8,7 @@ const siteNavigationSource = readFileSync(join(process.cwd(), 'lib/site-navigati
 const productStorySource = readFileSync(join(process.cwd(), 'lib/product-story.ts'), 'utf8')
 const myQuestPageSource = readFileSync(join(process.cwd(), 'app/level-up/my-quest/page.tsx'), 'utf8')
 const myQuestClientSource = readFileSync(join(process.cwd(), 'app/level-up/my-quest/my-quest-client.tsx'), 'utf8')
+const levelUpIdentityPageSource = readFileSync(join(process.cwd(), 'app/level-up/[identity]/page.tsx'), 'utf8')
 const previewHomePage = readFileSync(join(process.cwd(), 'app/preview-home/page.tsx'), 'utf8')
 const noindexRouteFiles = [
   'app/admin/layout.tsx',
@@ -69,6 +70,8 @@ describe('public and private indexing boundaries', () => {
     expect(siteNavigationSource).not.toContain('/level-up/my-quest')
     expect(productStorySource).not.toContain('/level-up/my-quest')
     expect(productStorySource).not.toContain('Operation Visible Abs')
+    expect(levelUpIdentityPageSource).toContain('getPublicLevelUpIdentity')
+    expect(levelUpIdentityPageSource).toContain('notFound()')
   })
 
   it('shows Not Found instead of private quest content to unauthorized visitors', () => {
