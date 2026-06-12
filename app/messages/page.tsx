@@ -635,6 +635,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [scheduleActionSaving, setScheduleActionSaving] = useState('')
   const [calendarQuickAddSaving, setCalendarQuickAddSaving] = useState('')
   const [calendarQuickAddedItemIds, setCalendarQuickAddedItemIds] = useState<Set<string>>(() => new Set())
+  const [highlightedCalendarCueTargetId, setHighlightedCalendarCueTargetId] = useState('')
   const [scheduleEditOpen, setScheduleEditOpen] = useState(false)
   const [scheduleDraftDate, setScheduleDraftDate] = useState('')
   const [scheduleDraftTime, setScheduleDraftTime] = useState('')
@@ -1647,6 +1648,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       behavior: 'smooth',
       block: 'center',
     })
+    setHighlightedCalendarCueTargetId(selectedThreadCalendarCue.targetId)
+    window.setTimeout(() => {
+      setHighlightedCalendarCueTargetId((current) => current === selectedThreadCalendarCue.targetId ? '' : current)
+    }, 1800)
   }
 
   if (!authResolved || loading) {
@@ -1982,7 +1987,13 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               <p style={copyStyle}>Checking schedule details...</p>
             </div>
           ) : scheduleEvents.length ? (
-            <div id="message-schedule-panel" style={schedulePanelStyle}>
+            <div
+              id="message-schedule-panel"
+              style={{
+                ...schedulePanelStyle,
+                ...(highlightedCalendarCueTargetId === 'message-schedule-panel' ? highlightedCalendarCueStyle : {}),
+              }}
+            >
               <div style={schedulePanelHeaderStyle}>
                 <div>
                   <div style={labelStyle}>Schedule</div>
@@ -2133,7 +2144,13 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     <div style={messageBubbleStyle(mine)}>
                       <p>{item.body}</p>
                       {messageCalendarCandidate ? (
-                        <div id={`message-calendar-cue-${item.id}`} style={messageCalendarActionStyle}>
+                        <div
+                          id={`message-calendar-cue-${item.id}`}
+                          style={{
+                            ...messageCalendarActionStyle,
+                            ...(highlightedCalendarCueTargetId === `message-calendar-cue-${item.id}` ? highlightedCalendarCueStyle : {}),
+                          }}
+                        >
                           <span>
                             {messageCalendarCandidate.date}{messageCalendarCandidate.time ? ` ${messageCalendarCandidate.time}` : ''}
                             {messageCalendarCandidate.location ? ` - ${messageCalendarCandidate.location}` : ''}
@@ -3296,6 +3313,11 @@ const messageCalendarActionStyle: CSSProperties = {
   fontWeight: 850,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const highlightedCalendarCueStyle: CSSProperties = {
+  outline: '2px solid color-mix(in srgb, var(--brand-lime) 72%, white 28%)',
+  boxShadow: '0 0 0 5px color-mix(in srgb, var(--brand-lime) 16%, transparent 84%)',
 }
 
 const calendarFollowThroughStyle: CSSProperties = {

@@ -34,6 +34,8 @@ describe('calendar scheduling UX', () => {
     expect(messagesSource).toContain('cues in thread')
     expect(messagesSource).toContain('scrollToSelectedThreadCalendarCue')
     expect(messagesSource).toContain('scrollIntoView')
+    expect(messagesSource).toContain('highlightedCalendarCueTargetId')
+    expect(messagesSource).toContain('highlightedCalendarCueStyle')
     expect(messagesSource).toContain('message-calendar-cue-')
     expect(messagesSource).toContain('message-schedule-panel')
     expect(messagesSource).toContain('Show cue')

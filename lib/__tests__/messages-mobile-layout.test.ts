@@ -149,6 +149,7 @@ describe('Messages mobile layout guards', () => {
     expect(source).toContain('calendarCueSummaryStyle')
     expect(source).toContain('selectedThreadCalendarCueActionStyle')
     expect(source).toContain('Show cue')
+    expect(source).toContain('highlightedCalendarCueStyle')
     expect(source).toContain('savedCalendarPillStyle')
     expect(source).toContain('conversationMatchesThreadSearch')
     expect(source).toContain('const [threadSearch, setThreadSearch] = useState')
