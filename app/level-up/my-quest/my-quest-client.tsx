@@ -5,6 +5,8 @@ import { useAuth } from '@/app/components/auth-provider'
 import {
   PERSONAL_DAILY_QUESTS,
   PERSONAL_QUEST_PHOTO_BUCKET,
+  buildPersonalQuestBossForecast,
+  buildPersonalQuestCombos,
   buildPersonalQuestHeatmap,
   buildPersonalQuestStats,
   buildPersonalQuestTrendCards,
@@ -18,6 +20,7 @@ import {
   type DailyLog,
   type DailyQuestCompletion,
   type Measurement,
+  type PersonalQuestId,
   type PersonalQuestMode,
   type PersonalQuestDefinition,
   type ProgressPhoto,
@@ -37,6 +40,21 @@ const PHOTO_TYPES: Array<{ id: ProgressPhotoType; label: string }> = [
   { id: 'front', label: 'Front' },
   { id: 'side', label: 'Side' },
   { id: 'flex', label: 'Flex' },
+]
+
+const QUEST_STACKS: Array<{ id: string; label: string; hint: string; questIds: PersonalQuestId[] }> = [
+  {
+    id: 'morning_stack',
+    label: 'Morning Stack',
+    hint: 'Breakfast, creamer, water',
+    questIds: ['protein_breakfast', 'creamer_goal', 'water_80_oz'],
+  },
+  {
+    id: 'evening_close',
+    label: 'Evening Close',
+    hint: 'Core, IPA limit, kitchen closed',
+    questIds: ['core_workout', 'alcohol_limit', 'no_food_after_8'],
+  },
 ]
 
 export default function MyQuestClient() {
@@ -59,6 +77,7 @@ export default function MyQuestClient() {
   const [savingReview, setSavingReview] = useState(false)
   const [savingRule, setSavingRule] = useState(false)
   const [pendingQuest, setPendingQuest] = useState('')
+  const [pendingStack, setPendingStack] = useState('')
   const [uploadingType, setUploadingType] = useState<ProgressPhotoType | ''>('')
   const [compareType, setCompareType] = useState<ProgressPhotoType>('front')
   const [celebration, setCelebration] = useState('')
@@ -103,6 +122,14 @@ export default function MyQuestClient() {
   const trendCards = useMemo(
     () => buildPersonalQuestTrendCards({ completions, logs, measurements, today, weekStart }),
     [completions, logs, measurements, today, weekStart],
+  )
+  const bossForecast = useMemo(
+    () => buildPersonalQuestBossForecast({ completions, logs, today, weekStart }),
+    [completions, logs, today, weekStart],
+  )
+  const questCombos = useMemo(
+    () => buildPersonalQuestCombos({ completions, today }),
+    [completions, today],
   )
   const comparePhotos = useMemo(() => {
     const matching = photos.filter((photo) => photo.photo_type === compareType)
@@ -328,6 +355,52 @@ export default function MyQuestClient() {
     }
 
     setPendingQuest('')
+  }
+
+  async function completeQuestStack(stack: { label: string; questIds: PersonalQuestId[] }) {
+    const ownerId = authUser?.id ?? userId
+    if (!ownerId || pendingQuest || pendingStack) return
+
+    const quests = stack.questIds
+      .map((questId) => PERSONAL_DAILY_QUESTS.find((quest) => quest.id === questId))
+      .filter((quest): quest is PersonalQuestDefinition => Boolean(quest))
+      .filter((quest) => !completedToday.has(quest.id))
+
+    if (!quests.length) {
+      setMessage(`${stack.label} already complete.`)
+      return
+    }
+
+    setPendingStack(stack.label)
+    setError('')
+    setMessage('')
+
+    const before = completions
+    const nextCompletions = quests.map((quest) => ({
+      quest_id: quest.id,
+      completed_on: today,
+      xp_awarded: quest.xp,
+    }))
+    setCompletions((current) => [...nextCompletions, ...current])
+
+    const { error: upsertError } = await supabase
+      .from('personal_daily_quest_completions')
+      .upsert(nextCompletions.map((completion) => ({
+        user_id: ownerId,
+        completed_on: completion.completed_on,
+        quest_id: completion.quest_id,
+        xp_awarded: completion.xp_awarded,
+      })), { onConflict: 'user_id,completed_on,quest_id' })
+
+    if (upsertError) {
+      setCompletions(before)
+      setError(upsertError.message)
+    } else {
+      const xp = nextCompletions.reduce((sum, completion) => sum + completion.xp_awarded, 0)
+      setMessage(`${stack.label} complete. +${xp} XP.`)
+    }
+
+    setPendingStack('')
   }
 
   async function saveDailyTrackers(nextIpaInput = ipaInput, nextNotesInput = notesInput) {
@@ -650,6 +723,31 @@ export default function MyQuestClient() {
             </button>
           ) : null}
         </div>
+        <div className={styles.stackGrid}>
+          {QUEST_STACKS.map((stack) => (
+            <button
+              key={stack.id}
+              type="button"
+              className={styles.stackButton}
+              onClick={() => void completeQuestStack(stack)}
+              disabled={Boolean(pendingStack || pendingQuest)}
+            >
+              <strong>{pendingStack === stack.label ? 'Completing' : stack.label}</strong>
+              <span>{stack.hint}</span>
+            </button>
+          ))}
+        </div>
+        <div className={styles.comboGrid}>
+          {questCombos.map((combo) => (
+            <div key={combo.id} className={styles.comboCard} data-complete={combo.completed ? 'true' : 'false'}>
+              <div>
+                <strong>{combo.title}</strong>
+                <span>{combo.detail}</span>
+              </div>
+              <ProgressBar value={combo.progress} label={combo.completed ? 'Combo locked' : `${combo.progress}% combo`} />
+            </div>
+          ))}
+        </div>
         <div className={styles.weeklyRuleCard}>
           <label className={styles.field}>
             <span>Today&apos;s rule</span>
@@ -782,6 +880,16 @@ export default function MyQuestClient() {
             <h2>Week of {weekStart}</h2>
           </div>
           <span className={styles.scorePill}>Bonus +{bossBonus} XP</span>
+        </div>
+        <div className={styles.forecastGrid}>
+          {bossForecast.map((forecast) => (
+            <div key={forecast.key} className={styles.forecastCard} data-status={forecast.status}>
+              <span>{forecast.title}</span>
+              <strong>{forecast.headline}</strong>
+              <small>{forecast.detail}</small>
+              <ProgressBar value={forecast.progress} label={forecast.status.replace('-', ' ')} />
+            </div>
+          ))}
         </div>
         <div className={styles.bossGrid}>
           {stats.bosses.map((boss) => (

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   PERSONAL_DAILY_QUESTS,
   buildPersonalQuestHeatmap,
+  buildPersonalQuestBossForecast,
+  buildPersonalQuestCombos,
   buildPersonalQuestStats,
   buildPersonalQuestTrendCards,
   buildQuestFeedback,
@@ -104,6 +106,29 @@ describe('personal quest daily helpers', () => {
     ])
     expect(cards.find((card) => card.label === 'Waist trend')?.detail).toBe('-0.5')
     expect(cards.find((card) => card.label === 'Best habit')?.value).toBe('Water goal')
+  })
+
+  it('forecasts weekly boss risk and completed combos', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-12', xp_awarded: 15 },
+      { quest_id: 'creamer_goal', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'water_80_oz', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'alcohol_limit', completed_on: '2026-06-12', xp_awarded: 15 },
+      { quest_id: 'no_food_after_8', completed_on: '2026-06-12', xp_awarded: 10 },
+    ]
+    const logs: DailyLog[] = [{ log_date: '2026-06-12', ipa_count: 7, notes: '' }]
+
+    const forecast = buildPersonalQuestBossForecast({
+      completions,
+      logs,
+      today: '2026-06-12',
+      weekStart: '2026-06-07',
+    })
+    const combos = buildPersonalQuestCombos({ completions, today: '2026-06-12' })
+
+    expect(forecast).toContainEqual(expect.objectContaining({ key: 'ipa', status: 'at-risk' }))
+    expect(combos).toContainEqual(expect.objectContaining({ id: 'clean_lunch_stack', completed: true }))
+    expect(combos).toContainEqual(expect.objectContaining({ id: 'evening_lockdown', completed: true }))
   })
 })
 

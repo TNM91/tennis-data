@@ -133,6 +133,23 @@ export type PersonalQuestTrendCard = {
   tone: 'green' | 'blue' | 'amber'
 }
 
+export type PersonalQuestBossForecast = {
+  key: WeeklyBossKey
+  title: string
+  status: 'on-track' | 'needs-action' | 'at-risk' | 'complete'
+  headline: string
+  detail: string
+  progress: number
+}
+
+export type PersonalQuestCombo = {
+  id: string
+  title: string
+  detail: string
+  completed: boolean
+  progress: number
+}
+
 export type WeeklyBossProgress = {
   key: WeeklyBossKey
   title: string
@@ -425,6 +442,119 @@ export function buildPersonalQuestTrendCards(input: {
       tone: weakest && weakest.current <= 1 ? 'amber' : 'blue',
     },
   ]
+}
+
+export function buildPersonalQuestBossForecast(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  today: string
+  weekStart: string
+}): PersonalQuestBossForecast[] {
+  const weekEnd = getWeekEndKey(input.weekStart)
+  const daysLeft = Math.max(0, Math.ceil((parseDateKey(weekEnd).getTime() - parseDateKey(input.today).getTime()) / DAY_MS))
+  const weeklyCompletions = input.completions.filter((item) => item.completed_on >= input.weekStart && item.completed_on <= weekEnd)
+  const ipaCount = sumIpas(input.logs, input.weekStart, weekEnd)
+  const lunchDays = countQuestDays(weeklyCompletions, 'no_chips_lunch')
+  const creamerDays = countQuestDays(weeklyCompletions, 'creamer_goal')
+  const waterDays = countQuestDays(weeklyCompletions, 'water_80_oz')
+
+  return [
+    buildIpaForecast(ipaCount, daysLeft),
+    buildCountForecast('lunch', 'Lunch Boss', lunchDays, 5, daysLeft, 'chip-free lunches'),
+    buildCountForecast('creamer', 'Creamer Boss', creamerDays, 5, daysLeft, 'creamer days'),
+    buildCountForecast('water', 'Water Boss', waterDays, 5, daysLeft, 'water days'),
+  ]
+}
+
+export function buildPersonalQuestCombos(input: {
+  completions: DailyQuestCompletion[]
+  today: string
+}): PersonalQuestCombo[] {
+  const completedToday = new Set(input.completions.filter((item) => item.completed_on === input.today).map((item) => item.quest_id))
+  const combos: Array<{ id: string; title: string; detail: string; questIds: PersonalQuestId[] }> = [
+    {
+      id: 'clean_lunch_stack',
+      title: 'Clean Lunch Stack',
+      detail: 'Chip-free lunch, creamer goal, and water goal.',
+      questIds: ['no_chips_lunch', 'creamer_goal', 'water_80_oz'],
+    },
+    {
+      id: 'court_core_stack',
+      title: 'Court + Core Stack',
+      detail: 'Movement plus core workout.',
+      questIds: ['activity_20_min', 'core_workout'],
+    },
+    {
+      id: 'evening_lockdown',
+      title: 'Evening Lockdown',
+      detail: 'IPA limit and kitchen closed.',
+      questIds: ['alcohol_limit', 'no_food_after_8'],
+    },
+  ]
+
+  return combos.map((combo) => {
+    const completeCount = combo.questIds.filter((id) => completedToday.has(id)).length
+    return {
+      id: combo.id,
+      title: combo.title,
+      detail: combo.detail,
+      completed: completeCount === combo.questIds.length,
+      progress: Math.round((completeCount / combo.questIds.length) * 100),
+    }
+  })
+}
+
+function buildIpaForecast(ipaCount: number, daysLeft: number): PersonalQuestBossForecast {
+  const remaining = 6 - ipaCount
+  if (remaining < 0) {
+    return {
+      key: 'ipa',
+      title: 'IPA Boss',
+      status: 'at-risk',
+      headline: `${Math.abs(remaining)} over goal`,
+      detail: 'No more damage control XP this week.',
+      progress: 0,
+    }
+  }
+
+  return {
+    key: 'ipa',
+    title: 'IPA Boss',
+    status: remaining >= Math.max(1, daysLeft) ? 'on-track' : 'needs-action',
+    headline: `${remaining} IPAs left`,
+    detail: daysLeft ? `${daysLeft} days left in the week.` : 'Week ends tonight.',
+    progress: Math.max(0, Math.min(100, Math.round((remaining / 6) * 100))),
+  }
+}
+
+function buildCountForecast(
+  key: WeeklyBossKey,
+  title: string,
+  value: number,
+  target: number,
+  daysLeft: number,
+  unit: string,
+): PersonalQuestBossForecast {
+  const remaining = Math.max(0, target - value)
+  if (remaining === 0) {
+    return {
+      key,
+      title,
+      status: 'complete',
+      headline: 'Boss cleared',
+      detail: `${value}/${target} ${unit}.`,
+      progress: 100,
+    }
+  }
+
+  return {
+    key,
+    title,
+    status: remaining > daysLeft + 1 ? 'at-risk' : remaining > daysLeft ? 'needs-action' : 'on-track',
+    headline: `${remaining} needed`,
+    detail: `${value}/${target} ${unit}; ${daysLeft ? `${daysLeft} days left` : 'week ends tonight'}.`,
+    progress: Math.min(100, Math.round((value / target) * 100)),
+  }
 }
 
 function sumIpas(logs: DailyLog[], start: string, end: string) {

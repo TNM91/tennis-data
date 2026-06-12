@@ -399,6 +399,95 @@
   align-items: end;
 }
 
+.stackGrid,
+.comboGrid,
+.forecastGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.stackGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.comboGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.forecastGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.stackButton {
+  min-height: 72px;
+  display: grid;
+  gap: 5px;
+  align-content: center;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 34%, transparent);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(var(--brand-green-rgb), 0.16), transparent 44%),
+    linear-gradient(145deg, rgba(17, 39, 73, 0.78), rgba(9, 21, 42, 0.95));
+  color: var(--foreground-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.stackButton:disabled {
+  cursor: wait;
+  opacity: 0.74;
+}
+
+.stackButton strong,
+.comboCard strong,
+.forecastCard strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.stackButton span,
+.comboCard span,
+.forecastCard span,
+.forecastCard small {
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.comboCard,
+.forecastCard {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.comboCard[data-complete='true'],
+.forecastCard[data-status='complete'],
+.forecastCard[data-status='on-track'] {
+  border-color: color-mix(in srgb, var(--brand-green) 44%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.forecastCard[data-status='needs-action'] {
+  border-color: rgba(255, 205, 94, 0.34);
+}
+
+.forecastCard[data-status='at-risk'] {
+  border-color: rgba(255, 120, 92, 0.38);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(255, 120, 92, 0.12), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
 .metricTile {
   min-width: 0;
   min-height: 124px;
@@ -967,7 +1056,9 @@
   }
 
   .smartQuestCard,
-  .weeklyRuleCard {
+  .weeklyRuleCard,
+  .comboGrid,
+  .forecastGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1009,6 +1100,7 @@
 
   .questGrid,
   .todayQuickGrid,
+  .stackGrid,
   .reviewMetrics,
   .compareGrid,
   .photoGrid,
