@@ -1652,10 +1652,12 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
   function scrollToSelectedThreadCalendarCue() {
     if (!selectedThreadCalendarCue || typeof document === 'undefined') return
-    document.getElementById(selectedThreadCalendarCue.targetId)?.scrollIntoView({
+    const target = document.getElementById(selectedThreadCalendarCue.targetId)
+    target?.scrollIntoView({
       behavior: 'smooth',
       block: 'center',
     })
+    target?.focus({ preventScroll: true })
     setHighlightedCalendarCueTargetId(selectedThreadCalendarCue.targetId)
     window.setTimeout(() => {
       setHighlightedCalendarCueTargetId((current) => current === selectedThreadCalendarCue.targetId ? '' : current)
@@ -2001,6 +2003,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           ) : scheduleEvents.length ? (
             <div
               id="message-schedule-panel"
+              tabIndex={-1}
               style={{
                 ...schedulePanelStyle,
                 ...(highlightedCalendarCueTargetId === 'message-schedule-panel' ? highlightedCalendarCueStyle : {}),
@@ -2158,6 +2161,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                       {messageCalendarCandidate ? (
                         <div
                           id={`message-calendar-cue-${item.id}`}
+                          tabIndex={-1}
                           style={{
                             ...messageCalendarActionStyle,
                             ...(highlightedCalendarCueTargetId === `message-calendar-cue-${item.id}` ? highlightedCalendarCueStyle : {}),

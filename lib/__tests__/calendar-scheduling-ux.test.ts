@@ -37,6 +37,8 @@ describe('calendar scheduling UX', () => {
     expect(messagesSource).toContain('All cues saved')
     expect(messagesSource).toContain('scrollToSelectedThreadCalendarCue')
     expect(messagesSource).toContain('scrollIntoView')
+    expect(messagesSource).toContain('focus({ preventScroll: true })')
+    expect(messagesSource).toContain('tabIndex={-1}')
     expect(messagesSource).toContain('highlightedCalendarCueTargetId')
     expect(messagesSource).toContain('highlightedCalendarCueStyle')
     expect(messagesSource).toContain('message-calendar-cue-')
