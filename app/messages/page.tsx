@@ -1895,6 +1895,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   {selectedThreadCalendarCue.detail ? ` | ${selectedThreadCalendarCue.detail}` : ''}
                   {selectedThreadCalendarCue.cueCount > 1 ? ` | ${selectedThreadCalendarCue.cueCount} cues in thread` : ''}
                   {selectedThreadCalendarCue.unsavedCueCount > 0 ? ` | ${selectedThreadCalendarCue.unsavedCueCount} still unsaved` : ''}
+                  {selectedThreadCalendarCue.cueCount > 1 && selectedThreadCalendarCue.unsavedCueCount === 0 ? ' | All cues saved' : ''}
                 </p>
               </div>
               <div style={selectedThreadCalendarCueActionStyle}>
@@ -1921,7 +1922,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                       : 'Remove'
                     : calendarQuickAddSaving === selectedThreadCalendarCue.sourceId
                       ? 'Adding...'
-                      : 'Save to My Calendar'}
+                      : selectedThreadCalendarCue.unsavedCueCount > 1
+                        ? 'Save next cue'
+                        : 'Save to My Calendar'}
                 </button>
               </div>
             </div>
