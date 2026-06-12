@@ -125,6 +125,8 @@
 }
 
 .levelPanel,
+.gamePlanPanel,
+.seasonPanel,
 .todayCommand,
 .questPanel,
 .trackerPanel,
@@ -147,6 +149,13 @@
   gap: 14px;
   border-radius: 18px;
   padding: 18px;
+}
+
+.gamePlanPanel,
+.seasonPanel {
+  margin-top: 14px;
+  border-radius: 22px;
+  padding: clamp(16px, 3vw, 22px);
 }
 
 .levelTopline,
@@ -192,6 +201,126 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
+}
+
+.planGrid,
+.seasonMap,
+.loadoutGrid,
+.strategyGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.planGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.seasonMap {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.loadoutGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.strategyGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.planCard,
+.seasonNode,
+.loadoutCard,
+.strategyCard {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.planCard {
+  min-height: 118px;
+  align-content: center;
+}
+
+.seasonNode {
+  min-height: 126px;
+  align-content: center;
+}
+
+.loadoutCard {
+  appearance: none;
+  min-height: 166px;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.loadoutCard:disabled {
+  cursor: wait;
+  opacity: 0.74;
+}
+
+.seasonNode[data-status='cleared'],
+.seasonNode[data-status='current'],
+.loadoutCard[data-recommended='true'],
+.loadoutCard[data-complete='true'],
+.strategyCard[data-tone='green'] {
+  border-color: color-mix(in srgb, var(--brand-green) 44%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.seasonNode[data-status='locked'] {
+  opacity: 0.68;
+}
+
+.strategyCard[data-tone='amber'] {
+  border-color: rgba(255, 205, 94, 0.34);
+}
+
+.strategyCard[data-tone='red'] {
+  border-color: rgba(255, 120, 92, 0.38);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(255, 120, 92, 0.12), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.planCard span,
+.seasonNode span,
+.loadoutCard span,
+.strategyCard span {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.planCard strong,
+.seasonNode strong,
+.loadoutCard strong,
+.strategyCard strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.planCard strong {
+  font-size: 1.08rem;
+}
+
+.loadoutCard small,
+.strategyCard small {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .trendCard {
@@ -344,7 +473,8 @@
 }
 
 .modeToggle button,
-.compareTabs button {
+.compareTabs button,
+.compareModeTabs button {
   min-height: 44px;
   border: 0;
   border-radius: 12px;
@@ -355,7 +485,8 @@
 }
 
 .modeToggle button[data-active='true'],
-.compareTabs button[data-active='true'] {
+.compareTabs button[data-active='true'],
+.compareModeTabs button[data-active='true'] {
   background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.22), rgba(24, 54, 34, 0.92));
   color: var(--foreground-strong);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -635,6 +766,44 @@
   font-weight: 900;
 }
 
+.freezeCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.28fr);
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.freezeCard[data-active='true'] {
+  border-color: color-mix(in srgb, var(--brand-green) 44%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.freezeCard span,
+.freezeCard small {
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.freezeCard span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.freezeCard strong {
+  display: block;
+  margin: 5px 0;
+  color: var(--foreground-strong);
+  font-weight: 950;
+}
+
 .questCard {
   appearance: none;
   min-height: 86px;
@@ -900,7 +1069,8 @@
   background: rgba(2, 10, 24, 0.28);
 }
 
-.compareTabs {
+.compareTabs,
+.compareModeTabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
@@ -1049,14 +1219,19 @@
   .hero,
   .sectionGrid,
   .statGrid,
+  .planGrid,
+  .seasonMap,
   .trendStrip,
+  .loadoutGrid,
   .phonePanel,
+  .strategyGrid,
   .bossGrid {
     grid-template-columns: 1fr;
   }
 
   .smartQuestCard,
   .weeklyRuleCard,
+  .freezeCard,
   .comboGrid,
   .forecastGrid {
     grid-template-columns: 1fr;
@@ -1083,6 +1258,8 @@
   }
 
   .hero,
+  .gamePlanPanel,
+  .seasonPanel,
   .todayCommand,
   .questPanel,
   .trackerPanel,
@@ -1101,6 +1278,7 @@
   .questGrid,
   .todayQuickGrid,
   .stackGrid,
+  .loadoutGrid,
   .reviewMetrics,
   .compareGrid,
   .photoGrid,

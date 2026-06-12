@@ -10,6 +10,10 @@ const weeklyRuleMigrationSource = readFileSync(
   join(process.cwd(), 'supabase/migrations/20260612000200_add_personal_quest_weekly_rule.sql'),
   'utf8',
 )
+const streakFreezeMigrationSource = readFileSync(
+  join(process.cwd(), 'supabase/migrations/20260612000300_create_personal_streak_freezes.sql'),
+  'utf8',
+)
 
 const personalTables = [
   'personal_quest_profiles',
@@ -19,26 +23,29 @@ const personalTables = [
   'personal_progress_photos',
   'personal_achievements',
   'personal_weekly_reviews',
+  'personal_streak_freezes',
 ] as const
 
 describe('personal quest schema privacy contract', () => {
   it('creates every private table with user ownership and RLS enabled', () => {
     for (const table of personalTables) {
-      expect(migrationSource).toContain(`create table if not exists public.${table}`)
-      expect(migrationSource).toContain('user_id uuid')
-      expect(migrationSource).toContain(`alter table public.${table} enable row level security`)
+      const source = table === 'personal_streak_freezes' ? streakFreezeMigrationSource : migrationSource
+      expect(source).toContain(`create table if not exists public.${table}`)
+      expect(source).toContain('user_id uuid')
+      expect(source).toContain(`alter table public.${table} enable row level security`)
     }
   })
 
   it('uses auth.uid ownership policies for every table operation', () => {
     for (const table of personalTables) {
-      expect(migrationSource).toContain(`on public.${table} for select`)
-      expect(migrationSource).toContain(`on public.${table} for insert`)
-      expect(migrationSource).toContain(`on public.${table} for update`)
-      expect(migrationSource).toContain(`on public.${table} for delete`)
+      const source = table === 'personal_streak_freezes' ? streakFreezeMigrationSource : migrationSource
+      expect(source).toContain(`on public.${table} for select`)
+      expect(source).toContain(`on public.${table} for insert`)
+      expect(source).toContain(`on public.${table} for update`)
+      expect(source).toContain(`on public.${table} for delete`)
     }
 
-    expect(migrationSource.match(/auth\.uid\(\) = user_id/g)?.length ?? 0).toBeGreaterThanOrEqual(28)
+    expect(`${migrationSource}\n${streakFreezeMigrationSource}`.match(/auth\.uid\(\) = user_id/g)?.length ?? 0).toBeGreaterThanOrEqual(32)
   })
 
   it('keeps progress photos in a private owner-scoped storage bucket', () => {
@@ -50,7 +57,7 @@ describe('personal quest schema privacy contract', () => {
   })
 
   it('keeps the tracker habit-based without calories or scale weight', () => {
-    const lower = `${migrationSource}\n${weeklyRuleMigrationSource}`.toLowerCase()
+    const lower = `${migrationSource}\n${weeklyRuleMigrationSource}\n${streakFreezeMigrationSource}`.toLowerCase()
     expect(lower).not.toContain('calorie')
     expect(lower).not.toContain('calories')
     expect(lower).not.toContain('body_weight')

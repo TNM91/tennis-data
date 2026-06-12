@@ -7,11 +7,16 @@ import {
   PERSONAL_QUEST_PHOTO_BUCKET,
   buildPersonalQuestBossForecast,
   buildPersonalQuestCombos,
+  buildPersonalQuestGamePlan,
   buildPersonalQuestHeatmap,
+  buildPersonalQuestLoadouts,
+  buildPersonalQuestSeasonMap,
   buildPersonalQuestStats,
   buildPersonalQuestTrendCards,
   buildQuestFeedback,
   buildSmartQuestRecommendation,
+  buildStreakFreezeStatus,
+  buildWeeklyBossStrategy,
   getDefaultPersonalQuestRule,
   getTodayKey,
   getWeekEndKey,
@@ -23,6 +28,7 @@ import {
   type PersonalQuestId,
   type PersonalQuestMode,
   type PersonalQuestDefinition,
+  type PersonalStreakFreeze,
   type ProgressPhoto,
   type ProgressPhotoType,
   type WeeklyReview,
@@ -35,11 +41,18 @@ type PhotoPreview = ProgressPhoto & {
 }
 
 type LoadState = 'checking' | 'loading' | 'ready'
+type PhotoCompareMode = 'latest_previous' | 'first_latest' | 'week_over_week'
 
 const PHOTO_TYPES: Array<{ id: ProgressPhotoType; label: string }> = [
   { id: 'front', label: 'Front' },
   { id: 'side', label: 'Side' },
   { id: 'flex', label: 'Flex' },
+]
+
+const PHOTO_COMPARE_MODES: Array<{ id: PhotoCompareMode; label: string }> = [
+  { id: 'latest_previous', label: 'Latest' },
+  { id: 'first_latest', label: 'First' },
+  { id: 'week_over_week', label: 'Week' },
 ]
 
 const QUEST_STACKS: Array<{ id: string; label: string; hint: string; questIds: PersonalQuestId[] }> = [
@@ -62,6 +75,7 @@ export default function MyQuestClient() {
   const [loadState, setLoadState] = useState<LoadState>('checking')
   const [completions, setCompletions] = useState<DailyQuestCompletion[]>([])
   const [logs, setLogs] = useState<DailyLog[]>([])
+  const [streakFreezes, setStreakFreezes] = useState<PersonalStreakFreeze[]>([])
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [weeklyReview, setWeeklyReview] = useState<WeeklyReview | null>(null)
   const [photos, setPhotos] = useState<PhotoPreview[]>([])
@@ -78,8 +92,10 @@ export default function MyQuestClient() {
   const [savingRule, setSavingRule] = useState(false)
   const [pendingQuest, setPendingQuest] = useState('')
   const [pendingStack, setPendingStack] = useState('')
+  const [pendingFreeze, setPendingFreeze] = useState(false)
   const [uploadingType, setUploadingType] = useState<ProgressPhotoType | ''>('')
   const [compareType, setCompareType] = useState<ProgressPhotoType>('front')
+  const [compareMode, setCompareMode] = useState<PhotoCompareMode>('latest_previous')
   const [celebration, setCelebration] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -93,8 +109,8 @@ export default function MyQuestClient() {
   const isSunday = useMemo(() => new Date(`${today}T00:00:00`).getDay() === 0, [today])
 
   const stats = useMemo(
-    () => buildPersonalQuestStats({ completions, logs, today, weekStart }),
-    [completions, logs, today, weekStart],
+    () => buildPersonalQuestStats({ completions, logs, freezes: streakFreezes, today, weekStart }),
+    [completions, logs, streakFreezes, today, weekStart],
   )
 
   const completedToday = useMemo(
@@ -119,6 +135,18 @@ export default function MyQuestClient() {
     () => buildSmartQuestRecommendation({ completions, logs, today, weekStart, mode }),
     [completions, logs, mode, today, weekStart],
   )
+  const gamePlan = useMemo(
+    () => buildPersonalQuestGamePlan({ completions, logs, today, weekStart, mode }),
+    [completions, logs, mode, today, weekStart],
+  )
+  const loadouts = useMemo(
+    () => buildPersonalQuestLoadouts({ completions, logs, today, weekStart }),
+    [completions, logs, today, weekStart],
+  )
+  const seasonMap = useMemo(
+    () => buildPersonalQuestSeasonMap(stats.totalXp),
+    [stats.totalXp],
+  )
   const trendCards = useMemo(
     () => buildPersonalQuestTrendCards({ completions, logs, measurements, today, weekStart }),
     [completions, logs, measurements, today, weekStart],
@@ -127,17 +155,52 @@ export default function MyQuestClient() {
     () => buildPersonalQuestBossForecast({ completions, logs, today, weekStart }),
     [completions, logs, today, weekStart],
   )
+  const bossStrategy = useMemo(
+    () => buildWeeklyBossStrategy({ forecast: bossForecast }),
+    [bossForecast],
+  )
   const questCombos = useMemo(
     () => buildPersonalQuestCombos({ completions, today }),
     [completions, today],
   )
+  const freezeStatus = useMemo(
+    () => buildStreakFreezeStatus({ completions, freezes: streakFreezes, today }),
+    [completions, streakFreezes, today],
+  )
   const comparePhotos = useMemo(() => {
     const matching = photos.filter((photo) => photo.photo_type === compareType)
-    return {
-      latest: matching[0] ?? null,
-      previous: matching[1] ?? null,
+    const latest = matching[0] ?? null
+    const previous = matching[1] ?? null
+    const first = matching[matching.length - 1] ?? null
+    const weekPrior = latest?.captured_on
+      ? matching.find((photo) => photo.captured_on && daysBetween(photo.captured_on, latest.captured_on ?? today) >= 7) ?? previous
+      : previous
+
+    if (compareMode === 'first_latest') {
+      return {
+        latest,
+        previous: first,
+        latestLabel: 'Latest',
+        previousLabel: 'First',
+      }
     }
-  }, [compareType, photos])
+
+    if (compareMode === 'week_over_week') {
+      return {
+        latest,
+        previous: weekPrior,
+        latestLabel: 'Latest',
+        previousLabel: 'Week prior',
+      }
+    }
+
+    return {
+      latest,
+      previous,
+      latestLabel: 'Latest',
+      previousLabel: 'Previous',
+    }
+  }, [compareMode, compareType, photos, today])
 
   const weeklyIpaCount = useMemo(
     () => logs
@@ -163,6 +226,7 @@ export default function MyQuestClient() {
       profileResult,
       completionResult,
       logResult,
+      freezeResult,
       measurementResult,
       reviewResult,
       photoResult,
@@ -185,6 +249,12 @@ export default function MyQuestClient() {
         .order('log_date', { ascending: false })
         .limit(180),
       supabase
+        .from('personal_streak_freezes')
+        .select('freeze_date, reason')
+        .eq('user_id', ownerId)
+        .order('freeze_date', { ascending: false })
+        .limit(120),
+      supabase
         .from('personal_measurements')
         .select('measured_on, waist_inches')
         .eq('user_id', ownerId)
@@ -198,7 +268,7 @@ export default function MyQuestClient() {
         .maybeSingle(),
       supabase
         .from('personal_progress_photos')
-        .select('id, photo_type, storage_path, created_at')
+        .select('id, photo_type, storage_path, captured_on, created_at')
         .eq('user_id', ownerId)
         .order('created_at', { ascending: false })
         .limit(12),
@@ -207,18 +277,21 @@ export default function MyQuestClient() {
     if (profileResult.error) throw new Error(profileResult.error.message)
     if (completionResult.error) throw new Error(completionResult.error.message)
     if (logResult.error) throw new Error(logResult.error.message)
+    if (freezeResult.error) throw new Error(freezeResult.error.message)
     if (measurementResult.error) throw new Error(measurementResult.error.message)
     if (reviewResult.error) throw new Error(reviewResult.error.message)
     if (photoResult.error) throw new Error(photoResult.error.message)
 
     const nextCompletions = (completionResult.data ?? []) as DailyQuestCompletion[]
     const nextLogs = (logResult.data ?? []) as DailyLog[]
+    const nextFreezes = (freezeResult.data ?? []) as PersonalStreakFreeze[]
     const nextMeasurements = (measurementResult.data ?? []) as Measurement[]
     const nextReview = (reviewResult.data ?? null) as WeeklyReview | null
     const nextPhotos = (photoResult.data ?? []) as ProgressPhoto[]
 
     setCompletions(nextCompletions)
     setLogs(nextLogs)
+    setStreakFreezes(nextFreezes)
     setMeasurements(nextMeasurements)
     setWeeklyReview(nextReview)
     setWeeklyRule((profileResult.data as { weekly_rule?: string } | null)?.weekly_rule || getDefaultPersonalQuestRule())
@@ -523,6 +596,39 @@ export default function MyQuestClient() {
     setSavingRule(false)
   }
 
+  async function spendStreakFreeze() {
+    const ownerId = authUser?.id ?? userId
+    if (!ownerId || pendingFreeze || !freezeStatus.canUseToday) return
+
+    setPendingFreeze(true)
+    setError('')
+    setMessage('')
+
+    const nextFreeze: PersonalStreakFreeze = {
+      freeze_date: freezeStatus.targetDate,
+      reason: 'Save the day',
+    }
+    const before = streakFreezes
+    setStreakFreezes((current) => [nextFreeze, ...current.filter((item) => item.freeze_date !== nextFreeze.freeze_date)])
+
+    const { error: upsertError } = await supabase
+      .from('personal_streak_freezes')
+      .upsert({
+        user_id: ownerId,
+        freeze_date: nextFreeze.freeze_date,
+        reason: nextFreeze.reason,
+      }, { onConflict: 'user_id,freeze_date' })
+
+    if (upsertError) {
+      setStreakFreezes(before)
+      setError(upsertError.message)
+    } else {
+      setMessage('Streak freeze used. Streak protected, no XP awarded.')
+    }
+
+    setPendingFreeze(false)
+  }
+
   async function uploadPhoto(type: ProgressPhotoType, event: ChangeEvent<HTMLInputElement>) {
     const ownerId = authUser?.id ?? userId
     const file = event.target.files?.[0] ?? null
@@ -623,6 +729,7 @@ export default function MyQuestClient() {
           <p className={styles.heroText}>Season 1 private quest board. Stack the habits, keep the streak alive, and beat the weekly bosses.</p>
           <div className={styles.heroActions}>
             <a href="#today-quests">Today</a>
+            <a href="#season-map">Season</a>
             <a href="#trend-strip">Trends</a>
             <a href="#weekly-review">Review</a>
             <a href="#photo-compare">Photos</a>
@@ -662,6 +769,53 @@ export default function MyQuestClient() {
           </div>
         </div>
       ) : null}
+
+      <section className={styles.gamePlanPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Today&apos;s Game Plan</p>
+            <h2>Win the day clean</h2>
+          </div>
+          <span className={styles.scorePill}>{mode === 'morning' ? 'Morning plan' : 'Evening close'}</span>
+        </div>
+        <div className={styles.planGrid}>
+          <div className={styles.planCard}>
+            <span>Win condition</span>
+            <strong>{gamePlan.winCondition}</strong>
+          </div>
+          <div className={styles.planCard}>
+            <span>Do not miss</span>
+            <strong>{gamePlan.doNotMiss}</strong>
+          </div>
+          <div className={styles.planCard}>
+            <span>Lowest effort XP</span>
+            <strong>{gamePlan.lowestEffortXp}</strong>
+          </div>
+          <div className={styles.planCard}>
+            <span>Boss danger</span>
+            <strong>{gamePlan.bossDanger}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section id="season-map" className={styles.seasonPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Season Map</p>
+            <h2>Road to Six Pack Mode</h2>
+          </div>
+          <span className={styles.scorePill}>{stats.level.title}</span>
+        </div>
+        <div className={styles.seasonMap}>
+          {seasonMap.map((node) => (
+            <div key={node.title} className={styles.seasonNode} data-status={node.status}>
+              <span>{node.xp.toLocaleString()} XP</span>
+              <strong>{node.title}</strong>
+              <ProgressBar value={node.progress} label={node.status} />
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section id="trend-strip" className={styles.trendStrip}>
         {trendCards.map((card) => (
@@ -722,6 +876,24 @@ export default function MyQuestClient() {
               {smartQuest.cta}
             </button>
           ) : null}
+        </div>
+        <div className={styles.loadoutGrid}>
+          {loadouts.map((loadout) => (
+            <button
+              key={loadout.id}
+              type="button"
+              className={styles.loadoutCard}
+              data-recommended={loadout.recommended ? 'true' : 'false'}
+              data-complete={loadout.completed ? 'true' : 'false'}
+              onClick={() => void completeQuestStack({ label: loadout.title, questIds: loadout.questIds })}
+              disabled={Boolean(pendingStack || pendingQuest)}
+            >
+              <span>{loadout.recommended ? 'Recommended' : `${loadout.progress}%`}</span>
+              <strong>{pendingStack === loadout.title ? 'Completing' : loadout.title}</strong>
+              <small>{loadout.detail}</small>
+              <ProgressBar value={loadout.progress} label={loadout.completed ? 'Loadout complete' : `${loadout.progress}% loadout`} />
+            </button>
+          ))}
         </div>
         <div className={styles.stackGrid}>
           {QUEST_STACKS.map((stack) => (
@@ -820,6 +992,16 @@ export default function MyQuestClient() {
             <span>Strong</span>
             <span>Perfect</span>
           </div>
+          <div className={styles.freezeCard} data-active={freezeStatus.protectedToday ? 'true' : 'false'}>
+            <div>
+              <span>Streak Freeze</span>
+              <strong>{freezeStatus.remainingThisMonth}/2 left this month</strong>
+              <small>{freezeStatus.detail}</small>
+            </div>
+            <button type="button" className={styles.primaryButton} onClick={() => void spendStreakFreeze()} disabled={!freezeStatus.canUseToday || pendingFreeze}>
+              {pendingFreeze ? 'Protecting' : freezeStatus.protectedToday ? 'Protected' : 'Save the day'}
+            </button>
+          </div>
         </div>
 
         <div className={styles.trackerPanel}>
@@ -891,6 +1073,15 @@ export default function MyQuestClient() {
             </div>
           ))}
         </div>
+        <div className={styles.strategyGrid}>
+          {bossStrategy.map((strategy) => (
+            <div key={strategy.title} className={styles.strategyCard} data-tone={strategy.tone}>
+              <span>{strategy.title}</span>
+              <strong>{strategy.headline}</strong>
+              <small>{strategy.action}</small>
+            </div>
+          ))}
+        </div>
         <div className={styles.bossGrid}>
           {stats.bosses.map((boss) => (
             <div key={boss.key} className={`${styles.bossCard} ${boss.completed ? styles.bossComplete : ''}`}>
@@ -942,6 +1133,18 @@ export default function MyQuestClient() {
             ))}
           </div>
           <div id="photo-compare" className={styles.photoCompare}>
+            <div className={styles.compareModeTabs} aria-label="Photo comparison mode">
+              {PHOTO_COMPARE_MODES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-active={compareMode === item.id ? 'true' : 'false'}
+                  onClick={() => setCompareMode(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
             <div className={styles.compareTabs} aria-label="Photo compare type">
               {PHOTO_TYPES.map((type) => (
                 <button
@@ -955,8 +1158,8 @@ export default function MyQuestClient() {
               ))}
             </div>
             <div className={styles.compareGrid}>
-              <ComparePhoto label="Latest" photo={comparePhotos.latest} />
-              <ComparePhoto label="Previous" photo={comparePhotos.previous} />
+              <ComparePhoto label={comparePhotos.latestLabel} photo={comparePhotos.latest} />
+              <ComparePhoto label={comparePhotos.previousLabel} photo={comparePhotos.previous} />
             </div>
           </div>
           <div className={styles.photoGrid}>
@@ -1164,6 +1367,13 @@ function normalizeOptionalNumber(value: string) {
   const parsed = Number.parseFloat(trimmed)
   if (!Number.isFinite(parsed)) return null
   return Math.round(parsed * 100) / 100
+}
+
+function daysBetween(earlier: string, later: string) {
+  const start = new Date(`${earlier}T00:00:00`).getTime()
+  const end = new Date(`${later}T00:00:00`).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0
+  return Math.floor((end - start) / (24 * 60 * 60 * 1000))
 }
 
 function getPhotoExtension(file: File) {

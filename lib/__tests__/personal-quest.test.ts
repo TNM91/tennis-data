@@ -4,14 +4,20 @@ import {
   buildPersonalQuestHeatmap,
   buildPersonalQuestBossForecast,
   buildPersonalQuestCombos,
+  buildPersonalQuestGamePlan,
+  buildPersonalQuestLoadouts,
+  buildPersonalQuestSeasonMap,
   buildPersonalQuestStats,
   buildPersonalQuestTrendCards,
   buildQuestFeedback,
   buildSmartQuestRecommendation,
+  buildStreakFreezeStatus,
+  buildWeeklyBossStrategy,
   isPersonalQuestOwner,
   type DailyLog,
   type DailyQuestCompletion,
   type Measurement,
+  type PersonalStreakFreeze,
 } from '../personal-quest'
 
 describe('personal quest access', () => {
@@ -129,6 +135,55 @@ describe('personal quest daily helpers', () => {
     expect(forecast).toContainEqual(expect.objectContaining({ key: 'ipa', status: 'at-risk' }))
     expect(combos).toContainEqual(expect.objectContaining({ id: 'clean_lunch_stack', completed: true }))
     expect(combos).toContainEqual(expect.objectContaining({ id: 'evening_lockdown', completed: true }))
+  })
+
+  it('builds game plan, loadouts, season map, and boss strategy', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'protein_breakfast', completed_on: '2026-06-12', xp_awarded: 10 },
+      { quest_id: 'creamer_goal', completed_on: '2026-06-12', xp_awarded: 10 },
+    ]
+    const logs: DailyLog[] = [{ log_date: '2026-06-12', ipa_count: 6, notes: '' }]
+    const today = '2026-06-12'
+    const weekStart = '2026-06-07'
+    const forecast = buildPersonalQuestBossForecast({ completions, logs, today, weekStart })
+
+    const gamePlan = buildPersonalQuestGamePlan({ completions, logs, today, weekStart, mode: 'evening' })
+    const loadouts = buildPersonalQuestLoadouts({ completions, logs, today, weekStart })
+    const seasonMap = buildPersonalQuestSeasonMap(1250)
+    const strategy = buildWeeklyBossStrategy({ forecast })
+
+    expect(gamePlan.bossDanger).toContain('Boss')
+    expect(loadouts).toContainEqual(expect.objectContaining({ id: 'travel_day', recommended: true }))
+    expect(seasonMap).toContainEqual(expect.objectContaining({ title: 'Warrior', status: 'current' }))
+    expect(strategy).toContainEqual(expect.objectContaining({ title: 'IPA Boss' }))
+  })
+
+  it('uses monthly streak freezes without awarding XP', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'water_80_oz', completed_on: '2026-06-10', xp_awarded: 10 },
+      { quest_id: 'core_workout', completed_on: '2026-06-12', xp_awarded: 10 },
+    ]
+    const freezes: PersonalStreakFreeze[] = [{ freeze_date: '2026-06-11', reason: 'Save the day' }]
+    const logs: DailyLog[] = []
+
+    const stats = buildPersonalQuestStats({
+      completions,
+      logs,
+      freezes,
+      today: '2026-06-12',
+      weekStart: '2026-06-07',
+    })
+    const freezeStatus = buildStreakFreezeStatus({
+      completions: [],
+      freezes,
+      today: '2026-06-12',
+    })
+
+    expect(stats.currentStreak).toBe(3)
+    expect(stats.totalXp).toBe(20)
+    expect(freezeStatus.usedThisMonth).toBe(1)
+    expect(freezeStatus.remainingThisMonth).toBe(1)
+    expect(freezeStatus.canUseToday).toBe(true)
   })
 })
 
