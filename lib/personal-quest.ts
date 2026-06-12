@@ -260,6 +260,45 @@ export type PersonalQuestFinale = {
   badge: string
 }
 
+export type PersonalQuestRepairSummary = {
+  date: string
+  completedCount: number
+  totalCount: number
+  xp: number
+  ipaCount: number
+  status: 'empty' | 'partial' | 'complete'
+}
+
+export type PersonalQuestFocusSuggestion = {
+  title: string
+  detail: string
+  focus: string
+}
+
+export type PersonalQuestMonthDay = {
+  date: string
+  dayLabel: string
+  inMonth: boolean
+  completedCount: number
+  totalCount: number
+  xp: number
+  ipaCount: number
+  frozen: boolean
+  intensity: 0 | 1 | 2 | 3 | 4
+}
+
+export type PersonalQuestMonthView = {
+  monthLabel: string
+  days: PersonalQuestMonthDay[]
+}
+
+export type PersonalQuestPhotoGuidance = {
+  id: string
+  title: string
+  detail: string
+  status: 'ready' | 'due' | 'empty'
+}
+
 export type WeeklyBossProgress = {
   key: WeeklyBossKey
   title: string
@@ -308,6 +347,16 @@ export const PERSONAL_ACHIEVEMENTS: AchievementDefinition[] = [
 const QUEST_BY_ID = new Map(PERSONAL_DAILY_QUESTS.map((quest) => [quest.id, quest]))
 const DAY_MS = 24 * 60 * 60 * 1000
 const DEFAULT_WEEKLY_RULE = 'No chips. Water before coffee refill. Kitchen closed at 8.'
+const PHOTO_GUIDANCE_TYPES: Array<{
+  id: ProgressPhotoType
+  label: string
+  title: string
+  empty: string
+}> = [
+  { id: 'front', label: 'front', title: 'Front checkpoint', empty: 'Take the first front photo with neutral posture and consistent light.' },
+  { id: 'side', label: 'side', title: 'Side checkpoint', empty: 'Take the first side photo from the same distance each time.' },
+  { id: 'flex', label: 'flex', title: 'Flex checkpoint', empty: 'Use the same pose and lighting for clean visual comparison.' },
+]
 
 export function isPersonalQuestOwner(user: { id?: string | null; email?: string | null } | null | undefined) {
   if (!user) return false
@@ -341,6 +390,12 @@ export function getWeekStartKey(date = new Date()) {
 export function getWeekEndKey(weekStart: string) {
   const date = parseDateKey(weekStart)
   date.setDate(date.getDate() + 6)
+  return getTodayKey(date)
+}
+
+export function getDateOffsetKey(value: string, offsetDays: number) {
+  const date = parseDateKey(value)
+  date.setDate(date.getDate() + offsetDays)
   return getTodayKey(date)
 }
 
@@ -969,6 +1024,171 @@ export function buildPersonalQuestFinale(totalXp: number): PersonalQuestFinale {
       : 'Keep stacking daily quests and weekly boss XP.',
     badge: 'Visible Abs Week Finisher',
   }
+}
+
+export function buildPersonalQuestRepairSummary(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  date: string
+}): PersonalQuestRepairSummary {
+  const dayCompletions = input.completions.filter((item) => item.completed_on === input.date)
+  const completedCount = new Set(dayCompletions.map((item) => item.quest_id)).size
+  const xp = dayCompletions.reduce((sum, item) => sum + Math.max(0, item.xp_awarded || getQuestXp(item.quest_id)), 0)
+  const ipaCount = input.logs.find((log) => log.log_date === input.date)?.ipa_count ?? 0
+  const status: PersonalQuestRepairSummary['status'] = completedCount === 0
+    ? 'empty'
+    : completedCount === PERSONAL_DAILY_QUESTS.length
+      ? 'complete'
+      : 'partial'
+
+  return {
+    date: input.date,
+    completedCount,
+    totalCount: PERSONAL_DAILY_QUESTS.length,
+    xp,
+    ipaCount,
+    status,
+  }
+}
+
+export function buildWeeklyFocusSuggestion(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  today: string
+  weekStart: string
+}): PersonalQuestFocusSuggestion {
+  const weekEnd = getWeekEndKey(input.weekStart)
+  const weeklyCompletions = input.completions.filter((item) => item.completed_on >= input.weekStart && item.completed_on <= weekEnd)
+  const ipaCount = sumIpas(input.logs, input.weekStart, weekEnd)
+  const focusCandidates: Array<{
+    title: string
+    detail: string
+    focus: string
+    need: number
+    priority: number
+  }> = [
+    {
+      title: 'Protect IPA Boss',
+      detail: `${Math.max(0, 6 - ipaCount)} IPAs left against the weekly goal.`,
+      focus: 'Keep IPA count <= 6 and close nights clean.',
+      need: Math.max(0, ipaCount - 4),
+      priority: 4,
+    },
+    {
+      title: 'Own lunch',
+      detail: `${countQuestDays(weeklyCompletions, 'no_chips_lunch')}/5 chip-free lunches banked.`,
+      focus: 'Make lunch automatic: no chips, water first, no negotiation.',
+      need: Math.max(0, 5 - countQuestDays(weeklyCompletions, 'no_chips_lunch')),
+      priority: 3,
+    },
+    {
+      title: 'Front-load water',
+      detail: `${countQuestDays(weeklyCompletions, 'water_80_oz')}/5 water days banked.`,
+      focus: 'Finish water earlier so the evening does not carry the whole day.',
+      need: Math.max(0, 5 - countQuestDays(weeklyCompletions, 'water_80_oz')),
+      priority: 2,
+    },
+    {
+      title: 'Lock creamer',
+      detail: `${countQuestDays(weeklyCompletions, 'creamer_goal')}/5 creamer-goal days banked.`,
+      focus: 'Keep the creamer rule tight before the second coffee.',
+      need: Math.max(0, 5 - countQuestDays(weeklyCompletions, 'creamer_goal')),
+      priority: 1,
+    },
+  ]
+
+  const best = focusCandidates.sort((a, b) => b.need - a.need || b.priority - a.priority)[0]
+  if (!best || best.need === 0) {
+    return {
+      title: 'Repeat the clean board',
+      detail: 'Bosses are stable. Keep the same simple rule set.',
+      focus: 'Repeat the current weekly rule and protect the Sunday review.',
+    }
+  }
+
+  return {
+    title: best.title,
+    detail: best.detail,
+    focus: best.focus,
+  }
+}
+
+export function buildPersonalQuestMonthView(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  freezes: PersonalStreakFreeze[]
+  today: string
+}): PersonalQuestMonthView {
+  const totalCount = PERSONAL_DAILY_QUESTS.length
+  const todayDate = parseDateKey(input.today)
+  const firstOfMonth = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1)
+  const gridStart = new Date(firstOfMonth)
+  gridStart.setDate(firstOfMonth.getDate() - firstOfMonth.getDay())
+  const completionsByDate = new Map<string, DailyQuestCompletion[]>()
+
+  for (const completion of input.completions) {
+    const current = completionsByDate.get(completion.completed_on) ?? []
+    current.push(completion)
+    completionsByDate.set(completion.completed_on, current)
+  }
+
+  const days = Array.from({ length: 42 }, (_, index): PersonalQuestMonthDay => {
+    const date = new Date(gridStart.getTime() + DAY_MS * index)
+    const key = getTodayKey(date)
+    const dayCompletions = completionsByDate.get(key) ?? []
+    const completedCount = new Set(dayCompletions.map((item) => item.quest_id)).size
+    const xp = dayCompletions.reduce((sum, item) => sum + Math.max(0, item.xp_awarded || getQuestXp(item.quest_id)), 0)
+    const ratio = totalCount ? completedCount / totalCount : 0
+    const frozen = input.freezes.some((freeze) => freeze.freeze_date === key)
+    const intensity: PersonalQuestMonthDay['intensity'] = ratio >= 0.875 ? 4 : ratio >= 0.625 ? 3 : ratio >= 0.375 ? 2 : ratio > 0 || frozen ? 1 : 0
+
+    return {
+      date: key,
+      dayLabel: String(date.getDate()),
+      inMonth: date.getMonth() === todayDate.getMonth(),
+      completedCount,
+      totalCount,
+      xp,
+      ipaCount: input.logs.find((log) => log.log_date === key)?.ipa_count ?? 0,
+      frozen,
+      intensity,
+    }
+  })
+
+  return {
+    monthLabel: firstOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    days,
+  }
+}
+
+export function buildPhotoCaptureGuidance(photos: ProgressPhoto[], today: string): PersonalQuestPhotoGuidance[] {
+  const daysSince = (capturedOn: string | undefined) => capturedOn ? Math.max(0, Math.floor((parseDateKey(today).getTime() - parseDateKey(capturedOn).getTime()) / DAY_MS)) : null
+  const latestByType = new Map<ProgressPhotoType, ProgressPhoto>()
+
+  for (const photo of photos) {
+    const current = latestByType.get(photo.photo_type)
+    if (!current || (photo.captured_on ?? photo.created_at) > (current.captured_on ?? current.created_at)) {
+      latestByType.set(photo.photo_type, photo)
+    }
+  }
+
+  return PHOTO_GUIDANCE_TYPES.map((item) => {
+    const latest = latestByType.get(item.id)
+    const age = daysSince(latest?.captured_on)
+    const status: PersonalQuestPhotoGuidance['status'] = latest
+      ? age !== null && age <= 10 ? 'ready' : 'due'
+      : 'empty'
+    return {
+      id: item.id,
+      title: item.title,
+      detail: status === 'empty'
+        ? item.empty
+        : status === 'due'
+          ? `${age ?? 0} days since last ${item.label}. Keep the same angle and lighting.`
+          : `Last ${item.label} is ${age ?? 0} days old. Match distance, light, and posture.`,
+      status,
+    }
+  })
 }
 
 function buildIpaForecast(ipaCount: number, daysLeft: number): PersonalQuestBossForecast {

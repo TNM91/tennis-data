@@ -10,8 +10,11 @@ import {
   buildPersonalQuestFinale,
   buildPersonalQuestGamePlan,
   buildPersonalQuestLoadouts,
+  buildPersonalQuestMonthView,
   buildPersonalQuestMomentum,
+  buildPersonalQuestRepairSummary,
   buildPersonalQuestReminders,
+  buildPhotoCaptureGuidance,
   buildPersonalQuestSeasonMap,
   buildPersonalQuestStats,
   buildPersonalQuestTrendCards,
@@ -19,12 +22,15 @@ import {
   buildQuestFeedback,
   buildSmartQuestRecommendation,
   buildStreakFreezeStatus,
+  buildWeeklyFocusSuggestion,
+  getDateOffsetKey,
   buildWeeklyBossStrategy,
   isPersonalQuestOwner,
   type DailyLog,
   type DailyQuestCompletion,
   type Measurement,
   type PersonalStreakFreeze,
+  type ProgressPhoto,
 } from '../personal-quest'
 
 describe('personal quest access', () => {
@@ -235,6 +241,72 @@ describe('personal quest daily helpers', () => {
 
     expect(details[0]).toMatchObject({ remaining: 5, fastestPath: '5 more water-goal days.' })
     expect(details[1]).toMatchObject({ remaining: 0, fastestPath: 'Unlocked. Keep it banked.' })
+  })
+
+  it('builds month view and yesterday repair summaries', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'water_80_oz', completed_on: '2026-06-11', xp_awarded: 10 },
+      { quest_id: 'core_workout', completed_on: '2026-06-11', xp_awarded: 10 },
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-12', xp_awarded: 15 },
+    ]
+    const logs: DailyLog[] = [{ log_date: '2026-06-11', ipa_count: 2, notes: 'late repair' }]
+    const freezes: PersonalStreakFreeze[] = [{ freeze_date: '2026-06-10', reason: 'Save the day' }]
+
+    const month = buildPersonalQuestMonthView({ completions, logs, freezes, today: '2026-06-12' })
+    const repair = buildPersonalQuestRepairSummary({ completions, logs, date: getDateOffsetKey('2026-06-12', -1) })
+
+    expect(month.monthLabel).toBe('June 2026')
+    expect(month.days).toHaveLength(42)
+    expect(month.days).toContainEqual(expect.objectContaining({ date: '2026-06-10', frozen: true, intensity: 1 }))
+    expect(month.days).toContainEqual(expect.objectContaining({ date: '2026-06-11', completedCount: 2, ipaCount: 2 }))
+    expect(repair).toMatchObject({ date: '2026-06-11', completedCount: 2, xp: 20, ipaCount: 2, status: 'partial' })
+  })
+
+  it('suggests weekly focus from boss pressure', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'water_80_oz', completed_on: '2026-06-08', xp_awarded: 10 },
+      { quest_id: 'water_80_oz', completed_on: '2026-06-09', xp_awarded: 10 },
+      { quest_id: 'water_80_oz', completed_on: '2026-06-10', xp_awarded: 10 },
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-08', xp_awarded: 15 },
+      { quest_id: 'creamer_goal', completed_on: '2026-06-08', xp_awarded: 10 },
+      { quest_id: 'creamer_goal', completed_on: '2026-06-09', xp_awarded: 10 },
+    ]
+    const logs: DailyLog[] = [{ log_date: '2026-06-12', ipa_count: 1, notes: '' }]
+
+    const suggestion = buildWeeklyFocusSuggestion({
+      completions,
+      logs,
+      today: '2026-06-12',
+      weekStart: '2026-06-07',
+    })
+
+    expect(suggestion.title).toBe('Own lunch')
+    expect(suggestion.focus).toContain('no chips')
+  })
+
+  it('builds private photo capture guidance by type cadence', () => {
+    const photos: ProgressPhoto[] = [
+      {
+        id: 'front-1',
+        photo_type: 'front',
+        storage_path: 'user/front.webp',
+        captured_on: '2026-06-09',
+        created_at: '2026-06-09T12:00:00Z',
+      },
+      {
+        id: 'side-1',
+        photo_type: 'side',
+        storage_path: 'user/side.webp',
+        captured_on: '2026-05-20',
+        created_at: '2026-05-20T12:00:00Z',
+      },
+    ]
+
+    const guidance = buildPhotoCaptureGuidance(photos, '2026-06-12')
+
+    expect(guidance).toContainEqual(expect.objectContaining({ id: 'front', status: 'ready' }))
+    expect(guidance).toContainEqual(expect.objectContaining({ id: 'side', status: 'due' }))
+    expect(guidance).toContainEqual(expect.objectContaining({ id: 'flex', status: 'empty' }))
   })
 })
 

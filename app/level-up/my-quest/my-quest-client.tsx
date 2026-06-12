@@ -14,8 +14,11 @@ import {
   buildPersonalQuestGamePlan,
   buildPersonalQuestHeatmap,
   buildPersonalQuestLoadouts,
+  buildPersonalQuestMonthView,
   buildPersonalQuestMomentum,
+  buildPersonalQuestRepairSummary,
   buildPersonalQuestReminders,
+  buildPhotoCaptureGuidance,
   buildPersonalQuestSeasonMap,
   buildPersonalQuestStats,
   buildPersonalQuestTrendCards,
@@ -23,6 +26,8 @@ import {
   buildQuestFeedback,
   buildSmartQuestRecommendation,
   buildStreakFreezeStatus,
+  buildWeeklyFocusSuggestion,
+  getDateOffsetKey,
   buildWeeklyBossStrategy,
   getDefaultPersonalQuestRule,
   getTodayKey,
@@ -36,6 +41,7 @@ import {
   type PersonalQuestMode,
   type PersonalQuestDefinition,
   type PersonalQuestAchievementDetail,
+  type PersonalQuestFocusSuggestion,
   type PersonalStreakFreeze,
   type ProgressPhoto,
   type ProgressPhotoType,
@@ -90,6 +96,8 @@ export default function MyQuestClient() {
   const [mode, setMode] = useState<PersonalQuestMode>(() => new Date().getHours() < 15 ? 'morning' : 'evening')
   const [ipaInput, setIpaInput] = useState('0')
   const [notesInput, setNotesInput] = useState('')
+  const [repairIpaInput, setRepairIpaInput] = useState('0')
+  const [repairNotesInput, setRepairNotesInput] = useState('')
   const [waistInput, setWaistInput] = useState('')
   const [weeklyRule, setWeeklyRule] = useState(getDefaultPersonalQuestRule())
   const [reviewWin, setReviewWin] = useState('')
@@ -113,6 +121,7 @@ export default function MyQuestClient() {
   const ownerAllowed = isPersonalQuestOwner({ id: authUser?.id ?? userId, email: authUser?.email })
   const accessDenied = authResolved && (!(authUser?.id ?? userId) || !ownerAllowed)
   const today = useMemo(() => getTodayKey(), [])
+  const repairDate = useMemo(() => getDateOffsetKey(today, -1), [today])
   const weekStart = useMemo(() => getWeekStartKey(), [])
   const weekEnd = useMemo(() => getWeekEndKey(weekStart), [weekStart])
   const isSunday = useMemo(() => new Date(`${today}T00:00:00`).getDay() === 0, [today])
@@ -126,11 +135,31 @@ export default function MyQuestClient() {
     () => new Set(completions.filter((item) => item.completed_on === today).map((item) => item.quest_id)),
     [completions, today],
   )
+  const completedRepairDay = useMemo(
+    () => new Set(completions.filter((item) => item.completed_on === repairDate).map((item) => item.quest_id)),
+    [completions, repairDate],
+  )
 
   const bossBonus = stats.weeklyBossXp
   const heatmapDays = useMemo(
     () => buildPersonalQuestHeatmap({ completions, today, days: 90 }),
     [completions, today],
+  )
+  const monthView = useMemo(
+    () => buildPersonalQuestMonthView({ completions, logs, freezes: streakFreezes, today }),
+    [completions, logs, streakFreezes, today],
+  )
+  const repairSummary = useMemo(
+    () => buildPersonalQuestRepairSummary({ completions, logs, date: repairDate }),
+    [completions, logs, repairDate],
+  )
+  const weeklyFocusSuggestion = useMemo(
+    () => buildWeeklyFocusSuggestion({ completions, logs, today, weekStart }),
+    [completions, logs, today, weekStart],
+  )
+  const photoGuidance = useMemo(
+    () => buildPhotoCaptureGuidance(photos, today),
+    [photos, today],
   )
   const todayCompletedCount = completedToday.size
   const todayRemainingCount = Math.max(0, PERSONAL_DAILY_QUESTS.length - todayCompletedCount)
@@ -416,30 +445,44 @@ export default function MyQuestClient() {
     return () => window.clearTimeout(timeout)
   }, [authUser?.id, loadState, ownerAllowed, stats.achievements, stats.level.title, userId])
 
+  useEffect(() => {
+    const repairLog = logs.find((log) => log.log_date === repairDate)
+    const timeout = window.setTimeout(() => {
+      setRepairIpaInput(String(repairLog?.ipa_count ?? 0))
+      setRepairNotesInput(repairLog?.notes ?? '')
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, [logs, repairDate])
+
   async function toggleQuest(quest: PersonalQuestDefinition) {
+    await toggleQuestForDate(quest, today)
+  }
+
+  async function toggleQuestForDate(quest: PersonalQuestDefinition, targetDate: string) {
     const ownerId = authUser?.id ?? userId
     if (!ownerId || pendingQuest) return
 
-    const alreadyComplete = completedToday.has(quest.id)
-    setPendingQuest(quest.id)
+    const alreadyComplete = completions.some((item) => item.completed_on === targetDate && item.quest_id === quest.id)
+    const pendingKey = `${targetDate}:${quest.id}`
+    setPendingQuest(pendingKey)
     setError('')
     setMessage('')
 
     if (alreadyComplete) {
       const before = completions
-      setCompletions((current) => current.filter((item) => !(item.completed_on === today && item.quest_id === quest.id)))
+      setCompletions((current) => current.filter((item) => !(item.completed_on === targetDate && item.quest_id === quest.id)))
       const { error: deleteError } = await supabase
         .from('personal_daily_quest_completions')
         .delete()
         .eq('user_id', ownerId)
-        .eq('completed_on', today)
+        .eq('completed_on', targetDate)
         .eq('quest_id', quest.id)
 
       if (deleteError) {
         setCompletions(before)
         setError(deleteError.message)
       } else {
-        setMessage(buildQuestFeedback(quest, 'removed'))
+        setMessage(targetDate === today ? buildQuestFeedback(quest, 'removed') : `${quest.shortTitle} removed from yesterday. XP adjusted.`)
       }
       setPendingQuest('')
       return
@@ -447,7 +490,7 @@ export default function MyQuestClient() {
 
     const completion: DailyQuestCompletion = {
       quest_id: quest.id,
-      completed_on: today,
+      completed_on: targetDate,
       xp_awarded: quest.xp,
     }
     setCompletions((current) => [completion, ...current])
@@ -456,16 +499,16 @@ export default function MyQuestClient() {
       .from('personal_daily_quest_completions')
       .upsert({
         user_id: ownerId,
-        completed_on: today,
+        completed_on: targetDate,
         quest_id: quest.id,
         xp_awarded: quest.xp,
       }, { onConflict: 'user_id,completed_on,quest_id' })
 
     if (upsertError) {
-      setCompletions((current) => current.filter((item) => !(item.completed_on === today && item.quest_id === quest.id)))
+      setCompletions((current) => current.filter((item) => !(item.completed_on === targetDate && item.quest_id === quest.id)))
       setError(upsertError.message)
     } else {
-      setMessage(buildQuestFeedback(quest, 'completed'))
+      setMessage(targetDate === today ? buildQuestFeedback(quest, 'completed') : `${quest.shortTitle} repaired for yesterday. +${quest.xp} XP.`)
     }
 
     setPendingQuest('')
@@ -518,6 +561,14 @@ export default function MyQuestClient() {
   }
 
   async function saveDailyTrackers(nextIpaInput = ipaInput, nextNotesInput = notesInput) {
+    await saveDailyTrackersForDate(today, nextIpaInput, nextNotesInput)
+  }
+
+  async function saveRepairTrackers(nextIpaInput = repairIpaInput, nextNotesInput = repairNotesInput) {
+    await saveDailyTrackersForDate(repairDate, nextIpaInput, nextNotesInput)
+  }
+
+  async function saveDailyTrackersForDate(targetDate: string, nextIpaInput: string, nextNotesInput: string) {
     const ownerId = authUser?.id ?? userId
     if (!ownerId) return
 
@@ -529,7 +580,7 @@ export default function MyQuestClient() {
     const cleanNotes = nextNotesInput.trim().slice(0, 1600)
     const payload = {
       user_id: ownerId,
-      log_date: today,
+      log_date: targetDate,
       ipa_count: ipaCount,
       notes: cleanNotes,
       updated_at: new Date().toISOString(),
@@ -542,10 +593,15 @@ export default function MyQuestClient() {
     if (upsertError) {
       setError(upsertError.message)
     } else {
-      setLogs((current) => upsertByDate(current, { log_date: today, ipa_count: ipaCount, notes: cleanNotes }, 'log_date'))
-      setIpaInput(String(ipaCount))
-      setNotesInput(cleanNotes)
-      setMessage('Daily tracker saved.')
+      setLogs((current) => upsertByDate(current, { log_date: targetDate, ipa_count: ipaCount, notes: cleanNotes }, 'log_date'))
+      if (targetDate === today) {
+        setIpaInput(String(ipaCount))
+        setNotesInput(cleanNotes)
+      } else {
+        setRepairIpaInput(String(ipaCount))
+        setRepairNotesInput(cleanNotes)
+      }
+      setMessage(targetDate === today ? 'Daily tracker saved.' : 'Yesterday repair saved.')
     }
 
     setSavingTracker(false)
@@ -739,6 +795,12 @@ export default function MyQuestClient() {
     await saveDailyTrackers(nextValue, notesInput)
   }
 
+  async function adjustRepairIpa(delta: number) {
+    const nextValue = String(Math.max(0, clampInt(repairIpaInput, 0, 30) + delta))
+    setRepairIpaInput(nextValue)
+    await saveRepairTrackers(nextValue, repairNotesInput)
+  }
+
   if (accessDenied) {
     return (
       <section className={styles.pageShell}>
@@ -769,7 +831,10 @@ export default function MyQuestClient() {
           <h1>Operation Visible Abs</h1>
           <p className={styles.heroText}>Season 1 private quest board. Stack the habits, keep the streak alive, and beat the weekly bosses.</p>
           <div className={styles.heroActions}>
+            <a href="#quick-add">Quick</a>
             <a href="#today-quests">Today</a>
+            <a href="#month-view">Month</a>
+            <a href="#repair-day">Repair</a>
             <a href="#season-map">Season</a>
             <a href="#momentum">Momentum</a>
             <a href="#trend-strip">Trends</a>
@@ -811,6 +876,43 @@ export default function MyQuestClient() {
           </div>
         </div>
       ) : null}
+
+      <section id="quick-add" className={styles.quickAddPanel}>
+        <div className={styles.quickAddHeader}>
+          <div>
+            <p className={styles.eyebrow}>Quick Add</p>
+            <h2>{todayCompletedCount}/{PERSONAL_DAILY_QUESTS.length} today</h2>
+          </div>
+          <div className={styles.quickAddScore}>
+            <strong>{todayXp}</strong>
+            <span>XP</span>
+          </div>
+        </div>
+        <div className={styles.quickAddQuestGrid}>
+          {PERSONAL_DAILY_QUESTS.map((quest) => {
+            const complete = completedToday.has(quest.id)
+            return (
+              <button
+                key={quest.id}
+                type="button"
+                className={styles.quickQuestButton}
+                data-complete={complete ? 'true' : 'false'}
+                onClick={() => void toggleQuest(quest)}
+                disabled={Boolean(pendingQuest)}
+              >
+                <span>{complete ? 'OK' : `+${quest.xp}`}</span>
+                <strong>{quest.shortTitle}</strong>
+              </button>
+            )
+          })}
+        </div>
+        <div className={styles.quickAddFooter}>
+          <span>{smartQuest.quest ? `Next: ${smartQuest.quest.shortTitle}` : 'Board cleared'}</span>
+          <button type="button" onClick={() => smartQuest.quest ? void toggleQuest(smartQuest.quest) : undefined} disabled={!smartQuest.quest || Boolean(pendingQuest)}>
+            {smartQuest.quest ? smartQuest.cta : 'Done'}
+          </button>
+        </div>
+      </section>
 
       <section className={styles.gamePlanPanel}>
         <div className={styles.sectionHeader}>
@@ -862,6 +964,41 @@ export default function MyQuestClient() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section id="month-view" className={styles.monthPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Month View</p>
+            <h2>{monthView.monthLabel}</h2>
+          </div>
+          <span className={styles.scorePill}>Quest calendar</span>
+        </div>
+        <div className={styles.monthWeekdays} aria-hidden="true">
+          <span>Sun</span>
+          <span>Mon</span>
+          <span>Tue</span>
+          <span>Wed</span>
+          <span>Thu</span>
+          <span>Fri</span>
+          <span>Sat</span>
+        </div>
+        <div className={styles.monthGrid} aria-label={`${monthView.monthLabel} quest calendar`}>
+          {monthView.days.map((day) => (
+            <div
+              key={day.date}
+              className={styles.monthDay}
+              data-intensity={day.intensity}
+              data-in-month={day.inMonth ? 'true' : 'false'}
+              data-today={day.date === today ? 'true' : 'false'}
+              title={`${day.date}: ${day.completedCount}/${day.totalCount} quests, ${day.xp} XP, ${day.ipaCount} IPAs${day.frozen ? ', freeze used' : ''}`}
+            >
+              <span>{day.dayLabel}</span>
+              <strong>{day.completedCount ? `${day.completedCount}/${day.totalCount}` : day.frozen ? 'Freeze' : '-'}</strong>
+              <small>{day.ipaCount ? `${day.ipaCount} IPA` : `${day.xp} XP`}</small>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -948,6 +1085,7 @@ export default function MyQuestClient() {
           reviewWin={reviewWin}
           reviewMiss={reviewMiss}
           reviewFocus={reviewFocus}
+          suggestedFocus={weeklyFocusSuggestion}
           savingReview={savingReview}
           setWaistInput={setWaistInput}
           setReviewWin={setReviewWin}
@@ -1096,6 +1234,70 @@ export default function MyQuestClient() {
           <button type="button" className={styles.primaryButton} onClick={() => void saveDailyTrackers()} disabled={savingTracker}>
             {savingTracker ? 'Saving' : 'Save today'}
           </button>
+        </div>
+      </section>
+
+      <section id="repair-day" className={styles.repairPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Yesterday Repair</p>
+            <h2>{repairSummary.completedCount}/{repairSummary.totalCount} repaired</h2>
+          </div>
+          <span className={styles.scorePill}>{repairSummary.xp} XP | {repairSummary.status}</span>
+        </div>
+        <div className={styles.repairBody}>
+          <div className={styles.repairQuestGrid}>
+            {PERSONAL_DAILY_QUESTS.map((quest) => {
+              const complete = completedRepairDay.has(quest.id)
+              return (
+                <button
+                  key={quest.id}
+                  type="button"
+                  className={styles.repairQuestButton}
+                  data-complete={complete ? 'true' : 'false'}
+                  onClick={() => void toggleQuestForDate(quest, repairDate)}
+                  disabled={Boolean(pendingQuest)}
+                >
+                  <span>{complete ? 'OK' : `+${quest.xp}`}</span>
+                  <strong>{quest.shortTitle}</strong>
+                </button>
+              )
+            })}
+          </div>
+          <div className={styles.repairTracker}>
+            <div>
+              <span>{repairDate}</span>
+              <strong>{repairSummary.ipaCount} IPAs logged</strong>
+              <small>Backfill only what actually happened.</small>
+            </div>
+            <label className={styles.field}>
+              <span>Yesterday IPAs</span>
+              <div className={styles.stepper}>
+                <button type="button" onClick={() => void adjustRepairIpa(-1)} aria-label="Decrease yesterday IPA count">-</button>
+                <input
+                  value={repairIpaInput}
+                  inputMode="numeric"
+                  onChange={(event) => setRepairIpaInput(event.target.value)}
+                  onBlur={() => void saveRepairTrackers()}
+                  aria-label="Yesterday IPA count"
+                />
+                <button type="button" onClick={() => void adjustRepairIpa(1)} aria-label="Increase yesterday IPA count">+</button>
+              </div>
+            </label>
+            <label className={styles.field}>
+              <span>Yesterday notes</span>
+              <textarea
+                value={repairNotesInput}
+                onChange={(event) => setRepairNotesInput(event.target.value)}
+                onBlur={() => void saveRepairTrackers()}
+                rows={3}
+                placeholder="Repair note"
+              />
+            </label>
+            <button type="button" className={styles.primaryButton} onClick={() => void saveRepairTrackers()} disabled={savingTracker}>
+              {savingTracker ? 'Saving' : 'Save repair'}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1256,6 +1458,7 @@ export default function MyQuestClient() {
             reviewWin={reviewWin}
             reviewMiss={reviewMiss}
             reviewFocus={reviewFocus}
+            suggestedFocus={weeklyFocusSuggestion}
             savingReview={savingReview}
             setWaistInput={setWaistInput}
             setReviewWin={setReviewWin}
@@ -1279,6 +1482,15 @@ export default function MyQuestClient() {
                 <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void uploadPhoto(type.id, event)} />
                 <span>{uploadingType === type.id ? 'Uploading' : type.label}</span>
               </label>
+            ))}
+          </div>
+          <div className={styles.photoGuidanceGrid}>
+            {photoGuidance.map((item) => (
+              <div key={item.id} className={styles.photoGuidanceCard} data-status={item.status}>
+                <span>{item.status}</span>
+                <strong>{item.title}</strong>
+                <small>{item.detail}</small>
+              </div>
             ))}
           </div>
           <div id="photo-compare" className={styles.photoCompare}>
@@ -1423,6 +1635,7 @@ function WeeklyReviewPanel({
   reviewWin,
   reviewMiss,
   reviewFocus,
+  suggestedFocus,
   savingReview,
   setWaistInput,
   setReviewWin,
@@ -1438,6 +1651,7 @@ function WeeklyReviewPanel({
   reviewWin: string
   reviewMiss: string
   reviewFocus: string
+  suggestedFocus: PersonalQuestFocusSuggestion
   savingReview: boolean
   setWaistInput: (value: string) => void
   setReviewWin: (value: string) => void
@@ -1480,6 +1694,16 @@ function WeeklyReviewPanel({
         <span>Focus for next week</span>
         <textarea value={reviewFocus} onChange={(event) => setReviewFocus(event.target.value)} rows={3} />
       </label>
+      <div className={styles.focusSuggestion}>
+        <div>
+          <span>Suggested focus</span>
+          <strong>{suggestedFocus.title}</strong>
+          <small>{suggestedFocus.detail}</small>
+        </div>
+        <button type="button" onClick={() => setReviewFocus(suggestedFocus.focus)}>
+          Use
+        </button>
+      </div>
       <button type="button" className={styles.primaryButton} onClick={() => void saveWeeklyReview()} disabled={savingReview}>
         {savingReview ? 'Saving review' : 'Save weekly review'}
       </button>

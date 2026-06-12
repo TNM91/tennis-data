@@ -18,6 +18,7 @@
     "verify:closeout:inventory": "node scripts/verify-platform-closeout-inventory.mjs",
     "verify:closeout": "node scripts/verify-platform-closeout.mjs",
     "verify:closeout:live": "node scripts/verify-platform-closeout.mjs --live",
+    "verify:my-quest-private": "node scripts/verify-my-quest-private-route.mjs",
     "qa:prep": "node scripts/customer-journey-qa-prep.mjs",
     "qa:status": "node scripts/customer-journey-qa-status.mjs",
     "qa:control": "node scripts/customer-journey-mission-control.mjs",

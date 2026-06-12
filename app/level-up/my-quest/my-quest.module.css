@@ -125,12 +125,15 @@
 }
 
 .levelPanel,
+.quickAddPanel,
 .gamePlanPanel,
 .momentumPanel,
+.monthPanel,
 .seasonPanel,
 .recapPanel,
 .finalePanel,
 .todayCommand,
+.repairPanel,
 .questPanel,
 .trackerPanel,
 .bossPanel,
@@ -156,9 +159,12 @@
 
 .gamePlanPanel,
 .momentumPanel,
+.monthPanel,
 .seasonPanel,
 .recapPanel,
-.finalePanel {
+.finalePanel,
+.quickAddPanel,
+.repairPanel {
   margin-top: 14px;
   border-radius: 22px;
   padding: clamp(16px, 3vw, 22px);
@@ -446,6 +452,119 @@
   padding: clamp(16px, 3vw, 22px);
 }
 
+.quickAddPanel {
+  display: grid;
+  gap: 12px;
+  border-color: color-mix(in srgb, var(--brand-green) 34%, rgba(116, 190, 255, 0.12));
+}
+
+.quickAddHeader,
+.quickAddFooter {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.quickAddHeader h2 {
+  margin: 4px 0 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.45rem, 5vw, 2.2rem);
+  line-height: 1.04;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.quickAddScore {
+  min-width: 86px;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.quickAddScore strong {
+  color: var(--foreground-strong);
+  font-size: clamp(2rem, 8vw, 3rem);
+  line-height: 0.92;
+  font-weight: 950;
+}
+
+.quickAddScore span,
+.quickAddFooter span {
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quickAddQuestGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickQuestButton,
+.repairQuestButton {
+  appearance: none;
+  min-width: 0;
+  min-height: 64px;
+  display: grid;
+  gap: 5px;
+  align-content: center;
+  padding: 10px;
+  border-radius: 15px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  background: linear-gradient(145deg, rgba(17, 39, 73, 0.78), rgba(9, 21, 42, 0.96));
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.quickQuestButton[data-complete='true'],
+.repairQuestButton[data-complete='true'] {
+  border-color: color-mix(in srgb, var(--brand-green) 50%, transparent);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(var(--brand-green-rgb), 0.18), transparent 42%),
+    linear-gradient(145deg, rgba(18, 58, 34, 0.82), rgba(8, 28, 24, 0.96));
+}
+
+.quickQuestButton span,
+.repairQuestButton span {
+  color: #dff8c2;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.quickQuestButton strong,
+.repairQuestButton strong {
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+  line-height: 1.12;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.quickAddFooter button,
+.focusSuggestion button {
+  min-height: 42px;
+  min-width: 112px;
+  border-radius: 13px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 36%, transparent);
+  background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.18), rgba(24, 54, 34, 0.9));
+  color: var(--foreground-strong);
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.quickAddFooter button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .momentumLayout {
   display: grid;
   grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
@@ -513,6 +632,81 @@
   font-size: 0.68rem;
   font-weight: 850;
   text-align: center;
+}
+
+.monthWeekdays,
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.monthWeekdays {
+  margin-bottom: 8px;
+}
+
+.monthWeekdays span {
+  color: var(--muted-strong);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.monthDay {
+  min-width: 0;
+  min-height: 82px;
+  display: grid;
+  align-content: space-between;
+  gap: 5px;
+  padding: 9px;
+  border-radius: 14px;
+  border: 1px solid rgba(116, 190, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  opacity: 0.92;
+}
+
+.monthDay[data-in-month='false'] {
+  opacity: 0.38;
+}
+
+.monthDay[data-intensity='1'] {
+  background: rgba(var(--brand-green-rgb), 0.12);
+}
+
+.monthDay[data-intensity='2'] {
+  background: rgba(var(--brand-green-rgb), 0.22);
+}
+
+.monthDay[data-intensity='3'] {
+  background: rgba(var(--brand-green-rgb), 0.34);
+  border-color: color-mix(in srgb, var(--brand-green) 34%, transparent);
+}
+
+.monthDay[data-intensity='4'] {
+  border-color: color-mix(in srgb, var(--brand-green) 50%, transparent);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(var(--brand-green-rgb), 0.22), transparent 46%),
+    rgba(var(--brand-green-rgb), 0.42);
+}
+
+.monthDay[data-today='true'] {
+  outline: 2px solid #dffb75;
+  outline-offset: 2px;
+}
+
+.monthDay span,
+.monthDay small {
+  color: var(--muted-strong);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.monthDay strong {
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+  line-height: 1.1;
+  font-weight: 950;
 }
 
 .todayHeader,
@@ -911,6 +1105,59 @@
   font-weight: 950;
 }
 
+.repairPanel {
+  display: grid;
+  gap: 14px;
+}
+
+.repairBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.repairQuestGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.repairTracker {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(2, 10, 24, 0.28);
+}
+
+.repairTracker span,
+.repairTracker small,
+.focusSuggestion span,
+.focusSuggestion small,
+.photoGuidanceCard span,
+.photoGuidanceCard small {
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.repairTracker span,
+.focusSuggestion span,
+.photoGuidanceCard span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.repairTracker strong,
+.focusSuggestion strong,
+.photoGuidanceCard strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+  line-height: 1.14;
+}
+
 .questCard {
   appearance: none;
   min-height: 86px;
@@ -1260,10 +1507,52 @@
   margin-bottom: 8px;
 }
 
+.focusSuggestion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(94px, 0.18fr);
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 13px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 34%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 42%),
+    rgba(255, 255, 255, 0.045);
+}
+
 .photoButtons {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+}
+
+.photoGuidanceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.photoGuidanceCard {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border-radius: 15px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.photoGuidanceCard[data-status='ready'] {
+  border-color: color-mix(in srgb, var(--brand-green) 38%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 42%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.photoGuidanceCard[data-status='due'] {
+  border-color: rgba(255, 205, 94, 0.34);
 }
 
 .photoCompare {
@@ -1493,6 +1782,7 @@
   .statGrid,
   .planGrid,
   .momentumLayout,
+  .repairBody,
   .seasonMap,
   .recapGrid,
   .trendStrip,
@@ -1510,11 +1800,14 @@
   .weeklyRuleCard,
   .freezeCard,
   .comboGrid,
-  .forecastGrid {
+  .forecastGrid,
+  .photoGuidanceGrid {
     grid-template-columns: 1fr;
   }
 
-  .todayQuickGrid {
+  .todayQuickGrid,
+  .quickAddQuestGrid,
+  .repairQuestGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1535,12 +1828,15 @@
   }
 
   .hero,
+  .quickAddPanel,
   .gamePlanPanel,
   .momentumPanel,
+  .monthPanel,
   .seasonPanel,
   .recapPanel,
   .finalePanel,
   .todayCommand,
+  .repairPanel,
   .questPanel,
   .trackerPanel,
   .bossPanel,
@@ -1557,6 +1853,8 @@
 
   .questGrid,
   .todayQuickGrid,
+  .quickAddQuestGrid,
+  .repairQuestGrid,
   .stackGrid,
   .loadoutGrid,
   .reminderGrid,
@@ -1570,14 +1868,34 @@
   }
 
   .todayHeader,
-  .quickTrackerRow {
+  .quickTrackerRow,
+  .quickAddHeader,
+  .quickAddFooter,
+  .focusSuggestion {
     align-items: stretch;
+    grid-template-columns: 1fr;
     flex-direction: column;
   }
 
-  .todayScore {
+  .todayScore,
+  .quickAddScore {
     width: 100%;
     justify-items: start;
+  }
+
+  .monthGrid,
+  .monthWeekdays {
+    gap: 5px;
+  }
+
+  .monthDay {
+    min-height: 64px;
+    padding: 7px;
+    border-radius: 11px;
+  }
+
+  .monthDay small {
+    display: none;
   }
 
   .heatmapGrid {
