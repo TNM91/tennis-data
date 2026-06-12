@@ -1860,6 +1860,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                 <span style={selectedThreadCalendarCue.saved ? savedCalendarPillStyle : calendarPillStyle}>
                   {selectedThreadCalendarCue.saved ? 'Saved to My Calendar' : 'Ready to save'}
                 </span>
+                {selectedThreadCalendarCue.saved ? (
+                  <Link href="/mylab#my-calendar" style={ghostButtonStyle}>
+                    View calendar
+                  </Link>
+                ) : null}
                 <button
                   type="button"
                   onClick={handleSelectedThreadCalendarCueAction}

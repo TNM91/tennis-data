@@ -32,6 +32,7 @@ describe('calendar scheduling UX', () => {
     expect(messagesSource).toContain('Ready to save')
     expect(messagesSource).toContain('Saved to My Calendar')
     expect(messagesSource).toContain('Save to My Calendar')
+    expect(messagesSource).toContain('View calendar')
     expect(messagesSource).toContain('PlayerCalendarItemsResponse')
     expect(messagesSource).toContain("id.startsWith('message-calendar-') || id.startsWith('message-schedule-')")
     expect(messagesSource).toContain('candidate.availabilityStatus')
