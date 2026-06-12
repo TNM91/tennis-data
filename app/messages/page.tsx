@@ -1156,12 +1156,12 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
   }
 
-  function getMessageCalendarItemId(candidate: CalendarQuickAddCandidate, sourceId: string) {
+  const getMessageCalendarItemId = useCallback((candidate: CalendarQuickAddCandidate, sourceId: string) => {
     return buildCalendarQuickAddItemId(
       candidate,
       selectedConversation?.id ? `thread-${selectedConversation.id}-${sourceId}` : sourceId,
     )
-  }
+  }, [selectedConversation?.id])
 
   async function addMessageCandidateToCalendar(candidate: CalendarQuickAddCandidate, sourceId: string) {
     if (!session?.access_token) {
@@ -1540,6 +1540,39 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const replyCalendarSaved = Boolean(replyCalendarItemId && calendarQuickAddedItemIds.has(replyCalendarItemId))
   const composeCalendarItemId = composeCalendarCandidate ? getMessageCalendarItemId(composeCalendarCandidate, 'compose') : ''
   const composeCalendarSaved = Boolean(composeCalendarItemId && calendarQuickAddedItemIds.has(composeCalendarItemId))
+  const selectedThreadCalendarCue = useMemo(() => {
+    const [messageCue] = Array.from(messageCalendarCandidates.entries())
+    if (messageCue) {
+      const [messageId, candidate] = messageCue
+      const itemId = getMessageCalendarItemId(candidate, `message-${messageId}`)
+      return {
+        label: candidate.availabilityStatus ? 'Availability cue' : 'Calendar cue',
+        title: candidate.title,
+        detail: [
+          candidate.date,
+          candidate.time,
+          candidate.location,
+          candidate.availabilityStatus,
+          quickAddRecurrenceLabel(candidate.recurrenceRule),
+        ].filter(Boolean).join(' | '),
+        saved: calendarQuickAddedItemIds.has(itemId),
+      }
+    }
+    if (selectedScheduleEvent) {
+      return {
+        label: 'Schedule thread',
+        title: selectedScheduleEvent.title || selectedConversation?.subject || 'Scheduled tennis session',
+        detail: [
+          selectedScheduleEvent.scheduledDate,
+          selectedScheduleEvent.scheduledTime,
+          selectedScheduleEvent.facility,
+          selectedScheduleEvent.status === 'cancelled' ? 'Cancelled' : selectedScheduleEvent.status || 'Proposed',
+        ].filter(Boolean).join(' | '),
+        saved: calendarQuickAddedItemIds.has(`message-schedule-${selectedScheduleEvent.id}`),
+      }
+    }
+    return null
+  }, [calendarQuickAddedItemIds, getMessageCalendarItemId, messageCalendarCandidates, selectedConversation?.subject, selectedScheduleEvent])
 
   if (!authResolved || loading) {
     return (
@@ -1764,6 +1797,21 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               {selectedConversation ? <span style={statusPillStyle(selectedConversation.status)}>{statusLabel(selectedConversation.status)}</span> : null}
             </div>
           </div>
+
+          {selectedThreadCalendarCue ? (
+            <div style={selectedThreadCalendarCueStyle}>
+              <div>
+                <div style={labelStyle}>{selectedThreadCalendarCue.label}</div>
+                <p style={calendarCueSummaryStyle}>
+                  <strong>{selectedThreadCalendarCue.title}</strong>
+                  {selectedThreadCalendarCue.detail ? ` | ${selectedThreadCalendarCue.detail}` : ''}
+                </p>
+              </div>
+              <span style={selectedThreadCalendarCue.saved ? savedCalendarPillStyle : calendarPillStyle}>
+                {selectedThreadCalendarCue.saved ? 'Saved to My Calendar' : 'Ready to save'}
+              </span>
+            </div>
+          ) : null}
 
           {selectedConversation && (selectedConversation.conversationType === 'support' || selectedConversation.conversationType === 'league' || selectedContextHref) ? (
             <div style={contextPanelStyle}>
@@ -2761,6 +2809,13 @@ const calendarPillStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const savedCalendarPillStyle: CSSProperties = {
+  ...calendarPillStyle,
+  border: '1px solid rgba(125,211,252,0.26)',
+  background: 'rgba(125,211,252,0.10)',
+  color: 'var(--brand-blue-2)',
+}
+
 const pinnedPillStyle: CSSProperties = {
   ...unreadPillStyle,
   border: '1px solid rgba(155,225,29,0.34)',
@@ -3157,6 +3212,30 @@ const calendarFollowThroughStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 900,
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const selectedThreadCalendarCueStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 10,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  color: 'var(--foreground-strong)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const calendarCueSummaryStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 850,
   overflowWrap: 'anywhere',
 }
 
