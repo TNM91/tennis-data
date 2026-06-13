@@ -173,6 +173,22 @@ export type LevelUpCustomQuest = {
   updatedAt: string
 }
 
+export type LevelUpCustomQuestCompletion = {
+  id: string
+  userId: string
+  customQuestId: string
+  levelUpSessionId: string | null
+  identitySlug: string
+  cardId: string | null
+  completedOn: string
+  completedAt: string
+  xp: number
+  proofRating: number | null
+  note: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type LevelUpQuestBuilderPlan = {
   templates: Array<LevelUpQuestTemplate & {
     primaryCard: LevelUpCard

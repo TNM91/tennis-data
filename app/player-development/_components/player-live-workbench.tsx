@@ -65,6 +65,13 @@ type RemoteLevelUpSession = SavedSession & {
   updatedAt: string
 }
 
+type CustomQuestForCompletion = {
+  id: string
+  title: string
+  xp: number
+  linked_card_id: string | null
+}
+
 type SyncState = {
   status: 'idle' | 'syncing' | 'synced' | 'local' | 'error'
   message: string
@@ -156,10 +163,11 @@ export default function PlayerLiveWorkbench({
   const assignmentFocus = searchParams.get('assignmentFocus')?.trim() || searchParams.get('focus')?.trim() || ''
   const assignmentWorkType = normalizeAssignmentWorkType(searchParams.get('workType'))
   const requestedCardId = searchParams.get('card')?.trim() ?? ''
+  const customQuestId = searchParams.get('quest')?.trim() ?? ''
   const requestedCard = LEVEL_UP_CARDS.find((card) => card.id === requestedCardId)
   const requestedContext = normalizeTrainingContext(searchParams.get('context'))
   const hasCoachAssignment = Boolean(assignmentId || studentLinkId || searchParams.get('coach') === '1')
-  const hasQuickStart = !hasCoachAssignment && Boolean(searchParams.get('focus') || searchParams.get('workType') || searchParams.get('context'))
+  const hasQuickStart = !hasCoachAssignment && Boolean(requestedCardId || customQuestId || searchParams.get('focus') || searchParams.get('workType') || searchParams.get('context'))
   const playableFocuses = useMemo(
     () => focuses.filter((focus) => focus.id !== 'accountability'),
     [focuses],
@@ -182,6 +190,7 @@ export default function PlayerLiveWorkbench({
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
   const [scoringDrillId, setScoringDrillId] = useState('')
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
+  const [questCreditMessage, setQuestCreditMessage] = useState('')
   const storageKey = `tenaceiq:level-up:${identitySlug}`
   const [sessions, setSessions] = useState<SavedSession[]>(() => readSavedSessions(storageKey))
 
@@ -220,6 +229,7 @@ export default function PlayerLiveWorkbench({
     setActiveFocusId(nextFocusId)
     setActiveDrillId(nextDrillId)
     setScoringDrillId('')
+    setQuestCreditMessage('')
     setEditingStep(null)
   }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment, requestedCard])
 
@@ -285,6 +295,7 @@ export default function PlayerLiveWorkbench({
     setActiveDrillId('')
     setDraft(emptyDraft)
     setSyncState({ status: 'idle', message: '' })
+    setQuestCreditMessage('')
     setScoringDrillId('')
     setEditingStep('work')
   }
@@ -295,6 +306,7 @@ export default function PlayerLiveWorkbench({
     if (nextContext === 'doubles') setWorkType('court')
     setActiveDrillId('')
     setScoringDrillId('')
+    setQuestCreditMessage('')
     showActivity()
   }
 
@@ -306,6 +318,7 @@ export default function PlayerLiveWorkbench({
     }
     setActiveDrillId('')
     setScoringDrillId('')
+    setQuestCreditMessage('')
     setEditingStep(hasCoachAssignment ? null : 'setup')
   }
 
@@ -325,6 +338,7 @@ export default function PlayerLiveWorkbench({
     }
     setActiveDrillId('')
     setScoringDrillId('')
+    setQuestCreditMessage('')
   }
 
   function saveSession() {
@@ -352,6 +366,10 @@ export default function PlayerLiveWorkbench({
     setSessions(nextSessions)
     window.localStorage.setItem(storageKey, JSON.stringify(nextSessions))
     if (activeDrill.sourceCard) appendPortalCompletion(activeDrill.sourceCard, nextSession)
+    if (customQuestId && activeDrill.sourceCard) {
+      setQuestCreditMessage('Quest XP queued.')
+      void syncCustomQuestCompletion(customQuestId, nextSession, activeDrill.sourceCard, identitySlug, setQuestCreditMessage)
+    }
     setLastSavedSession(nextSession)
     setDraft(emptyDraft)
     setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing now...' })
@@ -377,6 +395,7 @@ export default function PlayerLiveWorkbench({
     setLastSavedSession(null)
     setDraft(emptyDraft)
     setScoringDrillId('')
+    setQuestCreditMessage('')
     activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }
 
@@ -385,6 +404,7 @@ export default function PlayerLiveWorkbench({
     setDraft(emptyDraft)
     setActiveDrillId('')
     setScoringDrillId('')
+    setQuestCreditMessage('')
     setEditingStep('focus')
     window.setTimeout(() => {
       document.getElementById('level-up-flow')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -763,6 +783,7 @@ export default function PlayerLiveWorkbench({
                 : lastSavedSession.accessMode === 'player_plus'
                   ? 'Ready for Player+ history and trends.'
                   : 'Kept as a local preview for now.')}
+              {questCreditMessage ? ` ${questCreditMessage}` : ''}
             </p>
           </div>
           <div className={styles.liveSavedActions}>
@@ -995,6 +1016,57 @@ function appendPortalCompletion(card: LevelUpCard, session: SavedSession) {
   }
 
   window.localStorage.setItem(key, JSON.stringify([next, ...existing.filter((completion) => completion.id !== next.id)].slice(0, 40)))
+}
+
+async function syncCustomQuestCompletion(
+  customQuestId: string,
+  session: SavedSession,
+  card: LevelUpCard,
+  identitySlug: string,
+  setQuestCreditMessage: (message: string) => void,
+) {
+  const { data } = await supabase.auth.getSession()
+  const userId = data.session?.user.id
+  if (!userId) {
+    setQuestCreditMessage('Sign in to record quest XP.')
+    return
+  }
+
+  const { data: questData, error: questError } = await supabase
+    .from('level_up_custom_quests')
+    .select('id,title,xp,linked_card_id')
+    .eq('id', customQuestId)
+    .eq('active', true)
+    .maybeSingle()
+
+  if (questError || !questData) {
+    setQuestCreditMessage('Quest XP could not be matched.')
+    return
+  }
+
+  const quest = questData as CustomQuestForCompletion
+  if (quest.linked_card_id && quest.linked_card_id !== card.id) {
+    setQuestCreditMessage('Quest XP skipped because the linked drill changed.')
+    return
+  }
+
+  const { error } = await supabase
+    .from('level_up_custom_quest_completions')
+    .upsert({
+      user_id: userId,
+      custom_quest_id: customQuestId,
+      level_up_session_id: session.id,
+      identity_slug: identitySlug,
+      card_id: card.id,
+      completed_on: session.completedAt.slice(0, 10),
+      completed_at: session.completedAt,
+      xp: Math.min(100, Math.max(0, quest.xp)),
+      proof_rating: session.rating,
+      note: session.note,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'custom_quest_id,completed_on' })
+
+  setQuestCreditMessage(error ? 'Quest XP could not sync yet.' : `Quest XP recorded for ${quest.title}.`)
 }
 
 function getCardLiveWorkType(card: LevelUpCard): WorkType {

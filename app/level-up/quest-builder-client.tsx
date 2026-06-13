@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import type {
+  LevelUpCustomQuestCompletion,
   LevelUpCustomQuest,
   LevelUpHabitCategory,
   LevelUpQuestCadence,
@@ -57,7 +58,24 @@ type CustomQuestRow = {
   updated_at: string
 }
 
+type CustomQuestCompletionRow = {
+  id: string
+  user_id: string
+  custom_quest_id: string
+  level_up_session_id: string | null
+  identity_slug: string
+  card_id: string | null
+  completed_on: string
+  completed_at: string
+  xp: number
+  proof_rating: number | null
+  note: string
+  created_at: string
+  updated_at: string
+}
+
 const QUEST_SELECT = 'id,user_id,title,category,cadence,xp,linked_card_id,proof,starter_habit,active,created_at,updated_at'
+const COMPLETION_SELECT = 'id,user_id,custom_quest_id,level_up_session_id,identity_slug,card_id,completed_on,completed_at,xp,proof_rating,note,created_at,updated_at'
 
 const CATEGORY_OPTIONS: LevelUpHabitCategory[] = [
   'tennis-skill',
@@ -89,6 +107,7 @@ export default function QuestBuilderClient({
   const fallbackCardId = firstTemplate?.primaryCardId ?? cardOptions[0]?.id ?? ''
   const [draft, setDraft] = useState<QuestBuilderDraft>(() => buildDraftFromTemplate(firstTemplate, fallbackCardId))
   const [customQuests, setCustomQuests] = useState<LevelUpCustomQuest[]>([])
+  const [completions, setCompletions] = useState<LevelUpCustomQuestCompletion[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [archivingId, setArchivingId] = useState('')
@@ -99,10 +118,14 @@ export default function QuestBuilderClient({
     () => cardOptions.find((card) => card.id === draft.linkedCardId) ?? cardOptions[0],
     [cardOptions, draft.linkedCardId],
   )
+  const todayKey = useMemo(() => formatDateKey(new Date()), [])
+  const weekStartKey = useMemo(() => getWeekStartKey(new Date()), [])
+  const progressSummary = useMemo(() => buildCustomQuestProgress(completions, todayKey, weekStartKey), [completions, todayKey, weekStartKey])
 
   const loadCustomQuests = useCallback(async () => {
     if (!userId) {
       setCustomQuests([])
+      setCompletions([])
       setLoading(false)
       return
     }
@@ -110,23 +133,34 @@ export default function QuestBuilderClient({
     setLoading(true)
     setError('')
 
-    const { data, error: loadError } = await supabase
+    const [{ data, error: loadError }, { data: completionData, error: completionError }] = await Promise.all([
+      supabase
       .from('level_up_custom_quests')
       .select(QUEST_SELECT)
       .eq('user_id', userId)
       .eq('active', true)
       .order('updated_at', { ascending: false })
-      .limit(12)
+        .limit(12),
+      supabase
+        .from('level_up_custom_quest_completions')
+        .select(COMPLETION_SELECT)
+        .eq('user_id', userId)
+        .gte('completed_on', getDateOffsetKey(todayKey, -90))
+        .order('completed_on', { ascending: false })
+        .limit(200),
+    ])
 
-    if (loadError) {
+    if (loadError || completionError) {
       setError('Saved quests could not load.')
       setCustomQuests([])
+      setCompletions([])
     } else {
       setCustomQuests(((data ?? []) as CustomQuestRow[]).map(mapCustomQuestRow))
+      setCompletions(((completionData ?? []) as CustomQuestCompletionRow[]).map(mapCustomQuestCompletionRow))
     }
 
     setLoading(false)
-  }, [userId])
+  }, [todayKey, userId])
 
   useEffect(() => {
     if (!authResolved) return
@@ -346,6 +380,21 @@ export default function QuestBuilderClient({
           <p>These rows use Supabase RLS ownership rules, so another user cannot read or change them.</p>
         </div>
 
+        <div className={styles.levelUpQuestProgressStrip} aria-label="Custom quest progress">
+          <article>
+            <span>Total XP</span>
+            <strong>{progressSummary.totalXp}</strong>
+          </article>
+          <article>
+            <span>This week</span>
+            <strong>{progressSummary.weeklyXp}</strong>
+          </article>
+          <article>
+            <span>Streak</span>
+            <strong>{progressSummary.streakDays}</strong>
+          </article>
+        </div>
+
         <div className={styles.levelUpQuestSavedGrid}>
           {loading ? <p className={styles.levelUpQuestNotice}>Loading saved quests.</p> : null}
           {!loading && customQuests.length === 0 ? (
@@ -353,9 +402,12 @@ export default function QuestBuilderClient({
           ) : null}
           {customQuests.map((quest) => {
             const linkedCard = cardOptions.find((card) => card.id === quest.linkedCardId)
+            const questCompletions = completions.filter((completion) => completion.customQuestId === quest.id)
+            const completedToday = questCompletions.some((completion) => completion.completedOn === todayKey)
+            const questXp = questCompletions.reduce((total, completion) => total + completion.xp, 0)
 
             return (
-              <article key={quest.id}>
+              <article key={quest.id} data-completed-today={completedToday ? 'true' : 'false'}>
                 <div>
                   <span>{formatHabitCategory(quest.category)}</span>
                   <strong>{quest.title}</strong>
@@ -370,11 +422,19 @@ export default function QuestBuilderClient({
                     <dt>XP</dt>
                     <dd>{quest.xp}</dd>
                   </div>
+                  <div>
+                    <dt>Earned</dt>
+                    <dd>{questXp}</dd>
+                  </div>
+                  <div>
+                    <dt>Today</dt>
+                    <dd>{completedToday ? 'done' : 'open'}</dd>
+                  </div>
                 </dl>
                 <small>Proof: {quest.proof || linkedCard?.proof || 'Score the linked drill proof.'}</small>
                 <div>
                   {linkedCard ? (
-                    <Link className="button-primary" href={`/level-up/${identitySlug}?card=${linkedCard.id}#level-up-flow`}>
+                    <Link className="button-primary" href={`/level-up/${identitySlug}?card=${linkedCard.id}&quest=${quest.id}#level-up-flow`}>
                       Start drill
                     </Link>
                   ) : null}
@@ -423,4 +483,69 @@ function mapCustomQuestRow(row: CustomQuestRow): LevelUpCustomQuest {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+function mapCustomQuestCompletionRow(row: CustomQuestCompletionRow): LevelUpCustomQuestCompletion {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    customQuestId: row.custom_quest_id,
+    levelUpSessionId: row.level_up_session_id,
+    identitySlug: row.identity_slug,
+    cardId: row.card_id,
+    completedOn: row.completed_on,
+    completedAt: row.completed_at,
+    xp: row.xp,
+    proofRating: row.proof_rating,
+    note: row.note,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+function buildCustomQuestProgress(completions: LevelUpCustomQuestCompletion[], todayKey: string, weekStartKey: string) {
+  const completedDays = new Set(completions.map((completion) => completion.completedOn))
+  let streakDays = 0
+  let cursor = parseDateKey(todayKey)
+
+  while (completedDays.has(formatDateKey(cursor))) {
+    streakDays += 1
+    cursor = addDays(cursor, -1)
+  }
+
+  return {
+    totalXp: completions.reduce((total, completion) => total + completion.xp, 0),
+    weeklyXp: completions
+      .filter((completion) => completion.completedOn >= weekStartKey)
+      .reduce((total, completion) => total + completion.xp, 0),
+    streakDays,
+  }
+}
+
+function getWeekStartKey(date: Date) {
+  const day = new Date(date)
+  const dayOfWeek = day.getDay()
+  day.setDate(day.getDate() - dayOfWeek)
+  return formatDateKey(day)
+}
+
+function getDateOffsetKey(dateKey: string, offsetDays: number) {
+  return formatDateKey(addDays(parseDateKey(dateKey), offsetDays))
+}
+
+function parseDateKey(dateKey: string) {
+  return new Date(`${dateKey}T00:00:00`)
+}
+
+function addDays(date: Date, offsetDays: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + offsetDays)
+  return next
+}
+
+function formatDateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }

@@ -4,7 +4,10 @@ import { describe, expect, it } from 'vitest'
 
 const migrationPath = join(process.cwd(), 'supabase/migrations/20260612000400_create_level_up_custom_quests.sql')
 const migrationSource = readFileSync(migrationPath, 'utf8')
+const completionsMigrationPath = join(process.cwd(), 'supabase/migrations/20260613000100_create_level_up_custom_quest_completions.sql')
+const completionsMigrationSource = readFileSync(completionsMigrationPath, 'utf8')
 const clientSource = readFileSync(join(process.cwd(), 'app/level-up/quest-builder-client.tsx'), 'utf8')
+const workbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
 const typeSource = readFileSync(join(process.cwd(), 'lib/level-up/level-up-types.ts'), 'utf8')
 
 describe('Level Up custom quest persistence', () => {
@@ -33,5 +36,31 @@ describe('Level Up custom quest persistence', () => {
     expect(clientSource).toContain('Private to your account')
     expect(typeSource).toContain('export type LevelUpCustomQuest')
     expect(typeSource).toContain('linkedCardId: string | null')
+  })
+
+  it('records private custom quest completions with same-owner RLS checks', () => {
+    expect(existsSync(completionsMigrationPath)).toBe(true)
+    expect(completionsMigrationSource).toContain('create table if not exists public.level_up_custom_quest_completions')
+    expect(completionsMigrationSource).toContain('custom_quest_id uuid not null references public.level_up_custom_quests(id) on delete cascade')
+    expect(completionsMigrationSource).toContain('constraint level_up_custom_quest_completions_unique_day unique (custom_quest_id, completed_on)')
+    expect(completionsMigrationSource).toContain('alter table public.level_up_custom_quest_completions enable row level security')
+    expect(completionsMigrationSource).toContain('auth.uid() = user_id')
+    expect(completionsMigrationSource).toContain('quest.id = custom_quest_id')
+    expect(completionsMigrationSource).toContain('quest.user_id = auth.uid()')
+    expect(completionsMigrationSource).toContain('level_up_custom_quest_completions_user_completed_idx')
+    expect(completionsMigrationSource).toContain('level_up_custom_quest_completions_quest_completed_idx')
+  })
+
+  it('links saved quests into drill completion and refreshable XP progress', () => {
+    expect(clientSource).toContain('LevelUpCustomQuestCompletion')
+    expect(clientSource).toContain("from('level_up_custom_quest_completions')")
+    expect(clientSource).toContain('buildCustomQuestProgress')
+    expect(clientSource).toContain('levelUpQuestProgressStrip')
+    expect(clientSource).toContain('&quest=${quest.id}#level-up-flow')
+    expect(workbenchSource).toContain("searchParams.get('quest')")
+    expect(workbenchSource).toContain('syncCustomQuestCompletion')
+    expect(workbenchSource).toContain("from('level_up_custom_quest_completions')")
+    expect(workbenchSource).toContain("onConflict: 'custom_quest_id,completed_on'")
+    expect(typeSource).toContain('export type LevelUpCustomQuestCompletion')
   })
 })
