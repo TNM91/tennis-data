@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
@@ -216,6 +216,34 @@ const CAPTAIN_DECISION_HANDOFF_PROOF_STEPS = [
   },
 ] as const
 
+type CaptainLevelUpChallenge = {
+  id: string
+  title: string
+  focus: string
+  detail: string
+  proof: string
+  cardIds: string[]
+}
+
+const CAPTAIN_LEVEL_UP_CHALLENGES: CaptainLevelUpChallenge[] = [
+  {
+    id: 'match-day-routine',
+    title: 'Match-Day Routine',
+    focus: 'Warm-up, return intent, and post-match debrief',
+    detail: 'Run this as a team habit before the next lineup week. Completion can be tracked as an aggregate team signal.',
+    proof: 'Aggregate completion only. Private player proof and notes stay with each player.',
+    cardIds: ['five-minute-match-primer', 'return-30-30-game', 'post-match-five-minute-debrief'],
+  },
+  {
+    id: 'doubles-readiness',
+    title: 'Doubles Readiness',
+    focus: 'Partner first move, poach timing, and 30-30 doubles clarity',
+    detail: 'Use this when the team week depends on clearer doubles jobs and partner communication.',
+    proof: 'Track who completed the challenge; keep individual notes private unless players share them.',
+    cardIds: ['partner-first-move-call', 'poach-timing-shadow', 'doubles-30-30-game'],
+  },
+]
+
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
   'Set your player identity in My Lab so Captain can find your profile team.',
   'Upload a reviewed team summary or schedule through Data Assist when roster or match history is missing.',
@@ -311,6 +339,7 @@ function CaptainLockedSurface({
 
 function CaptainHubContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const { userId, role, entitlements, authResolved } = useAuth()
@@ -1079,6 +1108,13 @@ function CaptainHubContent() {
     date: captainResume?.eventDate,
     opponent: captainResume?.opponentTeam,
   })
+  const levelUpTeamChallenge = useMemo(
+    () => buildCaptainLevelUpChallenge(searchParams.get('levelUpChallenge') || '', searchParams.get('card') || ''),
+    [searchParams],
+  )
+  const levelUpPracticeHref = levelUpTeamChallenge ? appendLevelUpChallengeHref(practiceHref, levelUpTeamChallenge.id) : practiceHref
+  const levelUpAvailabilityHref = levelUpTeamChallenge ? appendLevelUpChallengeHref(availabilityHref, levelUpTeamChallenge.id) : availabilityHref
+  const levelUpWeeklyBriefHref = levelUpTeamChallenge ? appendLevelUpChallengeHref(weeklyBriefHref, levelUpTeamChallenge.id) : weeklyBriefHref
   const seasonDashboardHref = '/league-coordinator'
   const tiqTeamMatchesHref = '/league-coordinator/results'
   const captainNotesScope = useMemo(
@@ -1781,6 +1817,38 @@ function CaptainHubContent() {
 
           </div>
         </section>
+
+        {levelUpTeamChallenge ? (
+          <section style={captainLevelUpChallengeStyle} aria-label="Level Up team challenge mode">
+            <div style={captainLevelUpChallengeHeaderStyle}>
+              <div>
+                <div style={sectionKicker}>Level Up team challenge</div>
+                <h2 style={sectionTitle}>Launch {levelUpTeamChallenge.title} for the lineup.</h2>
+                <div style={sectionSub}>{levelUpTeamChallenge.detail}</div>
+              </div>
+              <span style={badgeGreen}>Team challenge mode</span>
+            </div>
+            <div style={captainLevelUpChallengeGridStyle}>
+              <article style={captainLevelUpChallengeCardStyle}>
+                <span style={captainLaneTopline}>Focus</span>
+                <strong>{levelUpTeamChallenge.focus}</strong>
+              </article>
+              <article style={captainLevelUpChallengeCardStyle}>
+                <span style={captainLaneTopline}>Privacy</span>
+                <strong>{levelUpTeamChallenge.proof}</strong>
+              </article>
+              <article style={captainLevelUpChallengeCardStyle}>
+                <span style={captainLaneTopline}>Cards</span>
+                <strong>{levelUpTeamChallenge.cardIds.length} linked Level Up cards</strong>
+              </article>
+            </div>
+            <div style={dynamicGlanceActionRow}>
+              <PrimaryLink href={captainWorkflowHref(levelUpPracticeHref)}>Plan practice</PrimaryLink>
+              <SecondarySmallLink href={captainWorkflowHref(levelUpAvailabilityHref)}>Check availability</SecondarySmallLink>
+              <SecondarySmallLink href={captainWorkflowHref(levelUpWeeklyBriefHref)}>Add to weekly brief</SecondarySmallLink>
+            </div>
+          </section>
+        ) : null}
 
         {error ? (
           <section style={errorCard}>
@@ -2702,6 +2770,25 @@ function PrimaryBtn({
   )
 }
 
+function buildCaptainLevelUpChallenge(challengeId: string, requestedCardId: string): CaptainLevelUpChallenge | null {
+  const challenge = CAPTAIN_LEVEL_UP_CHALLENGES.find((item) => item.id === challengeId)
+  if (!challenge) return null
+
+  if (!requestedCardId || challenge.cardIds.includes(requestedCardId)) return challenge
+
+  return {
+    ...challenge,
+    cardIds: [requestedCardId, ...challenge.cardIds.filter((cardId) => cardId !== requestedCardId)],
+  }
+}
+
+function appendLevelUpChallengeHref(href: string, challengeId: string) {
+  const [path, hash = ''] = href.split('#')
+  const separator = path.includes('?') ? '&' : '?'
+  const nextPath = `${path}${separator}levelUpChallenge=${encodeURIComponent(challengeId)}`
+  return hash ? `${nextPath}#${hash}` : nextPath
+}
+
 const pageWrap: CSSProperties = {
   width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))',
   margin: '0 auto',
@@ -2853,6 +2940,48 @@ const captainPreviewStepCopyStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.45,
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainLevelUpChallengeStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 18,
+  borderRadius: 24,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.06)), var(--shell-panel-bg-strong)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+}
+
+const captainLevelUpChallengeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  gap: 12,
+  minWidth: 0,
+}
+
+const captainLevelUpChallengeGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainLevelUpChallengeCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(5,11,22,0.28)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.4,
   overflowWrap: 'anywhere',
 }
 

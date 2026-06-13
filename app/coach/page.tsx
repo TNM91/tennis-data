@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -91,6 +91,34 @@ const COACH_REVIEW_PROOF_SYNC_STEPS = [
   },
 ]
 
+type CoachLevelUpHandoffPack = {
+  id: string
+  title: string
+  assignmentTitle: string
+  focus: string
+  detail: string
+  cardIds: string[]
+}
+
+const COACH_LEVEL_UP_HANDOFF_PACKS: CoachLevelUpHandoffPack[] = [
+  {
+    id: 'doubles-readiness',
+    title: 'Doubles Readiness',
+    assignmentTitle: 'Doubles readiness Level Up pack',
+    focus: 'Partner first move, poach timing, and 30-30 doubles clarity',
+    detail: 'Use this when a player needs clearer partner jobs and proof-backed doubles habits between lessons.',
+    cardIds: ['partner-first-move-call', 'poach-timing-shadow', 'doubles-30-30-game'],
+  },
+  {
+    id: 'match-day-routine',
+    title: 'Match-Day Routine',
+    assignmentTitle: 'Match-day routine Level Up pack',
+    focus: 'Warm-up, return intent, and post-match debrief',
+    detail: 'Use this when the next lesson needs a player to arrive with proof from match-day routines.',
+    cardIds: ['five-minute-match-primer', 'return-30-30-game', 'post-match-five-minute-debrief'],
+  },
+]
+
 export default function CoachPage() {
   return (
     <SiteShell active="/coach">
@@ -101,6 +129,7 @@ export default function CoachPage() {
 
 function CoachContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
@@ -649,6 +678,10 @@ function CoachContent() {
     () => (selectedLevelUpAssignmentCard ? findLevelUpModuleForCard(selectedLevelUpAssignmentCard) : null),
     [selectedLevelUpAssignmentCard],
   )
+  const levelUpHandoffPack = useMemo(
+    () => buildCoachLevelUpHandoffPack(searchParams.get('levelUpPack') || '', searchParams.get('card') || ''),
+    [searchParams],
+  )
   const lessonMessage = useMemo(
     () => buildLessonConfirmMessage(selectedContactStudent?.playerName ?? 'your lesson', lessonDateTime, lessonFocus, lessonLocation),
     [lessonDateTime, lessonFocus, lessonLocation, selectedContactStudent?.playerName],
@@ -704,6 +737,19 @@ function CoachContent() {
     [assignmentsNeedingReview, linkedPlayerCards, savedStudents.length],
   )
 
+  function loadLevelUpHandoffPack(pack: CoachLevelUpHandoffPack) {
+    const primaryCard = LEVEL_UP_CARDS.find((card) => card.id === pack.cardIds[0])
+
+    setAssignmentTitle(pack.assignmentTitle)
+    setAssignmentFocus(pack.focus)
+    setAssignmentTemplateId(CUSTOM_ASSIGNMENT_TEMPLATE_ID)
+    setAssignmentPresetId('')
+    setAssignmentStarterId('')
+    setAssignmentLevelUpCardId(primaryCard?.id ?? '')
+    setLessonFocus(pack.focus)
+    setWorkspaceMessage(`${pack.title} loaded into the coach assignment form.`)
+  }
+
   if (!authResolved || role === 'public') return null
 
   if (!access.canUseCoachWorkflow) {
@@ -755,6 +801,39 @@ function CoachContent() {
           </Link>
         ))}
       </section>
+
+      {levelUpHandoffPack ? (
+        <section style={levelUpCoachHandoffStyle} aria-label="Level Up coach assignment bridge">
+          <div style={levelUpCoachHandoffHeaderStyle}>
+            <div>
+              <div style={eyebrowStyle}>Level Up handoff</div>
+              <h2 style={sectionTitleStyle}>Assign {levelUpHandoffPack.title} from Coach Hub.</h2>
+              <p style={bodyStyle}>{levelUpHandoffPack.detail}</p>
+            </div>
+            <span style={reviewBadgeStyle}>Coach assignment bridge</span>
+          </div>
+          <div style={levelUpCoachHandoffGridStyle}>
+            {levelUpHandoffPack.cardIds.map((cardId) => {
+              const card = LEVEL_UP_CARDS.find((item) => item.id === cardId)
+              if (!card) return null
+
+              return (
+                <article key={card.id} style={levelUpCoachHandoffCardStyle}>
+                  <strong>{card.title}</strong>
+                  <span>{card.pack} / {card.durationMinutes} min</span>
+                  <em>{card.proof}</em>
+                </article>
+              )
+            })}
+          </div>
+          <div style={studentActionRowStyle}>
+            <button type="button" onClick={() => loadLevelUpHandoffPack(levelUpHandoffPack)} style={smallPrimaryButtonStyle}>
+              Load into assignment form
+            </button>
+            <a href="#coach-lesson-frame" style={smallGhostLinkStyle}>Jump to lesson frame</a>
+          </div>
+        </section>
+      ) : null}
 
       <section style={linkedDashboardStyle} aria-label="Linked players dashboard">
         <div style={linkedDashboardHeaderStyle}>
@@ -1681,6 +1760,18 @@ function uniqueLevelUpCards(cards: LevelUpCard[]) {
   })
 }
 
+function buildCoachLevelUpHandoffPack(packId: string, requestedCardId: string): CoachLevelUpHandoffPack | null {
+  const pack = COACH_LEVEL_UP_HANDOFF_PACKS.find((item) => item.id === packId)
+  if (!pack) return null
+
+  if (!requestedCardId || pack.cardIds.includes(requestedCardId)) return pack
+
+  return {
+    ...pack,
+    cardIds: [requestedCardId, ...pack.cardIds.filter((cardId) => cardId !== requestedCardId)],
+  }
+}
+
 function findLevelUpModuleForCard(card: LevelUpCard): LevelUpModule | undefined {
   return LEVEL_UP_MODULES.find((module) => module.cardIds.includes(card.id))
 }
@@ -2211,6 +2302,48 @@ const commandCopyStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.45,
   fontWeight: 760,
+}
+
+const levelUpCoachHandoffStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.055)), linear-gradient(180deg, rgba(12,26,50,0.86), rgba(8,18,36,0.94))',
+}
+
+const levelUpCoachHandoffHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  gap: 12,
+  minWidth: 0,
+}
+
+const levelUpCoachHandoffGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const levelUpCoachHandoffCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(5,11,22,0.34)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
 }
 
 const linkedDashboardStyle: CSSProperties = {
