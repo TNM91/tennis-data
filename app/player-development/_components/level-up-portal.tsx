@@ -2612,6 +2612,7 @@ function LevelUpCardTile({
     })
     : ''
   const coachAssignedLabel = coachAssignment ? getCoachAssignmentCardLabel(coachAssignment, card) : null
+  const questHref = buildCardQuestHref(startHref)
 
   useEffect(() => {
     if (!timerRunning) return undefined
@@ -3043,6 +3044,7 @@ function LevelUpCardTile({
           <div className={styles.levelUpActivityActions}>
             <button type="button" className={styles.scoreButton} onClick={openLogger}>Score now</button>
             <a className="button-secondary" href={startHref}>Open guided flow</a>
+            <a className="button-secondary" href={questHref}>Add as quest</a>
           </div>
           <details className={styles.levelUpActivityGuide}>
             <summary>Need the drill guide?</summary>
@@ -3557,12 +3559,14 @@ function LevelUpCardTile({
           <>
             <button type="button" className="button-primary" data-level-up-start-action="true" onClick={startActivity}>Start</button>
             <button type="button" className={styles.scoreButton} onClick={openLogger}>Score</button>
+            <a className="button-secondary" href={questHref}>Add as quest</a>
             <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
           </>
         ) : (
           <>
             <button type="button" className="button-primary" data-level-up-repeat-action="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(card, savedRating)}</button>
             <button type="button" className={styles.scoreButton} data-level-up-pick-next-action="true" onClick={finishAndPickNext}>Pick next</button>
+            <a className="button-secondary" href={questHref}>Add as quest</a>
             <button type="button" className={styles.scoreButton} onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy update', 'Update copied')}</button>
             <button type="button" className={styles.scoreButton} data-level-up-finish-action="true" onClick={finishActivity}>Finish</button>
           </>
@@ -9163,6 +9167,19 @@ function buildCardStartHref(identitySlug: string, card: LevelUpCard) {
   })
 
   return `/level-up/${identitySlug}?${params.toString()}#level-up-flow`
+}
+
+function buildCardQuestHref(startHref: string) {
+  const [pathWithQuery] = startHref.split('#')
+  const [path, query = ''] = pathWithQuery.split('?')
+  const params = new URLSearchParams(query)
+  const cardId = params.get('card')
+  if (!cardId) return '/level-up#quest-builder'
+
+  params.delete('card')
+  params.set('questCard', cardId)
+
+  return `${path}?${params.toString()}#quest-builder`
 }
 
 function getCardWorkType(card: LevelUpCard) {

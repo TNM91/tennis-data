@@ -247,6 +247,7 @@ type MyLabLevelUpProof = {
   proofLabel: string
   nextAction: string
   nextHref: string
+  questHref: string
   note: string
   completedAt: string
   timeLabel: string
@@ -568,6 +569,7 @@ function buildMyLabLevelUpProofs(completions: LevelUpCompletion[]): MyLabLevelUp
       proofLabel: proofRating === null ? 'Proof logged' : `${proofRating}/5 proof`,
       nextAction: getMyLabLevelUpNextAction(proofRating),
       nextHref: `/player-development/${primaryIdentitySlug}/level-up?card=${encodeURIComponent(completion.cardId)}`,
+      questHref: `/level-up/${primaryIdentitySlug}?questCard=${encodeURIComponent(completion.cardId)}#quest-builder`,
       note: completion.note?.trim() || '',
       completedAt: completion.completedAt,
       timeLabel: timeAgo(completion.completedAt),
@@ -4266,6 +4268,17 @@ function LevelUpReturnStatePanel({
   const latestProof = proofs[0]
   const nextProof = proofs[1]
   const proofCountLabel = proofs.length ? `${proofs.length}` : 'None'
+  const fallbackIdentitySlug = PLAYER_DEVELOPMENT_IDENTITIES[0]?.slug || 'relentless-competitor-4-0'
+  const todayHabitCard = latestProof
+    ? LEVEL_UP_CARDS.find((card) => card.id === latestProof.cardId)
+    : LEVEL_UP_CARDS.find((card) => card.identitySlugs?.includes(fallbackIdentitySlug)) ?? LEVEL_UP_CARDS[0]
+  const todayHabitIdentitySlug = todayHabitCard?.identitySlugs?.[0] || fallbackIdentitySlug
+  const todayHabitQuestHref = latestProof?.questHref
+    || (todayHabitCard ? `/level-up/${todayHabitIdentitySlug}?questCard=${encodeURIComponent(todayHabitCard.id)}#quest-builder` : '/level-up#quest-builder')
+  const todayHabitDrillHref = latestProof?.nextHref
+    || (todayHabitCard ? `/level-up/${todayHabitIdentitySlug}?card=${encodeURIComponent(todayHabitCard.id)}#level-up-flow` : '/level-up')
+  const todayHabitTitle = latestProof?.cardTitle || todayHabitCard?.title || 'Choose one Level Up card'
+  const todayHabitProof = todayHabitCard?.proof || latestProof?.proofLabel || 'Score one useful proof.'
   const refreshProofItems = [
     {
       label: 'Identity',
@@ -4319,6 +4332,16 @@ function LevelUpReturnStatePanel({
               Start next rep
             </Link>
           ) : null}
+        </div>
+
+        <div style={levelUpTodayHabitStyle} aria-label="Today Level Up habit">
+          <div style={metricLabelStyle}>Today&apos;s Level Up habit</div>
+          <strong style={levelUpReturnPrimaryTitleStyle}>{todayHabitTitle}</strong>
+          <span style={levelUpReturnPrimaryTextStyle}>{todayHabitProof}</span>
+          <div style={levelUpTodayHabitActionRowStyle}>
+            <Link href={todayHabitDrillHref} style={miniActionPillStyle}>Start drill</Link>
+            <Link href={todayHabitQuestHref} style={miniActionPillStyle}>Add as quest</Link>
+          </div>
         </div>
 
         <div style={levelUpReturnMetricGridStyle}>
@@ -5535,6 +5558,20 @@ const levelUpReturnPrimaryTextStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.45,
   overflowWrap: 'anywhere',
+}
+
+const levelUpTodayHabitStyle: CSSProperties = {
+  ...levelUpReturnPrimaryStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.1), rgba(255,255,255,0.035))',
+}
+
+const levelUpTodayHabitActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  minWidth: 0,
 }
 
 const levelUpReturnMetricGridStyle: CSSProperties = {

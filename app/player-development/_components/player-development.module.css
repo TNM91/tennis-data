@@ -6150,18 +6150,20 @@
 
 .levelUpCardActions[data-proof-saved='true'] {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) repeat(4, auto);
   width: 100%;
   border-top: 1px solid rgba(155, 225, 29, 0.14);
   padding-top: 8px;
 }
 
 .levelUpCardActions[data-proof-saved='true'] :global(.button-primary),
+.levelUpCardActions[data-proof-saved='true'] :global(.button-secondary),
 .levelUpCardActions[data-proof-saved='true'] button {
   min-height: 40px;
 }
 
-.levelUpCardActions[data-proof-saved='true'] :global(.button-primary) {
+.levelUpCardActions[data-proof-saved='true'] :global(.button-primary),
+.levelUpCardActions[data-proof-saved='true'] :global(.button-secondary) {
   min-width: 0;
 }
 

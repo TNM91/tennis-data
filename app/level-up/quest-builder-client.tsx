@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -306,9 +307,14 @@ export default function QuestBuilderClient({
   templates: QuestBuilderTemplateOption[]
 }) {
   const { authResolved, userId, role, entitlements } = useAuth()
+  const searchParams = useSearchParams()
   const firstTemplate = templates[0]
   const fallbackCardId = firstTemplate?.primaryCardId ?? cardOptions[0]?.id ?? ''
-  const [draft, setDraft] = useState<QuestBuilderDraft>(() => buildDraftFromTemplate(firstTemplate, fallbackCardId))
+  const requestedQuestCardId = searchParams.get('questCard') || ''
+  const requestedQuestCard = requestedQuestCardId ? cardOptions.find((card) => card.id === requestedQuestCardId) : undefined
+  const [draft, setDraft] = useState<QuestBuilderDraft>(() => requestedQuestCard
+    ? buildDraftFromCard(requestedQuestCard)
+    : buildDraftFromTemplate(firstTemplate, fallbackCardId))
   const [customQuests, setCustomQuests] = useState<LevelUpCustomQuest[]>([])
   const [completions, setCompletions] = useState<LevelUpCustomQuestCompletion[]>([])
   const [loading, setLoading] = useState(true)
@@ -534,7 +540,7 @@ export default function QuestBuilderClient({
       <div className={styles.levelUpQuestTemplatePicker}>
         <span>Templates</span>
         <strong id="custom-quest-title">Create your own quest</strong>
-        <p>Start from a tennis-ready template, then save the habit privately to your account.</p>
+        <p>Start from a tennis-ready template, or use Add as quest on any drill card to prefill this builder.</p>
         <div>
           {templates.map((template) => (
             <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
@@ -884,6 +890,18 @@ function buildDraftFromTemplate(template: QuestBuilderTemplateOption | undefined
     linkedCardId: template?.primaryCardId ?? fallbackCardId,
     proof: template?.proof ?? '',
     starterHabit: template?.starterHabit ?? '',
+  }
+}
+
+function buildDraftFromCard(card: QuestBuilderCardOption): QuestBuilderDraft {
+  return {
+    title: `${card.title} Habit`,
+    category: 'tennis-skill',
+    cadence: 'practice-day',
+    xp: 15,
+    linkedCardId: card.id,
+    proof: card.proof,
+    starterHabit: `Run ${card.title}, score the proof, and repeat one useful cue.`,
   }
 }
 
