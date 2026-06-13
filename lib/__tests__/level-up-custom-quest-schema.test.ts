@@ -1,0 +1,37 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const migrationPath = join(process.cwd(), 'supabase/migrations/20260612000400_create_level_up_custom_quests.sql')
+const migrationSource = readFileSync(migrationPath, 'utf8')
+const clientSource = readFileSync(join(process.cwd(), 'app/level-up/quest-builder-client.tsx'), 'utf8')
+const typeSource = readFileSync(join(process.cwd(), 'lib/level-up/level-up-types.ts'), 'utf8')
+
+describe('Level Up custom quest persistence', () => {
+  it('stores custom quests in a private user-owned Supabase table', () => {
+    expect(existsSync(migrationPath)).toBe(true)
+    expect(migrationSource).toContain('create table if not exists public.level_up_custom_quests')
+    expect(migrationSource).toContain('user_id uuid not null references auth.users(id) on delete cascade')
+    expect(migrationSource).toContain('alter table public.level_up_custom_quests enable row level security')
+    expect(migrationSource).toContain('using (auth.uid() = user_id)')
+    expect(migrationSource).toContain('with check (auth.uid() = user_id)')
+    expect(migrationSource).toContain('level_up_custom_quests_user_active_idx')
+    expect(migrationSource).toContain('on public.level_up_custom_quests (user_id, active, updated_at desc)')
+    expect(migrationSource).toContain('level_up_custom_quests_user_category_idx')
+    expect(migrationSource).toContain("category in ('tennis-skill', 'fitness', 'nutrition-hydration', 'mindset', 'recovery', 'match-prep')")
+    expect(migrationSource).toContain("cadence in ('daily', 'weekly', 'practice-day', 'match-day')")
+  })
+
+  it('loads and writes saved quests through the authenticated client path', () => {
+    expect(clientSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(clientSource).toContain("from('level_up_custom_quests')")
+    expect(clientSource).toContain("const { authResolved, userId } = useAuth()")
+    expect(clientSource).toContain(".eq('user_id', userId)")
+    expect(clientSource).toContain('linked_card_id')
+    expect(clientSource).toContain('Sign in to save')
+    expect(clientSource).toContain('Open linked drill')
+    expect(clientSource).toContain('Private to your account')
+    expect(typeSource).toContain('export type LevelUpCustomQuest')
+    expect(typeSource).toContain('linkedCardId: string | null')
+  })
+})

@@ -9,6 +9,7 @@ import type { LevelUpCard } from '@/lib/level-up/level-up-types'
 import { buildLevelUpQuestBuilderPlan, formatHabitCategory } from '@/lib/level-up/quest-builder'
 import { PLAYER_DEVELOPMENT_IDENTITIES, type PlayerDevelopmentIdentity } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
+import QuestBuilderClient from './quest-builder-client'
 
 export default function LevelUpPageContent({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const trainingMenus = getPlayerTrainingMenus(identity)
@@ -19,6 +20,24 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   const libraryPacks = [...new Set(LEVEL_UP_CARDS.map((card) => card.pack))].slice(0, 8)
   const quickStartCards = recommendedCards.slice(0, 5)
   const questBuilder = buildLevelUpQuestBuilderPlan(identity.slug)
+  const questBuilderCardOptions = LEVEL_UP_CARDS.map((card) => ({
+    id: card.id,
+    title: card.title,
+    pack: card.pack,
+    proof: card.proof,
+  }))
+  const questBuilderTemplateOptions = questBuilder.templates.map((template) => ({
+    id: template.id,
+    title: template.title,
+    category: template.category,
+    cadence: template.cadence,
+    xp: template.xp,
+    description: template.description,
+    proof: template.proof,
+    starterHabit: template.starterHabit,
+    primaryCardId: template.primaryCard.id,
+    primaryCardTitle: template.primaryCard.title,
+  }))
 
   return (
     <SiteShell active="/mylab">
@@ -182,6 +201,12 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
               </article>
             ))}
           </div>
+
+          <QuestBuilderClient
+            identitySlug={identity.slug}
+            cardOptions={questBuilderCardOptions}
+            templates={questBuilderTemplateOptions}
+          />
         </section>
 
         <Suspense fallback={<div className={styles.liveAccessPanel}>Loading Level Up.</div>}>

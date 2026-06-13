@@ -158,6 +158,21 @@ export type LevelUpQuestTemplate = {
   starterHabit: string
 }
 
+export type LevelUpCustomQuest = {
+  id: string
+  userId: string
+  title: string
+  category: LevelUpHabitCategory
+  cadence: LevelUpQuestCadence
+  xp: number
+  linkedCardId: string | null
+  proof: string
+  starterHabit: string
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export type LevelUpQuestBuilderPlan = {
   templates: Array<LevelUpQuestTemplate & {
     primaryCard: LevelUpCard
