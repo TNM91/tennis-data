@@ -64,6 +64,16 @@ type QuestPack = {
   }>
 }
 
+type QuestGoalOption = {
+  id: string
+  title: string
+  signal: string
+  detail: string
+  packId: string
+  templateId: string
+  cardId: string
+}
+
 type CustomQuestRow = {
   id: string
   user_id: string
@@ -297,6 +307,54 @@ const QUEST_PACKS: QuestPack[] = [
   },
 ]
 
+const QUEST_GOAL_OPTIONS: QuestGoalOption[] = [
+  {
+    id: 'reduce-errors',
+    title: 'Reduce loose errors',
+    signal: 'Rally tolerance',
+    detail: 'Start with one crosscourt habit, then add recovery and a short debrief.',
+    packId: 'build-consistency',
+    templateId: 'opponent-scout-note',
+    cardId: 'crosscourt-consistency',
+  },
+  {
+    id: 'serve-pressure',
+    title: 'Serve under pressure',
+    signal: 'Target clarity',
+    detail: 'Train target call, second-serve routine, and reset after misses.',
+    packId: 'serve-under-pressure',
+    templateId: 'serve-routine-builder',
+    cardId: 'serve-target-ladder',
+  },
+  {
+    id: 'move-better',
+    title: 'Move better',
+    signal: 'First move',
+    detail: 'Connect split timing, balanced arrival, and post-play recovery.',
+    packId: 'move-better',
+    templateId: 'first-step-footwork',
+    cardId: 'split-step-rhythm',
+  },
+  {
+    id: 'doubles-clarity',
+    title: 'Doubles clarity',
+    signal: 'Partner jobs',
+    detail: 'Use first-move calls, poach timing, and 30-30 return clarity.',
+    packId: 'doubles-readiness',
+    templateId: 'pressure-reset',
+    cardId: 'partner-first-move-call',
+  },
+  {
+    id: 'match-day-ready',
+    title: 'Match-day ready',
+    signal: 'Routine',
+    detail: 'Turn warm-up, return intent, and post-match learning into repeatable habits.',
+    packId: 'match-day-routine',
+    templateId: 'match-day-hydration',
+    cardId: 'five-minute-match-primer',
+  },
+]
+
 export default function QuestBuilderClient({
   identitySlug,
   cardOptions,
@@ -322,6 +380,7 @@ export default function QuestBuilderClient({
   const [creatingPackId, setCreatingPackId] = useState('')
   const [archivingId, setArchivingId] = useState('')
   const [selectedQuestId, setSelectedQuestId] = useState('')
+  const [selectedGoalId, setSelectedGoalId] = useState(QUEST_GOAL_OPTIONS[0]?.id ?? '')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const access = useMemo(() => buildProductAccessState(userId ? role : 'public', entitlements), [entitlements, role, userId])
@@ -351,6 +410,10 @@ export default function QuestBuilderClient({
   const selectedQuestCompletions = selectedQuest
     ? completions.filter((completion) => completion.customQuestId === selectedQuest.id).slice(0, 8)
     : []
+  const selectedGoal = QUEST_GOAL_OPTIONS.find((goal) => goal.id === selectedGoalId) ?? QUEST_GOAL_OPTIONS[0]
+  const selectedGoalPack = QUEST_PACKS.find((pack) => pack.id === selectedGoal?.packId)
+  const selectedGoalTemplate = templates.find((template) => template.id === selectedGoal?.templateId)
+  const selectedGoalCard = selectedGoal ? cardOptions.find((card) => card.id === selectedGoal.cardId) : undefined
 
   const loadCustomQuests = useCallback(async () => {
     if (!userId || !canUseSavedQuestFeatures) {
@@ -407,6 +470,22 @@ export default function QuestBuilderClient({
   function applyTemplate(template: QuestBuilderTemplateOption) {
     setDraft(buildDraftFromTemplate(template, template.primaryCardId))
     setMessage(`${template.title} loaded.`)
+    setError('')
+  }
+
+  function applyGoalOption(goal: QuestGoalOption) {
+    const pack = QUEST_PACKS.find((item) => item.id === goal.packId)
+    const packItem = pack?.items.find((item) => item.linkedCardId === goal.cardId) ?? pack?.items[0]
+    const template = templates.find((item) => item.id === goal.templateId)
+    const card = cardOptions.find((item) => item.id === goal.cardId)
+
+    setSelectedGoalId(goal.id)
+    setDraft(packItem
+      ? buildDraftFromPackItem(packItem)
+      : card
+        ? buildDraftFromCard(card)
+        : buildDraftFromTemplate(template, fallbackCardId))
+    setMessage(`${goal.title} starter quest loaded.`)
     setError('')
   }
 
@@ -548,6 +627,55 @@ export default function QuestBuilderClient({
               <small>{template.primaryCardTitle}</small>
             </button>
           ))}
+        </div>
+        <div className={styles.levelUpQuestGoalWizard} aria-label="Quest Builder goal wizard">
+          <div>
+            <span>Goal wizard</span>
+            <strong>Pick the tennis problem first.</strong>
+            <p>Choose one goal and the builder will load a starter quest, linked drill, proof, and cadence.</p>
+          </div>
+          <div className={styles.levelUpQuestGoalOptions}>
+            {QUEST_GOAL_OPTIONS.map((goal) => (
+              <button
+                key={goal.id}
+                type="button"
+                data-active={selectedGoal?.id === goal.id ? 'true' : 'false'}
+                onClick={() => setSelectedGoalId(goal.id)}
+              >
+                <strong>{goal.title}</strong>
+                <small>{goal.signal}</small>
+              </button>
+            ))}
+          </div>
+          {selectedGoal ? (
+            <article>
+              <span>Recommended path</span>
+              <strong>{selectedGoal.title}</strong>
+              <p>{selectedGoal.detail}</p>
+              <dl>
+                <div>
+                  <dt>Starter</dt>
+                  <dd>{selectedGoalCard?.title ?? selectedGoalTemplate?.primaryCardTitle ?? 'Best matching card'}</dd>
+                </div>
+                <div>
+                  <dt>Pack</dt>
+                  <dd>{selectedGoalPack?.title ?? 'Custom path'}</dd>
+                </div>
+                <div>
+                  <dt>Cadence</dt>
+                  <dd>{selectedGoalTemplate?.cadence ? selectedGoalTemplate.cadence.replace('-', ' ') : 'practice day'}</dd>
+                </div>
+              </dl>
+              <div>
+                <button type="button" onClick={() => applyGoalOption(selectedGoal)}>Load starter quest</button>
+                {selectedGoalPack ? (
+                  <button type="button" onClick={() => void createQuestPack(selectedGoalPack)} disabled={creatingPackId === selectedGoalPack.id || accessPending}>
+                    {creatingPackId === selectedGoalPack.id ? 'Adding pack' : 'Add full pack'}
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ) : null}
         </div>
         <div className={styles.levelUpQuestPackList} aria-label="Goal-based quest packs">
           <strong>Goal packs</strong>
@@ -902,6 +1030,18 @@ function buildDraftFromCard(card: QuestBuilderCardOption): QuestBuilderDraft {
     linkedCardId: card.id,
     proof: card.proof,
     starterHabit: `Run ${card.title}, score the proof, and repeat one useful cue.`,
+  }
+}
+
+function buildDraftFromPackItem(item: QuestPack['items'][number]): QuestBuilderDraft {
+  return {
+    title: item.title,
+    category: item.category,
+    cadence: item.cadence,
+    xp: item.xp,
+    linkedCardId: item.linkedCardId,
+    proof: item.proof,
+    starterHabit: item.starterHabit,
   }
 }
 

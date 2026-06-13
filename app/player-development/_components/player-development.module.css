@@ -799,6 +799,115 @@
   opacity: 0.58;
 }
 
+.levelUpQuestGoalWizard {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(5, 15, 30, 0.38);
+  padding: 10px;
+}
+
+.levelUpQuestGoalWizard > div:first-child,
+.levelUpQuestGoalWizard article {
+  display: grid;
+  gap: 6px;
+}
+
+.levelUpQuestGoalWizard span {
+  color: var(--brand-green-3);
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpQuestGoalWizard strong {
+  color: var(--foreground-strong);
+  font-size: 0.9rem;
+  line-height: 1.14;
+}
+
+.levelUpQuestGoalWizard p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.76rem;
+  line-height: 1.34;
+}
+
+.levelUpQuestGoalOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.levelUpQuestGoalOptions button[data-active='true'] {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.12);
+}
+
+.levelUpQuestGoalWizard article {
+  border: 1px solid rgba(155, 225, 29, 0.14);
+  border-radius: 12px;
+  background: rgba(155, 225, 29, 0.055);
+  padding: 10px;
+}
+
+.levelUpQuestGoalWizard dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.levelUpQuestGoalWizard dl div {
+  min-width: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 8px;
+}
+
+.levelUpQuestGoalWizard dt {
+  color: var(--brand-green-3);
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpQuestGoalWizard dd {
+  margin: 3px 0 0;
+  color: var(--foreground-strong);
+  font-size: 0.74rem;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-transform: capitalize;
+}
+
+.levelUpQuestGoalWizard article > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.levelUpQuestGoalWizard article > div:last-child button {
+  appearance: none;
+  min-height: 40px;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 10px;
+  background: rgba(155, 225, 29, 0.11);
+  color: var(--foreground-strong);
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+.levelUpQuestGoalWizard article > div:last-child button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .levelUpQuestForm {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -12332,6 +12441,9 @@
   .levelUpQuestFormActions,
   .levelUpQuestTodayHeader,
   .levelUpQuestCoachGrid,
+  .levelUpQuestGoalOptions,
+  .levelUpQuestGoalWizard dl,
+  .levelUpQuestGoalWizard article > div:last-child,
   .levelUpQuestWeeklyReview dl,
   .levelUpQuestAssignmentPacks,
   .levelUpQuestSavedGrid article > div:last-child,
