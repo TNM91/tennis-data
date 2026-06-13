@@ -125,6 +125,10 @@ export default function QuestBuilderClient({
     () => buildTodayQuestStack(customQuests, completions, todayKey, weekStartKey, identitySlug),
     [completions, customQuests, identitySlug, todayKey, weekStartKey],
   )
+  const questCoach = useMemo(
+    () => buildQuestCoachInsights(customQuests, completions, todayKey, weekStartKey, identitySlug),
+    [completions, customQuests, identitySlug, todayKey, weekStartKey],
+  )
 
   const loadCustomQuests = useCallback(async () => {
     if (!userId) {
@@ -440,6 +444,22 @@ export default function QuestBuilderClient({
           </div>
         </div>
 
+        <div className={styles.levelUpQuestCoachPanel} aria-labelledby="quest-coach-title">
+          <div className={styles.levelUpQuestCoachHeader}>
+            <span>Quest Coach</span>
+            <strong id="quest-coach-title">This week&apos;s read</strong>
+          </div>
+          <div className={styles.levelUpQuestCoachGrid}>
+            {questCoach.map((insight) => (
+              <article key={insight.id}>
+                <span>{insight.label}</span>
+                <strong>{insight.title}</strong>
+                <p>{insight.detail}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+
         <div className={styles.levelUpQuestSavedGrid}>
           {loading ? <p className={styles.levelUpQuestNotice}>Loading saved quests.</p> : null}
           {!loading && customQuests.length === 0 ? (
@@ -604,6 +624,67 @@ function buildTodayQuestStack(
     completedCount: items.filter((item) => item.completedToday).length,
     availableXp: items.filter((item) => !item.completedToday).reduce((total, item) => total + item.quest.xp, 0),
   }
+}
+
+function buildQuestCoachInsights(
+  quests: LevelUpCustomQuest[],
+  completions: LevelUpCustomQuestCompletion[],
+  todayKey: string,
+  weekStartKey: string,
+  identitySlug: string,
+) {
+  const identityCategories = getIdentityQuestCategories(identitySlug)
+  const weeklyCompletions = completions.filter((completion) => completion.completedOn >= weekStartKey)
+  const completedToday = new Set(completions.filter((completion) => completion.completedOn === todayKey).map((completion) => completion.customQuestId))
+  const categoryCounts = CATEGORY_OPTIONS.map((category) => ({
+    category,
+    count: quests.filter((quest) => quest.category === category).length,
+    weeklyCount: weeklyCompletions.filter((completion) => {
+      const quest = quests.find((item) => item.id === completion.customQuestId)
+      return quest?.category === category
+    }).length,
+  }))
+  const identityGap = identityCategories.find((category) => categoryCounts.find((item) => item.category === category)?.count === 0)
+  const quietLane = categoryCounts
+    .filter((item) => item.count > 0)
+    .sort((a, b) => a.weeklyCount - b.weeklyCount || b.count - a.count)[0]
+  const strongestQuest = quests
+    .map((quest) => ({
+      quest,
+      completions: completions.filter((completion) => completion.customQuestId === quest.id).length,
+      doneToday: completedToday.has(quest.id),
+    }))
+    .sort((a, b) => b.completions - a.completions || Number(b.doneToday) - Number(a.doneToday))[0]
+  const openToday = quests.filter((quest) => !completedToday.has(quest.id)).length
+
+  return [
+    {
+      id: 'focus-lane',
+      label: 'Focus lane',
+      title: identityGap ? `Add ${formatHabitCategory(identityGap)}` : quietLane ? `Feed ${formatHabitCategory(quietLane.category)}` : 'Build the first lane',
+      detail: identityGap
+        ? 'Your identity stack has room for one more supporting habit lane.'
+        : quietLane
+          ? 'This lane exists but has the lightest proof this week.'
+          : 'Save one drill-backed quest to unlock weekly reads.',
+    },
+    {
+      id: 'momentum',
+      label: 'Momentum',
+      title: strongestQuest?.completions ? strongestQuest.quest.title : 'Start a proof trail',
+      detail: strongestQuest?.completions
+        ? `${strongestQuest.completions} proof log${strongestQuest.completions === 1 ? '' : 's'} on this quest. ${strongestQuest.doneToday ? 'Already handled today.' : 'It is still open today.'}`
+        : 'One scored linked drill creates the first XP signal.',
+    },
+    {
+      id: 'next-upgrade',
+      label: 'Next upgrade',
+      title: openToday ? `${openToday} quest${openToday === 1 ? '' : 's'} open` : 'Stack complete today',
+      detail: openToday
+        ? 'Start with the highest-ranked quest above and keep the session short enough to finish.'
+        : 'Repeat a linked drill only if you want extra reps; the daily stack is clean.',
+    },
+  ]
 }
 
 function getTodayQuestReason({
