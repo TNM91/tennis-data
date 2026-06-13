@@ -121,6 +121,10 @@ export default function QuestBuilderClient({
   const todayKey = useMemo(() => formatDateKey(new Date()), [])
   const weekStartKey = useMemo(() => getWeekStartKey(new Date()), [])
   const progressSummary = useMemo(() => buildCustomQuestProgress(completions, todayKey, weekStartKey), [completions, todayKey, weekStartKey])
+  const todayStack = useMemo(
+    () => buildTodayQuestStack(customQuests, completions, todayKey, weekStartKey, identitySlug),
+    [completions, customQuests, identitySlug, todayKey, weekStartKey],
+  )
 
   const loadCustomQuests = useCallback(async () => {
     if (!userId) {
@@ -395,6 +399,47 @@ export default function QuestBuilderClient({
           </article>
         </div>
 
+        <div className={styles.levelUpQuestTodayStack} aria-labelledby="today-quest-stack-title">
+          <div className={styles.levelUpQuestTodayHeader}>
+            <div>
+              <span>Today&apos;s stack</span>
+              <strong id="today-quest-stack-title">Best next quests</strong>
+              <p>Built from your saved quests, completion history, and current player identity.</p>
+            </div>
+            <div className={styles.levelUpQuestTodayMeter}>
+              <strong>{todayStack.completedCount}/{Math.max(1, todayStack.items.length)}</strong>
+              <span>{todayStack.availableXp} XP open</span>
+            </div>
+          </div>
+
+          <div className={styles.levelUpQuestTodayGrid}>
+            {!authResolved ? <p className={styles.levelUpQuestNotice}>Checking your account.</p> : null}
+            {authResolved && !userId ? <p className={styles.levelUpQuestNotice}>Sign in to load today&apos;s quest stack.</p> : null}
+            {authResolved && userId && !loading && todayStack.items.length === 0 ? (
+              <p className={styles.levelUpQuestNotice}>Save a custom quest to build today&apos;s stack.</p>
+            ) : null}
+            {todayStack.items.map((item) => {
+              const linkedCard = cardOptions.find((card) => card.id === item.quest.linkedCardId)
+
+              return (
+                <article key={item.quest.id} data-completed-today={item.completedToday ? 'true' : 'false'}>
+                  <div>
+                    <span>{item.reason}</span>
+                    <strong>{item.quest.title}</strong>
+                    <p>{item.quest.starterHabit}</p>
+                  </div>
+                  <small>{item.completedToday ? 'Done today' : `${item.quest.xp} XP available`}</small>
+                  {linkedCard ? (
+                    <Link className="button-primary" href={`/level-up/${identitySlug}?card=${linkedCard.id}&quest=${item.quest.id}#level-up-flow`}>
+                      {item.completedToday ? 'Repeat drill' : 'Start quest'}
+                    </Link>
+                  ) : null}
+                </article>
+              )
+            })}
+          </div>
+        </div>
+
         <div className={styles.levelUpQuestSavedGrid}>
           {loading ? <p className={styles.levelUpQuestNotice}>Loading saved quests.</p> : null}
           {!loading && customQuests.length === 0 ? (
@@ -520,6 +565,77 @@ function buildCustomQuestProgress(completions: LevelUpCustomQuestCompletion[], t
       .reduce((total, completion) => total + completion.xp, 0),
     streakDays,
   }
+}
+
+function buildTodayQuestStack(
+  quests: LevelUpCustomQuest[],
+  completions: LevelUpCustomQuestCompletion[],
+  todayKey: string,
+  weekStartKey: string,
+  identitySlug: string,
+) {
+  const identityCategories = getIdentityQuestCategories(identitySlug)
+  const items = quests
+    .map((quest) => {
+      const questCompletions = completions.filter((completion) => completion.customQuestId === quest.id)
+      const completedToday = questCompletions.some((completion) => completion.completedOn === todayKey)
+      const completedThisWeek = questCompletions.some((completion) => completion.completedOn >= weekStartKey)
+      const identityFit = identityCategories.includes(quest.category)
+      let score = completedToday ? -50 : 40
+
+      if (identityFit) score += 18
+      if (questCompletions.length === 0) score += 14
+      if (quest.cadence === 'daily' || quest.cadence === 'practice-day') score += 8
+      if (quest.cadence === 'weekly' && !completedThisWeek) score += 12
+      if (quest.linkedCardId) score += 6
+
+      return {
+        quest,
+        completedToday,
+        reason: getTodayQuestReason({ completedToday, completedThisWeek, identityFit, quest, questCompletions }),
+        score,
+      }
+    })
+    .sort((a, b) => b.score - a.score || b.quest.xp - a.quest.xp)
+    .slice(0, 4)
+
+  return {
+    items,
+    completedCount: items.filter((item) => item.completedToday).length,
+    availableXp: items.filter((item) => !item.completedToday).reduce((total, item) => total + item.quest.xp, 0),
+  }
+}
+
+function getTodayQuestReason({
+  completedToday,
+  completedThisWeek,
+  identityFit,
+  quest,
+  questCompletions,
+}: {
+  completedToday: boolean
+  completedThisWeek: boolean
+  identityFit: boolean
+  quest: LevelUpCustomQuest
+  questCompletions: LevelUpCustomQuestCompletion[]
+}) {
+  if (completedToday) return 'Done today'
+  if (identityFit) return 'Identity fit'
+  if (questCompletions.length === 0) return 'Start streak'
+  if (quest.cadence === 'weekly' && !completedThisWeek) return 'Weekly target'
+  if (quest.cadence === 'match-day') return 'Match prep'
+  if (quest.cadence === 'practice-day') return 'Practice ready'
+  return 'Next rep'
+}
+
+function getIdentityQuestCategories(identitySlug: string): LevelUpHabitCategory[] {
+  if (identitySlug.includes('pressure') || identitySlug.includes('closer')) return ['mindset', 'match-prep', 'tennis-skill']
+  if (identitySlug.includes('serve')) return ['tennis-skill', 'fitness', 'match-prep']
+  if (identitySlug.includes('doubles')) return ['match-prep', 'mindset', 'tennis-skill']
+  if (identitySlug.includes('defensive') || identitySlug.includes('movement')) return ['fitness', 'recovery', 'tennis-skill']
+  if (identitySlug.includes('return')) return ['tennis-skill', 'match-prep', 'mindset']
+  if (identitySlug.includes('net')) return ['tennis-skill', 'fitness', 'mindset']
+  return ['tennis-skill', 'fitness', 'mindset']
 }
 
 function getWeekStartKey(date: Date) {
