@@ -892,6 +892,44 @@
   gap: 8px;
 }
 
+.levelUpQuestWeekPlan {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.levelUpQuestWeekPlan > span {
+  grid-column: 1 / -1;
+}
+
+.levelUpQuestWeekPlan section {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 8px;
+}
+
+.levelUpQuestWeekPlan b {
+  color: var(--brand-green-3);
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpQuestWeekPlan strong {
+  font-size: 0.78rem;
+}
+
+.levelUpQuestWeekPlan small {
+  color: var(--muted-strong);
+  font-size: 0.68rem;
+  line-height: 1.28;
+}
+
 .levelUpQuestGoalWizard article > div:last-child button {
   appearance: none;
   min-height: 40px;
@@ -12443,6 +12481,7 @@
   .levelUpQuestCoachGrid,
   .levelUpQuestGoalOptions,
   .levelUpQuestGoalWizard dl,
+  .levelUpQuestWeekPlan,
   .levelUpQuestGoalWizard article > div:last-child,
   .levelUpQuestWeeklyReview dl,
   .levelUpQuestAssignmentPacks,

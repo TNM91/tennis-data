@@ -414,6 +414,7 @@ export default function QuestBuilderClient({
   const selectedGoalPack = QUEST_PACKS.find((pack) => pack.id === selectedGoal?.packId)
   const selectedGoalTemplate = templates.find((template) => template.id === selectedGoal?.templateId)
   const selectedGoalCard = selectedGoal ? cardOptions.find((card) => card.id === selectedGoal.cardId) : undefined
+  const selectedGoalWeekPlan = selectedGoal ? buildGoalWeekPlan(selectedGoal, selectedGoalPack, selectedGoalCard) : []
 
   const loadCustomQuests = useCallback(async () => {
     if (!userId || !canUseSavedQuestFeatures) {
@@ -666,6 +667,16 @@ export default function QuestBuilderClient({
                   <dd>{selectedGoalTemplate?.cadence ? selectedGoalTemplate.cadence.replace('-', ' ') : 'practice day'}</dd>
                 </div>
               </dl>
+              <div className={styles.levelUpQuestWeekPlan} aria-label="7-day starter plan">
+                <span>7-day starter plan</span>
+                {selectedGoalWeekPlan.map((item) => (
+                  <section key={item.label}>
+                    <b>{item.label}</b>
+                    <strong>{item.title}</strong>
+                    <small>{item.detail}</small>
+                  </section>
+                ))}
+              </div>
               <div>
                 <button type="button" onClick={() => applyGoalOption(selectedGoal)}>Load starter quest</button>
                 {selectedGoalPack ? (
@@ -1043,6 +1054,35 @@ function buildDraftFromPackItem(item: QuestPack['items'][number]): QuestBuilderD
     proof: item.proof,
     starterHabit: item.starterHabit,
   }
+}
+
+function buildGoalWeekPlan(goal: QuestGoalOption, pack: QuestPack | undefined, card: QuestBuilderCardOption | undefined) {
+  const starter = pack?.items.find((item) => item.linkedCardId === goal.cardId) ?? pack?.items[0]
+  const repeat = pack?.items.find((item) => item.linkedCardId !== starter?.linkedCardId) ?? pack?.items[1] ?? starter
+  const pressure = pack?.items.find((item) => item.cadence === 'match-day' || item.category === 'mindset' || item.category === 'match-prep') ?? pack?.items[2] ?? repeat
+
+  return [
+    {
+      label: 'Day 1',
+      title: starter?.title ?? card?.title ?? goal.title,
+      detail: 'Load the starter quest, run one linked drill, and save one honest proof score.',
+    },
+    {
+      label: 'Next practice',
+      title: repeat?.title ?? starter?.title ?? goal.signal,
+      detail: 'Repeat the same habit before adding more. Cleaner proof beats more volume.',
+    },
+    {
+      label: 'Pressure rep',
+      title: pressure?.title ?? goal.signal,
+      detail: 'Add score, partner, or match-day context only after the base cue shows up.',
+    },
+    {
+      label: 'Review',
+      title: `${goal.signal} read`,
+      detail: 'Use Quest history and Weekly review to decide whether to repeat, scale down, or add the full pack.',
+    },
+  ]
 }
 
 function mapCustomQuestRow(row: CustomQuestRow): LevelUpCustomQuest {
