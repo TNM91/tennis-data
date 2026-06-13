@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import type {
@@ -107,6 +107,7 @@ type CustomQuestCompletionRow = {
 
 const QUEST_SELECT = 'id,user_id,title,category,cadence,xp,linked_card_id,proof,starter_habit,active,created_at,updated_at'
 const COMPLETION_SELECT = 'id,user_id,custom_quest_id,level_up_session_id,identity_slug,card_id,completed_on,completed_at,xp,proof_rating,note,created_at,updated_at'
+const QUEST_BUILDER_DRAFT_KEY = 'tiq-level-up-quest-builder-draft-v1'
 
 const CATEGORY_OPTIONS: LevelUpHabitCategory[] = [
   'tennis-skill',
@@ -381,6 +382,9 @@ export default function QuestBuilderClient({
   const [archivingId, setArchivingId] = useState('')
   const [selectedQuestId, setSelectedQuestId] = useState('')
   const [selectedGoalId, setSelectedGoalId] = useState(QUEST_GOAL_OPTIONS[0]?.id ?? '')
+  const draftHydratedRef = useRef(false)
+  const [draftStorageReady, setDraftStorageReady] = useState(false)
+  const [draftSyncStatus, setDraftSyncStatus] = useState(requestedQuestCard ? 'Loaded from drill card.' : 'Draft autosaves on this device.')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const access = useMemo(() => buildProductAccessState(userId ? role : 'public', entitlements), [entitlements, role, userId])
@@ -415,6 +419,8 @@ export default function QuestBuilderClient({
   const selectedGoalTemplate = templates.find((template) => template.id === selectedGoal?.templateId)
   const selectedGoalCard = selectedGoal ? cardOptions.find((card) => card.id === selectedGoal.cardId) : undefined
   const selectedGoalWeekPlan = selectedGoal ? buildGoalWeekPlan(selectedGoal, selectedGoalPack, selectedGoalCard) : []
+  const selectedGoalCoachHref = selectedGoal ? buildQuestHandoffHref('coach', selectedGoalPack, selectedGoal) : '/coach'
+  const selectedGoalTeamHref = selectedGoal ? buildQuestHandoffHref('captain', selectedGoalPack, selectedGoal) : '/captain'
 
   const loadCustomQuests = useCallback(async () => {
     if (!userId || !canUseSavedQuestFeatures) {
@@ -468,10 +474,70 @@ export default function QuestBuilderClient({
     }
   }, [accessPending, authResolved, loadCustomQuests])
 
+  useEffect(() => {
+    if (draftHydratedRef.current) return
+    draftHydratedRef.current = true
+
+    const hydrateTimer = globalThis.setTimeout(() => {
+      if (requestedQuestCardId) {
+        setDraftSyncStatus('Loaded from drill card. Draft saved on this device.')
+        setDraftStorageReady(true)
+        return
+      }
+
+      try {
+        const storedDraft = globalThis.localStorage?.getItem(QUEST_BUILDER_DRAFT_KEY)
+        const parsedDraft = parseQuestBuilderDraft(storedDraft)
+
+        if (parsedDraft) {
+          setDraft((current) => ({ ...current, ...parsedDraft }))
+          setDraftSyncStatus('Draft restored from this device.')
+        } else {
+          setDraftSyncStatus('Draft saved on this device.')
+        }
+      } catch {
+        setDraftSyncStatus('Draft autosaves on this device.')
+      }
+
+      setDraftStorageReady(true)
+    }, 0)
+
+    return () => {
+      globalThis.clearTimeout(hydrateTimer)
+    }
+  }, [requestedQuestCardId])
+
+  useEffect(() => {
+    if (!draftStorageReady) return
+
+    try {
+      globalThis.localStorage?.setItem(QUEST_BUILDER_DRAFT_KEY, JSON.stringify(draft))
+    } catch {
+      // Storage can be blocked by browser settings; the in-memory draft still works.
+    }
+  }, [draft, draftStorageReady])
+
   function applyTemplate(template: QuestBuilderTemplateOption) {
     setDraft(buildDraftFromTemplate(template, template.primaryCardId))
     setMessage(`${template.title} loaded.`)
     setError('')
+  }
+
+  function resetDraft() {
+    const nextDraft = requestedQuestCard
+      ? buildDraftFromCard(requestedQuestCard)
+      : buildDraftFromTemplate(firstTemplate, fallbackCardId)
+
+    setDraft(nextDraft)
+    setMessage('Draft reset.')
+    setError('')
+
+    try {
+      globalThis.localStorage?.removeItem(QUEST_BUILDER_DRAFT_KEY)
+      setDraftSyncStatus('Draft reset. New changes will autosave on this device.')
+    } catch {
+      setDraftSyncStatus('Draft reset for this tab.')
+    }
   }
 
   function applyGoalOption(goal: QuestGoalOption) {
@@ -677,6 +743,18 @@ export default function QuestBuilderClient({
                   </section>
                 ))}
               </div>
+              <div className={styles.levelUpQuestHandoffGrid} aria-label="Quest handoff options">
+                <Link href={selectedGoalCoachHref}>
+                  <span>Coach assignment bridge</span>
+                  <strong>Assign through Coach Hub</strong>
+                  <small>Send the same card, proof, and cadence into a coach-ready assignment flow.</small>
+                </Link>
+                <Link href={selectedGoalTeamHref}>
+                  <span>Team challenge mode</span>
+                  <strong>Launch as a team habit</strong>
+                  <small>Aggregate completion only. Private player notes and proof stay with the player.</small>
+                </Link>
+              </div>
               <div>
                 <button type="button" onClick={() => applyGoalOption(selectedGoal)}>Load starter quest</button>
                 {selectedGoalPack ? (
@@ -805,8 +883,12 @@ export default function QuestBuilderClient({
               Open linked drill
             </Link>
           ) : null}
+          <button className="button-secondary" type="button" onClick={resetDraft}>
+            Reset draft
+          </button>
         </div>
 
+        <p className={styles.levelUpQuestDraftStatus}>{draftSyncStatus}</p>
         {!authResolved ? <p className={styles.levelUpQuestNotice}>Checking your account.</p> : null}
         {authResolved && !userId ? <p className={styles.levelUpQuestNotice}>Saved quests unlock after sign-in.</p> : null}
         {authResolved && userId && !canUseSavedQuestFeatures ? (
@@ -923,9 +1005,14 @@ export default function QuestBuilderClient({
               <span>{pack.audience === 'coach' ? 'Coach assignable' : 'Team pack'}</span>
               <strong>{pack.title}</strong>
               <p>{pack.description}</p>
-              <button type="button" onClick={() => void createQuestPack(pack)} disabled={creatingPackId === pack.id || accessPending}>
-                {creatingPackId === pack.id ? 'Adding pack' : 'Add to my plan'}
-              </button>
+              <div className={styles.levelUpQuestAssignmentActions}>
+                <button type="button" onClick={() => void createQuestPack(pack)} disabled={creatingPackId === pack.id || accessPending}>
+                  {creatingPackId === pack.id ? 'Adding pack' : 'Add to my plan'}
+                </button>
+                <Link href={pack.audience === 'coach' ? buildQuestHandoffHref('coach', pack) : buildQuestHandoffHref('captain', pack)}>
+                  {pack.audience === 'coach' ? 'Open Coach bridge' : 'Open team challenge'}
+                </Link>
+              </div>
             </article>
           ))}
         </div>
@@ -1054,6 +1141,38 @@ function buildDraftFromPackItem(item: QuestPack['items'][number]): QuestBuilderD
     proof: item.proof,
     starterHabit: item.starterHabit,
   }
+}
+
+function parseQuestBuilderDraft(value: string | null): Partial<QuestBuilderDraft> | null {
+  if (!value) return null
+
+  try {
+    const parsed = JSON.parse(value) as Partial<QuestBuilderDraft>
+    const nextDraft: Partial<QuestBuilderDraft> = {}
+
+    if (typeof parsed.title === 'string') nextDraft.title = parsed.title.slice(0, 90)
+    if (CATEGORY_OPTIONS.includes(parsed.category as LevelUpHabitCategory)) nextDraft.category = parsed.category
+    if (CADENCE_OPTIONS.some((option) => option.id === parsed.cadence)) nextDraft.cadence = parsed.cadence
+    if (typeof parsed.xp === 'number' && Number.isFinite(parsed.xp)) nextDraft.xp = Math.min(100, Math.max(1, Math.round(parsed.xp)))
+    if (typeof parsed.linkedCardId === 'string') nextDraft.linkedCardId = parsed.linkedCardId
+    if (typeof parsed.proof === 'string') nextDraft.proof = parsed.proof.slice(0, 180)
+    if (typeof parsed.starterHabit === 'string') nextDraft.starterHabit = parsed.starterHabit.slice(0, 220)
+
+    return Object.keys(nextDraft).length ? nextDraft : null
+  } catch {
+    return null
+  }
+}
+
+function buildQuestHandoffHref(target: 'coach' | 'captain', pack: QuestPack | undefined, goal?: QuestGoalOption) {
+  const params = new URLSearchParams()
+
+  if (pack) params.set(target === 'coach' ? 'levelUpPack' : 'levelUpChallenge', pack.id)
+  if (goal) params.set('goal', goal.id)
+  if (goal?.cardId) params.set('card', goal.cardId)
+
+  const query = params.toString()
+  return query ? `/${target}?${query}` : `/${target}`
 }
 
 function buildGoalWeekPlan(goal: QuestGoalOption, pack: QuestPack | undefined, card: QuestBuilderCardOption | undefined) {

@@ -4279,6 +4279,29 @@ function LevelUpReturnStatePanel({
     || (todayHabitCard ? `/level-up/${todayHabitIdentitySlug}?card=${encodeURIComponent(todayHabitCard.id)}#level-up-flow` : '/level-up')
   const todayHabitTitle = latestProof?.cardTitle || todayHabitCard?.title || 'Choose one Level Up card'
   const todayHabitProof = todayHabitCard?.proof || latestProof?.proofLabel || 'Score one useful proof.'
+  const todayFeedItems = [
+    {
+      label: "Today's habit",
+      title: todayHabitTitle,
+      body: todayHabitProof,
+      href: todayHabitQuestHref,
+      action: 'Build quest',
+    },
+    {
+      label: 'Next drill',
+      title: latestProof?.nextAction || todayHabitCard?.routine || 'Run one focused Level Up card',
+      body: latestProof ? 'Repeat the same card cleaner before adding another habit.' : 'Start with one short card and score it honestly.',
+      href: todayHabitDrillHref,
+      action: 'Start drill',
+    },
+    {
+      label: 'Proof to save',
+      title: latestProof?.proofLabel || '0-5 proof score',
+      body: latestProof?.note || 'Save the proof, next action, and only the note that changes the next rep.',
+      href: todayHabitDrillHref,
+      action: 'Score proof',
+    },
+  ]
   const refreshProofItems = [
     {
       label: 'Identity',
@@ -4320,6 +4343,23 @@ function LevelUpReturnStatePanel({
         <Link href={latestProof?.nextHref || '/level-up'} style={quickStartButtonStyle}>
           {latestProof ? 'Repeat in Level Up' : 'Open Level Up'}
         </Link>
+      </div>
+
+      <div style={myLabTodayFeedStyle} aria-label="My Lab today feed">
+        <div style={myLabTodayFeedHeaderStyle}>
+          <span style={metricLabelStyle}>My Lab today feed</span>
+          <strong style={levelUpReturnStorageNoteStrongStyle}>Habit, drill, proof.</strong>
+        </div>
+        <div style={myLabTodayFeedGridStyle}>
+          {todayFeedItems.map((item) => (
+            <Link key={item.label} href={item.href} style={myLabTodayFeedCardStyle}>
+              <span style={myLabRefreshProofLabelStyle}>{item.label}</span>
+              <strong style={levelUpReturnPrimaryTitleStyle}>{item.title}</strong>
+              <p style={myLabRefreshProofTextStyle}>{item.body}</p>
+              <small style={myLabTodayFeedActionStyle}>{item.action}</small>
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div style={levelUpReturnGridStyle}>
@@ -5599,6 +5639,62 @@ const levelUpReturnStorageNoteStrongStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const myLabTodayFeedStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.06))',
+  overflowWrap: 'anywhere',
+}
+
+const myLabTodayFeedHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const myLabTodayFeedGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const myLabTodayFeedCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const myLabTodayFeedActionStyle: CSSProperties = {
+  width: 'fit-content',
+  maxWidth: '100%',
+  minWidth: 0,
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  padding: '6px 8px',
+  fontSize: 12,
+  fontWeight: 950,
+  lineHeight: 1.1,
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }
 
 const myLabRefreshProofCueStyle: CSSProperties = {

@@ -53,6 +53,13 @@ describe('My Lab premium surface', () => {
     expect(source).toContain("questHref: `/level-up/${primaryIdentitySlug}?questCard=${encodeURIComponent(completion.cardId)}#quest-builder`")
     expect(source).toContain('Level Up return state')
     expect(source).toContain("Today&apos;s Level Up habit")
+    expect(source).toContain('My Lab today feed')
+    expect(source).toContain("Today's habit")
+    expect(source).toContain('Next drill')
+    expect(source).toContain('Proof to save')
+    expect(source).toContain('myLabTodayFeedStyle')
+    expect(source).toContain('myLabTodayFeedGridStyle')
+    expect(source).toContain('myLabTodayFeedActionStyle')
     expect(source).toContain('levelUpTodayHabitStyle')
     expect(source).toContain('Add as quest')
     expect(source).toContain('No Level Up proof in this browser yet')
@@ -134,6 +141,11 @@ describe('My Lab premium surface', () => {
       'levelUpReturnPrimaryStyle',
       'levelUpReturnMetricGridStyle',
       'levelUpReturnStorageNoteStyle',
+      'myLabTodayFeedStyle',
+      'myLabTodayFeedHeaderStyle',
+      'myLabTodayFeedGridStyle',
+      'myLabTodayFeedCardStyle',
+      'myLabTodayFeedActionStyle',
       'myLabRefreshProofCueStyle',
       'myLabRefreshProofHeaderStyle',
       'myLabRefreshProofGridStyle',
@@ -232,6 +244,10 @@ describe('My Lab premium surface', () => {
       'levelUpReturnPrimaryTextStyle',
       'levelUpReturnStorageNoteStyle',
       'levelUpReturnStorageNoteStrongStyle',
+      'myLabTodayFeedStyle',
+      'myLabTodayFeedHeaderStyle',
+      'myLabTodayFeedCardStyle',
+      'myLabTodayFeedActionStyle',
       'myLabRefreshProofCueStyle',
       'myLabRefreshProofHeaderStyle',
       'myLabRefreshProofCardStyle',

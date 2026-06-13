@@ -288,6 +288,95 @@
   padding: clamp(14px, 2.4vw, 22px);
 }
 
+.levelUpQuestPackPreview {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 36%),
+    rgba(5, 15, 30, 0.72);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(14px, 2.4vw, 22px);
+}
+
+.levelUpQuestPackPreviewHeader {
+  display: grid;
+  gap: 7px;
+  max-width: 760px;
+}
+
+.levelUpQuestPackPreviewHeader span,
+.levelUpQuestPackPreviewGrid span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpQuestPackPreviewHeader h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.35rem, 3vw, 2.15rem);
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.levelUpQuestPackPreviewHeader p,
+.levelUpQuestPackPreviewGrid p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.42;
+}
+
+.levelUpQuestPackPreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpQuestPackPreviewGrid a {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 13px;
+  text-decoration: none;
+}
+
+.levelUpQuestPackPreviewGrid a:hover {
+  border-color: rgba(155, 225, 29, 0.36);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.levelUpQuestPackPreviewGrid strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+  line-height: 1.18;
+}
+
+.levelUpQuestPackPreviewGrid small {
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--muted-strong);
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
 .levelUpPortalHeader {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -930,6 +1019,35 @@
   line-height: 1.28;
 }
 
+.levelUpQuestHandoffGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.levelUpQuestHandoffGrid a {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(116, 190, 255, 0.065);
+  color: var(--foreground);
+  padding: 9px;
+  text-decoration: none;
+}
+
+.levelUpQuestHandoffGrid a:hover {
+  border-color: rgba(155, 225, 29, 0.34);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.levelUpQuestHandoffGrid small {
+  color: var(--muted-strong);
+  font-size: 0.68rem;
+  line-height: 1.28;
+}
+
 .levelUpQuestGoalWizard article > div:last-child button {
   appearance: none;
   min-height: 40px;
@@ -957,6 +1075,7 @@
 
 .levelUpQuestFieldFull,
 .levelUpQuestFormActions,
+.levelUpQuestDraftStatus,
 .levelUpQuestNotice,
 .levelUpQuestError {
   grid-column: 1 / -1;
@@ -1002,6 +1121,18 @@
   min-width: 0;
   min-height: 44px;
   text-decoration: none;
+}
+
+.levelUpQuestDraftStatus {
+  margin: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(116, 190, 255, 0.055);
+  color: var(--muted-strong);
+  padding: 9px 10px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.32;
 }
 
 .levelUpQuestError {
@@ -1283,6 +1414,28 @@
 
 .levelUpQuestAssignmentPacks {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.levelUpQuestAssignmentActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.levelUpQuestAssignmentActions a {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(116, 190, 255, 0.08);
+  color: var(--foreground-strong);
+  padding: 7px 9px;
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-align: center;
+  text-decoration: none;
 }
 
 .levelUpQuestHistoryDrawer summary {
@@ -12467,6 +12620,7 @@
   .levelUpRouteHeader,
   .levelUpIdentityStrip,
   .levelUpPortalHeader,
+  .levelUpQuestPackPreviewGrid,
   .levelUpQuestBuilderHeader,
   .levelUpPortalLanes,
   .levelUpCardRail,
@@ -12481,10 +12635,12 @@
   .levelUpQuestCoachGrid,
   .levelUpQuestGoalOptions,
   .levelUpQuestGoalWizard dl,
+  .levelUpQuestHandoffGrid,
   .levelUpQuestWeekPlan,
   .levelUpQuestGoalWizard article > div:last-child,
   .levelUpQuestWeeklyReview dl,
   .levelUpQuestAssignmentPacks,
+  .levelUpQuestAssignmentActions,
   .levelUpQuestSavedGrid article > div:last-child,
   .levelUpLaneChooserGrid,
   .levelUpLaneProgressGrid,

@@ -38,6 +38,29 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
     primaryCardId: template.primaryCard.id,
     primaryCardTitle: template.primaryCard.title,
   }))
+  const questPackPreviews = [
+    {
+      label: 'Player habit packs',
+      title: 'Build a repeatable tennis week',
+      detail: 'Save drill-backed habits for skill, movement, match prep, recovery, mindset, and hydration.',
+      href: `/level-up/${identity.slug}#quest-builder`,
+      action: 'Open builder',
+    },
+    {
+      label: 'Coach assignable packs',
+      title: 'Send one focused assignment',
+      detail: 'Use a pack to point players toward the same card, proof target, and cadence.',
+      href: '/coach?levelUpPack=doubles-readiness',
+      action: 'Preview Coach bridge',
+    },
+    {
+      label: 'Team challenge packs',
+      title: 'Run a lineup-ready habit',
+      detail: 'Track aggregate completion for team routines without exposing private player notes.',
+      href: '/captain?levelUpChallenge=match-day-routine',
+      action: 'Preview team mode',
+    },
+  ]
 
   return (
     <SiteShell active="/mylab">
@@ -137,6 +160,24 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                 <strong>{pack}</strong>
                 <span>{LEVEL_UP_CARDS.filter((card) => card.pack === pack).length} cards</span>
               </a>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.levelUpQuestPackPreview} aria-labelledby="quest-pack-preview-title">
+          <div className={styles.levelUpQuestPackPreviewHeader}>
+            <span>Quest pack preview</span>
+            <h2 id="quest-pack-preview-title">One habit system for players, coaches, and teams.</h2>
+            <p>Quest packs turn TIQ drill cards into practical weekly habits. Players keep private proof, coaches can assign focused work, and captains can run team challenges from aggregate completion.</p>
+          </div>
+          <div className={styles.levelUpQuestPackPreviewGrid}>
+            {questPackPreviews.map((preview) => (
+              <Link key={preview.label} href={preview.href}>
+                <span>{preview.label}</span>
+                <strong>{preview.title}</strong>
+                <p>{preview.detail}</p>
+                <small>{preview.action}</small>
+              </Link>
             ))}
           </div>
         </section>
