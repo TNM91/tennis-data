@@ -50,6 +50,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           </div>
           <div className={styles.levelUpRouteActions} aria-label="Level Up shortcuts">
             <Link className="button-primary" href="#level-up-flow">Start now</Link>
+            <Link className="button-secondary" href="#today-quest-stack-title">Today</Link>
             <Link className="button-secondary" href="#quest-builder">Quest Builder</Link>
             <Link className="button-secondary" href="/mylab#coach-assignments">Coach work</Link>
             <Link className="button-secondary" href="/tactics">Tactics Tools</Link>

@@ -30,6 +30,7 @@ describe('Level Up page', () => {
     expect(contentSource).toContain('getPlayerTrainingMenus')
     expect(contentSource).toContain('buildLevelUpQuestBuilderPlan')
     expect(contentSource).toContain('Start now')
+    expect(contentSource).toContain('href="#today-quest-stack-title"')
     expect(contentSource).toContain('Quest Builder')
     expect(contentSource).toContain('/mylab#coach-assignments')
     expect(contentSource).toContain('Choose development identity')

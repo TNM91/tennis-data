@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import type {
   LevelUpCustomQuestCompletion,
   LevelUpCustomQuest,
@@ -41,6 +42,25 @@ type QuestBuilderDraft = {
   linkedCardId: string
   proof: string
   starterHabit: string
+}
+
+type QuestPackAudience = 'player' | 'coach' | 'captain'
+
+type QuestPack = {
+  id: string
+  title: string
+  audience: QuestPackAudience
+  goal: string
+  description: string
+  items: Array<{
+    title: string
+    category: LevelUpHabitCategory
+    cadence: LevelUpQuestCadence
+    xp: number
+    linkedCardId: string
+    proof: string
+    starterHabit: string
+  }>
 }
 
 type CustomQuestRow = {
@@ -93,6 +113,189 @@ const CADENCE_OPTIONS: Array<{ id: LevelUpQuestCadence; label: string }> = [
   { id: 'match-day', label: 'Match day' },
 ]
 
+const QUEST_PACKS: QuestPack[] = [
+  {
+    id: 'build-consistency',
+    title: 'Build Consistency',
+    audience: 'player',
+    goal: 'Reduce loose errors',
+    description: 'Three repeatable habits for rally tolerance, recovery, and post-play learning.',
+    items: [
+      {
+        title: 'Crosscourt tolerance block',
+        category: 'tennis-skill',
+        cadence: 'practice-day',
+        xp: 15,
+        linkedCardId: 'crosscourt-consistency',
+        proof: 'Crosscourt build quality scored 0-5.',
+        starterHabit: 'Run one crosscourt block before changing direction.',
+      },
+      {
+        title: 'Recover before judging',
+        category: 'fitness',
+        cadence: 'practice-day',
+        xp: 15,
+        linkedCardId: 'recover-before-score',
+        proof: 'Recovered before watching 0-5.',
+        starterHabit: 'Recover fully before deciding if the shot was good.',
+      },
+      {
+        title: 'One useful post-play note',
+        category: 'match-prep',
+        cadence: 'weekly',
+        xp: 10,
+        linkedCardId: 'post-match-five-minute-debrief',
+        proof: 'One proof, one leak, one next rep.',
+        starterHabit: 'Write one useful note after a match or hard practice.',
+      },
+    ],
+  },
+  {
+    id: 'serve-under-pressure',
+    title: 'Serve Under Pressure',
+    audience: 'player',
+    goal: 'Make serve starts clearer',
+    description: 'Serve target, routine, and reset habits for tight points.',
+    items: [
+      {
+        title: 'Serve target call',
+        category: 'tennis-skill',
+        cadence: 'practice-day',
+        xp: 15,
+        linkedCardId: 'serve-target-ladder',
+        proof: 'Serve target clarity 0-5.',
+        starterHabit: 'Call the serve target before the toss.',
+      },
+      {
+        title: 'Second serve routine',
+        category: 'mindset',
+        cadence: 'practice-day',
+        xp: 15,
+        linkedCardId: 'second-serve-routine-reps',
+        proof: 'Second-serve routine commitment 0-5.',
+        starterHabit: 'Use the same breath and target before each second serve.',
+      },
+      {
+        title: 'Double fault reset',
+        category: 'match-prep',
+        cadence: 'match-day',
+        xp: 10,
+        linkedCardId: 'double-fault-reset',
+        proof: 'Reset used before the next point.',
+        starterHabit: 'Reset with one breath and one target after a double fault.',
+      },
+    ],
+  },
+  {
+    id: 'move-better',
+    title: 'Move Better',
+    audience: 'player',
+    goal: 'Improve first move',
+    description: 'Short movement habits tied to split timing, recovery, and durability.',
+    items: [
+      {
+        title: 'Split-step timing',
+        category: 'fitness',
+        cadence: 'daily',
+        xp: 10,
+        linkedCardId: 'split-step-rhythm',
+        proof: 'Split-step timing scored after the drill.',
+        starterHabit: 'Complete one controlled split-step rhythm block.',
+      },
+      {
+        title: 'Four-cone tennis star',
+        category: 'fitness',
+        cadence: 'practice-day',
+        xp: 15,
+        linkedCardId: 'four-cone-tennis-star',
+        proof: 'Arrived balanced and recovered 0-5.',
+        starterHabit: 'Move, set, recover before the next rep starts.',
+      },
+      {
+        title: 'Post-play mobility',
+        category: 'recovery',
+        cadence: 'practice-day',
+        xp: 10,
+        linkedCardId: 'post-play-mobility-reset',
+        proof: 'Recovery reset completed after play.',
+        starterHabit: 'Do one mobility reset before leaving the court.',
+      },
+    ],
+  },
+  {
+    id: 'doubles-readiness',
+    title: 'Doubles Readiness',
+    audience: 'coach',
+    goal: 'Sharpen partner clarity',
+    description: 'Assignment-ready habits for communication, first move, and 30-30 doubles clarity.',
+    items: [
+      {
+        title: 'Partner first move',
+        category: 'match-prep',
+        cadence: 'practice-day',
+        xp: 15,
+        linkedCardId: 'partner-first-move-call',
+        proof: 'Partner first-move clarity 0-5.',
+        starterHabit: 'Call the partner job before the point starts.',
+      },
+      {
+        title: 'Poach timing shadow',
+        category: 'tennis-skill',
+        cadence: 'practice-day',
+        xp: 15,
+        linkedCardId: 'poach-timing-shadow',
+        proof: 'Switch call timing 0-5.',
+        starterHabit: 'Shadow one switch call before live points.',
+      },
+      {
+        title: '30-30 doubles clarity',
+        category: 'mindset',
+        cadence: 'match-day',
+        xp: 15,
+        linkedCardId: 'doubles-30-30-game',
+        proof: 'Doubles clarity at 30-30 0-5.',
+        starterHabit: 'Name the return job before every 30-30 point.',
+      },
+    ],
+  },
+  {
+    id: 'match-day-routine',
+    title: 'Match-Day Routine',
+    audience: 'captain',
+    goal: 'Arrive ready as a lineup',
+    description: 'Team-ready pack for warm-up, return intent, and post-match learning.',
+    items: [
+      {
+        title: 'Five-minute match primer',
+        category: 'match-prep',
+        cadence: 'match-day',
+        xp: 10,
+        linkedCardId: 'five-minute-match-primer',
+        proof: 'Hydration plan checked before warm-up.',
+        starterHabit: 'Check water, first target, and one match job before warm-up.',
+      },
+      {
+        title: 'Return intent at 30-30',
+        category: 'tennis-skill',
+        cadence: 'match-day',
+        xp: 15,
+        linkedCardId: 'return-30-30-game',
+        proof: 'Return intent at 30-30 0-5.',
+        starterHabit: 'Choose the return job before the server tosses.',
+      },
+      {
+        title: 'Post-match debrief',
+        category: 'match-prep',
+        cadence: 'weekly',
+        xp: 10,
+        linkedCardId: 'post-match-five-minute-debrief',
+        proof: 'One proof, one leak, one next rep.',
+        starterHabit: 'Capture one useful lesson before leaving the site.',
+      },
+    ],
+  },
+]
+
 export default function QuestBuilderClient({
   identitySlug,
   cardOptions,
@@ -102,7 +305,7 @@ export default function QuestBuilderClient({
   cardOptions: QuestBuilderCardOption[]
   templates: QuestBuilderTemplateOption[]
 }) {
-  const { authResolved, userId } = useAuth()
+  const { authResolved, userId, role, entitlements } = useAuth()
   const firstTemplate = templates[0]
   const fallbackCardId = firstTemplate?.primaryCardId ?? cardOptions[0]?.id ?? ''
   const [draft, setDraft] = useState<QuestBuilderDraft>(() => buildDraftFromTemplate(firstTemplate, fallbackCardId))
@@ -110,9 +313,14 @@ export default function QuestBuilderClient({
   const [completions, setCompletions] = useState<LevelUpCustomQuestCompletion[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [creatingPackId, setCreatingPackId] = useState('')
   const [archivingId, setArchivingId] = useState('')
+  const [selectedQuestId, setSelectedQuestId] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const access = useMemo(() => buildProductAccessState(userId ? role : 'public', entitlements), [entitlements, role, userId])
+  const accessPending = Boolean(userId) && (!authResolved || entitlements === null)
+  const canUseSavedQuestFeatures = Boolean(userId && access.canUseAdvancedPlayerInsights)
 
   const selectedCard = useMemo(
     () => cardOptions.find((card) => card.id === draft.linkedCardId) ?? cardOptions[0],
@@ -129,9 +337,17 @@ export default function QuestBuilderClient({
     () => buildQuestCoachInsights(customQuests, completions, todayKey, weekStartKey, identitySlug),
     [completions, customQuests, identitySlug, todayKey, weekStartKey],
   )
+  const weeklyReview = useMemo(
+    () => buildWeeklyQuestReview(customQuests, completions, todayKey, weekStartKey),
+    [completions, customQuests, todayKey, weekStartKey],
+  )
+  const selectedQuest = customQuests.find((quest) => quest.id === selectedQuestId) ?? customQuests[0] ?? null
+  const selectedQuestCompletions = selectedQuest
+    ? completions.filter((completion) => completion.customQuestId === selectedQuest.id).slice(0, 8)
+    : []
 
   const loadCustomQuests = useCallback(async () => {
-    if (!userId) {
+    if (!userId || !canUseSavedQuestFeatures) {
       setCustomQuests([])
       setCompletions([])
       setLoading(false)
@@ -143,12 +359,12 @@ export default function QuestBuilderClient({
 
     const [{ data, error: loadError }, { data: completionData, error: completionError }] = await Promise.all([
       supabase
-      .from('level_up_custom_quests')
-      .select(QUEST_SELECT)
-      .eq('user_id', userId)
-      .eq('active', true)
-      .order('updated_at', { ascending: false })
-        .limit(12),
+        .from('level_up_custom_quests')
+        .select(QUEST_SELECT)
+        .eq('user_id', userId)
+        .eq('active', true)
+        .order('updated_at', { ascending: false })
+        .limit(24),
       supabase
         .from('level_up_custom_quest_completions')
         .select(COMPLETION_SELECT)
@@ -168,10 +384,10 @@ export default function QuestBuilderClient({
     }
 
     setLoading(false)
-  }, [todayKey, userId])
+  }, [canUseSavedQuestFeatures, todayKey, userId])
 
   useEffect(() => {
-    if (!authResolved) return
+    if (!authResolved || accessPending) return
 
     const loadTimer = globalThis.setTimeout(() => {
       void loadCustomQuests()
@@ -180,7 +396,7 @@ export default function QuestBuilderClient({
     return () => {
       globalThis.clearTimeout(loadTimer)
     }
-  }, [authResolved, loadCustomQuests])
+  }, [accessPending, authResolved, loadCustomQuests])
 
   function applyTemplate(template: QuestBuilderTemplateOption) {
     setDraft(buildDraftFromTemplate(template, template.primaryCardId))
@@ -190,10 +406,11 @@ export default function QuestBuilderClient({
 
   async function saveQuest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!userId) {
+    if (!userId || !canUseSavedQuestFeatures) {
       setError('Sign in to save custom quests.')
       return
     }
+    const ownerId = userId
 
     const title = draft.title.trim()
     if (!title) {
@@ -206,7 +423,7 @@ export default function QuestBuilderClient({
     setError('')
 
     const payload = {
-      user_id: userId,
+      user_id: ownerId,
       title: title.slice(0, 90),
       category: draft.category,
       cadence: draft.cadence,
@@ -227,7 +444,7 @@ export default function QuestBuilderClient({
     if (saveError) {
       setError('Quest could not be saved.')
     } else if (data) {
-      setCustomQuests((current) => [mapCustomQuestRow(data as CustomQuestRow), ...current].slice(0, 12))
+      setCustomQuests((current) => [mapCustomQuestRow(data as CustomQuestRow), ...current].slice(0, 24))
       setMessage('Quest saved to your private Level Up plan.')
     }
 
@@ -235,7 +452,8 @@ export default function QuestBuilderClient({
   }
 
   async function archiveQuest(id: string) {
-    if (!userId) return
+    if (!userId || !canUseSavedQuestFeatures) return
+    const ownerId = userId
 
     setArchivingId(id)
     setError('')
@@ -245,7 +463,7 @@ export default function QuestBuilderClient({
       .from('level_up_custom_quests')
       .update({ active: false, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq('user_id', ownerId)
 
     if (archiveError) {
       setError('Quest could not be archived.')
@@ -255,6 +473,60 @@ export default function QuestBuilderClient({
     }
 
     setArchivingId('')
+  }
+
+  async function createQuestPack(pack: QuestPack) {
+    if (!userId) {
+      setError('Sign in to save quest packs.')
+      return
+    }
+    if (!canUseSavedQuestFeatures) {
+      setError('Player access is required to save quest packs.')
+      return
+    }
+    const ownerId = userId
+
+    setCreatingPackId(pack.id)
+    setMessage('')
+    setError('')
+
+    const existingKeys = new Set(customQuests.map((quest) => `${quest.title.toLowerCase()}::${quest.linkedCardId ?? ''}`))
+    const payloads = pack.items
+      .filter((item) => cardOptions.some((card) => card.id === item.linkedCardId))
+      .filter((item) => !existingKeys.has(`${item.title.toLowerCase()}::${item.linkedCardId}`))
+      .map((item) => ({
+        user_id: ownerId,
+        title: item.title,
+        category: item.category,
+        cadence: item.cadence,
+        xp: item.xp,
+        linked_card_id: item.linkedCardId,
+        proof: item.proof,
+        starter_habit: item.starterHabit,
+        active: true,
+        updated_at: new Date().toISOString(),
+      }))
+
+    if (payloads.length === 0) {
+      setMessage(`${pack.title} is already in your saved quests.`)
+      setCreatingPackId('')
+      return
+    }
+
+    const { data, error: packError } = await supabase
+      .from('level_up_custom_quests')
+      .insert(payloads)
+      .select(QUEST_SELECT)
+
+    if (packError) {
+      setError('Quest pack could not be saved.')
+    } else {
+      const nextQuests = ((data ?? []) as CustomQuestRow[]).map(mapCustomQuestRow)
+      setCustomQuests((current) => [...nextQuests, ...current].slice(0, 24))
+      setMessage(`${pack.title} added ${nextQuests.length} quest${nextQuests.length === 1 ? '' : 's'}.`)
+    }
+
+    setCreatingPackId('')
   }
 
   return (
@@ -269,6 +541,19 @@ export default function QuestBuilderClient({
               <strong>{template.title}</strong>
               <small>{template.primaryCardTitle}</small>
             </button>
+          ))}
+        </div>
+        <div className={styles.levelUpQuestPackList} aria-label="Goal-based quest packs">
+          <strong>Goal packs</strong>
+          {QUEST_PACKS.filter((pack) => pack.audience === 'player').map((pack) => (
+            <article key={pack.id}>
+              <span>{pack.goal}</span>
+              <strong>{pack.title}</strong>
+              <p>{pack.description}</p>
+              <button type="button" onClick={() => void createQuestPack(pack)} disabled={creatingPackId === pack.id || accessPending}>
+                {creatingPackId === pack.id ? 'Adding pack' : 'Add pack'}
+              </button>
+            </article>
           ))}
         </div>
       </div>
@@ -361,10 +646,12 @@ export default function QuestBuilderClient({
         </label>
 
         <div className={styles.levelUpQuestFormActions}>
-          {authResolved && userId ? (
+          {authResolved && canUseSavedQuestFeatures ? (
             <button className="button-primary" type="submit" disabled={saving}>
               {saving ? 'Saving quest' : 'Save custom quest'}
             </button>
+          ) : authResolved && userId ? (
+            <Link className="button-primary" href="/pricing">Unlock Player</Link>
           ) : (
             <Link className="button-primary" href="/login">Sign in to save</Link>
           )}
@@ -377,6 +664,9 @@ export default function QuestBuilderClient({
 
         {!authResolved ? <p className={styles.levelUpQuestNotice}>Checking your account.</p> : null}
         {authResolved && !userId ? <p className={styles.levelUpQuestNotice}>Saved quests unlock after sign-in.</p> : null}
+        {authResolved && userId && !canUseSavedQuestFeatures ? (
+          <p className={styles.levelUpQuestNotice}>Templates stay open. Saved custom quests, history, Quest Coach, and packs are Player features.</p>
+        ) : null}
         {message ? <p className={styles.levelUpQuestNotice}>{message}</p> : null}
         {error ? <p className={styles.levelUpQuestError}>{error}</p> : null}
       </form>
@@ -460,6 +750,63 @@ export default function QuestBuilderClient({
           </div>
         </div>
 
+        <div className={styles.levelUpQuestWeeklyReview} aria-label="Weekly quest review">
+          <div>
+            <span>Weekly review</span>
+            <strong>{weeklyReview.title}</strong>
+            <p>{weeklyReview.detail}</p>
+          </div>
+          <dl>
+            <div>
+              <dt>Completed</dt>
+              <dd>{weeklyReview.completedCount}</dd>
+            </div>
+            <div>
+              <dt>Best lane</dt>
+              <dd>{weeklyReview.bestLane}</dd>
+            </div>
+            <div>
+              <dt>Focus</dt>
+              <dd>{weeklyReview.nextFocus}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className={styles.levelUpQuestAssignmentPacks} aria-label="Coach and team quest packs">
+          {QUEST_PACKS.filter((pack) => pack.audience !== 'player').map((pack) => (
+            <article key={pack.id}>
+              <span>{pack.audience === 'coach' ? 'Coach assignable' : 'Team pack'}</span>
+              <strong>{pack.title}</strong>
+              <p>{pack.description}</p>
+              <button type="button" onClick={() => void createQuestPack(pack)} disabled={creatingPackId === pack.id || accessPending}>
+                {creatingPackId === pack.id ? 'Adding pack' : 'Add to my plan'}
+              </button>
+            </article>
+          ))}
+        </div>
+
+        {selectedQuest ? (
+          <details className={styles.levelUpQuestHistoryDrawer} open>
+            <summary>
+              <span>Quest history</span>
+              <strong>{selectedQuest.title}</strong>
+            </summary>
+            <div>
+              {selectedQuestCompletions.length ? (
+                selectedQuestCompletions.map((completion) => (
+                  <article key={completion.id}>
+                    <span>{completion.completedOn}</span>
+                    <strong>{completion.xp} XP{completion.proofRating === null ? '' : ` / ${completion.proofRating}/5 proof`}</strong>
+                    <p>{completion.note || 'Linked drill proof saved.'}</p>
+                  </article>
+                ))
+              ) : (
+                <p>No completion history for this quest yet.</p>
+              )}
+            </div>
+          </details>
+        ) : null}
+
         <div className={styles.levelUpQuestSavedGrid}>
           {loading ? <p className={styles.levelUpQuestNotice}>Loading saved quests.</p> : null}
           {!loading && customQuests.length === 0 ? (
@@ -503,6 +850,13 @@ export default function QuestBuilderClient({
                       Start drill
                     </Link>
                   ) : null}
+                  <button
+                    className="button-secondary"
+                    type="button"
+                    onClick={() => setSelectedQuestId(quest.id)}
+                  >
+                    History
+                  </button>
                   <button
                     className="button-secondary"
                     type="button"
@@ -685,6 +1039,35 @@ function buildQuestCoachInsights(
         : 'Repeat a linked drill only if you want extra reps; the daily stack is clean.',
     },
   ]
+}
+
+function buildWeeklyQuestReview(
+  quests: LevelUpCustomQuest[],
+  completions: LevelUpCustomQuestCompletion[],
+  todayKey: string,
+  weekStartKey: string,
+) {
+  const weeklyCompletions = completions.filter((completion) => completion.completedOn >= weekStartKey && completion.completedOn <= todayKey)
+  const bestCategory = CATEGORY_OPTIONS.map((category) => {
+    const count = weeklyCompletions.filter((completion) => {
+      const quest = quests.find((item) => item.id === completion.customQuestId)
+      return quest?.category === category
+    }).length
+    return { category, count }
+  }).sort((a, b) => b.count - a.count)[0]
+  const openQuests = quests.filter((quest) => !weeklyCompletions.some((completion) => completion.customQuestId === quest.id))
+  const nextFocus = openQuests[0]?.category ?? bestCategory?.category ?? 'tennis-skill'
+  const completedCount = new Set(weeklyCompletions.map((completion) => `${completion.customQuestId}:${completion.completedOn}`)).size
+
+  return {
+    title: completedCount ? `${completedCount} quest proof${completedCount === 1 ? '' : 's'} this week` : 'No quest proof yet this week',
+    detail: completedCount
+      ? 'Use the best lane, missed lane, and next focus to keep next week simple.'
+      : 'Start with one short linked drill so the review has a real signal.',
+    completedCount,
+    bestLane: bestCategory?.count ? formatHabitCategory(bestCategory.category) : 'Open',
+    nextFocus: formatHabitCategory(nextFocus),
+  }
 }
 
 function getTodayQuestReason({
