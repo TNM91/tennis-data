@@ -28,6 +28,9 @@ import {
   buildPersonalQuestStreakShield,
   buildPersonalQuestTrendCards,
   buildPersonalQuestMomentumNudges,
+  buildPersonalQuestMissPatterns,
+  buildPersonalQuestCoachNote,
+  buildPersonalQuestWeeklyPlan,
   buildPersonalQuestWaistTrend,
   buildPersonalQuestWeeklyGrade,
   buildQuestFeedback,
@@ -61,6 +64,21 @@ type PhotoPreview = ProgressPhoto & {
   signedUrl: string
 }
 
+type QuestUndo = {
+  quest: PersonalQuestDefinition
+  targetDate: string
+  action: 'completed' | 'removed'
+  message: string
+}
+
+type OfflineQuestAction = {
+  id: string
+  questId: PersonalQuestId
+  targetDate: string
+  action: 'complete' | 'remove'
+  xp: number
+}
+
 type LoadState = 'checking' | 'loading' | 'ready'
 type PhotoCompareMode = 'latest_previous' | 'first_latest' | 'week_over_week'
 
@@ -91,6 +109,8 @@ const QUEST_STACKS: Array<{ id: string; label: string; hint: string; questIds: P
   },
 ]
 
+const OFFLINE_QUEUE_KEY_PREFIX = 'personal-quest-offline-queue:'
+
 export default function MyQuestClient() {
   const { authResolved, session, userId } = useAuth()
   const [loadState, setLoadState] = useState<LoadState>('checking')
@@ -120,6 +140,10 @@ export default function MyQuestClient() {
   const [compareType, setCompareType] = useState<ProgressPhotoType>('front')
   const [compareMode, setCompareMode] = useState<PhotoCompareMode>('latest_previous')
   const [selectedAchievementId, setSelectedAchievementId] = useState('')
+  const [undoQuest, setUndoQuest] = useState<QuestUndo | null>(null)
+  const [offlineQueueCount, setOfflineQueueCount] = useState(0)
+  const [syncingOffline, setSyncingOffline] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('unsupported')
   const [celebration, setCelebration] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -250,6 +274,18 @@ export default function MyQuestClient() {
   )
   const momentumNudges = useMemo(
     () => buildPersonalQuestMomentumNudges({ completions, logs, today, weekStart }),
+    [completions, logs, today, weekStart],
+  )
+  const missPatterns = useMemo(
+    () => buildPersonalQuestMissPatterns({ completions, logs, today }),
+    [completions, logs, today],
+  )
+  const weeklyPlan = useMemo(
+    () => buildPersonalQuestWeeklyPlan({ completions, logs, today, weekStart }),
+    [completions, logs, today, weekStart],
+  )
+  const coachNote = useMemo(
+    () => buildPersonalQuestCoachNote({ completions, logs, today, weekStart }),
     [completions, logs, today, weekStart],
   )
   const bossCalendar = useMemo(
@@ -489,11 +525,91 @@ export default function MyQuestClient() {
     return () => window.clearTimeout(timeout)
   }, [logs, repairDate])
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setNotificationPermission(getBrowserNotificationPermission())
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, [])
+
+  useEffect(() => {
+    const ownerId = authUser?.id ?? userId
+    if (!ownerId || !ownerAllowed) return
+
+    const timeout = window.setTimeout(() => {
+      setOfflineQueueCount(readOfflineQueue(ownerId).length)
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, [authUser?.id, ownerAllowed, userId])
+
+  const flushOfflineQueue = useCallback(async (ownerId: string) => {
+    const queued = readOfflineQueue(ownerId)
+    if (!queued.length || syncingOffline || !isBrowserOnline()) {
+      setOfflineQueueCount(queued.length)
+      return
+    }
+
+    setSyncingOffline(true)
+    setError('')
+
+    const remaining: OfflineQuestAction[] = []
+    for (const action of queued) {
+      const quest = PERSONAL_DAILY_QUESTS.find((item) => item.id === action.questId)
+      if (!quest) continue
+
+      const result = action.action === 'remove'
+        ? await supabase
+            .from('personal_daily_quest_completions')
+            .delete()
+            .eq('user_id', ownerId)
+            .eq('completed_on', action.targetDate)
+            .eq('quest_id', action.questId)
+        : await supabase
+            .from('personal_daily_quest_completions')
+            .upsert({
+              user_id: ownerId,
+              completed_on: action.targetDate,
+              quest_id: action.questId,
+              xp_awarded: action.xp || quest.xp,
+            }, { onConflict: 'user_id,completed_on,quest_id' })
+
+      if (result.error) remaining.push(action)
+    }
+
+    writeOfflineQueue(ownerId, remaining)
+    setOfflineQueueCount(remaining.length)
+    setSyncingOffline(false)
+    if (queued.length && !remaining.length) setMessage('Offline quest queue synced.')
+    if (remaining.length) setError(`${remaining.length} offline ${remaining.length === 1 ? 'action' : 'actions'} still need sync.`)
+  }, [syncingOffline])
+
+  useEffect(() => {
+    const ownerId = authUser?.id ?? userId
+    if (!ownerId || !ownerAllowed || loadState !== 'ready') return
+
+    const handleOnline = () => {
+      void flushOfflineQueue(ownerId)
+    }
+    window.addEventListener('online', handleOnline)
+    const timeout = window.setTimeout(() => {
+      if (isBrowserOnline()) void flushOfflineQueue(ownerId)
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeout)
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [authUser?.id, flushOfflineQueue, loadState, ownerAllowed, userId])
+
   async function toggleQuest(quest: PersonalQuestDefinition) {
     await toggleQuestForDate(quest, today)
   }
 
-  async function toggleQuestForDate(quest: PersonalQuestDefinition, targetDate: string) {
+  async function toggleQuestForDate(
+    quest: PersonalQuestDefinition,
+    targetDate: string,
+    options: { suppressUndo?: boolean } = {},
+  ) {
     const ownerId = authUser?.id ?? userId
     if (!ownerId || pendingQuest) return
 
@@ -506,6 +622,23 @@ export default function MyQuestClient() {
     if (alreadyComplete) {
       const before = completions
       setCompletions((current) => current.filter((item) => !(item.completed_on === targetDate && item.quest_id === quest.id)))
+
+      if (!isBrowserOnline()) {
+        setPendingQuest('')
+        setOfflineQueueCount(queueOfflineQuestAction(ownerId, {
+          id: createOfflineActionId(),
+          questId: quest.id,
+          targetDate,
+          action: 'remove',
+          xp: quest.xp,
+        }))
+        if (!options.suppressUndo) {
+          setUndoQuest({ quest, targetDate, action: 'removed', message: 'Quest removal queued.' })
+        }
+        setMessage(`${targetDate === today ? buildQuestFeedback(quest, 'removed') : `${quest.shortTitle} removed from yesterday.`} Queued offline.`)
+        return
+      }
+
       const { error: deleteError } = await supabase
         .from('personal_daily_quest_completions')
         .delete()
@@ -518,6 +651,9 @@ export default function MyQuestClient() {
         setError(deleteError.message)
       } else {
         setMessage(targetDate === today ? buildQuestFeedback(quest, 'removed') : `${quest.shortTitle} removed from yesterday. XP adjusted.`)
+        if (!options.suppressUndo) {
+          setUndoQuest({ quest, targetDate, action: 'removed', message: 'Quest removed.' })
+        }
       }
       setPendingQuest('')
       return
@@ -529,6 +665,22 @@ export default function MyQuestClient() {
       xp_awarded: quest.xp,
     }
     setCompletions((current) => [completion, ...current])
+
+    if (!isBrowserOnline()) {
+      setPendingQuest('')
+      setOfflineQueueCount(queueOfflineQuestAction(ownerId, {
+        id: createOfflineActionId(),
+        questId: quest.id,
+        targetDate,
+        action: 'complete',
+        xp: quest.xp,
+      }))
+      if (!options.suppressUndo) {
+        setUndoQuest({ quest, targetDate, action: 'completed', message: 'Quest completion queued.' })
+      }
+      setMessage(`${targetDate === today ? buildQuestFeedback(quest, 'completed') : `${quest.shortTitle} repaired for yesterday. +${quest.xp} XP.`} Queued offline.`)
+      return
+    }
 
     const { error: upsertError } = await supabase
       .from('personal_daily_quest_completions')
@@ -544,6 +696,9 @@ export default function MyQuestClient() {
       setError(upsertError.message)
     } else {
       setMessage(targetDate === today ? buildQuestFeedback(quest, 'completed') : `${quest.shortTitle} repaired for yesterday. +${quest.xp} XP.`)
+      if (!options.suppressUndo) {
+        setUndoQuest({ quest, targetDate, action: 'completed', message: 'Quest completed.' })
+      }
     }
 
     setPendingQuest('')
@@ -575,6 +730,24 @@ export default function MyQuestClient() {
     }))
     setCompletions((current) => [...nextCompletions, ...current])
 
+    if (!isBrowserOnline()) {
+      let queuedCount = 0
+      for (const quest of quests) {
+        queuedCount = queueOfflineQuestAction(ownerId, {
+          id: createOfflineActionId(),
+          questId: quest.id,
+          targetDate: today,
+          action: 'complete',
+          xp: quest.xp,
+        })
+      }
+      setOfflineQueueCount(queuedCount)
+      const xp = nextCompletions.reduce((sum, completion) => sum + completion.xp_awarded, 0)
+      setMessage(`${stack.label} queued offline. +${xp} XP visible now.`)
+      setPendingStack('')
+      return
+    }
+
     const { error: upsertError } = await supabase
       .from('personal_daily_quest_completions')
       .upsert(nextCompletions.map((completion) => ({
@@ -593,6 +766,43 @@ export default function MyQuestClient() {
     }
 
     setPendingStack('')
+  }
+
+  async function undoLastQuestAction() {
+    const undo = undoQuest
+    if (!undo) return
+    setUndoQuest(null)
+    await toggleQuestForDate(undo.quest, undo.targetDate, { suppressUndo: true })
+  }
+
+  async function requestReminderPermission() {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotificationPermission('unsupported')
+      setError('Browser reminders are not supported here.')
+      return
+    }
+
+    const permission = await window.Notification.requestPermission()
+    setNotificationPermission(permission)
+    setMessage(permission === 'granted' ? 'Browser reminders enabled on this device.' : 'Browser reminders were not enabled.')
+  }
+
+  function sendTestReminder() {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotificationPermission('unsupported')
+      setError('Browser reminders are not supported here.')
+      return
+    }
+
+    if (window.Notification.permission !== 'granted') {
+      setNotificationPermission(window.Notification.permission)
+      setError('Enable browser reminders first.')
+      return
+    }
+
+    setNotificationPermission(window.Notification.permission)
+    new window.Notification('My Quest reminder', { body: coachNote.detail })
+    setMessage('Test reminder sent on this device.')
   }
 
   async function saveDailyTrackers(nextIpaInput = ipaInput, nextNotesInput = notesInput) {
@@ -875,9 +1085,11 @@ export default function MyQuestClient() {
             <a href="#season-map">Season</a>
             <a href="#momentum">Momentum</a>
             <a href="#trend-strip">Trends</a>
+            <a href="#private-coach">Coach</a>
             <a href="#weekly-review">Review</a>
             <a href="#photo-compare">Photos</a>
             <a href="#phone-mode">Phone</a>
+            <a href="#private-ops">Ops</a>
           </div>
         </div>
         <div className={styles.levelPanel}>
@@ -902,6 +1114,18 @@ export default function MyQuestClient() {
 
       {error ? <div className={styles.errorNotice}>{error}</div> : null}
       {message ? <div className={styles.successNotice}>{message}</div> : null}
+      {undoQuest ? (
+        <div className={styles.undoNotice}>
+          <div>
+            <span>{undoQuest.action === 'completed' ? 'Quest banked' : 'Quest reopened'}</span>
+            <strong>{undoQuest.quest.shortTitle}</strong>
+            <small>{undoQuest.message}</small>
+          </div>
+          <button type="button" onClick={() => void undoLastQuestAction()} disabled={Boolean(pendingQuest)}>
+            Undo
+          </button>
+        </div>
+      ) : null}
       {celebration ? (
         <div className={styles.celebrationOverlay} role="dialog" aria-modal="true" aria-label="Milestone unlocked">
           <div className={styles.celebrationPanel}>
@@ -1007,6 +1231,48 @@ export default function MyQuestClient() {
             <span>Boss danger</span>
             <strong>{gamePlan.bossDanger}</strong>
           </div>
+        </div>
+      </section>
+
+      <section id="private-coach" className={styles.coachPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Private Coach</p>
+            <h2>{coachNote.title}</h2>
+          </div>
+          <span className={styles.scorePill}>Nathan only</span>
+        </div>
+        <div className={styles.coachLayout}>
+          <div className={styles.coachCard}>
+            <span>Coach note</span>
+            <strong>{coachNote.detail}</strong>
+          </div>
+          <div className={styles.weeklyPlanGrid}>
+            <div className={styles.weeklyPlanCard}>
+              <span>Focus habit</span>
+              <strong>{weeklyPlan.focusHabit}</strong>
+            </div>
+            <div className={styles.weeklyPlanCard}>
+              <span>Boss to protect</span>
+              <strong>{weeklyPlan.bossToProtect}</strong>
+            </div>
+            <div className={styles.weeklyPlanCard}>
+              <span>Danger window</span>
+              <strong>{weeklyPlan.dangerWindow}</strong>
+            </div>
+            <div className={styles.weeklyPlanCard}>
+              <span>Minimum rule</span>
+              <strong>{weeklyPlan.minimumRule}</strong>
+            </div>
+          </div>
+        </div>
+        <div className={styles.patternGrid}>
+          {missPatterns.map((pattern) => (
+            <div key={pattern.id} className={styles.patternCard} data-tone={pattern.tone}>
+              <span>{pattern.title}</span>
+              <strong>{pattern.detail}</strong>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -1534,6 +1800,52 @@ export default function MyQuestClient() {
         </div>
       </section>
 
+      <section id="private-ops" className={styles.privateOpsPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Private Ops</p>
+            <h2>Sync and privacy health</h2>
+          </div>
+          <span className={styles.scorePill}>{syncingOffline ? 'Syncing' : 'Ready'}</span>
+        </div>
+        <div className={styles.healthGrid}>
+          <div className={styles.healthCard} data-tone="green">
+            <span>Access gate</span>
+            <strong>Nathan-only</strong>
+            <small>{authUser?.email ?? 'Authenticated owner'}</small>
+          </div>
+          <div className={styles.healthCard} data-tone={offlineQueueCount ? 'amber' : 'green'}>
+            <span>Offline queue</span>
+            <strong>{offlineQueueCount}</strong>
+            <small>{offlineQueueCount ? 'Waiting to sync' : 'Clear'}</small>
+          </div>
+          <div className={styles.healthCard} data-tone="green">
+            <span>Photo vault</span>
+            <strong>{photos.filter((photo) => photo.signedUrl).length}/{photos.length}</strong>
+            <small>Signed viewing only</small>
+          </div>
+          <div className={styles.healthCard} data-tone={notificationPermission === 'granted' ? 'green' : 'blue'}>
+            <span>Reminders</span>
+            <strong>{notificationPermission}</strong>
+            <small>This device only</small>
+          </div>
+        </div>
+        <div className={styles.opsActions}>
+          <button type="button" onClick={() => void requestReminderPermission()}>
+            Enable reminders
+          </button>
+          <button type="button" onClick={sendTestReminder} disabled={notificationPermission !== 'granted'}>
+            Test reminder
+          </button>
+          <button type="button" onClick={() => {
+            const ownerId = authUser?.id ?? userId
+            if (ownerId) void flushOfflineQueue(ownerId)
+          }} disabled={!offlineQueueCount || syncingOffline}>
+            Sync queued
+          </button>
+        </div>
+      </section>
+
       <section className={styles.bossPanel}>
         <div className={styles.sectionHeader}>
           <div>
@@ -1936,4 +2248,64 @@ function getPhotoExtension(file: File) {
   if (file.type === 'image/png') return 'png'
   if (file.type === 'image/webp') return 'webp'
   return 'jpg'
+}
+
+function isBrowserOnline() {
+  if (typeof window === 'undefined' || typeof window.navigator === 'undefined') return true
+  return window.navigator.onLine
+}
+
+function getBrowserNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported'
+  return window.Notification.permission
+}
+
+function getOfflineQueueKey(ownerId: string) {
+  return `${OFFLINE_QUEUE_KEY_PREFIX}${ownerId}`
+}
+
+function readOfflineQueue(ownerId: string): OfflineQuestAction[] {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(getOfflineQueueKey(ownerId)) || '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(isOfflineQuestAction).slice(-80)
+  } catch {
+    return []
+  }
+}
+
+function writeOfflineQueue(ownerId: string, actions: OfflineQuestAction[]) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(getOfflineQueueKey(ownerId), JSON.stringify(actions.slice(-80)))
+}
+
+function queueOfflineQuestAction(ownerId: string, action: OfflineQuestAction) {
+  const next = [
+    ...readOfflineQueue(ownerId).filter((item) => !(item.questId === action.questId && item.targetDate === action.targetDate)),
+    action,
+  ].slice(-80)
+  writeOfflineQueue(ownerId, next)
+  return next.length
+}
+
+function isOfflineQuestAction(value: unknown): value is OfflineQuestAction {
+  if (!value || typeof value !== 'object') return false
+  const action = value as Partial<OfflineQuestAction>
+  return Boolean(
+    action.id &&
+    typeof action.id === 'string' &&
+    action.questId &&
+    PERSONAL_DAILY_QUESTS.some((quest) => quest.id === action.questId) &&
+    action.targetDate &&
+    typeof action.targetDate === 'string' &&
+    (action.action === 'complete' || action.action === 'remove') &&
+    typeof action.xp === 'number',
+  )
+}
+
+function createOfflineActionId() {
+  if (typeof window !== 'undefined' && window.crypto?.randomUUID) return window.crypto.randomUUID()
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }

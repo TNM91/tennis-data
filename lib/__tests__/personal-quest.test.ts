@@ -24,6 +24,9 @@ import {
   buildPersonalQuestStreakShield,
   buildPersonalQuestTrendCards,
   buildPersonalQuestMomentumNudges,
+  buildPersonalQuestMissPatterns,
+  buildPersonalQuestCoachNote,
+  buildPersonalQuestWeeklyPlan,
   buildPersonalQuestWaistTrend,
   buildPersonalQuestWeeklyGrade,
   buildQuestFeedback,
@@ -350,6 +353,32 @@ describe('personal quest daily helpers', () => {
     expect(modes).toContainEqual(expect.objectContaining({ id: 'travel', recommended: true }))
     expect(timeline).toContainEqual(expect.objectContaining({ week: 1, status: 'current' }))
     expect(toast.title).toContain('XP')
+  })
+
+  it('builds private coach notes, miss patterns, and weekly plans', () => {
+    const completions: DailyQuestCompletion[] = [
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-10', xp_awarded: 15 },
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-11', xp_awarded: 15 },
+      { quest_id: 'no_chips_lunch', completed_on: '2026-06-12', xp_awarded: 15 },
+      { quest_id: 'creamer_goal', completed_on: '2026-06-12', xp_awarded: 10 },
+    ]
+    const logs: DailyLog[] = [
+      { log_date: '2026-06-07', ipa_count: 2, notes: '' },
+      { log_date: '2026-06-10', ipa_count: 1, notes: '' },
+      { log_date: '2026-06-12', ipa_count: 1, notes: '' },
+    ]
+    const today = '2026-06-12'
+    const weekStart = '2026-06-07'
+
+    const patterns = buildPersonalQuestMissPatterns({ completions, logs, today })
+    const plan = buildPersonalQuestWeeklyPlan({ completions, logs, today, weekStart })
+    const note = buildPersonalQuestCoachNote({ completions, logs, today, weekStart })
+
+    expect(patterns).toContainEqual(expect.objectContaining({ id: 'lunch-streak', tone: 'green' }))
+    expect(patterns[0].id).toBe('lowest-consistency')
+    expect(plan.minimumRule).toContain('one quest protects the streak')
+    expect(plan.dangerWindow).toContain('Weekend')
+    expect(note.title).toBe('Protect the close')
   })
 })
 

@@ -129,6 +129,7 @@
 .gamePlanPanel,
 .warningPanel,
 .momentumPanel,
+.coachPanel,
 .monthPanel,
 .seasonPanel,
 .timelinePanel,
@@ -142,6 +143,7 @@
 .reviewPanel,
 .photoPanel,
 .phonePanel,
+.privateOpsPanel,
 .achievementPanel,
 .metricTile {
   border: 1px solid color-mix(in srgb, var(--shell-panel-border) 80%, rgba(var(--brand-green-rgb), 0.14) 20%);
@@ -162,6 +164,7 @@
 .gamePlanPanel,
 .warningPanel,
 .momentumPanel,
+.coachPanel,
 .monthPanel,
 .seasonPanel,
 .timelinePanel,
@@ -1534,6 +1537,130 @@
   margin-top: 14px;
 }
 
+.coachPanel,
+.privateOpsPanel {
+  margin-top: 14px;
+  border-radius: 22px;
+  padding: clamp(16px, 3vw, 22px);
+}
+
+.coachLayout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.36fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.coachCard,
+.weeklyPlanCard,
+.patternCard,
+.healthCard {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(116, 190, 255, 0.13);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.coachCard {
+  align-content: center;
+  border-color: color-mix(in srgb, var(--brand-green) 42%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.16), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.weeklyPlanGrid,
+.patternGrid,
+.healthGrid,
+.opsActions {
+  display: grid;
+  gap: 10px;
+}
+
+.weeklyPlanGrid,
+.healthGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.patternGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.opsActions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.coachCard span,
+.weeklyPlanCard span,
+.patternCard span,
+.healthCard span,
+.healthCard small {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.coachCard span,
+.weeklyPlanCard span,
+.patternCard span,
+.healthCard span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.coachCard strong,
+.weeklyPlanCard strong,
+.patternCard strong,
+.healthCard strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+  line-height: 1.14;
+  overflow-wrap: anywhere;
+}
+
+.coachCard strong {
+  font-size: clamp(1.25rem, 4vw, 1.8rem);
+}
+
+.patternCard[data-tone='green'],
+.healthCard[data-tone='green'] {
+  border-color: color-mix(in srgb, var(--brand-green) 44%, transparent);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--brand-green-rgb), 0.13), transparent 44%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.patternCard[data-tone='amber'],
+.healthCard[data-tone='amber'] {
+  border-color: rgba(255, 205, 94, 0.34);
+}
+
+.patternCard[data-tone='blue'],
+.healthCard[data-tone='blue'] {
+  border-color: rgba(116, 190, 255, 0.24);
+}
+
+.opsActions button,
+.undoNotice button {
+  min-height: 46px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 34%, transparent);
+  background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.16), rgba(24, 54, 34, 0.88));
+  color: var(--foreground-strong);
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.opsActions button:disabled,
+.undoNotice button:disabled {
+  opacity: 0.58;
+  cursor: default;
+}
+
 .finalePanel[data-unlocked='true'] {
   border-color: color-mix(in srgb, var(--brand-green) 48%, transparent);
   background:
@@ -1930,7 +2057,8 @@
 }
 
 .errorNotice,
-.successNotice {
+.successNotice,
+.undoNotice {
   margin-top: 14px;
   padding: 13px 14px;
   border-radius: 15px;
@@ -1949,11 +2077,47 @@
   color: #dff8c2;
 }
 
+.undoNotice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, 0.16fr);
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(116, 190, 255, 0.2);
+  background: rgba(7, 20, 42, 0.82);
+  color: var(--foreground-strong);
+}
+
+.undoNotice div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.undoNotice span,
+.undoNotice small {
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.undoNotice span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.undoNotice strong {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 980px) {
   .hero,
   .sectionGrid,
   .statGrid,
   .planGrid,
+  .coachLayout,
+  .weeklyPlanGrid,
+  .patternGrid,
+  .healthGrid,
   .momentumLayout,
   .lockScreenMetrics,
   .repairBody,
@@ -1969,6 +2133,7 @@
   .timelineGrid,
   .bossCalendarGrid,
   .strategyGrid,
+  .opsActions,
   .bossGrid {
     grid-template-columns: 1fr;
   }
@@ -2023,6 +2188,8 @@
   .reviewPanel,
   .photoPanel,
   .phonePanel,
+  .coachPanel,
+  .privateOpsPanel,
   .achievementPanel {
     border-radius: 18px;
   }
@@ -2044,6 +2211,9 @@
   .loadoutGrid,
   .reminderGrid,
   .bossCalendarGrid,
+  .patternGrid,
+  .healthGrid,
+  .opsActions,
   .reviewMetrics,
   .compareGrid,
   .photoGrid,
@@ -2056,7 +2226,8 @@
   .quickTrackerRow,
   .quickAddHeader,
   .quickAddFooter,
-  .focusSuggestion {
+  .focusSuggestion,
+  .undoNotice {
     align-items: stretch;
     grid-template-columns: 1fr;
     flex-direction: column;

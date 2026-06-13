@@ -355,6 +355,25 @@ export type PersonalQuestRecapToast = {
   tone: 'green' | 'amber' | 'blue'
 }
 
+export type PersonalQuestMissPattern = {
+  id: string
+  title: string
+  detail: string
+  tone: 'green' | 'blue' | 'amber'
+}
+
+export type PersonalQuestWeeklyPlan = {
+  focusHabit: string
+  bossToProtect: string
+  dangerWindow: string
+  minimumRule: string
+}
+
+export type PersonalQuestCoachNote = {
+  title: string
+  detail: string
+}
+
 export type WeeklyBossProgress = {
   key: WeeklyBossKey
   title: string
@@ -1454,6 +1473,113 @@ export function buildPersonalQuestRecapToast(input: {
   }
 }
 
+export function buildPersonalQuestMissPatterns(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  today: string
+}): PersonalQuestMissPattern[] {
+  const start = getDateOffsetKey(input.today, -27)
+  const recentCompletions = input.completions.filter((item) => item.completed_on >= start && item.completed_on <= input.today)
+  const patterns: PersonalQuestMissPattern[] = []
+  const questRates = PERSONAL_DAILY_QUESTS.map((quest) => {
+    const days = countQuestDays(recentCompletions, quest.id)
+    return {
+      quest,
+      days,
+      misses: 28 - days,
+      rate: days / 28,
+    }
+  }).sort((a, b) => a.rate - b.rate)
+  const weakest = questRates[0]
+
+  if (weakest) {
+    patterns.push({
+      id: 'lowest-consistency',
+      title: `${weakest.quest.shortTitle} is lowest`,
+      detail: `${weakest.days}/28 recent days. Make this the smallest possible win.`,
+      tone: weakest.rate < 0.35 ? 'amber' : 'blue',
+    })
+  }
+
+  const weekendDates = getRecentDates(input.today, 28).filter((date) => {
+    const day = parseDateKey(date).getDay()
+    return day === 0 || day === 6
+  })
+  const weekendWater = weekendDates.filter((date) => recentCompletions.some((item) => item.completed_on === date && item.quest_id === 'water_80_oz')).length
+  if (weekendDates.length && weekendWater / weekendDates.length < 0.6) {
+    patterns.push({
+      id: 'weekend-water',
+      title: 'Weekend water slips',
+      detail: `${weekendWater}/${weekendDates.length} weekend days hit water. Front-load it before coffee or errands.`,
+      tone: 'amber',
+    })
+  }
+
+  const ipaDays = input.logs.filter((log) => log.log_date >= start && log.log_date <= input.today && log.ipa_count > 0)
+  const ipaDaysWithKitchenClosed = ipaDays.filter((log) => recentCompletions.some((item) => item.completed_on === log.log_date && item.quest_id === 'no_food_after_8')).length
+  if (ipaDays.length >= 3 && ipaDaysWithKitchenClosed / ipaDays.length < 0.7) {
+    patterns.push({
+      id: 'ipa-kitchen-close',
+      title: 'IPA nights need a close',
+      detail: `${ipaDaysWithKitchenClosed}/${ipaDays.length} IPA days also closed the kitchen. Pair those quests.`,
+      tone: 'amber',
+    })
+  }
+
+  if (hasQuestStreak(input.completions, 'no_chips_lunch', input.today, 3)) {
+    patterns.push({
+      id: 'lunch-streak',
+      title: 'Lunch is stable',
+      detail: 'Chip-free lunch has a 3-day streak. Keep it boring.',
+      tone: 'green',
+    })
+  }
+
+  return patterns.slice(0, 4)
+}
+
+export function buildPersonalQuestWeeklyPlan(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  today: string
+  weekStart: string
+}): PersonalQuestWeeklyPlan {
+  const focus = buildWeeklyFocusSuggestion(input)
+  const forecast = buildPersonalQuestBossForecast(input)
+  const warning = buildPersonalQuestBossWarnings(forecast)[0]
+  const dayOfWeek = parseDateKey(input.today).getDay()
+  const weekendSoon = dayOfWeek === 0 || dayOfWeek >= 4
+
+  return {
+    focusHabit: focus.focus,
+    bossToProtect: warning ? `${warning.title}: ${warning.cta}.` : 'Protect the cleanest boss first.',
+    dangerWindow: weekendSoon ? 'Weekend is the danger window. Lock water and IPA rules early.' : 'Evening close is the danger window. Protect IPA limit and kitchen close.',
+    minimumRule: 'Minimum viable day: one quest protects the streak; four quests makes it a strong day.',
+  }
+}
+
+export function buildPersonalQuestCoachNote(input: {
+  completions: DailyQuestCompletion[]
+  logs: DailyLog[]
+  today: string
+  weekStart: string
+}): PersonalQuestCoachNote {
+  const plan = buildPersonalQuestWeeklyPlan(input)
+  const completedToday = new Set(input.completions.filter((item) => item.completed_on === input.today).map((item) => item.quest_id))
+  const title = completedToday.size >= 6
+    ? 'Do not add extra rules'
+    : completedToday.size >= 1
+      ? 'Protect the close'
+      : 'Start with the smallest win'
+  const detail = completedToday.size >= 6
+    ? 'Elite day is already in range. Finish clean and stop negotiating.'
+    : completedToday.size >= 1
+      ? plan.minimumRule
+      : plan.focusHabit
+
+  return { title, detail }
+}
+
 function buildIpaForecast(ipaCount: number, daysLeft: number): PersonalQuestBossForecast {
   const remaining = 6 - ipaCount
   if (remaining < 0) {
@@ -1663,6 +1789,11 @@ function hasQuestStreak(completions: DailyQuestCompletion[], questId: PersonalQu
     cursor.setDate(cursor.getDate() - 1)
   }
   return true
+}
+
+function getRecentDates(today: string, days: number) {
+  const todayDate = parseDateKey(today)
+  return Array.from({ length: days }, (_, index) => getTodayKey(new Date(todayDate.getTime() - DAY_MS * index)))
 }
 
 function warningRank(tone: PersonalQuestBossWarning['tone']) {
