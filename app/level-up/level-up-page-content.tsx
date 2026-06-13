@@ -6,6 +6,7 @@ import PlayerLiveWorkbench from '@/app/player-development/_components/player-liv
 import styles from '@/app/player-development/_components/player-development.module.css'
 import { LEVEL_UP_CARDS, LEVEL_UP_MODULES, getRecommendedLevelUpCards } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard } from '@/lib/level-up/level-up-types'
+import { buildLevelUpQuestBuilderPlan, formatHabitCategory } from '@/lib/level-up/quest-builder'
 import { PLAYER_DEVELOPMENT_IDENTITIES, type PlayerDevelopmentIdentity } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
 
@@ -17,6 +18,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   const favoritePreview = recommendedCards.slice(0, 3)
   const libraryPacks = [...new Set(LEVEL_UP_CARDS.map((card) => card.pack))].slice(0, 8)
   const quickStartCards = recommendedCards.slice(0, 5)
+  const questBuilder = buildLevelUpQuestBuilderPlan(identity.slug)
 
   return (
     <SiteShell active="/mylab">
@@ -29,6 +31,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           </div>
           <div className={styles.levelUpRouteActions} aria-label="Level Up shortcuts">
             <Link className="button-primary" href="#level-up-flow">Start now</Link>
+            <Link className="button-secondary" href="#quest-builder">Quest Builder</Link>
             <Link className="button-secondary" href="/mylab#coach-assignments">Coach work</Link>
             <Link className="button-secondary" href="/tactics">Tactics Tools</Link>
           </div>
@@ -114,6 +117,69 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                 <strong>{pack}</strong>
                 <span>{LEVEL_UP_CARDS.filter((card) => card.pack === pack).length} cards</span>
               </a>
+            ))}
+          </div>
+        </section>
+
+        <section id="quest-builder" className={styles.levelUpQuestBuilder} aria-labelledby="quest-builder-title">
+          <div className={styles.levelUpQuestBuilderHeader}>
+            <div>
+              <span>Quest Builder</span>
+              <h2 id="quest-builder-title">Turn tennis habits into drill-backed quests.</h2>
+              <p>Create a repeatable habit, attach the right Level Up Card, and use drill proof to score the quest. This keeps skill work, fitness, hydration, recovery, and mindset tied to better tennis.</p>
+            </div>
+            <div className={styles.levelUpQuestBuilderStats}>
+              <strong>{questBuilder.categories.length}</strong>
+              <span>quest lanes</span>
+            </div>
+          </div>
+
+          <div className={styles.levelUpQuestBuilderFlow} aria-label="Quest Builder flow">
+            <article>
+              <span>1</span>
+              <strong>Pick the habit</strong>
+              <small>Choose tennis skill, fitness, nutrition, mindset, recovery, or match prep.</small>
+            </article>
+            <article>
+              <span>2</span>
+              <strong>Attach a drill</strong>
+              <small>Link the habit to a Level Up Card with proof, timing, setting, and equipment.</small>
+            </article>
+            <article>
+              <span>3</span>
+              <strong>Score the proof</strong>
+              <small>Complete the drill, rate the proof, earn XP, and keep the streak alive.</small>
+            </article>
+          </div>
+
+          <div className={styles.levelUpQuestTemplateGrid}>
+            {questBuilder.templates.map((template) => (
+              <article key={template.id}>
+                <div>
+                  <span>{formatHabitCategory(template.category)}</span>
+                  <strong>{template.title}</strong>
+                  <p>{template.description}</p>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Cadence</dt>
+                    <dd>{template.cadence.replaceAll('-', ' ')}</dd>
+                  </div>
+                  <div>
+                    <dt>XP</dt>
+                    <dd>{template.xp}</dd>
+                  </div>
+                  <div>
+                    <dt>Drill</dt>
+                    <dd>{template.primaryCard.title}</dd>
+                  </div>
+                </dl>
+                <small>Starter habit: {template.starterHabit}</small>
+                <small>Proof: {template.proof}</small>
+                <Link className="button-primary" href={template.drillHref}>
+                  Start linked drill
+                </Link>
+              </article>
             ))}
           </div>
         </section>

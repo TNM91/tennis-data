@@ -470,6 +470,179 @@
   font-weight: 850;
 }
 
+.levelUpQuestBuilder {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(155, 225, 29, 0.12), transparent 34%),
+    linear-gradient(145deg, rgba(7, 18, 38, 0.96), rgba(5, 13, 29, 0.98));
+  box-shadow: 0 24px 70px rgba(2, 8, 20, 0.3);
+  padding: clamp(18px, 3vw, 26px);
+}
+
+.levelUpQuestBuilderHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.16fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.levelUpQuestBuilderHeader > div:first-child {
+  min-width: 0;
+}
+
+.levelUpQuestBuilderHeader span,
+.levelUpQuestBuilderFlow span,
+.levelUpQuestTemplateGrid span {
+  color: var(--brand-green-3);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpQuestBuilderHeader h2 {
+  margin: 5px 0 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.levelUpQuestBuilderHeader p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.96rem;
+  line-height: 1.5;
+}
+
+.levelUpQuestBuilderStats {
+  min-height: 116px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 18px;
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.levelUpQuestBuilderStats strong {
+  color: var(--foreground-strong);
+  font-size: clamp(2.2rem, 6vw, 3.6rem);
+  line-height: 0.92;
+  font-weight: 950;
+}
+
+.levelUpQuestBuilderStats span {
+  color: var(--brand-green-3);
+}
+
+.levelUpQuestBuilderFlow,
+.levelUpQuestTemplateGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.levelUpQuestBuilderFlow {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.levelUpQuestTemplateGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.levelUpQuestBuilderFlow article,
+.levelUpQuestTemplateGrid article {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 15px;
+}
+
+.levelUpQuestBuilderFlow article {
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+}
+
+.levelUpQuestBuilderFlow span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(155, 225, 29, 0.28);
+  background: rgba(155, 225, 29, 0.1);
+}
+
+.levelUpQuestBuilderFlow strong,
+.levelUpQuestTemplateGrid strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+  line-height: 1.14;
+}
+
+.levelUpQuestBuilderFlow small,
+.levelUpQuestTemplateGrid p,
+.levelUpQuestTemplateGrid small {
+  color: var(--muted-strong);
+  font-size: 0.8rem;
+  line-height: 1.38;
+}
+
+.levelUpQuestTemplateGrid article {
+  align-content: start;
+}
+
+.levelUpQuestTemplateGrid p {
+  margin: 6px 0 0;
+}
+
+.levelUpQuestTemplateGrid dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+}
+
+.levelUpQuestTemplateGrid dl div {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(5, 15, 30, 0.4);
+  padding: 9px;
+}
+
+.levelUpQuestTemplateGrid dt {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpQuestTemplateGrid dd {
+  margin: 4px 0 0;
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.levelUpQuestTemplateGrid :global(.button-primary) {
+  min-height: 42px;
+  margin-top: auto;
+  text-decoration: none;
+}
+
 .levelUpPortalApp {
   display: grid;
   gap: 14px;
@@ -11344,6 +11517,7 @@
   .levelUpRouteHeader,
   .levelUpIdentityStrip,
   .levelUpPortalHeader,
+  .levelUpQuestBuilderHeader,
   .liveModeStrip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -11352,6 +11526,8 @@
   .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid,
+  .levelUpQuestBuilderFlow,
+  .levelUpQuestTemplateGrid,
   .levelUpLaneChooserGrid,
   .levelUpLaneProgressGrid,
   .levelUpHero,
@@ -11553,10 +11729,13 @@
   .levelUpRouteHeader,
   .levelUpIdentityStrip,
   .levelUpPortalHeader,
+  .levelUpQuestBuilderHeader,
   .levelUpPortalLanes,
   .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid,
+  .levelUpQuestBuilderFlow,
+  .levelUpQuestTemplateGrid,
   .levelUpLaneChooserGrid,
   .levelUpLaneProgressGrid,
   .levelUpHero,

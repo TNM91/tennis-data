@@ -134,3 +134,34 @@ export type LevelUpRecommendation = {
   reason: string
   source: 'identity' | 'coach' | 'goal' | 'recent-leak' | 'quick-win' | 'favorite-history'
 }
+
+export type LevelUpHabitCategory =
+  | 'tennis-skill'
+  | 'fitness'
+  | 'nutrition-hydration'
+  | 'mindset'
+  | 'recovery'
+  | 'match-prep'
+
+export type LevelUpQuestCadence = 'daily' | 'weekly' | 'practice-day' | 'match-day'
+
+export type LevelUpQuestTemplate = {
+  id: string
+  title: string
+  category: LevelUpHabitCategory
+  cadence: LevelUpQuestCadence
+  xp: number
+  level: LevelUpLevel
+  description: string
+  proof: string
+  linkedCardIds: string[]
+  starterHabit: string
+}
+
+export type LevelUpQuestBuilderPlan = {
+  templates: Array<LevelUpQuestTemplate & {
+    primaryCard: LevelUpCard
+    drillHref: string
+  }>
+  categories: LevelUpHabitCategory[]
+}
