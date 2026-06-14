@@ -491,9 +491,17 @@
   font-weight: 850;
 }
 
-.levelUpHabitPathGrid :global(.button-primary) {
+.levelUpHabitPathActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.levelUpHabitPathActions :global(.button-primary),
+.levelUpHabitPathActions :global(.button-secondary) {
   min-height: 42px;
   text-decoration: none;
+  text-align: center;
 }
 
 .levelUpPortalHeader {

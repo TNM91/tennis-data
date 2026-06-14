@@ -39,6 +39,18 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
     primaryCardId: template.primaryCard.id,
     primaryCardTitle: template.primaryCard.title,
   }))
+  const questBuilderPathOptions = habitPaths
+    .filter((path) => path.primaryCard)
+    .map((path) => ({
+      id: path.id,
+      title: path.title,
+      category: path.category,
+      cadence: path.cadence,
+      xp: path.xp,
+      primaryCardId: path.primaryCard?.id ?? '',
+      proof: path.proof,
+      starterHabit: path.habits[0] ?? path.bestFor,
+    }))
   const questPackPreviews = [
     {
       label: 'Player habit packs',
@@ -267,9 +279,14 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                   ))}
                 </div>
                 <small>Proof: {path.proof}</small>
-                <Link className="button-primary" href={path.drillHref}>
-                  Start path
-                </Link>
+                <div className={styles.levelUpHabitPathActions}>
+                  <Link className="button-primary" href={path.drillHref}>
+                    Start drill
+                  </Link>
+                  <Link className="button-secondary" href={path.questHref}>
+                    Build quest
+                  </Link>
+                </div>
               </article>
             ))}
           </div>
@@ -341,6 +358,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             identitySlug={identity.slug}
             cardOptions={questBuilderCardOptions}
             templates={questBuilderTemplateOptions}
+            paths={questBuilderPathOptions}
           />
         </section>
 

@@ -35,6 +35,17 @@ export type QuestBuilderTemplateOption = {
   primaryCardTitle: string
 }
 
+export type QuestBuilderPathOption = {
+  id: string
+  title: string
+  category: LevelUpHabitCategory
+  cadence: LevelUpQuestCadence
+  xp: number
+  primaryCardId: string
+  proof: string
+  starterHabit: string
+}
+
 type QuestBuilderDraft = {
   title: string
   category: LevelUpHabitCategory
@@ -360,18 +371,24 @@ export default function QuestBuilderClient({
   identitySlug,
   cardOptions,
   templates,
+  paths = [],
 }: {
   identitySlug: string
   cardOptions: QuestBuilderCardOption[]
   templates: QuestBuilderTemplateOption[]
+  paths?: QuestBuilderPathOption[]
 }) {
   const { authResolved, userId, role, entitlements } = useAuth()
   const searchParams = useSearchParams()
   const firstTemplate = templates[0]
   const fallbackCardId = firstTemplate?.primaryCardId ?? cardOptions[0]?.id ?? ''
   const requestedQuestCardId = searchParams.get('questCard') || ''
+  const requestedQuestPathId = searchParams.get('questPath') || ''
   const requestedQuestCard = requestedQuestCardId ? cardOptions.find((card) => card.id === requestedQuestCardId) : undefined
-  const [draft, setDraft] = useState<QuestBuilderDraft>(() => requestedQuestCard
+  const requestedQuestPath = requestedQuestPathId ? paths.find((path) => path.id === requestedQuestPathId) : undefined
+  const [draft, setDraft] = useState<QuestBuilderDraft>(() => requestedQuestPath
+    ? buildDraftFromPath(requestedQuestPath, requestedQuestCard)
+    : requestedQuestCard
     ? buildDraftFromCard(requestedQuestCard)
     : buildDraftFromTemplate(firstTemplate, fallbackCardId))
   const [customQuests, setCustomQuests] = useState<LevelUpCustomQuest[]>([])
@@ -384,7 +401,7 @@ export default function QuestBuilderClient({
   const [selectedGoalId, setSelectedGoalId] = useState(QUEST_GOAL_OPTIONS[0]?.id ?? '')
   const draftHydratedRef = useRef(false)
   const [draftStorageReady, setDraftStorageReady] = useState(false)
-  const [draftSyncStatus, setDraftSyncStatus] = useState(requestedQuestCard ? 'Loaded from drill card.' : 'Draft autosaves on this device.')
+  const [draftSyncStatus, setDraftSyncStatus] = useState(requestedQuestPath ? 'Loaded from habit path.' : requestedQuestCard ? 'Loaded from drill card.' : 'Draft autosaves on this device.')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const access = useMemo(() => buildProductAccessState(userId ? role : 'public', entitlements), [entitlements, role, userId])
@@ -479,8 +496,8 @@ export default function QuestBuilderClient({
     draftHydratedRef.current = true
 
     const hydrateTimer = globalThis.setTimeout(() => {
-      if (requestedQuestCardId) {
-        setDraftSyncStatus('Loaded from drill card. Draft saved on this device.')
+      if (requestedQuestPathId || requestedQuestCardId) {
+        setDraftSyncStatus(requestedQuestPathId ? 'Loaded from habit path. Draft saved on this device.' : 'Loaded from drill card. Draft saved on this device.')
         setDraftStorageReady(true)
         return
       }
@@ -505,7 +522,7 @@ export default function QuestBuilderClient({
     return () => {
       globalThis.clearTimeout(hydrateTimer)
     }
-  }, [requestedQuestCardId])
+  }, [requestedQuestCardId, requestedQuestPathId])
 
   useEffect(() => {
     if (!draftStorageReady) return
@@ -524,7 +541,9 @@ export default function QuestBuilderClient({
   }
 
   function resetDraft() {
-    const nextDraft = requestedQuestCard
+    const nextDraft = requestedQuestPath
+      ? buildDraftFromPath(requestedQuestPath, requestedQuestCard)
+      : requestedQuestCard
       ? buildDraftFromCard(requestedQuestCard)
       : buildDraftFromTemplate(firstTemplate, fallbackCardId)
 
@@ -1128,6 +1147,18 @@ function buildDraftFromCard(card: QuestBuilderCardOption): QuestBuilderDraft {
     linkedCardId: card.id,
     proof: card.proof,
     starterHabit: `Run ${card.title}, score the proof, and repeat one useful cue.`,
+  }
+}
+
+function buildDraftFromPath(path: QuestBuilderPathOption, card: QuestBuilderCardOption | undefined): QuestBuilderDraft {
+  return {
+    title: path.title,
+    category: path.category,
+    cadence: path.cadence,
+    xp: path.xp,
+    linkedCardId: card?.id ?? path.primaryCardId,
+    proof: path.proof || card?.proof || '',
+    starterHabit: path.starterHabit,
   }
 }
 

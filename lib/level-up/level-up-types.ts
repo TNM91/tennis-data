@@ -201,6 +201,9 @@ export type LevelUpHabitPath = {
   id: string
   label: string
   title: string
+  category: LevelUpHabitCategory
+  cadence: LevelUpQuestCadence
+  xp: number
   playerLevel: string
   weeklyTarget: string
   bestFor: string
