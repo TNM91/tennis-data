@@ -16,6 +16,13 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['sports', 'productivity', 'utilities'],
     shortcuts: [
       {
+        name: 'Level Up tennis habits',
+        short_name: 'Level Up',
+        description: 'Open tennis habit and development tools.',
+        url: '/level-up',
+        icons: [{ src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' }],
+      },
+      {
         name: 'Find tennis context',
         short_name: 'Find',
         description: 'Search players, teams, leagues, and rankings.',

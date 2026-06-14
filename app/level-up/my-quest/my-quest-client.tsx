@@ -79,6 +79,12 @@ type OfflineQuestAction = {
   xp: number
 }
 
+type ClientIssue = {
+  at: string
+  scope: string
+  detail: string
+}
+
 type LoadState = 'checking' | 'loading' | 'ready'
 type PhotoCompareMode = 'latest_previous' | 'first_latest' | 'week_over_week'
 
@@ -110,6 +116,7 @@ const QUEST_STACKS: Array<{ id: string; label: string; hint: string; questIds: P
 ]
 
 const OFFLINE_QUEUE_KEY_PREFIX = 'personal-quest-offline-queue:'
+const CLIENT_ISSUE_KEY_PREFIX = 'personal-quest-client-issues:'
 
 export default function MyQuestClient() {
   const { authResolved, session, userId } = useAuth()
@@ -142,8 +149,13 @@ export default function MyQuestClient() {
   const [selectedAchievementId, setSelectedAchievementId] = useState('')
   const [undoQuest, setUndoQuest] = useState<QuestUndo | null>(null)
   const [offlineQueueCount, setOfflineQueueCount] = useState(0)
+  const [clientIssueCount, setClientIssueCount] = useState(0)
+  const [lastClientIssue, setLastClientIssue] = useState('Clear')
   const [syncingOffline, setSyncingOffline] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('unsupported')
+  const [phoneCompact, setPhoneCompact] = useState(false)
+  const [intelOpen, setIntelOpen] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
   const [celebration, setCelebration] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -312,6 +324,41 @@ export default function MyQuestClient() {
   const recapToast = useMemo(
     () => buildPersonalQuestRecapToast({ recap: dailyRecap, shield: streakShield, warnings: bossWarnings }),
     [bossWarnings, dailyRecap, streakShield],
+  )
+  const dayCompleteSummary = useMemo(() => {
+    const ipaCount = clampInt(ipaInput, 0, 30)
+
+    if (todayRemainingCount === 0) {
+      return {
+        tone: 'green',
+        title: 'Day complete',
+        detail: `${todayXp} XP banked, ${stats.currentStreak} day streak live, ${ipaCount} IPAs logged.`,
+        cta: 'Review recap',
+        href: '#daily-recap',
+      }
+    }
+
+    if (todayRemainingCount <= 2) {
+      return {
+        tone: 'amber',
+        title: `${todayRemainingCount} quest${todayRemainingCount === 1 ? '' : 's'} to close`,
+        detail: `${todayFocusQuest?.shortTitle ?? 'Next quest'} is the fastest path to a clean day.`,
+        cta: todayFocusQuest ? `Bank +${todayFocusQuest.xp}` : 'View quests',
+        href: '#today-quests',
+      }
+    }
+
+    return {
+      tone: 'blue',
+      title: 'Build the board',
+      detail: `${todayCompletedCount}/${PERSONAL_DAILY_QUESTS.length} complete. Start with ${todayFocusQuest?.shortTitle ?? 'the smart next quest'}.`,
+      cta: todayFocusQuest ? `Bank +${todayFocusQuest.xp}` : 'View quests',
+      href: '#today-quests',
+    }
+  }, [ipaInput, stats.currentStreak, todayCompletedCount, todayFocusQuest, todayRemainingCount, todayXp])
+  const activeReminder = useMemo(
+    () => reminders.find((reminder) => reminder.active) ?? reminders[0] ?? null,
+    [reminders],
   )
   const mobileQuestShortcuts = [
     {
@@ -493,6 +540,20 @@ export default function MyQuestClient() {
     setLoadState('ready')
   }, [today, weekStart])
 
+  const recordClientIssue = useCallback((scope: string, detail: string) => {
+    const ownerId = authUser?.id ?? userId
+    if (!ownerId) return
+
+    const nextCount = recordQuestClientIssue(ownerId, scope, detail)
+    setClientIssueCount(nextCount)
+    setLastClientIssue(scope)
+  }, [authUser?.id, userId])
+
+  const setQuestError = useCallback((scope: string, detail: string) => {
+    setError(detail)
+    recordClientIssue(scope, detail)
+  }, [recordClientIssue])
+
   useEffect(() => {
     if (!authResolved) return
 
@@ -503,13 +564,24 @@ export default function MyQuestClient() {
 
     const timeout = window.setTimeout(() => {
       void loadDashboard(ownerId).catch((err) => {
-        setError(err instanceof Error ? err.message : 'My Quest could not load.')
+        setQuestError('load dashboard', err instanceof Error ? err.message : 'My Quest could not load.')
         setLoadState('ready')
       })
     }, 0)
 
     return () => window.clearTimeout(timeout)
-  }, [authResolved, authUser?.id, loadDashboard, ownerAllowed, userId])
+  }, [authResolved, authUser?.id, loadDashboard, ownerAllowed, setQuestError, userId])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const media = window.matchMedia('(max-width: 640px)')
+    const updateCompactMode = () => setPhoneCompact(media.matches)
+    updateCompactMode()
+    media.addEventListener('change', updateCompactMode)
+
+    return () => media.removeEventListener('change', updateCompactMode)
+  }, [])
 
   useEffect(() => {
     const ownerId = authUser?.id ?? userId
@@ -570,6 +642,9 @@ export default function MyQuestClient() {
 
     const timeout = window.setTimeout(() => {
       setOfflineQueueCount(readOfflineQueue(ownerId).length)
+      const issues = readQuestClientIssues(ownerId)
+      setClientIssueCount(issues.length)
+      setLastClientIssue(issues[0]?.scope ?? 'Clear')
     }, 0)
     return () => window.clearTimeout(timeout)
   }, [authUser?.id, ownerAllowed, userId])
@@ -612,8 +687,8 @@ export default function MyQuestClient() {
     setOfflineQueueCount(remaining.length)
     setSyncingOffline(false)
     if (queued.length && !remaining.length) setMessage('Offline quest queue synced.')
-    if (remaining.length) setError(`${remaining.length} offline ${remaining.length === 1 ? 'action' : 'actions'} still need sync.`)
-  }, [syncingOffline])
+    if (remaining.length) setQuestError('offline sync', `${remaining.length} offline ${remaining.length === 1 ? 'action' : 'actions'} still need sync.`)
+  }, [setQuestError, syncingOffline])
 
   useEffect(() => {
     const ownerId = authUser?.id ?? userId
@@ -680,7 +755,7 @@ export default function MyQuestClient() {
 
       if (deleteError) {
         setCompletions(before)
-        setError(deleteError.message)
+        setQuestError('quest delete', deleteError.message)
       } else {
         setMessage(targetDate === today ? buildQuestFeedback(quest, 'removed') : `${quest.shortTitle} removed from yesterday. XP adjusted.`)
         if (!options.suppressUndo) {
@@ -725,7 +800,7 @@ export default function MyQuestClient() {
 
     if (upsertError) {
       setCompletions((current) => current.filter((item) => !(item.completed_on === targetDate && item.quest_id === quest.id)))
-      setError(upsertError.message)
+      setQuestError('quest upsert', upsertError.message)
     } else {
       setMessage(targetDate === today ? buildQuestFeedback(quest, 'completed') : `${quest.shortTitle} repaired for yesterday. +${quest.xp} XP.`)
       if (!options.suppressUndo) {
@@ -791,7 +866,7 @@ export default function MyQuestClient() {
 
     if (upsertError) {
       setCompletions(before)
-      setError(upsertError.message)
+      setQuestError('stack upsert', upsertError.message)
     } else {
       const xp = nextCompletions.reduce((sum, completion) => sum + completion.xp_awarded, 0)
       setMessage(`${stack.label} complete. +${xp} XP.`)
@@ -810,7 +885,7 @@ export default function MyQuestClient() {
   async function requestReminderPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       setNotificationPermission('unsupported')
-      setError('Browser reminders are not supported here.')
+      setQuestError('reminder support', 'Browser reminders are not supported here.')
       return
     }
 
@@ -822,13 +897,13 @@ export default function MyQuestClient() {
   function sendTestReminder() {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       setNotificationPermission('unsupported')
-      setError('Browser reminders are not supported here.')
+      setQuestError('reminder support', 'Browser reminders are not supported here.')
       return
     }
 
     if (window.Notification.permission !== 'granted') {
       setNotificationPermission(window.Notification.permission)
-      setError('Enable browser reminders first.')
+      setQuestError('reminder permission', 'Enable browser reminders first.')
       return
     }
 
@@ -868,7 +943,7 @@ export default function MyQuestClient() {
       .upsert(payload, { onConflict: 'user_id,log_date' })
 
     if (upsertError) {
-      setError(upsertError.message)
+      setQuestError('daily tracker', upsertError.message)
     } else {
       setLogs((current) => upsertByDate(current, { log_date: targetDate, ipa_count: ipaCount, notes: cleanNotes }, 'log_date'))
       if (targetDate === today) {
@@ -925,9 +1000,9 @@ export default function MyQuestClient() {
     ])
 
     if (reviewResult.error) {
-      setError(reviewResult.error.message)
+      setQuestError('weekly review', reviewResult.error.message)
     } else if (measurementResult.error) {
-      setError(measurementResult.error.message)
+      setQuestError('weekly measurement', measurementResult.error.message)
     } else {
       const nextReview = reviewResult.data as WeeklyReview
       setWeeklyReview(nextReview)
@@ -961,7 +1036,7 @@ export default function MyQuestClient() {
       }, { onConflict: 'user_id' })
 
     if (upsertError) {
-      setError(upsertError.message)
+      setQuestError('weekly rule', upsertError.message)
     } else {
       setWeeklyRule(cleanRule)
       setMessage('Weekly rule locked in.')
@@ -995,7 +1070,7 @@ export default function MyQuestClient() {
 
     if (upsertError) {
       setStreakFreezes(before)
-      setError(upsertError.message)
+      setQuestError('streak freeze', upsertError.message)
     } else {
       setMessage('Streak freeze used. Streak protected, no XP awarded.')
     }
@@ -1014,13 +1089,13 @@ export default function MyQuestClient() {
     setMessage('')
 
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('Upload a JPG, PNG, or WebP progress photo.')
+      setQuestError('photo file type', 'Upload a JPG, PNG, or WebP progress photo.')
       setUploadingType('')
       return
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      setError('Progress photos need to be 10 MB or smaller.')
+      setQuestError('photo file size', 'Progress photos need to be 10 MB or smaller.')
       setUploadingType('')
       return
     }
@@ -1036,7 +1111,7 @@ export default function MyQuestClient() {
       })
 
     if (upload.error) {
-      setError(upload.error.message)
+      setQuestError('photo upload', upload.error.message)
       setUploadingType('')
       return
     }
@@ -1055,7 +1130,7 @@ export default function MyQuestClient() {
 
     if (inserted.error) {
       await supabase.storage.from(PERSONAL_QUEST_PHOTO_BUCKET).remove([storagePath])
-      setError(inserted.error.message)
+      setQuestError('photo metadata', inserted.error.message)
       setUploadingType('')
       return
     }
@@ -1178,6 +1253,16 @@ export default function MyQuestClient() {
             <button type="button" onClick={() => void adjustIpa(1)} aria-label="Increase IPA count from today focus">+</button>
           </div>
         </label>
+        <div className={styles.mobileReminderStrip}>
+          <div>
+            <span>Reminder</span>
+            <strong>{notificationPermission === 'granted' ? activeReminder?.time ?? 'Ready' : 'Off'}</strong>
+            <small>{notificationPermission === 'granted' ? activeReminder?.title ?? 'Device ready' : 'This device only'}</small>
+          </div>
+          <button type="button" onClick={() => notificationPermission === 'granted' ? sendTestReminder() : void requestReminderPermission()}>
+            {notificationPermission === 'granted' ? 'Test' : 'Enable'}
+          </button>
+        </div>
         <div>
           <button type="button" onClick={() => todayFocusQuest ? void toggleQuest(todayFocusQuest) : undefined} disabled={!todayFocusQuest || Boolean(pendingQuest)}>
             {todayFocusQuest ? `Bank +${todayFocusQuest.xp}` : 'Done'}
@@ -1201,6 +1286,21 @@ export default function MyQuestClient() {
           </a>
         ))}
       </nav>
+
+      <section className={styles.mobileDayComplete} data-tone={dayCompleteSummary.tone} aria-label="My Quest iPhone day complete summary">
+        <div>
+          <span>Day command</span>
+          <strong>{dayCompleteSummary.title}</strong>
+          <small>{dayCompleteSummary.detail}</small>
+        </div>
+        {todayFocusQuest && todayRemainingCount > 0 ? (
+          <button type="button" onClick={() => void toggleQuest(todayFocusQuest)} disabled={Boolean(pendingQuest)}>
+            {dayCompleteSummary.cta}
+          </button>
+        ) : (
+          <a href={dayCompleteSummary.href}>{dayCompleteSummary.cta}</a>
+        )}
+      </section>
 
       {error ? <div className={styles.errorNotice}>{error}</div> : null}
       {message ? <div className={styles.successNotice}>{message}</div> : null}
@@ -1418,128 +1518,142 @@ export default function MyQuestClient() {
         </div>
       </section>
 
-      <section id="month-view" className={styles.monthPanel}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Month View</p>
-            <h2>{monthView.monthLabel}</h2>
-          </div>
-          <span className={styles.scorePill}>Quest calendar</span>
-        </div>
-        <div className={styles.monthWeekdays} aria-hidden="true">
-          <span>Sun</span>
-          <span>Mon</span>
-          <span>Tue</span>
-          <span>Wed</span>
-          <span>Thu</span>
-          <span>Fri</span>
-          <span>Sat</span>
-        </div>
-        <div className={styles.monthGrid} aria-label={`${monthView.monthLabel} quest calendar`}>
-          {monthView.days.map((day) => (
-            <div
-              key={day.date}
-              className={styles.monthDay}
-              data-intensity={day.intensity}
-              data-in-month={day.inMonth ? 'true' : 'false'}
-              data-today={day.date === today ? 'true' : 'false'}
-              title={`${day.date}: ${day.completedCount}/${day.totalCount} quests, ${day.xp} XP, ${day.ipaCount} IPAs${day.frozen ? ', freeze used' : ''}`}
-            >
-              <span>{day.dayLabel}</span>
-              <strong>{day.completedCount ? `${day.completedCount}/${day.totalCount}` : day.frozen ? 'Freeze' : '-'}</strong>
-              <small>{day.ipaCount ? `${day.ipaCount} IPA` : `${day.xp} XP`}</small>
+      <details
+        className={styles.mobileIntelDrawer}
+        open={!phoneCompact || intelOpen}
+        onToggle={(event) => {
+          if (phoneCompact) setIntelOpen(event.currentTarget.open)
+        }}
+      >
+        <summary>
+          <span>More Quest Intel</span>
+          <strong>Month, season, recap</strong>
+        </summary>
+        <div className={styles.mobileIntelBody}>
+          <section id="month-view" className={styles.monthPanel}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Month View</p>
+                <h2>{monthView.monthLabel}</h2>
+              </div>
+              <span className={styles.scorePill}>Quest calendar</span>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="season-map" className={styles.seasonPanel}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Season Map</p>
-            <h2>Road to Six Pack Mode</h2>
-          </div>
-          <span className={styles.scorePill}>{stats.level.title}</span>
-        </div>
-        <div className={styles.seasonMap}>
-          {seasonMap.map((node) => (
-            <div key={node.title} className={styles.seasonNode} data-status={node.status}>
-              <span>{node.xp.toLocaleString()} XP</span>
-              <strong>{node.title}</strong>
-              <ProgressBar value={node.progress} label={node.status} />
+            <div className={styles.monthWeekdays} aria-hidden="true">
+              <span>Sun</span>
+              <span>Mon</span>
+              <span>Tue</span>
+              <span>Wed</span>
+              <span>Thu</span>
+              <span>Fri</span>
+              <span>Sat</span>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="season-timeline" className={styles.timelinePanel}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Season Timeline</p>
-            <h2>Season 1 chapters</h2>
-          </div>
-          <span className={styles.scorePill}>{stats.totalXp.toLocaleString()} XP</span>
-        </div>
-        <div className={styles.timelineGrid}>
-          {seasonTimeline.map((chapter) => (
-            <div key={chapter.week} className={styles.timelineCard} data-status={chapter.status}>
-              <span>Week {chapter.week} | {chapter.target}</span>
-              <strong>{chapter.title}</strong>
-              <small>{chapter.detail}</small>
-              <ProgressBar value={chapter.progress} label={`${chapter.progress}% chapter`} />
+            <div className={styles.monthGrid} aria-label={`${monthView.monthLabel} quest calendar`}>
+              {monthView.days.map((day) => (
+                <div
+                  key={day.date}
+                  className={styles.monthDay}
+                  data-intensity={day.intensity}
+                  data-in-month={day.inMonth ? 'true' : 'false'}
+                  data-today={day.date === today ? 'true' : 'false'}
+                  title={`${day.date}: ${day.completedCount}/${day.totalCount} quests, ${day.xp} XP, ${day.ipaCount} IPAs${day.frozen ? ', freeze used' : ''}`}
+                >
+                  <span>{day.dayLabel}</span>
+                  <strong>{day.completedCount ? `${day.completedCount}/${day.totalCount}` : day.frozen ? 'Freeze' : '-'}</strong>
+                  <small>{day.ipaCount ? `${day.ipaCount} IPA` : `${day.xp} XP`}</small>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
 
-      <section className={styles.recapPanel}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Daily Recap</p>
-            <h2>{dailyRecap.title}</h2>
-          </div>
-          <span className={styles.scorePill}>{dailyRecap.xp} XP</span>
-        </div>
-        <div className={styles.recapGrid}>
-          <div className={styles.recapCard}>
-            <span>Board</span>
-            <strong>{dailyRecap.completedCount}/{dailyRecap.totalCount}</strong>
-            <small>{dailyRecap.streakStatus}</small>
-          </div>
-          <div className={styles.recapCard}>
-            <span>Boss misses</span>
-            <strong>{dailyRecap.bossMisses.length ? dailyRecap.bossMisses[0] : 'None'}</strong>
-            <small>{dailyRecap.bossMisses[1] ?? 'No extra pressure.'}</small>
-          </div>
-          <div className={styles.recapCard}>
-            <span>Tomorrow</span>
-            <strong>{dailyRecap.tomorrow}</strong>
-            <small>Next open.</small>
-          </div>
-        </div>
-        <div className={styles.recapToast} data-tone={recapToast.tone}>
-          <span>Private recap</span>
-          <strong>{recapToast.title}</strong>
-          <small>{recapToast.detail}</small>
-        </div>
-      </section>
+          <section id="season-map" className={styles.seasonPanel}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Season Map</p>
+                <h2>Road to Six Pack Mode</h2>
+              </div>
+              <span className={styles.scorePill}>{stats.level.title}</span>
+            </div>
+            <div className={styles.seasonMap}>
+              {seasonMap.map((node) => (
+                <div key={node.title} className={styles.seasonNode} data-status={node.status}>
+                  <span>{node.xp.toLocaleString()} XP</span>
+                  <strong>{node.title}</strong>
+                  <ProgressBar value={node.progress} label={node.status} />
+                </div>
+              ))}
+            </div>
+          </section>
 
-      <section className={styles.finalePanel} data-unlocked={finale.unlocked ? 'true' : 'false'}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Season 1 Finale</p>
-            <h2>{finale.title}</h2>
-          </div>
-          <span className={styles.scorePill}>{finale.badge}</span>
+          <section id="season-timeline" className={styles.timelinePanel}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Season Timeline</p>
+                <h2>Season 1 chapters</h2>
+              </div>
+              <span className={styles.scorePill}>{stats.totalXp.toLocaleString()} XP</span>
+            </div>
+            <div className={styles.timelineGrid}>
+              {seasonTimeline.map((chapter) => (
+                <div key={chapter.week} className={styles.timelineCard} data-status={chapter.status}>
+                  <span>Week {chapter.week} | {chapter.target}</span>
+                  <strong>{chapter.title}</strong>
+                  <small>{chapter.detail}</small>
+                  <ProgressBar value={chapter.progress} label={`${chapter.progress}% chapter`} />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section id="daily-recap" className={styles.recapPanel}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Daily Recap</p>
+                <h2>{dailyRecap.title}</h2>
+              </div>
+              <span className={styles.scorePill}>{dailyRecap.xp} XP</span>
+            </div>
+            <div className={styles.recapGrid}>
+              <div className={styles.recapCard}>
+                <span>Board</span>
+                <strong>{dailyRecap.completedCount}/{dailyRecap.totalCount}</strong>
+                <small>{dailyRecap.streakStatus}</small>
+              </div>
+              <div className={styles.recapCard}>
+                <span>Boss misses</span>
+                <strong>{dailyRecap.bossMisses.length ? dailyRecap.bossMisses[0] : 'None'}</strong>
+                <small>{dailyRecap.bossMisses[1] ?? 'No extra pressure.'}</small>
+              </div>
+              <div className={styles.recapCard}>
+                <span>Tomorrow</span>
+                <strong>{dailyRecap.tomorrow}</strong>
+                <small>Next open.</small>
+              </div>
+            </div>
+            <div className={styles.recapToast} data-tone={recapToast.tone}>
+              <span>Private recap</span>
+              <strong>{recapToast.title}</strong>
+              <small>{recapToast.detail}</small>
+            </div>
+          </section>
+
+          <section className={styles.finalePanel} data-unlocked={finale.unlocked ? 'true' : 'false'}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Season 1 Finale</p>
+                <h2>{finale.title}</h2>
+              </div>
+              <span className={styles.scorePill}>{finale.badge}</span>
+            </div>
+            <div className={styles.finaleBody}>
+              <div>
+                <strong>{finale.detail}</strong>
+                <p>{finale.challenge}</p>
+              </div>
+              <ProgressBar value={finale.progress} label={`${finale.progress}% finale progress`} />
+            </div>
+          </section>
         </div>
-        <div className={styles.finaleBody}>
-          <div>
-            <strong>{finale.detail}</strong>
-            <p>{finale.challenge}</p>
-          </div>
-          <ProgressBar value={finale.progress} label={`${finale.progress}% finale progress`} />
-        </div>
-      </section>
+      </details>
 
       <section id="trend-strip" className={styles.trendStrip}>
         {trendCards.map((card) => (
@@ -1877,64 +1991,92 @@ export default function MyQuestClient() {
         </div>
       </section>
 
-      <section id="phone-mode" className={styles.phonePanel}>
-        <div>
-          <p className={styles.eyebrow}>Phone Mode</p>
-          <h2>Home-screen ready</h2>
-          <p>Open this private route from Safari, add TenAceIQ to your Home Screen, and it will run as a standalone app with the same Nathan-only access gate.</p>
-        </div>
-        <div className={styles.phoneSteps}>
-          <span>Share</span>
-          <span>Add to Home Screen</span>
-          <span>Open My Quest</span>
-        </div>
-      </section>
+      <details
+        className={styles.mobileSupportDrawer}
+        open={!phoneCompact || supportOpen}
+        onToggle={(event) => {
+          if (phoneCompact) setSupportOpen(event.currentTarget.open)
+        }}
+      >
+        <summary>
+          <span>Device and Privacy</span>
+          <strong>{offlineQueueCount || clientIssueCount ? 'Needs glance' : 'Healthy'}</strong>
+        </summary>
+        <div className={styles.mobileSupportBody}>
+          <section id="phone-mode" className={styles.phonePanel}>
+            <div>
+              <p className={styles.eyebrow}>Phone Mode</p>
+              <h2>Home-screen ready</h2>
+              <p>Open this private route from Safari, add TenAceIQ to your Home Screen, and it will run as a standalone app with the same Nathan-only access gate.</p>
+            </div>
+            <div className={styles.phoneSteps}>
+              <span>Share</span>
+              <span>Add to Home Screen</span>
+              <span>Open My Quest</span>
+            </div>
+          </section>
 
-      <section id="private-ops" className={styles.privateOpsPanel}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Private Ops</p>
-            <h2>Sync and privacy health</h2>
-          </div>
-          <span className={styles.scorePill}>{syncingOffline ? 'Syncing' : 'Ready'}</span>
+          <section id="private-ops" className={styles.privateOpsPanel}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Private Ops</p>
+                <h2>Sync and privacy health</h2>
+              </div>
+              <span className={styles.scorePill}>{syncingOffline ? 'Syncing' : 'Ready'}</span>
+            </div>
+            <div className={styles.healthGrid}>
+              <div className={styles.healthCard} data-tone="green">
+                <span>Access gate</span>
+                <strong>Nathan-only</strong>
+                <small>{authUser?.email ?? 'Authenticated owner'}</small>
+              </div>
+              <div className={styles.healthCard} data-tone={offlineQueueCount ? 'amber' : 'green'}>
+                <span>Offline queue</span>
+                <strong>{offlineQueueCount}</strong>
+                <small>{offlineQueueCount ? 'Waiting to sync' : 'Clear'}</small>
+              </div>
+              <div className={styles.healthCard} data-tone="green">
+                <span>Photo vault</span>
+                <strong>{photos.filter((photo) => photo.signedUrl).length}/{photos.length}</strong>
+                <small>Signed viewing only</small>
+              </div>
+              <div className={styles.healthCard} data-tone={notificationPermission === 'granted' ? 'green' : 'blue'}>
+                <span>Reminders</span>
+                <strong>{notificationPermission}</strong>
+                <small>This device only</small>
+              </div>
+              <div className={styles.healthCard} data-tone={clientIssueCount ? 'amber' : 'green'}>
+                <span>Client issues</span>
+                <strong>{clientIssueCount}</strong>
+                <small>{lastClientIssue}</small>
+              </div>
+            </div>
+            <div className={styles.opsActions}>
+              <button type="button" onClick={() => void requestReminderPermission()}>
+                Enable reminders
+              </button>
+              <button type="button" onClick={sendTestReminder} disabled={notificationPermission !== 'granted'}>
+                Test reminder
+              </button>
+              <button type="button" onClick={() => {
+                const ownerId = authUser?.id ?? userId
+                if (ownerId) void flushOfflineQueue(ownerId)
+              }} disabled={!offlineQueueCount || syncingOffline}>
+                Sync queued
+              </button>
+              <button type="button" onClick={() => {
+                const ownerId = authUser?.id ?? userId
+                if (!ownerId) return
+                clearQuestClientIssues(ownerId)
+                setClientIssueCount(0)
+                setLastClientIssue('Clear')
+              }} disabled={!clientIssueCount}>
+                Clear issues
+              </button>
+            </div>
+          </section>
         </div>
-        <div className={styles.healthGrid}>
-          <div className={styles.healthCard} data-tone="green">
-            <span>Access gate</span>
-            <strong>Nathan-only</strong>
-            <small>{authUser?.email ?? 'Authenticated owner'}</small>
-          </div>
-          <div className={styles.healthCard} data-tone={offlineQueueCount ? 'amber' : 'green'}>
-            <span>Offline queue</span>
-            <strong>{offlineQueueCount}</strong>
-            <small>{offlineQueueCount ? 'Waiting to sync' : 'Clear'}</small>
-          </div>
-          <div className={styles.healthCard} data-tone="green">
-            <span>Photo vault</span>
-            <strong>{photos.filter((photo) => photo.signedUrl).length}/{photos.length}</strong>
-            <small>Signed viewing only</small>
-          </div>
-          <div className={styles.healthCard} data-tone={notificationPermission === 'granted' ? 'green' : 'blue'}>
-            <span>Reminders</span>
-            <strong>{notificationPermission}</strong>
-            <small>This device only</small>
-          </div>
-        </div>
-        <div className={styles.opsActions}>
-          <button type="button" onClick={() => void requestReminderPermission()}>
-            Enable reminders
-          </button>
-          <button type="button" onClick={sendTestReminder} disabled={notificationPermission !== 'granted'}>
-            Test reminder
-          </button>
-          <button type="button" onClick={() => {
-            const ownerId = authUser?.id ?? userId
-            if (ownerId) void flushOfflineQueue(ownerId)
-          }} disabled={!offlineQueueCount || syncingOffline}>
-            Sync queued
-          </button>
-        </div>
-      </section>
+      </details>
 
       <section className={styles.bossPanel}>
         <div className={styles.sectionHeader}>
@@ -2398,4 +2540,50 @@ function isOfflineQuestAction(value: unknown): value is OfflineQuestAction {
 function createOfflineActionId() {
   if (typeof window !== 'undefined' && window.crypto?.randomUUID) return window.crypto.randomUUID()
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function getClientIssueKey(ownerId: string) {
+  return `${CLIENT_ISSUE_KEY_PREFIX}${ownerId}`
+}
+
+function readQuestClientIssues(ownerId: string): ClientIssue[] {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(getClientIssueKey(ownerId)) || '[]')
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(isClientIssue).slice(-40).reverse()
+  } catch {
+    return []
+  }
+}
+
+function recordQuestClientIssue(ownerId: string, scope: string, detail: string) {
+  if (typeof window === 'undefined') return 0
+
+  const next = [
+    ...readQuestClientIssues(ownerId).reverse(),
+    {
+      at: new Date().toISOString(),
+      scope: scope.slice(0, 80),
+      detail: detail.slice(0, 240),
+    },
+  ].slice(-40)
+  window.localStorage.setItem(getClientIssueKey(ownerId), JSON.stringify(next))
+  return next.length
+}
+
+function clearQuestClientIssues(ownerId: string) {
+  if (typeof window === 'undefined') return
+  window.localStorage.removeItem(getClientIssueKey(ownerId))
+}
+
+function isClientIssue(value: unknown): value is ClientIssue {
+  if (!value || typeof value !== 'object') return false
+  const issue = value as Partial<ClientIssue>
+  return Boolean(
+    typeof issue.at === 'string' &&
+    typeof issue.scope === 'string' &&
+    typeof issue.detail === 'string',
+  )
 }
