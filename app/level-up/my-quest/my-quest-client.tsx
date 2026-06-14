@@ -220,6 +220,11 @@ export default function MyQuestClient() {
     () => buildSmartQuestRecommendation({ completions, logs, today, weekStart, mode }),
     [completions, logs, mode, today, weekStart],
   )
+  const todayFocusQuest = useMemo(
+    () => smartQuest.quest ?? PERSONAL_DAILY_QUESTS.find((quest) => !completedToday.has(quest.id)) ?? null,
+    [completedToday, smartQuest.quest],
+  )
+  const todayFocusProgress = Math.round((todayCompletedCount / PERSONAL_DAILY_QUESTS.length) * 100)
   const gamePlan = useMemo(
     () => buildPersonalQuestGamePlan({ completions, logs, today, weekStart, mode }),
     [completions, logs, mode, today, weekStart],
@@ -1129,6 +1134,21 @@ export default function MyQuestClient() {
             <span>{stats.totalXp.toLocaleString()} XP total</span>
             <span>{stats.nextLevel ? `${stats.xpIntoLevel}/${stats.xpForNextLevel} XP` : 'Max level'}</span>
           </div>
+        </div>
+      </section>
+
+      <section className={styles.mobileTodayFocus} aria-label="My Quest iPhone today focus">
+        <div>
+          <span>Today focus</span>
+          <strong>{todayFocusQuest?.shortTitle ?? 'Board cleared'}</strong>
+          <small>{todayFocusQuest ? `${todayRemainingCount} left | +${todayFocusQuest.xp} XP next` : `${todayXp} XP banked today`}</small>
+        </div>
+        <ProgressBar value={todayFocusProgress} label={`${todayFocusProgress}% today`} />
+        <div>
+          <button type="button" onClick={() => todayFocusQuest ? void toggleQuest(todayFocusQuest) : undefined} disabled={!todayFocusQuest || Boolean(pendingQuest)}>
+            {todayFocusQuest ? `Bank +${todayFocusQuest.xp}` : 'Done'}
+          </button>
+          <a href="#repair-day">Repair</a>
         </div>
       </section>
 

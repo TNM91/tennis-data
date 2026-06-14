@@ -97,7 +97,10 @@ describe('public and private indexing boundaries', () => {
   it('keeps Nathan-only My Quest phone-first without exposing it publicly', () => {
     expect(myQuestClientSource).toContain('mobileQuestShortcuts')
     expect(myQuestClientSource).toContain('My Quest iPhone mission control')
+    expect(myQuestClientSource).toContain('todayFocusQuest')
+    expect(myQuestClientSource).toContain('My Quest iPhone today focus')
     expect(myQuestStylesSource).toContain('.mobileMissionControl')
+    expect(myQuestStylesSource).toContain('.mobileTodayFocus')
     expect(myQuestStylesSource).toContain('scroll-snap-type: x proximity')
     expect(myQuestStylesSource).toContain('.heroActions')
   })

@@ -124,7 +124,8 @@
   text-decoration: none;
 }
 
-.mobileMissionControl {
+.mobileMissionControl,
+.mobileTodayFocus {
   display: none;
 }
 
@@ -2273,6 +2274,70 @@
 
   .heroActions {
     display: none;
+  }
+
+  .mobileTodayFocus {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 13px;
+    border: 1px solid rgba(var(--brand-green-rgb), 0.28);
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(var(--brand-green-rgb), 0.16), transparent 42%),
+      rgba(5, 15, 30, 0.86);
+    box-shadow: 0 18px 42px rgba(2, 8, 20, 0.32);
+  }
+
+  .mobileTodayFocus > div:first-child {
+    display: grid;
+    gap: 4px;
+  }
+
+  .mobileTodayFocus span {
+    color: var(--brand-green-3);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobileTodayFocus strong {
+    color: var(--foreground-strong);
+    font-size: 1.12rem;
+    font-weight: 950;
+    line-height: 1.08;
+  }
+
+  .mobileTodayFocus small {
+    color: var(--muted-strong);
+    font-size: 0.78rem;
+    font-weight: 850;
+  }
+
+  .mobileTodayFocus > div:last-child {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(92px, 0.34fr);
+    gap: 8px;
+  }
+
+  .mobileTodayFocus button,
+  .mobileTodayFocus a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid rgba(var(--brand-green-rgb), 0.3);
+    background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.18), rgba(24, 54, 34, 0.92));
+    color: var(--foreground-strong);
+    font-size: 0.82rem;
+    font-weight: 950;
+    text-decoration: none;
+  }
+
+  .mobileTodayFocus button:disabled {
+    opacity: 0.68;
   }
 
   .mobileMissionControl {
