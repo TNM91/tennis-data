@@ -308,6 +308,33 @@ export default function MyQuestClient() {
     () => buildPersonalQuestRecapToast({ recap: dailyRecap, shield: streakShield, warnings: bossWarnings }),
     [bossWarnings, dailyRecap, streakShield],
   )
+  const mobileQuestShortcuts = [
+    {
+      label: 'Today',
+      value: `${todayCompletedCount}/${PERSONAL_DAILY_QUESTS.length}`,
+      href: '#lock-screen',
+    },
+    {
+      label: 'Next',
+      value: smartQuest.quest?.shortTitle ?? 'Done',
+      href: '#today-quests',
+    },
+    {
+      label: 'Boss',
+      value: weeklyGrade.grade,
+      href: '#boss-warnings',
+    },
+    {
+      label: 'Repair',
+      value: repairSummary.status,
+      href: '#repair-day',
+    },
+    {
+      label: 'Photos',
+      value: `${photos.length}`,
+      href: '#photo-compare',
+    },
+  ]
   const comparePhotos = useMemo(() => {
     const matching = photos.filter((photo) => photo.photo_type === compareType)
     const latest = matching[0] ?? null
@@ -1111,6 +1138,15 @@ export default function MyQuestClient() {
         <MetricTile label="Weekly Score" value={`${stats.weeklyXp.toLocaleString()}`} hint={`${stats.weeklyQuestXp} quest + ${bossBonus} bonus XP`} />
         <MetricTile label="Momentum" value={`${momentum.score}`} hint={momentum.label} compact />
       </div>
+
+      <nav className={styles.mobileMissionControl} aria-label="My Quest iPhone mission control">
+        {mobileQuestShortcuts.map((shortcut) => (
+          <a key={shortcut.label} href={shortcut.href}>
+            <span>{shortcut.label}</span>
+            <strong>{shortcut.value}</strong>
+          </a>
+        ))}
+      </nav>
 
       {error ? <div className={styles.errorNotice}>{error}</div> : null}
       {message ? <div className={styles.successNotice}>{message}</div> : null}

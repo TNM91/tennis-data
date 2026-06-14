@@ -8,6 +8,7 @@ const siteNavigationSource = readFileSync(join(process.cwd(), 'lib/site-navigati
 const productStorySource = readFileSync(join(process.cwd(), 'lib/product-story.ts'), 'utf8')
 const myQuestPageSource = readFileSync(join(process.cwd(), 'app/level-up/my-quest/page.tsx'), 'utf8')
 const myQuestClientSource = readFileSync(join(process.cwd(), 'app/level-up/my-quest/my-quest-client.tsx'), 'utf8')
+const myQuestStylesSource = readFileSync(join(process.cwd(), 'app/level-up/my-quest/my-quest.module.css'), 'utf8')
 const levelUpIdentityPageSource = readFileSync(join(process.cwd(), 'app/level-up/[identity]/page.tsx'), 'utf8')
 const myLabPageSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 const previewHomePage = readFileSync(join(process.cwd(), 'app/preview-home/page.tsx'), 'utf8')
@@ -91,5 +92,13 @@ describe('public and private indexing boundaries', () => {
     expect(myQuestClientSource).toContain('createSignedUrls')
     expect(myQuestClientSource).not.toContain('getPublicUrl')
     expect(myQuestClientSource).toContain('.remove([storagePath])')
+  })
+
+  it('keeps Nathan-only My Quest phone-first without exposing it publicly', () => {
+    expect(myQuestClientSource).toContain('mobileQuestShortcuts')
+    expect(myQuestClientSource).toContain('My Quest iPhone mission control')
+    expect(myQuestStylesSource).toContain('.mobileMissionControl')
+    expect(myQuestStylesSource).toContain('scroll-snap-type: x proximity')
+    expect(myQuestStylesSource).toContain('.heroActions')
   })
 })
