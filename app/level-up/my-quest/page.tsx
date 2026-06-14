@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function MyQuestPage() {
   return (
-    <SiteShell active="/level-up/my-quest">
+    <SiteShell active="/level-up/my-quest" showPortalToolBar={false}>
       <MyQuestClient />
     </SiteShell>
   )

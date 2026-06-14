@@ -275,6 +275,11 @@
   color: var(--foreground-strong);
 }
 
+.levelUpIphoneCommandCenter,
+.levelUpIphoneDock {
+  display: none;
+}
+
 .levelUpPortal {
   display: grid;
   gap: 12px;
@@ -13054,10 +13059,109 @@
 
   .levelUpShell {
     gap: 10px;
+    padding-bottom: 12px;
   }
 
   .levelUpRouteHeader {
     padding: 12px;
+  }
+
+  .levelUpIdentityButtons {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+
+  .levelUpIdentityButtons a {
+    flex: 0 0 min(54vw, 180px);
+    min-height: 44px;
+    scroll-snap-align: start;
+  }
+
+  .levelUpIphoneCommandCenter {
+    display: grid;
+    gap: 10px;
+    border: 1px solid rgba(155, 225, 29, 0.24);
+    border-radius: 16px;
+    background:
+      linear-gradient(135deg, rgba(155, 225, 29, 0.12), transparent 42%),
+      rgba(5, 15, 30, 0.82);
+    box-shadow: var(--shadow-card);
+    padding: 12px;
+  }
+
+  .levelUpIphoneCommandCenter > div:first-child {
+    display: grid;
+    gap: 4px;
+  }
+
+  .levelUpIphoneCommandCenter > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .levelUpIphoneCommandCenter span {
+    color: var(--brand-green-3);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .levelUpIphoneCommandCenter strong {
+    color: var(--foreground-strong);
+    font-size: 1rem;
+    line-height: 1.12;
+  }
+
+  .levelUpIphoneCommandCenter a {
+    min-width: 0;
+    min-height: 58px;
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    border: 1px solid rgba(116, 190, 255, 0.16);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 9px;
+    text-decoration: none;
+  }
+
+  .levelUpIphoneCommandCenter a strong {
+    font-size: 0.84rem;
+  }
+
+  .levelUpIphoneDock {
+    position: sticky;
+    z-index: 60;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: -2px;
+    border: 1px solid rgba(116, 190, 255, 0.2);
+    border-radius: 16px;
+    background: rgba(5, 15, 30, 0.94);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42);
+    padding: 8px;
+    backdrop-filter: blur(14px);
+  }
+
+  .levelUpIphoneDock a {
+    min-width: 0;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(155, 225, 29, 0.18);
+    border-radius: 12px;
+    background: rgba(155, 225, 29, 0.08);
+    color: var(--foreground-strong);
+    font-size: 0.78rem;
+    font-weight: 950;
+    text-decoration: none;
   }
 
   .levelUpPortal {
@@ -13361,6 +13465,11 @@
   .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid,
+  .levelUpQuestPackPreviewGrid,
+  .levelUpHabitPathGrid,
+  .levelUpFeatureFrameGrid,
+  .levelUpQuestBuilderFlow,
+  .levelUpQuestTemplateGrid,
   .levelUpLaneChooserGrid,
   .levelUpLaneProgressGrid,
   .levelUpRailGrid {
@@ -13379,6 +13488,11 @@
   .levelUpCardRail article,
   .levelUpModuleRail article,
   .levelUpLibraryGrid a,
+  .levelUpQuestPackPreviewGrid article,
+  .levelUpHabitPathGrid article,
+  .levelUpFeatureFrameGrid article,
+  .levelUpQuestBuilderFlow article,
+  .levelUpQuestTemplateGrid article,
   .levelUpLaneChooserGrid button,
   .levelUpLaneProgressGrid article,
   .levelUpRailGrid article {
@@ -13392,8 +13506,31 @@
 
   .levelUpPortalLanes p,
   .levelUpCardRail p,
-  .levelUpModuleRail p {
+  .levelUpModuleRail p,
+  .levelUpQuestPackPreviewGrid p,
+  .levelUpFeatureFrameGrid p,
+  .levelUpQuestBuilderFlow small,
+  .levelUpQuestTemplateGrid p {
     display: none;
+  }
+
+  .levelUpHabitWizardGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpHabitWizardChoice > div {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
+  }
+
+  .levelUpHabitWizardChoice button {
+    flex: 0 0 min(42vw, 150px);
+    min-height: 44px;
+    text-align: center;
+    scroll-snap-align: start;
   }
 
   .levelUpRouteCopy h1 {

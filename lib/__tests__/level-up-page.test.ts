@@ -38,6 +38,11 @@ describe('Level Up page', () => {
     expect(contentSource).toContain('Quest Builder')
     expect(contentSource).toContain('/mylab#coach-assignments')
     expect(contentSource).toContain('Choose development identity')
+    expect(contentSource).toContain('iphoneQuickActions')
+    expect(contentSource).toContain('levelUpIphoneCommandCenter')
+    expect(contentSource).toContain('Today&apos;s court commands')
+    expect(contentSource).toContain('levelUpIphoneDock')
+    expect(contentSource).toContain('showPortalToolBar={false}')
   })
 
   it('adds a Level Up portal library model for coach assignments, favorites, and recommendations', () => {
@@ -241,6 +246,10 @@ describe('Level Up page', () => {
     expect(developmentStylesSource).toContain('.levelUpQuestPackPreviewGrid article')
     expect(developmentStylesSource).toContain('.levelUpCardRail')
     expect(developmentStylesSource).toContain('.levelUpLibraryGrid')
+    expect(developmentStylesSource).toContain('.levelUpIphoneCommandCenter')
+    expect(developmentStylesSource).toContain('.levelUpIphoneDock')
+    expect(developmentStylesSource).toContain('env(safe-area-inset-bottom)')
+    expect(developmentStylesSource).toContain('scroll-snap-type: x proximity')
   })
 
   it('creates the preferred player-development Level Up portal route with linked coach challenge tooling', () => {

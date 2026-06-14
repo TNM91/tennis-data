@@ -8,15 +8,21 @@ import PortalToolBar from '@/app/components/portal-tool-bar'
 import { AuthProvider } from '@/app/components/auth-provider'
 import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/design-system'
 
-export default function SiteShell({ children, active }: { children: ReactNode; active?: string }) {
+type SiteShellProps = {
+  children: ReactNode
+  active?: string
+  showPortalToolBar?: boolean
+}
+
+export default function SiteShell({ children, active, showPortalToolBar = true }: SiteShellProps) {
   return (
     <AuthProvider>
-      <SiteShellContent active={active}>{children}</SiteShellContent>
+      <SiteShellContent active={active} showPortalToolBar={showPortalToolBar}>{children}</SiteShellContent>
     </AuthProvider>
   )
 }
 
-function SiteShellContent({ children, active }: { children: ReactNode; active?: string }) {
+function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProps) {
   const pathname = usePathname() || '/'
   const atmosphereClassName = getBrandAtmosphereClassName(pathname)
 
@@ -35,7 +41,7 @@ function SiteShellContent({ children, active }: { children: ReactNode; active?: 
         <div className={atmosphereClassName} aria-hidden="true" />
 
         <SiteHeader active={active} />
-        <PortalToolBar />
+        {showPortalToolBar ? <PortalToolBar /> : null}
         <div id="main-content" className="page-reveal">{children}</div>
         <SiteFooter />
       </main>

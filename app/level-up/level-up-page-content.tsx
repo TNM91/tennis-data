@@ -69,6 +69,29 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
     coachHref: path.coachHref,
     captainHref: path.captainHref,
   }))
+  const primaryHabitPath = habitPaths[0]
+  const iphoneQuickActions = [
+    {
+      label: 'Drill',
+      title: 'Start the next rep',
+      href: primaryHabitPath?.drillHref ?? '#level-up-flow',
+    },
+    {
+      label: 'Quest',
+      title: 'Build a habit',
+      href: primaryHabitPath?.questHref ?? '#quest-builder',
+    },
+    {
+      label: 'Path',
+      title: 'Find your track',
+      href: '#habit-path-wizard-title',
+    },
+    {
+      label: 'Proof',
+      title: 'Score the work',
+      href: '#level-up-flow',
+    },
+  ]
   const questPackPreviews = [
     {
       label: 'Player habit packs',
@@ -126,7 +149,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   ]
 
   return (
-    <SiteShell active="/mylab">
+    <SiteShell active="/mylab" showPortalToolBar={false}>
       <main className={`${styles.shell} ${styles.levelUpShell}`}>
         <section className={styles.levelUpRouteHeader} aria-labelledby="level-up-page-title">
           <div className={styles.levelUpRouteCopy}>
@@ -161,6 +184,29 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             ))}
           </div>
         </section>
+
+        <section className={styles.levelUpIphoneCommandCenter} aria-label="Level Up iPhone command center">
+          <div>
+            <span>iPhone quick start</span>
+            <strong>Today&apos;s court commands</strong>
+          </div>
+          <div>
+            {iphoneQuickActions.map((action) => (
+              <Link key={action.label} href={action.href}>
+                <span>{action.label}</span>
+                <strong>{action.title}</strong>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <nav className={styles.levelUpIphoneDock} aria-label="Level Up mobile dock">
+          {iphoneQuickActions.map((action) => (
+            <Link key={action.label} href={action.href}>
+              <span>{action.label}</span>
+            </Link>
+          ))}
+        </nav>
 
         <section className={styles.levelUpPortal} aria-labelledby="level-up-portal-title">
           <div className={styles.levelUpPortalHeader}>
