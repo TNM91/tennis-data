@@ -227,6 +227,30 @@ type CaptainLevelUpChallenge = {
 
 const CAPTAIN_LEVEL_UP_CHALLENGES: CaptainLevelUpChallenge[] = [
   {
+    id: 'rhythm-builder',
+    title: 'Rhythm Builder',
+    focus: 'Ready feet, wall rhythm, and pre-play readiness',
+    detail: 'Use this as a low-friction team habit for players who need a clean starting rhythm before practice or match warm-up.',
+    proof: 'Track aggregate completion only. Individual proof and notes stay private unless players choose to share.',
+    cardIds: ['split-step-rhythm', 'wall-rally-rhythm', 'dynamic-tennis-warm-up'],
+  },
+  {
+    id: 'consistency-builder',
+    title: 'Consistency Builder',
+    focus: 'Crosscourt tolerance, wide-ball neutralizing, and post-play recovery',
+    detail: 'Use this when the lineup week needs cleaner rally habits and fewer preventable misses.',
+    proof: 'Track aggregate completion only. Individual misses, notes, and proof scores stay private by default.',
+    cardIds: ['crosscourt-consistency', 'wide-ball-neutralizer', 'post-play-mobility-reset'],
+  },
+  {
+    id: 'point-start-routine',
+    title: 'Point-Start Routine',
+    focus: 'Serve target, return job, and 30-30 reset clarity',
+    detail: 'Use this when the team week depends on better first-two-shot decisions under pressure.',
+    proof: 'Aggregate completion only; players control whether any personal proof detail is shared.',
+    cardIds: ['serve-target-call', 'return-depth-lane', '30-30-pressure-game'],
+  },
+  {
     id: 'match-day-routine',
     title: 'Match-Day Routine',
     focus: 'Warm-up, return intent, and post-match debrief',

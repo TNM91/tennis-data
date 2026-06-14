@@ -207,6 +207,8 @@ export type LevelUpHabitPath = {
   playerLevel: string
   weeklyTarget: string
   bestFor: string
+  coachPackId: string
+  teamChallengeId: string
   linkedCardIds: string[]
   habits: string[]
   proof: string

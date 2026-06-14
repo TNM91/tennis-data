@@ -504,6 +504,177 @@
   text-align: center;
 }
 
+.levelUpHabitWizard {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 34%),
+    rgba(5, 15, 30, 0.74);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(14px, 2.4vw, 22px);
+}
+
+.levelUpHabitWizardGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpHabitWizardChoice,
+.levelUpHabitWizardResult {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 13px;
+}
+
+.levelUpHabitWizardChoice {
+  margin: 0;
+}
+
+.levelUpHabitWizardChoice legend,
+.levelUpHabitWizardResult span {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpHabitWizardChoice > div,
+.levelUpHabitWizardActions {
+  display: grid;
+  gap: 7px;
+}
+
+.levelUpHabitWizardChoice button {
+  min-height: 40px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 11px;
+  background: rgba(5, 15, 30, 0.58);
+  color: var(--foreground);
+  padding: 8px 10px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.levelUpHabitWizardChoice button[data-active='true'] {
+  border-color: rgba(155, 225, 29, 0.42);
+  background: rgba(155, 225, 29, 0.13);
+  color: var(--foreground-strong);
+}
+
+.levelUpHabitWizardResult strong {
+  color: var(--foreground-strong);
+  font-size: 1.05rem;
+  line-height: 1.14;
+}
+
+.levelUpHabitWizardResult p,
+.levelUpHabitWizardResult small {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.levelUpHabitWizardResult dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.levelUpHabitWizardResult dl div {
+  border-radius: 11px;
+  background: rgba(5, 15, 30, 0.54);
+  padding: 8px;
+}
+
+.levelUpHabitWizardResult dt {
+  color: var(--brand-green-3);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpHabitWizardResult dd {
+  margin: 3px 0 0;
+  color: var(--foreground-strong);
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.24;
+}
+
+.levelUpHabitWizardActions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.levelUpHabitWizardActions :global(.button-primary),
+.levelUpHabitWizardActions :global(.button-secondary) {
+  min-height: 42px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.levelUpFeatureFrame {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.08), transparent 36%),
+    rgba(5, 15, 30, 0.74);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(14px, 2.4vw, 22px);
+}
+
+.levelUpFeatureFrameGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpFeatureFrameGrid article {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 13px;
+}
+
+.levelUpFeatureFrameGrid span {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpFeatureFrameGrid strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+  line-height: 1.16;
+}
+
+.levelUpFeatureFrameGrid p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .levelUpPortalHeader {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -12543,6 +12714,8 @@
   .levelUpModuleRail,
   .levelUpLibraryGrid,
   .levelUpHabitPathGrid,
+  .levelUpHabitWizardGrid,
+  .levelUpFeatureFrameGrid,
   .levelUpQuestBuilderFlow,
   .levelUpQuestTemplateGrid,
   .levelUpQuestSavePanel,
@@ -12750,6 +12923,8 @@
   .levelUpPortalHeader,
   .levelUpQuestPackPreviewGrid,
   .levelUpHabitPathGrid,
+  .levelUpHabitWizardGrid,
+  .levelUpFeatureFrameGrid,
   .levelUpQuestBuilderHeader,
   .levelUpPortalLanes,
   .levelUpCardRail,

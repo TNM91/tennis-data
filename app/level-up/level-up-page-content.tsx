@@ -9,6 +9,8 @@ import type { LevelUpCard } from '@/lib/level-up/level-up-types'
 import { buildLevelUpHabitPaths, buildLevelUpQuestBuilderPlan, formatHabitCategory } from '@/lib/level-up/quest-builder'
 import { PLAYER_DEVELOPMENT_IDENTITIES, type PlayerDevelopmentIdentity } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import HabitPathWizardClient from './habit-path-wizard-client'
 import QuestBuilderClient from './quest-builder-client'
 
 export default function LevelUpPageContent({ identity }: { identity: PlayerDevelopmentIdentity }) {
@@ -21,6 +23,9 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   const quickStartCards = recommendedCards.slice(0, 5)
   const questBuilder = buildLevelUpQuestBuilderPlan(identity.slug)
   const habitPaths = buildLevelUpHabitPaths(identity.slug)
+  const playerTier = MEMBERSHIP_TIERS.player_plus
+  const coachTier = MEMBERSHIP_TIERS.coach
+  const captainTier = MEMBERSHIP_TIERS.captain
   const questBuilderCardOptions = LEVEL_UP_CARDS.map((card) => ({
     id: card.id,
     title: card.title,
@@ -51,6 +56,19 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
       proof: path.proof,
       starterHabit: path.habits[0] ?? path.bestFor,
     }))
+  const habitPathWizardOptions = habitPaths.map((path) => ({
+    id: path.id,
+    label: path.label,
+    title: path.title,
+    bestFor: path.bestFor,
+    weeklyTarget: path.weeklyTarget,
+    proof: path.proof,
+    primaryCardTitle: path.primaryCard?.title ?? 'Level Up card',
+    drillHref: path.drillHref,
+    questHref: path.questHref,
+    coachHref: path.coachHref,
+    captainHref: path.captainHref,
+  }))
   const questPackPreviews = [
     {
       label: 'Player habit packs',
@@ -286,9 +304,42 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                   <Link className="button-secondary" href={path.questHref}>
                     Build quest
                   </Link>
+                  <Link className="button-secondary" href={path.coachHref}>
+                    Coach pack
+                  </Link>
+                  <Link className="button-secondary" href={path.captainHref}>
+                    Team challenge
+                  </Link>
                 </div>
               </article>
             ))}
+          </div>
+        </section>
+
+        <HabitPathWizardClient paths={habitPathWizardOptions} />
+
+        <section className={styles.levelUpFeatureFrame} aria-labelledby="level-up-feature-frame-title">
+          <div className={styles.levelUpQuestPackPreviewHeader}>
+            <span>Level Up product loop</span>
+            <h2 id="level-up-feature-frame-title">Personal habits, coach assignments, and team challenges use the same tennis proof.</h2>
+            <p>{playerTier.description}</p>
+          </div>
+          <div className={styles.levelUpFeatureFrameGrid}>
+            <article>
+              <span>{playerTier.name}</span>
+              <strong>Custom habit builder</strong>
+              <p>Save drill-backed quests, XP, streaks, and proof history inside My Lab and Level Up.</p>
+            </article>
+            <article>
+              <span>{coachTier.name}</span>
+              <strong>Assignment-ready packs</strong>
+              <p>Turn the same path into focused student work with proof a coach can review after the player shares it.</p>
+            </article>
+            <article>
+              <span>{captainTier.name}</span>
+              <strong>Aggregate team challenges</strong>
+              <p>Run lineup-ready habits while keeping private player notes and proof details with each player.</p>
+            </article>
           </div>
         </section>
 

@@ -51,6 +51,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { PLAYER_DEVELOPMENT_IDENTITIES } from '@/lib/player-development'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
+import { buildLevelUpHabitPaths } from '@/lib/level-up/quest-builder'
 import type { LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
@@ -4276,9 +4277,13 @@ function LevelUpReturnStatePanel({
     ? LEVEL_UP_CARDS.find((card) => card.id === latestProof.cardId)
     : LEVEL_UP_CARDS.find((card) => card.identitySlugs?.includes(fallbackIdentitySlug)) ?? LEVEL_UP_CARDS[0]
   const todayHabitIdentitySlug = todayHabitCard?.identitySlugs?.[0] || fallbackIdentitySlug
+  const habitPaths = buildLevelUpHabitPaths(todayHabitIdentitySlug)
+  const activeHabitPath = habitPaths.find((path) => path.linkedCards.some((card) => card.id === todayHabitCard?.id)) ?? habitPaths[0]
   const todayHabitQuestHref = latestProof?.questHref
+    || activeHabitPath?.questHref
     || (todayHabitCard ? `/level-up/${todayHabitIdentitySlug}?questCard=${encodeURIComponent(todayHabitCard.id)}#quest-builder` : '/level-up#quest-builder')
   const todayHabitDrillHref = latestProof?.nextHref
+    || activeHabitPath?.drillHref
     || (todayHabitCard ? `/level-up/${todayHabitIdentitySlug}?card=${encodeURIComponent(todayHabitCard.id)}#level-up-flow` : '/level-up')
   const todayHabitTitle = latestProof?.cardTitle || todayHabitCard?.title || 'Choose one Level Up card'
   const todayHabitProof = todayHabitCard?.proof || latestProof?.proofLabel || 'Score one useful proof.'
@@ -4347,6 +4352,33 @@ function LevelUpReturnStatePanel({
           {latestProof ? 'Repeat in Level Up' : 'Open Level Up'}
         </Link>
       </div>
+
+      {activeHabitPath ? (
+        <div style={myLabTodayFeedStyle} aria-label="Active Level Up habit path">
+          <div style={myLabTodayFeedHeaderStyle}>
+            <span style={metricLabelStyle}>Active habit path</span>
+            <strong style={levelUpReturnStorageNoteStrongStyle}>{activeHabitPath.title}</strong>
+          </div>
+          <div style={levelUpReturnGridStyle}>
+            <div style={levelUpReturnPrimaryStyle}>
+              <div style={metricLabelStyle}>Weekly target</div>
+              <strong style={levelUpReturnPrimaryTitleStyle}>{activeHabitPath.weeklyTarget}</strong>
+              <span style={levelUpReturnPrimaryTextStyle}>{activeHabitPath.bestFor}</span>
+            </div>
+            <div style={levelUpTodayHabitStyle}>
+              <div style={metricLabelStyle}>Next rep</div>
+              <strong style={levelUpReturnPrimaryTitleStyle}>{activeHabitPath.primaryCard?.title || todayHabitTitle}</strong>
+              <span style={levelUpReturnPrimaryTextStyle}>{activeHabitPath.proof}</span>
+            </div>
+          </div>
+          <div style={developmentActionRowStyle}>
+            <Link href={activeHabitPath.drillHref} style={miniActionLinkStyle}>Start drill</Link>
+            <Link href={activeHabitPath.questHref} style={miniActionLinkStyle}>Build quest</Link>
+            <Link href={activeHabitPath.coachHref} style={miniActionLinkStyle}>Coach pack</Link>
+            <Link href={activeHabitPath.captainHref} style={miniActionLinkStyle}>Team challenge</Link>
+          </div>
+        </div>
+      ) : null}
 
       <div style={myLabTodayFeedStyle} aria-label="My Lab today feed">
         <div style={myLabTodayFeedHeaderStyle}>

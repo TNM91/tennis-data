@@ -105,6 +105,30 @@ type CoachLevelUpHandoffPack = {
 
 const COACH_LEVEL_UP_HANDOFF_PACKS: CoachLevelUpHandoffPack[] = [
   {
+    id: 'rhythm-builder',
+    title: 'Rhythm Builder',
+    assignmentTitle: 'First rhythm Level Up pack',
+    focus: 'Ready feet, wall rhythm, and pre-play readiness',
+    detail: 'Use this when a newer or returning player needs a simple repeatable rhythm before bigger tactical work.',
+    cardIds: ['split-step-rhythm', 'wall-rally-rhythm', 'dynamic-tennis-warm-up'],
+  },
+  {
+    id: 'consistency-builder',
+    title: 'Consistency Builder',
+    assignmentTitle: 'Consistency Level Up pack',
+    focus: 'Crosscourt tolerance, wide-ball neutralizing, and post-play recovery',
+    detail: 'Use this when the player needs fewer loose errors and a cleaner recovery habit between sessions.',
+    cardIds: ['crosscourt-consistency', 'wide-ball-neutralizer', 'post-play-mobility-reset'],
+  },
+  {
+    id: 'point-start-routine',
+    title: 'Point-Start Routine',
+    assignmentTitle: 'Point-start Level Up pack',
+    focus: 'Serve target, return job, and 30-30 reset clarity',
+    detail: 'Use this when a competitive player needs sharper first-two-shot habits under pressure.',
+    cardIds: ['serve-target-call', 'return-depth-lane', '30-30-pressure-game'],
+  },
+  {
     id: 'doubles-readiness',
     title: 'Doubles Readiness',
     assignmentTitle: 'Doubles readiness Level Up pack',
