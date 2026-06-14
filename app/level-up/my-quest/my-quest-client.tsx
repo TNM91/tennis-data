@@ -1144,6 +1144,26 @@ export default function MyQuestClient() {
           <small>{todayFocusQuest ? `${todayRemainingCount} left | +${todayFocusQuest.xp} XP next` : `${todayXp} XP banked today`}</small>
         </div>
         <ProgressBar value={todayFocusProgress} label={`${todayFocusProgress}% today`} />
+        <div className={styles.mobileModeRail} aria-label="Today focus mode">
+          <button type="button" data-active={mode === 'morning' ? 'true' : 'false'} onClick={() => setMode('morning')}>
+            Morning
+          </button>
+          <button type="button" data-active={mode === 'evening' ? 'true' : 'false'} onClick={() => setMode('evening')}>
+            Evening
+          </button>
+          <button type="button" data-active={mode === 'recovery' ? 'true' : 'false'} onClick={() => setMode('recovery')}>
+            Recovery
+          </button>
+        </div>
+        <label className={styles.mobileQuickNote}>
+          <span>Quick note</span>
+          <input
+            value={notesInput}
+            onChange={(event) => setNotesInput(event.target.value)}
+            onBlur={() => void saveDailyTrackers()}
+            placeholder="One line from today"
+          />
+        </label>
         <div>
           <button type="button" onClick={() => todayFocusQuest ? void toggleQuest(todayFocusQuest) : undefined} disabled={!todayFocusQuest || Boolean(pendingQuest)}>
             {todayFocusQuest ? `Bank +${todayFocusQuest.xp}` : 'Done'}
