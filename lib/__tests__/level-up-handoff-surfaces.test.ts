@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 const coachSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const captainSource = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
+const playerLevelUpSessionsApiSource = readFileSync(join(process.cwd(), 'app/api/player/level-up-sessions/route.ts'), 'utf8')
+const coachAssignmentsApiSource = readFileSync(join(process.cwd(), 'app/api/coach/assignments/route.ts'), 'utf8')
 
 describe('Level Up handoff surfaces', () => {
   it('turns Level Up pack links into Coach Hub assignment context', () => {
@@ -22,8 +24,20 @@ describe('Level Up handoff surfaces', () => {
     expect(coachSource).toContain('levelUpPack')
     expect(coachSource).toContain("'level-up-pack-handoff'")
     expect(coachSource).toContain("saveCoachAssignment('draft', pack)")
+    expect(coachSource).toContain('Draft assignments')
+    expect(coachSource).toContain('loadDraftAssignment')
+    expect(coachSource).toContain("updateAssignmentStatus(assignment, 'assigned')")
+    expect(coachSource).toContain("updateAssignmentStatus(assignment, 'archived')")
+    expect(coachSource).toContain('Pack progress')
     expect(coachSource).toContain('doubles-readiness')
     expect(coachSource).toContain('match-day-routine')
+  })
+
+  it('updates assigned Level Up packs card-by-card before closing the assignment', () => {
+    expect(playerLevelUpSessionsApiSource).toContain('buildPlayerAssignmentPackCardCompletion')
+    expect(playerLevelUpSessionsApiSource).toContain('cardId: payload.focus_id')
+    expect(playerLevelUpSessionsApiSource).toContain("status: packCompletion.complete ? 'completed' : 'assigned'")
+    expect(coachAssignmentsApiSource).toContain("status === 'draft' || status === 'assigned' || status === 'completed' || status === 'archived'")
   })
 
   it('turns Level Up challenge links into Captain team challenge context', () => {

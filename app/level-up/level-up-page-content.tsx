@@ -61,6 +61,38 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
       action: 'Preview team mode',
     },
   ]
+  const habitBuilderLanes = [
+    {
+      label: 'Skill',
+      title: 'Attach the habit to a drill card',
+      detail: 'Serve routine, crosscourt patience, return intent, volley decisions, and doubles communication all start with proof-backed cards.',
+    },
+    {
+      label: 'Fitness',
+      title: 'Make body work tennis-specific',
+      detail: 'Movement, first step, posture, leg durability, and mobility habits connect to how points actually break down.',
+    },
+    {
+      label: 'Nutrition & hydration',
+      title: 'Use simple readiness checks',
+      detail: 'Hydration, pre-match timing, and practice-day fuel can live as lightweight habits without calorie tracking.',
+    },
+    {
+      label: 'Recovery',
+      title: 'Protect the next session',
+      detail: 'Post-play mobility, sleep-support routines, and soreness notes help players arrive cleaner for the next tennis block.',
+    },
+    {
+      label: 'Mindset',
+      title: 'Train the between-point reset',
+      detail: 'Confidence, breathing, target clarity, and post-error routines become repeatable quests with a clear 0-5 proof score.',
+    },
+    {
+      label: 'Match prep',
+      title: 'Turn match day into a checklist',
+      detail: 'Warm-up, first target, doubles jobs, return plans, and post-match learning can be repeated across the season.',
+    },
+  ]
 
   return (
     <SiteShell active="/mylab">
@@ -178,6 +210,23 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                 <p>{preview.detail}</p>
                 <small>{preview.action}</small>
               </Link>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.levelUpQuestPackPreview} aria-labelledby="habit-builder-foundation-title">
+          <div className={styles.levelUpQuestPackPreviewHeader}>
+            <span>Habit Builder foundation</span>
+            <h2 id="habit-builder-foundation-title">A public habit system for every level of tennis player.</h2>
+            <p>TenAceIQ habits stay tennis-first: practical actions, linked drills, proof scores, XP, streaks, and coach/team handoffs when the player chooses to share.</p>
+          </div>
+          <div className={styles.levelUpQuestPackPreviewGrid}>
+            {habitBuilderLanes.map((lane) => (
+              <article key={lane.label}>
+                <span>{lane.label}</span>
+                <strong>{lane.title}</strong>
+                <p>{lane.detail}</p>
+              </article>
             ))}
           </div>
         </section>

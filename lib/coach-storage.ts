@@ -37,6 +37,11 @@ export type CoachAssignmentPackItem = {
   title: string
   proof: string
   status: CoachAssignmentPackItemStatus
+  completedAt?: string
+  levelUpSessionId?: string
+  rating?: number | null
+  recap?: string
+  evidence?: string
 }
 
 export type CoachAssignmentPack = {
@@ -54,6 +59,7 @@ export type CoachAssignmentPackProgress = {
   open: number
   percent: number
   label: string
+  complete: boolean
 }
 
 export type CoachStudentLinkRow = {
@@ -112,6 +118,13 @@ export type CoachAssignmentInput = {
 export type PlayerAssignmentCompletionInput = {
   recap?: unknown
   evidence?: unknown
+}
+
+export type PlayerAssignmentPackCardCompletionInput = PlayerAssignmentCompletionInput & {
+  cardId?: unknown
+  levelUpSessionId?: unknown
+  rating?: unknown
+  completedAt?: unknown
 }
 
 export type PlayerAssignmentCheckIn = {
@@ -275,6 +288,75 @@ export function buildPlayerAssignmentCompletion(
   }
 }
 
+export function buildPlayerAssignmentPackCardCompletion(
+  existingAssignment: Record<string, unknown>,
+  input: PlayerAssignmentPackCardCompletionInput,
+) {
+  const pack = getCoachAssignmentPack(existingAssignment)
+  const cardId = stringOrEmpty(input.cardId).trim()
+  if (!pack || !cardId) {
+    return {
+      assignment: buildPlayerAssignmentCompletion(existingAssignment, input),
+      complete: true,
+      updatedCardId: cardId,
+    }
+  }
+
+  const completedAt = normalizeIsoOrNow(input.completedAt)
+  const recap = clampText(input.recap, 700)
+  const evidence = clampText(input.evidence, 300)
+  const rating = numberOrNull(input.rating)
+  const levelUpSessionId = stringOrEmpty(input.levelUpSessionId).trim()
+  let matched = false
+
+  const items = pack.items.map((item) => {
+    if (item.cardId !== cardId) return item
+    matched = true
+    return {
+      ...item,
+      status: 'completed' as const,
+      completedAt,
+      levelUpSessionId,
+      rating,
+      recap,
+      evidence,
+    }
+  })
+
+  if (!matched) {
+    return {
+      assignment: existingAssignment,
+      complete: false,
+      updatedCardId: '',
+    }
+  }
+
+  const nextPack = {
+    ...pack,
+    items,
+  }
+  const complete = items.every((item) => item.status === 'completed' || item.status === 'skipped')
+
+  return {
+    assignment: {
+      ...existingAssignment,
+      levelUpPack: nextPack,
+      packProofUpdatedAt: completedAt,
+      packProofLastCardId: cardId,
+      packProofLastRating: rating,
+      playerCheckIn: complete
+        ? {
+            recap: recap || `${nextPack.title} completed.`,
+            evidence: evidence || 'Level Up training log',
+            completedAt,
+          }
+        : existingAssignment.playerCheckIn,
+    },
+    complete,
+    updatedCardId: cardId,
+  }
+}
+
 export function getPlayerAssignmentCheckIn(assignment: Record<string, unknown>): PlayerAssignmentCheckIn | null {
   const rawCheckIn = assignment.playerCheckIn
   if (!isPlainRecord(rawCheckIn)) return null
@@ -395,6 +477,11 @@ export function getCoachAssignmentPack(assignment: Record<string, unknown>): Coa
           title: stringOrEmpty(item.title).trim(),
           proof: stringOrEmpty(item.proof).trim(),
           status: normalizeCoachAssignmentPackItemStatus(item.status),
+          completedAt: stringOrEmpty(item.completedAt).trim() || undefined,
+          levelUpSessionId: stringOrEmpty(item.levelUpSessionId).trim() || undefined,
+          rating: numberOrNull(item.rating),
+          recap: stringOrEmpty(item.recap).trim() || undefined,
+          evidence: stringOrEmpty(item.evidence).trim() || undefined,
         }))
         .filter((item) => item.cardId && item.title)
     : []
@@ -427,6 +514,7 @@ export function getCoachAssignmentPackProgress(assignment: Record<string, unknow
     open,
     percent,
     label: `${completed}/${total} complete`,
+    complete: open === 0,
   }
 }
 
@@ -481,6 +569,15 @@ function clampText(value: unknown, maxLength: number) {
 
 function numberOrNull(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+}
+
+function normalizeIsoOrNow(value: unknown) {
+  const text = stringOrEmpty(value).trim()
+  if (text) {
+    const date = new Date(text)
+    if (Number.isFinite(date.getTime())) return date.toISOString()
+  }
+  return new Date().toISOString()
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

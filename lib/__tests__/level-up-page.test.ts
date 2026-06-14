@@ -167,6 +167,10 @@ describe('Level Up page', () => {
     expect(contentSource).toContain('Your tennis training hub.')
     expect(contentSource).toContain('questPackPreviews')
     expect(contentSource).toContain('Quest pack preview')
+    expect(contentSource).toContain('Habit Builder foundation')
+    expect(contentSource).toContain('A public habit system for every level of tennis player.')
+    expect(contentSource).toContain('without calorie tracking')
+    expect(contentSource).toContain('habitBuilderLanes')
     expect(contentSource).toContain('Player habit packs')
     expect(contentSource).toContain('Coach assignable packs')
     expect(contentSource).toContain('Team challenge packs')
@@ -180,6 +184,7 @@ describe('Level Up page', () => {
     expect(developmentStylesSource).toContain('.levelUpPortal')
     expect(developmentStylesSource).toContain('.levelUpQuestPackPreview')
     expect(developmentStylesSource).toContain('.levelUpQuestPackPreviewGrid')
+    expect(developmentStylesSource).toContain('.levelUpQuestPackPreviewGrid article')
     expect(developmentStylesSource).toContain('.levelUpCardRail')
     expect(developmentStylesSource).toContain('.levelUpLibraryGrid')
   })
@@ -1519,7 +1524,7 @@ describe('Level Up page', () => {
     expect(liveWorkbenchSource).toContain('const nextDrillId = requestedCard ? `card-${requestedCard.id}` : `${nextFocusId}-coach-${nextWorkType}`')
     expect(liveWorkbenchSource).toContain('setActiveDrillId(nextDrillId)')
     expect(liveWorkbenchSource).toContain('assignmentId: assignmentId || undefined')
-    expect(liveWorkbenchSource).toContain('Synced. Coach assignment marked complete for review.')
+    expect(liveWorkbenchSource).toContain('Synced. Coach assignment progress updated for review.')
   })
 
   it('keeps the phone Level Up flow compact for on-court use', () => {

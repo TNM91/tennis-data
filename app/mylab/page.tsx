@@ -4803,6 +4803,7 @@ function PlayerCoachAssignmentsPanel({
   const overdueAssignments = openAssignments.filter((assignment) => getCoachAssignmentDueState(assignment.dueDate).tone === 'overdue')
   const dueTodayAssignments = openAssignments.filter((assignment) => getCoachAssignmentDueState(assignment.dueDate).tone === 'today')
   const assignmentCards = (openAssignments.length ? openAssignments : sortedAssignments).slice(0, 4)
+  const assignedQueue = openAssignments.slice(0, 3)
   const nextAssignment = openAssignments[0] ?? sortedAssignments[0] ?? null
   const nextDueState = nextAssignment ? getCoachAssignmentDueState(nextAssignment.dueDate) : null
   const nextAssignmentSummary = nextAssignment ? getCoachAssignmentSummary(nextAssignment.assignment) : null
@@ -4997,6 +4998,40 @@ function PlayerCoachAssignmentsPanel({
             <span style={metricNoteStyle}>Your next scheduled coach lesson appears here after your coach adds a lesson date to an assignment.</span>
           )}
           {calendarMessage ? <span style={coachCheckInMessageStyle}>{calendarMessage}</span> : null}
+        </div>
+      ) : null}
+
+      {assignedQueue.length ? (
+        <div style={coachAssignedQueueStyle} aria-label="Assigned to me queue">
+          <div style={coachCalendarCopyStyle}>
+            <strong>Assigned to me</strong>
+            <span>Coach-assigned work stays ahead of general recommendations until proof is saved.</span>
+          </div>
+          <div style={coachAssignedQueueGridStyle}>
+            {assignedQueue.map((assignment) => {
+              const link = coachLinkMap.get(assignment.studentLinkId)
+              const dueState = getCoachAssignmentDueState(assignment.dueDate)
+              const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
+              return (
+                <article key={assignment.id} style={coachAssignedQueueCardStyle}>
+                  <span style={coachAssignmentDueStyle(dueState.tone)}>{dueState.label}</span>
+                  <strong>{assignment.title}</strong>
+                  <small>{assignment.focus || 'Coach assignment'}</small>
+                  {packProgress ? (
+                    <>
+                      <div style={coachAssignmentPackBarTrackStyle}>
+                        <span style={coachAssignmentPackBarFillStyle(packProgress.percent)} />
+                      </div>
+                      <small>{packProgress.label}</small>
+                    </>
+                  ) : null}
+                  <Link href={buildAssignmentLevelUpHref(assignment, link)} style={miniActionLinkStyle}>
+                    Start assigned card
+                  </Link>
+                </article>
+              )
+            })}
+          </div>
         </div>
       ) : null}
 
@@ -6052,6 +6087,35 @@ const coachAssignmentGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
+}
+
+const coachAssignedQueueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'radial-gradient(circle at 92% 8%, rgba(155,225,29,0.14), transparent 30%), rgba(255,255,255,0.055)',
+  minWidth: 0,
+}
+
+const coachAssignedQueueGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+}
+
+const coachAssignedQueueCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  alignContent: 'start',
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--shell-copy-muted)',
+  minWidth: 0,
 }
 
 const coachHubNextActionStyle: CSSProperties = {

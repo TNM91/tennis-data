@@ -343,7 +343,8 @@
   gap: 10px;
 }
 
-.levelUpQuestPackPreviewGrid a {
+.levelUpQuestPackPreviewGrid a,
+.levelUpQuestPackPreviewGrid article {
   display: grid;
   align-content: start;
   gap: 9px;

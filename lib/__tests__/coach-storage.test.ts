@@ -4,6 +4,7 @@ import {
   buildCoachStudentLinkPayload,
   buildCoachAssignmentReview,
   buildPlayerAssignmentCompletion,
+  buildPlayerAssignmentPackCardCompletion,
   assignmentNeedsCoachReview,
   getCoachAssignmentReview,
   getCoachAssignmentDueState,
@@ -396,6 +397,70 @@ describe('coach storage helpers', () => {
     expect(getPlayerAssignmentCheckIn(completed)).toMatchObject({
       recap: 'Pack done.',
       evidence: 'Level Up log',
+    })
+
+    vi.useRealTimers()
+  })
+
+  it('updates one Level Up pack card without closing the full assignment early', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-07T12:00:00.000Z'))
+
+    const firstCard = buildPlayerAssignmentPackCardCompletion(
+      {
+        levelUpPack: {
+          id: 'doubles-readiness',
+          title: 'Doubles Readiness',
+          focus: 'Partner clarity',
+          items: [
+            { cardId: 'partner-first-move-call', title: 'Partner First Move Call', proof: 'Call first move.', status: 'assigned' },
+            { cardId: 'poach-timing-shadow', title: 'Poach Timing Shadow', proof: 'Poach timing score.', status: 'assigned' },
+          ],
+        },
+      },
+      {
+        cardId: 'partner-first-move-call',
+        levelUpSessionId: 'level-up-session-1',
+        rating: 4,
+        completedAt: '2026-06-07T11:45:00.000Z',
+        recap: 'First move call stayed clear.',
+        evidence: 'Level Up training log',
+      },
+    )
+
+    expect(firstCard.complete).toBe(false)
+    expect(getCoachAssignmentPackProgress(firstCard.assignment)).toMatchObject({
+      total: 2,
+      completed: 1,
+      open: 1,
+      complete: false,
+    })
+    expect(getCoachAssignmentPack(firstCard.assignment)?.items[0]).toMatchObject({
+      cardId: 'partner-first-move-call',
+      status: 'completed',
+      levelUpSessionId: 'level-up-session-1',
+      rating: 4,
+      recap: 'First move call stayed clear.',
+    })
+    expect(getPlayerAssignmentCheckIn(firstCard.assignment)).toBeNull()
+
+    const finalCard = buildPlayerAssignmentPackCardCompletion(firstCard.assignment, {
+      cardId: 'poach-timing-shadow',
+      levelUpSessionId: 'level-up-session-2',
+      rating: 5,
+      recap: 'Pack finished.',
+      evidence: 'Two Level Up logs',
+    })
+
+    expect(finalCard.complete).toBe(true)
+    expect(getCoachAssignmentPackProgress(finalCard.assignment)).toMatchObject({
+      completed: 2,
+      open: 0,
+      complete: true,
+    })
+    expect(getPlayerAssignmentCheckIn(finalCard.assignment)).toMatchObject({
+      recap: 'Pack finished.',
+      evidence: 'Two Level Up logs',
     })
 
     vi.useRealTimers()

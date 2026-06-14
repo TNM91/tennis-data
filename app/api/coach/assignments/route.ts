@@ -17,6 +17,7 @@ type ReviewAssignmentBody = {
   assignmentId?: unknown
   note?: unknown
   nextFocus?: unknown
+  status?: unknown
 }
 
 export async function GET(request: Request) {
@@ -101,14 +102,22 @@ export async function PATCH(request: Request) {
   if (!existingData) return Response.json({ ok: false, message: 'Assignment was not found.' }, { status: 404 })
 
   const existing = mapCoachAssignmentRow(existingData as CoachAssignmentRow)
+  const status = typeof body.status === 'string' ? body.status.trim() : ''
   const nextAssignmentJson = buildCoachAssignmentReview(existing.assignment, {
     note: body.note,
     nextFocus: body.nextFocus,
   })
+  const updatePayload = {
+    ...(status === 'draft' || status === 'assigned' || status === 'completed' || status === 'archived' ? { status } : {}),
+    ...((typeof body.note === 'string' && body.note.trim()) || (typeof body.nextFocus === 'string' && body.nextFocus.trim())
+      ? { assignment_json: nextAssignmentJson }
+      : {}),
+    updated_at: new Date().toISOString(),
+  }
 
   const { data, error } = await auth.supabase
     .from('coach_assignments')
-    .update({ assignment_json: nextAssignmentJson, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq('id', assignmentId)
     .select('id,student_link_id,title,focus,due_date,status,assignment_json,updated_at')
     .single()

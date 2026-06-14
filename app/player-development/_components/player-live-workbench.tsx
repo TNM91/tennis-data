@@ -442,7 +442,7 @@ export default function PlayerLiveWorkbench({
         status: 'synced',
         message:
           session.assignmentId
-            ? 'Synced. Coach assignment marked complete for review.'
+            ? 'Synced. Coach assignment progress updated for review.'
             : session.accessMode === 'coach_invited' && session.sharedWithCoach
             ? 'Synced. Your linked coach can use this for the next lesson.'
             : 'Synced to your Level Up history.',

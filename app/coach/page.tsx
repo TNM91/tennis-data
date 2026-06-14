@@ -15,6 +15,7 @@ import type { CoachStudentInvite } from '@/lib/coach-invites'
 import {
   assignmentNeedsCoachReview,
   getCoachAssignmentDueState,
+  getCoachAssignmentPackProgress,
   getCoachAssignmentReview,
   getCoachAssignmentSummary,
   getPlayerAssignmentCheckIn,
@@ -156,6 +157,7 @@ function CoachContent() {
   const [assignmentStarterId, setAssignmentStarterId] = useState('')
   const [assignmentLevelUpCardId, setAssignmentLevelUpCardId] = useState('')
   const [assignmentLevelUpPackId, setAssignmentLevelUpPackId] = useState('')
+  const [assignmentEditId, setAssignmentEditId] = useState('')
   const [contactStudentId, setContactStudentId] = useState('')
   const [lessonDateTime, setLessonDateTime] = useState('')
   const [lessonFocus, setLessonFocus] = useState('')
@@ -383,6 +385,7 @@ function CoachContent() {
         },
         body: JSON.stringify({
           assignment: {
+            id: assignmentEditId || undefined,
             studentLinkId: assignmentStudentId,
             title: effectiveTitle,
             focus: effectiveFocus,
@@ -470,6 +473,7 @@ function CoachContent() {
       setAssignmentStarterId('')
       setAssignmentLevelUpCardId('')
       setAssignmentLevelUpPackId('')
+      setAssignmentEditId('')
       setLessonLocation('')
       setWorkspaceMessage(
         status === 'draft'
@@ -486,6 +490,36 @@ function CoachContent() {
   async function handleCreateAssignment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     await saveCoachAssignment('assigned')
+  }
+
+  async function updateAssignmentStatus(assignment: CoachAssignment, status: CoachAssignmentStatus) {
+    if (!session?.access_token) return
+    setWorkspaceLoading(true)
+    setWorkspaceMessage('')
+
+    try {
+      const response = await fetch('/api/coach/assignments', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ assignmentId: assignment.id, status }),
+      })
+      const json = (await response.json()) as { ok?: boolean; assignment?: CoachAssignment; message?: string }
+      if (!response.ok || !json.ok || !json.assignment) {
+        throw new Error(json.message || 'Could not update assignment.')
+      }
+
+      setAssignments((current) => current.map((item) => (item.id === assignment.id ? json.assignment! : item)))
+      setLastCreatedAssignment(status === 'assigned' ? json.assignment : null)
+      setContactStudentId(json.assignment.studentLinkId)
+      setWorkspaceMessage(status === 'assigned' ? 'Draft assigned. Send the player a quick note.' : 'Assignment archived.')
+    } catch (error) {
+      setWorkspaceMessage(error instanceof Error ? error.message : 'Could not update assignment.')
+    } finally {
+      setWorkspaceLoading(false)
+    }
   }
 
   async function createInvite(studentLinkId: string, email: string) {
@@ -602,6 +636,7 @@ function CoachContent() {
       setAssignmentStarterId('')
       setAssignmentLevelUpCardId('')
       setAssignmentLevelUpPackId('')
+      setAssignmentEditId('')
       return
     }
 
@@ -613,6 +648,7 @@ function CoachContent() {
     setAssignmentStarterId('')
     setAssignmentLevelUpCardId(getCoachAssignmentShortcutCardId(`${template.id} ${template.title} ${template.focus}`))
     setAssignmentLevelUpPackId('')
+    setAssignmentEditId('')
   }
 
   function useSessionPresetForAssignment() {
@@ -623,6 +659,7 @@ function CoachContent() {
     setAssignmentStarterId('')
     setAssignmentLevelUpCardId(getCoachAssignmentShortcutCardId(`${presetAssignment.title} ${presetAssignment.focus} ${presetAssignment.detail}`))
     setAssignmentLevelUpPackId('')
+    setAssignmentEditId('')
     setWorkspaceMessage('Session preset loaded into the assignment form. Choose a student and due date, then create the Level Up follow-through.')
   }
 
@@ -636,6 +673,7 @@ function CoachContent() {
     setAssignmentStarterId(starter.id)
     setAssignmentLevelUpCardId(getFirstAssignmentStarterCardId(starter.id))
     setAssignmentLevelUpPackId('')
+    setAssignmentEditId('')
     setWorkspaceMessage(`${starter.title} loaded. Expected evidence: ${starter.evidence}`)
   }
 
@@ -653,6 +691,7 @@ function CoachContent() {
     setAssignmentStarterId('')
     setAssignmentLevelUpCardId(nextCardId)
     setAssignmentLevelUpPackId('')
+    setAssignmentEditId('')
     setWorkspaceMessage(`Next assignment loaded from ${session.drillTitle}: ${draft.nextMove.label}. Create it when it fits the player.`)
 
     if (!nextCard) {
@@ -727,6 +766,10 @@ function CoachContent() {
     () => (assignmentLevelUpPackId ? buildCoachLevelUpHandoffPack(assignmentLevelUpPackId, assignmentLevelUpCardId) : null),
     [assignmentLevelUpCardId, assignmentLevelUpPackId],
   )
+  const draftAssignments = useMemo(
+    () => assignments.filter((assignment) => assignment.status === 'draft').slice(0, 6),
+    [assignments],
+  )
   const levelUpHandoffPack = useMemo(
     () => buildCoachLevelUpHandoffPack(searchParams.get('levelUpPack') || '', searchParams.get('card') || ''),
     [searchParams],
@@ -775,6 +818,10 @@ function CoachContent() {
     () => buildAssignmentProofMap(levelUpSessions),
     [levelUpSessions],
   )
+  const assignmentProofsById = useMemo(
+    () => buildAssignmentProofListMap(levelUpSessions),
+    [levelUpSessions],
+  )
   const activeAssignmentsCount = assignments.filter((assignment) => assignment.status === 'assigned').length
   const reviewedAssignmentsCount = assignments.filter((assignment) => Boolean(getCoachAssignmentReview(assignment.assignment))).length
   const recentLevelUpSessions = useMemo(() => levelUpSessions.slice(0, 3), [levelUpSessions])
@@ -808,6 +855,25 @@ function CoachContent() {
     }
 
     await saveCoachAssignment('draft', pack)
+  }
+
+  function loadDraftAssignment(assignment: CoachAssignment) {
+    const packId = typeof assignment.assignment.levelUpPackId === 'string' ? assignment.assignment.levelUpPackId : ''
+    const cardId = typeof assignment.assignment.cardId === 'string' ? assignment.assignment.cardId : ''
+    const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
+
+    setAssignmentEditId(assignment.id)
+    setAssignmentStudentId(assignment.studentLinkId)
+    setAssignmentTitle(assignment.title)
+    setAssignmentFocus(assignment.focus)
+    setAssignmentDueDate(assignment.dueDate ?? '')
+    setAssignmentTemplateId(CUSTOM_ASSIGNMENT_TEMPLATE_ID)
+    setAssignmentPresetId('')
+    setAssignmentStarterId('')
+    setAssignmentLevelUpPackId(packId)
+    setAssignmentLevelUpCardId(cardId || packProgress?.pack.items[0]?.cardId || '')
+    setLessonFocus(assignment.focus)
+    setWorkspaceMessage(`${assignment.title} loaded from drafts. Update it or assign when ready.`)
   }
 
   if (!authResolved || role === 'public') return null
@@ -899,6 +965,43 @@ function CoachContent() {
               Save draft assignment
             </button>
             <a href="#coach-lesson-frame" style={smallGhostLinkStyle}>Jump to lesson frame</a>
+          </div>
+        </section>
+      ) : null}
+
+      {draftAssignments.length ? (
+        <section style={levelUpCoachHandoffStyle} aria-label="Coach assignment drafts">
+          <div style={levelUpCoachHandoffHeaderStyle}>
+            <div>
+              <div style={eyebrowStyle}>Draft assignments</div>
+              <h2 style={sectionTitleStyle}>Finish or assign saved Level Up packs.</h2>
+              <p style={bodyStyle}>Drafts stay in Coach Hub until you assign, edit, or archive them.</p>
+            </div>
+            <span style={reviewBadgeStyle}>{draftAssignments.length} draft{draftAssignments.length === 1 ? '' : 's'}</span>
+          </div>
+          <div style={levelUpCoachHandoffGridStyle}>
+            {draftAssignments.map((assignment) => {
+              const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
+              const student = savedStudents.find((candidate) => candidate.id === assignment.studentLinkId)
+              return (
+                <article key={assignment.id} style={levelUpCoachHandoffCardStyle}>
+                  <strong>{assignment.title}</strong>
+                  <span>{student?.playerName ?? 'Student'} / {assignment.focus || 'Coach assignment'}</span>
+                  {packProgress ? <em>{packProgress.pack.title}: {packProgress.total} linked cards</em> : null}
+                  <div style={studentActionRowStyle}>
+                    <button type="button" onClick={() => loadDraftAssignment(assignment)} style={smallGhostButtonStyle}>
+                      Load draft
+                    </button>
+                    <button type="button" onClick={() => void updateAssignmentStatus(assignment, 'assigned')} disabled={workspaceLoading} style={smallPrimaryButtonStyle}>
+                      Assign now
+                    </button>
+                    <button type="button" onClick={() => void updateAssignmentStatus(assignment, 'archived')} disabled={workspaceLoading} style={smallGhostButtonStyle}>
+                      Archive
+                    </button>
+                  </div>
+                </article>
+              )
+            })}
           </div>
         </section>
       ) : null}
@@ -1236,7 +1339,7 @@ function CoachContent() {
               ) : null}
             </div>
             <button type="submit" disabled={workspaceLoading || !assignmentStudentId || !assignmentTitle.trim()} style={primaryButtonStyle}>
-              {workspaceLoading ? 'Saving...' : 'Create assignment'}
+              {workspaceLoading ? 'Saving...' : assignmentEditId ? 'Update assignment' : 'Create assignment'}
             </button>
           </form>
           <div style={firstAssignmentStarterStyle}>
@@ -1486,9 +1589,11 @@ function CoachContent() {
                 const playerCheckIn = getPlayerAssignmentCheckIn(assignment.assignment)
                 const coachReview = getCoachAssignmentReview(assignment.assignment)
                 const assignmentSummary = getCoachAssignmentSummary(assignment.assignment)
+                const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
                 const dueState = getCoachAssignmentDueState(assignment.dueDate)
                 const student = savedStudents.find((candidate) => candidate.id === assignment.studentLinkId)
                 const levelUpProof = assignmentProofById.get(assignment.id)
+                const levelUpProofs = assignmentProofsById.get(assignment.id) ?? []
                 const reviewReady = Boolean(playerCheckIn || levelUpProof)
                 const proofReviewDraft = levelUpProof ? buildLevelUpProofReviewDraft(levelUpProof, assignment) : null
                 const lessonDateTime = getAssignmentLessonDateTime(assignment.assignment)
@@ -1537,6 +1642,28 @@ function CoachContent() {
                             ))}
                           </ul>
                         ) : null}
+                      </div>
+                    ) : null}
+                    {packProgress ? (
+                      <div style={assignmentSummaryStyle}>
+                        <div style={assignmentTopStyle}>
+                          <strong>Pack progress</strong>
+                          <span style={assignmentStatusStyle(packProgress.complete ? 'completed' : assignment.status)}>
+                            {packProgress.label}
+                          </span>
+                        </div>
+                        <ul style={assignmentTrackerListStyle}>
+                          {packProgress.pack.items.map((item) => {
+                            const proof = levelUpProofs.find((session) => session.focusId === item.cardId)
+                            return (
+                              <li key={item.cardId}>
+                                {item.title}: {item.status}
+                                {item.rating ? ` / ${item.rating}/5` : proof ? ` / ${proof.rating}/5` : ''}
+                                {item.completedAt ? ` / ${formatCalendarStatusDate(item.completedAt)}` : ''}
+                              </li>
+                            )
+                          })}
+                        </ul>
                       </div>
                     ) : null}
                     {levelUpProof ? (
@@ -1987,6 +2114,18 @@ function buildAssignmentProofMap(levelUpSessions: LevelUpSession[]) {
     if (!existing || Date.parse(session.completedAt) > Date.parse(existing.completedAt)) {
       proofByAssignmentId.set(session.assignmentId, session)
     }
+  }
+
+  return proofByAssignmentId
+}
+
+function buildAssignmentProofListMap(levelUpSessions: LevelUpSession[]) {
+  const proofByAssignmentId = new Map<string, LevelUpSession[]>()
+
+  for (const session of levelUpSessions) {
+    if (!session.assignmentId) continue
+    const current = proofByAssignmentId.get(session.assignmentId) ?? []
+    proofByAssignmentId.set(session.assignmentId, [...current, session].sort((left, right) => Date.parse(right.completedAt) - Date.parse(left.completedAt)))
   }
 
   return proofByAssignmentId

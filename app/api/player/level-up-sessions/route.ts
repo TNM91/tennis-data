@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import {
-  buildPlayerAssignmentCompletion,
+  buildPlayerAssignmentPackCardCompletion,
   mapCoachAssignmentRow,
   type CoachAssignmentRow,
 } from '@/lib/coach-storage'
@@ -104,6 +104,10 @@ export async function POST(request: Request) {
 
   if (accessMode === 'coach_invited' && payload.assignment_id && link) {
     await completeLinkedAssignment(client, payload.assignment_id, link.id, {
+      cardId: payload.focus_id,
+      levelUpSessionId: payload.id,
+      rating: payload.rating,
+      completedAt: payload.completed_at,
       recap: `${payload.focus_title}: ${payload.drill_title} (${payload.rating}/5, ${payload.feeling}, ${formatClock(payload.elapsed_seconds)})${payload.note ? ` - ${payload.note}` : ''}`,
       evidence: 'Level Up training log',
     })
@@ -168,7 +172,7 @@ async function completeLinkedAssignment(
   client: SupabaseClient,
   assignmentId: string,
   studentLinkId: string,
-  input: { recap: string; evidence: string },
+  input: { cardId: string; levelUpSessionId: string; rating: number; completedAt: string; recap: string; evidence: string },
 ) {
   const { data: existingData } = await client
     .from('coach_assignments')
@@ -182,12 +186,14 @@ async function completeLinkedAssignment(
   const existing = mapCoachAssignmentRow(existingData as CoachAssignmentRow)
   if (existing.status === 'archived') return
 
-  const nextAssignmentJson = buildPlayerAssignmentCompletion(existing.assignment, input)
+  const packCompletion = buildPlayerAssignmentPackCardCompletion(existing.assignment, input)
+  if (!packCompletion.updatedCardId) return
+
   await client
     .from('coach_assignments')
     .update({
-      status: 'completed',
-      assignment_json: nextAssignmentJson,
+      status: packCompletion.complete ? 'completed' : 'assigned',
+      assignment_json: packCompletion.assignment,
       updated_at: new Date().toISOString(),
     })
     .eq('id', assignmentId)
