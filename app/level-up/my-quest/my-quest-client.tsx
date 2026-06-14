@@ -1164,6 +1164,20 @@ export default function MyQuestClient() {
             placeholder="One line from today"
           />
         </label>
+        <label className={styles.mobileIpaQuick}>
+          <span>IPA quick log</span>
+          <div>
+            <button type="button" onClick={() => void adjustIpa(-1)} aria-label="Decrease IPA count from today focus">-</button>
+            <input
+              value={ipaInput}
+              inputMode="numeric"
+              onChange={(event) => setIpaInput(event.target.value)}
+              onBlur={() => void saveDailyTrackers()}
+              aria-label="IPA count from today focus"
+            />
+            <button type="button" onClick={() => void adjustIpa(1)} aria-label="Increase IPA count from today focus">+</button>
+          </div>
+        </label>
         <div>
           <button type="button" onClick={() => todayFocusQuest ? void toggleQuest(todayFocusQuest) : undefined} disabled={!todayFocusQuest || Boolean(pendingQuest)}>
             {todayFocusQuest ? `Bank +${todayFocusQuest.xp}` : 'Done'}
