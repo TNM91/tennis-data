@@ -7,6 +7,8 @@ import {
   assignmentNeedsCoachReview,
   getCoachAssignmentReview,
   getCoachAssignmentDueState,
+  getCoachAssignmentPack,
+  getCoachAssignmentPackProgress,
   getCoachAssignmentSummary,
   getPlayerAssignmentCheckIn,
   mapCoachAssignmentRow,
@@ -318,6 +320,85 @@ describe('coach storage helpers', () => {
       tracker: [],
       expectedEvidence: '',
     })
+  })
+
+  it('reads Level Up assignment packs and folds them into player-facing summaries', () => {
+    const assignment = {
+      levelUpPack: {
+        id: 'doubles-readiness',
+        title: 'Doubles Readiness',
+        focus: 'Partner first move and poach timing',
+        items: [
+          {
+            cardId: 'partner-first-move-call',
+            title: 'Partner First Move Call',
+            proof: 'Call the first move before four points.',
+            status: 'completed',
+          },
+          {
+            cardId: 'poach-timing-shadow',
+            title: 'Poach Timing Shadow',
+            proof: 'Log three poach timing reads.',
+            status: 'assigned',
+          },
+        ],
+      },
+    }
+
+    expect(getCoachAssignmentPack(assignment)).toMatchObject({
+      id: 'doubles-readiness',
+      title: 'Doubles Readiness',
+      items: [
+        { cardId: 'partner-first-move-call', status: 'completed' },
+        { cardId: 'poach-timing-shadow', status: 'assigned' },
+      ],
+    })
+    expect(getCoachAssignmentPackProgress(assignment)).toMatchObject({
+      total: 2,
+      completed: 1,
+      open: 1,
+      percent: 50,
+      label: '1/2 complete',
+    })
+    expect(getCoachAssignmentSummary(assignment)).toMatchObject({
+      detail: 'Complete Doubles Readiness: Partner first move and poach timing',
+      expectedEvidence: '2 Level Up cards completed with proof.',
+      tracker: ['Partner First Move Call: Call the first move before four points.', 'Poach Timing Shadow: Log three poach timing reads.'],
+    })
+  })
+
+  it('marks Level Up pack items complete when the player completes the coach assignment', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-06T12:00:00.000Z'))
+
+    const completed = buildPlayerAssignmentCompletion(
+      {
+        levelUpPack: {
+          id: 'match-day-routine',
+          title: 'Match-Day Routine',
+          focus: 'Warm-up and debrief',
+          items: [
+            { cardId: 'five-minute-match-primer', title: 'Five Minute Match Primer', proof: 'Primer completed.', status: 'started' },
+            { cardId: 'post-match-five-minute-debrief', title: 'Post-Match Debrief', proof: 'Debrief note.', status: 'assigned' },
+          ],
+        },
+      },
+      { recap: 'Pack done.', evidence: 'Level Up log' },
+    )
+
+    expect(getCoachAssignmentPackProgress(completed)).toMatchObject({
+      total: 2,
+      completed: 2,
+      open: 0,
+      percent: 100,
+      label: '2/2 complete',
+    })
+    expect(getPlayerAssignmentCheckIn(completed)).toMatchObject({
+      recap: 'Pack done.',
+      evidence: 'Level Up log',
+    })
+
+    vi.useRealTimers()
   })
 
   it('keeps coach assignment, player proof, and coach review connected for Level Up work', () => {

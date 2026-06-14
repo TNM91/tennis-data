@@ -20,6 +20,8 @@ import {
   getPlayerAssignmentCheckIn,
   sortCoachAssignmentsForReview,
   type CoachAssignment,
+  type CoachAssignmentPack,
+  type CoachAssignmentStatus,
   type CoachStudentLink,
 } from '@/lib/coach-storage'
 import {
@@ -153,6 +155,7 @@ function CoachContent() {
   const [assignmentPresetId, setAssignmentPresetId] = useState('')
   const [assignmentStarterId, setAssignmentStarterId] = useState('')
   const [assignmentLevelUpCardId, setAssignmentLevelUpCardId] = useState('')
+  const [assignmentLevelUpPackId, setAssignmentLevelUpPackId] = useState('')
   const [contactStudentId, setContactStudentId] = useState('')
   const [lessonDateTime, setLessonDateTime] = useState('')
   const [lessonFocus, setLessonFocus] = useState('')
@@ -334,9 +337,10 @@ function CoachContent() {
     }
   }
 
-  async function handleCreateAssignment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!session?.access_token || !assignmentStudentId || !assignmentTitle.trim()) return
+  async function saveCoachAssignment(status: CoachAssignmentStatus, handoffPack?: CoachLevelUpHandoffPack) {
+    const effectiveTitle = handoffPack?.assignmentTitle ?? assignmentTitle
+    const effectiveFocus = handoffPack?.focus ?? assignmentFocus
+    if (!session?.access_token || !assignmentStudentId || !effectiveTitle.trim()) return
 
     const customAssignmentTemplate = assignmentTemplateId === CUSTOM_ASSIGNMENT_TEMPLATE_ID
     const template = customAssignmentTemplate ? null : getCoachAssignmentTemplate(assignmentTemplateId)
@@ -344,12 +348,19 @@ function CoachContent() {
     const starterAssignment = assignmentStarterId
       ? FIRST_ASSIGNMENT_STARTERS.find((starter) => starter.id === assignmentStarterId) ?? null
       : null
-    const levelUpCard = assignmentLevelUpCardId
-      ? LEVEL_UP_CARDS.find((card) => card.id === assignmentLevelUpCardId) ?? null
+    const levelUpAssignmentPack = handoffPack
+      ? buildCoachLevelUpAssignmentPack(handoffPack)
+      : assignmentLevelUpPackId
+        ? buildCoachLevelUpAssignmentPack(buildCoachLevelUpHandoffPack(assignmentLevelUpPackId, assignmentLevelUpCardId))
+        : null
+    const primaryPackCardId = levelUpAssignmentPack?.items[0]?.cardId ?? ''
+    const exactLevelUpCardId = primaryPackCardId || assignmentLevelUpCardId
+    const levelUpCard = exactLevelUpCardId
+      ? LEVEL_UP_CARDS.find((card) => card.id === exactLevelUpCardId) ?? null
       : buildCoachLevelUpAssignmentCards(
           savedStudents.find((student) => student.id === assignmentStudentId) ?? null,
-          assignmentTitle,
-          assignmentFocus,
+          effectiveTitle,
+          effectiveFocus,
           assignmentTemplateId,
           assignmentStarterId,
         )[0] ?? null
@@ -373,13 +384,15 @@ function CoachContent() {
         body: JSON.stringify({
           assignment: {
             studentLinkId: assignmentStudentId,
-            title: assignmentTitle,
-            focus: assignmentFocus,
+            title: effectiveTitle,
+            focus: effectiveFocus,
             dueDate: assignmentDueDate,
-            status: 'assigned',
+            status,
             assignment: {
               templateId: presetAssignment ? assignmentPresetId : template?.id ?? CUSTOM_ASSIGNMENT_TEMPLATE_ID,
-              detail: presetAssignment?.detail ?? template?.detail ?? (assignmentFocus || assignmentTitle),
+              detail: levelUpAssignmentPack
+                ? `Complete ${levelUpAssignmentPack.title}: ${levelUpAssignmentPack.focus}`
+                : presetAssignment?.detail ?? template?.detail ?? (effectiveFocus || effectiveTitle),
               ...(template?.assignment ?? {
                 tracker: ['Coach-defined target', 'Player proof returned', 'Next focus chosen'],
                 playerPlusPrompt: 'Log what changed and what needs the next rep.',
@@ -409,16 +422,33 @@ function CoachContent() {
                     portalHref: `/player-development/${savedStudents.find((student) => student.id === assignmentStudentId)?.identitySlug ?? 'relentless-competitor-4-0'}/level-up?card=${levelUpCard.id}`,
                   }
                 : {}),
+              ...(levelUpAssignmentPack
+                ? {
+                    levelUpPackId: levelUpAssignmentPack.id,
+                    levelUpPackTitle: levelUpAssignmentPack.title,
+                    levelUpPack: levelUpAssignmentPack,
+                    tracker: levelUpAssignmentPack.items.map((item) => item.proof).filter(Boolean).slice(0, 4),
+                    expectedEvidence: `${levelUpAssignmentPack.items.length} Level Up cards completed with proof.`,
+                    playerPlusPrompt: 'Complete the assigned pack, send one recap, and name the next focus.',
+                    sourcePack: 'coach-level-up-handoff',
+                  }
+                : {}),
               ...(normalizedLessonDateTime
                   ? {
                     lessonDateTime: normalizedLessonDateTime,
-                    lessonFocus: normalizedLessonFocus || assignmentFocus || assignmentTitle,
+                    lessonFocus: normalizedLessonFocus || effectiveFocus || effectiveTitle,
                     lessonLocation: normalizedLessonLocation,
                     calendarLayer: 'coach_student_lesson',
                   }
                 : {}),
               source: 'coach-portal',
-              createdFrom: starterAssignment ? 'first-assignment-starter' : presetAssignment ? 'session-preset' : 'one-hour-lesson-frame',
+              createdFrom: levelUpAssignmentPack
+                ? 'level-up-pack-handoff'
+                : starterAssignment
+                  ? 'first-assignment-starter'
+                  : presetAssignment
+                    ? 'session-preset'
+                    : 'one-hour-lesson-frame',
             },
           },
         }),
@@ -431,7 +461,7 @@ function CoachContent() {
 
       const savedAssignment = json.assignment as CoachAssignment
       setAssignments((current) => [savedAssignment, ...current.filter((assignment) => assignment.id !== savedAssignment.id)])
-      setLastCreatedAssignment(savedAssignment)
+      setLastCreatedAssignment(status === 'assigned' ? savedAssignment : null)
       setContactStudentId(savedAssignment.studentLinkId)
       setAssignmentTitle('')
       setAssignmentFocus('')
@@ -439,13 +469,23 @@ function CoachContent() {
       setAssignmentPresetId('')
       setAssignmentStarterId('')
       setAssignmentLevelUpCardId('')
+      setAssignmentLevelUpPackId('')
       setLessonLocation('')
-      setWorkspaceMessage('Assignment created. Send it now so the player knows exactly what to do next.')
+      setWorkspaceMessage(
+        status === 'draft'
+          ? 'Level Up pack draft saved. Review it in Coach Hub, then assign it when the player is ready.'
+          : 'Assignment created. Send it now so the player knows exactly what to do next.',
+      )
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not create assignment.')
     } finally {
       setWorkspaceLoading(false)
     }
+  }
+
+  async function handleCreateAssignment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await saveCoachAssignment('assigned')
   }
 
   async function createInvite(studentLinkId: string, email: string) {
@@ -561,6 +601,7 @@ function CoachContent() {
       setAssignmentPresetId('')
       setAssignmentStarterId('')
       setAssignmentLevelUpCardId('')
+      setAssignmentLevelUpPackId('')
       return
     }
 
@@ -571,6 +612,7 @@ function CoachContent() {
     setAssignmentPresetId('')
     setAssignmentStarterId('')
     setAssignmentLevelUpCardId(getCoachAssignmentShortcutCardId(`${template.id} ${template.title} ${template.focus}`))
+    setAssignmentLevelUpPackId('')
   }
 
   function useSessionPresetForAssignment() {
@@ -580,6 +622,7 @@ function CoachContent() {
     setAssignmentPresetId(sessionPresetId)
     setAssignmentStarterId('')
     setAssignmentLevelUpCardId(getCoachAssignmentShortcutCardId(`${presetAssignment.title} ${presetAssignment.focus} ${presetAssignment.detail}`))
+    setAssignmentLevelUpPackId('')
     setWorkspaceMessage('Session preset loaded into the assignment form. Choose a student and due date, then create the Level Up follow-through.')
   }
 
@@ -592,6 +635,7 @@ function CoachContent() {
     setAssignmentPresetId('')
     setAssignmentStarterId(starter.id)
     setAssignmentLevelUpCardId(getFirstAssignmentStarterCardId(starter.id))
+    setAssignmentLevelUpPackId('')
     setWorkspaceMessage(`${starter.title} loaded. Expected evidence: ${starter.evidence}`)
   }
 
@@ -608,6 +652,7 @@ function CoachContent() {
     setAssignmentPresetId('')
     setAssignmentStarterId('')
     setAssignmentLevelUpCardId(nextCardId)
+    setAssignmentLevelUpPackId('')
     setWorkspaceMessage(`Next assignment loaded from ${session.drillTitle}: ${draft.nextMove.label}. Create it when it fits the player.`)
 
     if (!nextCard) {
@@ -678,6 +723,10 @@ function CoachContent() {
     () => (selectedLevelUpAssignmentCard ? findLevelUpModuleForCard(selectedLevelUpAssignmentCard) : null),
     [selectedLevelUpAssignmentCard],
   )
+  const selectedLevelUpAssignmentPack = useMemo(
+    () => (assignmentLevelUpPackId ? buildCoachLevelUpHandoffPack(assignmentLevelUpPackId, assignmentLevelUpCardId) : null),
+    [assignmentLevelUpCardId, assignmentLevelUpPackId],
+  )
   const levelUpHandoffPack = useMemo(
     () => buildCoachLevelUpHandoffPack(searchParams.get('levelUpPack') || '', searchParams.get('card') || ''),
     [searchParams],
@@ -745,9 +794,20 @@ function CoachContent() {
     setAssignmentTemplateId(CUSTOM_ASSIGNMENT_TEMPLATE_ID)
     setAssignmentPresetId('')
     setAssignmentStarterId('')
+    setAssignmentLevelUpPackId(pack.id)
     setAssignmentLevelUpCardId(primaryCard?.id ?? '')
     setLessonFocus(pack.focus)
     setWorkspaceMessage(`${pack.title} loaded into the coach assignment form.`)
+  }
+
+  async function saveLevelUpHandoffPackDraft(pack: CoachLevelUpHandoffPack) {
+    if (!assignmentStudentId) {
+      loadLevelUpHandoffPack(pack)
+      setWorkspaceMessage(`${pack.title} loaded. Choose a student, then save the draft assignment.`)
+      return
+    }
+
+    await saveCoachAssignment('draft', pack)
   }
 
   if (!authResolved || role === 'public') return null
@@ -829,6 +889,14 @@ function CoachContent() {
           <div style={studentActionRowStyle}>
             <button type="button" onClick={() => loadLevelUpHandoffPack(levelUpHandoffPack)} style={smallPrimaryButtonStyle}>
               Load into assignment form
+            </button>
+            <button
+              type="button"
+              onClick={() => void saveLevelUpHandoffPackDraft(levelUpHandoffPack)}
+              disabled={workspaceLoading}
+              style={smallGhostButtonStyle}
+            >
+              Save draft assignment
             </button>
             <a href="#coach-lesson-frame" style={smallGhostLinkStyle}>Jump to lesson frame</a>
           </div>
@@ -1158,6 +1226,12 @@ function CoachContent() {
                   <span>
                     Portal match: {selectedLevelUpAssignmentModule?.title ?? 'Single card'} / Proof: {selectedLevelUpAssignmentCard.proof}
                   </span>
+                </div>
+              ) : null}
+              {selectedLevelUpAssignmentPack ? (
+                <div style={levelUpAssignmentPreviewStyle}>
+                  <strong>Coach assigned pack: {selectedLevelUpAssignmentPack.title}</strong>
+                  <span>{selectedLevelUpAssignmentPack.cardIds.length} linked cards will appear as one My Lab assignment queue.</span>
                 </div>
               ) : null}
             </div>
@@ -1764,11 +1838,35 @@ function buildCoachLevelUpHandoffPack(packId: string, requestedCardId: string): 
   const pack = COACH_LEVEL_UP_HANDOFF_PACKS.find((item) => item.id === packId)
   if (!pack) return null
 
-  if (!requestedCardId || pack.cardIds.includes(requestedCardId)) return pack
+  if (!requestedCardId) return pack
 
   return {
     ...pack,
     cardIds: [requestedCardId, ...pack.cardIds.filter((cardId) => cardId !== requestedCardId)],
+  }
+}
+
+function buildCoachLevelUpAssignmentPack(pack: CoachLevelUpHandoffPack | null): CoachAssignmentPack | null {
+  if (!pack) return null
+
+  const items = uniqueLevelUpCards(
+    pack.cardIds
+      .map((cardId) => LEVEL_UP_CARDS.find((card) => card.id === cardId))
+      .filter((card): card is LevelUpCard => Boolean(card)),
+  ).map((card) => ({
+    cardId: card.id,
+    title: card.title,
+    proof: card.proof,
+    status: 'assigned' as const,
+  }))
+
+  if (!items.length) return null
+
+  return {
+    id: pack.id,
+    title: pack.title,
+    focus: pack.focus,
+    items,
   }
 }
 

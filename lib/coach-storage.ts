@@ -1,5 +1,6 @@
 export type CoachStudentStatus = 'active' | 'needs_assignment' | 'review_notes' | 'paused'
 export type CoachAssignmentStatus = 'draft' | 'assigned' | 'completed' | 'archived'
+export type CoachAssignmentPackItemStatus = 'assigned' | 'started' | 'completed' | 'skipped'
 export type CoachContactPreference = 'in_app' | 'text' | 'both'
 export type CoachStudentSetupStatus = 'manual' | 'invited' | 'linked'
 
@@ -29,6 +30,30 @@ export type CoachAssignment = {
   status: CoachAssignmentStatus
   assignment: Record<string, unknown>
   updatedAt: string
+}
+
+export type CoachAssignmentPackItem = {
+  cardId: string
+  title: string
+  proof: string
+  status: CoachAssignmentPackItemStatus
+}
+
+export type CoachAssignmentPack = {
+  id: string
+  title: string
+  focus: string
+  items: CoachAssignmentPackItem[]
+}
+
+export type CoachAssignmentPackProgress = {
+  pack: CoachAssignmentPack
+  total: number
+  completed: number
+  started: number
+  open: number
+  percent: number
+  label: string
 }
 
 export type CoachStudentLinkRow = {
@@ -131,6 +156,12 @@ export function normalizeCoachAssignmentStatus(value: unknown): CoachAssignmentS
     : 'draft'
 }
 
+export function normalizeCoachAssignmentPackItemStatus(value: unknown): CoachAssignmentPackItemStatus {
+  return value === 'started' || value === 'completed' || value === 'skipped' || value === 'assigned'
+    ? value
+    : 'assigned'
+}
+
 export function normalizeCoachContactPreference(value: unknown): CoachContactPreference {
   return value === 'text' || value === 'both' || value === 'in_app' ? value : 'in_app'
 }
@@ -221,9 +252,21 @@ export function buildPlayerAssignmentCompletion(
 ) {
   const recap = clampText(input.recap, 700)
   const evidence = clampText(input.evidence, 300)
+  const pack = getCoachAssignmentPack(existingAssignment)
 
   return {
     ...existingAssignment,
+    ...(pack
+      ? {
+          levelUpPack: {
+            ...pack,
+            items: pack.items.map((item) => ({
+              ...item,
+              status: item.status === 'skipped' ? item.status : 'completed',
+            })),
+          },
+        }
+      : {}),
     playerCheckIn: {
       recap,
       evidence,
@@ -320,6 +363,7 @@ export function getCoachAssignmentDueState(dueDate: string | null | undefined, n
 export function getCoachAssignmentSummary(assignment: Record<string, unknown>): CoachAssignmentSummary {
   const reps = numberOrNull(assignment.reps)
   const sets = numberOrNull(assignment.sets)
+  const pack = getCoachAssignmentPack(assignment)
   const detail = stringOrEmpty(assignment.detail).trim()
   const prompt = stringOrEmpty(assignment.playerPlusPrompt).trim()
   const expectedEvidence = stringOrEmpty(assignment.expectedEvidence).trim()
@@ -328,11 +372,61 @@ export function getCoachAssignmentSummary(assignment: Record<string, unknown>): 
     : []
 
   return {
-    detail,
+    detail: detail || (pack ? `Complete ${pack.title}: ${pack.focus}` : ''),
     volume: reps ? `${reps} reps` : sets ? `${sets} sets` : '',
-    tracker,
-    prompt,
-    expectedEvidence,
+    tracker: tracker.length ? tracker : pack?.items.map((item) => `${item.title}: ${item.proof}`).slice(0, 4) ?? [],
+    prompt: prompt || (pack ? 'Complete the assigned pack, send one recap, and name the next focus.' : ''),
+    expectedEvidence: expectedEvidence || (pack ? `${pack.items.length} Level Up cards completed with proof.` : ''),
+  }
+}
+
+export function getCoachAssignmentPack(assignment: Record<string, unknown>): CoachAssignmentPack | null {
+  const rawPack = assignment.levelUpPack
+  if (!isPlainRecord(rawPack)) return null
+
+  const id = stringOrEmpty(rawPack.id).trim()
+  const title = stringOrEmpty(rawPack.title).trim()
+  const focus = stringOrEmpty(rawPack.focus).trim()
+  const items = Array.isArray(rawPack.items)
+    ? rawPack.items
+        .filter(isPlainRecord)
+        .map((item) => ({
+          cardId: stringOrEmpty(item.cardId).trim(),
+          title: stringOrEmpty(item.title).trim(),
+          proof: stringOrEmpty(item.proof).trim(),
+          status: normalizeCoachAssignmentPackItemStatus(item.status),
+        }))
+        .filter((item) => item.cardId && item.title)
+    : []
+
+  if (!id || !title || !items.length) return null
+
+  return {
+    id,
+    title,
+    focus,
+    items,
+  }
+}
+
+export function getCoachAssignmentPackProgress(assignment: Record<string, unknown>): CoachAssignmentPackProgress | null {
+  const pack = getCoachAssignmentPack(assignment)
+  if (!pack) return null
+
+  const total = pack.items.length
+  const completed = pack.items.filter((item) => item.status === 'completed' || item.status === 'skipped').length
+  const started = pack.items.filter((item) => item.status === 'started').length
+  const open = Math.max(0, total - completed)
+  const percent = total ? Math.round((completed / total) * 100) : 0
+
+  return {
+    pack,
+    total,
+    completed,
+    started,
+    open,
+    percent,
+    label: `${completed}/${total} complete`,
   }
 }
 

@@ -55,10 +55,13 @@ import type { LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   getCoachAssignmentDueState,
+  getCoachAssignmentPack,
+  getCoachAssignmentPackProgress,
   getCoachAssignmentReview,
   getCoachAssignmentSummary,
   sortPlayerAssignmentsForAction,
   type CoachAssignment,
+  type CoachAssignmentPackItemStatus,
   type CoachStudentLink,
 } from '@/lib/coach-storage'
 import { buildCoachStudentCalendarEvents } from '@/lib/coach-calendar'
@@ -4803,6 +4806,7 @@ function PlayerCoachAssignmentsPanel({
   const nextAssignment = openAssignments[0] ?? sortedAssignments[0] ?? null
   const nextDueState = nextAssignment ? getCoachAssignmentDueState(nextAssignment.dueDate) : null
   const nextAssignmentSummary = nextAssignment ? getCoachAssignmentSummary(nextAssignment.assignment) : null
+  const nextPackProgress = nextAssignment ? getCoachAssignmentPackProgress(nextAssignment.assignment) : null
   const nextCoachReview = nextAssignment ? getCoachAssignmentReview(nextAssignment.assignment) : null
   const nextAssignmentActionPlan = nextAssignment
     ? buildPlayerAssignmentActionPlan(nextAssignment, nextAssignmentSummary, nextDueState?.label ?? '')
@@ -5009,6 +5013,17 @@ function PlayerCoachAssignmentsPanel({
             {nextCoachReview?.nextFocus ? (
               <em>Coach next focus: {nextCoachReview.nextFocus}</em>
             ) : null}
+            {nextPackProgress ? (
+              <div style={coachAssignmentPackProgressStyle}>
+                <div style={coachAssignmentPackHeaderStyle}>
+                  <strong>Assigned to me pack</strong>
+                  <span>{nextPackProgress.label}</span>
+                </div>
+                <div style={coachAssignmentPackBarTrackStyle}>
+                  <span style={coachAssignmentPackBarFillStyle(nextPackProgress.percent)} />
+                </div>
+              </div>
+            ) : null}
             {nextAssignmentActionPlan.length ? (
               <div style={coachAssignmentActionPlanStyle}>
                 {nextAssignmentActionPlan.map((item) => (
@@ -5067,6 +5082,7 @@ function PlayerCoachAssignmentsPanel({
             const link = coachLinkMap.get(assignment.studentLinkId)
             const coachReview = getCoachAssignmentReview(assignment.assignment)
             const assignmentSummary = getCoachAssignmentSummary(assignment.assignment)
+            const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
             const dueState = getCoachAssignmentDueState(assignment.dueDate)
             const assignmentActionPlan = buildPlayerAssignmentActionPlan(assignment, assignmentSummary, dueState.label)
             const checkInDraft = buildPlayerAssignmentCheckInDraft(assignment, assignmentSummary, dueState.label)
@@ -5104,6 +5120,25 @@ function PlayerCoachAssignmentsPanel({
                     >
                       Message coach
                     </Link>
+                  </div>
+                ) : null}
+                {packProgress ? (
+                  <div style={coachAssignmentPackProgressStyle}>
+                    <div style={coachAssignmentPackHeaderStyle}>
+                      <strong>Coach assigned pack</strong>
+                      <span>{packProgress.label}</span>
+                    </div>
+                    <div style={coachAssignmentPackBarTrackStyle}>
+                      <span style={coachAssignmentPackBarFillStyle(packProgress.percent)} />
+                    </div>
+                    <div style={coachAssignmentPackItemGridStyle}>
+                      {packProgress.pack.items.slice(0, 4).map((item) => (
+                        <span key={item.cardId} style={coachAssignmentPackItemStyle(item.status)}>
+                          <strong>{item.title}</strong>
+                          <em>{item.proof}</em>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
                 {assignmentSummary.detail || assignmentSummary.volume || assignmentSummary.tracker.length || assignmentSummary.prompt || assignmentSummary.expectedEvidence ? (
@@ -5364,10 +5399,16 @@ function toWebcalUrl(value: string) {
 }
 
 function getAssignmentLevelUpCardId(assignment: CoachAssignment) {
-  const cardId = typeof assignment.assignment.cardId === 'string' ? assignment.assignment.cardId.trim() : ''
-  if (!cardId) return ''
+  const pack = getCoachAssignmentPack(assignment.assignment)
+  const packCardId = pack
+    ? pack.items.find((item) => item.status !== 'completed' && item.status !== 'skipped')?.cardId ?? pack.items[0]?.cardId ?? ''
+    : ''
+  if (packCardId && LEVEL_UP_CARDS.some((card) => card.id === packCardId)) return packCardId
 
-  return LEVEL_UP_CARDS.some((card) => card.id === cardId) ? cardId : ''
+  const cardId = typeof assignment.assignment.cardId === 'string' ? assignment.assignment.cardId.trim() : ''
+  if (cardId && LEVEL_UP_CARDS.some((card) => card.id === cardId)) return cardId
+
+  return ''
 }
 
 function inferAssignmentLevelUpWorkType(
@@ -5398,6 +5439,27 @@ function buildPlayerAssignmentActionPlan(
   summary: ReturnType<typeof getCoachAssignmentSummary> | null,
   dueLabel: string,
 ) {
+  const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
+  if (packProgress) {
+    const nextItem = packProgress.pack.items.find((item) => item.status !== 'completed' && item.status !== 'skipped') ?? packProgress.pack.items[0]
+    return [
+      {
+        label: 'Do',
+        value: `${packProgress.pack.title}: ${nextItem?.title ?? assignment.title}`,
+      },
+      {
+        label: 'Track',
+        value: nextItem?.proof || summary?.expectedEvidence || 'Complete each assigned card with proof.',
+      },
+      {
+        label: 'Send back',
+        value: dueLabel && dueLabel !== 'No due date'
+          ? `Send one recap when the pack is complete. ${dueLabel}.`
+          : 'Send one recap when the pack is complete.',
+      },
+    ]
+  }
+
   const trackerTarget = summary?.tracker[0] || summary?.volume || 'Complete the work exactly as assigned.'
   const proofTarget = summary?.expectedEvidence || summary?.tracker[1] || 'Record reps, score, success rate, or a short note from the session.'
   const coachTarget = summary?.prompt || 'Send your coach the result and one thing you want to sharpen next.'
@@ -6134,6 +6196,65 @@ const coachAssignmentMicroPlanStyle: CSSProperties = {
   color: '#31445f',
   fontSize: '.82rem',
   lineHeight: 1.4,
+}
+
+const coachAssignmentPackProgressStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, rgba(255,255,255,0.055) 92%)',
+  color: 'var(--foreground)',
+  minWidth: 0,
+}
+
+const coachAssignmentPackHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  alignItems: 'center',
+  color: 'var(--foreground)',
+  fontSize: '.84rem',
+  fontWeight: 900,
+}
+
+const coachAssignmentPackBarTrackStyle: CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
+  height: 8,
+  borderRadius: 999,
+  background: 'rgba(255,255,255,0.12)',
+}
+
+function coachAssignmentPackBarFillStyle(percent: number): CSSProperties {
+  return {
+    position: 'absolute',
+    inset: 0,
+    width: `${Math.max(0, Math.min(100, percent))}%`,
+    borderRadius: 999,
+    background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
+  }
+}
+
+const coachAssignmentPackItemGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+}
+
+function coachAssignmentPackItemStyle(status: CoachAssignmentPackItemStatus): CSSProperties {
+  const done = status === 'completed' || status === 'skipped'
+  return {
+    display: 'grid',
+    gap: 3,
+    padding: 9,
+    borderRadius: 12,
+    border: done ? '1px solid rgba(155,225,29,0.24)' : '1px solid rgba(116,190,255,0.14)',
+    background: done ? 'rgba(155,225,29,0.10)' : 'rgba(255,255,255,0.055)',
+    color: 'var(--shell-copy-muted)',
+    fontSize: '.78rem',
+    lineHeight: 1.35,
+  }
 }
 
 const coachFeedbackStyle: CSSProperties = {
