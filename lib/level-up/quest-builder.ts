@@ -1,5 +1,5 @@
 import { LEVEL_UP_CARDS } from './level-up-cards'
-import type { LevelUpHabitCategory, LevelUpQuestBuilderPlan, LevelUpQuestTemplate } from './level-up-types'
+import type { LevelUpHabitCategory, LevelUpHabitPath, LevelUpQuestBuilderPlan, LevelUpQuestTemplate } from './level-up-types'
 
 export const LEVEL_UP_QUEST_TEMPLATES: LevelUpQuestTemplate[] = [
   {
@@ -76,6 +76,53 @@ export const LEVEL_UP_QUEST_TEMPLATES: LevelUpQuestTemplate[] = [
   },
 ]
 
+export const LEVEL_UP_HABIT_PATHS: LevelUpHabitPath[] = [
+  {
+    id: 'new-player-rhythm',
+    label: 'Newer players',
+    title: 'Find the first repeatable rhythm',
+    playerLevel: 'Learning the game or returning after time away',
+    weeklyTarget: '3 short habits, 1 proof score each',
+    bestFor: 'Players who need simple wins before bigger tactics.',
+    linkedCardIds: ['split-step-rhythm', 'wall-rally-rhythm', 'dynamic-tennis-warm-up'],
+    habits: ['Start every session with ready feet.', 'Use one wall or shadow rhythm block.', 'Rate readiness before full swings.'],
+    proof: 'One clean timing score after each session.',
+  },
+  {
+    id: 'recreational-consistency',
+    label: 'Recreational players',
+    title: 'Build rallies that survive pressure',
+    playerLevel: '2.5-3.5 players building consistency',
+    weeklyTarget: '2 court habits, 1 recovery habit',
+    bestFor: 'Players who want fewer loose errors without overthinking.',
+    linkedCardIds: ['crosscourt-consistency', 'wide-ball-neutralizer', 'post-play-mobility-reset'],
+    habits: ['Build crosscourt before changing direction.', 'Neutralize wide balls before attacking.', 'Reset the body after play.'],
+    proof: 'Rally quality and recovery scored 0-5.',
+  },
+  {
+    id: 'competitive-point-start',
+    label: 'Competitive players',
+    title: 'Own the first two shots',
+    playerLevel: '3.5-4.5 players chasing sharper point starts',
+    weeklyTarget: '2 serve/return habits, 1 pressure habit',
+    bestFor: 'Players who need better starts, not more random reps.',
+    linkedCardIds: ['serve-target-call', 'return-depth-lane', '30-30-pressure-game'],
+    habits: ['Call the serve target before the motion.', 'Pick the return job before the toss.', 'Use one reset at 30-30.'],
+    proof: 'Point-start clarity, not make percentage.',
+  },
+  {
+    id: 'doubles-team-clarity',
+    label: 'Doubles and teams',
+    title: 'Make partner jobs visible',
+    playerLevel: 'Any level playing doubles or team tennis',
+    weeklyTarget: '2 communication habits, 1 match-day habit',
+    bestFor: 'Partners and captains who need shared language.',
+    linkedCardIds: ['partner-first-move-call', 'switch-call-drill', 'five-minute-match-primer'],
+    habits: ['Call the first move early.', 'Practice switch language before points.', 'Set one match-day job before warm-up.'],
+    proof: 'Partner could act on the call.',
+  },
+]
+
 export function buildLevelUpQuestBuilderPlan(identitySlug: string): LevelUpQuestBuilderPlan {
   const templates = LEVEL_UP_QUEST_TEMPLATES
     .map((template) => {
@@ -94,6 +141,22 @@ export function buildLevelUpQuestBuilderPlan(identitySlug: string): LevelUpQuest
     templates,
     categories: [...new Set(templates.map((template) => template.category))],
   }
+}
+
+export function buildLevelUpHabitPaths(identitySlug: string) {
+  return LEVEL_UP_HABIT_PATHS.map((path) => {
+    const linkedCards = path.linkedCardIds
+      .map((cardId) => LEVEL_UP_CARDS.find((card) => card.id === cardId))
+      .filter((card): card is NonNullable<typeof card> => Boolean(card))
+    const primaryCard = linkedCards.find((card) => card.identitySlugs?.includes(identitySlug)) ?? linkedCards[0] ?? null
+
+    return {
+      ...path,
+      linkedCards,
+      primaryCard,
+      drillHref: primaryCard ? `/level-up/${identitySlug}?card=${primaryCard.id}#level-up-flow` : `/level-up/${identitySlug}#quest-builder`,
+    }
+  })
 }
 
 export function formatHabitCategory(category: LevelUpHabitCategory) {

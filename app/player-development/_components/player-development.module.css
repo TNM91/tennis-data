@@ -378,6 +378,124 @@
   font-weight: 850;
 }
 
+.levelUpHabitPaths {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.09), transparent 34%),
+    rgba(5, 15, 30, 0.74);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(14px, 2.4vw, 22px);
+}
+
+.levelUpHabitPathGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpHabitPathGrid article {
+  display: grid;
+  align-content: start;
+  gap: 11px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 13px;
+}
+
+.levelUpHabitPathHeader {
+  display: grid;
+  gap: 7px;
+}
+
+.levelUpHabitPathHeader span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 6px 9px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpHabitPathHeader strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+  line-height: 1.14;
+}
+
+.levelUpHabitPathHeader p,
+.levelUpHabitPathGrid li,
+.levelUpHabitPathGrid small {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.levelUpHabitPathGrid dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.levelUpHabitPathGrid dl div {
+  border-radius: 11px;
+  background: rgba(5, 15, 30, 0.54);
+  padding: 8px;
+}
+
+.levelUpHabitPathGrid dt {
+  color: var(--brand-green-3);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpHabitPathGrid dd {
+  margin: 3px 0 0;
+  color: var(--foreground-strong);
+  font-size: 0.76rem;
+  font-weight: 850;
+  line-height: 1.24;
+}
+
+.levelUpHabitPathGrid ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 16px;
+}
+
+.levelUpHabitPathCards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.levelUpHabitPathCards small {
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--foreground);
+  padding: 5px 8px;
+  font-weight: 850;
+}
+
+.levelUpHabitPathGrid :global(.button-primary) {
+  min-height: 42px;
+  text-decoration: none;
+}
+
 .levelUpPortalHeader {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -12416,6 +12534,7 @@
   .levelUpCardRail,
   .levelUpModuleRail,
   .levelUpLibraryGrid,
+  .levelUpHabitPathGrid,
   .levelUpQuestBuilderFlow,
   .levelUpQuestTemplateGrid,
   .levelUpQuestSavePanel,
@@ -12622,6 +12741,7 @@
   .levelUpIdentityStrip,
   .levelUpPortalHeader,
   .levelUpQuestPackPreviewGrid,
+  .levelUpHabitPathGrid,
   .levelUpQuestBuilderHeader,
   .levelUpPortalLanes,
   .levelUpCardRail,

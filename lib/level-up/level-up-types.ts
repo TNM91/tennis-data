@@ -196,3 +196,15 @@ export type LevelUpQuestBuilderPlan = {
   }>
   categories: LevelUpHabitCategory[]
 }
+
+export type LevelUpHabitPath = {
+  id: string
+  label: string
+  title: string
+  playerLevel: string
+  weeklyTarget: string
+  bestFor: string
+  linkedCardIds: string[]
+  habits: string[]
+  proof: string
+}

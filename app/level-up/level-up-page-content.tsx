@@ -6,7 +6,7 @@ import PlayerLiveWorkbench from '@/app/player-development/_components/player-liv
 import styles from '@/app/player-development/_components/player-development.module.css'
 import { LEVEL_UP_CARDS, LEVEL_UP_MODULES, getRecommendedLevelUpCards } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard } from '@/lib/level-up/level-up-types'
-import { buildLevelUpQuestBuilderPlan, formatHabitCategory } from '@/lib/level-up/quest-builder'
+import { buildLevelUpHabitPaths, buildLevelUpQuestBuilderPlan, formatHabitCategory } from '@/lib/level-up/quest-builder'
 import { PLAYER_DEVELOPMENT_IDENTITIES, type PlayerDevelopmentIdentity } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
 import QuestBuilderClient from './quest-builder-client'
@@ -20,6 +20,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   const libraryPacks = [...new Set(LEVEL_UP_CARDS.map((card) => card.pack))].slice(0, 8)
   const quickStartCards = recommendedCards.slice(0, 5)
   const questBuilder = buildLevelUpQuestBuilderPlan(identity.slug)
+  const habitPaths = buildLevelUpHabitPaths(identity.slug)
   const questBuilderCardOptions = LEVEL_UP_CARDS.map((card) => ({
     id: card.id,
     title: card.title,
@@ -226,6 +227,49 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                 <span>{lane.label}</span>
                 <strong>{lane.title}</strong>
                 <p>{lane.detail}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.levelUpHabitPaths} aria-labelledby="habit-paths-title">
+          <div className={styles.levelUpQuestPackPreviewHeader}>
+            <span>Habit paths</span>
+            <h2 id="habit-paths-title">Start from your tennis level, then attach the drill.</h2>
+            <p>These starter tracks keep Level Up useful for newer players, recreational players, competitive players, and doubles teams without changing the core habit loop.</p>
+          </div>
+          <div className={styles.levelUpHabitPathGrid}>
+            {habitPaths.map((path) => (
+              <article key={path.id}>
+                <div className={styles.levelUpHabitPathHeader}>
+                  <span>{path.label}</span>
+                  <strong>{path.title}</strong>
+                  <p>{path.playerLevel}</p>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Weekly target</dt>
+                    <dd>{path.weeklyTarget}</dd>
+                  </div>
+                  <div>
+                    <dt>Best for</dt>
+                    <dd>{path.bestFor}</dd>
+                  </div>
+                </dl>
+                <ul>
+                  {path.habits.map((habit) => (
+                    <li key={habit}>{habit}</li>
+                  ))}
+                </ul>
+                <div className={styles.levelUpHabitPathCards}>
+                  {path.linkedCards.slice(0, 3).map((card) => (
+                    <small key={card.id}>{card.title}</small>
+                  ))}
+                </div>
+                <small>Proof: {path.proof}</small>
+                <Link className="button-primary" href={path.drillHref}>
+                  Start path
+                </Link>
               </article>
             ))}
           </div>
