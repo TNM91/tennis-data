@@ -161,6 +161,7 @@ export default function MyQuestClient() {
   const [weeklyReview, setWeeklyReview] = useState<WeeklyReview | null>(null)
   const [photos, setPhotos] = useState<PhotoPreview[]>([])
   const [mode, setMode] = useState<PersonalQuestMode>(() => new Date().getHours() < 15 ? 'morning' : 'evening')
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours())
   const [ipaInput, setIpaInput] = useState('0')
   const [notesInput, setNotesInput] = useState('')
   const [repairIpaInput, setRepairIpaInput] = useState('0')
@@ -201,6 +202,11 @@ export default function MyQuestClient() {
   const weekStart = useMemo(() => getWeekStartKey(), [])
   const weekEnd = useMemo(() => getWeekEndKey(weekStart), [weekStart])
   const isSunday = useMemo(() => new Date(`${today}T00:00:00`).getDay() === 0, [today])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setCurrentHour(new Date().getHours()), 60_000)
+    return () => window.clearInterval(intervalId)
+  }, [])
 
   const stats = useMemo(
     () => buildPersonalQuestStats({ completions, logs, freezes: streakFreezes, today, weekStart }),
@@ -269,6 +275,14 @@ export default function MyQuestClient() {
     () => smartQuest.quest ?? PERSONAL_DAILY_QUESTS.find((quest) => !completedToday.has(quest.id)) ?? null,
     [completedToday, smartQuest.quest],
   )
+  const eveningCloseoutQuest = useMemo(() => {
+    if (currentHour < 18 || todayRemainingCount === 0) return null
+
+    const closeoutOrder: PersonalQuestId[] = ['no_food_after_8', 'alcohol_limit', 'core_workout', 'water_80_oz']
+    return closeoutOrder
+      .map((questId) => DAILY_QUEST_BY_ID.get(questId))
+      .find((quest) => quest && !completedToday.has(quest.id)) ?? todayFocusQuest
+  }, [completedToday, currentHour, todayFocusQuest, todayRemainingCount])
   const todayFocusProgress = Math.round((todayCompletedCount / PERSONAL_DAILY_QUESTS.length) * 100)
   const gamePlan = useMemo(
     () => buildPersonalQuestGamePlan({ completions, logs, today, weekStart, mode }),
@@ -359,6 +373,38 @@ export default function MyQuestClient() {
     [bossWarnings, dailyRecap, streakShield],
   )
   const mobilePocketPulse = useMemo<MobilePocketPulse>(() => {
+    const redWarning = bossWarnings.find((item) => item.tone === 'red')
+    if (redWarning) {
+      return {
+        tone: redWarning.tone,
+        label: 'Boss pulse',
+        title: redWarning.title,
+        detail: redWarning.message,
+        reason: 'Why today: this protects weekly boss XP before Sunday review.',
+        cta: redWarning.cta,
+        sectionId: 'weekly-bosses',
+      }
+    }
+
+    if (eveningCloseoutQuest) {
+      const closeoutDetail = eveningCloseoutQuest.id === 'alcohol_limit'
+        ? 'Log IPAs, close the limit, and keep the weekly boss honest.'
+        : eveningCloseoutQuest.id === 'no_food_after_8'
+          ? 'Kitchen closed is the cleanest late-day XP left.'
+          : `${eveningCloseoutQuest.shortTitle} is the fastest board save.`
+
+      return {
+        tone: 'amber',
+        label: 'Evening closeout',
+        title: eveningCloseoutQuest.shortTitle,
+        detail: closeoutDetail,
+        reason: `Why today: bank +${eveningCloseoutQuest.xp} XP before the day resets.`,
+        cta: `Bank +${eveningCloseoutQuest.xp}`,
+        quest: eveningCloseoutQuest,
+        sectionId: 'lock-screen',
+      }
+    }
+
     const warning = bossWarnings.find((item) => item.tone !== 'green')
     if (warning) {
       return {
@@ -394,7 +440,7 @@ export default function MyQuestClient() {
       cta: 'Review',
       sectionId: 'daily-recap',
     }
-  }, [bossWarnings, coachNote.detail, coachNote.title, recapToast.detail, recapToast.title, recapToast.tone, stats.currentStreak, todayFocusQuest, todayRemainingCount])
+  }, [bossWarnings, coachNote.detail, coachNote.title, eveningCloseoutQuest, recapToast.detail, recapToast.title, recapToast.tone, stats.currentStreak, todayFocusQuest, todayRemainingCount])
   const dayCompleteSummary = useMemo(() => {
     const ipaCount = clampInt(ipaInput, 0, 30)
 
