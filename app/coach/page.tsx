@@ -1618,6 +1618,7 @@ function CoachContent() {
                 const student = savedStudents.find((candidate) => candidate.id === assignment.studentLinkId)
                 const levelUpProof = assignmentProofById.get(assignment.id)
                 const levelUpProofs = assignmentProofsById.get(assignment.id) ?? []
+                const levelUpVisibilitySteps = buildCoachAssignmentVisibilitySteps(assignment, levelUpProof, levelUpProofs)
                 const reviewReady = Boolean(playerCheckIn || levelUpProof)
                 const proofReviewDraft = levelUpProof ? buildLevelUpProofReviewDraft(levelUpProof, assignment) : null
                 const lessonDateTime = getAssignmentLessonDateTime(assignment.assignment)
@@ -1632,6 +1633,14 @@ function CoachContent() {
                     {lessonDateTime ? (
                       <span style={assignmentDueStyle('future')}>Lesson {formatLessonDateTimeForMessage(lessonDateTime)}</span>
                     ) : null}
+                    <div style={assignmentLevelUpStatusRailStyle} aria-label={`Level Up assignment visibility for ${assignment.title}`}>
+                      {levelUpVisibilitySteps.map((step) => (
+                        <span key={step.label} style={assignmentLevelUpStatusStepStyle(step.done)}>
+                          <strong>{step.label}</strong>
+                          <small>{step.detail}</small>
+                        </span>
+                      ))}
+                    </div>
                     {student?.playerUserId ? (
                       <Link
                         href={buildCoachPlayerMessageHref(
@@ -2153,6 +2162,38 @@ function buildAssignmentProofListMap(levelUpSessions: LevelUpSession[]) {
   }
 
   return proofByAssignmentId
+}
+
+function buildCoachAssignmentVisibilitySteps(assignment: CoachAssignment, proof?: LevelUpSession, proofs: LevelUpSession[] = []) {
+  const proofCount = proof ? Math.max(1, proofs.length) : proofs.length
+  const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
+  const startedPackItems = packProgress?.pack.items.filter((item) => item.status === 'started' || item.status === 'completed').length ?? 0
+  const completedPackItems = packProgress?.pack.items.filter((item) => item.status === 'completed').length ?? 0
+  const started = assignment.status === 'completed' || proofCount > 0 || startedPackItems > 0
+  const logged = assignment.status === 'completed' || proofCount > 0 || completedPackItems > 0
+
+  return [
+    {
+      label: 'Assigned',
+      detail: assignment.status === 'draft' ? 'Draft not sent' : 'Visible to player',
+      done: assignment.status !== 'draft',
+    },
+    {
+      label: 'Started',
+      detail: started ? `${Math.max(proofCount, startedPackItems, 1)} signal${Math.max(proofCount, startedPackItems, 1) === 1 ? '' : 's'}` : 'No player start yet',
+      done: started,
+    },
+    {
+      label: 'Logged',
+      detail: logged ? `${Math.max(proofCount, completedPackItems, 1)} proof log${Math.max(proofCount, completedPackItems, 1) === 1 ? '' : 's'}` : 'Waiting on proof',
+      done: logged,
+    },
+    {
+      label: 'Shared with coach',
+      detail: proof ? 'Synced to review queue' : 'Only visible after sync',
+      done: Boolean(proof),
+    },
+  ]
 }
 
 function buildLevelUpProofReviewDraft(session: LevelUpSession, assignment: CoachAssignment) {
@@ -3246,6 +3287,31 @@ function assignmentDueStyle(tone: ReturnType<typeof getCoachAssignmentDueState>[
     padding: '3px 8px',
     fontSize: 11,
     fontWeight: 900,
+  }
+}
+
+const assignmentLevelUpStatusRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+  padding: 8,
+  borderRadius: 14,
+  border: '1px solid rgba(116, 190, 255, 0.14)',
+  background: 'rgba(255, 255, 255, 0.035)',
+}
+
+function assignmentLevelUpStatusStepStyle(done: boolean): CSSProperties {
+  return {
+    display: 'grid',
+    gap: 3,
+    minWidth: 0,
+    padding: '8px 9px',
+    borderRadius: 12,
+    border: done ? '1px solid rgba(155, 225, 29, 0.28)' : '1px solid rgba(116, 190, 255, 0.12)',
+    background: done ? 'rgba(155, 225, 29, 0.09)' : 'rgba(255, 255, 255, 0.035)',
+    color: 'var(--shell-copy-muted)',
+    overflowWrap: 'anywhere',
   }
 }
 

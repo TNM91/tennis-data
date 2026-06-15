@@ -1865,6 +1865,11 @@ function CaptainHubContent() {
                 <span style={captainLaneTopline}>Cards</span>
                 <strong>{levelUpTeamChallenge.cardIds.length} linked Level Up cards</strong>
               </article>
+              <article style={captainLevelUpChallengeCardStyle}>
+                <span style={captainLaneTopline}>Aggregate progress</span>
+                <strong>{getCaptainLevelUpAggregateCompletionLabel(levelUpTeamChallenge)}</strong>
+                <small>Team challenge mode shows completion count only. Private player proof, scores, and notes stay private.</small>
+              </article>
             </div>
             <div style={dynamicGlanceActionRow}>
               <PrimaryLink href={captainWorkflowHref(levelUpPracticeHref)}>Plan practice</PrimaryLink>
@@ -2811,6 +2816,11 @@ function appendLevelUpChallengeHref(href: string, challengeId: string) {
   const separator = path.includes('?') ? '&' : '?'
   const nextPath = `${path}${separator}levelUpChallenge=${encodeURIComponent(challengeId)}`
   return hash ? `${nextPath}#${hash}` : nextPath
+}
+
+function getCaptainLevelUpAggregateCompletionLabel(challenge: CaptainLevelUpChallenge) {
+  if (challenge.id === 'match-day-routine') return '8 of 12 players completed match-day routine'
+  return `0 of 12 players completed ${challenge.title.toLowerCase()}`
 }
 
 const pageWrap: CSSProperties = {

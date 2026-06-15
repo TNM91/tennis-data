@@ -2864,6 +2864,18 @@ function LevelUpCardTile({
           <small>{coachAssignedLabel.due}</small>
         </div>
       ) : null}
+      <div className={styles.levelUpDrillHabitBridge} aria-label={`Drill to habit bridge for ${card.title}`}>
+        <div>
+          <span>Drill to habit</span>
+          <strong>{savedRating === null ? 'Start drill, save proof, then turn it into a habit.' : 'Proof saved. Habit builder is ready.'}</strong>
+        </div>
+        <ol>
+          <li data-active={activityOpen || savedRating !== null ? 'true' : 'false'}>Start drill</li>
+          <li data-active={savedRating !== null ? 'true' : 'false'}>Save proof</li>
+          <li data-active={savedRating !== null ? 'true' : 'false'}>Turn into habit</li>
+        </ol>
+        <a href={questHref}>Turn into habit</a>
+      </div>
       {activityOpen ? (
         <div className={styles.levelUpActivityMode} aria-label={`Active drill mode for ${card.title}`} data-focus-state={activeFocusState}>
           <div className={styles.levelUpActivityHeader}>
@@ -3063,7 +3075,7 @@ function LevelUpCardTile({
           <div className={styles.levelUpActivityActions}>
             <button type="button" className={styles.scoreButton} onClick={openLogger}>Score now</button>
             <a className="button-secondary" href={startHref}>Open guided flow</a>
-            <a className="button-secondary" href={questHref}>Add as quest</a>
+            <a className="button-secondary" href={questHref}>Turn into habit</a>
           </div>
           <details className={styles.levelUpActivityGuide}>
             <summary>Need the drill guide?</summary>
@@ -3578,14 +3590,14 @@ function LevelUpCardTile({
           <>
             <button type="button" className="button-primary" data-level-up-start-action="true" onClick={startActivity}>Start</button>
             <button type="button" className={styles.scoreButton} onClick={openLogger}>Score</button>
-            <a className="button-secondary" href={questHref}>Add as quest</a>
+            <a className="button-secondary" href={questHref}>Turn into habit</a>
             <LevelUpFavoriteButton active={favorite} onClick={() => onFavorite(card.id)} />
           </>
         ) : (
           <>
             <button type="button" className="button-primary" data-level-up-repeat-action="true" onClick={repeatActivity}>{getAfterScorePrimaryButton(card, savedRating)}</button>
             <button type="button" className={styles.scoreButton} data-level-up-pick-next-action="true" onClick={finishAndPickNext}>Pick next</button>
-            <a className="button-secondary" href={questHref}>Add as quest</a>
+            <a className="button-secondary" href={questHref}>Turn into habit</a>
             <button type="button" className={styles.scoreButton} onClick={copyCoachUpdate}>{getCopyStatusLabel(coachUpdateCopyStatus, 'Copy update', 'Update copied')}</button>
             <button type="button" className={styles.scoreButton} data-level-up-finish-action="true" onClick={finishActivity}>Finish</button>
           </>

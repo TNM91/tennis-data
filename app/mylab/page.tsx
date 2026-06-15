@@ -588,6 +588,32 @@ function getMyLabLevelUpNextAction(rating: number | null) {
   return 'Add one pressure layer, not a new habit.'
 }
 
+function getMyLabLevelUpDateKey(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getMyLabLevelUpStreak(proofs: MyLabLevelUpProof[]) {
+  const proofDays = new Set(
+    proofs
+      .map((proof) => getMyLabLevelUpDateKey(proof.completedAt))
+      .filter(Boolean),
+  )
+  let streak = 0
+  const cursor = new Date()
+
+  while (proofDays.has(getMyLabLevelUpDateKey(cursor.toISOString()))) {
+    streak += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+
+  return streak
+}
+
 function isGoalProgressStatus(value: unknown): value is LabGoalState['progressStatus'] {
   return value === 'not-started' || value === 'in-progress' || value === 'improving' || value === 'completed'
 }
@@ -4287,6 +4313,9 @@ function LevelUpReturnStatePanel({
     || (todayHabitCard ? `/level-up/${todayHabitIdentitySlug}?card=${encodeURIComponent(todayHabitCard.id)}#level-up-flow` : '/level-up')
   const todayHabitTitle = latestProof?.cardTitle || todayHabitCard?.title || 'Choose one Level Up card'
   const todayHabitProof = todayHabitCard?.proof || latestProof?.proofLabel || 'Score one useful proof.'
+  const todayLevelUpStreak = getMyLabLevelUpStreak(proofs)
+  const todayLevelUpStreakLabel = todayLevelUpStreak ? `${todayLevelUpStreak} day${todayLevelUpStreak === 1 ? '' : 's'}` : 'Start today'
+  const latestProofScoreLabel = latestProof?.proofLabel || 'No proof yet'
   const todayFeedItems = [
     {
       label: "Today's habit",
@@ -4351,6 +4380,27 @@ function LevelUpReturnStatePanel({
         <Link href={latestProof?.nextHref || '/level-up'} style={quickStartButtonStyle}>
           {latestProof ? 'Repeat in Level Up' : 'Open Level Up'}
         </Link>
+      </div>
+
+      <div style={myLabLevelUpTodayCardStyle} aria-label="Today's Level Up card">
+        <div style={myLabTodayFeedHeaderStyle}>
+          <div>
+            <span style={metricLabelStyle}>Today&apos;s Level Up card</span>
+            <strong style={levelUpReturnStorageNoteStrongStyle}>{todayHabitTitle}</strong>
+          </div>
+          <Link href={todayHabitDrillHref} style={miniActionPillStyle}>
+            Resume drill
+          </Link>
+        </div>
+        <div style={myLabLevelUpTodayMetricGridStyle}>
+          <SummaryCard label="Active drill" value={todayHabitTitle} note={todayHabitProof} />
+          <SummaryCard label="Last proof" value={latestProofScoreLabel} note={latestProof?.timeLabel || 'Score the first proof'} />
+          <SummaryCard label="Streak" value={todayLevelUpStreakLabel} note="Consecutive Level Up proof days" />
+        </div>
+        <div style={myLabLevelUpTodayActionRowStyle}>
+          <Link href={todayHabitDrillHref} style={miniActionLinkStyle}>Resume drill</Link>
+          <Link href={todayHabitQuestHref} style={miniActionLinkStyle}>Turn into habit</Link>
+        </div>
       </div>
 
       {activeHabitPath ? (
@@ -5824,6 +5874,28 @@ const myLabTodayFeedActionStyle: CSSProperties = {
   lineHeight: 1.1,
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const myLabLevelUpTodayCardStyle: CSSProperties = {
+  ...myLabTodayFeedStyle,
+  minWidth: 0,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 34%, var(--shell-panel-border) 66%)',
+  background:
+    'radial-gradient(circle at 88% 18%, rgba(155,225,29,0.18), transparent 34%), linear-gradient(135deg, rgba(155,225,29,0.13), rgba(116,190,255,0.07))',
+}
+
+const myLabLevelUpTodayMetricGridStyle: CSSProperties = {
+  ...levelUpReturnMetricGridStyle,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  minWidth: 0,
+}
+
+const myLabLevelUpTodayActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  minWidth: 0,
 }
 
 const myLabRefreshProofCueStyle: CSSProperties = {

@@ -49,9 +49,16 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('LEVEL_UP_COMPLETIONS_KEY')
     expect(source).toContain('readLocalLevelUpCompletions')
     expect(source).toContain('buildMyLabLevelUpProofs')
+    expect(source).toContain('getMyLabLevelUpStreak')
     expect(source).toContain('LevelUpReturnStatePanel')
     expect(source).toContain("questHref: `/level-up/${primaryIdentitySlug}?questCard=${encodeURIComponent(completion.cardId)}#quest-builder`")
     expect(source).toContain('Level Up return state')
+    expect(source).toContain("Today's Level Up card")
+    expect(source).toContain('Active drill')
+    expect(source).toContain('Last proof')
+    expect(source).toContain('Streak')
+    expect(source).toContain('Resume drill')
+    expect(source).toContain('Turn into habit')
     expect(source).toContain("Today&apos;s Level Up habit")
     expect(source).toContain('My Lab today feed')
     expect(source).toContain("Today's habit")
@@ -146,6 +153,9 @@ describe('My Lab premium surface', () => {
       'myLabTodayFeedGridStyle',
       'myLabTodayFeedCardStyle',
       'myLabTodayFeedActionStyle',
+      'myLabLevelUpTodayCardStyle',
+      'myLabLevelUpTodayMetricGridStyle',
+      'myLabLevelUpTodayActionRowStyle',
       'myLabRefreshProofCueStyle',
       'myLabRefreshProofHeaderStyle',
       'myLabRefreshProofGridStyle',

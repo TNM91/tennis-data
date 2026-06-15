@@ -607,6 +607,31 @@ export default function PlayerLiveWorkbench({
 
   if (!activeFocus || !activeDrill) return null
 
+  const assignmentStatusSteps = hasCoachAssignment
+    ? [
+        {
+          label: 'Assigned',
+          detail: assignmentTitle || activeDrill.title,
+          done: true,
+        },
+        {
+          label: 'Started',
+          detail: activeTimerSeconds > 0 ? formatClock(activeTimerSeconds) : lastSavedSession ? 'Proof saved' : 'Ready to begin',
+          done: activeTimerSeconds > 0 || Boolean(lastSavedSession),
+        },
+        {
+          label: 'Logged',
+          detail: lastSavedSession ? `${lastSavedSession.rating}/5 saved` : 'Save proof to log',
+          done: Boolean(lastSavedSession),
+        },
+        {
+          label: 'Shared with coach',
+          detail: syncState.status === 'synced' ? 'Synced' : 'Syncs after save',
+          done: syncState.status === 'synced' && Boolean(lastSavedSession?.sharedWithCoach),
+        },
+      ]
+    : []
+
   return (
     <section className={styles.liveWorkbench} data-assignment={hasCoachAssignment ? 'true' : 'false'} aria-labelledby="live-workbench-title">
       <div className={styles.liveWorkbenchHero}>
@@ -689,6 +714,13 @@ export default function PlayerLiveWorkbench({
         </div>
       </div>
 
+      <nav className={styles.liveSessionDock} aria-label="Level Up bottom session dock">
+        <a href="#level-up-flow">Today</a>
+        <button type="button" onClick={showActivity}>Drill</button>
+        <button type="button" onClick={goToScore}>Score</button>
+        <button type="button" disabled={!todaySessions.length} onClick={finishToday}>Finish</button>
+      </nav>
+
       {todaySessions.length ? (
         <div className={styles.liveTodayStack} aria-label="Today's completed drill stack">
           <span>Today&apos;s stack</span>
@@ -739,6 +771,17 @@ export default function PlayerLiveWorkbench({
             <p>{workTypeLabels[workType]} is ready. Do the work, rate it 0-5, add one tiny note if it helps, and save. When linked, this marks the assignment complete for your coach.</p>
           </div>
           <a className="button-secondary" href="/mylab#coach-assignments">Back to My Lab</a>
+        </div>
+      ) : null}
+
+      {assignmentStatusSteps.length ? (
+        <div className={styles.liveAssignmentStatusRail} aria-label="Player assignment status">
+          {assignmentStatusSteps.map((step) => (
+            <article key={step.label} data-done={step.done ? 'true' : 'false'}>
+              <span>{step.label}</span>
+              <strong>{step.detail}</strong>
+            </article>
+          ))}
         </div>
       ) : null}
 
