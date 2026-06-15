@@ -13815,35 +13815,8 @@
     font-size: 2.35rem;
   }
 
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveDrillSteps,
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveMicroPlan,
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveQualityGrid,
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveActionGuide,
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveDrillChoices,
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveActionLinks {
-    display: none;
-  }
-
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) {
-    min-height: calc(100svh - 120px);
-    align-content: center;
-  }
-
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) > span {
-    justify-self: center;
-  }
-
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) h3 {
-    text-align: center;
-  }
-
   .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveTimerPanel {
-    padding: 18px;
-  }
-
-  .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveTimerPanel strong {
-    font-size: clamp(4.4rem, 22vw, 6.4rem);
-    text-align: center;
+    border-color: rgba(155, 225, 29, 0.34);
   }
 
   .liveTracker textarea {

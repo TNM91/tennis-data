@@ -157,6 +157,7 @@ export default function PlayerLiveWorkbench({
   const activityRef = useRef<HTMLElement | null>(null)
   const trackerRef = useRef<HTMLElement | null>(null)
   const savedRef = useRef<HTMLDivElement | null>(null)
+  const didMobileAutoScrollRef = useRef(false)
   const assignmentId = searchParams.get('assignmentId')?.trim() ?? ''
   const studentLinkId = searchParams.get('studentLinkId')?.trim() ?? ''
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
@@ -235,15 +236,17 @@ export default function PlayerLiveWorkbench({
 
   useEffect(() => {
     if (!hasCoachAssignment && !hasQuickStart) return
+    if (didMobileAutoScrollRef.current) return
     if (typeof window === 'undefined') return
     if (!window.matchMedia('(max-width: 860px)').matches) return
+    didMobileAutoScrollRef.current = true
 
     const id = window.setTimeout(() => {
       activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     }, 180)
 
     return () => window.clearTimeout(id)
-  }, [activeDrill.id, hasCoachAssignment, hasQuickStart])
+  }, [hasCoachAssignment, hasQuickStart])
 
   useEffect(() => {
     if (!lastSavedSession) return
@@ -389,6 +392,15 @@ export default function PlayerLiveWorkbench({
     window.setTimeout(() => {
       activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     }, 0)
+  }
+
+  function chooseDrillOption(drillId: string) {
+    if (drillId === activeDrill.id) return
+    setActiveDrillId(drillId)
+    setScoringDrillId('')
+    window.requestAnimationFrame(() => {
+      activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
   }
 
   function repeatActivity() {
@@ -676,7 +688,6 @@ export default function PlayerLiveWorkbench({
             <DrillTimer
               drillId={activeDrill.id}
               targetSeconds={activeDrill.timerSeconds}
-              key={activeDrill.id}
               onDone={goToScore}
             />
             <div className={`${styles.liveActionGuide} ${styles.liveScoreGuide}`}>
@@ -694,10 +705,7 @@ export default function PlayerLiveWorkbench({
                   type="button"
                   key={drill.id}
                   data-active={drill.id === activeDrill.id ? 'true' : 'false'}
-                  onClick={() => {
-                    setActiveDrillId(drill.id)
-                    setScoringDrillId('')
-                  }}
+                  onClick={() => chooseDrillOption(drill.id)}
                 >
                   <strong>{drill.title}</strong>
                   <span>{drill.duration}</span>
@@ -884,6 +892,15 @@ function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targe
   const progress = targetSeconds > 0 ? Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100)) : 0
   const targetLabel = targetSeconds > 0 ? formatClock(targetSeconds) : 'Open'
   const timerState = running ? 'running' : elapsedSeconds > 0 ? 'paused' : 'idle'
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => {
+      setRunning(false)
+      setElapsedSeconds(getTimerSeconds(drillId))
+    })
+
+    return () => window.cancelAnimationFrame(id)
+  }, [drillId])
 
   useEffect(() => {
     if (!running) return
