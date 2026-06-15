@@ -132,6 +132,7 @@
 .mobileTapPlan,
 .mobilePocketToggle,
 .mobilePocketPulse,
+.mobileBossReadiness,
 .mobilePriorityStack,
 .mobilePocketDone,
 .mobilePocketMore {
@@ -2587,6 +2588,77 @@
     min-height: 40px;
     padding: 0 8px;
     font-size: 0.74rem;
+  }
+
+  .pageShell[data-phone-mode='pocket'] .mobileBossReadiness {
+    min-height: 48px;
+    display: grid;
+    grid-template-columns: minmax(88px, 0.34fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    border: 1px solid rgba(116, 190, 255, 0.14);
+    border-radius: 14px;
+    background: rgba(2, 10, 24, 0.3);
+    padding: 8px;
+    text-align: left;
+  }
+
+  .mobileBossReadiness > span {
+    color: var(--brand-green-3);
+    font-size: 0.64rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .mobileBossReadiness > div {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .mobileBossReadiness strong {
+    --boss-progress: 0%;
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    border: 1px solid rgba(var(--brand-green-rgb), 0.22);
+    border-radius: 10px;
+    background:
+      linear-gradient(90deg, rgba(var(--brand-green-rgb), 0.16) var(--boss-progress), transparent var(--boss-progress)),
+      rgba(3, 16, 35, 0.52);
+    padding: 5px 4px;
+  }
+
+  .mobileBossReadiness strong[data-status='needs-action'] {
+    border-color: rgba(255, 205, 94, 0.28);
+  }
+
+  .mobileBossReadiness strong[data-status='at-risk'] {
+    border-color: rgba(255, 111, 111, 0.34);
+  }
+
+  .mobileBossReadiness em,
+  .mobileBossReadiness small {
+    overflow: hidden;
+    display: block;
+    font-style: normal;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobileBossReadiness em {
+    color: var(--foreground-strong);
+    font-size: 0.62rem;
+    font-weight: 900;
+  }
+
+  .mobileBossReadiness small {
+    color: var(--muted-strong);
+    font-size: 0.6rem;
   }
 
   .pageShell[data-phone-mode='pocket'] .mobilePriorityStack {

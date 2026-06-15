@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ChangeEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   PERSONAL_DAILY_QUESTS,
@@ -109,6 +109,14 @@ type MobilePriorityAction = {
   sectionId: string
 }
 
+type MobileBossReadinessItem = {
+  key: string
+  label: string
+  value: string
+  progress: number
+  status: 'on-track' | 'needs-action' | 'at-risk' | 'complete'
+}
+
 type LoadState = 'checking' | 'loading' | 'ready'
 type PhotoCompareMode = 'latest_previous' | 'first_latest' | 'week_over_week'
 
@@ -158,6 +166,12 @@ const MOBILE_TAP_PLAN_GROUPS: Array<{ id: string; label: string; questIds: Perso
 ]
 
 const DAILY_QUEST_BY_ID = new Map(PERSONAL_DAILY_QUESTS.map((quest) => [quest.id, quest]))
+const MOBILE_BOSS_LABELS = {
+  ipa: 'IPA',
+  lunch: 'Lunch',
+  creamer: 'Creamer',
+  water: 'Water',
+} as const
 
 const OFFLINE_QUEUE_KEY_PREFIX = 'personal-quest-offline-queue:'
 const CLIENT_ISSUE_KEY_PREFIX = 'personal-quest-client-issues:'
@@ -352,6 +366,16 @@ export default function MyQuestClient() {
   const bossForecast = useMemo(
     () => buildPersonalQuestBossForecast({ completions, logs, today, weekStart }),
     [completions, logs, today, weekStart],
+  )
+  const mobileBossReadiness = useMemo<MobileBossReadinessItem[]>(
+    () => bossForecast.map((forecast) => ({
+      key: forecast.key,
+      label: MOBILE_BOSS_LABELS[forecast.key],
+      value: forecast.status === 'complete' ? 'Done' : `${forecast.progress}%`,
+      progress: forecast.progress,
+      status: forecast.status,
+    })),
+    [bossForecast],
   )
   const bossWarnings = useMemo(
     () => buildPersonalQuestBossWarnings(bossForecast),
@@ -1620,6 +1644,22 @@ export default function MyQuestClient() {
             {mobilePocketPulse.cta}
           </button>
         </div>
+        <button
+          type="button"
+          className={styles.mobileBossReadiness}
+          onClick={() => openFullDashboardSection('weekly-bosses')}
+          aria-label="My Quest iPhone weekly boss readiness"
+        >
+          <span>Boss readiness</span>
+          <div>
+            {mobileBossReadiness.map((boss) => (
+              <strong key={boss.key} data-status={boss.status} style={{ '--boss-progress': `${boss.progress}%` } as CSSProperties}>
+                <em>{boss.label}</em>
+                <small>{boss.value}</small>
+              </strong>
+            ))}
+          </div>
+        </button>
         {mobilePocketDone ? (
           <div className={styles.mobilePocketDone} aria-label="My Quest iPhone pocket done state">
             <div>
