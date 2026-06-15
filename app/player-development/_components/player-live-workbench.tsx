@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import { supabase } from '@/lib/supabase'
@@ -878,6 +878,7 @@ export default function PlayerLiveWorkbench({
 }
 
 function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targetSeconds: number; onDone: () => void }) {
+  const timerRef = useRef<HTMLDivElement>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(() => getTimerSeconds(drillId))
   const [running, setRunning] = useState(false)
   const progress = targetSeconds > 0 ? Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100)) : 0
@@ -898,10 +899,24 @@ function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targe
     return () => window.clearInterval(id)
   }, [drillId, running])
 
-  function resetTimer() {
+  function resetTimer(event?: MouseEvent<HTMLButtonElement>) {
+    event?.preventDefault()
+    event?.stopPropagation()
     setRunning(false)
     setElapsedSeconds(0)
     window.sessionStorage.removeItem(timerStorageKey(drillId))
+  }
+
+  function toggleTimer() {
+    setRunning((value) => {
+      const nextRunning = !value
+      if (nextRunning) {
+        window.requestAnimationFrame(() => {
+          timerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        })
+      }
+      return nextRunning
+    })
   }
 
   function finishTimer() {
@@ -910,7 +925,7 @@ function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targe
   }
 
   return (
-    <div className={styles.liveTimerPanel} data-timer-state={timerState}>
+    <div ref={timerRef} className={styles.liveTimerPanel} data-timer-state={timerState}>
       <div>
         <span>Timer</span>
         <strong>{formatClock(elapsedSeconds)}</strong>
@@ -920,11 +935,11 @@ function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targe
         <i style={{ width: `${progress}%` }} />
       </div>
       <div className={styles.liveTimerActions}>
-        <button type="button" className="button-primary" onClick={() => setRunning((value) => !value)}>
+        <button type="button" className="button-primary" onClick={toggleTimer}>
           {running ? 'Pause' : 'Start'}
         </button>
-        <button type="button" className="button-secondary" onClick={resetTimer}>
-          Reset
+        <button type="button" className="button-secondary" aria-label="Reset drill timer to 0" onClick={resetTimer}>
+          Reset timer
         </button>
         {elapsedSeconds > 0 ? (
           <button type="button" className="button-primary" data-action="done" onClick={finishTimer}>

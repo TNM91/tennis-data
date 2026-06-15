@@ -2010,6 +2010,10 @@
   background: rgba(255, 255, 255, 0.045);
 }
 
+.levelUpLaneActiveCard {
+  scroll-margin-top: 84px;
+}
+
 .levelUpLocalSyncProof {
   grid-template-columns: minmax(180px, 0.34fr) minmax(0, 1fr);
   align-items: center;
@@ -6576,7 +6580,7 @@
 
 .levelUpActivityTimerActions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(112px, 1fr));
   gap: 7px;
 }
 
@@ -8736,7 +8740,7 @@
 
 .liveTimerActions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(112px, 1fr));
   gap: 8px;
 }
 

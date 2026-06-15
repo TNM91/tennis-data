@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
@@ -644,7 +644,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       setActiveLaneCardId(requestedCard.id)
       setActiveCardTitle(requestedCard.title)
       setSelectedIntent('Coach link')
-      scrollToStartList(startListRef)
+      scrollToActiveCard()
     })
 
     return () => {
@@ -666,7 +666,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     if (card) {
       setActiveCardTitle(card.title)
     }
-    scrollToStartList(startListRef)
+    scrollToActiveCard()
   }
 
   return (
@@ -756,7 +756,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       ))}
 
       {activeLaneCard ? (
-        <section className={styles.levelUpLaneActiveCard} aria-label="Active quick-start card">
+        <section id="level-up-active-card" className={styles.levelUpLaneActiveCard} aria-label="Active quick-start card">
           <LevelUpCardTile
             key={`${activeLaneCard.id}-${startRequest.signal}`}
             card={activeLaneCard}
@@ -2489,6 +2489,7 @@ function LevelUpCardTile({
   initialActivityOpen?: boolean
 }) {
   const cardRef = useRef<HTMLElement>(null)
+  const activityTimerRef = useRef<HTMLDivElement>(null)
   const [rating, setRating] = useState(3)
   const [note, setNote] = useState('')
   const [savedRating, setSavedRating] = useState<number | null>(null)
@@ -2720,6 +2721,27 @@ function LevelUpCardTile({
     })
   }
 
+  function toggleActivityTimer(event?: MouseEvent<HTMLButtonElement>) {
+    event?.preventDefault()
+    event?.stopPropagation()
+    setTimerRunning((running) => {
+      const nextRunning = !running
+      if (nextRunning) {
+        window.requestAnimationFrame(() => {
+          activityTimerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        })
+      }
+      return nextRunning
+    })
+  }
+
+  function resetActivityTimer(event?: MouseEvent<HTMLButtonElement>) {
+    event?.preventDefault()
+    event?.stopPropagation()
+    setTimerRunning(false)
+    setElapsedSeconds(0)
+  }
+
   function clearDecisionMiss() {
     setMissedRepCount((count) => Math.max(count - 1, 0))
     setRoundNotice({
@@ -2862,7 +2884,7 @@ function LevelUpCardTile({
               <small>{variantPlan.label} - {card.proof}</small>
             </div>
             <div className={styles.levelUpActiveQuickActions} aria-label={`Quick active controls for ${card.title}`}>
-              <button type="button" onClick={() => setTimerRunning((running) => !running)}>
+              <button type="button" onClick={toggleActivityTimer}>
                 {timerRunning ? 'Pause' : elapsedSeconds > 0 ? 'Resume' : 'Start'}
               </button>
               <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1</button>
@@ -2956,7 +2978,7 @@ function LevelUpCardTile({
             ))}
           </div>
           <div className={styles.levelUpActivityWorkGrid}>
-            <div className={styles.levelUpActivityTimer} data-timer-state={timerRunning ? 'running' : elapsedSeconds > 0 ? 'paused' : 'ready'}>
+            <div ref={activityTimerRef} className={styles.levelUpActivityTimer} data-timer-state={timerRunning ? 'running' : elapsedSeconds > 0 ? 'paused' : 'ready'}>
               <span>Timer</span>
               <strong>{formatTimer(elapsedSeconds)}</strong>
               <small>Target: {variantPlan.durationMinutes}:00. Stop early if quality drops.</small>
@@ -2964,14 +2986,11 @@ function LevelUpCardTile({
                 <i style={{ width: `${timerProgress}%` }} />
               </div>
               <div className={styles.levelUpActivityTimerActions}>
-                <button type="button" onClick={() => setTimerRunning((running) => !running)}>
+                <button type="button" onClick={toggleActivityTimer}>
                   {timerRunning ? 'Pause' : elapsedSeconds > 0 ? 'Resume' : 'Start timer'}
                 </button>
-                <button type="button" onClick={() => {
-                  setTimerRunning(false)
-                  setElapsedSeconds(0)
-                }}>
-                  Reset
+                <button type="button" aria-label={`Reset timer for ${card.title}`} onClick={resetActivityTimer}>
+                  Reset timer
                 </button>
               </div>
             </div>
@@ -9152,6 +9171,14 @@ function buildCoachUpdate({
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {
   window.requestAnimationFrame(() => {
     startListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+}
+
+function scrollToActiveCard() {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      document.getElementById('level-up-active-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   })
 }
 
