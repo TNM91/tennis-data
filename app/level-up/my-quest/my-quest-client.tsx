@@ -632,6 +632,54 @@ export default function MyQuestClient() {
       action,
     }
   }, [mobilePriorityStack, pendingQuest, today, todayXp])
+  const mobilePocketStateLabel = useMemo(() => {
+    const action = mobileCommandPrimary.action
+    if (!action) {
+      return {
+        label: 'Clean board',
+        detail: 'No urgent action queued.',
+        tone: mobileCommandPrimary.tone,
+      }
+    }
+
+    if (mobileCommandPrimary.label === 'Repair') {
+      return {
+        label: 'Repair mode',
+        detail: 'Backfill the missed item without opening the full board.',
+        tone: mobileCommandPrimary.tone,
+      }
+    }
+
+    if (mobileCommandPrimary.label === 'Close') {
+      return {
+        label: 'Closeout mode',
+        detail: 'Finish the late-day action before the reset.',
+        tone: mobileCommandPrimary.tone,
+      }
+    }
+
+    if (mobileCommandPrimary.label === 'Boss') {
+      return {
+        label: mobileCommandPrimary.tone === 'red' ? 'Boss danger' : 'Boss guard',
+        detail: 'Weekly bonus XP needs attention.',
+        tone: mobileCommandPrimary.tone,
+      }
+    }
+
+    if (mobileCommandPrimary.label === 'Recap') {
+      return {
+        label: 'Clean board',
+        detail: 'Review the day and keep the streak visible.',
+        tone: mobileCommandPrimary.tone,
+      }
+    }
+
+    return {
+      label: 'Next tap',
+      detail: 'The fastest useful action is ready.',
+      tone: mobileCommandPrimary.tone,
+    }
+  }, [mobileCommandPrimary.action, mobileCommandPrimary.label, mobileCommandPrimary.tone])
   const mobilePocketDone = useMemo(
     () => todayRemainingCount === 0 &&
       !morningRepairQuest &&
@@ -1896,6 +1944,10 @@ export default function MyQuestClient() {
           <button type="button" onClick={() => notificationPermission === 'granted' ? sendTestReminder() : void requestReminderPermission()}>
             {notificationPermission === 'granted' ? 'Test' : 'Enable'}
           </button>
+        </div>
+        <div className={styles.mobilePocketStateLabel} data-tone={mobilePocketStateLabel.tone} aria-label="My Quest iPhone pocket state label">
+          <span>{mobilePocketStateLabel.label}</span>
+          <strong>{mobilePocketStateLabel.detail}</strong>
         </div>
         <div className={styles.mobileCommandBar} aria-label="My Quest iPhone pocket command bar">
           <button

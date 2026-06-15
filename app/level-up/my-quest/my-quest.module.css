@@ -137,6 +137,7 @@
 .mobilePriorityStack,
 .mobilePocketDone,
 .mobilePocketMore,
+.mobilePocketStateLabel,
 .mobileCommandBar {
   display: none;
 }
@@ -2201,7 +2202,7 @@
   }
 
   .pageShell[data-phone-mode='pocket'] {
-    padding-bottom: calc(184px + env(safe-area-inset-bottom));
+    padding-bottom: calc(222px + env(safe-area-inset-bottom));
   }
 
   .hero,
@@ -3058,6 +3059,61 @@
   .mobileReminderStrip button {
     min-height: 38px;
     padding: 0 10px;
+  }
+
+  .pageShell[data-phone-mode='pocket'] .mobilePocketStateLabel {
+    position: fixed;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(142px + env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    z-index: 73;
+    display: grid;
+    grid-template-columns: minmax(86px, 0.3fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    max-width: 434px;
+    min-height: 34px;
+    margin: 0 auto;
+    padding: 6px 9px;
+    border: 1px solid rgba(var(--brand-green-rgb), 0.2);
+    border-radius: 13px;
+    background: rgba(5, 15, 30, 0.92);
+    box-shadow: 0 14px 34px rgba(2, 8, 20, 0.28);
+    backdrop-filter: blur(14px);
+  }
+
+  .mobilePocketStateLabel[data-tone='amber'] {
+    border-color: rgba(255, 205, 94, 0.3);
+  }
+
+  .mobilePocketStateLabel[data-tone='red'] {
+    border-color: rgba(255, 111, 111, 0.34);
+  }
+
+  .mobilePocketStateLabel[data-tone='blue'] {
+    border-color: rgba(116, 190, 255, 0.24);
+  }
+
+  .mobilePocketStateLabel span,
+  .mobilePocketStateLabel strong {
+    overflow: hidden;
+    display: block;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobilePocketStateLabel span {
+    color: var(--brand-green-3);
+    font-size: 0.61rem;
+    font-weight: 950;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .mobilePocketStateLabel strong {
+    color: var(--muted-strong);
+    font-size: 0.68rem;
+    font-weight: 850;
   }
 
   .pageShell[data-phone-mode='pocket'] .mobileCommandBar {
