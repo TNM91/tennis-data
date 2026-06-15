@@ -200,6 +200,7 @@ export default function PlayerLiveWorkbench({
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
   const [questCreditMessage, setQuestCreditMessage] = useState('')
   const [activeTimerSnapshot, setActiveTimerSnapshot] = useState<DrillTimerSnapshot | null>(null)
+  const [timerResetSignal, setTimerResetSignal] = useState(0)
   const storageKey = `tenaceiq:level-up:${identitySlug}`
   const [sessions, setSessions] = useState<SavedSession[]>(() => readSavedSessions(storageKey))
 
@@ -368,8 +369,15 @@ export default function PlayerLiveWorkbench({
   }
 
   function saveSession() {
-    if (!activeFocus || !activeDrill || draft.rating === null) return
+    if (draft.rating === null) return
+    saveSessionWithRating(draft.rating)
+  }
 
+  function saveSessionWithRating(rating: number) {
+    if (!activeFocus || !activeDrill) return
+
+    const nextDraft = { ...draft, rating }
+    const savedElapsedSeconds = getTimerSeconds(activeDrill.id)
     const nextSession: SavedSession = {
       id: `${Date.now()}-${activeFocus.id}-${activeDrill.id}`,
       focusId: activeFocus.id,
@@ -377,12 +385,12 @@ export default function PlayerLiveWorkbench({
       workType,
       context,
       drillTitle: activeDrill.title,
-      rating: draft.rating,
-      feeling: draft.feeling,
+      rating,
+      feeling: nextDraft.feeling,
       accessMode,
-      note: draft.note.trim(),
-      elapsedSeconds: getTimerSeconds(activeDrill.id),
-      sharedWithCoach: draft.sharedWithCoach,
+      note: nextDraft.note.trim(),
+      elapsedSeconds: savedElapsedSeconds,
+      sharedWithCoach: nextDraft.sharedWithCoach,
       completedAt: new Date().toISOString(),
       assignmentId: assignmentId || undefined,
       studentLinkId: studentLinkId || undefined,
@@ -398,6 +406,15 @@ export default function PlayerLiveWorkbench({
     }
     setLastSavedSession(nextSession)
     setDraft(emptyDraft)
+    setScoringDrillId('')
+    window.sessionStorage.removeItem(timerStorageKey(activeDrill.id))
+    setTimerResetSignal((signal) => signal + 1)
+    setActiveTimerSnapshot({
+      drillId: activeDrill.id,
+      elapsedSeconds: 0,
+      running: false,
+      targetSeconds: activeDrill.timerSeconds,
+    })
     setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing now...' })
     void syncLevelUpSession(nextSession)
   }
@@ -714,7 +731,9 @@ export default function PlayerLiveWorkbench({
             </div>
             <DrillTimer
               drillId={activeDrill.id}
+              drillTitle={activeDrill.title}
               targetSeconds={activeDrill.timerSeconds}
+              resetSignal={timerResetSignal}
               onDone={goToScore}
               onSnapshotChange={handleTimerSnapshotChange}
             />
@@ -750,6 +769,22 @@ export default function PlayerLiveWorkbench({
           <aside ref={trackerRef} className={styles.liveTracker} aria-label="Quick tracking">
             <span>3. Submit</span>
             <strong>Score and save.</strong>
+            <div className={styles.liveQuickScoreDock} aria-label="One tap score and save">
+              <div>
+                <span>Quick score</span>
+                <strong>{activeDrill.title}</strong>
+              </div>
+              {[5, 4, 3].map((value) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={value === 5 ? 'button-primary' : 'button-secondary'}
+                  onClick={() => saveSessionWithRating(value)}
+                >
+                  {value}/5
+                </button>
+              ))}
+            </div>
             <div className={styles.liveProofRubric} aria-label="Proof rating guide">
               {getLiveProofRubric(activeDrill.sourceCard).map((item) => (
                 <div key={item.value}>
@@ -807,33 +842,48 @@ export default function PlayerLiveWorkbench({
       </div>
 
       {lastSavedSession ? (
-        <div ref={savedRef} className={styles.liveSavedBanner} role="status">
-          <div>
-            <span>Saved</span>
-            <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
-            <p>
-              {lastSavedSession.rating}/5, {formatClock(lastSavedSession.elapsedSeconds)}, feeling {feelingLabels[lastSavedSession.feeling].toLowerCase()}.
-              {' '}
-              {syncState.message || (lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
-                ? 'Ready to sync to your coach when linked.'
-                : lastSavedSession.accessMode === 'player_plus'
-                  ? 'Ready for Player+ history and trends.'
-                  : 'Kept as a local preview for now.')}
-              {questCreditMessage ? ` ${questCreditMessage}` : ''}
-            </p>
-          </div>
-          <div className={styles.liveSavedActions}>
-            <button type="button" className="button-primary" onClick={repeatActivity}>
+        <>
+          <div className={styles.liveSessionToast} role="status" aria-label="Saved session summary">
+            <div>
+              <span>Saved on this phone</span>
+              <strong>{lastSavedSession.rating}/5 - {formatClock(lastSavedSession.elapsedSeconds)}</strong>
+              <small>{lastSavedSession.drillTitle}</small>
+            </div>
+            <button type="button" className="button-secondary" onClick={repeatActivity}>
               Repeat
             </button>
-            <button type="button" className="button-secondary" onClick={pickNewFocus}>
-              New focus
+            <button type="button" className="button-primary" onClick={pickNewFocus}>
+              New
             </button>
-            <a className="button-secondary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
-              {lastSavedSession.accessMode === 'player_plus' ? 'Player+' : 'My Lab'}
-            </a>
           </div>
-        </div>
+          <div ref={savedRef} className={styles.liveSavedBanner} role="status">
+            <div>
+              <span>Saved</span>
+              <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
+              <p>
+                {lastSavedSession.rating}/5, {formatClock(lastSavedSession.elapsedSeconds)}, feeling {feelingLabels[lastSavedSession.feeling].toLowerCase()}.
+                {' '}
+                {syncState.message || (lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
+                  ? 'Ready to sync to your coach when linked.'
+                  : lastSavedSession.accessMode === 'player_plus'
+                    ? 'Ready for Player+ history and trends.'
+                    : 'Kept as a local preview for now.')}
+                {questCreditMessage ? ` ${questCreditMessage}` : ''}
+              </p>
+            </div>
+            <div className={styles.liveSavedActions}>
+              <button type="button" className="button-primary" onClick={repeatActivity}>
+                Repeat
+              </button>
+              <button type="button" className="button-secondary" onClick={pickNewFocus}>
+                New focus
+              </button>
+              <a className="button-secondary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
+                {lastSavedSession.accessMode === 'player_plus' ? 'Player+' : 'My Lab'}
+              </a>
+            </div>
+          </div>
+        </>
       ) : null}
 
       <aside className={styles.liveSyncProofPanel} aria-label="Level Up local sync proof">
@@ -915,12 +965,16 @@ export default function PlayerLiveWorkbench({
 
 function DrillTimer({
   drillId,
+  drillTitle,
   targetSeconds,
+  resetSignal,
   onDone,
   onSnapshotChange,
 }: {
   drillId: string
+  drillTitle: string
   targetSeconds: number
+  resetSignal: number
   onDone: () => void
   onSnapshotChange: (snapshot: DrillTimerSnapshot) => void
 }) {
@@ -940,6 +994,17 @@ function DrillTimer({
 
     return () => window.cancelAnimationFrame(id)
   }, [drillId])
+
+  useEffect(() => {
+    if (resetSignal === 0) return
+
+    const id = window.requestAnimationFrame(() => {
+      setRunning(false)
+      setElapsedSeconds(getTimerSeconds(drillId))
+    })
+
+    return () => window.cancelAnimationFrame(id)
+  }, [drillId, resetSignal])
 
   useEffect(() => {
     onSnapshotChange({ drillId, elapsedSeconds, running, targetSeconds })
@@ -995,6 +1060,20 @@ function DrillTimer({
         <div className={styles.liveTimerTrack} aria-hidden="true">
           <i style={{ width: `${progress}%` }} />
         </div>
+        {!running && elapsedSeconds > 0 ? (
+          <div className={styles.liveTimerResumePrompt} role="status">
+            <div>
+              <span>Resume last drill</span>
+              <strong>{drillTitle} at {formatClock(elapsedSeconds)}</strong>
+            </div>
+            <button type="button" className="button-primary" onClick={toggleTimer}>
+              Resume
+            </button>
+            <button type="button" className="button-secondary" aria-label="Start this drill fresh" onClick={resetTimer}>
+              Fresh
+            </button>
+          </div>
+        ) : null}
         <div className={styles.liveTimerActions}>
           <button type="button" className="button-primary" onClick={toggleTimer}>
             {running ? 'Pause' : 'Start'}
