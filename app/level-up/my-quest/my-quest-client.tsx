@@ -117,6 +117,17 @@ type MobileBossReadinessItem = {
   status: 'on-track' | 'needs-action' | 'at-risk' | 'complete'
 }
 
+type MobileWeeklyFocusCue = {
+  label: string
+  title: string
+  detail: string
+  cta: string
+  tone: 'green' | 'amber' | 'red' | 'blue'
+  quest?: PersonalQuestDefinition
+  questDate?: string
+  sectionId: string
+}
+
 type LoadState = 'checking' | 'loading' | 'ready'
 type PhotoCompareMode = 'latest_previous' | 'first_latest' | 'week_over_week'
 
@@ -593,6 +604,89 @@ export default function MyQuestClient() {
       !bossWarnings.some((warning) => warning.tone !== 'green'),
     [bossWarnings, eveningCloseoutQuest, morningRepairQuest, todayRemainingCount],
   )
+  const mobileWeeklyFocusCue = useMemo<MobileWeeklyFocusCue>(() => {
+    const redWarning = bossWarnings.find((warning) => warning.tone === 'red')
+    if (redWarning) {
+      return {
+        label: 'Weekly focus',
+        title: redWarning.title,
+        detail: redWarning.cta,
+        cta: 'Open',
+        tone: 'red',
+        sectionId: 'weekly-bosses',
+      }
+    }
+
+    if (eveningCloseoutQuest) {
+      return {
+        label: 'Clean close',
+        title: eveningCloseoutQuest.shortTitle,
+        detail: `Bank +${eveningCloseoutQuest.xp} before reset`,
+        cta: `+${eveningCloseoutQuest.xp}`,
+        tone: 'amber',
+        quest: eveningCloseoutQuest,
+        sectionId: 'lock-screen',
+      }
+    }
+
+    if (morningRepairQuest) {
+      return {
+        label: 'Repair window',
+        title: morningRepairQuest.shortTitle,
+        detail: `${repairSummary.completedCount}/${repairSummary.totalCount} repaired`,
+        cta: `+${morningRepairQuest.xp}`,
+        tone: 'blue',
+        quest: morningRepairQuest,
+        questDate: repairDate,
+        sectionId: 'repair-day',
+      }
+    }
+
+    const warning = bossWarnings.find((item) => item.tone !== 'green')
+    if (warning) {
+      return {
+        label: 'Boss guard',
+        title: warning.title,
+        detail: warning.cta,
+        cta: 'Open',
+        tone: warning.tone,
+        sectionId: 'weekly-bosses',
+      }
+    }
+
+    if (todayRemainingCount === 0) {
+      return {
+        label: 'Board clear',
+        title: 'Review the day',
+        detail: `${todayXp} XP banked`,
+        cta: 'Recap',
+        tone: 'green',
+        sectionId: 'daily-recap',
+      }
+    }
+
+    if (todayFocusQuest) {
+      return {
+        label: 'Next best tap',
+        title: todayFocusQuest.shortTitle,
+        detail: `Fastest clean XP: +${todayFocusQuest.xp}`,
+        cta: `+${todayFocusQuest.xp}`,
+        tone: 'green',
+        quest: todayFocusQuest,
+        sectionId: 'lock-screen',
+      }
+    }
+
+    const weeklyStrategy = bossStrategy[0]
+    return {
+      label: 'Weekly focus',
+      title: weeklyStrategy?.title ?? 'Boss board',
+      detail: weeklyStrategy?.action ?? 'Protect the cleanest boss first.',
+      cta: 'Open',
+      tone: weeklyStrategy?.tone ?? 'green',
+      sectionId: 'weekly-bosses',
+    }
+  }, [bossStrategy, bossWarnings, eveningCloseoutQuest, morningRepairQuest, repairDate, repairSummary.completedCount, repairSummary.totalCount, todayFocusQuest, todayRemainingCount, todayXp])
   const dayCompleteSummary = useMemo(() => {
     const ipaCount = clampInt(ipaInput, 0, 30)
 
@@ -1644,6 +1738,19 @@ export default function MyQuestClient() {
             {mobilePocketPulse.cta}
           </button>
         </div>
+        <button
+          type="button"
+          className={styles.mobileWeeklyFocusCue}
+          data-tone={mobileWeeklyFocusCue.tone}
+          onClick={() => mobileWeeklyFocusCue.quest ? void toggleQuestForDate(mobileWeeklyFocusCue.quest, mobileWeeklyFocusCue.questDate ?? today) : openFullDashboardSection(mobileWeeklyFocusCue.sectionId)}
+          disabled={Boolean(mobileWeeklyFocusCue.quest && pendingQuest)}
+          aria-label="My Quest iPhone weekly focus cue"
+        >
+          <span>{mobileWeeklyFocusCue.label}</span>
+          <strong>{mobileWeeklyFocusCue.title}</strong>
+          <small>{mobileWeeklyFocusCue.detail}</small>
+          <em>{mobileWeeklyFocusCue.quest && pendingQuest === `${mobileWeeklyFocusCue.questDate ?? today}:${mobileWeeklyFocusCue.quest.id}` ? 'Saving' : mobileWeeklyFocusCue.cta}</em>
+        </button>
         <button
           type="button"
           className={styles.mobileBossReadiness}
