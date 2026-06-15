@@ -93,6 +93,7 @@ type MobilePocketPulse = {
   reason: string
   cta: string
   quest?: PersonalQuestDefinition
+  questDate?: string
   sectionId: string
 }
 
@@ -283,6 +284,14 @@ export default function MyQuestClient() {
       .map((questId) => DAILY_QUEST_BY_ID.get(questId))
       .find((quest) => quest && !completedToday.has(quest.id)) ?? todayFocusQuest
   }, [completedToday, currentHour, todayFocusQuest, todayRemainingCount])
+  const morningRepairQuest = useMemo(() => {
+    if (currentHour >= 11 || repairSummary.status === 'complete') return null
+
+    const repairOrder: PersonalQuestId[] = ['water_80_oz', 'creamer_goal', 'protein_breakfast', 'no_chips_lunch', 'activity_20_min', 'core_workout', 'alcohol_limit', 'no_food_after_8']
+    return repairOrder
+      .map((questId) => DAILY_QUEST_BY_ID.get(questId))
+      .find((quest) => quest && !completedRepairDay.has(quest.id)) ?? null
+  }, [completedRepairDay, currentHour, repairSummary.status])
   const todayFocusProgress = Math.round((todayCompletedCount / PERSONAL_DAILY_QUESTS.length) * 100)
   const gamePlan = useMemo(
     () => buildPersonalQuestGamePlan({ completions, logs, today, weekStart, mode }),
@@ -405,6 +414,20 @@ export default function MyQuestClient() {
       }
     }
 
+    if (morningRepairQuest) {
+      return {
+        tone: 'blue',
+        label: 'Recovery pulse',
+        title: `Repair ${morningRepairQuest.shortTitle}`,
+        detail: `${repairSummary.completedCount}/${repairSummary.totalCount} repaired from yesterday.`,
+        reason: 'Why today: backfill only what happened before today gets busy.',
+        cta: `Repair +${morningRepairQuest.xp}`,
+        quest: morningRepairQuest,
+        questDate: repairDate,
+        sectionId: 'repair-day',
+      }
+    }
+
     const warning = bossWarnings.find((item) => item.tone !== 'green')
     if (warning) {
       return {
@@ -440,7 +463,7 @@ export default function MyQuestClient() {
       cta: 'Review',
       sectionId: 'daily-recap',
     }
-  }, [bossWarnings, coachNote.detail, coachNote.title, eveningCloseoutQuest, recapToast.detail, recapToast.title, recapToast.tone, stats.currentStreak, todayFocusQuest, todayRemainingCount])
+  }, [bossWarnings, coachNote.detail, coachNote.title, eveningCloseoutQuest, morningRepairQuest, recapToast.detail, recapToast.title, recapToast.tone, repairDate, repairSummary.completedCount, repairSummary.totalCount, stats.currentStreak, todayFocusQuest, todayRemainingCount])
   const dayCompleteSummary = useMemo(() => {
     const ipaCount = clampInt(ipaInput, 0, 30)
 
@@ -1486,7 +1509,7 @@ export default function MyQuestClient() {
           </div>
           <button
             type="button"
-            onClick={() => mobilePocketPulse.quest ? void toggleQuest(mobilePocketPulse.quest) : openFullDashboardSection(mobilePocketPulse.sectionId)}
+            onClick={() => mobilePocketPulse.quest ? void toggleQuestForDate(mobilePocketPulse.quest, mobilePocketPulse.questDate ?? today) : openFullDashboardSection(mobilePocketPulse.sectionId)}
             disabled={Boolean(mobilePocketPulse.quest && pendingQuest)}
           >
             {mobilePocketPulse.cta}
