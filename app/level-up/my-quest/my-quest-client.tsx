@@ -597,6 +597,41 @@ export default function MyQuestClient() {
       return true
     }).slice(0, 3)
   }, [bossWarnings, eveningCloseoutQuest, mobilePocketPulse, morningRepairQuest, repairDate, repairSummary.completedCount, repairSummary.totalCount, today, todayFocusQuest, todayRemainingCount, todayXp])
+  const mobileCommandPrimary = useMemo(() => {
+    const action = mobilePriorityStack[0]
+    if (!action) {
+      return {
+        label: 'Bank Next',
+        value: 'Done',
+        tone: 'green' as const,
+        action: null,
+      }
+    }
+
+    const commandLabel = action.sectionId === 'repair-day' || (action.quest && action.questDate && action.questDate !== today)
+      ? 'Repair'
+      : action.sectionId === 'weekly-bosses'
+        ? 'Boss'
+        : action.sectionId === 'daily-recap'
+          ? 'Recap'
+          : action.label === 'Close' || action.label === 'Evening closeout'
+            ? 'Close'
+            : 'Bank Next'
+
+    const pendingKey = action.quest ? `${action.questDate ?? today}:${action.quest.id}` : ''
+    const value = pendingKey && pendingQuest === pendingKey
+      ? 'Saving'
+      : commandLabel === 'Recap'
+        ? `${todayXp} XP`
+        : action.cta
+
+    return {
+      label: commandLabel,
+      value,
+      tone: action.tone,
+      action,
+    }
+  }, [mobilePriorityStack, pendingQuest, today, todayXp])
   const mobilePocketDone = useMemo(
     () => todayRemainingCount === 0 &&
       !morningRepairQuest &&
@@ -1863,9 +1898,22 @@ export default function MyQuestClient() {
           </button>
         </div>
         <div className={styles.mobileCommandBar} aria-label="My Quest iPhone pocket command bar">
-          <button type="button" onClick={() => todayFocusQuest ? void toggleQuest(todayFocusQuest) : undefined} disabled={!todayFocusQuest || Boolean(pendingQuest)}>
-            <span>Bank Next</span>
-            <strong>{todayFocusQuest ? `+${todayFocusQuest.xp} XP` : 'Done'}</strong>
+          <button
+            type="button"
+            data-tone={mobileCommandPrimary.tone}
+            onClick={() => {
+              const action = mobileCommandPrimary.action
+              if (!action) return
+              if (action.quest) {
+                void toggleQuestForDate(action.quest, action.questDate ?? today)
+                return
+              }
+              openFullDashboardSection(action.sectionId)
+            }}
+            disabled={Boolean(mobileCommandPrimary.action?.quest && pendingQuest)}
+          >
+            <span>{mobileCommandPrimary.label}</span>
+            <strong>{mobileCommandPrimary.value}</strong>
           </button>
           <button type="button" onClick={() => void adjustIpa(1)} disabled={savingTracker}>
             <span>{savingTracker ? 'Saving' : 'Log IPA'}</span>

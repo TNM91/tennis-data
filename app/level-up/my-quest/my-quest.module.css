@@ -3098,6 +3098,21 @@
     background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.2), rgba(24, 54, 34, 0.92));
   }
 
+  .mobileCommandBar button:first-child[data-tone='amber'] {
+    border-color: rgba(255, 205, 94, 0.34);
+    background: linear-gradient(180deg, rgba(255, 205, 94, 0.16), rgba(47, 37, 17, 0.9));
+  }
+
+  .mobileCommandBar button:first-child[data-tone='red'] {
+    border-color: rgba(255, 111, 111, 0.38);
+    background: linear-gradient(180deg, rgba(255, 111, 111, 0.16), rgba(50, 18, 22, 0.9));
+  }
+
+  .mobileCommandBar button:first-child[data-tone='blue'] {
+    border-color: rgba(116, 190, 255, 0.28);
+    background: linear-gradient(180deg, rgba(116, 190, 255, 0.14), rgba(10, 28, 52, 0.9));
+  }
+
   .mobileCommandBar button:disabled {
     opacity: 0.68;
   }
