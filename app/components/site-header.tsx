@@ -376,7 +376,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               }}
             >
               <div style={mobilePanelTopStyle}>
-                <div style={mobileSectionLabelStyle}>{accessPending ? 'Account' : roleLabel || 'Account'}</div>
+                <div style={mobileSectionLabelStyle}>{accessPending ? 'Account' : authenticated ? roleLabel || 'Account' : 'Menu'}</div>
                 <div style={mobileAccountToolsStyle}>
                   {accountLabel ? (
                     <span style={mobileAccountPillStyle}>
@@ -390,7 +390,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                 </div>
               </div>
               <div style={mobileSearchWrapStyle}>
-                <UniversalSearch compact placeholder="Search TenAceIQ" />
+                <UniversalSearch compact placeholder="Search TenAceIQ" showResults={false} />
               </div>
 
               {authPending ? null : authenticated ? (

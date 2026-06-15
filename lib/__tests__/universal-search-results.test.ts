@@ -94,4 +94,11 @@ describe('universal search result model', () => {
     expect(source).toContain('getPlanUnlockHref(item.requiredPlan, destinationHref)')
     expect(source).not.toContain('getPlanSignupHref')
   })
+
+  it('can keep compact header search from flooding mobile navigation', () => {
+    expect(source).toContain('showResults = true')
+    expect(source).toContain('showResults?: boolean')
+    expect(source).toContain('showResults && !compact')
+    expect(source).toContain('{showResults ? (')
+  })
 })

@@ -197,9 +197,11 @@ const groupOrder: SearchGroup[] = [
 export default function UniversalSearch({
   compact = false,
   placeholder = 'Search a player, team, league, city, court, coach, tournament, or tennis resource',
+  showResults = true,
 }: {
   compact?: boolean
   placeholder?: string
+  showResults?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [activeGroup, setActiveGroup] = useState<SearchGroup | 'All'>('All')
@@ -345,7 +347,7 @@ export default function UniversalSearch({
           Search Tennis
         </button>
       </form>
-      {!compact ? (
+      {showResults && !compact ? (
         <div style={categoryRowStyle} aria-label="Search categories">
           {(['All', ...availableGroups] as Array<SearchGroup | 'All'>).map((group) => (
             <button
@@ -366,52 +368,54 @@ export default function UniversalSearch({
           ))}
         </div>
       ) : null}
-      <div id={resultRegionId} role="region" aria-label="Universal search results" style={resultGridStyle} aria-live="polite">
-        {groupedResults.length ? (
-          groupedResults.map(({ group, items }) => (
-            <section key={group} style={resultGroupStyle} aria-label={`${group} search results`}>
-              <div style={groupLabelStyle}>{group}</div>
-              {items.map((item) => (
-                <Link key={`${item.group}-${item.title}`} href={buildResultHref(item, query, Boolean(session?.user))} style={resultLinkStyle} onClick={() => trackResultClick(item)}>
-                  <strong>{item.title}</strong>
-                  <span>{item.detail}</span>
-                </Link>
-              ))}
-            </section>
-          ))
-        ) : (
-          <div role="status" style={noResultStyle}>
-            <span>No matching tennis action in this category. Try All or search a broader tennis term.</span>
-            <div style={noResultActionRowStyle}>
-              {activeGroup !== 'All' ? (
-                <button
-                  type="button"
+      {showResults ? (
+        <div id={resultRegionId} role="region" aria-label="Universal search results" style={resultGridStyle} aria-live="polite">
+          {groupedResults.length ? (
+            groupedResults.map(({ group, items }) => (
+              <section key={group} style={resultGroupStyle} aria-label={`${group} search results`}>
+                <div style={groupLabelStyle}>{group}</div>
+                {items.map((item) => (
+                  <Link key={`${item.group}-${item.title}`} href={buildResultHref(item, query, Boolean(session?.user))} style={resultLinkStyle} onClick={() => trackResultClick(item)}>
+                    <strong>{item.title}</strong>
+                    <span>{item.detail}</span>
+                  </Link>
+                ))}
+              </section>
+            ))
+          ) : (
+            <div role="status" style={noResultStyle}>
+              <span>No matching tennis action in this category. Try All or search a broader tennis term.</span>
+              <div style={noResultActionRowStyle}>
+                {activeGroup !== 'All' ? (
+                  <button
+                    type="button"
+                    onBlur={() => setFocusedControl(null)}
+                    onFocus={() => setFocusedControl('zero-result-all')}
+                    onClick={broadenZeroResultSearch}
+                    style={{
+                      ...noResultButtonStyle,
+                      ...(focusedControl === 'zero-result-all' ? buttonFocusStyle : null),
+                    }}
+                  >
+                    Search all categories
+                  </button>
+                ) : null}
+                <Link
+                  href={query.trim() ? `/resources?q=${encodeURIComponent(query.trim())}` : '/resources'}
                   onBlur={() => setFocusedControl(null)}
-                  onFocus={() => setFocusedControl('zero-result-all')}
-                  onClick={broadenZeroResultSearch}
+                  onFocus={() => setFocusedControl('zero-result-resource')}
                   style={{
-                    ...noResultButtonStyle,
-                    ...(focusedControl === 'zero-result-all' ? buttonFocusStyle : null),
+                    ...noResultLinkStyle,
+                    ...(focusedControl === 'zero-result-resource' ? buttonFocusStyle : null),
                   }}
                 >
-                  Search all categories
-                </button>
-              ) : null}
-              <Link
-                href={query.trim() ? `/resources?q=${encodeURIComponent(query.trim())}` : '/resources'}
-                onBlur={() => setFocusedControl(null)}
-                onFocus={() => setFocusedControl('zero-result-resource')}
-                style={{
-                  ...noResultLinkStyle,
-                  ...(focusedControl === 'zero-result-resource' ? buttonFocusStyle : null),
-                }}
-              >
-                Open Resource Hub
-              </Link>
+                  Open Resource Hub
+                </Link>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }
