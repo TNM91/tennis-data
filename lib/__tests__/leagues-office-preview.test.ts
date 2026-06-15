@@ -11,6 +11,8 @@ describe('Leagues Office preview', () => {
     expect(source).toContain("location: 'league_next_actions'")
     expect(source).toContain('League Office preview')
     expect(source).toContain('Schedules, scores, standings, and corrections.')
+    expect(source).toContain("href: '/leagues-and-tournaments'")
+    expect(source).toContain("cta: 'Open Organizer Hub'")
     expect(source).toContain('TiqWorkspacePreview')
     expect(source).toContain('TiqLeagueStandingCard')
     expect(source).toContain('Data Assist handoff')
