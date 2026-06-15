@@ -222,8 +222,11 @@ export default function PlayerLiveWorkbench({
   const activeDrillSteps = activeDrill.sourceCard?.routine.slice(0, 3).map(shortenDrillStep) ?? getDrillActionSteps(activeDrill.summary)
   const contextOptions = contextOptionsByWorkType[workType]
   const recentSessions = sessions.slice(0, 4)
+  const todaySessions = sessions.filter(isSessionFromToday).slice(0, 4)
   const progress = getProgressSummary(sessions, playableFocuses)
   const activeAccess = accessModes[accessMode]
+  const suggestedNextDrill = lastSavedSession ? getNextDrillAfterSession(lastSavedSession, visibleDrills) : null
+  const smartNextAction = lastSavedSession ? getSmartNextAction(lastSavedSession, suggestedNextDrill) : null
 
   const handleTimerSnapshotChange = useCallback((snapshot: DrillTimerSnapshot) => {
     setActiveTimerSnapshot((current) => {
@@ -467,6 +470,18 @@ export default function PlayerLiveWorkbench({
     }, 0)
   }
 
+  function moveToSuggestedDrill() {
+    if (!suggestedNextDrill) return
+    setLastSavedSession(null)
+    chooseDrillOption(suggestedNextDrill.id)
+  }
+
+  function finishToday() {
+    setLastSavedSession(null)
+    setQuestCreditMessage('')
+    activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
+
   async function syncLevelUpSession(session: SavedSession) {
     if (session.accessMode === 'free_preview') {
       setSyncState({ status: 'local', message: 'Free preview saved locally. Coach invite or Player+ turns on cloud history.' })
@@ -543,6 +558,20 @@ export default function PlayerLiveWorkbench({
           </button>
         </div>
       </div>
+
+      {todaySessions.length ? (
+        <div className={styles.liveTodayStack} aria-label="Today's completed drill stack">
+          <span>Today&apos;s stack</span>
+          <div>
+            {todaySessions.map((session) => (
+              <article key={session.id}>
+                <strong>{session.drillTitle}</strong>
+                <small>{session.rating}/5 - {formatClock(session.elapsedSeconds)}</small>
+              </article>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {!hasCoachAssignment ? (
         <div className={styles.liveCoachChallengeEntry}>
@@ -845,7 +874,7 @@ export default function PlayerLiveWorkbench({
         <>
           <div className={styles.liveSessionToast} role="status" aria-label="Saved session summary">
             <div>
-              <span>Saved on this phone</span>
+              <span>+ Work logged</span>
               <strong>{lastSavedSession.rating}/5 - {formatClock(lastSavedSession.elapsedSeconds)}</strong>
               <small>{lastSavedSession.drillTitle}</small>
             </div>
@@ -856,6 +885,28 @@ export default function PlayerLiveWorkbench({
               New
             </button>
           </div>
+          {smartNextAction ? (
+            <div className={styles.liveNextActionCard} aria-label="Next best action">
+              <div>
+                <span>Next best action</span>
+                <strong>{smartNextAction.title}</strong>
+                <p>{smartNextAction.copy}</p>
+              </div>
+              <div className={styles.liveNextActionButtons}>
+                <button type="button" className="button-primary" onClick={repeatActivity}>
+                  Repeat
+                </button>
+                {suggestedNextDrill ? (
+                  <button type="button" className="button-secondary" onClick={moveToSuggestedDrill}>
+                    Paired drill
+                  </button>
+                ) : null}
+                <button type="button" className="button-secondary" onClick={finishToday}>
+                  Finish
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div ref={savedRef} className={styles.liveSavedBanner} role="status">
             <div>
               <span>Saved</span>
@@ -1357,6 +1408,50 @@ function formatClock(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+function isSessionFromToday(session: SavedSession) {
+  const completedAt = new Date(session.completedAt)
+  if (Number.isNaN(completedAt.getTime())) return false
+
+  const today = new Date()
+  return completedAt.getFullYear() === today.getFullYear() &&
+    completedAt.getMonth() === today.getMonth() &&
+    completedAt.getDate() === today.getDate()
+}
+
+function getNextDrillAfterSession(session: SavedSession, drills: DrillOption[]) {
+  if (drills.length < 2) return null
+
+  const currentIndex = drills.findIndex((drill) => drill.title === session.drillTitle)
+  if (currentIndex === -1) return drills[0]
+
+  return drills[(currentIndex + 1) % drills.length] ?? null
+}
+
+function getSmartNextAction(session: SavedSession, suggestedNextDrill: DrillOption | null) {
+  if (session.rating >= 5) {
+    return {
+      title: suggestedNextDrill ? `Level up into ${suggestedNextDrill.title}` : 'Level up the same drill',
+      copy: suggestedNextDrill
+        ? 'You scored this clean. Take the next paired drill while the movement pattern is warm.'
+        : 'You scored this clean. Repeat it once with a pressure layer or finish for today.',
+    }
+  }
+
+  if (session.rating <= 3) {
+    return {
+      title: 'Repeat or scale down',
+      copy: 'Keep the same drill and make the next rep cleaner before adding speed or pressure.',
+    }
+  }
+
+  return {
+    title: suggestedNextDrill ? `Move to ${suggestedNextDrill.title}` : 'Bank it and finish strong',
+    copy: suggestedNextDrill
+      ? 'Good work logged. Move to the paired drill or repeat this one if you want a cleaner score.'
+      : 'Good work logged. Repeat once or finish today with a clean proof trail.',
+  }
 }
 
 function getDrillActionSteps(summary: string) {
