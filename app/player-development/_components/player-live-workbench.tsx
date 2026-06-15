@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import { supabase } from '@/lib/supabase'
@@ -75,6 +75,13 @@ type CustomQuestForCompletion = {
 type SyncState = {
   status: 'idle' | 'syncing' | 'synced' | 'local' | 'error'
   message: string
+}
+
+type DrillTimerSnapshot = {
+  drillId: string
+  elapsedSeconds: number
+  running: boolean
+  targetSeconds: number
 }
 
 type PlayerLiveWorkbenchProps = {
@@ -192,6 +199,7 @@ export default function PlayerLiveWorkbench({
   const [scoringDrillId, setScoringDrillId] = useState('')
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
   const [questCreditMessage, setQuestCreditMessage] = useState('')
+  const [activeTimerSnapshot, setActiveTimerSnapshot] = useState<DrillTimerSnapshot | null>(null)
   const storageKey = `tenaceiq:level-up:${identitySlug}`
   const [sessions, setSessions] = useState<SavedSession[]>(() => readSavedSessions(storageKey))
 
@@ -215,6 +223,21 @@ export default function PlayerLiveWorkbench({
   const recentSessions = sessions.slice(0, 4)
   const progress = getProgressSummary(sessions, playableFocuses)
   const activeAccess = accessModes[accessMode]
+
+  const handleTimerSnapshotChange = useCallback((snapshot: DrillTimerSnapshot) => {
+    setActiveTimerSnapshot((current) => {
+      if (
+        current?.drillId === snapshot.drillId &&
+        current.elapsedSeconds === snapshot.elapsedSeconds &&
+        current.running === snapshot.running &&
+        current.targetSeconds === snapshot.targetSeconds
+      ) {
+        return current
+      }
+
+      return snapshot
+    })
+  }, [])
 
   useEffect(() => {
     if (!hasCoachAssignment) return
@@ -396,6 +419,10 @@ export default function PlayerLiveWorkbench({
 
   function chooseDrillOption(drillId: string) {
     if (drillId === activeDrill.id) return
+    if (activeTimerSnapshot?.drillId === activeDrill.id && activeTimerSnapshot.running) {
+      const shouldSwitch = window.confirm('Switch drills? The current timer will reset to 0:00.')
+      if (!shouldSwitch) return
+    }
     setActiveDrillId(drillId)
     setScoringDrillId('')
     window.requestAnimationFrame(() => {
@@ -689,6 +716,7 @@ export default function PlayerLiveWorkbench({
               drillId={activeDrill.id}
               targetSeconds={activeDrill.timerSeconds}
               onDone={goToScore}
+              onSnapshotChange={handleTimerSnapshotChange}
             />
             <div className={`${styles.liveActionGuide} ${styles.liveScoreGuide}`}>
               <div>
@@ -885,13 +913,24 @@ export default function PlayerLiveWorkbench({
   )
 }
 
-function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targetSeconds: number; onDone: () => void }) {
+function DrillTimer({
+  drillId,
+  targetSeconds,
+  onDone,
+  onSnapshotChange,
+}: {
+  drillId: string
+  targetSeconds: number
+  onDone: () => void
+  onSnapshotChange: (snapshot: DrillTimerSnapshot) => void
+}) {
   const timerRef = useRef<HTMLDivElement>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(() => getTimerSeconds(drillId))
   const [running, setRunning] = useState(false)
   const progress = targetSeconds > 0 ? Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100)) : 0
   const targetLabel = targetSeconds > 0 ? formatClock(targetSeconds) : 'Open'
   const timerState = running ? 'running' : elapsedSeconds > 0 ? 'paused' : 'idle'
+  const showStickyDock = running || elapsedSeconds > 0
 
   useEffect(() => {
     const id = window.requestAnimationFrame(() => {
@@ -901,6 +940,10 @@ function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targe
 
     return () => window.cancelAnimationFrame(id)
   }, [drillId])
+
+  useEffect(() => {
+    onSnapshotChange({ drillId, elapsedSeconds, running, targetSeconds })
+  }, [drillId, elapsedSeconds, onSnapshotChange, running, targetSeconds])
 
   useEffect(() => {
     if (!running) return
@@ -942,29 +985,46 @@ function DrillTimer({ drillId, targetSeconds, onDone }: { drillId: string; targe
   }
 
   return (
-    <div ref={timerRef} className={styles.liveTimerPanel} data-timer-state={timerState}>
-      <div>
-        <span>Timer</span>
-        <strong>{formatClock(elapsedSeconds)}</strong>
-        <p>Goal: {targetLabel}. Use this for the work block. Keep quality clean before adding speed.</p>
+    <>
+      <div ref={timerRef} className={styles.liveTimerPanel} data-timer-state={timerState}>
+        <div>
+          <span>Timer</span>
+          <strong>{formatClock(elapsedSeconds)}</strong>
+          <p>Goal: {targetLabel}. Use this for the work block. Keep quality clean before adding speed.</p>
+        </div>
+        <div className={styles.liveTimerTrack} aria-hidden="true">
+          <i style={{ width: `${progress}%` }} />
+        </div>
+        <div className={styles.liveTimerActions}>
+          <button type="button" className="button-primary" onClick={toggleTimer}>
+            {running ? 'Pause' : 'Start'}
+          </button>
+          <button type="button" className="button-secondary" aria-label="Reset drill timer to 0" onClick={resetTimer}>
+            Reset timer
+          </button>
+          {elapsedSeconds > 0 ? (
+            <button type="button" className="button-primary" data-action="done" onClick={finishTimer}>
+              Done
+            </button>
+          ) : null}
+        </div>
       </div>
-      <div className={styles.liveTimerTrack} aria-hidden="true">
-        <i style={{ width: `${progress}%` }} />
-      </div>
-      <div className={styles.liveTimerActions}>
-        <button type="button" className="button-primary" onClick={toggleTimer}>
-          {running ? 'Pause' : 'Start'}
+      <div className={styles.liveTimerDock} data-visible={showStickyDock ? 'true' : 'false'} aria-label="Sticky drill timer controls">
+        <div>
+          <span>{running ? 'Running' : 'Paused'}</span>
+          <strong>{formatClock(elapsedSeconds)}</strong>
+        </div>
+        <button type="button" className="button-secondary" onClick={toggleTimer}>
+          {running ? 'Pause' : 'Resume'}
         </button>
         <button type="button" className="button-secondary" aria-label="Reset drill timer to 0" onClick={resetTimer}>
-          Reset timer
+          Reset
         </button>
-        {elapsedSeconds > 0 ? (
-          <button type="button" className="button-primary" data-action="done" onClick={finishTimer}>
-            Done
-          </button>
-        ) : null}
+        <button type="button" className="button-primary" disabled={elapsedSeconds === 0} onClick={finishTimer}>
+          Done
+        </button>
       </div>
-    </div>
+    </>
   )
 }
 

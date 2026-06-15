@@ -8748,6 +8748,10 @@
   grid-column: 1 / -1;
 }
 
+.liveTimerDock {
+  display: none;
+}
+
 .liveActionLinks {
   display: flex;
   flex-wrap: wrap;
@@ -13815,8 +13819,75 @@
     font-size: 2.35rem;
   }
 
+  .liveTimerDock[data-visible='true'] {
+    position: sticky;
+    z-index: 18;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: minmax(72px, 1fr) repeat(3, minmax(58px, auto));
+    gap: 7px;
+    align-items: center;
+    margin-top: 2px;
+    border: 1px solid rgba(155, 225, 29, 0.28);
+    border-radius: 14px;
+    background:
+      linear-gradient(135deg, rgba(8, 22, 28, 0.96), rgba(18, 40, 34, 0.96)),
+      rgba(5, 14, 19, 0.94);
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+    padding: 8px;
+    backdrop-filter: blur(16px);
+  }
+
+  .liveTimerDock div {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .liveTimerDock span {
+    color: var(--brand-green-3);
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .liveTimerDock strong {
+    color: var(--foreground-strong);
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  .liveTimerDock button {
+    min-height: 38px;
+    min-width: 0;
+    padding-inline: 9px;
+    font-size: 0.78rem;
+  }
+
   .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveTimerPanel {
     border-color: rgba(155, 225, 29, 0.34);
+  }
+
+  .liveDrillChoices {
+    display: flex;
+    flex-wrap: nowrap;
+    margin: 0 -10px;
+    overflow-x: auto;
+    padding: 0 10px 3px;
+    scroll-padding-inline: 10px;
+    scroll-snap-type: x proximity;
+  }
+
+  .liveDrillChoices button {
+    flex: 0 0 min(220px, 76vw);
+    min-height: 58px;
+    border-radius: 14px;
+    scroll-snap-align: start;
+  }
+
+  .liveDrillChoices button small {
+    display: none;
   }
 
   .liveTracker textarea {
