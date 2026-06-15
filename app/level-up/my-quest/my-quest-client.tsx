@@ -391,7 +391,7 @@ export default function MyQuestClient() {
     {
       label: 'Next',
       value: smartQuest.quest?.shortTitle ?? 'Done',
-      href: '#today-quests',
+      href: phoneCompact ? '#lock-screen' : '#today-quests',
     },
     {
       label: 'Boss',
@@ -1228,7 +1228,7 @@ export default function MyQuestClient() {
   }
 
   return (
-    <section className={styles.pageShell}>
+    <section className={styles.pageShell} data-phone-mode={phoneCompact ? 'pocket' : 'full'}>
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>Level Up: My Quest</p>

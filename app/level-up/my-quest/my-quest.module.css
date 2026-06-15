@@ -2222,6 +2222,15 @@
     display: none;
   }
 
+  .pageShell[data-phone-mode='pocket'] .todayCommand,
+  .pageShell[data-phone-mode='pocket'] .trendStrip,
+  .pageShell[data-phone-mode='pocket'] .questPanel,
+  .pageShell[data-phone-mode='pocket'] .bossPanel,
+  .pageShell[data-phone-mode='pocket'] .photoPanel,
+  .pageShell[data-phone-mode='pocket'] .achievementPanel {
+    display: none;
+  }
+
   .questGrid,
   .todayQuickGrid,
   .quickAddQuestGrid,
