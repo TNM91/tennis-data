@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   PERSONAL_DAILY_QUESTS,
@@ -191,6 +191,8 @@ const PHOTO_SIGNED_URL_TTL_SECONDS = 300
 
 export default function MyQuestClient() {
   const { authResolved, session, userId } = useAuth()
+  const commandLongPressTimer = useRef<number | null>(null)
+  const commandLongPressTriggered = useRef(false)
   const [loadState, setLoadState] = useState<LoadState>('checking')
   const [completions, setCompletions] = useState<DailyQuestCompletion[]>([])
   const [logs, setLogs] = useState<DailyLog[]>([])
@@ -221,6 +223,7 @@ export default function MyQuestClient() {
   const [selectedAchievementId, setSelectedAchievementId] = useState('')
   const [undoQuest, setUndoQuest] = useState<QuestUndo | null>(null)
   const [offlineQueueCount, setOfflineQueueCount] = useState(0)
+  const [browserOnline, setBrowserOnline] = useState(() => isBrowserOnline())
   const [clientIssueCount, setClientIssueCount] = useState(0)
   const [lastClientIssue, setLastClientIssue] = useState('Clear')
   const [syncingOffline, setSyncingOffline] = useState(false)
@@ -244,6 +247,24 @@ export default function MyQuestClient() {
   useEffect(() => {
     const intervalId = window.setInterval(() => setCurrentHour(new Date().getHours()), 60_000)
     return () => window.clearInterval(intervalId)
+  }, [])
+
+  useEffect(() => {
+    const updateOnline = () => setBrowserOnline(isBrowserOnline())
+    updateOnline()
+    window.addEventListener('online', updateOnline)
+    window.addEventListener('offline', updateOnline)
+
+    return () => {
+      window.removeEventListener('online', updateOnline)
+      window.removeEventListener('offline', updateOnline)
+    }
+  }, [])
+
+  useEffect(() => () => {
+    if (!commandLongPressTimer.current) return
+    window.clearTimeout(commandLongPressTimer.current)
+    commandLongPressTimer.current = null
   }, [])
 
   const stats = useMemo(
@@ -686,6 +707,35 @@ export default function MyQuestClient() {
       tone: mobileCommandPrimary.tone,
     }
   }, [mobileCommandPrimary.action, mobileCommandPrimary.label, mobileCommandPrimary.tone, todayXp])
+  const mobileOfflineConfidence = useMemo(() => {
+    if (!browserOnline) {
+      return {
+        tone: 'amber' as const,
+        label: 'Offline',
+        detail: offlineQueueCount ? `${offlineQueueCount} queued safely` : 'New actions will queue safely',
+      }
+    }
+
+    if (offlineQueueCount) {
+      return {
+        tone: 'blue' as const,
+        label: 'Sync queue',
+        detail: `${offlineQueueCount} waiting to sync`,
+      }
+    }
+
+    return null
+  }, [browserOnline, offlineQueueCount])
+  const mobileEveningCloseout = useMemo(() => {
+    if (currentHour < 18 || todayRemainingCount === 0) return null
+
+    return {
+      title: `${todayRemainingCount} left before reset`,
+      detail: eveningCloseoutQuest ? `${eveningCloseoutQuest.shortTitle} is the clean close.` : 'Review the board before reset.',
+      cta: eveningCloseoutQuest ? `+${eveningCloseoutQuest.xp}` : 'Recap',
+      quest: eveningCloseoutQuest,
+    }
+  }, [currentHour, eveningCloseoutQuest, todayRemainingCount])
   const mobilePocketDone = useMemo(
     () => todayRemainingCount === 0 &&
       !morningRepairQuest &&
@@ -936,6 +986,15 @@ export default function MyQuestClient() {
     ).size,
     [completions, weekEnd, weekStart],
   )
+  const mobileSundayReset = useMemo(() => {
+    if (!isSunday) return null
+
+    return {
+      title: weeklyReview ? 'Weekly review saved' : 'Sunday reset',
+      detail: `${weeklyIpaCount} IPAs | ${weeklyChipFreeLunches} chip-free lunches`,
+      value: weeklyReview ? 'Saved' : 'Open',
+    }
+  }, [isSunday, weeklyChipFreeLunches, weeklyIpaCount, weeklyReview])
 
   const loadDashboard = useCallback(async (ownerId: string) => {
     setLoadState('loading')
@@ -1233,6 +1292,7 @@ export default function MyQuestClient() {
       setCompletions((current) => current.filter((item) => !(item.completed_on === targetDate && item.quest_id === quest.id)))
 
       if (!isBrowserOnline()) {
+        triggerPocketHaptic(8)
         setPendingQuest('')
         setOfflineQueueCount(queueOfflineQuestAction(ownerId, {
           id: createOfflineActionId(),
@@ -1259,6 +1319,7 @@ export default function MyQuestClient() {
         setCompletions(before)
         setQuestError('quest delete', deleteError.message)
       } else {
+        triggerPocketHaptic(8)
         setMessage(targetDate === today ? buildQuestFeedback(quest, 'removed') : `${quest.shortTitle} removed from yesterday. XP adjusted.`)
         if (!options.suppressUndo) {
           setUndoQuest({ quest, targetDate, action: 'removed', message: 'Quest removed.' })
@@ -1276,6 +1337,7 @@ export default function MyQuestClient() {
     setCompletions((current) => [completion, ...current])
 
     if (!isBrowserOnline()) {
+      triggerPocketHaptic([10, 22, 10])
       setPendingQuest('')
       setOfflineQueueCount(queueOfflineQuestAction(ownerId, {
         id: createOfflineActionId(),
@@ -1304,6 +1366,7 @@ export default function MyQuestClient() {
       setCompletions((current) => current.filter((item) => !(item.completed_on === targetDate && item.quest_id === quest.id)))
       setQuestError('quest upsert', upsertError.message)
     } else {
+      triggerPocketHaptic([10, 22, 10])
       setMessage(targetDate === today ? buildQuestFeedback(quest, 'completed') : `${quest.shortTitle} repaired for yesterday. +${quest.xp} XP.`)
       if (!options.suppressUndo) {
         setUndoQuest({ quest, targetDate, action: 'completed', message: 'Quest completed.' })
@@ -1414,6 +1477,46 @@ export default function MyQuestClient() {
     setMessage('Test reminder sent on this device.')
   }
 
+  function triggerPocketHaptic(pattern: number | number[] = 12) {
+    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return
+    navigator.vibrate(pattern)
+  }
+
+  function clearCommandLongPress() {
+    if (!commandLongPressTimer.current) return
+    window.clearTimeout(commandLongPressTimer.current)
+    commandLongPressTimer.current = null
+  }
+
+  function startCommandLongPress() {
+    const action = mobileCommandPrimary.action
+    if (!action) return
+
+    commandLongPressTriggered.current = false
+    clearCommandLongPress()
+    commandLongPressTimer.current = window.setTimeout(() => {
+      commandLongPressTriggered.current = true
+      commandLongPressTimer.current = null
+      triggerPocketHaptic([8, 18, 8])
+      openFullDashboardSection(action.sectionId)
+    }, 520)
+  }
+
+  function runPrimaryCommandAction() {
+    const action = mobileCommandPrimary.action
+    if (commandLongPressTriggered.current) {
+      commandLongPressTriggered.current = false
+      return
+    }
+
+    if (!action) return
+    if (action.quest) {
+      void toggleQuestForDate(action.quest, action.questDate ?? today)
+      return
+    }
+    openFullDashboardSection(action.sectionId)
+  }
+
   async function saveDailyTrackers(nextIpaInput = ipaInput, nextNotesInput = notesInput) {
     await saveDailyTrackersForDate(today, nextIpaInput, nextNotesInput)
   }
@@ -1447,6 +1550,7 @@ export default function MyQuestClient() {
     if (upsertError) {
       setQuestError('daily tracker', upsertError.message)
     } else {
+      triggerPocketHaptic(8)
       setLogs((current) => upsertByDate(current, { log_date: targetDate, ipa_count: ipaCount, notes: cleanNotes }, 'log_date'))
       if (targetDate === today) {
         setIpaInput(String(ipaCount))
@@ -1827,6 +1931,22 @@ export default function MyQuestClient() {
             {mobilePocketPulse.cta}
           </button>
         </div>
+        {mobileEveningCloseout ? (
+          <div className={styles.mobileEveningCloseout} aria-label="My Quest iPhone evening closeout">
+            <div>
+              <span>Evening lock</span>
+              <strong>{mobileEveningCloseout.title}</strong>
+              <small>{mobileEveningCloseout.detail}</small>
+            </div>
+            <button
+              type="button"
+              onClick={() => mobileEveningCloseout.quest ? void toggleQuestForDate(mobileEveningCloseout.quest, today) : openFullDashboardSection('daily-recap')}
+              disabled={Boolean(mobileEveningCloseout.quest && pendingQuest)}
+            >
+              {mobileEveningCloseout.cta}
+            </button>
+          </div>
+        ) : null}
         <button
           type="button"
           className={styles.mobileWeeklyFocusCue}
@@ -1892,6 +2012,18 @@ export default function MyQuestClient() {
             })}
           </div>
         )}
+        {mobileSundayReset ? (
+          <button
+            type="button"
+            className={styles.mobileSundayReset}
+            onClick={() => openFullDashboardSection('weekly-review')}
+            aria-label="My Quest iPhone Sunday reset"
+          >
+            <span>{mobileSundayReset.title}</span>
+            <strong>{mobileSundayReset.detail}</strong>
+            <em>{mobileSundayReset.value}</em>
+          </button>
+        ) : null}
         <details className={styles.mobilePocketMore} aria-label="My Quest iPhone full dashboard shortcuts">
           <summary>
             <span>More tools</span>
@@ -1951,6 +2083,12 @@ export default function MyQuestClient() {
             {notificationPermission === 'granted' ? 'Test' : 'Enable'}
           </button>
         </div>
+        {mobileOfflineConfidence ? (
+          <div className={styles.mobileOfflineConfidence} data-tone={mobileOfflineConfidence.tone} aria-label="My Quest iPhone offline confidence">
+            <span>{mobileOfflineConfidence.label}</span>
+            <strong>{mobileOfflineConfidence.detail}</strong>
+          </div>
+        ) : null}
         <div className={styles.mobilePocketStateLabel} data-tone={mobilePocketStateLabel.tone} aria-label="My Quest iPhone pocket state label">
           <span>{mobilePocketStateLabel.label}</span>
           <strong>{mobilePocketStateLabel.detail}</strong>
@@ -1960,15 +2098,12 @@ export default function MyQuestClient() {
           <button
             type="button"
             data-tone={mobileCommandPrimary.tone}
-            onClick={() => {
-              const action = mobileCommandPrimary.action
-              if (!action) return
-              if (action.quest) {
-                void toggleQuestForDate(action.quest, action.questDate ?? today)
-                return
-              }
-              openFullDashboardSection(action.sectionId)
-            }}
+            onPointerDown={startCommandLongPress}
+            onPointerUp={clearCommandLongPress}
+            onPointerLeave={clearCommandLongPress}
+            onPointerCancel={clearCommandLongPress}
+            onContextMenu={(event) => event.preventDefault()}
+            onClick={runPrimaryCommandAction}
             disabled={Boolean(mobileCommandPrimary.action?.quest && pendingQuest)}
           >
             <span>{mobileCommandPrimary.label}</span>

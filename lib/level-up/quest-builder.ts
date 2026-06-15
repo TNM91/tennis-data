@@ -143,6 +143,40 @@ export const LEVEL_UP_HABIT_PATHS: LevelUpHabitPath[] = [
   },
 ]
 
+export const LEVEL_UP_PUBLIC_HABIT_BUILDER_BLUEPRINT = {
+  principle: 'Every level of tennis player can turn one tennis goal into one drill-backed habit with proof.',
+  privacyBoundary: 'Private personal body goals stay private; public Level Up habits stay tennis-specific.',
+  audience: ['newer players', 'recreational players', 'competitive players', 'doubles teams', 'captains', 'coaches'],
+  loops: [
+    {
+      id: 'choose',
+      label: 'Choose',
+      detail: 'Pick one tennis goal, skill leak, match pattern, or recovery need.',
+      surfaces: ['Player', 'Coach', 'Captain'],
+    },
+    {
+      id: 'link',
+      label: 'Link',
+      detail: 'Attach the habit to a real Level Up drill, routine, or match-prep card.',
+      surfaces: ['Player', 'Coach', 'Captain'],
+    },
+    {
+      id: 'prove',
+      label: 'Prove',
+      detail: 'Track a short proof score or note after the session, not calories or body metrics.',
+      surfaces: ['Player', 'Coach'],
+    },
+    {
+      id: 'level',
+      label: 'Level',
+      detail: 'Reward consistency with XP, streaks, badges, and team challenges.',
+      surfaces: ['Player', 'Captain', 'Coach'],
+    },
+  ],
+  categories: ['tennis-skill', 'fitness', 'nutrition-hydration', 'mindset', 'recovery', 'match-prep'] satisfies LevelUpHabitCategory[],
+  excludes: ['calorie counting', 'scale weight', 'public body goals'],
+} as const
+
 export function buildLevelUpQuestBuilderPlan(identitySlug: string): LevelUpQuestBuilderPlan {
   const templates = LEVEL_UP_QUEST_TEMPLATES
     .map((template) => {
