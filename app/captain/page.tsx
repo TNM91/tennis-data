@@ -1712,7 +1712,7 @@ function CaptainHubContent() {
         <div style={loadingStateCardStyle}>
           <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
           <div>
-            <div style={loadingStateTitleStyle}>Preparing Team Hub</div>
+            <h1 style={loadingStateTitleStyle}>Preparing Team Hub</h1>
             <div style={loadingStateTextStyle}>Checking your role, team profile, and match-week context.</div>
           </div>
         </div>
@@ -2865,6 +2865,7 @@ const loadingStateCardStyle: CSSProperties = {
 }
 
 const loadingStateTitleStyle: CSSProperties = {
+  margin: 0,
   color: 'var(--foreground-strong)',
   fontSize: 18,
   fontWeight: 950,

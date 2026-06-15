@@ -18,6 +18,7 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('Team Hub preview')
     expect(source).toContain('Run match week with less chaos.')
     expect(source).toContain('Preparing Team Hub')
+    expect(source).toContain('<h1 style={loadingStateTitleStyle}>Preparing Team Hub</h1>')
     expect(source).toContain('League Office')
     expect(source).not.toContain('League Coordinator')
     expect(source).toContain('Compare plans')
