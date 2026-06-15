@@ -249,6 +249,30 @@ const tournamentNextActions = [
     ],
   },
   {
+    eyebrow: 'Organize',
+    title: 'Plan the full competition',
+    body: 'Use the Leagues & Tournaments hub when schedules, standings, draws, teams, players, and score workflows need one organizer path.',
+    metrics: [
+      { label: 'Hub', value: 'Leagues + events' },
+      { label: 'Work', value: 'Organize' },
+      { label: 'Next', value: 'Choose path' },
+    ],
+    href: '/leagues-and-tournaments',
+    cta: 'Open Organizer Hub',
+    event: {
+      eventName: 'league_office_clicked',
+      surface: 'leagues',
+      metadata: {
+        location: 'tournament_next_actions',
+        job: 'organize_competition',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Public organizer path', tone: 'good' },
+      { label: 'Source', value: 'TenAceIQ hub', tone: 'info' },
+    ],
+  },
+  {
     eyebrow: 'Fix data',
     title: 'Report a draw or result issue',
     body: 'Use Data Assist when entries, draws, court times, scores, winners, or awards need a reviewed source.',
