@@ -132,6 +132,7 @@
 .mobileTapPlan,
 .mobilePocketToggle,
 .mobilePocketPulse,
+.mobilePriorityStack,
 .mobilePocketMore {
   display: none;
 }
@@ -2467,6 +2468,11 @@
     white-space: nowrap;
   }
 
+  .pageShell[data-phone-mode='pocket'] .mobileQuestRail,
+  .pageShell[data-phone-mode='pocket'] .mobileTapPlan {
+    display: none;
+  }
+
   .mobilePocketToggle {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(132px, 0.46fr);
@@ -2580,6 +2586,86 @@
     min-height: 40px;
     padding: 0 8px;
     font-size: 0.74rem;
+  }
+
+  .pageShell[data-phone-mode='pocket'] .mobilePriorityStack {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .mobilePriorityStack button {
+    min-height: 46px;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) minmax(48px, auto);
+    gap: 8px;
+    align-items: center;
+    border: 1px solid rgba(116, 190, 255, 0.14);
+    border-radius: 13px;
+    background: rgba(2, 10, 24, 0.3);
+    padding: 7px 8px;
+    text-align: left;
+  }
+
+  .mobilePriorityStack button[data-tone='green'] {
+    border-color: rgba(var(--brand-green-rgb), 0.26);
+  }
+
+  .mobilePriorityStack button[data-tone='amber'] {
+    border-color: rgba(255, 205, 94, 0.3);
+  }
+
+  .mobilePriorityStack button[data-tone='red'] {
+    border-color: rgba(255, 111, 111, 0.36);
+  }
+
+  .mobilePriorityStack button > span {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(var(--brand-green-rgb), 0.14);
+    color: var(--foreground-strong);
+    font-size: 0.72rem;
+    font-weight: 950;
+  }
+
+  .mobilePriorityStack button > div {
+    min-width: 0;
+    display: grid;
+    gap: 1px;
+  }
+
+  .mobilePriorityStack small {
+    overflow: hidden;
+    color: var(--brand-green-3);
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .mobilePriorityStack strong {
+    overflow: hidden;
+    color: var(--foreground-strong);
+    font-size: 0.84rem;
+    line-height: 1.08;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobilePriorityStack em {
+    overflow: hidden;
+    color: var(--muted-strong);
+    font-size: 0.68rem;
+    font-style: normal;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .pageShell[data-phone-mode='pocket'] .mobilePocketMore {

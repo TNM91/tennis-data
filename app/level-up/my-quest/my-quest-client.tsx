@@ -97,6 +97,18 @@ type MobilePocketPulse = {
   sectionId: string
 }
 
+type MobilePriorityAction = {
+  id: string
+  label: string
+  title: string
+  detail: string
+  cta: string
+  tone: 'green' | 'amber' | 'red' | 'blue'
+  quest?: PersonalQuestDefinition
+  questDate?: string
+  sectionId: string
+}
+
 type LoadState = 'checking' | 'loading' | 'ready'
 type PhotoCompareMode = 'latest_previous' | 'first_latest' | 'week_over_week'
 
@@ -464,6 +476,92 @@ export default function MyQuestClient() {
       sectionId: 'daily-recap',
     }
   }, [bossWarnings, coachNote.detail, coachNote.title, eveningCloseoutQuest, morningRepairQuest, recapToast.detail, recapToast.title, recapToast.tone, repairDate, repairSummary.completedCount, repairSummary.totalCount, stats.currentStreak, todayFocusQuest, todayRemainingCount])
+  const mobilePriorityStack = useMemo<MobilePriorityAction[]>(() => {
+    const candidates: MobilePriorityAction[] = [
+      {
+        id: `pulse:${mobilePocketPulse.questDate ?? today}:${mobilePocketPulse.quest?.id ?? mobilePocketPulse.sectionId}`,
+        label: mobilePocketPulse.label,
+        title: mobilePocketPulse.title,
+        detail: mobilePocketPulse.cta,
+        cta: mobilePocketPulse.cta,
+        tone: mobilePocketPulse.tone,
+        quest: mobilePocketPulse.quest,
+        questDate: mobilePocketPulse.questDate,
+        sectionId: mobilePocketPulse.sectionId,
+      },
+    ]
+
+    if (morningRepairQuest) {
+      candidates.push({
+        id: `repair:${repairDate}:${morningRepairQuest.id}`,
+        label: 'Repair',
+        title: morningRepairQuest.shortTitle,
+        detail: `${repairSummary.completedCount}/${repairSummary.totalCount}`,
+        cta: `+${morningRepairQuest.xp}`,
+        tone: 'blue',
+        quest: morningRepairQuest,
+        questDate: repairDate,
+        sectionId: 'repair-day',
+      })
+    }
+
+    if (eveningCloseoutQuest) {
+      candidates.push({
+        id: `close:${today}:${eveningCloseoutQuest.id}`,
+        label: 'Close',
+        title: eveningCloseoutQuest.shortTitle,
+        detail: `+${eveningCloseoutQuest.xp} XP`,
+        cta: `+${eveningCloseoutQuest.xp}`,
+        tone: 'amber',
+        quest: eveningCloseoutQuest,
+        sectionId: 'lock-screen',
+      })
+    }
+
+    const warning = bossWarnings.find((item) => item.tone !== 'green')
+    if (warning) {
+      candidates.push({
+        id: `boss:${warning.title}`,
+        label: 'Boss',
+        title: warning.title,
+        detail: warning.cta,
+        cta: 'Open',
+        tone: warning.tone,
+        sectionId: 'weekly-bosses',
+      })
+    }
+
+    if (todayFocusQuest && todayRemainingCount > 0) {
+      candidates.push({
+        id: `today:${today}:${todayFocusQuest.id}`,
+        label: 'Today',
+        title: todayFocusQuest.shortTitle,
+        detail: `+${todayFocusQuest.xp} XP`,
+        cta: `+${todayFocusQuest.xp}`,
+        tone: 'green',
+        quest: todayFocusQuest,
+        sectionId: 'lock-screen',
+      })
+    }
+
+    candidates.push({
+      id: 'review:daily-recap',
+      label: 'Review',
+      title: todayRemainingCount === 0 ? 'Daily recap' : 'Board view',
+      detail: todayRemainingCount === 0 ? `${todayXp} XP` : `${todayRemainingCount} left`,
+      cta: 'Open',
+      tone: todayRemainingCount === 0 ? 'green' : 'blue',
+      sectionId: todayRemainingCount === 0 ? 'daily-recap' : 'lock-screen',
+    })
+
+    const seen = new Set<string>()
+    return candidates.filter((action) => {
+      const key = action.quest ? `${action.questDate ?? today}:${action.quest.id}` : action.sectionId
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    }).slice(0, 3)
+  }, [bossWarnings, eveningCloseoutQuest, mobilePocketPulse, morningRepairQuest, repairDate, repairSummary.completedCount, repairSummary.totalCount, today, todayFocusQuest, todayRemainingCount, todayXp])
   const dayCompleteSummary = useMemo(() => {
     const ipaCount = clampInt(ipaInput, 0, 30)
 
@@ -1514,6 +1612,29 @@ export default function MyQuestClient() {
           >
             {mobilePocketPulse.cta}
           </button>
+        </div>
+        <div className={styles.mobilePriorityStack} aria-label="My Quest iPhone pocket priority stack">
+          {mobilePriorityStack.map((action, index) => {
+            const actionDate = action.questDate ?? today
+            const pendingKey = action.quest ? `${actionDate}:${action.quest.id}` : ''
+
+            return (
+              <button
+                key={action.id}
+                type="button"
+                data-tone={action.tone}
+                onClick={() => action.quest ? void toggleQuestForDate(action.quest, actionDate) : openFullDashboardSection(action.sectionId)}
+                disabled={Boolean(action.quest && pendingQuest)}
+              >
+                <span>{index + 1}</span>
+                <div>
+                  <small>{pendingKey && pendingQuest === pendingKey ? 'Saving' : action.label}</small>
+                  <strong>{action.title}</strong>
+                </div>
+                <em>{action.detail}</em>
+              </button>
+            )
+          })}
         </div>
         <details className={styles.mobilePocketMore} aria-label="My Quest iPhone full dashboard shortcuts">
           <summary>
