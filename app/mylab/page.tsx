@@ -2451,7 +2451,7 @@ function MyLabPageInner() {
       }))
   }, [linkedPlayer?.name, profileLink?.linked_player_name, tiqAwards])
   const firstName = (profileLink?.linked_player_name || linkedPlayer?.name || '').split(' ')[0] || ''
-  const welcomeLine = firstName ? `Welcome back, ${firstName}.` : 'Welcome to your lab.'
+  const welcomeLine = firstName ? `${firstName}, start with the next useful move.` : 'Start with the next useful move.'
   const recentDecisionMatches = personalMatches.filter((match) => match.result === 'W' || match.result === 'L')
   const recentWins = recentDecisionMatches.filter((match) => match.result === 'W').length
   const recentLosses = recentDecisionMatches.filter((match) => match.result === 'L').length
@@ -2754,15 +2754,15 @@ function MyLabPageInner() {
   ]
   const personalCommandCards = [
     {
-      label: 'Where am I?',
+      label: 'How am I improving?',
       value: formatRating(linkedPlayer?.overall_dynamic_rating ?? null),
-      note: linkedPlayer ? `${linkedPlayer.name} - ${linkedPlayer.location || 'player profile'}` : 'Set your profile to start this read.',
+      note: linkedPlayer ? `${linkedPlayer.name} - ${linkedPlayer.location || 'player profile'}` : 'Find yourself first so progress has a player record.',
       href: '/profile',
-      cta: 'Manage profile',
+      cta: 'Review profile',
       icon: 'playerRatings' as TiqFeatureIconName,
     },
     {
-      label: 'How am I doing?',
+      label: 'What changed lately?',
       value: recentRecordLabel,
       note: lastMatchSummary,
       href: MY_LAB_RECENT_MATCHES_HREF,
@@ -2770,7 +2770,7 @@ function MyLabPageInner() {
       icon: 'reports' as TiqFeatureIconName,
     },
     {
-      label: 'What should I focus on?',
+      label: 'What should I work on?',
       value: activeGoal.goal.trim() ? goalStatusLabel(activeGoal.progressStatus) : 'Choose one',
       note: focusSuggestion,
       href: MY_LAB_NOTEBOOK_HREF,
@@ -2781,17 +2781,17 @@ function MyLabPageInner() {
   const dataAssistMyLabHref = '/data-assist?intent=upload-source&context=My%20Lab'
   const youHubCards = [
     {
-      label: 'Open My Lab',
-      value: 'Home base',
+      label: 'Start here',
+      value: 'Next move',
       note: isNewSelfRatedProfile
         ? 'Your self-rated profile is live. Add a scorecard or match signal when ready.'
-        : 'Ratings, recent matches, goals, follows, and the next useful read.',
+        : 'Ratings, recent matches, goals, follows, and the next useful read stay together.',
       href: MY_LAB_SCORECARD_HREF,
       cta: 'Stay here',
       icon: 'myLab' as TiqFeatureIconName,
     },
     {
-      label: 'Improve data',
+      label: 'Fix tennis context',
       value: isNewSelfRatedProfile ? 'First signal' : 'Refresh',
       note: isNewSelfRatedProfile
         ? 'Upload a scorecard or team summary to replace the starter signal.'
@@ -3032,7 +3032,7 @@ function MyLabPageInner() {
                 <p style={sectionKickerStyle}>You hub</p>
                 <h1 style={sectionTitleStyle}>{welcomeLine}</h1>
                 <p style={sectionTextStyle}>
-                  My Lab is the home base. Data Assist, Matchup, and Messages stay one move away.
+                  My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.
                 </p>
               </div>
             </div>
@@ -3059,9 +3059,9 @@ function MyLabPageInner() {
             <div style={sectionHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>First My Lab read</p>
-                <h2 style={compactSectionTitleStyle}>Find yourself, choose a goal, open one useful card.</h2>
+                <h2 style={compactSectionTitleStyle}>Find yourself, choose one focus, open the next useful card.</h2>
                 <p style={sectionTextStyle}>
-                  My Lab works best when setup feels like a tennis next step, not a page full of empty counters.
+                  My Lab works best when setup feels like a tennis next step: connect your player record, name the focus, then act.
                 </p>
               </div>
               <Link href={isProfileConfirmed ? nextMoveHref : '/profile'} style={matchupPrimaryLinkStyle}>
@@ -3244,7 +3244,7 @@ function MyLabPageInner() {
                       <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
                       <div>
                         <p style={sectionKickerStyle}>Self-rated start</p>
-                        <h3 style={compactSectionTitleStyle}>Get your TIQ score moving</h3>
+                        <h3 style={compactSectionTitleStyle}>Level up with better match evidence</h3>
                         <p style={sectionTextStyle}>
                           Your rating shows an S until verified match or TennisLink data replaces it.
                         </p>
@@ -3411,7 +3411,7 @@ function MyLabPageInner() {
                         <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
                         <div>
                           <p style={sectionKickerStyle}>Performance mix</p>
-                          <h3 style={compactSectionTitleStyle}>Stats that explain the score</h3>
+                          <h3 style={compactSectionTitleStyle}>Signals that explain the score</h3>
                         </div>
                       </div>
                     </div>
@@ -3539,9 +3539,9 @@ function MyLabPageInner() {
             <div style={sectionHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>Player workshop</p>
-                <h2 style={sectionTitleStyle}>What should I do next?</h2>
+                <h2 style={sectionTitleStyle}>What should I work on next?</h2>
                 <p style={sectionTextStyle}>
-                  Review the scorecard, choose one focus, then go play.
+                  Review the scorecard, choose one focus, then take it to the court.
                 </p>
               </div>
               <Link href={matchupHref} style={secondaryButtonStyle}>

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const playerApiSource = readFileSync(join(process.cwd(), 'app/api/player/level-up-sessions/route.ts'), 'utf8')
+const playerAssignmentsApiSource = readFileSync(join(process.cwd(), 'app/api/player/coach-assignments/route.ts'), 'utf8')
 const coachApiSource = readFileSync(join(process.cwd(), 'app/api/coach/level-up-sessions/route.ts'), 'utf8')
 const coachPageSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const workbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
@@ -22,8 +23,8 @@ describe('Level Up session sync', () => {
   it('persists Level Up work for players and exposes shared logs to coaches', () => {
     expect(existsSync(join(process.cwd(), 'supabase/migrations/20260530000100_create_level_up_sessions.sql'))).toBe(true)
     expect(playerApiSource).toContain(".from('level_up_sessions')")
-    expect(playerApiSource).toContain('buildPlayerAssignmentCompletion')
-    expect(playerApiSource).toContain('payload.assignment_id')
+    expect(playerAssignmentsApiSource).toContain('buildPlayerAssignmentCompletion')
+    expect(playerAssignmentsApiSource).toContain('assignmentId')
     expect(workbenchSource).toContain('assignmentId')
     expect(workbenchSource).toContain('studentLinkId')
     expect(coachApiSource).toContain(".from('level_up_sessions')")

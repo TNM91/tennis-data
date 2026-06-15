@@ -983,9 +983,9 @@ export default function TournamentBuilderWorkspace() {
       <span aria-hidden="true" style={watermarkStyle} />
       <div style={heroCopyStyle}>
         <div style={eyebrowStyle}>Tournament Desk</div>
-        <h1 style={titleStyle}>Build the draw. Publish the path.</h1>
+        <h1 style={titleStyle}>Run the event without the desk chaos.</h1>
         <p style={textStyle}>
-          Create player or team tournaments, seed the field, preview the draw, then move into scheduling and score entry.
+          Create player or team events, manage entries, build draws, schedule courts, enter scores, and publish results from one event desk.
         </p>
         <div style={statGridStyle}>
           <Stat label="Saved events" value={String(records.length)} />
@@ -998,7 +998,7 @@ export default function TournamentBuilderWorkspace() {
         <TiqFeatureIcon name="teamRankings" size="lg" variant="surface" />
         <div style={fullCourtPanelCopyStyle}>
           <strong>Full-Court tournament command.</strong>
-          <span>Unlimited tournament rooms plus the league, team, award, and alert actions around them.</span>
+          <span>Unlimited tournament rooms plus the schedule, score, award, alert, league, and team actions around them.</span>
         </div>
         <div style={fullCourtFeatureGridStyle}>
           <span>Unlimited events</span>
@@ -1023,7 +1023,7 @@ export default function TournamentBuilderWorkspace() {
         <UpgradePrompt
           planId="full_court"
           headline="Unlock Tournament Desk with Full-Court"
-          body="Unlimited tournament rooms, shared schedules, entrant profiles, awards, and alerts live inside Full-Court."
+          body="Unlimited tournament rooms, shared schedules, entrants, scorebooks, awards, and player alerts live inside Full-Court."
           ctaLabel="Unlock Full-Court"
           compact
         />
@@ -1106,7 +1106,7 @@ export default function TournamentBuilderWorkspace() {
           <div style={calendarEmptyStateStyle}>
             <div style={emptySavedRoomCopyStyle}>
               <strong>Calendar fills from match slots.</strong>
-              <span>Save a tournament, open the scorebook, then add date, time, and court assignments.</span>
+              <span>Save a tournament, open the scorebook, then add date, time, and court assignments so players know where to go.</span>
             </div>
             <div style={emptySavedRoomActionStyle}>
               <a href={selectedRecord ? '#tournament-scorebook' : '#tournament-setup'} style={secondaryButtonStyle}>

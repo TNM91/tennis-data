@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const source = readFileSync(join(process.cwd(), 'app/components/universal-search.tsx'), 'utf8')
 
 describe('universal search result model', () => {
-  it('keeps the public command-center result groups available', () => {
+  it('keeps the public platform result groups available', () => {
     for (const group of [
       "'Players'",
       "'Teams'",

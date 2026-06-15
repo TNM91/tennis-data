@@ -7,7 +7,7 @@ describe('league shared scheduler strip', () => {
     const source = readFileSync(join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'), 'utf8')
 
     expect(source).toContain('Shared scheduler')
-    expect(source).toContain('Dates, confirmations, and scores stay in one lane.')
+    expect(source).toContain('Dates, courts, confirmations, and scores stay in one lane.')
     expect(source).toContain('Pending dates')
     expect(source).toContain('Confirmed calendar')
     expect(source).toContain('Post results')

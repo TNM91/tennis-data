@@ -1457,7 +1457,7 @@ hr {
 
   .player-development-site-shell > header,
   .player-development-site-shell > footer,
-  .player-development-site-shell > [aria-label='TenAceIQ command center'],
+  .player-development-site-shell > [aria-label='TenAceIQ platform navigation'],
   .player-development-print-controls {
     display: none !important;
   }

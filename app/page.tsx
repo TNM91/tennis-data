@@ -1,15 +1,18 @@
 import type { Metadata } from 'next'
 import {
   ActionGrid,
+  AudiencePathGrid,
   CommandHero,
+  HomeCtaGrid,
+  PlatformPillarGrid,
   ProductPreviewGrid,
   PublicPageShell,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
-  'Find players, teams, coaches, tournaments, leagues, match prep, and the next useful tennis action in one TenAceIQ command center.'
+  'TenAceIQ helps the tennis community improve, compete, and manage the game with less friction.'
 
 export const metadata: Metadata = {
   title: PRODUCT_MOTTO,
@@ -43,10 +46,16 @@ export default function HomePage() {
     <PublicPageShell active="home">
       <main style={pageWrapStyle}>
         <CommandHero
-          body="Whether you want to check stats, improve your game, prep a matchup, simplify captaining, find coaching help, or run a league, TenAceIQ keeps the next tennis move in one place."
-          secondary={{ href: '#what-next', label: 'See What TenAceIQ Can Help With' }}
-          showBoard={false}
+          title="More Tennis. Less Chaos."
+          body={PLATFORM_POSITIONING}
+          primary={{ href: '/explore', label: 'Start Exploring' }}
+          secondary={{ href: '/explore/players', label: 'Find Player Insights' }}
+          searchPlaceholder="Search players, teams, leagues, tournaments, coaches, resources, or tennis actions"
+          showBoard
         />
+        <HomeCtaGrid />
+        <PlatformPillarGrid />
+        <AudiencePathGrid />
         <div id="what-next">
           <ActionGrid />
         </div>

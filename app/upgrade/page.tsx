@@ -57,8 +57,8 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
   coach: {
     eyebrow: 'Coach unlock',
-    title: 'Develop players with a connected coaching workspace.',
-    body: 'Continue with Coach when lesson planning, student tracking, assignments, scheduling, and tactical boards need one flow.',
+    title: 'Help players leave with the next step.',
+    body: 'Continue with Coach when drill assignments, player development tracking, reviews, resources, scheduling, and tactical boards need one flow.',
     action: 'Continue with Coach',
     checkoutAction: 'Unlock Coach',
     setupAction: 'Preview Coach',
@@ -73,8 +73,8 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
   league: {
     eyebrow: 'League unlock',
-    title: 'Operate the season.',
-    body: 'Continue with League Office when structure, visibility, standings, schedules, and results need one place.',
+    title: 'Run the season with less admin work.',
+    body: 'Continue with League Office when players or teams, schedules, scores, standings, visibility, and corrections need one place.',
     action: 'Continue with League Office',
     checkoutAction: 'Unlock League',
     setupAction: 'Preview League Office',

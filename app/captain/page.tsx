@@ -322,17 +322,25 @@ function CaptainLockedSurface({
   secondaryLabel: string
   secondaryHref: string
 }) {
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const lockedHeroCard: CSSProperties = {
+    ...heroCard,
+    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : heroCard.gridTemplateColumns,
+    gap: isMobile ? 16 : heroCard.gap,
+    padding: isSmallMobile ? 18 : isMobile ? 20 : heroCard.padding,
+  }
+
   return (
     <div style={pageWrap}>
-      <section style={heroCard} aria-label="Team Hub preview">
+      <section style={lockedHeroCard} aria-label="Team Hub preview">
         <span aria-hidden="true" style={watermarkStyle} />
         <div style={heroLeft}>
           <div>
-            <div style={sectionKicker}>Captain preview</div>
-            <h1 style={scopeTitleStyle}>Run the team week with more clarity.</h1>
+            <div style={sectionKicker}>Captain tools</div>
+            <h1 style={scopeTitleStyle}>Run match week with less chaos.</h1>
           </div>
           <p style={captainPreviewTextStyle}>
-            Availability, lineup building, scouting, readiness, and team messages stay together before match day.
+            See who is available, compare lineup options, choose pairings, and send the team plan from one place.
           </p>
           <div style={captainPreviewGridStyle}>
             {CAPTAIN_STORY.workflow.map(([step, title, body]) => (
@@ -1345,8 +1353,8 @@ function CaptainHubContent() {
         title: pendingCount > 0 ? 'Close the reply gap' : 'Availability is clean',
         detail:
           pendingCount > 0
-            ? `${pendingCount} player${pendingCount === 1 ? '' : 's'} still need a usable response before you lock courts.`
-            : 'No saved response blockers are holding up this week.',
+            ? `${pendingCount} player${pendingCount === 1 ? '' : 's'} still need a clear In, Out, or Maybe before you lock courts.`
+            : 'No saved response blockers are holding up the lineup.',
         href: availabilityHref,
         stage: 'availability',
         icon: 'reliabilityIndex',
@@ -1356,10 +1364,10 @@ function CaptainHubContent() {
       },
       {
         label: 'Build lineup',
-        title: workspaceState.lineupReady ? 'Lineup is drafted' : 'Build the courts',
+        title: workspaceState.lineupReady ? 'Lineup is drafted' : 'Pick the best courts',
         detail: workspaceState.lineupReady
           ? `${lineupCount} lineup slot${lineupCount === 1 ? '' : 's'} saved for the week.`
-          : 'Turn availability and projection reads into a playable weekly lineup.',
+          : 'Turn availability, player fit, and pairing reads into a playable weekly lineup.',
         href: lineupBuilderHref,
         stage: 'lineup',
         icon: 'lineupBuilder',
@@ -1373,7 +1381,7 @@ function CaptainHubContent() {
         title: workspaceState.messagingReady ? 'Team note is ready' : 'Prep the send',
         detail: workspaceState.messagingReady
           ? 'Lineup and event context are ready for a clean player update.'
-          : 'Use the saved lineup to send the right update and chase the right replies.',
+          : 'Use the saved lineup to send the right update and chase only the replies that matter.',
         href: messagingHref,
         stage: 'messaging',
         icon: 'messagingCenter',
@@ -1808,8 +1816,8 @@ function CaptainHubContent() {
             {!loadingOptions && !filteredTeamOptions.length ? (
               <div style={captainDataAssistCueStyle}>
                 <div>
-                  <strong>Need team history here?</strong>
-                  <span>Captain needs a profile team, roster history, or reviewed Data Assist upload before it can load a team scope.</span>
+                  <strong>Need a team to manage here?</strong>
+                  <span>Connect a profile team or upload reviewed roster and schedule data so Captain can answer availability, lineup, pairing, and message questions.</span>
                   <ul style={captainEmptyActionListStyle}>
                     {CAPTAIN_EMPTY_STATE_ACTIONS.map((action) => (
                       <li key={action}>{action}</li>
@@ -1988,14 +1996,14 @@ function CaptainHubContent() {
           <div style={commandCenterHeader}>
             <div>
               <div style={sectionKicker}>Team hub</div>
-              <h2 style={sectionTitle}>Run the week from four moves.</h2>
+              <h2 style={sectionTitle}>Run match week from four moves.</h2>
             </div>
             <span style={workspaceState.briefReady ? badgeGreen : badgeSlate}>
               {workspaceState.lastUpdatedLabel}
             </span>
           </div>
           <div style={sectionSub}>
-            Confirm availability, plan practice, build the lineup, and send the team plan from one lane.
+            Start with who can play, choose the lineup, check the pairings, and send the team plan from one lane.
           </div>
 
           <div style={dynamicCommandCenterGrid}>
@@ -2304,7 +2312,7 @@ function CaptainHubContent() {
           <summary style={optionalSummaryStyle}>
             <span>
               <span style={sectionKicker}>Team workspace actions</span>
-              <span style={optionalSummaryTitle}>Availability, lineups, messaging, season work</span>
+              <span style={optionalSummaryTitle}>Availability, lineups, messages, season work</span>
             </span>
             <span style={badgeSlate}>Show paths</span>
           </summary>
@@ -2314,7 +2322,7 @@ function CaptainHubContent() {
               <div style={sectionKicker}>In-workspace actions</div>
               <h2 style={sectionTitle}>Keep the team week moving.</h2>
               <div style={sectionSub}>
-                Use the portal for the main Team lane. These actions keep captain and season work close when you are already in the workspace.
+                Use these when you are already in the team flow and need the next captain action fast.
               </div>
             </div>
           </div>
@@ -2324,7 +2332,7 @@ function CaptainHubContent() {
               <div style={captainLaneTopline}>Start the week</div>
               <div style={captainLaneTitle}>Confirm who can play.</div>
               <div style={captainLaneText}>
-                Start with availability, then open the brief when the week needs one clean read.
+                Start with In, Out, Maybe, and follow-up gaps, then open the brief when the week needs one clean read.
               </div>
               <div style={captainLaneActions}>
                 <PrimarySmallBtn disabled={!premiumEnabled || !hasTeamScope} onClick={() => handleCaptainNav(availabilityHref, 'availability')}>
@@ -2343,7 +2351,7 @@ function CaptainHubContent() {
               <div style={captainLaneTopline}>Build the lineup</div>
               <div style={captainLaneTitle}>Pick the best version before you send it.</div>
               <div style={captainLaneText}>
-                Build a lineup, compare the alternatives, and use Captain IQ when you need more signal.
+                Build the courts, compare alternatives, and use Captain IQ when a pairing or matchup call is not obvious.
               </div>
               <div style={captainLaneActions}>
                 <PrimarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
@@ -2362,7 +2370,7 @@ function CaptainHubContent() {
               <div style={captainLaneTopline}>Communicate</div>
               <div style={captainLaneTitle}>Send the plan and keep context handy.</div>
               <div style={captainLaneText}>
-                Move from final lineup to clear team updates, reminders, and the team page.
+                Move from final lineup to clear player updates, reminders, and the team page.
               </div>
               <div style={captainLaneActions}>
                 <PrimarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
@@ -2378,7 +2386,7 @@ function CaptainHubContent() {
               <div style={captainLaneTopline}>Run the league</div>
               <div style={captainLaneTitle}>Coordinate seasons and results.</div>
               <div style={captainLaneText}>
-                Create league structure, manage TIQ seasons, and record team match results.
+                Create league structure, manage TIQ seasons, and record team match results without another spreadsheet loop.
               </div>
               <div style={captainLaneActions}>
                 <PrimarySmallBtn disabled={!leagueToolsEnabled} onClick={() => handleCaptainNav(seasonDashboardHref, 'season-dashboard')}>
@@ -2398,7 +2406,7 @@ function CaptainHubContent() {
               <div style={sectionKicker}>Lineup intelligence preview</div>
               <h2 style={sectionTitle}>Best signals for {selectedTeam || 'your team'}</h2>
               <div style={sectionSub}>
-                A quick preview of the players and pairings you should be thinking about first.
+                See who is available, which pairings have evidence, and what lineup question needs a decision first.
               </div>
             </div>
           </div>

@@ -12,6 +12,9 @@ import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/trac
 import UniversalSearch from '@/app/components/universal-search'
 import {
   DATA_ASSIST_STORY,
+  PLATFORM_AUDIENCE_PATHS,
+  PLATFORM_PILLARS,
+  PLATFORM_POSITIONING,
   PRODUCT_MOTTO,
 } from '@/lib/product-story'
 
@@ -78,63 +81,52 @@ function getPublicLinkEvent(label: string, href: string, context: string): Produ
 
 export const homeActionCards: PublicActionCard[] = [
   {
-    title: 'Find Players',
-    body: 'Search players, ratings, teams, leagues, rankings, and recent context.',
+    title: 'Find Player Insights',
+    body: 'Search players, ratings, rankings, teams, and recent context so you can understand the tennis landscape fast.',
     href: '/explore/players',
-    cta: 'Find a Player',
-    meta: 'Free',
+    cta: 'Find Player Insights',
+    meta: 'Explore',
+  },
+  {
+    title: 'Level Up My Game',
+    body: 'Find drills, skills, development paths, and simple next steps that help you improve with purpose.',
+    href: '/player-development',
+    cta: 'Level Up My Game',
+    meta: 'Improve',
   },
   {
     title: 'Prepare for a Match',
-    body: 'Compare players, scout opponents, check team strength, and know what to watch.',
+    body: 'Compare players, scout opponents, check team strength, and know what to watch before match time.',
     href: '/matchup',
     cta: 'Prep a Matchup',
-    meta: 'Matchup',
+    meta: 'Compete',
   },
   {
-    title: 'Improve Your Game',
-    body: 'Open Level Up, choose what you want to improve, run a training card, and connect the proof to your progress.',
-    href: '/level-up',
-    cta: 'Open Level Up',
-    meta: 'Player',
+    title: 'Manage My Team',
+    body: 'Collect availability, build lineups, scout opponents, communicate clearly, and reduce match-week chaos.',
+    href: '/captain',
+    cta: 'Manage My Team',
+    meta: 'Manage',
   },
   {
     title: 'Find or Work With a Coach',
-    body: 'Find coaching support, connect goals, assign drills, and keep progress moving between lessons.',
+    body: 'Find coaching support, connect goals, assign drills, and support player progress between sessions.',
     href: '/coaches',
     cta: 'Explore Coaches',
     meta: 'Coach Hub',
   },
   {
-    title: 'Teams',
-    body: 'Find teams, follow rosters, scout opponents, or captain match week.',
-    href: '/teams',
-    cta: 'Find Teams',
-    secondaryHref: '/captain',
-    secondaryCta: 'Captain Tools',
-    meta: 'Team Hub',
-  },
-  {
-    title: 'Tournaments',
-    body: 'Find events, view draws, manage entries, schedule courts, collect results, and publish outcomes.',
-    href: '/tournaments',
-    cta: 'Find Tournaments',
-    secondaryHref: '/tournaments#desk',
-    secondaryCta: 'Run a Tournament',
-    meta: 'Tournament Desk',
-  },
-  {
-    title: 'Leagues',
-    body: 'Find leagues, follow standings, manage schedules, collect results, and run a cleaner season.',
+    title: 'Run a League or Tournament',
+    body: 'Organize schedules, manage players or teams, track scores, publish results, and reduce admin work.',
     href: '/leagues',
-    cta: 'Find Leagues',
-    secondaryHref: '/leagues#office',
-    secondaryCta: 'League Office',
-    meta: 'League Office',
+    cta: 'Run a League or Tournament',
+    secondaryHref: '/tournaments',
+    secondaryCta: 'Tournament Desk',
+    meta: 'Leagues & Tournaments',
   },
   {
-    title: 'Fix Data',
-    body: 'Upload scorecards, schedules, rosters, team summaries, and corrections.',
+    title: 'Fix Tennis Context',
+    body: 'Upload scorecards, schedules, rosters, team summaries, and corrections when the platform needs a cleaner source.',
     href: DATA_ASSIST_STORY.href,
     cta: 'Open Data Assist',
     meta: 'Source review',
@@ -205,10 +197,10 @@ export const previewCards: PreviewCard[] = [
 ]
 
 const heroBoardActions = [
-  { label: 'Find', detail: 'Player, team, coach, event', href: '/explore' },
-  { label: 'Prep', detail: 'Matchup and scouting', href: '/matchup' },
-  { label: 'Lead', detail: 'Team week and lineups', href: '/teams' },
-  { label: 'Run', detail: 'Tournament or season', href: '/tournaments' },
+  { label: 'Explore', detail: 'Players, teams, leagues, events', href: '/explore' },
+  { label: 'Improve', detail: 'Drills, skills, development paths', href: '/player-development' },
+  { label: 'Compete', detail: 'Matchup insight and scouting', href: '/compete' },
+  { label: 'Manage', detail: 'Teams, leagues, tournaments', href: '/manage' },
 ] as const
 
 export function PublicPageShell({ active, children }: { active?: string; children: ReactNode }) {
@@ -216,7 +208,7 @@ export function PublicPageShell({ active, children }: { active?: string; childre
 }
 
 export function CommandHero({
-  eyebrow = 'TenAceIQ command center',
+  eyebrow = 'TenAceIQ',
   title = PRODUCT_MOTTO,
   body,
   primary,
@@ -259,9 +251,9 @@ export function CommandHero({
       {showBoard ? (
         <div style={heroPanelStyle}>
           <div style={heroPanelHeaderStyle}>
-            <span style={panelKickerStyle}>Portal board</span>
-            <strong style={panelTitleStyle}>Start with the tennis job.</strong>
-            <p style={panelCopyStyle}>Search is the front door. These shortcuts take visitors straight to the next useful move.</p>
+            <span style={panelKickerStyle}>Platform paths</span>
+            <strong style={panelTitleStyle}>Start with what you need to do.</strong>
+            <p style={panelCopyStyle}>Search is the front door. These shortcuts move the tennis community toward a useful next action.</p>
           </div>
           <div style={miniCourtStyle} aria-label="TenAceIQ portal board preview">
             <span aria-hidden="true" style={courtNetStyle} />
@@ -269,7 +261,7 @@ export function CommandHero({
             <span aria-hidden="true" style={courtServiceLineStyle('bottom')} />
             <div style={courtBoardStyle}>
               <span style={courtBoardKickerStyle}>Today</span>
-              <strong style={courtBoardTitleStyle}>Find, prepare, improve, lead, run, or fix data.</strong>
+              <strong style={courtBoardTitleStyle}>Explore, improve, compete, manage, or fix tennis context.</strong>
             </div>
           </div>
           <div style={heroBoardGridStyle}>
@@ -286,9 +278,95 @@ export function CommandHero({
               </TrackedProductLink>
             ))}
           </div>
-          <p style={panelFooterStyle}>More Tennis. Less Chaos. means the next click should already feel obvious.</p>
+          <p style={panelFooterStyle}>More Tennis. Less Chaos. means the next action should be easy from a phone.</p>
         </div>
       ) : null}
+    </section>
+  )
+}
+
+export function HomeCtaGrid() {
+  const ctas = [
+    { label: 'Start Exploring', href: '/explore' },
+    { label: 'Find Player Insights', href: '/explore/players' },
+    { label: 'Manage My Team', href: '/captain' },
+    { label: 'Level Up My Game', href: '/player-development' },
+    { label: 'Run a League or Tournament', href: '/leagues' },
+  ] as const
+
+  return (
+    <section style={homeCtaGridStyle} aria-label="TenAceIQ quick starts">
+      {ctas.map((cta, index) => (
+        <TrackedProductLink
+          key={cta.href}
+          href={cta.href}
+          style={index === 0 ? homePrimaryCtaStyle : homeSecondaryCtaStyle}
+          event={getPublicLinkEvent(cta.label, cta.href, 'homepage-quick-start')}
+        >
+          {cta.label}
+        </TrackedProductLink>
+      ))}
+    </section>
+  )
+}
+
+export function PlatformPillarGrid() {
+  return (
+    <section style={sectionStyle} aria-labelledby="platform-pillars-title">
+      <SectionHeader
+        eyebrow="Platform pillars"
+        title="Improve. Compete. Manage."
+        body={PLATFORM_POSITIONING}
+        titleId="platform-pillars-title"
+      />
+      <div style={pillarGridStyle}>
+        {PLATFORM_PILLARS.map((pillar) => (
+          <article key={pillar.id} style={pillarCardStyle}>
+            <span style={chipStyle}>{pillar.title}</span>
+            <h2 style={cardTitleStyle}>{pillar.promise}</h2>
+            <p style={cardBodyStyle}>{pillar.body}</p>
+            <div style={pillarProofGridStyle}>
+              {pillar.proof.map((item) => (
+                <span key={item} style={pillarProofStyle}>{item}</span>
+              ))}
+            </div>
+            <TrackedProductLink
+              href={pillar.href}
+              style={cardPrimaryLinkStyle}
+              event={getPublicLinkEvent(pillar.cta, pillar.href, `pillar-${pillar.id}`)}
+            >
+              {pillar.cta}
+            </TrackedProductLink>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+export function AudiencePathGrid() {
+  return (
+    <section style={sectionStyle} aria-labelledby="audience-paths-title">
+      <SectionHeader
+        eyebrow="Who it helps"
+        title="One home base for the tennis community."
+        body="Every path explains who it is for and what action to take next."
+        titleId="audience-paths-title"
+      />
+      <div style={audienceGridStyle}>
+        {PLATFORM_AUDIENCE_PATHS.map((path) => (
+          <TrackedProductLink
+            key={path.audience}
+            href={path.href}
+            style={audiencePathStyle}
+            event={getPublicLinkEvent(path.cta, path.href, `audience-${path.audience}`)}
+          >
+            <span style={heroBoardActionLabelStyle}>{path.audience}</span>
+            <span style={heroBoardActionDetailStyle}>{path.question}</span>
+            <strong style={audienceCtaStyle}>{path.cta}</strong>
+          </TrackedProductLink>
+        ))}
+      </div>
     </section>
   )
 }
@@ -296,7 +374,7 @@ export function CommandHero({
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Start here" title="What do you need today?" body="TenAceIQ is organized around tennis actions first, then the workspace that saves time when the job gets serious." />
+      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ is organized around tennis actions first, then the workspace that saves time when the job gets serious." />
       <div style={actionGridStyle}>
         {cards.map((card) => (
           <article key={card.title} style={actionCardStyle}>
@@ -323,7 +401,7 @@ export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCa
 export function ProductPreviewGrid({ cards = previewCards }: { cards?: PreviewCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Product previews" title="The next tennis action, already shaped." body="Preview cards make each workspace feel concrete before a visitor commits to a plan." />
+      <SectionHeader eyebrow="Product previews" title="Useful tools, not a complicated analytics dashboard." body="Preview cards keep each workspace concrete, approachable, and tied to the next tennis action." />
       <div style={previewGridStyle}>
         {cards.map((card) => renderPreviewCard(card))}
       </div>
@@ -689,6 +767,91 @@ const cardGhostLinkStyle: CSSProperties = {
   ...ghostButtonStyle,
   minHeight: 40,
   fontSize: 12,
+}
+
+const homeCtaGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const homePrimaryCtaStyle: CSSProperties = {
+  ...primaryButtonStyle,
+  minHeight: 50,
+  borderRadius: 8,
+  fontSize: 13,
+}
+
+const homeSecondaryCtaStyle: CSSProperties = {
+  ...ghostButtonStyle,
+  minHeight: 50,
+  borderRadius: 8,
+  fontSize: 13,
+}
+
+const pillarGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))',
+  gap: 14,
+  minWidth: 0,
+}
+
+const pillarCardStyle: CSSProperties = {
+  ...actionCardStyle,
+  minHeight: 300,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'linear-gradient(160deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055) 40%, rgba(8,16,34,0.84))',
+}
+
+const pillarProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+}
+
+const pillarProofStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 32,
+  padding: '0 10px',
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const audienceGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const audiencePathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minHeight: 166,
+  alignContent: 'start',
+  padding: 16,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.74)',
+  color: 'var(--shell-copy-muted)',
+  textDecoration: 'none',
+  minWidth: 0,
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const audienceCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  marginTop: 'auto',
 }
 
 const previewGridStyle: CSSProperties = {

@@ -6,42 +6,58 @@ import CompetePageFrame, {
 export default function CompetePage() {
   return (
     <CompetePageFrame
-      eyebrow="League Office"
-      title="Run the season."
-      description="Shared calendar, tournaments, team results, and player results stay in one League Office lane."
+      eyebrow="Compete"
+      title="Prepare for the next match."
+      description="Use matchup insight, scouting, lineup strategy, and performance context to compete with a clearer plan."
     >
       <CompeteGrid>
         <CompeteCard
-          href="/compete/schedule"
-          meta="Shared scheduling"
-          title="Shared calendar"
-          text="Publish, propose, confirm, and track match dates for everyone in the league."
-          icon="schedule"
-          action="Open calendar"
+          href="/matchup"
+          meta="Match prep"
+          title="Prep a matchup"
+          text="Compare players before you play so the first game starts with a plan instead of a guess."
+          icon="matchupAnalysis"
+          action="Prep matchup"
         />
         <CompeteCard
-          href="/league-coordinator/tournaments"
-          meta="Full-Court"
-          title="Build tournament"
-          text="Create a draw, seed entrants, schedule courts, and finish with awards from one room."
-          icon="teamRankings"
-          action="Build tournament"
-        />
-        <CompeteCard
-          href="/league-coordinator/results"
-          meta="Team results"
-          title="Team book"
-          text="Record team match events, line scores, and the results that move standings."
-          icon="reports"
-          action="Open team book"
-        />
-        <CompeteCard
-          href="/league-coordinator/individual-results"
-          meta="Player results"
-          title="Player book"
-          text="Log one-on-one results for ladders, round robins, and challenge leagues."
+          href="/explore/players"
+          meta="Scouting"
+          title="Scout players"
+          text="Find ratings, recent context, and player signals that help you understand the court before match day."
           icon="playerRatings"
-          action="Open player book"
+          action="Scout players"
+        />
+        <CompeteCard
+          href="/captain/lineup-builder"
+          meta="Lineup strategy"
+          title="Build a lineup plan"
+          text="Turn roster, opponent, and partner context into a captain decision the team can act on."
+          icon="lineupBuilder"
+          action="Build lineup"
+        />
+        <CompeteCard
+          href="/compete/results"
+          meta="Performance tracking"
+          title="Track results"
+          text="Review scores, line outcomes, and match history so the next practice or lineup has evidence."
+          icon="reports"
+          action="Track results"
+        />
+        <CompeteCard
+          href="/compete/teams"
+          meta="Team intelligence"
+          title="Read a team"
+          text="Scan roster depth, pairing patterns, and team context before the weekly decision gets noisy."
+          icon="teamRankings"
+          action="Read teams"
+        />
+        <CompeteCard
+          href="/leagues"
+          meta="Season context"
+          title="Understand the flight"
+          text="Use league, schedule, and standings context to know what matchups and results actually matter."
+          icon="schedule"
+          action="Find leagues"
         />
       </CompeteGrid>
 

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'League Office',
+  title: 'Compete',
   description:
-    'Operational workspace for active league seasons, team results, player results, schedules, and tournament handoffs.',
+    'Prepare for the next tennis match with matchup insight, scouting, lineup strategy, performance tracking, and team intelligence.',
   robots: {
-    index: false,
-    follow: false,
+    index: true,
+    follow: true,
   },
 }
 

@@ -23,38 +23,62 @@ export const metadata: Metadata = buildRouteMetadata({
 
 const groups = [
   {
-    id: 'play',
-    title: 'Play',
-    body: 'Find the places, formats, and groups that get you on court.',
-    items: ['Find courts', 'Find clubs', 'Find open play', 'Find teams', 'Find leagues', 'Find tournaments', 'Find ladders', 'Find round robins'],
+    id: 'drills',
+    title: 'Drills',
+    body: 'Find focused practice work that turns one tennis problem into one repeatable court task.',
+    items: ['Serve target ladder', 'Return depth reps', 'Crosscourt consistency', 'Approach and close', 'Second-serve pressure', 'Doubles poach timing'],
   },
   {
-    id: 'improve',
-    title: 'Improve',
-    body: 'Turn goals into practice work, coaching conversations, and weekly progress.',
-    items: ['Find a coach', 'Player development paths', 'Practice plans', 'Serve target sheets', 'Doubles positioning', 'Match reflection templates'],
+    id: 'skills',
+    title: 'Skills',
+    body: 'Break the game into simple skills players can understand, train, and track.',
+    items: ['Serve routine', 'Return plan', 'Rally tolerance', 'Net finishing', 'Doubles communication', 'Pressure habits'],
   },
   {
-    id: 'prepare',
-    title: 'Prepare',
-    body: 'Scout the next match with ratings, player context, team context, and watch items.',
-    items: ['Matchup prep', 'Player scouting', 'Team scouting', 'Ratings explained', 'Singles/doubles split', 'What to watch before playoffs'],
+    id: 'strategy',
+    title: 'Strategy',
+    body: 'Turn scouting and match patterns into plain-English plans players can remember under pressure.',
+    items: ['Singles patterns', 'Doubles positioning', 'Tiebreaker plan', 'Playoff watch items', 'Opponent scouting', 'Ratings explained'],
   },
   {
-    id: 'lead',
-    title: 'Lead',
-    body: 'Help captains organize availability, lineups, communication, and scorecards.',
-    items: ['Captain checklist', 'Availability template', 'Lineup builder guide', 'Team communication guide', 'Scorecard reminders'],
+    id: 'fitness-movement',
+    title: 'Fitness / movement',
+    body: 'Support tennis movement, readiness, recovery, and court habits without overcomplicating training.',
+    items: ['Split-step routine', 'Recovery patterns', 'Warm-up checklist', 'Lateral movement', 'Match-day readiness', 'Injury-aware practice'],
   },
   {
-    id: 'run',
-    title: 'Run',
-    body: 'Operate leagues, ladders, round robins, and tournaments with less spreadsheet drag.',
+    id: 'match-prep',
+    title: 'Match prep',
+    body: 'Answer what matchups matter, what to watch, and what plan gives a player or team a better chance.',
+    items: ['Matchup prep', 'Player scouting', 'Team scouting', 'Singles/doubles split', 'Lineup pressure checks', 'Pre-match checklist'],
+  },
+  {
+    id: 'captain-tools',
+    title: 'Captain tools',
+    body: 'Help captains answer who can play, what lineup to use, who should play together, and what to communicate.',
+    items: ['Captain checklist', 'Availability template', 'Lineup builder guide', 'Partner fit prompts', 'Team communication guide', 'Scorecard reminders'],
+  },
+  {
+    id: 'coach-tools',
+    title: 'Coach tools',
+    body: 'Help coaches assign drills, track development, recommend resources, and support players between sessions.',
+    items: ['Find a coach', 'Lesson plan frame', 'Coach assignment templates', 'Player development check-in', 'Practice proof guide', 'Coach planner'],
+  },
+  {
+    id: 'league-tournament-tools',
+    title: 'League/tournament tools',
+    body: 'Help organizers set up competition, manage schedules, track scores, and reduce admin work.',
     items: ['League setup checklist', 'Tournament setup checklist', 'Draw formats', 'Round-robin formats', 'Scheduling checklist', 'Tiebreaker guide'],
   },
   {
+    id: 'player-development-modules',
+    title: 'Player development modules',
+    body: 'Use development paths to connect ratings, goals, drills, skills, and progress into a practical player plan.',
+    items: ['Player development paths', 'Level Up cards', 'Match reflection templates', 'Progress tracking', 'Coach connection', 'Training resources'],
+  },
+  {
     id: 'fix-data',
-    title: 'Fix Data',
+    title: 'Fix tennis context',
     body: 'Upload source material, report corrections, and request a reviewed data refresh.',
     items: ['Upload scorecard', 'Upload team summary', 'Upload schedule', 'Report wrong player', 'Report wrong team', 'Request data refresh'],
   },
@@ -102,9 +126,9 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
         <JsonLd id="resources-faq-jsonld" data={buildFaqJsonLd(resourceFaqItems)} />
         <CommandHero
           eyebrow="Resources"
-          title="Find the next tennis resource."
-          body="If you need a resource to support your game, team, tournament, league, or data cleanup, start here."
-          primary={{ href: '/data-assist?intent=upload-source&context=Resources%20hub', label: 'Open Data Assist' }}
+          title="The tennis resource hub for less chaos."
+          body="Find drills, skills, strategy, match prep, captain tools, coach tools, league and tournament tools, and player development modules in one approachable place."
+          primary={{ href: '/player-development', label: 'Level Up My Game' }}
           secondary={{ href: '/matchup', label: 'Prep a Matchup' }}
         />
         {resourceQuery ? (
@@ -140,7 +164,7 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
           <SectionHeader
             eyebrow="Quick starts"
             title="Start with the tennis job, then open the right path."
-            body="These routes cover the most common reasons someone lands here: finding help, preparing for a match, running an event, or fixing the context that powers TenAceIQ."
+            body="These routes cover the most common reasons someone lands here: improving, preparing, captaining, coaching, organizing, or fixing the context that powers TenAceIQ."
             titleId="resource-quick-start-title"
           />
           <div style={quickStartGridStyle}>
@@ -162,8 +186,8 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
         <section style={{ display: 'grid', gap: 14 }}>
           <SectionHeader
             eyebrow="Resource Hub"
-            title="Play, improve, prepare, lead, run, or fix data."
-            body="TenAceIQ is the support layer that connects finding tennis context with the next useful action."
+            title="Drills, skills, strategy, tools, and development paths."
+            body="TenAceIQ should feel like a resource hub people can come back to when they need one clear next tennis move."
           />
           <div style={resourceGridStyle}>
             {visibleGroups.map((group) => (
@@ -403,7 +427,21 @@ function resourceHref(item: string) {
   if (lower.includes('refresh') || lower.includes('review')) return '/data-assist?intent=request-review&context=Resources%20hub'
   if (lower.includes('scorecard') || lower.includes('upload')) return '/data-assist?intent=upload-source&context=Resources%20hub'
   if (lower.includes('matchup') || lower.includes('scouting')) return '/matchup'
-  if (lower.includes('development') || lower.includes('practice') || lower.includes('serve') || lower.includes('doubles')) return '/player-development'
+  if (
+    lower.includes('development') ||
+    lower.includes('level up') ||
+    lower.includes('practice') ||
+    lower.includes('serve') ||
+    lower.includes('return') ||
+    lower.includes('rally') ||
+    lower.includes('doubles') ||
+    lower.includes('movement') ||
+    lower.includes('recovery') ||
+    lower.includes('warm-up') ||
+    lower.includes('skills') ||
+    lower.includes('training')
+  ) return '/player-development'
+  if (lower.includes('lineup') || lower.includes('availability') || lower.includes('captain') || lower.includes('partner')) return '/captain'
   return '/explore'
 }
 

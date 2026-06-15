@@ -17,7 +17,7 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Coaches',
   description:
-    'Coaching that continues after the lesson. Connect players, coaches, goals, assignments, match notes, and progress in TenAceIQ.',
+    'Find tennis coaching support and see how Coach Hub helps players and coaches keep development moving between lessons.',
   path: '/coaches',
 })
 
@@ -37,23 +37,23 @@ export default function CoachesPage() {
         <JsonLd id="coaches-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Coaches', '/coaches')} />
         <CommandHero
           eyebrow="Coaches"
-          title="Coaching that continues after the lesson."
-          body="TenAceIQ connects players, coaches, goals, assignments, match notes, and progress in one tennis workspace."
+          title="Help every player leave with a next step."
+          body="TenAceIQ helps players and coaches connect goals, drills, lesson notes, progress, and follow-through so development does not disappear between sessions."
           primary={{ href: '/resources?q=find%20a%20coach', label: 'Find a Coach' }}
           secondary={{ href: '/coach', label: 'Open Coach Hub' }}
           searchPlaceholder="Search coaches, player goals, serve practice, lesson notes, or development paths"
         />
         <TwoColumnStory
           leftTitle="For players"
-          leftBody="Bring your match history, goals, questions, and progress into every lesson."
+          leftBody="Bring your goals, match questions, progress, and practice proof into every lesson."
           rightTitle="For coaches"
-          rightBody="Manage students, plan lessons, assign drills, track progress, and keep players moving between sessions."
+          rightBody="Assign drills, track player development, recommend resources, and support players between sessions."
         />
         <section style={lessonLoopSectionStyle} aria-labelledby="coach-lesson-loop-title">
           <SectionHeader
             eyebrow="Lesson loop"
             title="Give every lesson a before, during, and after."
-            body="TenAceIQ should make coaching feel organized without turning it into paperwork. Each step connects the player, coach, assignment, and next match."
+            body="Keep the loop simple: know what the player needs, coach the court work, assign the proof, and review what came back."
             titleId="coach-lesson-loop-title"
           />
           <div style={lessonLoopGridStyle}>
@@ -70,7 +70,7 @@ export default function CoachesPage() {
           <SectionHeader
             eyebrow="Coaching next actions"
             title="Turn a lesson into the next useful tennis move."
-            body="Start with the job in front of you: find coaching support, bring better context into a lesson, assign follow-through, or fix the data that should shape the next read."
+            body="Start with the job in front of you: find coaching support, prep the next lesson, assign the work, or refresh the evidence that should shape the next read."
             titleId="coach-next-actions-title"
           />
           <div style={nextActionGridStyle}>
@@ -92,14 +92,14 @@ export default function CoachesPage() {
         <section style={{ display: 'grid', gap: 14 }}>
           <SectionHeader
             eyebrow="Coach Hub preview"
-            title="Match to goal to lesson to evidence."
-            body="The loop is simple: Match, Goal, Lesson, Assignment, Evidence, Next Match."
+            title="Goal to lesson to proof to next step."
+            body="Coach Hub keeps assignments, player proof, reviews, and the next lesson close enough to act on."
           />
           <div style={previewGridStyle}>
             <TiqWorkspacePreview
               eyebrow="Coach Hub"
               title="Students"
-              body="See linked players, lesson focus, due assignments, and next review."
+              body="See linked players, lesson focus, due assignments, proof to review, and the next useful touch."
               metrics={[
                 { label: 'Players', value: '12' },
                 { label: 'Due', value: '4' },
@@ -117,7 +117,7 @@ export default function CoachesPage() {
             />
             <TiqCoachAssignmentCard
               title="Serve target routine"
-              body="Assign drills with evidence the player can bring back after practice."
+              body="Assign a drill, name the proof, and give the player something useful to bring back."
               metrics={[
                 { label: 'Due', value: 'Friday' },
                 { label: 'Evidence', value: '3 points' },
@@ -139,7 +139,7 @@ export default function CoachesPage() {
           <SectionHeader
             eyebrow="Trust and safety"
             title="Coach profiles should be clear about verification."
-            body="Future coach profiles can show verified email, coaching location, adult/youth availability, certifications if provided, Safe Play or background-check status where applicable, and clear not-verified labels."
+            body="Future coach profiles can show coaching location, player fit, availability, provided credentials, and clear verification labels."
           />
           <TrustStrip
             context="Coaches trust strip"
@@ -160,7 +160,7 @@ const coachNextActions = [
   {
     eyebrow: 'Find support',
     title: 'Find a coach',
-    body: 'Start from the resource hub when a player needs a lesson, clinic, hitting plan, or coaching direction.',
+    body: 'Start from the resource hub when a player needs a lesson, clinic, hitting plan, or clearer coaching direction.',
     metrics: [
       { label: 'Need', value: 'Coach' },
       { label: 'Context', value: 'Goals' },
@@ -183,7 +183,7 @@ const coachNextActions = [
   {
     eyebrow: 'Lesson prep',
     title: 'Bring match context',
-    body: 'Use goals, matchup questions, and recent player evidence to make the next lesson sharper.',
+    body: 'Use goals, matchup questions, and recent player evidence to make the next lesson easier to focus.',
     metrics: [
       { label: 'Prep', value: 'Goals' },
       { label: 'Evidence', value: 'Matches' },
@@ -206,7 +206,7 @@ const coachNextActions = [
   {
     eyebrow: 'Coach Hub',
     title: 'Assign follow-through',
-    body: 'Coaches can turn a lesson focus into practice work, due dates, and evidence to review.',
+    body: 'Turn a lesson focus into drills, due dates, proof to review, and the next resource to use.',
     metrics: [
       { label: 'Assign', value: 'Drills' },
       { label: 'Due', value: 'Next week' },
@@ -255,17 +255,17 @@ const coachLessonLoop = [
   {
     step: 'Before',
     title: 'Bring the right context',
-    body: 'Player goals, match notes, matchup questions, and recent evidence give the coach a sharper starting point.',
+    body: 'Player goals, match notes, matchup questions, and recent proof give the coach a sharper starting point.',
   },
   {
     step: 'During',
     title: 'Plan the court work',
-    body: 'Lesson focus turns into drills, tactical notes, and simple cues the player can remember under pressure.',
+    body: 'Lesson focus turns into drills, tactical notes, and simple cues the player can use under pressure.',
   },
   {
     step: 'After',
     title: 'Assign the next proof',
-    body: 'Coach Hub keeps the follow-through visible with due work, evidence requests, and the next review.',
+    body: 'Coach Hub keeps follow-through visible with due work, proof requests, resources, and the next review.',
   },
 ] as const
 

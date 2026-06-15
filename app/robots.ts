@@ -9,7 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         '/admin/',
         '/captain/',
         '/coach/',
-        '/compete/',
         '/league-coordinator/',
         '/messages',
         '/mylab',

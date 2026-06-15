@@ -123,6 +123,19 @@ describe('portal lane routing', () => {
     })).toEqual({ href: '/mylab', locked: false, requiredPlan: 'player_plus' })
   })
 
+  it('keeps the Compete lane public and unlocked', () => {
+    const access = buildProductAccessState('public', null)
+
+    expect(getPortalLaneTarget({
+      laneId: 'compete',
+      fallbackHref: '/compete',
+      planRoute: '/compete',
+      access,
+      authenticated: false,
+      accessPending: false,
+    })).toEqual({ href: '/compete', locked: false, requiredPlan: null })
+  })
+
   it('routes active Captain users directly to the Captain workspace', () => {
     const access = buildProductAccessState('member', {
       ...inactiveEntitlements,

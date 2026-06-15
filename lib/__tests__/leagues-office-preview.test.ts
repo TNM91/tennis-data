@@ -10,7 +10,7 @@ describe('Leagues Office preview', () => {
     expect(source).toContain('leagueNextActionGrid')
     expect(source).toContain("location: 'league_next_actions'")
     expect(source).toContain('League Office preview')
-    expect(source).toContain('Schedules, standings, corrections, and messages.')
+    expect(source).toContain('Schedules, scores, standings, and corrections.')
     expect(source).toContain('TiqWorkspacePreview')
     expect(source).toContain('TiqLeagueStandingCard')
     expect(source).toContain('Data Assist handoff')

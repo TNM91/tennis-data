@@ -67,7 +67,7 @@ describe('Level Up sync contract', () => {
     expect(portalSource).toContain('Synced. Your linked coach can use this for the next lesson.')
     expect(portalSource).toContain('Synced to your Level Up history.')
     expect(workbenchSource).toContain('Free preview saved locally. Coach invite or Player+ turns on cloud history.')
-    expect(workbenchSource).toContain('Synced. Coach assignment marked complete for review.')
+    expect(workbenchSource).toContain('Synced. Coach assignment progress updated for review.')
     expect(`${portalSource}\n${workbenchSource}`).toContain('Level Up local sync proof')
     expect(`${portalSource}\n${workbenchSource}`).toContain('Saved first: rating, tiny note, timer, focus, and proof history stay in this browser immediately.')
     expect(`${portalSource}\n${workbenchSource}`).toContain('Syncs when connected: Player+ history or coach-invited proof can reach Level Up sessions after sign-in.')

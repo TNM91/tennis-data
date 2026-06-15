@@ -4,7 +4,7 @@ import { getPlanUnlockHref } from './plan-intent'
 
 type PortalTaskTargetInput = {
   href: string
-  requiredRoute: '/explore' | '/mylab' | '/coach' | '/captain' | '/league-coordinator'
+  requiredRoute: '/explore' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
   title: string
   access: ProductAccessState
   authenticated: boolean

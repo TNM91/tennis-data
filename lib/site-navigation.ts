@@ -9,15 +9,13 @@ export type NavSection = {
 }
 
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { href: '/explore', label: 'Find' },
-  { href: '/matchup', label: 'Prepare' },
-  { href: '/mylab', label: 'Improve' },
+  { href: '/explore', label: 'Explore' },
+  { href: '/player-development', label: 'Improve' },
+  { href: '/compete', label: 'Compete' },
+  { href: '/manage', label: 'Manage' },
   { href: '/coaches', label: 'Coaches' },
-  { href: '/teams', label: 'Teams' },
-  { href: '/tournaments', label: 'Tournaments' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/resources', label: 'Resources' },
-  { href: '/pricing', label: 'Pricing' },
+  { href: '/leagues', label: 'Leagues & Tournaments' },
+  { href: '/mylab', label: 'My Lab' },
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
@@ -58,6 +56,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     title: 'Start',
     items: [
       { href: '/', label: 'Home' },
+      { href: '/explore', label: 'Explore' },
       { href: '/resources', label: 'Resources' },
       { href: '/pricing', label: 'Pricing' },
       { href: '/legal/billing', label: 'Billing' },
@@ -70,6 +69,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     title: 'Improve',
     items: [
       { href: '/level-up', label: 'Level Up' },
+      { href: '/player-development', label: 'Player development' },
       { href: '/mylab', label: 'Open My Lab' },
       { href: '/data-assist', label: 'Improve data' },
       { href: '/matchup', label: 'Prep matchup' },
@@ -77,12 +77,24 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Find',
+    title: 'Explore',
     items: EXPLORE_NAV_ITEMS,
   },
   {
-    title: 'Teams',
-    items: CAPTAIN_QUICK_NAV_ITEMS,
+    title: 'Compete',
+    items: [
+      { href: '/compete', label: 'Compete hub' },
+      { href: '/matchup', label: 'Matchup insights' },
+      { href: '/explore/rankings', label: 'Rankings' },
+      { href: '/compete/results', label: 'Results' },
+    ],
+  },
+  {
+    title: 'Manage',
+    items: [
+      { href: '/manage', label: 'Manage hub' },
+      ...CAPTAIN_QUICK_NAV_ITEMS,
+    ],
   },
   {
     title: 'Coaches',

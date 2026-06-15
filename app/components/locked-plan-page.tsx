@@ -104,8 +104,8 @@ function getLockedPreview(planId: PricingPlanId): {
   if (planId === 'coach') {
     return {
       eyebrow: 'Coach unlock preview',
-      title: 'Develop players with a connected coaching workspace.',
-      body: 'Coach turns lesson plans, tactical boards, drill assignments, student tracking, and scheduling into one practical workflow.',
+      title: 'Help players leave with the next step.',
+      body: 'Coach turns lesson plans, tactical boards, drill assignments, development tracking, reviews, resources, and scheduling into one practical flow.',
       cards: [
         {
           label: 'Plan',
@@ -115,7 +115,7 @@ function getLockedPreview(planId: PricingPlanId): {
         },
         {
           label: 'Track',
-          title: 'Follow student progress',
+          title: 'Track player development',
           text: 'Keep player development paths and coach notes together.',
           icon: 'reports',
         },
@@ -132,19 +132,19 @@ function getLockedPreview(planId: PricingPlanId): {
   if (planId === 'league') {
     return {
       eyebrow: 'League unlock preview',
-      title: 'Run the season from one place.',
-      body: 'League keeps entries, schedules, results, standings, and league visibility organized.',
+      title: 'Run the season with less admin work.',
+      body: 'League keeps participants, schedules, scores, standings, member clarity, and league visibility organized.',
       cards: [
         {
           label: 'Setup',
           title: 'Structure the league',
-          text: 'Create the season shape before results start arriving.',
+          text: 'Create the season shape before schedules and scores start arriving.',
           icon: 'teamRankings',
         },
         {
           label: 'Operate',
-          title: 'Track results',
-          text: 'Keep schedules, scorecards, and standings moving together.',
+          title: 'Track scores',
+          text: 'Keep schedules, scorecards, results, and standings moving together.',
           icon: 'reports',
         },
         {

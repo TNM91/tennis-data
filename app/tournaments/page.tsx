@@ -16,7 +16,7 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Tournaments',
   description:
-    'Tournament tennis without the chaos. Find tournaments, enter events, manage draws, schedule courts, collect results, and keep players informed.',
+    'Tournament tennis without the chaos. Find events, manage entries and draws, schedule courts, collect scores, publish results, and keep players informed.',
   path: '/tournaments',
 })
 
@@ -30,7 +30,7 @@ export default function TournamentsPage() {
         <CommandHero
           eyebrow="Tournaments"
           title="Tournament tennis without the chaos."
-          body="Find tournaments, enter events, manage draws, schedule courts, collect results, and keep players informed."
+          body="Find events, manage entries and draws, schedule courts, collect scores, publish results, and keep players informed."
           primary={{ href: '#find', label: 'Find Tournaments' }}
           secondary={{ href: '#desk', label: 'Run a Tournament' }}
           searchPlaceholder="Search tournaments, draws, divisions, round robins, court schedules, or results"
@@ -39,7 +39,7 @@ export default function TournamentsPage() {
           <SectionHeader
             eyebrow="Tournament next actions"
             title="Pick the event job, then open the right tournament path."
-            body="Tournaments need different paths for players, directors, court scheduling, and corrections. Start with the job that needs attention now."
+            body="Tournaments need clear paths for players, directors, court scheduling, scores, and corrections. Start with the job that needs attention now."
             titleId="tournament-next-actions-title"
           />
           <div style={nextActionGridStyle}>
@@ -85,7 +85,7 @@ export default function TournamentsPage() {
           leftTitle="For players"
           leftBody="Find events, view divisions, see draws, know your schedule, and follow results."
           rightTitle="For organizers"
-          rightBody="Create divisions, manage entries, build draws, schedule courts, collect scores, and publish results."
+          rightBody="Create divisions, manage entries, build draws, schedule courts, track scores, publish results, and reduce event admin."
         />
         <section style={flowSectionStyle} aria-labelledby="tournament-flow-title">
           <SectionHeader
@@ -110,12 +110,12 @@ export default function TournamentsPage() {
           <SectionHeader
             eyebrow="Tournament Desk"
             title="Entries, draws, courts, results, winners."
-            body="Tournament results should feed player profiles, My Lab, Matchup, Coach Hub, rankings, and team or league context where appropriate."
+            body="Tournament Desk keeps entries, schedules, scores, player updates, results, and awards together so event work does not sprawl."
           />
           <div style={previewGridStyle}>
             <TiqTournamentDrawCard
               title="Summer Doubles Classic"
-              body="Divisions are open, entries are reviewed, and court blocks are drafted."
+              body="Divisions are open, entries are reviewed, and court blocks are ready for schedule decisions."
               metrics={[
                 { label: 'Entries', value: '28' },
                 { label: 'Draws', value: 'Draft' },
@@ -140,7 +140,7 @@ export default function TournamentsPage() {
             <TiqWorkspacePreview
               eyebrow="Results"
               title="Finals and awards"
-              body="Publish outcomes, standings, winners, and award-ready recaps."
+              body="Publish scores, winners, awards, and player-facing recaps after the final result is clear."
               metrics={[
                 { label: 'Pending', value: 'Clear' },
                 { label: 'Winners', value: 'Ready' },
@@ -228,7 +228,7 @@ const tournamentNextActions = [
   {
     eyebrow: 'Run',
     title: 'Run the event desk',
-    body: 'Open Tournament Desk when entries, draws, courts, results, and player updates need one operational home.',
+    body: 'Open Tournament Desk when entries, draws, court times, scores, results, and player updates need one operational home.',
     metrics: [
       { label: 'Desk', value: 'Full-Court' },
       { label: 'Results', value: 'Reviewable' },
@@ -292,7 +292,7 @@ const tournamentFlow = [
   {
     step: '04',
     title: 'Results',
-    body: 'Collect scores, resolve corrections, and update standings, winners, and awards.',
+    body: 'Collect scores, resolve corrections, and update winners, standings, and awards.',
   },
   {
     step: '05',

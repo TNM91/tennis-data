@@ -2,29 +2,25 @@ import { describe, expect, it } from 'vitest'
 import { PRIMARY_NAV_ITEMS, FOOTER_NAV_SECTIONS, ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, COACH_QUICK_NAV_ITEMS } from '../site-navigation'
 
 describe('site navigation language', () => {
-  it('uses the public action-based navigation map', () => {
+  it('uses the community-centered platform navigation map', () => {
     expect(PRIMARY_NAV_ITEMS).toEqual([
-      { href: '/explore', label: 'Find' },
-      { href: '/matchup', label: 'Prepare' },
-      { href: '/mylab', label: 'Improve' },
+      { href: '/explore', label: 'Explore' },
+      { href: '/player-development', label: 'Improve' },
+      { href: '/compete', label: 'Compete' },
+      { href: '/manage', label: 'Manage' },
       { href: '/coaches', label: 'Coaches' },
-      { href: '/teams', label: 'Teams' },
-      { href: '/tournaments', label: 'Tournaments' },
-      { href: '/leagues', label: 'Leagues' },
-      { href: '/resources', label: 'Resources' },
-      { href: '/pricing', label: 'Pricing' },
+      { href: '/leagues', label: 'Leagues & Tournaments' },
+      { href: '/mylab', label: 'My Lab' },
     ])
 
     expect(PRIMARY_NAV_ITEMS.map((item) => item.label)).toEqual([
-      'Find',
-      'Prepare',
+      'Explore',
       'Improve',
+      'Compete',
+      'Manage',
       'Coaches',
-      'Teams',
-      'Tournaments',
-      'Leagues',
-      'Resources',
-      'Pricing',
+      'Leagues & Tournaments',
+      'My Lab',
     ])
     expect(PRIMARY_NAV_ITEMS).not.toContainEqual({ href: '/captain', label: 'Captains' })
   })
@@ -32,10 +28,11 @@ describe('site navigation language', () => {
   it('keeps footer sections aligned to the same user-facing modes', () => {
     const sectionTitles = FOOTER_NAV_SECTIONS.map((section) => section.title)
 
-    expect(sectionTitles).toContain('Find')
+    expect(sectionTitles).toContain('Explore')
     expect(sectionTitles).toContain('Improve')
+    expect(sectionTitles).toContain('Compete')
+    expect(sectionTitles).toContain('Manage')
     expect(sectionTitles).toContain('Coaches')
-    expect(sectionTitles).toContain('Teams')
     expect(sectionTitles).toContain('Leagues and tournaments')
   })
 

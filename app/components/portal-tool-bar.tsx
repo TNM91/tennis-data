@@ -10,11 +10,11 @@ import { buildProductAccessState, type ProductAccessState } from '@/lib/access-m
 import { getPortalLaneTarget } from '@/lib/portal-lane-routing'
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
-type PortalLaneId = 'find' | 'you' | 'coach' | 'team' | 'league'
+type PortalLaneId = 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league'
 
 const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'
 
@@ -24,7 +24,7 @@ type PortalLane = {
   cue: string
   route: string
   icon: TiqFeatureIconName
-  planRoute: '/explore' | '/mylab' | '/coach' | '/captain' | '/league-coordinator'
+  planRoute: '/explore' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
   paths: string[]
   searchScope: 'players' | 'teams' | 'leagues'
   tasks: Array<{
@@ -33,7 +33,7 @@ type PortalLane = {
     metric: string
     href: string
     icon: TiqFeatureIconName
-    requiredRoute: '/explore' | '/mylab' | '/coach' | '/captain' | '/league-coordinator'
+    requiredRoute: '/explore' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
   }>
 }
 
@@ -41,7 +41,7 @@ const portalLanes: PortalLane[] = [
   {
     id: 'find',
     label: 'Explore',
-    cue: 'Search the tennis map',
+    cue: 'Players, teams, leagues, events',
     route: '/explore',
     planRoute: '/explore',
     icon: 'opponentScouting',
@@ -57,7 +57,7 @@ const portalLanes: PortalLane[] = [
   {
     id: 'you',
     label: 'Improve',
-    cue: 'Level up your game',
+    cue: 'Drills, skills, My Lab',
     route: '/mylab',
     planRoute: '/mylab',
     icon: 'myLab',
@@ -67,15 +67,31 @@ const portalLanes: PortalLane[] = [
       { title: 'Open My Lab', detail: 'Your scorecard, goals, follows, and next read.', metric: 'Player', href: '/mylab', icon: 'myLab', requiredRoute: '/mylab' },
       { title: 'Level Up', detail: 'Choose a training card, run the rep, and save proof.', metric: 'Player', href: '/level-up', icon: 'matchPrep', requiredRoute: '/mylab' },
       { title: 'Tactics Tools', detail: 'Map the court pattern before practice or your next match.', metric: 'Player', href: '/tactics', icon: 'scenarioBuilder', requiredRoute: '/mylab' },
-      { title: 'Improve data', detail: 'Upload, report, or refresh the tennis context behind your read.', metric: 'Player', href: dataAssistPortalHref, icon: 'reports', requiredRoute: '/mylab' },
+      { title: 'Fix tennis context', detail: 'Upload, report, or refresh the tennis context behind your read.', metric: 'Player', href: dataAssistPortalHref, icon: 'reports', requiredRoute: '/mylab' },
       { title: 'Prep matchup', detail: 'Compare the court before you play.', metric: 'Player', href: '/matchup', icon: 'matchupAnalysis', requiredRoute: '/mylab' },
       { title: 'Review messages', detail: 'Keep tennis replies and alerts together.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/mylab' },
     ],
   },
   {
+    id: 'compete',
+    label: 'Compete',
+    cue: 'Matchups, scouting, lineups',
+    route: '/compete',
+    planRoute: '/compete',
+    icon: 'matchupAnalysis',
+    paths: ['/compete', '/matchup'],
+    searchScope: 'players',
+    tasks: [
+      { title: 'Prep matchup', detail: 'Compare the court before you play.', metric: 'Prep', href: '/matchup', icon: 'matchupAnalysis', requiredRoute: '/compete' },
+      { title: 'Scout players', detail: 'Read ratings, recent context, and player signals.', metric: 'Scout', href: '/explore/players', icon: 'playerRatings', requiredRoute: '/compete' },
+      { title: 'Build lineup', detail: 'Turn roster, opponent, and partner context into a plan.', metric: 'Captain', href: '/captain/lineup-builder', icon: 'lineupBuilder', requiredRoute: '/compete' },
+      { title: 'Track results', detail: 'Use scores and match history to guide the next decision.', metric: 'Results', href: '/compete/results', icon: 'reports', requiredRoute: '/compete' },
+    ],
+  },
+  {
     id: 'coach',
-    label: 'Coach',
-    cue: 'Develop players',
+    label: 'Coaches',
+    cue: 'Support player development',
     route: '/coach',
     planRoute: '/coach',
     icon: 'scenarioBuilder',
@@ -90,8 +106,8 @@ const portalLanes: PortalLane[] = [
   },
   {
     id: 'team',
-    label: 'Team',
-    cue: 'Build the week',
+    label: 'Manage',
+    cue: 'Teams and match week',
     route: '/captain',
     planRoute: '/captain',
     icon: 'lineupBuilder',
@@ -107,12 +123,12 @@ const portalLanes: PortalLane[] = [
   },
   {
     id: 'league',
-    label: 'Leagues',
-    cue: 'See the season',
-    route: '/compete',
+    label: 'Leagues & Tournaments',
+    cue: 'Schedules, scores, events',
+    route: '/leagues',
     planRoute: '/league-coordinator',
     icon: 'teamRankings',
-    paths: ['/league-coordinator', '/tournaments', '/compete', '/compete/leagues', '/compete/schedule', '/compete/results', '/explore/leagues', '/leagues'],
+    paths: ['/league-coordinator', '/tournaments', '/compete/leagues', '/compete/schedule', '/explore/leagues', '/leagues'],
     searchScope: 'leagues',
     tasks: [
       { title: 'Shared calendar', detail: 'Publish, propose, confirm, and track match dates.', metric: 'League', href: '/compete/schedule', icon: 'schedule', requiredRoute: '/explore' },
@@ -127,12 +143,15 @@ const hiddenPrefixes = ['/login', '/join', '/legal', '/reset-password', '/forget
 const portalSurfaceBackground = 'var(--portal-surface-bg)'
 const portalActiveCardBackground = 'var(--portal-active-card-bg)'
 
-function isLaneActive(pathname: string, lane: PortalLane) {
-  return lane.paths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
-}
-
 function getActiveLane(pathname: string) {
-  return portalLanes.find((lane) => isLaneActive(pathname, lane)) ?? portalLanes[0]
+  const matches = portalLanes.flatMap((lane) =>
+    lane.paths
+      .filter((path) => pathname === path || pathname.startsWith(`${path}/`))
+      .map((path) => ({ lane, path })),
+  )
+
+  matches.sort((left, right) => right.path.length - left.path.length)
+  return matches[0]?.lane ?? portalLanes[0]
 }
 
 function isPortalHidden(pathname: string) {
@@ -213,7 +232,7 @@ export default function PortalToolBar() {
 
   return (
     <section
-      aria-label="TenAceIQ command center"
+      aria-label="TenAceIQ platform navigation"
       style={{
         position: 'relative',
         zIndex: 25,
@@ -243,7 +262,7 @@ export default function PortalToolBar() {
         <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
           <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
           <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
-            {authenticated ? 'What do we want to work on today?' : 'Check stats, improve your game, prep matches, captain teams, or run league work from one tennis platform.'}
+            {authenticated ? 'What do we want to work on today?' : PLATFORM_POSITIONING}
           </p>
         </div>
 
@@ -257,7 +276,7 @@ export default function PortalToolBar() {
                 : 'repeat(2, minmax(0, 1fr))'
               : isMobile
                 ? 'minmax(0, 1fr)'
-                : 'repeat(5, minmax(0, 1fr))',
+                : 'repeat(6, minmax(0, 1fr))',
             gap: 10,
             minWidth: 0,
             width: '100%',
@@ -293,8 +312,8 @@ export default function PortalToolBar() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search players, teams, leagues, ratings..."
-              aria-label="Search players, teams, leagues, and ratings"
+              placeholder="Search players, teams, leagues, tournaments, coaches, resources..."
+              aria-label="Search players, teams, leagues, tournaments, coaches, and resources"
               style={searchInputStyle}
             />
           </label>
@@ -379,7 +398,7 @@ function PortalLaneCard({
       <span style={laneCopyStyle}>
         <span style={laneTopStyle}>
           <strong style={laneLabelStyle}>{lane.label}</strong>
-          {target.locked ? (
+          {target.locked && !mobileCompact ? (
             <span style={lockBubbleStyle} title={`${lane.label} unlock`}>
               <NavLockIcon size={13} />
             </span>
@@ -449,9 +468,10 @@ function PortalTaskCard({
 function getLaneAccent(laneId: PortalLaneId) {
   if (laneId === 'find') return '#9be11d'
   if (laneId === 'you') return '#4aa3ff'
+  if (laneId === 'compete') return '#19c8b6'
   if (laneId === 'coach') return '#a6ff2e'
   if (laneId === 'team') return '#f3b51b'
-  return '#19c8b6'
+  return '#9be11d'
 }
 
 function getActiveTaskCardStyle(accent: string): CSSProperties {

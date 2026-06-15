@@ -64,7 +64,7 @@ describe('suite panel navigation deduplication', () => {
     const captain = source('app/captain/page.tsx')
     const league = source('app/components/league-coordinator-workspace.tsx')
 
-    expect(portal).toContain('aria-label="TenAceIQ command center"')
+    expect(portal).toContain('aria-label="TenAceIQ platform navigation"')
     expect(portal).toContain('aria-label="Choose a TenAceIQ workspace"')
     expect(portal).toContain('Plan practice')
     expect(portal).toContain("const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'")

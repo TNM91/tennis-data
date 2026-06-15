@@ -3,9 +3,9 @@ import { getPrimaryNavTarget } from './primary-nav-access'
 import { getPlanUnlockHref } from './plan-intent'
 
 type PortalLaneRoutingInput = {
-  laneId: 'find' | 'you' | 'coach' | 'team' | 'league'
+  laneId: 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league'
   fallbackHref: string
-  planRoute: '/explore' | '/mylab' | '/coach' | '/captain' | '/league-coordinator'
+  planRoute: '/explore' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
   access: ProductAccessState
   authenticated: boolean
   accessPending: boolean

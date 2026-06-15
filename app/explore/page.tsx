@@ -121,7 +121,7 @@ export default function ExplorePage() {
 
   return (
     <SiteShell active="explore">
-      <JsonLd id="explore-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Find', '/explore')} />
+      <JsonLd id="explore-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Explore', '/explore')} />
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div aria-hidden="true" style={watermarkStyle} />
@@ -153,11 +153,11 @@ export default function ExplorePage() {
 
 function FindCommandPanel() {
   return (
-    <section style={findCommandPanel} aria-label="Find mode paths">
+    <section style={findCommandPanel} aria-label="Explore mode paths">
       <div style={findCommandHeader}>
         <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
         <div style={findCommandCopy}>
-          <div style={findCommandEyebrow}>Find mode</div>
+          <div style={findCommandEyebrow}>Explore mode</div>
           <h2 style={findCommandTitle}>Choose a path.</h2>
         </div>
         <Link href="/pricing#free" style={findCommandPill}>Free to start</Link>

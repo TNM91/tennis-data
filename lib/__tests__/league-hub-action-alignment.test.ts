@@ -3,22 +3,25 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('League hub action alignment', () => {
-  it('keeps the League hub and footer aligned with the portal action dock', () => {
+  it('keeps the Compete hub focused on match preparation instead of League Office operations', () => {
     const compete = readFileSync(join(process.cwd(), 'app/compete/page.tsx'), 'utf8')
     const competeLayout = readFileSync(join(process.cwd(), 'app/compete/layout.tsx'), 'utf8')
     const competeFrame = readFileSync(join(process.cwd(), 'app/compete/_components/compete-page-frame.tsx'), 'utf8')
     const footerNav = readFileSync(join(process.cwd(), 'lib/site-navigation.ts'), 'utf8')
 
-    expect(competeLayout).toContain("title: 'League Office'")
-    expect(competeLayout).toContain('index: false')
-    expect(competeFrame).toContain("value: 'League Office'")
-    expect(competeFrame).toContain('<SiteShell active="/leagues">')
-    expect(compete).toContain('eyebrow="League Office"')
-    expect(compete).toContain('Shared calendar')
-    expect(compete).toContain('Build tournament')
-    expect(compete).toContain('Team book')
-    expect(compete).toContain('Player book')
-    expect(compete).toContain('Shared calendar, tournaments, team results, and player results stay in one League Office lane.')
+    expect(competeLayout).toContain("title: 'Compete'")
+    expect(competeLayout).toContain('index: true')
+    expect(competeFrame).toContain("value: 'Compete'")
+    expect(competeFrame).toContain('<SiteShell active="/compete">')
+    expect(compete).toContain('eyebrow="Compete"')
+    expect(compete).toContain('Prepare for the next match.')
+    expect(compete).toContain('Prep a matchup')
+    expect(compete).toContain('Scout players')
+    expect(compete).toContain('Build a lineup plan')
+    expect(compete).toContain('Track results')
+    expect(compete).toContain('Read a team')
+    expect(compete).toContain('Understand the flight')
+    expect(compete).not.toContain('Shared calendar, tournaments, team results, and player results stay in one League Office lane.')
     expect(compete).not.toContain('title="My leagues"')
 
     expect(footerNav).toContain("{ href: '/league-coordinator/tournaments', label: 'Build tournament' }")

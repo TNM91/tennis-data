@@ -2,9 +2,11 @@ import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import JsonLd from '@/app/components/json-ld'
 import { ThemeProvider } from '@/app/components/theme-provider'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-data'
 import './globals.css'
+
+const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -20,10 +22,12 @@ export const metadata: Metadata = {
     default: `TenAceIQ | ${PRODUCT_MOTTO}`,
     template: '%s | TenAceIQ',
   },
-  description:
-    'More Tennis. Less Chaos. Find tennis context, prepare for matches, improve in My Lab, and unlock Coach Hub, Team Hub, Tournament Desk, League Office, or Full-Court.',
+  description: SITE_DESCRIPTION,
   keywords: [
     'TenAceIQ',
+    'tennis platform',
+    'tennis resource hub',
+    'tennis management platform',
     'tennis analytics',
     'tennis ratings',
     'My Lab tennis',
@@ -70,8 +74,7 @@ export const metadata: Metadata = {
     url: 'https://tenaceiq.com',
     siteName: 'TenAceIQ',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
-    description:
-      'More Tennis. Less Chaos. Find tennis context, prepare for matches, improve in My Lab, and unlock Coach Hub, Team Hub, Tournament Desk, League Office, or Full-Court.',
+    description: SITE_DESCRIPTION,
     images: [
       {
         url: '/og-image.png',
@@ -84,8 +87,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
-    description:
-      'More Tennis. Less Chaos. Find tennis context, prepare for matches, improve in My Lab, and unlock Coach Hub, Team Hub, Tournament Desk, League Office, or Full-Court.',
+    description: SITE_DESCRIPTION,
     images: ['/og-image.png'],
   },
   manifest: '/manifest.webmanifest',

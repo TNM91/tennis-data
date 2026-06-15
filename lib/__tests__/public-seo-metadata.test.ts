@@ -23,7 +23,7 @@ describe('public SEO metadata', () => {
   it('builds canonical and complete social metadata for shared public routes', () => {
     const metadata = buildRouteMetadata({
       title: 'Coaches',
-      description: 'Find tennis coaching support and Coach Hub previews.',
+      description: 'Find tennis coaching support and see how Coach Hub helps players and coaches keep development moving between lessons.',
       path: '/coaches',
     })
 
@@ -33,13 +33,13 @@ describe('public SEO metadata', () => {
       locale: 'en_US',
       siteName: 'TenAceIQ',
       title: 'Coaches',
-      description: 'Find tennis coaching support and Coach Hub previews.',
+      description: 'Find tennis coaching support and see how Coach Hub helps players and coaches keep development moving between lessons.',
       url: '/coaches',
     })
     expect(metadata.twitter).toMatchObject({
       card: 'summary_large_image',
       title: 'Coaches',
-      description: 'Find tennis coaching support and Coach Hub previews.',
+      description: 'Find tennis coaching support and see how Coach Hub helps players and coaches keep development moving between lessons.',
     })
   })
 
@@ -148,11 +148,12 @@ describe('public SEO metadata', () => {
   })
 
   it('keeps root metadata aligned to public workspace names', () => {
-    for (const phrase of ['Coach Hub', 'Team Hub', 'Tournament Desk', 'League Office']) {
+    for (const phrase of ['PLATFORM_POSITIONING', 'tennis platform', 'tennis resource hub', 'tennis management platform']) {
       expect(rootLayout).toContain(phrase)
     }
 
-    expect(rootLayout).toContain('Find tennis context, prepare for matches, improve in My Lab')
+    expect(rootLayout).toContain('const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`')
+    expect(rootLayout).toContain('SITE_DESCRIPTION')
     expect(rootLayout).not.toContain('captain workspace')
     expect(rootLayout).not.toContain('Captain decisions')
     expect(rootLayout).not.toContain('League operations, or the Full-Court suite')

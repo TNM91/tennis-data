@@ -27,7 +27,7 @@ describe('Teams and Leagues public intros', () => {
     expect(leaguesSource).toContain('Find Leagues')
     expect(leaguesSource).toContain('Open League Office')
     expect(leaguesSource).toContain('League next actions')
-    expect(leaguesSource).toContain('Pick the season job, then open the right workspace.')
+    expect(leaguesSource).toContain('Pick the season job, then open the right path.')
     expect(leaguesSource).toContain('Find a league or flight')
     expect(leaguesSource).toContain('Publish the season schedule')
     expect(leaguesSource).toContain('Update standings cleanly')

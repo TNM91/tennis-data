@@ -34,7 +34,7 @@ describe('League Coordinator mobile layout guards', () => {
 
   it('keeps the setup form Data Assist upload workflow visible', () => {
     expect(source).toContain('Use uploads to refresh the season.')
-    expect(source).toContain('Data Assist brings in schedules, rosters, and official scorecards when the season changes.')
+    expect(source).toContain('Data Assist brings in schedules, rosters, players, teams, and official scorecards when the season changes.')
     expect(source).toContain('paste reviewed roster names from Data Assist')
     expect(source).toContain('href={DATA_ASSIST_STORY.href}')
     expect(source).not.toContain('GhostLink href="/data-assist"')

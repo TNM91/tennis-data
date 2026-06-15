@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS, PRODUCT_AVOID_LIST, PRODUCT_MODE_LANGUAGE } from '../product-story'
+import {
+  DATA_ASSIST_STORY,
+  MEMBERSHIP_TIERS,
+  PLATFORM_AUDIENCE_PATHS,
+  PLATFORM_PILLARS,
+  PLATFORM_POSITIONING,
+  PRODUCT_AVOID_LIST,
+  PRODUCT_MODE_LANGUAGE,
+  PRODUCT_NORTH_STAR,
+} from '../product-story'
 
 describe('product story guardrails', () => {
   it('keeps Data Assist positioned as reviewed user uploads instead of an API dependency', () => {
@@ -29,5 +38,21 @@ describe('product story guardrails', () => {
     expect(PRODUCT_MODE_LANGUAGE.league).toMatchObject({ label: 'Leagues', route: '/league-coordinator', planId: 'league' })
     expect(PRODUCT_MODE_LANGUAGE.plans).toMatchObject({ label: 'Pricing', route: '/pricing', planId: null })
     expect(PRODUCT_MODE_LANGUAGE.plans.cue).toContain('My Lab, Coach Hub, Team Hub, League Office')
+  })
+
+  it('keeps the clarified platform why centralized', () => {
+    expect(PRODUCT_NORTH_STAR).toContain('players, captains, coaches, leagues, and tournaments')
+    expect(PRODUCT_NORTH_STAR).toContain('spend less time managing, guessing, searching, and coordinating')
+    expect(PLATFORM_POSITIONING).toBe(
+      'The tennis platform that helps players, captains, coaches, leagues, and tournaments improve, compete, and manage the game with less friction.',
+    )
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.title)).toEqual(['Improve', 'Compete', 'Manage'])
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.href)).toEqual(['/player-development', '/compete', '/manage'])
+    expect(PLATFORM_AUDIENCE_PATHS.map((path) => path.audience)).toEqual([
+      'Players',
+      'Captains',
+      'Coaches',
+      'Leagues and tournaments',
+    ])
   })
 })

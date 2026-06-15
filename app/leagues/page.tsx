@@ -220,7 +220,7 @@ export default function LeaguesPage() {
             <div style={sectionKicker}>Leagues</div>
             <h1 style={publicIntroTitle}>Run the season without the spreadsheet chaos.</h1>
             <p style={publicIntroText}>
-              Create league structure, manage teams or players, publish schedules, collect results, update standings, and keep everyone informed.
+              Organize players or teams, publish schedules, track scores, update standings, and keep everyone informed from one league home.
             </p>
             <div style={publicIntroActions}>
               <button
@@ -257,8 +257,8 @@ export default function LeaguesPage() {
           </div>
           <div style={publicIntroGrid}>
             <IntroMiniCard title="League discovery" body="Find existing season context, flights, standings, schedules, and results." />
-            <IntroMiniCard title="League setup" body="Create teams or players, formats, schedules, score rules, standings, and messages." />
-            <IntroMiniCard title="Corrections" body="Use Data Assist for schedules, scorecards, rosters, and reviewed changes." />
+            <IntroMiniCard title="League setup" body="Create players or teams, formats, schedules, score rules, standings, and messages." />
+            <IntroMiniCard title="Corrections" body="Use Data Assist for schedules, scorecards, rosters, and reviewed changes before public context moves." />
             <IntroMiniCard title="Formats" body="Support leagues, ladders, round robins, and tournament-style seasons from one office." />
           </div>
         </article>
@@ -268,9 +268,9 @@ export default function LeaguesPage() {
           <div style={panelHead}>
             <div>
               <div style={sectionKicker}>League next actions</div>
-              <h2 style={panelTitle}>Pick the season job, then open the right workspace.</h2>
+              <h2 style={panelTitle}>Pick the season job, then open the right path.</h2>
               <p style={panelIntro}>
-                League pages should help players and organizers move from discovery to the next operational step without hunting through a spreadsheet.
+                League pages should help players and organizers move from discovery to schedules, scores, standings, or corrections without hunting through a spreadsheet.
               </p>
             </div>
           </div>
@@ -296,9 +296,9 @@ export default function LeaguesPage() {
           <div style={panelHead}>
             <div>
               <div style={sectionKicker}>League Office preview</div>
-              <h2 style={panelTitle}>Schedules, standings, corrections, and messages.</h2>
+              <h2 style={panelTitle}>Schedules, scores, standings, and corrections.</h2>
               <p style={panelIntro}>
-                League Office turns a season into a workspace: publish the schedule, collect results, update standings, manage corrections, and hand reviewed data back to Data Assist.
+                League Office turns a season into a practical home: organize participants, publish the schedule, collect scores, update standings, manage corrections, and hand reviewed data back to Data Assist.
               </p>
             </div>
           </div>
@@ -306,7 +306,7 @@ export default function LeaguesPage() {
             <TiqWorkspacePreview
               eyebrow="Schedule"
               title="Spring Ladder schedule"
-              body="Publish court windows, team dates, round-robin blocks, and update notes."
+              body="Publish court windows, team dates, round-robin blocks, and schedule change notes."
               metrics={[
                 { label: 'Matches', value: '36' },
                 { label: 'Courts', value: '6' },
@@ -624,7 +624,7 @@ const leagueNextActions = [
   {
     eyebrow: 'Schedule',
     title: 'Publish the season schedule',
-    body: 'Use League Office when teams, players, court windows, round-robin blocks, or match dates need one place.',
+    body: 'Use League Office when players, teams, court windows, round-robin blocks, or match dates need one place.',
     metrics: [
       { label: 'Office', value: 'Schedule' },
       { label: 'Formats', value: 'League / ladder' },
@@ -647,7 +647,7 @@ const leagueNextActions = [
   {
     eyebrow: 'Standings',
     title: 'Update standings cleanly',
-    body: 'Collect reviewed scores, apply tiebreakers, and keep standings useful for captains, players, and coordinators.',
+    body: 'Collect reviewed scores, apply tiebreakers, and keep standings useful for players, captains, and coordinators.',
     metrics: [
       { label: 'Results', value: 'Reviewed' },
       { label: 'Rules', value: 'Tiebreakers' },
@@ -670,7 +670,7 @@ const leagueNextActions = [
   {
     eyebrow: 'Fix data',
     title: 'Send corrections to review',
-    body: 'Use Data Assist when schedules, scorecards, rosters, teams, or standings need a source attached.',
+    body: 'Use Data Assist when schedules, scorecards, rosters, teams, players, or standings need a source attached.',
     metrics: [
       { label: 'Upload', value: 'Source' },
       { label: 'Review', value: 'Required' },

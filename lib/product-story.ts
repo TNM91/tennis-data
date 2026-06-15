@@ -1,7 +1,73 @@
 export const PRODUCT_NORTH_STAR =
-  'TenAceIQ helps tennis players, coaches, captains, and league coordinators spend less time guessing, more time understanding, and more time playing.'
+  'TenAceIQ helps players, captains, coaches, leagues, and tournaments spend less time managing, guessing, searching, and coordinating, and more time improving, competing, coaching, leading, and playing.'
 
 export const PRODUCT_MOTTO = 'More Tennis. Less Chaos.'
+
+export const PLATFORM_POSITIONING =
+  'The tennis platform that helps players, captains, coaches, leagues, and tournaments improve, compete, and manage the game with less friction.'
+
+export const PLATFORM_MISSION =
+  'Help the tennis community spend less time managing tennis and more time playing, improving, and enjoying it.'
+
+export const PLATFORM_PILLARS = [
+  {
+    id: 'improve',
+    title: 'Improve',
+    promise: 'Know what to work on next.',
+    body:
+      'Use player development paths, ratings, progress signals, drills, skills, strategy, coach connection, and training resources to turn guesswork into focused court work.',
+    href: '/player-development',
+    cta: 'Level Up My Game',
+    proof: ['Player development', 'Drills and skills', 'Coach connection'],
+  },
+  {
+    id: 'compete',
+    title: 'Compete',
+    promise: 'Prepare for the matchup in front of you.',
+    body:
+      'Use matchup insight, scouting, lineup strategy, match preparation, performance tracking, and player or team intelligence to compete with a clearer plan.',
+    href: '/compete',
+    cta: 'Prepare to Compete',
+    proof: ['Matchup insight', 'Scouting', 'Performance tracking'],
+  },
+  {
+    id: 'manage',
+    title: 'Manage',
+    promise: 'Keep teams, leagues, and events organized.',
+    body:
+      'Use captain tools, scheduling, availability, communication, league setup, tournament setup, score tracking, rosters, and match organization to reduce admin work.',
+    href: '/manage',
+    cta: 'Manage My Team',
+    proof: ['Availability', 'Schedules and scores', 'Roster organization'],
+  },
+] as const
+
+export const PLATFORM_AUDIENCE_PATHS = [
+  {
+    audience: 'Players',
+    question: 'What should I work on, how am I improving, and what matchup matters next?',
+    href: '/mylab',
+    cta: 'Find Player Insights',
+  },
+  {
+    audience: 'Captains',
+    question: 'Who is available, what lineup gives us the best chance, and what needs to be sent?',
+    href: '/captain',
+    cta: 'Manage My Team',
+  },
+  {
+    audience: 'Coaches',
+    question: 'What should I assign, how is the player developing, and what should happen between sessions?',
+    href: '/coaches',
+    cta: 'Support Players',
+  },
+  {
+    audience: 'Leagues and tournaments',
+    question: 'How do we organize schedules, teams, players, scores, and results with less admin work?',
+    href: '/leagues',
+    cta: 'Run a League or Tournament',
+  },
+] as const
 
 export const PRODUCT_UPGRADE_MESSAGE =
   'Upgrade based on what makes your tennis life easier: simple tiers, clear workspaces, clearer next steps.'
@@ -91,15 +157,15 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   coach: {
     id: 'coach',
     name: 'Coach',
-    shortPromise: 'Develop players with a connected coaching workspace.',
+    shortPromise: 'Give every player the next useful step.',
     audience: 'Private coaches, school coaches, and training-group leaders',
-    upgradeCue: 'Unlock lesson planning, drill assignments, student tracking, scheduling, and coach-player communication.',
+    upgradeCue: 'Unlock lesson planning, drill assignments, player development tracking, scheduling, and coach-player communication.',
     description:
-      'Use Player plus Coach Hub for lesson planning, student progress tracking, drill assignments, scheduling, tactical boards, and two-way communication with Player students.',
+      'Use Player plus Coach Hub to assign drills, track player development, recommend resources, schedule lessons, review proof, and support players between sessions.',
     valueProps: [
       'Plan lessons and practice blocks',
-      'Track students and training groups',
-      'Assign drills and homework',
+      'Track player development and training groups',
+      'Assign drills, proof, and next steps',
       'Use TIQ Tactical Studio for drill boards',
       'Communicate with Player students',
     ],
@@ -123,11 +189,11 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   league: {
     id: 'league',
     name: 'League',
-    shortPromise: 'Run a league, ladder, or tournament from one place.',
+    shortPromise: 'Run competition with less admin work.',
     audience: 'League coordinators and organizers running one competition workspace',
-    upgradeCue: 'Give members one place for requests, schedules, results, and standings.',
+    upgradeCue: 'Give members one place for requests, schedules, players or teams, scores, and standings.',
     description:
-      'Run one league, ladder, or tournament workspace with participation, scheduling, results, standings, visibility, and admin workflows.',
+      'Run one league, ladder, or tournament workspace with player or team setup, scheduling, score tracking, standings, visibility, and admin workflows.',
     valueProps: [
       'Approve teams or players before they enter the season',
       'Keep schedules, sites, and match details in one league home',
@@ -198,7 +264,7 @@ export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> =
     route: '/coach',
     planId: 'coach',
     job: 'Develop players between lessons',
-    cue: 'Plan lessons, assign drills, review check-ins, and keep coach-player communication tied to goals.',
+    cue: 'Assign drills, track development, review check-ins, recommend resources, and keep coach-player communication tied to goals.',
   },
   prep: {
     id: 'prep',
@@ -272,11 +338,11 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   },
   coach: {
     stage: 'Coach unlock',
-    headline: 'Develop players with a connected coaching workspace.',
-    copy: 'Plan lessons, assign drills, track students, schedule sessions, and turn tactical boards into coach-player follow-through.',
+    headline: 'Help players leave with the next step.',
+    copy: 'Use Coach Hub to assign drills, track development, recommend resources, schedule sessions, and support players between lessons.',
     bullets: [
       'Build lesson plans and drill assignments',
-      'Track students and training groups',
+      'Track player development and review proof',
       'Use TIQ Tactical Studio for practical court work',
     ],
     primaryCta: { label: 'Unlock Coach', href: '/pricing#coach' },
@@ -285,12 +351,12 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   },
   captain: {
     stage: 'Captain unlock',
-    headline: 'Run the team week with more clarity.',
-    copy: 'Use Player features plus Team Hub and Captain Tools for lineups, scouting, readiness, and weekly team decisions.',
+    headline: 'Run match week with less chaos.',
+    copy: 'Use Player features plus Team Hub and Captain Tools for availability, lineup strategy, pairings, scouting, and weekly team decisions.',
     bullets: [
       'Build lineups with less guesswork',
-      'Scout players and teams before decisions',
-      'Track readiness and keep the week moving',
+      'See who is available and who should play together',
+      'Send clear team updates without chasing every thread',
     ],
     primaryCta: { label: 'Unlock Captain', href: '/pricing#captain' },
     secondaryCta: { label: 'Open Captain', href: '/captain' },
@@ -298,12 +364,12 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   },
   league: {
     stage: 'League unlock',
-    headline: 'Run the competition from one place.',
-    copy: 'Manage approvals, schedules, results, standings, and competition visibility so organizers and members spend less time chasing details.',
+    headline: 'Run competition with less admin work.',
+    copy: 'Manage players or teams, schedules, scores, standings, and visibility so organizers and members spend less time chasing details.',
     bullets: [
       'Approve players or teams before they enter',
       'Keep schedule and site details visible',
-      'Turn match results into standings',
+      'Track scores and turn results into standings',
     ],
     primaryCta: { label: 'Unlock League', href: '/pricing#league' },
     secondaryCta: { label: 'Explore Leagues', href: '/explore/leagues' },
@@ -385,21 +451,21 @@ export const MATCHUP_STORY = {
 
 export const CAPTAIN_STORY = {
   eyebrow: 'Captain unlock',
-  headline: 'Run the week without chasing answers.',
+  headline: 'Run match week with less chaos.',
   body:
-    'See who can play, build the lineup, test the choice, refresh match context through Data Assist, and send the plan from Team Hub.',
+    'See who is available, choose the lineup, compare pairings, refresh match context through Data Assist, and send the team plan from one place.',
   quickStartKicker: 'Captain weekly flow',
   quickStartTitle: 'Four steps to match day',
-  activeTitle: 'Captain keeps this team organized.',
+  activeTitle: 'Captain answers the next team question.',
   activeBody:
-    'Save time, build smarter lineups, keep availability visible, refresh results from uploads, and send team updates from one place.',
+    'Know who can play, what lineup gives you the best chance, who should play together, and what needs to be sent before match day.',
   upgradeHeadline: 'Still building the week from scattered texts?',
   upgradeBody:
-    'Captain brings availability, lineup building, scenario testing, scouting, readiness, and team messaging into one weekly workflow.',
+    'Captain brings availability, lineup strategy, pairing context, scouting, readiness, and team messaging into one weekly flow.',
   upgradeResult: 'Spend less time chasing answers and more time sending a lineup you trust.',
   upgradeCta: 'Unlock Captain',
   lockedMessage:
-    'Unlock Captain to save time, reduce stress, and build clearer weekly team plans.',
+    'Unlock Captain to reduce match-week admin and build clearer team plans.',
   workspaceProof: [
     {
       label: 'Readiness',
@@ -427,27 +493,27 @@ export const CAPTAIN_STORY = {
 
 export const LEAGUE_COORDINATOR_STORY = {
   eyebrow: 'League unlock',
-  headline: 'Run the season from one place.',
+  headline: 'Run the season with less admin work.',
   body:
-    'Approve entries, set the schedule shape, collect Data Assist uploads, and keep standings moving so everyone can focus on playing.',
+    'Approve players or teams, organize schedules, collect scores, review Data Assist uploads, and keep standings moving so everyone can focus on playing.',
   subnavTitle: 'League Command',
   subnavDescription:
     'Manage league operations separately from the weekly Team workspace, with Data Assist as the upload path for schedules, rosters, and scorecards.',
   newLeagueTitle: 'Create league setup',
   newLeagueBody:
-    'Choose team or individual format, name the season, set visibility, then approve participants.',
+    'Choose team or individual format, name the season, set visibility, then approve participants and prepare the schedule.',
   upgradeHeadline: 'Ready to run organized competition without spreadsheets?',
   upgradeBody:
-    'League Office gives organizers one place for approvals, schedules, results, standings, and member clarity.',
+    'League Office gives organizers one place for participants, schedules, scores, standings, and member clarity.',
   draftUpgradeHeadline: 'Need this draft to become a real League Office workspace?',
   draftUpgradeBody:
     'League Office turns setup into a season workspace where requests, scheduling, results, and standings stay together.',
   registryTitle: 'Current TIQ league definitions',
   registryBody:
-    'Manage the league records that power approvals, uploaded schedules, standings, results, and organizer workflows.',
+    'Manage the league records that power participants, uploaded schedules, score tracking, standings, and organizer workflows.',
   finalUpgradeHeadline: 'Ready to run the season without spreadsheet cleanup?',
   finalUpgradeBody:
-    'League Office turns league records into one cleaner system for scheduling, standings, participation, and league-wide clarity.',
+    'League Office turns league records into one cleaner system for schedules, participants, scores, standings, and league-wide clarity.',
   cta: 'Unlock League',
 } as const
 

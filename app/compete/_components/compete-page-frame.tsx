@@ -17,25 +17,25 @@ type FrameProps = {
 const HERO_SIGNALS = [
   {
     label: 'Mode',
-    value: 'League Office',
-    text: 'Run the season',
+    value: 'Compete',
+    text: 'Prepare the next match',
   },
   {
     label: 'Focus',
-    value: 'Ready',
-    text: 'Matches and results',
+    value: 'Scouting',
+    text: 'Players, teams, matchups',
   },
   {
     label: 'Handoff',
     value: 'Captain',
-    text: 'Team decisions',
+    text: 'Lineup decisions',
   },
 ]
 
 const CAPTAIN_HANDOFF_STEPS = [
-  'Capture schedule, result, and team context.',
-  'Carry it into availability, lineup, scenario, and team message.',
-  'Confirm Team Hub uses the same match-week reality.',
+  'Start with matchup, player, team, and schedule context.',
+  'Turn the read into availability, lineup, scenario, and message decisions.',
+  'Keep Team Hub pointed at the same match-week reality.',
 ]
 
 const CAPTAIN_HANDOFF_ACTIONS = [
@@ -53,7 +53,7 @@ export default function CompetePageFrame({
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   return (
-    <SiteShell active="/leagues">
+    <SiteShell active="/compete">
       <section
         style={{
           padding: isMobile ? '16px 0 48px' : '20px 0 64px',
@@ -171,7 +171,7 @@ export default function CompetePageFrame({
               <div style={captainBridgeEyebrowStyle}>Captain match-week bridge</div>
               <h2 style={captainBridgeTitleStyle}>Turn Compete context into Team Hub decisions.</h2>
               <p style={captainBridgeTextStyle}>
-                Use teams, schedule, and results here to feed the captain week: availability, lineup, scenario, and team message.
+                Use matchup, scouting, schedule, and team context here to feed the captain week: availability, lineup, scenario, and team message.
               </p>
             </div>
             <div style={captainBridgeStepsStyle}>

@@ -907,9 +907,9 @@ function CoachContent() {
       <LockedPlanPage
         active="/coach"
         planId="coach"
-        headline="Unlock Coach to develop players with a connected workflow."
-        body="Coach Hub brings lesson plans, Tactical Studio boards, assignments, student tracking, and scheduling into one workspace."
-        result="Invited players can complete coach-assigned work through your Coach tier. Player+ unlocks self-guided history and trends."
+        headline="Unlock Coach to keep player development moving."
+        body="Coach Hub brings lesson plans, Tactical Studio boards, drill assignments, player development tracking, reviews, and scheduling into one place."
+        result="Assign the next step, review player proof, and support players between sessions without chasing scattered notes."
         ctaLabel="Unlock Coach"
         secondaryLabel="Compare Full-Court"
         secondaryHref="/pricing#full_court"
@@ -922,9 +922,9 @@ function CoachContent() {
       <section style={heroStyle}>
         <div style={heroCopyStyle}>
           <div style={eyebrowStyle}>Coach Hub</div>
-          <h1 style={titleStyle}>Plan the lesson. Assign the work. Track the player.</h1>
+          <h1 style={titleStyle}>Assign the next step. Track the player. Support the work between lessons.</h1>
           <p style={bodyStyle}>
-            Coach is for private teachers, development coaches, and team coaches who need practical player follow-through.
+            Coach is for private teachers, development coaches, and team coaches who need drills, proof, resources, and player follow-through in one place.
             Team competition operations stay in Captain; Full-Court includes both.
           </p>
           <div style={heroActionsStyle}>
@@ -935,7 +935,7 @@ function CoachContent() {
         <div style={heroPanelStyle}>
           <TiqFeatureIcon name="scenarioBuilder" size="xl" variant="surface" />
           <strong>Player+ connection</strong>
-          <span>Standalone guides stay useful on paper. Linked players get check-ins, assignments, and progress history inside TenAceIQ.</span>
+          <span>Standalone guides stay useful on paper. Linked players get check-ins, assignments, reviewed proof, and progress history inside TenAceIQ.</span>
         </div>
       </section>
 
@@ -1034,9 +1034,9 @@ function CoachContent() {
         <div style={linkedDashboardHeaderStyle}>
           <div>
             <div style={eyebrowStyle}>Linked players</div>
-            <h2 style={sectionTitleStyle}>Know who needs the next touch.</h2>
+            <h2 style={sectionTitleStyle}>Know who needs the next coaching move.</h2>
             <p style={bodyStyle}>
-              Track setup status, coach-linked access, assignment pressure, and review needs before the next lesson.
+              Track setup status, coach-linked access, assignment pressure, proof to review, and the next focus before the next lesson.
             </p>
           </div>
           <div style={linkedMetricGridStyle}>
@@ -1050,7 +1050,7 @@ function CoachContent() {
         <div style={coachQueueStyle} aria-label="Coach priority queue">
           <div style={coachQueueIntroStyle}>
             <div style={eyebrowStyle}>Today&apos;s coach queue</div>
-            <strong>Start with the highest-leverage touch.</strong>
+            <strong>Start with the player who needs action first.</strong>
           </div>
           <div style={coachQueueGridStyle}>
             {coachQueueActions.map((action) => (
@@ -1127,7 +1127,7 @@ function CoachContent() {
 
       <section style={workspaceGridStyle}>
         <div id="coach-student-board" style={panelStyle}>
-          <PanelHeader eyebrow="Student board" title="Coach the next action, not a vague goal." />
+          <PanelHeader eyebrow="Student board" title="Give each player a clear next action." />
           <form onSubmit={handleAddStudent} style={formGridStyle}>
             <label style={fieldStyle}>
               Player name
@@ -1272,7 +1272,7 @@ function CoachContent() {
         </div>
 
         <div id="coach-lesson-frame" style={panelStyle}>
-          <PanelHeader eyebrow="Lesson frame" title="A repeatable one-hour coaching rhythm." />
+          <PanelHeader eyebrow="Lesson frame" title="Plan the session, then assign the follow-through." />
           <form onSubmit={handleCreateAssignment} style={formGridStyle}>
             <label style={fieldStyle}>
               Student
@@ -1830,7 +1830,7 @@ function CoachContent() {
       <section style={integrationStyle}>
         <div>
           <div style={eyebrowStyle}>How this fits TenAceIQ</div>
-          <h2 style={sectionTitleStyle}>Coach creates the plan. Player+ carries it between lessons.</h2>
+          <h2 style={sectionTitleStyle}>Coach sets the next step. Player+ carries it between lessons.</h2>
           <p style={bodyStyle}>
             The printed workbook should stand alone, but the best version links the athlete back into TenAceIQ:
             QR check-ins, assigned drills, lesson notes, tactical boards, and weekly recaps.

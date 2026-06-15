@@ -65,9 +65,9 @@ describe('TIQ product preview cards', () => {
 
   it('turns the homepage hero panel into an action board instead of an empty court frame', () => {
     expect(commandCenterSource).toContain('const heroBoardActions')
-    expect(commandCenterSource).toContain('Portal board')
-    expect(commandCenterSource).toContain('Start with the tennis job.')
-    expect(commandCenterSource).toContain('Find, prepare, improve, lead, run, or fix data.')
+    expect(commandCenterSource).toContain('Platform paths')
+    expect(commandCenterSource).toContain('Start with what you need to do.')
+    expect(commandCenterSource).toContain('Explore, improve, compete, manage, or fix tennis context.')
     expect(commandCenterSource).toContain('heroBoardGridStyle')
     expect(commandCenterSource).toContain('heroBoardActionStyle')
     expect(commandCenterSource).toContain('aria-label="TenAceIQ portal board preview"')

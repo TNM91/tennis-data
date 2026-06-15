@@ -719,7 +719,7 @@ function CommandCenterHome({
 
   return (
     <section
-      aria-label="TenAceIQ command center"
+      aria-label="TenAceIQ platform hub"
       style={{
         position: 'relative',
         display: 'grid',
@@ -1052,7 +1052,7 @@ function LegacyCommandCenterHome({ access, authenticated }: { access: ProductAcc
 
   return (
     <section
-      aria-label="TenAceIQ command center"
+      aria-label="TenAceIQ platform hub"
       style={{
         borderRadius: isSmallMobile ? 24 : 30,
         border: '1px solid rgba(17,32,56,0.08)',
@@ -2675,9 +2675,9 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
         }}
       >
         <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
-          <div style={sectionKicker}>What do you need today?</div>
+          <div style={sectionKicker}>Start with your tennis job</div>
           <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.65rem)', lineHeight: 1.02 }}>
-            Find, prepare, improve, lead, or run the week.
+            Explore, improve, compete, or manage with less chaos.
           </h2>
           <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
             Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when that workspace saves your week.

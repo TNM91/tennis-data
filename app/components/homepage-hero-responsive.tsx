@@ -193,8 +193,8 @@ export default function HomePageHeroResponsive() {
                 fontWeight: 500,
               }}
             >
-              TenAceIQ blends ratings, matchup intelligence, lineup planning, and league context
-              into one premium command center for players, captains, and teams.
+              TenAceIQ brings player development, matchup intelligence, lineup planning, and league context
+              into one approachable tennis platform for players, captains, coaches, and organizers.
             </p>
 
             <div

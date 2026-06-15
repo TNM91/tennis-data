@@ -1310,9 +1310,9 @@ export function LeagueCoordinatorWorkspace() {
           <div style={portalPanelContentStyle}>
             <div>
               <div style={sectionEyebrow}>League Office</div>
-              <h2 style={sectionTitle}>{records.length ? 'Your season workspace is ready.' : 'Create the first League Office workspace.'}</h2>
+              <h2 style={sectionTitle}>{records.length ? 'Your season home is ready.' : 'Create the first League Office season.'}</h2>
               <p style={sectionText}>
-                Approve players, keep the schedule visible, collect scores, review uploads, and let standings update around the season.
+                Approve players or teams, keep schedules visible, track scores, review uploads, and let standings update around the season.
               </p>
             </div>
             <div style={commandGrid}>
@@ -1340,7 +1340,7 @@ export function LeagueCoordinatorWorkspace() {
             <div style={sharedCalendarStripStyle} aria-label="Shared league scheduler">
               <div style={sharedCalendarStripCopyStyle}>
                 <div style={sectionEyebrow}>Shared scheduler</div>
-                <strong>Dates, confirmations, and scores stay in one lane.</strong>
+                <strong>Dates, courts, confirmations, and scores stay in one lane.</strong>
               </div>
               <div style={sharedCalendarReadinessGridStyle}>
                 {sharedSchedulerItems.map((item) => (
@@ -1373,7 +1373,7 @@ export function LeagueCoordinatorWorkspace() {
             <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
               <h2 style={leagueOpsTitleStyle}>Data refresh path</h2>
-              <p style={leagueOpsTextStyle}>Open when schedules, rosters, or scorecards need to refresh the season.</p>
+              <p style={leagueOpsTextStyle}>Open when schedules, rosters, players, teams, or scorecards need to refresh the season.</p>
             </div>
             <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
           </summary>
@@ -1382,7 +1382,7 @@ export function LeagueCoordinatorWorkspace() {
               <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
               <h2 style={leagueOpsTitleStyle}>Use uploads to refresh the season.</h2>
               <p style={leagueOpsTextStyle}>
-                {DATA_ASSIST_STORY.shortCue} Setup stays reviewable; Data Assist brings in schedules, rosters, and official scorecards when the season changes.
+                {DATA_ASSIST_STORY.shortCue} Setup stays reviewable; Data Assist brings in schedules, rosters, players, teams, and official scorecards when the season changes.
               </p>
             </div>
             <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>

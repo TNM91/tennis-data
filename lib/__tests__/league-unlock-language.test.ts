@@ -42,13 +42,13 @@ describe('League unlock language', () => {
     expect(leagueWorkspaceSource).toContain('League access is not active yet.')
     expect(leagueWorkspaceSource).toContain('Unlock League access to save League Office workspaces.')
     expect(leagueWorkspaceSource).toContain('League Office is active.')
-    expect(leagueWorkspaceSource).toContain('Create the first League Office workspace.')
+    expect(leagueWorkspaceSource).toContain('Create the first League Office season.')
     expect(leagueWorkspaceSource).toContain("href: records.length > 0 ? '/leagues' : '#league-setup-form'")
     expect(leagueWorkspaceSource).toContain("cta: records.length > 0 ? 'View public leagues' : 'Create first'")
     expect(leagueWorkspaceSource).not.toContain('League workspace is active.')
     expect(leagueWorkspaceSource).not.toContain('League workspace data could not load.')
     expect(leagueWorkspaceSource).not.toContain('League lane.')
-    expect(productStorySource).toContain('League Office gives organizers one place for approvals')
+    expect(productStorySource).toContain('League Office gives organizers one place for participants')
   })
 
   it('keeps public League upgrade CTAs short and tier-aligned', () => {
