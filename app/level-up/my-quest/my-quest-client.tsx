@@ -562,6 +562,13 @@ export default function MyQuestClient() {
       return true
     }).slice(0, 3)
   }, [bossWarnings, eveningCloseoutQuest, mobilePocketPulse, morningRepairQuest, repairDate, repairSummary.completedCount, repairSummary.totalCount, today, todayFocusQuest, todayRemainingCount, todayXp])
+  const mobilePocketDone = useMemo(
+    () => todayRemainingCount === 0 &&
+      !morningRepairQuest &&
+      !eveningCloseoutQuest &&
+      !bossWarnings.some((warning) => warning.tone !== 'green'),
+    [bossWarnings, eveningCloseoutQuest, morningRepairQuest, todayRemainingCount],
+  )
   const dayCompleteSummary = useMemo(() => {
     const ipaCount = clampInt(ipaInput, 0, 30)
 
@@ -1613,29 +1620,42 @@ export default function MyQuestClient() {
             {mobilePocketPulse.cta}
           </button>
         </div>
-        <div className={styles.mobilePriorityStack} aria-label="My Quest iPhone pocket priority stack">
-          {mobilePriorityStack.map((action, index) => {
-            const actionDate = action.questDate ?? today
-            const pendingKey = action.quest ? `${actionDate}:${action.quest.id}` : ''
+        {mobilePocketDone ? (
+          <div className={styles.mobilePocketDone} aria-label="My Quest iPhone pocket done state">
+            <div>
+              <span>Done for now</span>
+              <strong>{todayXp} XP banked today</strong>
+              <small>{stats.currentStreak} day streak | Week {weeklyGrade.grade}</small>
+            </div>
+            <button type="button" onClick={() => openFullDashboardSection('daily-recap')}>
+              Recap
+            </button>
+          </div>
+        ) : (
+          <div className={styles.mobilePriorityStack} aria-label="My Quest iPhone pocket priority stack">
+            {mobilePriorityStack.map((action, index) => {
+              const actionDate = action.questDate ?? today
+              const pendingKey = action.quest ? `${actionDate}:${action.quest.id}` : ''
 
-            return (
-              <button
-                key={action.id}
-                type="button"
-                data-tone={action.tone}
-                onClick={() => action.quest ? void toggleQuestForDate(action.quest, actionDate) : openFullDashboardSection(action.sectionId)}
-                disabled={Boolean(action.quest && pendingQuest)}
-              >
-                <span>{index + 1}</span>
-                <div>
-                  <small>{pendingKey && pendingQuest === pendingKey ? 'Saving' : action.label}</small>
-                  <strong>{action.title}</strong>
-                </div>
-                <em>{action.detail}</em>
-              </button>
-            )
-          })}
-        </div>
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  data-tone={action.tone}
+                  onClick={() => action.quest ? void toggleQuestForDate(action.quest, actionDate) : openFullDashboardSection(action.sectionId)}
+                  disabled={Boolean(action.quest && pendingQuest)}
+                >
+                  <span>{index + 1}</span>
+                  <div>
+                    <small>{pendingKey && pendingQuest === pendingKey ? 'Saving' : action.label}</small>
+                    <strong>{action.title}</strong>
+                  </div>
+                  <em>{action.detail}</em>
+                </button>
+              )
+            })}
+          </div>
+        )}
         <details className={styles.mobilePocketMore} aria-label="My Quest iPhone full dashboard shortcuts">
           <summary>
             <span>More tools</span>
