@@ -16,8 +16,15 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ['sports', 'productivity', 'utilities'],
     shortcuts: [
       {
-        name: 'Level Up tennis habits',
+        name: 'Start Level Up drill',
         short_name: 'Level Up',
+        description: 'Open the phone-first tennis drill flow.',
+        url: '/level-up/relentless-competitor-4-0#level-up-flow',
+        icons: [{ src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' }],
+      },
+      {
+        name: 'Level Up tennis habits',
+        short_name: 'Habits',
         description: 'Open tennis habit and development tools.',
         url: '/level-up',
         icons: [{ src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' }],

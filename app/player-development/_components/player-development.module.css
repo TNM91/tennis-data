@@ -8104,6 +8104,50 @@
   color: var(--foreground-strong);
 }
 
+.liveTodayCommandCenter {
+  display: none;
+}
+
+.liveTodayCommandHeader,
+.liveTodayCommandStats,
+.liveTodayCommandActions,
+.liveReadinessToggle,
+.liveFinishStats,
+.liveFinishActions {
+  min-width: 0;
+}
+
+.liveTodayCommandHeader span,
+.liveTodayStreakPill span,
+.liveTodayCommandStats span,
+.liveFinishSummary span,
+.liveFinishStats span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.liveTodayCommandHeader strong,
+.liveTodayStreakPill strong,
+.liveTodayCommandStats strong,
+.liveFinishSummary strong,
+.liveFinishStats strong {
+  display: block;
+  color: var(--foreground-strong);
+  line-height: 1.12;
+}
+
+.liveTodayCommandHeader p,
+.liveFinishSummary p {
+  margin: 4px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
 .liveTodayStack {
   display: grid;
   gap: 8px;
@@ -8875,7 +8919,7 @@
 
 .liveSessionToast {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 8px;
   align-items: center;
   border: 1px solid rgba(155, 225, 29, 0.3);
@@ -8939,6 +8983,45 @@
 .liveNextActionButtons button {
   min-height: 38px;
   padding-inline: 11px;
+}
+
+.liveFinishSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.72fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.26);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), transparent 38%),
+    rgba(255, 255, 255, 0.045);
+  padding: 14px;
+}
+
+.liveFinishStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.liveFinishStats article {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 9px;
+}
+
+.liveFinishActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.liveFinishActions :global(.button-primary),
+.liveFinishActions :global(.button-secondary) {
+  min-height: 38px;
 }
 
 @keyframes liveLoggedPulse {
@@ -13804,6 +13887,111 @@
     color: var(--foreground-strong);
   }
 
+  .liveTodayCommandCenter {
+    position: sticky;
+    top: calc(8px + env(safe-area-inset-top));
+    z-index: 12;
+    display: grid;
+    gap: 8px;
+    border: 1px solid rgba(155, 225, 29, 0.24);
+    border-radius: 14px;
+    background:
+      linear-gradient(135deg, rgba(8, 22, 28, 0.97), rgba(18, 40, 34, 0.95)),
+      rgba(5, 14, 19, 0.94);
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34);
+    padding: 9px;
+    backdrop-filter: blur(18px);
+  }
+
+  .liveTodayCommandHeader {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .liveTodayCommandHeader strong {
+    margin-top: 3px;
+    font-size: 1rem;
+  }
+
+  .liveTodayCommandHeader p {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.76rem;
+    line-height: 1.25;
+  }
+
+  .liveTodayStreakPill {
+    display: grid;
+    justify-items: center;
+    min-width: 58px;
+    border: 1px solid rgba(116, 190, 255, 0.16);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 7px;
+  }
+
+  .liveTodayStreakPill strong {
+    margin-top: 2px;
+    font-size: 1.1rem;
+  }
+
+  .liveReadinessToggle,
+  .liveTodayCommandActions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .liveReadinessToggle button {
+    appearance: none;
+    min-height: 36px;
+    cursor: pointer;
+    border: 1px solid rgba(116, 190, 255, 0.16);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--foreground);
+    font-size: 0.78rem;
+    font-weight: 950;
+  }
+
+  .liveReadinessToggle button[data-active='true'] {
+    border-color: rgba(155, 225, 29, 0.52);
+    background: rgba(155, 225, 29, 0.14);
+    color: var(--foreground-strong);
+  }
+
+  .liveTodayCommandStats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .liveTodayCommandStats article {
+    min-width: 0;
+    border: 1px solid rgba(116, 190, 255, 0.13);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 7px;
+  }
+
+  .liveTodayCommandStats strong {
+    margin-top: 2px;
+    overflow: hidden;
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .liveTodayCommandActions :global(.button-primary),
+  .liveTodayCommandActions :global(.button-secondary) {
+    min-width: 0;
+    min-height: 38px;
+    padding-inline: 8px;
+    font-size: 0.78rem;
+  }
+
   .liveTodayStack {
     gap: 6px;
     padding: 8px;
@@ -14092,8 +14280,14 @@
     position: sticky;
     z-index: 19;
     bottom: calc(10px + env(safe-area-inset-bottom));
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) repeat(3, minmax(54px, auto));
     margin-top: 0;
+  }
+
+  .liveSessionToast button {
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: 0.78rem;
   }
 
   .liveNextActionCard {
@@ -14111,6 +14305,42 @@
     min-width: 0;
     padding-inline: 8px;
     font-size: 0.78rem;
+  }
+
+  .liveFinishSummary {
+    grid-template-columns: 1fr;
+    gap: 9px;
+    padding: 10px;
+    border-radius: 14px;
+    scroll-margin-top: 12px;
+  }
+
+  .liveFinishStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .liveFinishStats article {
+    padding: 8px;
+  }
+
+  .liveFinishStats strong {
+    overflow: hidden;
+    font-size: 0.86rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .liveFinishActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .liveFinishActions :global(.button-primary),
+  .liveFinishActions :global(.button-secondary) {
+    min-width: 0;
+    justify-content: center;
   }
 
   .liveActionCard:has(.liveTimerPanel[data-timer-state='running']) .liveTimerPanel {

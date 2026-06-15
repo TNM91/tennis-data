@@ -75,6 +75,8 @@ describe('public and private indexing boundaries', () => {
     expect(productStorySource).not.toContain('Operation Visible Abs')
     expect(manifestSource).not.toContain('/level-up/my-quest')
     expect(manifestSource).not.toContain('Operation Visible Abs')
+    expect(manifestSource).toContain('Start Level Up drill')
+    expect(manifestSource).toContain("url: '/level-up/relentless-competitor-4-0#level-up-flow'")
     expect(manifestSource).toContain("url: '/level-up'")
     expect(levelUpIdentityPageSource).toContain('getPublicLevelUpIdentity')
     expect(levelUpIdentityPageSource).toContain('notFound()')

@@ -20,6 +20,7 @@ type LiveFocus = {
 type WorkType = 'court' | 'physical' | 'mental'
 type TrainingContext = 'alone' | 'partner' | 'singles' | 'doubles' | 'coach'
 type PlayerFeeling = 'ready' | 'tight' | 'tired' | 'nervous'
+type PlayerReadiness = 'fresh' | 'okay' | 'tired'
 type AccessMode = 'coach_invited' | 'player_plus' | 'free_preview'
 type EditingStep = 'focus' | 'setup' | 'work' | null
 
@@ -122,6 +123,20 @@ const feelingLabels: Record<PlayerFeeling, string> = {
   nervous: 'Nervous',
 }
 
+const readinessOptions: Record<PlayerReadiness, { label: string; copy: string }> = {
+  fresh: { label: 'Fresh', copy: 'Push quality or level up.' },
+  okay: { label: 'Okay', copy: 'Bank one clean block.' },
+  tired: { label: 'Tired', copy: 'Scale down and protect form.' },
+}
+
+const readinessFeeling: Record<PlayerReadiness, PlayerFeeling> = {
+  fresh: 'ready',
+  okay: 'ready',
+  tired: 'tired',
+}
+
+const LEVEL_UP_UNDO_WINDOW_MS = 6500
+
 const accessModes: Record<AccessMode, { label: string; title: string; copy: string; action: string }> = {
   coach_invited: {
     label: 'Coach invite',
@@ -164,7 +179,9 @@ export default function PlayerLiveWorkbench({
   const activityRef = useRef<HTMLElement | null>(null)
   const trackerRef = useRef<HTMLElement | null>(null)
   const savedRef = useRef<HTMLDivElement | null>(null)
+  const finishRef = useRef<HTMLDivElement | null>(null)
   const didMobileAutoScrollRef = useRef(false)
+  const queuedSyncTimersRef = useRef<Map<string, number>>(new Map())
   const assignmentId = searchParams.get('assignmentId')?.trim() ?? ''
   const studentLinkId = searchParams.get('studentLinkId')?.trim() ?? ''
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
@@ -196,6 +213,9 @@ export default function PlayerLiveWorkbench({
   const [editingStep, setEditingStep] = useState<EditingStep>(hasCoachAssignment || hasQuickStart ? null : 'focus')
   const [draft, setDraft] = useState(emptyDraft)
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
+  const [undoSession, setUndoSession] = useState<SavedSession | null>(null)
+  const [finishSummary, setFinishSummary] = useState<SavedSession[] | null>(null)
+  const [readiness, setReadiness] = useState<PlayerReadiness>('okay')
   const [scoringDrillId, setScoringDrillId] = useState('')
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
   const [questCreditMessage, setQuestCreditMessage] = useState('')
@@ -223,10 +243,13 @@ export default function PlayerLiveWorkbench({
   const contextOptions = contextOptionsByWorkType[workType]
   const recentSessions = sessions.slice(0, 4)
   const todaySessions = sessions.filter(isSessionFromToday).slice(0, 4)
+  const drillDayStreak = getDrillDayStreak(sessions, activeDrill?.title ?? '')
+  const activeTimerSeconds = activeTimerSnapshot?.drillId === activeDrill?.id ? activeTimerSnapshot.elapsedSeconds : 0
   const progress = getProgressSummary(sessions, playableFocuses)
   const activeAccess = accessModes[accessMode]
   const suggestedNextDrill = lastSavedSession ? getNextDrillAfterSession(lastSavedSession, visibleDrills) : null
-  const smartNextAction = lastSavedSession ? getSmartNextAction(lastSavedSession, suggestedNextDrill) : null
+  const smartNextAction = lastSavedSession ? getSmartNextAction(lastSavedSession, suggestedNextDrill, readiness) : null
+  const finishStats = finishSummary ? getFinishSummaryStats(finishSummary) : null
 
   const handleTimerSnapshotChange = useCallback((snapshot: DrillTimerSnapshot) => {
     setActiveTimerSnapshot((current) => {
@@ -320,12 +343,21 @@ export default function PlayerLiveWorkbench({
     }
   }, [identitySlug, storageKey])
 
+  useEffect(() => {
+    const timers = queuedSyncTimersRef.current
+    return () => {
+      timers.forEach((timerId) => window.clearTimeout(timerId))
+      timers.clear()
+    }
+  }, [])
+
   function chooseFocus(focusId: string) {
     setActiveFocusId(focusId)
     setActiveDrillId('')
     setDraft(emptyDraft)
     setSyncState({ status: 'idle', message: '' })
     setQuestCreditMessage('')
+    setFinishSummary(null)
     setScoringDrillId('')
     setEditingStep('work')
   }
@@ -337,6 +369,7 @@ export default function PlayerLiveWorkbench({
     setActiveDrillId('')
     setScoringDrillId('')
     setQuestCreditMessage('')
+    setFinishSummary(null)
     showActivity()
   }
 
@@ -349,6 +382,7 @@ export default function PlayerLiveWorkbench({
     setActiveDrillId('')
     setScoringDrillId('')
     setQuestCreditMessage('')
+    setFinishSummary(null)
     setEditingStep(hasCoachAssignment ? null : 'setup')
   }
 
@@ -369,6 +403,12 @@ export default function PlayerLiveWorkbench({
     setActiveDrillId('')
     setScoringDrillId('')
     setQuestCreditMessage('')
+    setFinishSummary(null)
+  }
+
+  function chooseReadiness(nextReadiness: PlayerReadiness) {
+    setReadiness(nextReadiness)
+    setDraft((current) => ({ ...current, feeling: readinessFeeling[nextReadiness] }))
   }
 
   function saveSession() {
@@ -380,6 +420,7 @@ export default function PlayerLiveWorkbench({
     if (!activeFocus || !activeDrill) return
 
     const nextDraft = { ...draft, rating }
+    const savedSourceCard = activeDrill.sourceCard
     const savedElapsedSeconds = getTimerSeconds(activeDrill.id)
     const nextSession: SavedSession = {
       id: `${Date.now()}-${activeFocus.id}-${activeDrill.id}`,
@@ -402,12 +443,10 @@ export default function PlayerLiveWorkbench({
     const nextSessions = [nextSession, ...sessions].slice(0, 40)
     setSessions(nextSessions)
     window.localStorage.setItem(storageKey, JSON.stringify(nextSessions))
-    if (activeDrill.sourceCard) appendPortalCompletion(activeDrill.sourceCard, nextSession)
-    if (customQuestId && activeDrill.sourceCard) {
-      setQuestCreditMessage('Quest XP queued.')
-      void syncCustomQuestCompletion(customQuestId, nextSession, activeDrill.sourceCard, identitySlug, setQuestCreditMessage)
-    }
+    if (customQuestId && savedSourceCard) setQuestCreditMessage('Quest XP queued.')
     setLastSavedSession(nextSession)
+    setUndoSession(nextSession)
+    setFinishSummary(null)
     setDraft(emptyDraft)
     setScoringDrillId('')
     window.sessionStorage.removeItem(timerStorageKey(activeDrill.id))
@@ -418,8 +457,19 @@ export default function PlayerLiveWorkbench({
       running: false,
       targetSeconds: activeDrill.timerSeconds,
     })
-    setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing now...' })
-    void syncLevelUpSession(nextSession)
+    setSyncState({ status: 'local', message: 'Saved on this device. Undo is available briefly; sync queues next.' })
+
+    const syncTimerId = window.setTimeout(() => {
+      queuedSyncTimersRef.current.delete(nextSession.id)
+      setUndoSession((current) => current?.id === nextSession.id ? null : current)
+      if (savedSourceCard) appendPortalCompletion(savedSourceCard, nextSession)
+      if (customQuestId && savedSourceCard) {
+        void syncCustomQuestCompletion(customQuestId, nextSession, savedSourceCard, identitySlug, setQuestCreditMessage)
+      }
+      setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing now...' })
+      void syncLevelUpSession(nextSession)
+    }, LEVEL_UP_UNDO_WINDOW_MS)
+    queuedSyncTimersRef.current.set(nextSession.id, syncTimerId)
   }
 
   function goToScore() {
@@ -455,6 +505,7 @@ export default function PlayerLiveWorkbench({
     setDraft(emptyDraft)
     setScoringDrillId('')
     setQuestCreditMessage('')
+    setFinishSummary(null)
     activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
   }
 
@@ -464,6 +515,7 @@ export default function PlayerLiveWorkbench({
     setActiveDrillId('')
     setScoringDrillId('')
     setQuestCreditMessage('')
+    setFinishSummary(null)
     setEditingStep('focus')
     window.setTimeout(() => {
       document.getElementById('level-up-flow')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -473,13 +525,40 @@ export default function PlayerLiveWorkbench({
   function moveToSuggestedDrill() {
     if (!suggestedNextDrill) return
     setLastSavedSession(null)
+    setFinishSummary(null)
     chooseDrillOption(suggestedNextDrill.id)
   }
 
   function finishToday() {
+    setFinishSummary(sessions.filter(isSessionFromToday).slice(0, 6))
     setLastSavedSession(null)
     setQuestCreditMessage('')
-    activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    window.setTimeout(() => {
+      finishRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
+  }
+
+  function undoLastSave() {
+    if (!undoSession) return
+
+    const sessionId = undoSession.id
+    const queuedTimerId = queuedSyncTimersRef.current.get(sessionId)
+    if (queuedTimerId) {
+      window.clearTimeout(queuedTimerId)
+      queuedSyncTimersRef.current.delete(sessionId)
+    }
+
+    setSessions((current) => {
+      const next = current.filter((session) => session.id !== sessionId)
+      window.localStorage.setItem(storageKey, JSON.stringify(next))
+      return next
+    })
+    removePortalCompletion(sessionId)
+    setUndoSession(null)
+    setFinishSummary(null)
+    setQuestCreditMessage('')
+    setLastSavedSession((current) => current?.id === sessionId ? null : current)
+    setSyncState({ status: 'local', message: 'Last log undone before sync.' })
   }
 
   async function syncLevelUpSession(session: SavedSession) {
@@ -555,6 +634,57 @@ export default function PlayerLiveWorkbench({
           </button>
           <button type="button" data-active={editingStep === 'setup' ? 'true' : 'false'} onClick={() => setEditingStep('setup')}>
             Setup
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.liveTodayCommandCenter} aria-label="One-thumb Level Up today mode">
+        <div className={styles.liveTodayCommandHeader}>
+          <div>
+            <span>Today mode</span>
+            <strong>{activeDrill.title}</strong>
+            <p>{readinessOptions[readiness].copy}</p>
+          </div>
+          <div className={styles.liveTodayStreakPill}>
+            <span>Streak</span>
+            <strong>{drillDayStreak || '-'}</strong>
+          </div>
+        </div>
+        <div className={styles.liveReadinessToggle} aria-label="Choose today's readiness">
+          {(Object.keys(readinessOptions) as PlayerReadiness[]).map((key) => (
+            <button
+              type="button"
+              key={key}
+              data-active={readiness === key ? 'true' : 'false'}
+              onClick={() => chooseReadiness(key)}
+            >
+              {readinessOptions[key].label}
+            </button>
+          ))}
+        </div>
+        <div className={styles.liveTodayCommandStats} aria-label="Today command stats">
+          <article>
+            <span>Timer</span>
+            <strong>{formatClock(activeTimerSeconds)}</strong>
+          </article>
+          <article>
+            <span>Done</span>
+            <strong>{todaySessions.length}</strong>
+          </article>
+          <article>
+            <span>Next</span>
+            <strong>{smartNextAction ? 'Ready' : 'Start'}</strong>
+          </article>
+        </div>
+        <div className={styles.liveTodayCommandActions}>
+          <button type="button" className="button-primary" onClick={showActivity}>
+            Start work
+          </button>
+          <button type="button" className="button-secondary" onClick={goToScore}>
+            Score
+          </button>
+          <button type="button" className="button-secondary" disabled={!todaySessions.length} onClick={finishToday}>
+            Finish
           </button>
         </div>
       </div>
@@ -881,6 +1011,11 @@ export default function PlayerLiveWorkbench({
             <button type="button" className="button-secondary" onClick={repeatActivity}>
               Repeat
             </button>
+            {undoSession?.id === lastSavedSession.id ? (
+              <button type="button" className="button-secondary" onClick={undoLastSave}>
+                Undo
+              </button>
+            ) : null}
             <button type="button" className="button-primary" onClick={pickNewFocus}>
               New
             </button>
@@ -935,6 +1070,38 @@ export default function PlayerLiveWorkbench({
             </div>
           </div>
         </>
+      ) : null}
+
+      {finishStats ? (
+        <div ref={finishRef} className={styles.liveFinishSummary} role="status" aria-label="Today banked summary">
+          <div>
+            <span>Today banked</span>
+            <strong>{finishStats.count ? `${finishStats.count} drill${finishStats.count === 1 ? '' : 's'} logged` : 'Ready for the first log'}</strong>
+            <p>{finishStats.count ? `${finishStats.average}/5 average proof. ${finishStats.bestDrill} led today.` : 'Start with one short block and save a proof score.'}</p>
+          </div>
+          <div className={styles.liveFinishStats}>
+            <article>
+              <span>Time</span>
+              <strong>{finishStats.time}</strong>
+            </article>
+            <article>
+              <span>Top score</span>
+              <strong>{finishStats.bestRating || '-'}</strong>
+            </article>
+            <article>
+              <span>Next</span>
+              <strong>{progress.nextMove}</strong>
+            </article>
+          </div>
+          <div className={styles.liveFinishActions}>
+            <button type="button" className="button-primary" onClick={repeatActivity}>
+              Add another
+            </button>
+            <a className="button-secondary" href="/mylab">
+              My Lab
+            </a>
+          </div>
+        </div>
       ) : null}
 
       <aside className={styles.liveSyncProofPanel} aria-label="Level Up local sync proof">
@@ -1030,7 +1197,7 @@ function DrillTimer({
   onSnapshotChange: (snapshot: DrillTimerSnapshot) => void
 }) {
   const timerRef = useRef<HTMLDivElement>(null)
-  const [elapsedSeconds, setElapsedSeconds] = useState(() => getTimerSeconds(drillId))
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [running, setRunning] = useState(false)
   const progress = targetSeconds > 0 ? Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100)) : 0
   const targetLabel = targetSeconds > 0 ? formatClock(targetSeconds) : 'Open'
@@ -1240,6 +1407,18 @@ function appendPortalCompletion(card: LevelUpCard, session: SavedSession) {
   window.localStorage.setItem(key, JSON.stringify([next, ...existing.filter((completion) => completion.id !== next.id)].slice(0, 40)))
 }
 
+function removePortalCompletion(sessionId: string) {
+  const key = 'tiq-level-up-completions'
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || '[]') as LevelUpCompletion[]
+    const existing = Array.isArray(parsed) ? parsed : []
+    window.localStorage.setItem(key, JSON.stringify(existing.filter((completion) => completion.id !== sessionId)))
+  } catch {
+    window.localStorage.setItem(key, JSON.stringify([]))
+  }
+}
+
 async function syncCustomQuestCompletion(
   customQuestId: string,
   session: SavedSession,
@@ -1420,6 +1599,33 @@ function isSessionFromToday(session: SavedSession) {
     completedAt.getDate() === today.getDate()
 }
 
+function getLocalDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function getDrillDayStreak(sessions: SavedSession[], drillTitle: string) {
+  if (!drillTitle) return 0
+
+  const drillDays = new Set(
+    sessions
+      .filter((session) => session.drillTitle === drillTitle)
+      .map((session) => {
+        const completedAt = new Date(session.completedAt)
+        return Number.isNaN(completedAt.getTime()) ? '' : getLocalDateKey(completedAt)
+      })
+      .filter(Boolean),
+  )
+
+  let streak = 0
+  const cursor = new Date()
+  while (drillDays.has(getLocalDateKey(cursor))) {
+    streak += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+
+  return streak
+}
+
 function getNextDrillAfterSession(session: SavedSession, drills: DrillOption[]) {
   if (drills.length < 2) return null
 
@@ -1429,7 +1635,16 @@ function getNextDrillAfterSession(session: SavedSession, drills: DrillOption[]) 
   return drills[(currentIndex + 1) % drills.length] ?? null
 }
 
-function getSmartNextAction(session: SavedSession, suggestedNextDrill: DrillOption | null) {
+function getSmartNextAction(session: SavedSession, suggestedNextDrill: DrillOption | null, readiness: PlayerReadiness) {
+  if (readiness === 'tired') {
+    return {
+      title: 'Bank it or scale down',
+      copy: suggestedNextDrill
+        ? `You logged the work while tired. Keep the next rep light or use ${suggestedNextDrill.title} only if form stays clean.`
+        : 'You logged the work while tired. Finish today or repeat at a lower speed with clean posture.',
+    }
+  }
+
   if (session.rating >= 5) {
     return {
       title: suggestedNextDrill ? `Level up into ${suggestedNextDrill.title}` : 'Level up the same drill',
@@ -1451,6 +1666,23 @@ function getSmartNextAction(session: SavedSession, suggestedNextDrill: DrillOpti
     copy: suggestedNextDrill
       ? 'Good work logged. Move to the paired drill or repeat this one if you want a cleaner score.'
       : 'Good work logged. Repeat once or finish today with a clean proof trail.',
+  }
+}
+
+function getFinishSummaryStats(sessions: SavedSession[]) {
+  const count = sessions.length
+  const totalSeconds = sessions.reduce((total, session) => total + session.elapsedSeconds, 0)
+  const bestSession = sessions.reduce<SavedSession | null>((best, session) => {
+    if (!best) return session
+    return session.rating > best.rating ? session : best
+  }, null)
+
+  return {
+    count,
+    average: count ? (sessions.reduce((total, session) => total + session.rating, 0) / count).toFixed(1) : '0.0',
+    time: formatClock(totalSeconds),
+    bestRating: bestSession?.rating ?? 0,
+    bestDrill: bestSession?.drillTitle ?? 'One clean block',
   }
 }
 
