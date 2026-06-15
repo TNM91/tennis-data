@@ -2573,10 +2573,38 @@
 
   .mobilePocketMore button {
     min-height: 40px;
+    display: grid;
+    align-content: center;
+    gap: 2px;
     padding: 0 6px;
     border-color: rgba(116, 190, 255, 0.14);
     background: rgba(2, 10, 24, 0.32);
+    text-align: left;
+  }
+
+  .mobilePocketMore button span {
+    overflow: hidden;
+    color: var(--brand-green-3);
     font-size: 0.72rem;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobilePocketMore button strong {
+    overflow: hidden;
+    font-size: 0.86rem;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobilePocketMore button small {
+    overflow: hidden;
+    color: var(--muted-strong);
+    font-size: 0.62rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mobileModeRail {

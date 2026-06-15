@@ -435,6 +435,28 @@ export default function MyQuestClient() {
       totalCount: quests.length,
     }
   }), [completedToday])
+  const mobilePocketTools = useMemo(() => [
+    {
+      label: 'Bosses',
+      value: weeklyGrade.grade,
+      sectionId: 'weekly-bosses',
+    },
+    {
+      label: 'Trends',
+      value: momentum.trend,
+      sectionId: 'trend-strip',
+    },
+    {
+      label: 'Photos',
+      value: `${photos.length}`,
+      sectionId: 'photo-compare',
+    },
+    {
+      label: 'Badges',
+      value: `${achievementDetails.filter((achievement) => achievement.unlocked).length}/${achievementDetails.length}`,
+      sectionId: 'achievements',
+    },
+  ], [achievementDetails, momentum.trend, photos.length, weeklyGrade.grade])
   const comparePhotos = useMemo(() => {
     const matching = photos.filter((photo) => photo.photo_type === compareType)
     const latest = matching[0] ?? null
@@ -1367,18 +1389,13 @@ export default function MyQuestClient() {
             <strong>Open full sections</strong>
           </summary>
           <div>
-            <button type="button" onClick={() => openFullDashboardSection('weekly-bosses')}>
-              Bosses
-            </button>
-            <button type="button" onClick={() => openFullDashboardSection('trend-strip')}>
-              Trends
-            </button>
-            <button type="button" onClick={() => openFullDashboardSection('photo-compare')}>
-              Photos
-            </button>
-            <button type="button" onClick={() => openFullDashboardSection('achievements')}>
-              Badges
-            </button>
+            {mobilePocketTools.map((tool) => (
+              <button key={tool.sectionId} type="button" onClick={() => openFullDashboardSection(tool.sectionId)}>
+                <span>{tool.label}</span>
+                <strong>{tool.value}</strong>
+                <small>Open</small>
+              </button>
+            ))}
           </div>
         </details>
         <div className={styles.mobileModeRail} aria-label="Today focus mode">
