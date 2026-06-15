@@ -115,6 +115,26 @@ const QUEST_STACKS: Array<{ id: string; label: string; hint: string; questIds: P
   },
 ]
 
+const MOBILE_TAP_PLAN_GROUPS: Array<{ id: string; label: string; questIds: PersonalQuestId[] }> = [
+  {
+    id: 'prime',
+    label: 'Prime',
+    questIds: ['protein_breakfast', 'creamer_goal', 'water_80_oz'],
+  },
+  {
+    id: 'move',
+    label: 'Move',
+    questIds: ['no_chips_lunch', 'activity_20_min', 'core_workout'],
+  },
+  {
+    id: 'close',
+    label: 'Close',
+    questIds: ['alcohol_limit', 'no_food_after_8'],
+  },
+]
+
+const DAILY_QUEST_BY_ID = new Map(PERSONAL_DAILY_QUESTS.map((quest) => [quest.id, quest]))
+
 const OFFLINE_QUEUE_KEY_PREFIX = 'personal-quest-offline-queue:'
 const CLIENT_ISSUE_KEY_PREFIX = 'personal-quest-client-issues:'
 const PHOTO_SIGNED_URL_TTL_SECONDS = 300
@@ -400,6 +420,20 @@ export default function MyQuestClient() {
       return true
     }).slice(0, 4)
   }, [completedToday, smartQuest.quest])
+  const mobileTapPlan = useMemo(() => MOBILE_TAP_PLAN_GROUPS.map((group) => {
+    const quests = group.questIds
+      .map((questId) => DAILY_QUEST_BY_ID.get(questId))
+      .filter((quest): quest is PersonalQuestDefinition => Boolean(quest))
+    const remaining = quests.filter((quest) => !completedToday.has(quest.id))
+    const nextQuest = remaining[0] ?? null
+
+    return {
+      ...group,
+      completedCount: quests.length - remaining.length,
+      nextQuest,
+      totalCount: quests.length,
+    }
+  }), [completedToday])
   const comparePhotos = useMemo(() => {
     const matching = photos.filter((photo) => photo.photo_type === compareType)
     const latest = matching[0] ?? null
@@ -1265,6 +1299,25 @@ export default function MyQuestClient() {
               >
                 <span>{pendingQuest === pendingKey ? 'Saving' : complete ? 'Done' : `+${quest.xp}`}</span>
                 <strong>{quest.shortTitle}</strong>
+              </button>
+            )
+          })}
+        </div>
+        <div className={styles.mobileTapPlan} aria-label="My Quest iPhone tap plan">
+          {mobileTapPlan.map((plan) => {
+            const pendingKey = plan.nextQuest ? `${today}:${plan.nextQuest.id}` : ''
+
+            return (
+              <button
+                key={plan.id}
+                type="button"
+                data-complete={plan.nextQuest ? 'false' : 'true'}
+                onClick={() => plan.nextQuest ? void toggleQuest(plan.nextQuest) : undefined}
+                disabled={!plan.nextQuest || Boolean(pendingQuest)}
+              >
+                <span>{pendingQuest === pendingKey ? 'Saving' : plan.label}</span>
+                <strong>{plan.nextQuest?.shortTitle ?? 'Clear'}</strong>
+                <small>{plan.nextQuest ? `${plan.completedCount}/${plan.totalCount} | +${plan.nextQuest.xp}` : `${plan.totalCount}/${plan.totalCount} done`}</small>
               </button>
             )
           })}
