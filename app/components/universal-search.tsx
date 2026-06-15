@@ -8,6 +8,7 @@ import { getPlanUnlockHref } from '@/lib/plan-intent'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import type { ProductUsageEventName, ProductUsageEventSurface } from '@/lib/product-usage-events'
 import type { PricingPlanId } from '@/lib/pricing-plans'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type SearchGroup =
   | 'Players'
@@ -204,6 +205,7 @@ export default function UniversalSearch({
   const [activeGroup, setActiveGroup] = useState<SearchGroup | 'All'>('All')
   const [inputFocused, setInputFocused] = useState(false)
   const [focusedControl, setFocusedControl] = useState<string | null>(null)
+  const { isMobile } = useViewportBreakpoints()
   const searchId = useId()
   const resultRegionId = `${searchId}-results`
   const router = useRouter()
@@ -313,7 +315,7 @@ export default function UniversalSearch({
 
   return (
     <div style={searchShellStyle}>
-      <form onSubmit={handleSubmit} role="search" aria-label="Search TenAceIQ" style={formStyle}>
+      <form onSubmit={handleSubmit} role="search" aria-label="Search TenAceIQ" style={formStyle(isMobile)}>
         <label htmlFor={`tiq-universal-search-${searchId}`} style={srOnlyStyle}>
           Search tennis
         </label>
@@ -336,6 +338,7 @@ export default function UniversalSearch({
           onFocus={() => setFocusedControl('submit')}
           style={{
             ...buttonStyle,
+            ...(isMobile ? mobileButtonStyle : null),
             ...(focusedControl === 'submit' ? buttonFocusStyle : null),
           }}
         >
@@ -457,12 +460,12 @@ const searchShellStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const formStyle: CSSProperties = {
+const formStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(120px, auto)',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(120px, auto)',
   gap: 10,
   minWidth: 0,
-}
+})
 
 const inputStyle: CSSProperties = {
   width: '100%',
@@ -497,6 +500,11 @@ const buttonStyle: CSSProperties = {
   fontWeight: 950,
   cursor: 'pointer',
   whiteSpace: 'normal',
+}
+
+const mobileButtonStyle: CSSProperties = {
+  width: '100%',
+  justifyContent: 'center',
 }
 
 const buttonFocusStyle: CSSProperties = {
