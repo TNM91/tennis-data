@@ -137,6 +137,7 @@ const DAILY_QUEST_BY_ID = new Map(PERSONAL_DAILY_QUESTS.map((quest) => [quest.id
 
 const OFFLINE_QUEUE_KEY_PREFIX = 'personal-quest-offline-queue:'
 const CLIENT_ISSUE_KEY_PREFIX = 'personal-quest-client-issues:'
+const PHONE_MODE_PREFERENCE_KEY = 'personal-quest-phone-mode'
 const PHOTO_SIGNED_URL_TTL_SECONDS = 300
 
 export default function MyQuestClient() {
@@ -623,7 +624,10 @@ export default function MyQuestClient() {
     if (typeof window === 'undefined') return
 
     const media = window.matchMedia('(max-width: 640px)')
-    const updateCompactMode = () => setPhoneCompact(media.matches)
+    const updateCompactMode = () => {
+      const preference = readPhoneModePreference()
+      setPhoneCompact(media.matches && (preference ? preference === 'pocket' : true))
+    }
     updateCompactMode()
     media.addEventListener('change', updateCompactMode)
 
@@ -1332,6 +1336,7 @@ export default function MyQuestClient() {
               type="button"
               data-active={phoneCompact ? 'true' : 'false'}
               onClick={() => {
+                writePhoneModePreference('pocket')
                 setPhoneCompact(true)
                 setIntelOpen(false)
                 setSupportOpen(false)
@@ -1339,7 +1344,10 @@ export default function MyQuestClient() {
             >
               Pocket
             </button>
-            <button type="button" data-active={!phoneCompact ? 'true' : 'false'} onClick={() => setPhoneCompact(false)}>
+            <button type="button" data-active={!phoneCompact ? 'true' : 'false'} onClick={() => {
+              writePhoneModePreference('full')
+              setPhoneCompact(false)
+            }}>
               Full
             </button>
           </div>
@@ -2614,6 +2622,27 @@ function createPrivatePhotoNonce() {
   const values = new Uint32Array(4)
   crypto.getRandomValues(values)
   return Array.from(values, (value) => value.toString(36)).join('-')
+}
+
+function readPhoneModePreference() {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const preference = window.localStorage.getItem(PHONE_MODE_PREFERENCE_KEY)
+    return preference === 'pocket' || preference === 'full' ? preference : null
+  } catch {
+    return null
+  }
+}
+
+function writePhoneModePreference(preference: 'pocket' | 'full') {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(PHONE_MODE_PREFERENCE_KEY, preference)
+  } catch {
+    // Phone mode still works for the current session when storage is unavailable.
+  }
 }
 
 function isBrowserOnline() {
