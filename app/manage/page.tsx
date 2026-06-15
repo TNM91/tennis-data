@@ -30,7 +30,7 @@ export default function ManagePage() {
           title="Run tennis with fewer loose ends."
           body={`${PRODUCT_MOTTO} means availability, schedules, lineups, rosters, results, and messages should be easy to find and easy to act on from a phone.`}
           primary={{ href: '/captain', label: 'Manage My Team' }}
-          secondary={{ href: '/leagues', label: 'Run a League or Tournament' }}
+          secondary={{ href: '/leagues-and-tournaments', label: 'Run a League or Tournament' }}
           searchPlaceholder="Search teams, leagues, tournaments, schedules, scorecards, or captain tools"
         />
 

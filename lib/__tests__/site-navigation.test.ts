@@ -9,7 +9,7 @@ describe('site navigation language', () => {
       { href: '/compete', label: 'Compete' },
       { href: '/manage', label: 'Manage' },
       { href: '/coaches', label: 'Coaches' },
-      { href: '/leagues', label: 'Leagues & Tournaments' },
+      { href: '/leagues-and-tournaments', label: 'Leagues & Tournaments' },
       { href: '/mylab', label: 'My Lab' },
     ])
 

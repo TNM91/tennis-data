@@ -64,7 +64,7 @@ export const PLATFORM_AUDIENCE_PATHS = [
   {
     audience: 'Leagues and tournaments',
     question: 'How do we organize schedules, teams, players, scores, and results with less admin work?',
-    href: '/leagues',
+    href: '/leagues-and-tournaments',
     cta: 'Run a League or Tournament',
   },
 ] as const

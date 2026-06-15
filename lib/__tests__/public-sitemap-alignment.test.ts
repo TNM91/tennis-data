@@ -14,6 +14,7 @@ describe('public sitemap alignment', () => {
       '/resources',
       '/manage',
       '/compete',
+      '/leagues-and-tournaments',
       '/matchup',
       '/explore/search',
       '/player-development',

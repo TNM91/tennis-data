@@ -125,10 +125,10 @@ const portalLanes: PortalLane[] = [
     id: 'league',
     label: 'Leagues & Tournaments',
     cue: 'Schedules, scores, events',
-    route: '/leagues',
+    route: '/leagues-and-tournaments',
     planRoute: '/league-coordinator',
     icon: 'teamRankings',
-    paths: ['/league-coordinator', '/tournaments', '/compete/leagues', '/compete/schedule', '/explore/leagues', '/leagues'],
+    paths: ['/leagues-and-tournaments', '/league-coordinator', '/tournaments', '/compete/leagues', '/compete/schedule', '/explore/leagues', '/leagues'],
     searchScope: 'leagues',
     tasks: [
       { title: 'Shared calendar', detail: 'Publish, propose, confirm, and track match dates.', metric: 'League', href: '/compete/schedule', icon: 'schedule', requiredRoute: '/explore' },

@@ -118,7 +118,7 @@ export const homeActionCards: PublicActionCard[] = [
   {
     title: 'Run a League or Tournament',
     body: 'Organize schedules, manage players or teams, track scores, publish results, and reduce admin work.',
-    href: '/leagues',
+    href: '/leagues-and-tournaments',
     cta: 'Run a League or Tournament',
     secondaryHref: '/tournaments',
     secondaryCta: 'Tournament Desk',
@@ -291,7 +291,7 @@ export function HomeCtaGrid() {
     { label: 'Find Player Insights', href: '/explore/players' },
     { label: 'Manage My Team', href: '/captain' },
     { label: 'Level Up My Game', href: '/player-development' },
-    { label: 'Run a League or Tournament', href: '/leagues' },
+    { label: 'Run a League or Tournament', href: '/leagues-and-tournaments' },
   ] as const
 
   return (
