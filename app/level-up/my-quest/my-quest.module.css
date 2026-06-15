@@ -3068,7 +3068,7 @@
     left: max(12px, env(safe-area-inset-left));
     z-index: 73;
     display: grid;
-    grid-template-columns: minmax(86px, 0.3fr) minmax(0, 1fr);
+    grid-template-columns: minmax(78px, 0.28fr) minmax(0, 1fr) minmax(86px, 0.32fr);
     gap: 8px;
     align-items: center;
     max-width: 434px;
@@ -3095,7 +3095,8 @@
   }
 
   .mobilePocketStateLabel span,
-  .mobilePocketStateLabel strong {
+  .mobilePocketStateLabel strong,
+  .mobilePocketStateLabel small {
     overflow: hidden;
     display: block;
     text-overflow: ellipsis;
@@ -3114,6 +3115,13 @@
     color: var(--muted-strong);
     font-size: 0.68rem;
     font-weight: 850;
+  }
+
+  .mobilePocketStateLabel small {
+    color: rgba(var(--brand-green-rgb), 0.86);
+    font-size: 0.62rem;
+    font-weight: 950;
+    text-align: right;
   }
 
   .pageShell[data-phone-mode='pocket'] .mobileCommandBar {

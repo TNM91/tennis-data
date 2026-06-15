@@ -638,6 +638,7 @@ export default function MyQuestClient() {
       return {
         label: 'Clean board',
         detail: 'No urgent action queued.',
+        confidence: 'Streak safe for now',
         tone: mobileCommandPrimary.tone,
       }
     }
@@ -646,6 +647,7 @@ export default function MyQuestClient() {
       return {
         label: 'Repair mode',
         detail: 'Backfill the missed item without opening the full board.',
+        confidence: 'Repair keeps week honest',
         tone: mobileCommandPrimary.tone,
       }
     }
@@ -654,6 +656,7 @@ export default function MyQuestClient() {
       return {
         label: 'Closeout mode',
         detail: 'Finish the late-day action before the reset.',
+        confidence: '1 tap to protect streak',
         tone: mobileCommandPrimary.tone,
       }
     }
@@ -662,6 +665,7 @@ export default function MyQuestClient() {
       return {
         label: mobileCommandPrimary.tone === 'red' ? 'Boss danger' : 'Boss guard',
         detail: 'Weekly bonus XP needs attention.',
+        confidence: mobileCommandPrimary.tone === 'red' ? 'Boss XP at risk' : 'Bonus XP still live',
         tone: mobileCommandPrimary.tone,
       }
     }
@@ -670,6 +674,7 @@ export default function MyQuestClient() {
       return {
         label: 'Clean board',
         detail: 'Review the day and keep the streak visible.',
+        confidence: `${todayXp} XP banked`,
         tone: mobileCommandPrimary.tone,
       }
     }
@@ -677,9 +682,10 @@ export default function MyQuestClient() {
     return {
       label: 'Next tap',
       detail: 'The fastest useful action is ready.',
+      confidence: '1 tap to protect streak',
       tone: mobileCommandPrimary.tone,
     }
-  }, [mobileCommandPrimary.action, mobileCommandPrimary.label, mobileCommandPrimary.tone])
+  }, [mobileCommandPrimary.action, mobileCommandPrimary.label, mobileCommandPrimary.tone, todayXp])
   const mobilePocketDone = useMemo(
     () => todayRemainingCount === 0 &&
       !morningRepairQuest &&
@@ -1948,6 +1954,7 @@ export default function MyQuestClient() {
         <div className={styles.mobilePocketStateLabel} data-tone={mobilePocketStateLabel.tone} aria-label="My Quest iPhone pocket state label">
           <span>{mobilePocketStateLabel.label}</span>
           <strong>{mobilePocketStateLabel.detail}</strong>
+          <small>{mobilePocketStateLabel.confidence}</small>
         </div>
         <div className={styles.mobileCommandBar} aria-label="My Quest iPhone pocket command bar">
           <button
