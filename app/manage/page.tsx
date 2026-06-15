@@ -184,6 +184,30 @@ const manageActions = [
     ],
   },
   {
+    eyebrow: 'Organizer hub',
+    title: 'Choose the right league or tournament path',
+    body: 'Use the combined organizer hub when schedules, standings, draws, players, teams, scores, and event work overlap.',
+    metrics: [
+      { label: 'Hub', value: 'Leagues + events' },
+      { label: 'Work', value: 'Organize' },
+      { label: 'Next', value: 'Choose path' },
+    ],
+    href: '/leagues-and-tournaments',
+    cta: 'Open Organizer Hub',
+    event: {
+      eventName: 'league_office_clicked',
+      surface: 'leagues',
+      metadata: {
+        location: 'manage_hub',
+        job: 'organize_competition',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Public organizer path', tone: 'good' },
+      { label: 'Source', value: 'TenAceIQ hub', tone: 'info' },
+    ],
+  },
+  {
     eyebrow: 'Data Assist',
     title: 'Fix the source of confusion',
     body: 'Upload scorecards, schedules, rosters, team summaries, or corrections when the tennis context needs review.',
