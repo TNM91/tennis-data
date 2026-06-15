@@ -36,6 +36,7 @@ describe('universal search result model', () => {
       'Scout a team',
       'Find a place to play',
       'Captain match week',
+      'Run a league or tournament',
     ]) {
       expect(source).toContain(phrase)
     }
@@ -54,9 +55,18 @@ describe('universal search result model', () => {
       'request review',
       'play tennis near me',
       'captain match week',
+      'organizer hub',
+      'leagues and tournaments',
     ]) {
       expect(source).toContain(keyword)
     }
+  })
+
+  it('routes organizer searches to the combined leagues and tournaments hub', () => {
+    expect(source).toContain("title: 'Run a league or tournament'")
+    expect(source).toContain("href: '/leagues-and-tournaments'")
+    expect(source).toContain('Open the organizer hub when schedules, standings, draws, players, teams, scores, and event work overlap.')
+    expect(source).toContain("keywords: ['run a league or tournament', 'organizer hub', 'league tournament', 'leagues and tournaments', 'event organizer', 'reduce admin work']")
   })
 
   it('preserves typed queries when users click a result card', () => {

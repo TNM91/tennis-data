@@ -144,6 +144,13 @@ const results: SearchResult[] = [
   },
   {
     group: 'Actions',
+    title: 'Run a league or tournament',
+    detail: 'Open the organizer hub when schedules, standings, draws, players, teams, scores, and event work overlap.',
+    href: '/leagues-and-tournaments',
+    keywords: ['run a league or tournament', 'organizer hub', 'league tournament', 'leagues and tournaments', 'event organizer', 'reduce admin work'],
+  },
+  {
+    group: 'Actions',
     title: 'Build a lineup',
     detail: 'Open Captain Tools for availability, pairings, and court-by-court decisions.',
     href: '/captain/lineup-builder',
@@ -424,6 +431,7 @@ function getSearchIntentEvent(query: string, group?: SearchGroup | null): { even
   const q = query.toLowerCase()
 
   if (q.includes('captain match week') || q.includes('captain tools') || q.includes('team hub')) return { eventName: 'captain_tools_clicked', surface: 'teams' }
+  if (q.includes('organizer hub') || q.includes('run a league or tournament') || q.includes('leagues and tournaments') || q.includes('event organizer')) return { eventName: 'league_search_submitted', surface: 'leagues' }
   if (group === 'Teams' || q.includes('team') || q.includes('scout team')) return { eventName: 'team_search_submitted', surface: 'teams' }
   if (group === 'Leagues' || q.includes('league')) return { eventName: 'league_search_submitted', surface: 'leagues' }
   if (group === 'Tournaments' || q.includes('tournament') || q.includes('draw')) return { eventName: 'tournament_search_submitted', surface: 'tournaments' }

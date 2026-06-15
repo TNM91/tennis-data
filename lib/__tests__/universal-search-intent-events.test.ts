@@ -23,6 +23,8 @@ describe('universal search intent events', () => {
     expect(source).toContain("eventName: 'availability_clicked'")
     expect(source).toContain("eventName: 'captain_tools_clicked'")
     expect(source).toContain("q.includes('captain match week')")
+    expect(source).toContain("q.includes('organizer hub')")
+    expect(source).toContain("q.includes('run a league or tournament')")
     expect(source).toContain("eventName: 'matchup_started'")
     expect(source).toContain("q.includes('match prep')")
     expect(source).toContain("q.includes('prepare for a match')")
@@ -53,5 +55,17 @@ describe('universal search intent events', () => {
     expect(captainIndex).toBeGreaterThan(-1)
     expect(teamIndex).toBeGreaterThan(-1)
     expect(captainIndex).toBeLessThan(teamIndex)
+  })
+
+  it('checks organizer searches before generic league or tournament searches', () => {
+    const organizerIndex = source.indexOf("q.includes('organizer hub')")
+    const leagueIndex = source.indexOf("group === 'Leagues' || q.includes('league')")
+    const tournamentIndex = source.indexOf("group === 'Tournaments' || q.includes('tournament')")
+
+    expect(organizerIndex).toBeGreaterThan(-1)
+    expect(leagueIndex).toBeGreaterThan(-1)
+    expect(tournamentIndex).toBeGreaterThan(-1)
+    expect(organizerIndex).toBeLessThan(leagueIndex)
+    expect(organizerIndex).toBeLessThan(tournamentIndex)
   })
 })
