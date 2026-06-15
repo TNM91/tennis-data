@@ -90,6 +90,7 @@ type MobilePocketPulse = {
   label: string
   title: string
   detail: string
+  reason: string
   cta: string
   quest?: PersonalQuestDefinition
   sectionId: string
@@ -365,6 +366,7 @@ export default function MyQuestClient() {
         label: 'Boss pulse',
         title: warning.title,
         detail: warning.message,
+        reason: 'Why today: this protects weekly boss XP before Sunday review.',
         cta: warning.cta,
         sectionId: 'weekly-bosses',
       }
@@ -376,6 +378,7 @@ export default function MyQuestClient() {
         label: 'Coach pulse',
         title: coachNote.title,
         detail: coachNote.detail,
+        reason: `Why today: ${todayFocusQuest.shortTitle} keeps the streak path simple.`,
         cta: `Bank +${todayFocusQuest.xp}`,
         quest: todayFocusQuest,
         sectionId: 'lock-screen',
@@ -387,10 +390,11 @@ export default function MyQuestClient() {
       label: 'Recap pulse',
       title: recapToast.title,
       detail: recapToast.detail,
+      reason: `Why today: ${stats.currentStreak} day streak momentum is banked.`,
       cta: 'Review',
       sectionId: 'daily-recap',
     }
-  }, [bossWarnings, coachNote.detail, coachNote.title, recapToast.detail, recapToast.title, recapToast.tone, todayFocusQuest, todayRemainingCount])
+  }, [bossWarnings, coachNote.detail, coachNote.title, recapToast.detail, recapToast.title, recapToast.tone, stats.currentStreak, todayFocusQuest, todayRemainingCount])
   const dayCompleteSummary = useMemo(() => {
     const ipaCount = clampInt(ipaInput, 0, 30)
 
@@ -1432,6 +1436,7 @@ export default function MyQuestClient() {
             <span>{mobilePocketPulse.label}</span>
             <strong>{mobilePocketPulse.title}</strong>
             <small>{mobilePocketPulse.detail}</small>
+            <small className={styles.mobilePocketWhy}>{mobilePocketPulse.reason}</small>
           </div>
           <button
             type="button"

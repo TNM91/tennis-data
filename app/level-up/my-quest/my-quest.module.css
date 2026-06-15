@@ -2566,6 +2566,16 @@
     white-space: nowrap;
   }
 
+  .mobilePocketPulse .mobilePocketWhy {
+    display: -webkit-box;
+    color: rgba(var(--brand-green-rgb), 0.82);
+    font-size: 0.68rem;
+    line-height: 1.18;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
   .mobilePocketPulse button {
     min-height: 40px;
     padding: 0 8px;
