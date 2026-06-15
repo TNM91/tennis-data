@@ -7,6 +7,9 @@ describe('personal quest photo privacy', () => {
     const migrationSource = readFileSync('supabase/migrations/20260612000100_create_personal_quest.sql', 'utf8')
 
     expect(clientSource).toContain('createSignedUrls')
+    expect(clientSource).toContain('PHOTO_SIGNED_URL_TTL_SECONDS = 300')
+    expect(clientSource).toContain('crypto.randomUUID')
+    expect(clientSource).not.toContain('${file.lastModified}-${file.size}')
     expect(clientSource).not.toContain('getPublicUrl')
     expect(clientSource).not.toContain('publicUrl')
     expect(migrationSource).toContain("'personal-quest-photos'")

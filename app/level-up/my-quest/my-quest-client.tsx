@@ -117,6 +117,7 @@ const QUEST_STACKS: Array<{ id: string; label: string; hint: string; questIds: P
 
 const OFFLINE_QUEUE_KEY_PREFIX = 'personal-quest-offline-queue:'
 const CLIENT_ISSUE_KEY_PREFIX = 'personal-quest-client-issues:'
+const PHOTO_SIGNED_URL_TTL_SECONDS = 300
 
 export default function MyQuestClient() {
   const { authResolved, session, userId } = useAuth()
@@ -387,6 +388,18 @@ export default function MyQuestClient() {
       href: '#photo-compare',
     },
   ]
+  const mobileFocusQuests = useMemo(() => {
+    const seen = new Set<PersonalQuestId>()
+    return [
+      smartQuest.quest,
+      ...PERSONAL_DAILY_QUESTS.filter((quest) => !completedToday.has(quest.id)),
+      ...PERSONAL_DAILY_QUESTS,
+    ].filter((quest): quest is PersonalQuestDefinition => {
+      if (!quest || seen.has(quest.id)) return false
+      seen.add(quest.id)
+      return true
+    }).slice(0, 4)
+  }, [completedToday, smartQuest.quest])
   const comparePhotos = useMemo(() => {
     const matching = photos.filter((photo) => photo.photo_type === compareType)
     const latest = matching[0] ?? null
@@ -1101,7 +1114,8 @@ export default function MyQuestClient() {
     }
 
     const extension = getPhotoExtension(file)
-    const storagePath = `${ownerId}/${today}/${type}-${file.lastModified}-${file.size}-${photos.length}.${extension}`
+    const photoNonce = createPrivatePhotoNonce()
+    const storagePath = `${ownerId}/${today}/${type}-${photoNonce}.${extension}`
     const upload = await supabase.storage
       .from(PERSONAL_QUEST_PHOTO_BUCKET)
       .upload(storagePath, file, {
@@ -1219,6 +1233,42 @@ export default function MyQuestClient() {
           <small>{todayFocusQuest ? `${todayRemainingCount} left | +${todayFocusQuest.xp} XP next` : `${todayXp} XP banked today`}</small>
         </div>
         <ProgressBar value={todayFocusProgress} label={`${todayFocusProgress}% today`} />
+        <div className={styles.mobileHeroStats} aria-label="My Quest iPhone hero stats">
+          <div>
+            <span>Level</span>
+            <strong>{stats.level.title}</strong>
+          </div>
+          <div>
+            <span>XP</span>
+            <strong>{stats.totalXp.toLocaleString()}</strong>
+          </div>
+          <div>
+            <span>Streak</span>
+            <strong>{stats.currentStreak}</strong>
+          </div>
+          <div>
+            <span>Week</span>
+            <strong>{weeklyGrade.grade}</strong>
+          </div>
+        </div>
+        <div className={styles.mobileQuestRail} aria-label="My Quest iPhone quick quest rail">
+          {mobileFocusQuests.map((quest) => {
+            const complete = completedToday.has(quest.id)
+            const pendingKey = `${today}:${quest.id}`
+            return (
+              <button
+                key={quest.id}
+                type="button"
+                data-complete={complete ? 'true' : 'false'}
+                onClick={() => void toggleQuest(quest)}
+                disabled={Boolean(pendingQuest)}
+              >
+                <span>{pendingQuest === pendingKey ? 'Saving' : complete ? 'Done' : `+${quest.xp}`}</span>
+                <strong>{quest.shortTitle}</strong>
+              </button>
+            )
+          })}
+        </div>
         <div className={styles.mobileModeRail} aria-label="Today focus mode">
           <button type="button" data-active={mode === 'morning' ? 'true' : 'false'} onClick={() => setMode('morning')}>
             Morning
@@ -2438,7 +2488,7 @@ async function signPhotos(photos: ProgressPhoto[]): Promise<PhotoPreview[]> {
   if (!photos.length) return []
   const signed = await supabase.storage
     .from(PERSONAL_QUEST_PHOTO_BUCKET)
-    .createSignedUrls(photos.map((photo) => photo.storage_path), 900)
+    .createSignedUrls(photos.map((photo) => photo.storage_path), PHOTO_SIGNED_URL_TTL_SECONDS)
 
   if (signed.error) return photos.map((photo) => ({ ...photo, signedUrl: '' }))
 
@@ -2480,6 +2530,15 @@ function getPhotoExtension(file: File) {
   if (file.type === 'image/png') return 'png'
   if (file.type === 'image/webp') return 'webp'
   return 'jpg'
+}
+
+function createPrivatePhotoNonce() {
+  if (typeof crypto === 'undefined') return 'private-photo'
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+
+  const values = new Uint32Array(4)
+  crypto.getRandomValues(values)
+  return Array.from(values, (value) => value.toString(36)).join('-')
 }
 
 function isBrowserOnline() {
