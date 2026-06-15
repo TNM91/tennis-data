@@ -130,7 +130,8 @@
 .mobileHeroStats,
 .mobileQuestRail,
 .mobileTapPlan,
-.mobilePocketToggle {
+.mobilePocketToggle,
+.mobilePocketMore {
   display: none;
 }
 
@@ -2505,6 +2506,77 @@
     border-color: rgba(var(--brand-green-rgb), 0.24);
     background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.2), rgba(24, 54, 34, 0.92));
     color: var(--foreground-strong);
+  }
+
+  .pageShell[data-phone-mode='pocket'] .mobilePocketMore {
+    display: grid;
+    border: 1px solid rgba(116, 190, 255, 0.14);
+    border-radius: 14px;
+    background: rgba(2, 10, 24, 0.3);
+    overflow: hidden;
+  }
+
+  .mobilePocketMore > summary {
+    min-height: 46px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 9px 10px;
+    color: var(--foreground-strong);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .mobilePocketMore > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobilePocketMore > summary::after {
+    content: '+';
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--brand-green-rgb), 0.22);
+    background: rgba(var(--brand-green-rgb), 0.1);
+    color: var(--brand-green-3);
+    font-weight: 950;
+  }
+
+  .mobilePocketMore[open] > summary::after {
+    content: '-';
+  }
+
+  .mobilePocketMore > summary span {
+    color: var(--brand-green-3);
+    font-size: 0.66rem;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .mobilePocketMore > summary strong {
+    overflow: hidden;
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobilePocketMore > div {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 0 8px 8px;
+  }
+
+  .mobilePocketMore button {
+    min-height: 40px;
+    padding: 0 6px;
+    border-color: rgba(116, 190, 255, 0.14);
+    background: rgba(2, 10, 24, 0.32);
+    font-size: 0.72rem;
   }
 
   .mobileModeRail {

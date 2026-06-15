@@ -1205,6 +1205,15 @@ export default function MyQuestClient() {
     await saveRepairTrackers(nextValue, repairNotesInput)
   }
 
+  function openFullDashboardSection(sectionId: string) {
+    writePhoneModePreference('full')
+    setPhoneCompact(false)
+
+    window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
+  }
+
   if (accessDenied) {
     return (
       <section className={styles.pageShell}>
@@ -1352,6 +1361,26 @@ export default function MyQuestClient() {
             </button>
           </div>
         </div>
+        <details className={styles.mobilePocketMore} aria-label="My Quest iPhone full dashboard shortcuts">
+          <summary>
+            <span>More tools</span>
+            <strong>Open full sections</strong>
+          </summary>
+          <div>
+            <button type="button" onClick={() => openFullDashboardSection('weekly-bosses')}>
+              Bosses
+            </button>
+            <button type="button" onClick={() => openFullDashboardSection('trend-strip')}>
+              Trends
+            </button>
+            <button type="button" onClick={() => openFullDashboardSection('photo-compare')}>
+              Photos
+            </button>
+            <button type="button" onClick={() => openFullDashboardSection('achievements')}>
+              Badges
+            </button>
+          </div>
+        </details>
         <div className={styles.mobileModeRail} aria-label="Today focus mode">
           <button type="button" data-active={mode === 'morning' ? 'true' : 'false'} onClick={() => setMode('morning')}>
             Morning
@@ -2211,7 +2240,7 @@ export default function MyQuestClient() {
         </div>
       </details>
 
-      <section className={styles.bossPanel}>
+      <section id="weekly-bosses" className={styles.bossPanel}>
         <div className={styles.sectionHeader}>
           <div>
             <p className={styles.eyebrow}>Weekly Boss Battles</p>
@@ -2352,7 +2381,7 @@ export default function MyQuestClient() {
         </div>
       </section>
 
-      <section className={styles.achievementPanel}>
+      <section id="achievements" className={styles.achievementPanel}>
         <div className={styles.sectionHeader}>
           <div>
             <p className={styles.eyebrow}>Achievements</p>
