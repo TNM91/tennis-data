@@ -403,9 +403,9 @@ export default function MyQuestClient() {
       href: '#repair-day',
     },
     {
-      label: 'Photos',
-      value: `${photos.length}`,
-      href: '#photo-compare',
+      label: 'Phone',
+      value: phoneCompact ? 'Pocket' : 'Full',
+      href: '#phone-mode-control',
     },
   ]
   const mobileFocusQuests = useMemo(() => {
@@ -1321,6 +1321,28 @@ export default function MyQuestClient() {
               </button>
             )
           })}
+        </div>
+        <div id="phone-mode-control" className={styles.mobilePocketToggle} aria-label="My Quest iPhone pocket mode">
+          <div>
+            <span>Phone mode</span>
+            <strong>{phoneCompact ? 'Pocket dashboard' : 'Full dashboard'}</strong>
+          </div>
+          <div>
+            <button
+              type="button"
+              data-active={phoneCompact ? 'true' : 'false'}
+              onClick={() => {
+                setPhoneCompact(true)
+                setIntelOpen(false)
+                setSupportOpen(false)
+              }}
+            >
+              Pocket
+            </button>
+            <button type="button" data-active={!phoneCompact ? 'true' : 'false'} onClick={() => setPhoneCompact(false)}>
+              Full
+            </button>
+          </div>
         </div>
         <div className={styles.mobileModeRail} aria-label="Today focus mode">
           <button type="button" data-active={mode === 'morning' ? 'true' : 'false'} onClick={() => setMode('morning')}>

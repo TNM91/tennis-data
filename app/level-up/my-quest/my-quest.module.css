@@ -129,7 +129,8 @@
 .mobileDayComplete,
 .mobileHeroStats,
 .mobileQuestRail,
-.mobileTapPlan {
+.mobileTapPlan,
+.mobilePocketToggle {
   display: none;
 }
 
@@ -2453,6 +2454,48 @@
     font-size: 0.68rem;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .mobilePocketToggle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(132px, 0.46fr);
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid rgba(116, 190, 255, 0.14);
+    border-radius: 14px;
+    background: rgba(2, 10, 24, 0.3);
+    scroll-margin-top: 10px;
+  }
+
+  .mobilePocketToggle > div:first-child {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .mobilePocketToggle > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    padding: 4px;
+    border: 1px solid rgba(116, 190, 255, 0.12);
+    border-radius: 12px;
+    background: rgba(2, 10, 24, 0.24);
+  }
+
+  .mobilePocketToggle button {
+    min-height: 36px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--muted-strong);
+    font-size: 0.72rem;
+  }
+
+  .mobilePocketToggle button[data-active='true'] {
+    border-color: rgba(var(--brand-green-rgb), 0.24);
+    background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.2), rgba(24, 54, 34, 0.92));
+    color: var(--foreground-strong);
   }
 
   .mobileModeRail {
