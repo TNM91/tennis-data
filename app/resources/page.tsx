@@ -23,6 +23,12 @@ export const metadata: Metadata = buildRouteMetadata({
 
 const groups = [
   {
+    id: 'play',
+    title: 'Play',
+    body: 'Find the fastest path from wanting a match, team, event, or court time to actually getting on court.',
+    items: ['Find players', 'Find teams', 'Find leagues', 'Find tournaments', 'Open play ideas', 'Court and club checklist'],
+  },
+  {
     id: 'drills',
     title: 'Drills',
     body: 'Find focused practice work that turns one tennis problem into one repeatable court task.',
@@ -202,16 +208,16 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
                   ]}
                 >
                   <div style={resourceListStyle}>
-                  {group.items.map((item) => (
-                    <TrackedProductLink
-                      key={item}
-                      href={resourceHref(item)}
-                      style={resourceLinkStyle}
-                      event={resourceClickEvent(item, group.title)}
-                    >
-                      {item}
-                    </TrackedProductLink>
-                  ))}
+                    {group.items.map((item) => (
+                      <TrackedProductLink
+                        key={item}
+                        href={resourceHref(item)}
+                        style={resourceLinkStyle}
+                        event={resourceClickEvent(item, group.title)}
+                      >
+                        {item}
+                      </TrackedProductLink>
+                    ))}
                   </div>
                 </TiqResourceCard>
               </div>
@@ -342,13 +348,14 @@ const resourceQuickStarts = [
       { label: 'Seasons', value: 'Leagues' },
       { label: 'Next', value: 'Desk' },
     ],
-    href: '/tournaments',
-    cta: 'Find Tournaments',
+    href: '/leagues-and-tournaments',
+    cta: 'Open Organizer Hub',
     event: {
-      eventName: 'tournament_search_submitted',
-      surface: 'tournaments',
+      eventName: 'league_office_clicked',
+      surface: 'leagues',
       metadata: {
         location: 'resources_quick_start',
+        job: 'organize_competition',
       },
     },
     trust: [
@@ -421,6 +428,14 @@ function resourceHref(item: string) {
   const lower = item.toLowerCase()
   if (lower.includes('coach')) return '/coaches'
   if (lower.includes('team')) return '/teams'
+  if (
+    lower.includes('league setup') ||
+    lower.includes('tournament setup') ||
+    lower.includes('round-robin') ||
+    lower.includes('scheduling checklist') ||
+    lower.includes('tiebreaker guide') ||
+    lower.includes('court and club')
+  ) return '/leagues-and-tournaments'
   if (lower.includes('league')) return '/leagues'
   if (lower.includes('tournament') || lower.includes('draw')) return '/tournaments'
   if (lower.includes('wrong')) return '/data-assist?intent=report-issue&context=Resources%20hub'
