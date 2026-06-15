@@ -85,6 +85,16 @@ type ClientIssue = {
   detail: string
 }
 
+type MobilePocketPulse = {
+  tone: 'green' | 'amber' | 'red' | 'blue'
+  label: string
+  title: string
+  detail: string
+  cta: string
+  quest?: PersonalQuestDefinition
+  sectionId: string
+}
+
 type LoadState = 'checking' | 'loading' | 'ready'
 type PhotoCompareMode = 'latest_previous' | 'first_latest' | 'week_over_week'
 
@@ -347,6 +357,40 @@ export default function MyQuestClient() {
     () => buildPersonalQuestRecapToast({ recap: dailyRecap, shield: streakShield, warnings: bossWarnings }),
     [bossWarnings, dailyRecap, streakShield],
   )
+  const mobilePocketPulse = useMemo<MobilePocketPulse>(() => {
+    const warning = bossWarnings.find((item) => item.tone !== 'green')
+    if (warning) {
+      return {
+        tone: warning.tone,
+        label: 'Boss pulse',
+        title: warning.title,
+        detail: warning.message,
+        cta: warning.cta,
+        sectionId: 'weekly-bosses',
+      }
+    }
+
+    if (todayRemainingCount > 0 && todayFocusQuest) {
+      return {
+        tone: 'blue',
+        label: 'Coach pulse',
+        title: coachNote.title,
+        detail: coachNote.detail,
+        cta: `Bank +${todayFocusQuest.xp}`,
+        quest: todayFocusQuest,
+        sectionId: 'lock-screen',
+      }
+    }
+
+    return {
+      tone: recapToast.tone,
+      label: 'Recap pulse',
+      title: recapToast.title,
+      detail: recapToast.detail,
+      cta: 'Review',
+      sectionId: 'daily-recap',
+    }
+  }, [bossWarnings, coachNote.detail, coachNote.title, recapToast.detail, recapToast.title, recapToast.tone, todayFocusQuest, todayRemainingCount])
   const dayCompleteSummary = useMemo(() => {
     const ipaCount = clampInt(ipaInput, 0, 30)
 
@@ -1382,6 +1426,20 @@ export default function MyQuestClient() {
               Full
             </button>
           </div>
+        </div>
+        <div className={styles.mobilePocketPulse} data-tone={mobilePocketPulse.tone} aria-label="My Quest iPhone coach pulse">
+          <div>
+            <span>{mobilePocketPulse.label}</span>
+            <strong>{mobilePocketPulse.title}</strong>
+            <small>{mobilePocketPulse.detail}</small>
+          </div>
+          <button
+            type="button"
+            onClick={() => mobilePocketPulse.quest ? void toggleQuest(mobilePocketPulse.quest) : openFullDashboardSection(mobilePocketPulse.sectionId)}
+            disabled={Boolean(mobilePocketPulse.quest && pendingQuest)}
+          >
+            {mobilePocketPulse.cta}
+          </button>
         </div>
         <details className={styles.mobilePocketMore} aria-label="My Quest iPhone full dashboard shortcuts">
           <summary>
