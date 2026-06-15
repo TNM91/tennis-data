@@ -136,7 +136,8 @@
 .mobileBossReadiness,
 .mobilePriorityStack,
 .mobilePocketDone,
-.mobilePocketMore {
+.mobilePocketMore,
+.mobileCommandBar {
   display: none;
 }
 
@@ -2199,6 +2200,10 @@
     padding-bottom: calc(112px + env(safe-area-inset-bottom));
   }
 
+  .pageShell[data-phone-mode='pocket'] {
+    padding-bottom: calc(184px + env(safe-area-inset-bottom));
+  }
+
   .hero,
   .quickAddPanel,
   .gamePlanPanel,
@@ -3053,6 +3058,71 @@
   .mobileReminderStrip button {
     min-height: 38px;
     padding: 0 10px;
+  }
+
+  .pageShell[data-phone-mode='pocket'] .mobileCommandBar {
+    position: fixed;
+    right: max(9px, env(safe-area-inset-right));
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    left: max(9px, env(safe-area-inset-left));
+    z-index: 72;
+    display: grid;
+    grid-template-columns: minmax(0, 1.16fr) minmax(0, 0.92fr) minmax(0, 0.92fr);
+    gap: 7px;
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 7px;
+    border: 1px solid rgba(var(--brand-green-rgb), 0.22);
+    border-radius: 16px;
+    background:
+      linear-gradient(90deg, rgba(var(--brand-green-rgb), 0.13), rgba(116, 190, 255, 0.07)),
+      rgba(5, 15, 30, 0.95);
+    box-shadow: 0 18px 42px rgba(2, 8, 20, 0.34);
+    backdrop-filter: blur(14px);
+  }
+
+  .mobileCommandBar button {
+    min-width: 0;
+    min-height: 50px;
+    display: grid;
+    align-content: center;
+    gap: 2px;
+    padding: 7px 8px;
+    border-color: rgba(var(--brand-green-rgb), 0.24);
+    border-radius: 12px;
+    background: rgba(var(--brand-green-rgb), 0.1);
+    text-align: center;
+  }
+
+  .mobileCommandBar button:first-child {
+    background: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.2), rgba(24, 54, 34, 0.92));
+  }
+
+  .mobileCommandBar button:disabled {
+    opacity: 0.68;
+  }
+
+  .mobileCommandBar span,
+  .mobileCommandBar strong {
+    overflow: hidden;
+    display: block;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobileCommandBar span {
+    color: var(--brand-green-3);
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .mobileCommandBar strong {
+    color: var(--foreground-strong);
+    font-size: 0.82rem;
+    font-weight: 950;
+    line-height: 1.05;
   }
 
   .mobileTodayFocus > div:last-child {

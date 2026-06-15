@@ -1862,11 +1862,19 @@ export default function MyQuestClient() {
             {notificationPermission === 'granted' ? 'Test' : 'Enable'}
           </button>
         </div>
-        <div>
+        <div className={styles.mobileCommandBar} aria-label="My Quest iPhone pocket command bar">
           <button type="button" onClick={() => todayFocusQuest ? void toggleQuest(todayFocusQuest) : undefined} disabled={!todayFocusQuest || Boolean(pendingQuest)}>
-            {todayFocusQuest ? `Bank +${todayFocusQuest.xp}` : 'Done'}
+            <span>Bank Next</span>
+            <strong>{todayFocusQuest ? `+${todayFocusQuest.xp} XP` : 'Done'}</strong>
           </button>
-          <a href="#repair-day">Repair</a>
+          <button type="button" onClick={() => void adjustIpa(1)} disabled={savingTracker}>
+            <span>{savingTracker ? 'Saving' : 'Log IPA'}</span>
+            <strong>{clampInt(ipaInput, 0, 30)}</strong>
+          </button>
+          <button type="button" onClick={() => openFullDashboardSection('daily-recap')}>
+            <span>Recap</span>
+            <strong>{todayXp} XP</strong>
+          </button>
         </div>
       </section>
 
