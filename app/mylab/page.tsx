@@ -43,7 +43,7 @@ import {
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
-import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MY_LAB_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
@@ -2666,6 +2666,44 @@ function MyLabPageInner() {
       href: nextMoveHref,
     },
   ]
+  const personalLabPathCards = [
+    {
+      question: 'What should I work on?',
+      title: 'Choose one focus',
+      body: activeGoal.goal.trim() || 'Pick one goal or Level Up path before the next practice block.',
+      href: '/player-development',
+      cta: 'Level Up My Game',
+      job: 'choose_focus',
+    },
+    {
+      question: 'How am I improving?',
+      title: 'Check progress',
+      body: recentDecisionMatches.length
+        ? `${recentRecordLabel} across connected decisions.`
+        : 'Track progress as scorecards, goals, and proof connect to your player record.',
+      href: MY_LAB_GOAL_PROGRESS_HREF,
+      cta: 'Review progress',
+      job: 'review_progress',
+    },
+    {
+      question: 'What matchup matters?',
+      title: 'Prep the next test',
+      body: topMatchupCandidate
+        ? `Open the read against ${topMatchupCandidate.player.name}.`
+        : 'Use Matchup when the fastest next step is choosing who or what to scout.',
+      href: matchupHref,
+      cta: 'Prep matchup',
+      job: 'prep_matchup',
+    },
+    {
+      question: 'What drills or resources can help?',
+      title: 'Find the next cue',
+      body: 'Use drills, skills, strategy, and training resources when the answer should be simple on court.',
+      href: '/resources?q=drills%20skills%20strategy',
+      cta: 'Find drills',
+      job: 'find_resources',
+    },
+  ] as const
   const focusTemplates: Array<{ label: string } & GoalTemplate> = [
     {
       label: 'Next match plan',
@@ -3040,6 +3078,32 @@ function MyLabPageInner() {
               Open Matchup
             </Link>
           </div>
+
+          <section style={personalLabPathStyle} aria-label="My Lab next action path">
+            <div style={personalLabPathHeaderStyle}>
+              <div style={sectionHeaderCopyStyle}>
+                <p style={sectionKickerStyle}>Personal lab path</p>
+                <h2 style={personalLabPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+                <p style={sectionTextStyle}>Start with the one question that gets you back to useful tennis fastest.</p>
+              </div>
+            </div>
+            <div style={personalLabPathGridStyle(isTablet)}>
+              {personalLabPathCards.map((card) => (
+                <Link
+                  key={card.question}
+                  href={card.href}
+                  style={personalLabPathCardStyle}
+                  aria-label={`${card.cta}: ${card.question}`}
+                  data-my-lab-path-job={card.job}
+                >
+                  <span style={personalLabPathQuestionStyle}>{card.question}</span>
+                  <strong style={personalLabPathCardTitleStyle}>{card.title}</strong>
+                  <span style={personalLabPathCardTextStyle}>{card.body}</span>
+                  <span style={miniActionLinkStyle}>{card.cta}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
 
           <section style={youHubPanelStyle}>
             <div style={personalCommandGridStyle(isTablet)}>
@@ -7418,6 +7482,86 @@ const personalCommandGridStyle = (isTablet: boolean): CSSProperties => ({
   gap: 12,
   minWidth: 0,
 })
+
+const personalLabPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const personalLabPathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const personalLabPathTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.28rem',
+  lineHeight: 1.15,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const personalLabPathGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? 'minmax(0, 1fr)'
+    : 'repeat(4, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+})
+
+const personalLabPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateRows: 'auto auto minmax(0, 1fr) auto',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 166,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(8, 13, 28, 0.58)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const personalLabPathQuestionStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const personalLabPathCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const personalLabPathCardTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
 
 const personalCommandCardStyle: CSSProperties = {
   borderRadius: 18,
