@@ -49,6 +49,29 @@ export default function CoachesPage() {
           rightTitle="For coaches"
           rightBody="Assign drills, track player development, recommend resources, and support players between sessions."
         />
+        <section style={developmentLoopSectionStyle} aria-labelledby="coach-development-loop-title">
+          <SectionHeader
+            eyebrow="Coach development loop"
+            title="Assess, assign, track, and follow up without losing the thread."
+            body="Coach Hub should make the next coaching move obvious before the player leaves the court, then keep that move visible between sessions."
+            titleId="coach-development-loop-title"
+          />
+          <div style={developmentLoopGridStyle}>
+            {coachDevelopmentLoop.map((step) => (
+              <TiqActionCard
+                key={step.title}
+                eyebrow={step.eyebrow}
+                title={step.title}
+                body={step.body}
+                metrics={[...step.metrics]}
+                href={step.href}
+                cta={step.cta}
+                event={step.event}
+                trust={[...step.trust]}
+              />
+            ))}
+          </div>
+        </section>
         <section style={lessonLoopSectionStyle} aria-labelledby="coach-lesson-loop-title">
           <SectionHeader
             eyebrow="Lesson loop"
@@ -205,7 +228,7 @@ const coachNextActions = [
   },
   {
     eyebrow: 'Coach Hub',
-    title: 'Assign follow-through',
+    title: 'Assign drills',
     body: 'Turn a lesson focus into drills, due dates, proof to review, and the next resource to use.',
     metrics: [
       { label: 'Assign', value: 'Drills' },
@@ -213,7 +236,7 @@ const coachNextActions = [
       { label: 'Review', value: 'Evidence' },
     ],
     href: '/coach',
-    cta: 'Open Coach Hub',
+    cta: 'Assign Drills',
     event: {
       eventName: 'coach_hub_clicked',
       surface: 'coach',
@@ -224,6 +247,54 @@ const coachNextActions = [
     trust: [
       { label: 'Status', value: 'Workspace action', tone: 'good' },
       { label: 'Freshness', value: 'Coach updated', tone: 'info' },
+    ],
+  },
+  {
+    eyebrow: 'Progress',
+    title: 'Track development',
+    body: 'Review active assignments, player proof, due work, and the next focus before the next session.',
+    metrics: [
+      { label: 'Track', value: 'Progress' },
+      { label: 'Review', value: 'Proof' },
+      { label: 'Next', value: 'Focus' },
+    ],
+    href: '/coach',
+    cta: 'Track Development',
+    event: {
+      eventName: 'coach_hub_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coaches_next_actions',
+        job: 'track_development',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Coach workspace', tone: 'good' },
+      { label: 'Signal', value: 'Assignment proof', tone: 'info' },
+    ],
+  },
+  {
+    eyebrow: 'Resources',
+    title: 'Recommend resources',
+    body: 'Point the player to drills, development paths, match prep, or workbook resources that match the lesson focus.',
+    metrics: [
+      { label: 'Find', value: 'Resources' },
+      { label: 'Match', value: 'Lesson' },
+      { label: 'Use', value: 'Between sessions' },
+    ],
+    href: '/resources?q=coach%20tools',
+    cta: 'Recommend Resources',
+    event: {
+      eventName: 'search_result_clicked',
+      surface: 'public_site',
+      metadata: {
+        location: 'coaches_next_actions',
+        job: 'recommend_resources',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Resource hub', tone: 'info' },
+      { label: 'Status', value: 'Browse ready', tone: 'good' },
     ],
   },
   {
@@ -249,6 +320,129 @@ const coachNextActions = [
       { label: 'Status', value: 'Review before use', tone: 'warn' },
     ],
   },
+  {
+    eyebrow: 'Follow up',
+    title: 'Support between sessions',
+    body: 'Use Coach Hub to keep the assignment, next focus, proof review, and player touchpoint connected.',
+    metrics: [
+      { label: 'Support', value: 'Between' },
+      { label: 'Touch', value: 'Player' },
+      { label: 'Next', value: 'Lesson' },
+    ],
+    href: '/coach',
+    cta: 'Support Between Sessions',
+    event: {
+      eventName: 'coach_hub_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coaches_next_actions',
+        job: 'support_between_sessions',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Coach workspace', tone: 'good' },
+      { label: 'Freshness', value: 'Coach updated', tone: 'info' },
+    ],
+  },
+] as const
+
+const coachDevelopmentLoop = [
+  {
+    eyebrow: 'Assess',
+    title: 'Know what the player needs',
+    body: 'Start with goals, recent match notes, player proof, and the one skill that should improve next.',
+    metrics: [
+      { label: 'Input', value: 'Goals' },
+      { label: 'Signal', value: 'Proof' },
+      { label: 'Next', value: 'Focus' },
+    ],
+    href: '/player-development/coach-planner',
+    cta: 'Open Coach Planner',
+    event: {
+      eventName: 'coach_hub_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coach_development_loop',
+        job: 'assess_player_need',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Player path', tone: 'info' },
+      { label: 'Status', value: 'Planner ready', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Assign',
+    title: 'Assign the next drill',
+    body: 'Turn the lesson into a small court task with a due date and proof the player can bring back.',
+    metrics: [
+      { label: 'Assign', value: 'Drill' },
+      { label: 'Due', value: 'Date' },
+      { label: 'Proof', value: 'Named' },
+    ],
+    href: '/coach',
+    cta: 'Assign Drills',
+    event: {
+      eventName: 'coach_assignment_preview_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coach_development_loop',
+        job: 'assign_drills',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Coach action', tone: 'good' },
+      { label: 'Use', value: 'Between sessions', tone: 'info' },
+    ],
+  },
+  {
+    eyebrow: 'Track',
+    title: 'Track player development',
+    body: 'Watch assignment status, proof quality, and next focus so progress is easier to discuss.',
+    metrics: [
+      { label: 'Track', value: 'Status' },
+      { label: 'Review', value: 'Proof' },
+      { label: 'Plan', value: 'Next' },
+    ],
+    href: '/coach',
+    cta: 'Track Development',
+    event: {
+      eventName: 'coach_hub_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coach_development_loop',
+        job: 'track_development',
+      },
+    },
+    trust: [
+      { label: 'Signal', value: 'Assignment proof', tone: 'info' },
+      { label: 'Status', value: 'Coach reviewed', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Follow up',
+    title: 'Support between sessions',
+    body: 'Recommend the right resource, send the next note, and keep the player connected to the plan.',
+    metrics: [
+      { label: 'Recommend', value: 'Resources' },
+      { label: 'Touch', value: 'Player' },
+      { label: 'Loop', value: 'Closed' },
+    ],
+    href: '/resources?q=coach%20tools',
+    cta: 'Recommend Resources',
+    event: {
+      eventName: 'search_result_clicked',
+      surface: 'public_site',
+      metadata: {
+        location: 'coach_development_loop',
+        job: 'recommend_resources',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Resource hub', tone: 'info' },
+      { label: 'Status', value: 'Player-ready', tone: 'good' },
+    ],
+  },
 ] as const
 
 const coachLessonLoop = [
@@ -271,6 +465,19 @@ const coachLessonLoop = [
 
 const lessonLoopSectionStyle: CSSProperties = {
   display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const developmentLoopSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+}
+
+const developmentLoopGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: 14,
   minWidth: 0,
 }
