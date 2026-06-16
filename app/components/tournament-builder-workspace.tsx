@@ -49,6 +49,7 @@ import {
   type TiqAwardPlacement,
   type TiqAwardRecord,
 } from '@/lib/tiq-awards-registry'
+import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 const sampleEntrants = ['Avery Stone', 'Blake Carter', 'Casey Nguyen', 'Drew Patel']
 
@@ -70,6 +71,45 @@ const lockedTournamentActions = [
     detail: 'Issue certificates, badges, and recap alerts from the same workspace.',
   },
 ]
+
+const tournamentDeskPaths = [
+  {
+    job: 'organize_schedules',
+    question: 'How do I organize schedules?',
+    title: 'Build the room',
+    body: 'Name the event, choose the format, add the field, and save the tournament before court times start moving.',
+    href: '#tournament-setup',
+    cta: 'Set up event',
+    icon: 'schedule',
+  },
+  {
+    job: 'manage_players_teams',
+    question: 'How do I manage players or teams?',
+    title: 'Clear the entry queue',
+    body: 'Approve entries, connect participants to TIQ profiles, and keep the player or team list ready for the draw.',
+    href: '#tournament-entries',
+    cta: 'Review entries',
+    icon: 'teamRankings',
+  },
+  {
+    job: 'track_scores',
+    question: 'How do I track scores?',
+    title: 'Run the scorebook',
+    body: 'Add match slots, enter results, publish standings or brackets, and move the event toward awards.',
+    href: '#tournament-scorebook',
+    cta: 'Open scorebook',
+    icon: 'reports',
+  },
+  {
+    job: 'reduce_admin_work',
+    question: 'How do I reduce admin work?',
+    title: 'Send the useful update',
+    body: 'Use alerts and preference history so court changes, rules, reminders, and recaps stay out of scattered texts.',
+    href: '#tournament-alerts',
+    cta: 'Prepare alerts',
+    icon: 'alerts',
+  },
+] as const
 
 export default function TournamentBuilderWorkspace() {
   const { role, userId, entitlements, authResolved } = useAuth()
@@ -1059,6 +1099,37 @@ export default function TournamentBuilderWorkspace() {
   return (
     <main style={pageStyle}>
       {tournamentHero}
+
+      <section style={tournamentPathStyle} aria-labelledby="tournament-desk-path-title">
+        <div style={tournamentPathHeaderStyle}>
+          <div>
+            <div style={sectionEyebrowStyle}>Tournament Desk path</div>
+            <h2 id="tournament-desk-path-title" style={tournamentPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+          </div>
+          <p style={tournamentPathIntroStyle}>
+            Start with the event question, then open the tool that removes the most admin work.
+          </p>
+        </div>
+        <div style={tournamentPathGridStyle}>
+          {tournamentDeskPaths.map((path) => (
+            <a
+              key={path.job}
+              href={path.href}
+              style={tournamentPathCardStyle}
+              data-tournament-path-job={path.job}
+              aria-label={`${path.cta}: ${path.question}`}
+            >
+              <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
+              <span style={tournamentPathCopyStyle}>
+                <em>{path.question}</em>
+                <strong>{path.title}</strong>
+                <span>{path.body}</span>
+                <span style={tournamentPathCtaStyle}>{path.cta}</span>
+              </span>
+            </a>
+          ))}
+        </div>
+      </section>
 
       <section style={calendarPanelStyle}>
         <div style={panelHeaderStyle}>
@@ -2599,6 +2670,83 @@ const statStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 900,
   textTransform: 'uppercase',
+}
+
+const tournamentPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.045)), linear-gradient(180deg, rgba(11,25,48,0.9), rgba(6,15,30,0.95))',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.22)',
+  overflow: 'hidden',
+}
+
+const tournamentPathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'end',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const tournamentPathTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 3vw, 2.25rem)',
+  lineHeight: 1.04,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPathIntroStyle: CSSProperties = {
+  ...textStyle,
+  maxWidth: 500,
+}
+
+const tournamentPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const tournamentPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '38px minmax(0, 1fr)',
+  gap: 11,
+  minWidth: 0,
+  minHeight: 158,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(223,248,194,0.13)',
+  background: 'linear-gradient(180deg, rgba(18,39,70,0.72), rgba(8,18,36,0.9))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflow: 'hidden',
+}
+
+const tournamentPathCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.42,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
 }
 
 const lockedPreviewStyle: CSSProperties = {
