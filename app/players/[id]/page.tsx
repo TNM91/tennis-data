@@ -880,6 +880,34 @@ function PlayerProfileContent() {
   const primaryActionLabel = isOwnProfile ? 'Open My Lab' : linkedPlayerId ? 'Compare with me' : 'Open Matchup'
   const secondaryActionHref = isOwnProfile ? '/matchup?type=singles' : '/mylab'
   const secondaryActionLabel = isOwnProfile ? 'Find a matchup' : 'Open My Lab'
+  const playerPathActions = [
+    {
+      question: 'What should I work on?',
+      label: 'Level Up My Game',
+      body: 'Pick one focus, run a training card, and leave with a clear next rep.',
+      href: '/level-up',
+    },
+    {
+      question: 'How am I improving?',
+      label: 'Open My Lab',
+      body: 'Track goals, follows, recent matches, and progress around your player record.',
+      href: '/mylab',
+    },
+    {
+      question: 'What matchup matters?',
+      label: isOwnProfile ? 'Find a Matchup' : primaryActionLabel,
+      body: isOwnProfile
+        ? 'Choose the next opponent or nearby player to prep before you play.'
+        : 'Compare this player against your profile or choose the other side.',
+      href: isOwnProfile ? secondaryActionHref : primaryActionHref,
+    },
+    {
+      question: 'What drill helps next?',
+      label: 'Find Drills',
+      body: 'Use tennis resources when the next step should be a quick drill, skill, or strategy cue.',
+      href: '/resources',
+    },
+  ] as const
   const primaryUstaMembership = ustaTeamMemberships[0] ?? null
   const primaryTeamHref = primaryUstaMembership
     ? `/teams/${encodeURIComponent(primaryUstaMembership.teamName)}?layer=usta${primaryUstaMembership.leagueName ? `&league=${encodeURIComponent(primaryUstaMembership.leagueName)}` : ''}${primaryUstaMembership.flight ? `&flight=${encodeURIComponent(primaryUstaMembership.flight)}` : ''}`
@@ -1386,15 +1414,24 @@ function PlayerProfileContent() {
           </div>
 
           <div style={scorecardActionRailStyle}>
-            <div style={scorecardRailLabelStyle}>Next move</div>
-            <div style={scorecardRailValueStyle}>{primaryActionLabel}</div>
+            <div style={scorecardRailLabelStyle}>Player path</div>
+            <div style={scorecardRailValueStyle}>Find the next useful move.</div>
             <p style={scorecardRailTextStyle}>
               {isOwnProfile
-                ? 'Use My Lab for your goals, matches, follows, and matchup shortcuts.'
+                ? 'Use this profile to decide what to work on, how progress is moving, which matchup to prep, and what drill should come next.'
                 : linkedPlayerId
-                  ? 'Your profile is loaded, so this opens a direct player-to-player comparison.'
-                  : 'Start a matchup from this player, then choose the other side.'}
+                  ? 'Your profile is loaded, so this player page can become a direct comparison, a My Lab follow, or a training cue.'
+                  : 'Start with this player, then choose whether you want a matchup read, My Lab context, or a simple resource.'}
             </p>
+            <div style={playerPathListStyle} aria-label="Player path actions">
+              {playerPathActions.map((action) => (
+                <Link key={action.question} href={action.href} style={playerPathActionStyle}>
+                  <span style={playerPathQuestionStyle}>{action.question}</span>
+                  <strong style={playerPathLabelStyle}>{action.label}</strong>
+                  <span style={playerPathBodyStyle}>{action.body}</span>
+                </Link>
+              ))}
+            </div>
             <div style={dynamicFollowRow}>
               <MiniLink href={primaryActionHref}>{primaryActionLabel}</MiniLink>
               <MiniLink href="/rankings">Rankings</MiniLink>
@@ -3933,6 +3970,50 @@ const scorecardRailTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
+  fontWeight: 650,
+  overflowWrap: 'anywhere',
+}
+
+const playerPathListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerPathActionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: '11px 12px',
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const playerPathQuestionStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const playerPathLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const playerPathBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
   fontWeight: 650,
   overflowWrap: 'anywhere',
 }
