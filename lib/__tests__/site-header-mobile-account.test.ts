@@ -19,10 +19,13 @@ describe('site header mobile account drawer', () => {
 
   it('keeps account utility labels wrap-safe in the drawer', () => {
     expect(source).toContain('mobilePlainItemTextStyle')
-    expect(source).toContain('<span style={mobilePlainItemTextStyle}>Admin dashboard</span>')
-    expect(source).toContain('<span style={mobilePlainItemTextStyle}>Logout</span>')
-    expect(source).toContain('<span style={mobilePlainItemTextStyle}>Sign in</span>')
-    expect(source).toContain('<span style={mobilePlainItemTextStyle}>Start Free</span>')
+    expect(source).toContain('function MobileItemLabel')
+    expect(source).toContain('<MobileItemLabel label="Admin dashboard" />')
+    expect(source).toContain('<MobileItemLabel label="Logout" />')
+    expect(source).toContain('<MobileItemLabel label="Sign in" description="Open your saved tennis workspace." />')
+    expect(source).toContain('<MobileItemLabel label="Start Free" description="Explore public tennis context before upgrading." />')
+    expect(source).toContain('const mobileItemCopyStyle')
+    expect(source).toContain('const mobileItemDescriptionStyle')
     expect(source).toContain("overflowWrap: 'anywhere'")
     expect(source).not.toContain('mobileMessageLinkWrapStyle')
   })

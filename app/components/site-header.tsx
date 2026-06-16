@@ -10,6 +10,7 @@ import { buildProductAccessState, type ProductAccessState } from '@/lib/access-m
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
+import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -62,6 +63,15 @@ function getHeaderWorkspaceShortcut(access: ProductAccessState, authenticated: b
   if (access.canUseCoachWorkflow) return { href: '/coach', label: 'Coach Hub' }
   if (access.canUseAdvancedPlayerInsights) return { href: '/mylab', label: 'My Lab' }
   return { href: '/explore', label: 'Find tennis' }
+}
+
+function MobileItemLabel({ label, description }: { label: string; description?: string }) {
+  return (
+    <span style={mobileItemCopyStyle}>
+      <span style={mobilePlainItemTextStyle}>{label}</span>
+      {description ? <span style={mobileItemDescriptionStyle}>{description}</span> : null}
+    </span>
+  )
 }
 
 export default function SiteHeader({ active }: { active?: string }) {
@@ -392,30 +402,33 @@ export default function SiteHeader({ active }: { active?: string }) {
               <div style={mobileSearchWrapStyle}>
                 <UniversalSearch compact placeholder="Search TenAceIQ" showResults={false} />
               </div>
+              <p style={mobileMenuCueStyle}>
+                {PRODUCT_MOTTO} Pick the tennis job you need solved.
+              </p>
 
               {authPending ? null : authenticated ? (
                 <>
                   {PRIMARY_NAV_ITEMS.map((item) => (
                     <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                      <span style={mobilePlainItemTextStyle}>{item.label}</span>
+                      <MobileItemLabel label={item.label} description={item.description} />
                       <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                     </Link>
                   ))}
                   {canOpenPersonalQuest ? (
                     <Link href="/level-up/my-quest" onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
-                      <span style={mobilePlainItemTextStyle}>My Quest</span>
+                      <MobileItemLabel label="My Quest" description="Open your private Level Up plan." />
                       <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                     </Link>
                   ) : null}
                   {role === 'admin' ? (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                      <span style={mobilePlainItemTextStyle}>Admin dashboard</span>
+                      <MobileItemLabel label="Admin dashboard" />
                       <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                     </Link>
                   ) : null}
                   {workspaceShortcut ? (
                     <Link href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
-                      <span style={mobilePlainItemTextStyle}>{workspaceShortcut.label}</span>
+                      <MobileItemLabel label={workspaceShortcut.label} description="Jump back into your active workspace." />
                       <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                     </Link>
                   ) : null}
@@ -427,7 +440,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                       cursor: 'pointer',
                     }}
                   >
-                    <span style={mobilePlainItemTextStyle}>Logout</span>
+                    <MobileItemLabel label="Logout" />
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </button>
                 </>
@@ -435,12 +448,12 @@ export default function SiteHeader({ active }: { active?: string }) {
                 <>
                   {PRIMARY_NAV_ITEMS.map((item) => (
                     <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                      <span style={mobilePlainItemTextStyle}>{item.label}</span>
+                      <MobileItemLabel label={item.label} description={item.description} />
                       <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                     </Link>
                   ))}
                   <Link href={signInHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <span style={mobilePlainItemTextStyle}>Sign in</span>
+                    <MobileItemLabel label="Sign in" description="Open your saved tennis workspace." />
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   <Link
@@ -453,7 +466,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                       justifyContent: 'space-between',
                     }}
                   >
-                    <span style={mobilePlainItemTextStyle}>Start Free</span>
+                    <MobileItemLabel label="Start Free" description="Explore public tennis context before upgrading." />
                     <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                   </Link>
                 </>
@@ -623,6 +636,34 @@ const mobilePlainItemTextStyle = {
   overflowWrap: 'anywhere',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
+} as const
+
+const mobileItemCopyStyle = {
+  display: 'grid',
+  gap: '3px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+} as const
+
+const mobileItemDescriptionStyle = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 720,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+} as const
+
+const mobileMenuCueStyle = {
+  margin: '0',
+  borderRadius: '14px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--foreground-strong)',
+  padding: '10px 12px',
+  fontSize: '12px',
+  fontWeight: 850,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 } as const
 
 const mobileSectionLabelStyle = {

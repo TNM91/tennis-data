@@ -10,7 +10,8 @@ const commandCenterSource = readFileSync(join(process.cwd(), 'app/components/pub
 
 describe('Leagues and tournaments hub', () => {
   it('gives the combined organizer nav item a real public hub', () => {
-    expect(navigationSource).toContain("{ href: '/leagues-and-tournaments', label: 'Leagues & Tournaments' }")
+    expect(navigationSource).toContain("href: '/leagues-and-tournaments', label: 'Leagues & Tournaments'")
+    expect(navigationSource).toContain('Organize seasons, events, players, teams, scores, and results.')
     expect(portalSource).toContain("route: '/leagues-and-tournaments'")
     expect(productStorySource).toContain("href: '/leagues-and-tournaments'")
     expect(commandCenterSource).toContain("href: '/leagues-and-tournaments'")

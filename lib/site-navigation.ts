@@ -1,6 +1,7 @@
 export type NavItem = {
   href: string
   label: string
+  description?: string
 }
 
 export type NavSection = {
@@ -9,13 +10,13 @@ export type NavSection = {
 }
 
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { href: '/explore', label: 'Explore' },
-  { href: '/player-development', label: 'Improve' },
-  { href: '/compete', label: 'Compete' },
-  { href: '/manage', label: 'Manage' },
-  { href: '/coaches', label: 'Coaches' },
-  { href: '/leagues-and-tournaments', label: 'Leagues & Tournaments' },
-  { href: '/mylab', label: 'My Lab' },
+  { href: '/explore', label: 'Explore', description: 'Find players, teams, leagues, rankings, and public tennis context.' },
+  { href: '/player-development', label: 'Improve', description: 'Choose what to work on, find drills, and level up faster.' },
+  { href: '/compete', label: 'Compete', description: 'Prepare matchups, scout opponents, and track performance.' },
+  { href: '/manage', label: 'Manage', description: 'Run teams, schedules, availability, scores, and communication.' },
+  { href: '/coaches', label: 'Coaches', description: 'Find coaching support and keep player development moving.' },
+  { href: '/leagues-and-tournaments', label: 'Leagues & Tournaments', description: 'Organize seasons, events, players, teams, scores, and results.' },
+  { href: '/mylab', label: 'My Lab', description: 'Open your personal tennis home for insights, prep, and progress.' },
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
