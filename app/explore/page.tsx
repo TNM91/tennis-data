@@ -5,6 +5,7 @@ import { CSSProperties } from 'react'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import UniversalSearch from '@/app/components/universal-search'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
@@ -17,31 +18,41 @@ const FIND_COMMAND_STEPS: Array<{
   href: string
   label: string
   title: string
+  body: string
   icon: TiqFeatureIconName
+  event: ProductLinkEvent
 }> = [
   {
     href: '/explore/players',
     label: 'Find a player',
     title: 'Open the profile',
+    body: 'See ratings, teams, and recent public tennis context.',
     icon: 'playerRatings',
+    event: { eventName: 'search_result_clicked', surface: 'public_site', metadata: { location: 'explore_path', job: 'find_player' } },
   },
   {
     href: '/explore/teams',
     label: 'Browse teams',
     title: 'Check the roster',
+    body: 'Review team, flight, league, and opponent context.',
     icon: 'lineupBuilder',
+    event: { eventName: 'team_search_submitted', surface: 'teams', metadata: { location: 'explore_path', job: 'browse_teams' } },
   },
   {
     href: '/explore/leagues',
     label: 'Check standings',
     title: 'Open the league table',
+    body: 'Find schedules, results, and where the season stands.',
     icon: 'schedule',
+    event: { eventName: 'league_search_submitted', surface: 'leagues', metadata: { location: 'explore_path', job: 'check_standings' } },
   },
   {
     href: '/explore/rankings',
     label: 'Check rankings',
     title: 'Scan the field',
+    body: 'Compare rating, area, and player shape before you choose.',
     icon: 'reports',
+    event: { eventName: 'search_category_selected', surface: 'public_site', metadata: { location: 'explore_path', job: 'check_rankings' } },
   },
 ]
 
@@ -52,30 +63,35 @@ const PUBLIC_DISCOVERY_PROOF_STEPS: Array<{
   title: string
   body: string
   href: string
+  event: ProductLinkEvent
 }> = [
   {
     label: 'Find first',
     title: FREE_TIER_STORY.shortPromise,
     body: FREE_TIER_STORY.valueProps[0],
     href: '/explore/search',
+    event: { eventName: 'search_category_selected', surface: 'public_site', metadata: { location: 'public_discovery_proof', job: 'find_first' } },
   },
   {
     label: 'Public detail',
     title: 'Open reviewed context',
     body: 'Player, team, league, and ranking pages should help before asking for an upgrade.',
     href: '/explore/players',
+    event: { eventName: 'search_result_clicked', surface: 'public_site', metadata: { location: 'public_discovery_proof', job: 'open_public_detail' } },
   },
   {
     label: DATA_ASSIST_STORY.eyebrow,
     title: DATA_ASSIST_STORY.cta,
     body: DATA_ASSIST_STORY.shortCue,
     href: DATA_ASSIST_STORY.href,
+    event: { eventName: 'data_assist_opened', surface: 'data_assist', metadata: { location: 'public_discovery_proof', job: 'improve_context' } },
   },
   {
     label: 'Next tier',
     title: 'Know what unlocks',
     body: 'Pricing explains when My Lab, Coach Hub, Team Hub, League Office, or Full-Court fits the job.',
     href: '/pricing',
+    event: { eventName: 'search_category_selected', surface: 'public_site', metadata: { location: 'public_discovery_proof', job: 'compare_tiers' } },
   },
 ]
 
@@ -165,14 +181,21 @@ function FindCommandPanel() {
 
       <div style={findCommandGrid}>
         {FIND_COMMAND_STEPS.map((step, index) => (
-          <Link key={step.href} href={step.href} style={findCommandCard}>
+          <TrackedProductLink
+            key={step.href}
+            href={step.href}
+            style={findCommandCard}
+            ariaLabel={`${step.label}: ${step.title}. ${step.body}`}
+            event={step.event}
+          >
             <span style={findCommandNumber}>{index + 1}</span>
             <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
               <span style={findCommandCardCopy}>
                 <span style={findCommandLabel}>{step.label}</span>
                 <strong style={findCommandCardTitle}>{step.title}</strong>
+                <span style={findCommandCardBody}>{step.body}</span>
               </span>
-            </Link>
+          </TrackedProductLink>
           ))}
       </div>
 
@@ -183,11 +206,11 @@ function FindCommandPanel() {
         </div>
         <div style={publicDiscoveryProofGridStyle}>
           {PUBLIC_DISCOVERY_PROOF_STEPS.map((step) => (
-            <Link key={step.label} href={step.href} style={publicDiscoveryProofItemStyle}>
+            <TrackedProductLink key={step.label} href={step.href} style={publicDiscoveryProofItemStyle} event={step.event}>
               <span style={publicDiscoveryProofLabelStyle}>{step.label}</span>
               <strong>{step.title}</strong>
               <small>{step.body}</small>
-            </Link>
+            </TrackedProductLink>
           ))}
         </div>
       </div>
@@ -318,8 +341,8 @@ const findCommandCard: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '28px 32px minmax(0, 1fr)',
   gap: '9px',
-  alignItems: 'center',
-  minHeight: 74,
+  alignItems: 'start',
+  minHeight: 106,
   padding: '10px',
   borderRadius: '15px',
   border: '1px solid rgba(116,190,255,0.13)',
@@ -359,6 +382,14 @@ const findCommandCardTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandCardBody: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  lineHeight: 1.35,
+  fontWeight: 720,
   overflowWrap: 'anywhere',
 }
 
