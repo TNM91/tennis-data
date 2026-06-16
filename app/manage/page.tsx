@@ -53,7 +53,9 @@ export default function ManagePage() {
                 cta={action.cta}
                 event={action.event}
                 trust={[...action.trust]}
-              />
+              >
+                <p style={actionQuestionStyle}>{action.question}</p>
+              </TiqActionCard>
             ))}
           </div>
         </section>
@@ -77,6 +79,11 @@ export default function ManagePage() {
               ]}
               href="/captain/availability"
               cta="Check Availability"
+              event={{
+                eventName: 'availability_clicked',
+                surface: 'captain',
+                metadata: { location: 'manage_preview', job: 'manage_team_week' },
+              }}
             />
             <TiqWorkspacePreview
               eyebrow="League"
@@ -89,6 +96,11 @@ export default function ManagePage() {
               ]}
               href="/league-coordinator"
               cta="Open League Office"
+              event={{
+                eventName: 'league_office_clicked',
+                surface: 'leagues',
+                metadata: { location: 'manage_preview', job: 'run_league_season' },
+              }}
             />
             <TiqWorkspacePreview
               eyebrow="Tournament"
@@ -101,6 +113,11 @@ export default function ManagePage() {
               ]}
               href="/tournaments#desk"
               cta="Open Tournament Desk"
+              event={{
+                eventName: 'tournament_desk_clicked',
+                surface: 'tournaments',
+                metadata: { location: 'manage_preview', job: 'run_event_desk' },
+              }}
             />
           </div>
         </section>
@@ -123,6 +140,7 @@ const manageActions = [
   {
     eyebrow: 'Captain',
     title: 'Manage the team week',
+    question: 'Who is available, what lineup should we send, and what needs to be communicated?',
     body: 'Answer who is available, what lineup gives the team the best chance, who should play together, and what to send.',
     metrics: [
       { label: 'Availability', value: 'Team' },
@@ -134,7 +152,7 @@ const manageActions = [
     event: {
       eventName: 'captain_tools_clicked',
       surface: 'teams',
-      metadata: { location: 'manage_hub' },
+      metadata: { location: 'manage_hub', job: 'manage_team_week' },
     },
     trust: [
       { label: 'Status', value: 'Captain path', tone: 'good' },
@@ -144,6 +162,7 @@ const manageActions = [
   {
     eyebrow: 'League',
     title: 'Run a cleaner season',
+    question: 'How do I keep schedules, players, teams, scores, and standings organized?',
     body: 'Organize schedules, manage players or teams, track scores, update standings, and reduce spreadsheet work.',
     metrics: [
       { label: 'Schedule', value: 'Season' },
@@ -155,7 +174,7 @@ const manageActions = [
     event: {
       eventName: 'league_office_clicked',
       surface: 'leagues',
-      metadata: { location: 'manage_hub' },
+      metadata: { location: 'manage_hub', job: 'run_league_season' },
     },
     trust: [
       { label: 'Status', value: 'Organizer path', tone: 'good' },
@@ -165,6 +184,7 @@ const manageActions = [
   {
     eyebrow: 'Tournament',
     title: 'Run an event desk',
+    question: 'How do I keep entries, draws, courts, scores, and winners moving?',
     body: 'Set up divisions, manage entries, build draws, schedule courts, track scores, and publish outcomes.',
     metrics: [
       { label: 'Entries', value: 'Open' },
@@ -176,7 +196,7 @@ const manageActions = [
     event: {
       eventName: 'tournament_desk_clicked',
       surface: 'tournaments',
-      metadata: { location: 'manage_hub' },
+      metadata: { location: 'manage_hub', job: 'run_event_desk' },
     },
     trust: [
       { label: 'Status', value: 'Event path', tone: 'good' },
@@ -186,6 +206,7 @@ const manageActions = [
   {
     eyebrow: 'Organizer hub',
     title: 'Choose the right league or tournament path',
+    question: 'Which path fits the work: league season, tournament desk, or both?',
     body: 'Use the combined organizer hub when schedules, standings, draws, players, teams, scores, and event work overlap.',
     metrics: [
       { label: 'Hub', value: 'Leagues + events' },
@@ -210,6 +231,7 @@ const manageActions = [
   {
     eyebrow: 'Data Assist',
     title: 'Fix the source of confusion',
+    question: 'What source needs review before the platform can trust it?',
     body: 'Upload scorecards, schedules, rosters, team summaries, or corrections when the tennis context needs review.',
     metrics: [
       { label: 'Upload', value: 'Source' },
@@ -221,7 +243,7 @@ const manageActions = [
     event: {
       eventName: 'data_assist_opened',
       surface: 'data_assist',
-      metadata: { location: 'manage_hub' },
+      metadata: { location: 'manage_hub', job: 'fix_source_confusion' },
     },
     trust: [
       { label: 'Source', value: 'User upload', tone: 'info' },
@@ -241,4 +263,15 @@ const gridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const actionQuestionStyle: CSSProperties = {
+  margin: 0,
+  borderTop: '1px solid var(--shell-panel-border)',
+  paddingTop: 10,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
