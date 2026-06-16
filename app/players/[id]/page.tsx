@@ -32,7 +32,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import {
@@ -884,28 +884,32 @@ function PlayerProfileContent() {
     {
       question: 'What should I work on?',
       label: 'Level Up My Game',
-      body: 'Pick one focus, run a training card, and leave with a clear next rep.',
+      body: 'Pick one focus, run a training card, and leave with one clear next rep.',
       href: '/level-up',
+      job: 'level_up_game',
     },
     {
       question: 'How am I improving?',
       label: 'Open My Lab',
       body: 'Track goals, follows, recent matches, and progress around your player record.',
       href: '/mylab',
+      job: 'track_progress',
     },
     {
-      question: 'What matchup matters?',
+      question: 'What matchup matters next?',
       label: isOwnProfile ? 'Find a Matchup' : primaryActionLabel,
       body: isOwnProfile
         ? 'Choose the next opponent or nearby player to prep before you play.'
         : 'Compare this player against your profile or choose the other side.',
       href: isOwnProfile ? secondaryActionHref : primaryActionHref,
+      job: 'prep_matchup',
     },
     {
-      question: 'What drill helps next?',
+      question: 'What drills or resources can help?',
       label: 'Find Drills',
-      body: 'Use tennis resources when the next step should be a quick drill, skill, or strategy cue.',
-      href: '/resources',
+      body: 'Use drills, skills, and strategy resources when the fastest next step is a simple court cue.',
+      href: '/resources?q=drills%20skills%20strategy',
+      job: 'find_training_resources',
     },
   ] as const
   const primaryUstaMembership = ustaTeamMemberships[0] ?? null
@@ -1417,15 +1421,22 @@ function PlayerProfileContent() {
             <div style={scorecardRailLabelStyle}>Player path</div>
             <div style={scorecardRailValueStyle}>Find the next useful move.</div>
             <p style={scorecardRailTextStyle}>
+              {PRODUCT_MOTTO}{' '}
               {isOwnProfile
-                ? 'Use this profile to decide what to work on, how progress is moving, which matchup to prep, and what drill should come next.'
+                ? 'Use this profile to decide what to work on, how progress is moving, which matchup to prep, and what drill or resource should come next.'
                 : linkedPlayerId
                   ? 'Your profile is loaded, so this player page can become a direct comparison, a My Lab follow, or a training cue.'
                   : 'Start with this player, then choose whether you want a matchup read, My Lab context, or a simple resource.'}
             </p>
             <div style={playerPathListStyle} aria-label="Player path actions">
               {playerPathActions.map((action) => (
-                <Link key={action.question} href={action.href} style={playerPathActionStyle}>
+                <Link
+                  key={action.question}
+                  href={action.href}
+                  style={playerPathActionStyle}
+                  aria-label={`${action.label}: ${action.question}`}
+                  data-player-path-job={action.job}
+                >
                   <span style={playerPathQuestionStyle}>{action.question}</span>
                   <strong style={playerPathLabelStyle}>{action.label}</strong>
                   <span style={playerPathBodyStyle}>{action.body}</span>

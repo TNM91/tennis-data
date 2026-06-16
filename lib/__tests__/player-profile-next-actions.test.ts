@@ -1,0 +1,33 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const source = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
+
+describe('player profile next actions', () => {
+  it('ties player profile actions back to More Tennis. Less Chaos.', () => {
+    expect(source).toContain("import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'")
+    expect(source).toContain('Find the next useful move.')
+    expect(source).toContain('{PRODUCT_MOTTO}{\' \'}')
+    expect(source).toContain('what drill or resource should come next')
+  })
+
+  it('answers player questions with practical CTAs', () => {
+    expect(source).toContain("question: 'What should I work on?'")
+    expect(source).toContain("label: 'Level Up My Game'")
+    expect(source).toContain("question: 'How am I improving?'")
+    expect(source).toContain("label: 'Open My Lab'")
+    expect(source).toContain("question: 'What matchup matters next?'")
+    expect(source).toContain("question: 'What drills or resources can help?'")
+    expect(source).toContain("href: '/resources?q=drills%20skills%20strategy'")
+  })
+
+  it('adds job hooks without changing the existing link surface', () => {
+    expect(source).toContain("job: 'level_up_game'")
+    expect(source).toContain("job: 'track_progress'")
+    expect(source).toContain("job: 'prep_matchup'")
+    expect(source).toContain("job: 'find_training_resources'")
+    expect(source).toContain('data-player-path-job={action.job}')
+    expect(source).toContain('aria-label={`${action.label}: ${action.question}`}')
+  })
+})
