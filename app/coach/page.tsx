@@ -42,6 +42,7 @@ import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity } from '@/lib/level-up/recommendations'
 import type { LevelUpCard, LevelUpModule } from '@/lib/level-up/level-up-types'
 import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentity } from '@/lib/player-development'
+import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
 const CUSTOM_ASSIGNMENT_TEMPLATE_ID = 'custom-assignment'
@@ -93,6 +94,45 @@ const COACH_REVIEW_PROOF_SYNC_STEPS = [
     text: 'Use the proof score, note, and due state to choose repeat, simplify, or add pressure.',
   },
 ]
+
+const COACH_SUPPORT_PATHS = [
+  {
+    job: 'assign_drills',
+    question: 'How can I assign drills?',
+    title: 'Assign the next rep',
+    body: 'Use the lesson frame, Level Up packs, or Tactical Studio so the player leaves with one measurable task.',
+    href: '#coach-lesson-frame',
+    cta: 'Open lesson frame',
+    icon: 'scenarioBuilder',
+  },
+  {
+    job: 'track_development',
+    question: 'How can I track player development?',
+    title: 'Review the player queue',
+    body: 'See linked players, active assignments, proof to review, due pressure, and the next focus before the next lesson.',
+    href: '#coach-linked-dashboard',
+    cta: 'Review player queue',
+    icon: 'playerRatings',
+  },
+  {
+    job: 'recommend_resources',
+    question: 'How can I recommend resources?',
+    title: 'Send the right resource',
+    body: 'Point players to development paths, Level Up cards, coach planner sheets, or resource hub cues that match the goal.',
+    href: '/resources?q=coach%20drills%20skills',
+    cta: 'Open coach resources',
+    icon: 'reports',
+  },
+  {
+    job: 'support_between_sessions',
+    question: 'How can I support players between sessions?',
+    title: 'Close the loop',
+    body: 'Send the assignment, schedule cue, recap request, or next focus without losing the player thread.',
+    href: '#coach-student-board',
+    cta: 'Support a player',
+    icon: 'messagingCenter',
+  },
+] as const
 
 type CoachLevelUpHandoffPack = {
   id: string
@@ -939,6 +979,37 @@ function CoachContent() {
         </div>
       </section>
 
+      <section style={coachSupportPathStyle} aria-labelledby="coach-support-path-title">
+        <div style={coachSupportPathHeaderStyle}>
+          <div>
+            <div style={eyebrowStyle}>Coach support path</div>
+            <h2 id="coach-support-path-title" style={coachSupportPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+          </div>
+          <p style={coachSupportPathIntroStyle}>
+            Start with the coaching question that keeps a player moving between sessions.
+          </p>
+        </div>
+        <div style={coachSupportPathGridStyle}>
+          {COACH_SUPPORT_PATHS.map((path) => (
+            <Link
+              key={path.job}
+              href={path.href}
+              style={coachSupportPathCardStyle}
+              data-coach-path-job={path.job}
+              aria-label={`${path.cta}: ${path.question}`}
+            >
+              <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
+              <span style={coachSupportPathCopyStyle}>
+                <em>{path.question}</em>
+                <strong>{path.title}</strong>
+                <span>{path.body}</span>
+                <span style={coachSupportPathCtaStyle}>{path.cta}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <section style={commandGridStyle} aria-label="Coach workflow">
         {COACH_WORKSPACE_COMMANDS.map((command) => (
           <Link key={command.title} href={command.href} style={commandCardStyle}>
@@ -1030,7 +1101,7 @@ function CoachContent() {
         </section>
       ) : null}
 
-      <section style={linkedDashboardStyle} aria-label="Linked players dashboard">
+      <section id="coach-linked-dashboard" style={linkedDashboardStyle} aria-label="Linked players dashboard">
         <div style={linkedDashboardHeaderStyle}>
           <div>
             <div style={eyebrowStyle}>Linked players</div>
@@ -2572,6 +2643,79 @@ const heroPanelStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.55,
   fontWeight: 820,
+}
+
+const coachSupportPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.085), rgba(116,190,255,0.045)), linear-gradient(180deg, rgba(11,25,48,0.86), rgba(6,15,30,0.94))',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.22)',
+}
+
+const coachSupportPathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'end',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  minWidth: 0,
+}
+
+const coachSupportPathTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 3vw, 2.25rem)',
+  lineHeight: 1.04,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const coachSupportPathIntroStyle: CSSProperties = {
+  ...bodyStyle,
+  maxWidth: 470,
+}
+
+const coachSupportPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const coachSupportPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '38px minmax(0, 1fr)',
+  gap: 11,
+  minWidth: 0,
+  minHeight: 160,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(223,248,194,0.13)',
+  background: 'linear-gradient(180deg, rgba(18,39,70,0.72), rgba(8,18,36,0.9))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const coachSupportPathCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.42,
+  fontWeight: 760,
+}
+
+const coachSupportPathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
 }
 
 const commandGridStyle: CSSProperties = {
