@@ -56,7 +56,9 @@ export default function LeaguesAndTournamentsPage() {
                 cta={action.cta}
                 event={action.event}
                 trust={[...action.trust]}
-              />
+              >
+                <p style={organizerQuestionStyle}>{action.question}</p>
+              </TiqActionCard>
             ))}
           </div>
         </section>
@@ -80,6 +82,11 @@ export default function LeaguesAndTournamentsPage() {
               ]}
               href="/league-coordinator"
               cta="Open League Office"
+              event={{
+                eventName: 'league_office_clicked',
+                surface: 'leagues',
+                metadata: { location: 'leagues_tournaments_preview', job: 'organize_season' },
+              }}
             />
             <TiqWorkspacePreview
               eyebrow="Tournament Desk"
@@ -92,6 +99,11 @@ export default function LeaguesAndTournamentsPage() {
               ]}
               href="/tournaments#desk"
               cta="Open Tournament Desk"
+              event={{
+                eventName: 'tournament_desk_clicked',
+                surface: 'tournaments',
+                metadata: { location: 'leagues_tournaments_preview', job: 'run_event_day' },
+              }}
             />
             <TiqWorkspacePreview
               eyebrow="Data Assist"
@@ -104,6 +116,11 @@ export default function LeaguesAndTournamentsPage() {
               ]}
               href="/data-assist?intent=upload-source&context=Leagues%20and%20Tournaments"
               cta="Open Data Assist"
+              event={{
+                eventName: 'data_assist_opened',
+                surface: 'data_assist',
+                metadata: { location: 'leagues_tournaments_preview', job: 'review_source_data' },
+              }}
             />
           </div>
         </section>
@@ -126,6 +143,7 @@ const organizerActions = [
   {
     eyebrow: 'Setup',
     title: 'Set up a league',
+    question: 'How do I organize the season before players start asking where everything lives?',
     body: 'Create the season structure, add players or teams, organize flights, and make the next admin step clear.',
     metrics: [
       { label: 'Players', value: 'Managed' },
@@ -137,7 +155,7 @@ const organizerActions = [
     event: {
       eventName: 'league_office_clicked',
       surface: 'leagues',
-      metadata: { location: 'leagues_tournaments_hub' },
+      metadata: { location: 'leagues_tournaments_hub', job: 'organize_season' },
     },
     trust: [
       { label: 'Status', value: 'Organizer path', tone: 'good' },
@@ -147,6 +165,7 @@ const organizerActions = [
   {
     eyebrow: 'Event',
     title: 'Set up a tournament',
+    question: 'How do I manage entries, draws, courts, and event-day movement?',
     body: 'Manage entries, divisions, seeds, draws, courts, and the decisions that keep event day moving.',
     metrics: [
       { label: 'Entries', value: 'Open' },
@@ -158,7 +177,7 @@ const organizerActions = [
     event: {
       eventName: 'tournament_desk_clicked',
       surface: 'tournaments',
-      metadata: { location: 'leagues_tournaments_hub' },
+      metadata: { location: 'leagues_tournaments_hub', job: 'run_event_day' },
     },
     trust: [
       { label: 'Status', value: 'Event path', tone: 'good' },
@@ -168,6 +187,7 @@ const organizerActions = [
   {
     eyebrow: 'Scores',
     title: 'Track scores',
+    question: 'Where do scores go, and what needs review before standings move?',
     body: 'Enter team results, review scorecards, keep standings current, and cut down on text-thread follow-ups.',
     metrics: [
       { label: 'Scores', value: 'Tracked' },
@@ -179,7 +199,7 @@ const organizerActions = [
     event: {
       eventName: 'standings_preview_clicked',
       surface: 'leagues',
-      metadata: { location: 'leagues_tournaments_hub' },
+      metadata: { location: 'leagues_tournaments_hub', job: 'track_scores' },
     },
     trust: [
       { label: 'Freshness', value: 'Results path', tone: 'info' },
@@ -189,6 +209,7 @@ const organizerActions = [
   {
     eyebrow: 'Publish',
     title: 'Publish updates',
+    question: 'How do I give everyone one place to check schedules, results, and corrections?',
     body: 'Send players to one public home for schedules, scores, standings, results, and corrections they can trust.',
     metrics: [
       { label: 'Schedules', value: 'Visible' },
@@ -200,7 +221,7 @@ const organizerActions = [
     event: {
       eventName: 'league_search_submitted',
       surface: 'leagues',
-      metadata: { location: 'leagues_tournaments_hub' },
+      metadata: { location: 'leagues_tournaments_hub', job: 'publish_updates' },
     },
     trust: [
       { label: 'Source', value: 'Public pages', tone: 'info' },
@@ -220,4 +241,15 @@ const gridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const organizerQuestionStyle: CSSProperties = {
+  margin: 0,
+  borderTop: '1px solid var(--shell-panel-border)',
+  paddingTop: 10,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }

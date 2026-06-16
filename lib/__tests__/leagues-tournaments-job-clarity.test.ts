@@ -1,0 +1,35 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const source = readFileSync(join(process.cwd(), 'app/leagues-and-tournaments/page.tsx'), 'utf8')
+
+describe('leagues and tournaments job clarity', () => {
+  it('frames organizer actions around practical admin questions', () => {
+    expect(source).toContain('Start with the job you need to finish')
+    expect(source).toContain('How do I organize the season before players start asking where everything lives?')
+    expect(source).toContain('How do I manage entries, draws, courts, and event-day movement?')
+    expect(source).toContain('Where do scores go, and what needs review before standings move?')
+    expect(source).toContain('How do I give everyone one place to check schedules, results, and corrections?')
+    expect(source).toContain('<p style={organizerQuestionStyle}>{action.question}</p>')
+  })
+
+  it('tracks organizer jobs from public CTAs and previews', () => {
+    expect(source).toContain("metadata: { location: 'leagues_tournaments_hub', job: 'organize_season' }")
+    expect(source).toContain("metadata: { location: 'leagues_tournaments_hub', job: 'run_event_day' }")
+    expect(source).toContain("metadata: { location: 'leagues_tournaments_hub', job: 'track_scores' }")
+    expect(source).toContain("metadata: { location: 'leagues_tournaments_hub', job: 'publish_updates' }")
+    expect(source).toContain("metadata: { location: 'leagues_tournaments_preview', job: 'organize_season' }")
+    expect(source).toContain("metadata: { location: 'leagues_tournaments_preview', job: 'run_event_day' }")
+    expect(source).toContain("metadata: { location: 'leagues_tournaments_preview', job: 'review_source_data' }")
+  })
+
+  it('keeps organizer question cards compact and phone-safe', () => {
+    expect(source).toContain('const organizerQuestionStyle')
+    expect(source).toContain("fontSize: 12")
+    expect(source).toContain("lineHeight: 1.35")
+    expect(source).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))'")
+    expect(source).toContain('minWidth: 0')
+  })
+})
