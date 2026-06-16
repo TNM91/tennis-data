@@ -174,6 +174,99 @@
   padding: clamp(20px, 3vw, 28px);
 }
 
+.playerQuestionStrip {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  border: 1px solid var(--card-border-soft);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 36%),
+    var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(18px, 3vw, 26px);
+}
+
+.playerQuestionStripHeader {
+  display: grid;
+  gap: 6px;
+  max-width: 800px;
+}
+
+.playerQuestionStripHeader h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.5rem, 3vw, 2.35rem);
+  font-weight: 950;
+  line-height: 1.03;
+  letter-spacing: 0;
+}
+
+.playerQuestionStripHeader p,
+.playerQuestionCard p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.45;
+}
+
+.playerQuestionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.playerQuestionCard {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  min-height: 100%;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--foreground);
+  padding: 14px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.playerQuestionCard:hover {
+  border-color: rgba(155, 225, 29, 0.38);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.playerQuestionCard span {
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 6px 9px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playerQuestionCard strong {
+  color: var(--foreground-strong);
+  font-size: 1.04rem;
+  line-height: 1.16;
+}
+
+.playerQuestionCard small {
+  width: fit-content;
+  margin-top: auto;
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.1);
+  color: var(--foreground-strong);
+  padding: 6px 9px;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
 .levelUpRouteHeader,
 .levelUpIdentityStrip {
   display: grid;
@@ -13193,6 +13286,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .playerQuestionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .levelUpCoachInboxHeader,
   .levelUpCoachInboxGrid article {
     grid-template-columns: 1fr;
@@ -13230,6 +13327,7 @@
   }
 
   .planGrid,
+  .playerQuestionGrid,
   .auditGrid,
   .identitySelectorGrid,
   .sessionFields,

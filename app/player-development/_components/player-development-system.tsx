@@ -20,7 +20,7 @@ import {
   type PlayerDevelopmentWeek,
 } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
-import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, PRODUCT_MOTTO, getMembershipTier } from '@/lib/product-story'
 import PlayerDevelopmentPrintControls from './player-development-print-controls'
 import PlayerLiveWorkbench from './player-live-workbench'
 import styles from './player-development.module.css'
@@ -52,7 +52,7 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
                 <p className={styles.kicker}>TenAceIQ Player Development System</p>
                 <h1>{identity.title}</h1>
                 <p className={styles.heroText}>
-                  A Level Up portal, printable companion, and coach lesson plan for {identity.ratingBand.toLowerCase()}: {identity.promise}
+                  {PRODUCT_MOTTO} Choose what to work on, prove one habit, and keep the next step visible for {identity.ratingBand.toLowerCase()}: {identity.promise}
                 </p>
                 <div className={styles.actions}>
                   <Link className="button-primary" href={`/player-development/${identity.slug}/level-up`}>
@@ -84,6 +84,8 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
               playerLabel="Player+ development path"
               flow={['lab', 'development', 'matchup', 'refresh']}
             />
+
+            <PlayerQuestionStrip identity={identity} />
 
             <IdentitySelector activeSlug={identity.slug} />
 
@@ -172,6 +174,75 @@ function IdentitySelector({ activeSlug }: { activeSlug: string }) {
       </div>
     </section>
   )
+}
+
+function PlayerQuestionStrip({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const cards = getPlayerQuestionCards(identity)
+
+  return (
+    <section className={styles.playerQuestionStrip} aria-labelledby="player-question-strip-title">
+      <div className={styles.playerQuestionStripHeader}>
+        <p className={styles.kicker}>Player quick starts</p>
+        <h2 id="player-question-strip-title">Find the next useful tennis move.</h2>
+        <p>Start with the question in your head, then open the path that gets you back to court work fastest.</p>
+      </div>
+      <div className={styles.playerQuestionGrid}>
+        {cards.map((card) => (
+          <Link className={styles.playerQuestionCard} href={card.href} key={card.question}>
+            <TiqFeatureIcon name={card.icon} size="sm" variant="ghost" />
+            <span>{card.label}</span>
+            <strong>{card.question}</strong>
+            <p>{card.answer}</p>
+            <small>{card.cta}</small>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function getPlayerQuestionCards(identity: PlayerDevelopmentIdentity) {
+  return [
+    {
+      icon: 'myLab',
+      label: 'Focus',
+      question: 'What should I work on?',
+      answer: `Start with ${identity.title.replace(/^The /, '')} and choose the habit that can change your next match fastest.`,
+      href: `/player-development/${identity.slug}#weekly-action-plan`,
+      cta: 'Choose a focus',
+    },
+    {
+      icon: 'reports',
+      label: 'Progress',
+      question: 'How am I improving?',
+      answer: 'Use quick ratings, proof notes, and Level Up history to see whether to repeat, progress, or test in a match.',
+      href: `/player-development/${identity.slug}#toolbelt`,
+      cta: 'Check progress',
+    },
+    {
+      icon: 'matchPrep',
+      label: 'Match prep',
+      question: 'What matchups matter?',
+      answer: 'Use the match card before, during, and after play so the lesson turns into a practical match plan.',
+      href: `/player-development/${identity.slug}#match-card`,
+      cta: 'Prep the match',
+    },
+    {
+      icon: 'schedule',
+      label: 'Drills',
+      question: 'What drills or resources can help me level up faster?',
+      answer: 'Open Level Up for the recommended cards, coach assignments, favorites, and proof history tied to this player path.',
+      href: `/player-development/${identity.slug}/level-up`,
+      cta: 'Open Level Up',
+    },
+  ] satisfies Array<{
+    icon: TiqFeatureIconName
+    label: string
+    question: string
+    answer: string
+    href: string
+    cta: string
+  }>
 }
 
 function PlanCard({ icon, title, items }: { icon: TiqFeatureIconName; title: string; items: string[] }) {
