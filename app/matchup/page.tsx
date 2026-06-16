@@ -13,7 +13,7 @@ import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
-import { DATA_ASSIST_STORY, MATCHUP_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MATCHUP_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
@@ -166,6 +166,26 @@ const MATCHUP_PLAYER_SELECT_BASE = `
   doubles_usta_dynamic_rating
 `
 const MATCHUP_PLAYER_SELECT_WITH_SOURCE = `${MATCHUP_PLAYER_SELECT_BASE},rating_source`
+const matchupPrepPath = [
+  {
+    question: 'What matchup matters?',
+    title: 'Choose the court',
+    body: 'Start with singles or doubles, then pick the players you actually need to prepare for.',
+    job: 'choose_matchup',
+  },
+  {
+    question: 'What should I watch first?',
+    title: 'Read the edge',
+    body: 'Use rating gap, confidence, form, and history as prep signals, not guarantees.',
+    job: 'read_edge',
+  },
+  {
+    question: 'What do I do next?',
+    title: 'Take the next tennis step',
+    body: 'Scout players, save the takeaway in My Lab, or hand the matchup into Team Hub decisions.',
+    job: 'next_step',
+  },
+] as const
 
 function hasValidRating(value: number | null | undefined): value is number {
   return typeof value === 'number' && !Number.isNaN(value)
@@ -1463,6 +1483,25 @@ export default function MatchupPage() {
             </div>
             <div style={toolHeaderTextStyle}>{MATCHUP_STORY.proof.join(' - ')}</div>
           </div>
+
+          <section style={matchupPrepPathStyle} aria-label="Matchup prep path">
+            <div style={matchupPrepIntroStyle}>
+              <div style={matchupPrepMottoStyle}>{PRODUCT_MOTTO}</div>
+              <h2 style={matchupPrepTitleStyle}>Know what matters before match time.</h2>
+              <p style={matchupPrepTextStyle}>
+                Matchup is a quick prep read: pick the court, understand the lean, then choose the next tennis action.
+              </p>
+            </div>
+            <div style={matchupPrepGridStyle(isSmallMobile)}>
+              {matchupPrepPath.map((item) => (
+                <article key={item.question} style={matchupPrepCardStyle} data-matchup-prep-job={item.job}>
+                  <span style={matchupPrepQuestionStyle}>{item.question}</span>
+                  <strong style={matchupPrepCardTitleStyle}>{item.title}</strong>
+                  <span style={matchupPrepCardTextStyle}>{item.body}</span>
+                </article>
+              ))}
+            </div>
+          </section>
 
           {needsProfileSetup ? (
             <article style={dynamicIdentitySetupStripStyle}>
@@ -2862,6 +2901,97 @@ const toolHeaderTextStyle: CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 800,
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPrepPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  minWidth: 0,
+  marginBottom: 18,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const matchupPrepIntroStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPrepMottoStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPrepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '1.22rem',
+  lineHeight: 1.15,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPrepTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPrepGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+})
+
+const matchupPrepCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateRows: 'auto auto minmax(0, 1fr)',
+  gap: 6,
+  minWidth: 0,
+  minHeight: 124,
+  padding: 13,
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.15)',
+  background: 'rgba(8, 13, 28, 0.58)',
+  overflowWrap: 'anywhere',
+}
+
+const matchupPrepQuestionStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const matchupPrepCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPrepCardTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 700,
   overflowWrap: 'anywhere',
 }
 
