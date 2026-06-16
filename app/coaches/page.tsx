@@ -91,9 +91,9 @@ export default function CoachesPage() {
         </section>
         <section style={nextActionSectionStyle} aria-labelledby="coach-next-actions-title">
           <SectionHeader
-            eyebrow="Coaching next actions"
-            title="Turn a lesson into the next useful tennis move."
-            body="Start with the job in front of you: find coaching support, prep the next lesson, assign the work, or refresh the evidence that should shape the next read."
+            eyebrow="Coach path"
+            title="Assign, track, recommend, follow up."
+            body="Coach Hub keeps the post-lesson job simple: give the player clear work, watch development, point them to the right resource, and keep support visible between sessions."
             titleId="coach-next-actions-title"
           />
           <div style={nextActionGridStyle}>
@@ -181,59 +181,13 @@ export default function CoachesPage() {
 
 const coachNextActions = [
   {
-    eyebrow: 'Find support',
-    title: 'Find a coach',
-    body: 'Start from the resource hub when a player needs a lesson, clinic, hitting plan, or clearer coaching direction.',
-    metrics: [
-      { label: 'Need', value: 'Coach' },
-      { label: 'Context', value: 'Goals' },
-      { label: 'Next', value: 'Connect' },
-    ],
-    href: '/resources?q=find%20a%20coach',
-    cta: 'Find a Coach',
-    event: {
-      eventName: 'find_coach_clicked',
-      surface: 'coach',
-      metadata: {
-        location: 'coaches_next_actions',
-      },
-    },
-    trust: [
-      { label: 'Source', value: 'Resource hub', tone: 'info' },
-      { label: 'Status', value: 'Discovery ready', tone: 'good' },
-    ],
-  },
-  {
-    eyebrow: 'Lesson prep',
-    title: 'Bring match context',
-    body: 'Use goals, matchup questions, and recent player evidence to make the next lesson easier to focus.',
-    metrics: [
-      { label: 'Prep', value: 'Goals' },
-      { label: 'Evidence', value: 'Matches' },
-      { label: 'Use', value: 'Lesson' },
-    ],
-    href: '/matchup',
-    cta: 'Prep a Lesson',
-    event: {
-      eventName: 'matchup_started',
-      surface: 'matchup',
-      metadata: {
-        location: 'coaches_lesson_prep',
-      },
-    },
-    trust: [
-      { label: 'Source', value: 'Player context', tone: 'info' },
-      { label: 'Confidence', value: 'Improves with reviewed results', tone: 'warn' },
-    ],
-  },
-  {
-    eyebrow: 'Coach Hub',
-    title: 'Assign drills',
-    body: 'Turn a lesson focus into drills, due dates, proof to review, and the next resource to use.',
+    eyebrow: 'Assign',
+    title: 'How can I assign drills?',
+    body: 'Turn the lesson focus into a small court task with a due date and proof the player can bring back.',
     metrics: [
       { label: 'Assign', value: 'Drills' },
-      { label: 'Due', value: 'Next week' },
-      { label: 'Review', value: 'Evidence' },
+      { label: 'Due', value: 'Set' },
+      { label: 'Proof', value: 'Named' },
     ],
     href: '/coach',
     cta: 'Assign Drills',
@@ -251,8 +205,8 @@ const coachNextActions = [
   },
   {
     eyebrow: 'Progress',
-    title: 'Track development',
-    body: 'Review active assignments, player proof, due work, and the next focus before the next session.',
+    title: 'How can I track player development?',
+    body: 'Review active assignments, returned proof, due work, and the next focus before the next session.',
     metrics: [
       { label: 'Track', value: 'Progress' },
       { label: 'Review', value: 'Proof' },
@@ -275,7 +229,7 @@ const coachNextActions = [
   },
   {
     eyebrow: 'Resources',
-    title: 'Recommend resources',
+    title: 'How can I recommend resources?',
     body: 'Point the player to drills, development paths, match prep, or workbook resources that match the lesson focus.',
     metrics: [
       { label: 'Find', value: 'Resources' },
@@ -298,32 +252,9 @@ const coachNextActions = [
     ],
   },
   {
-    eyebrow: 'Fix data',
-    title: 'Refresh player evidence',
-    body: 'Upload scorecards or request a review when a player record, result, or coaching context looks incomplete.',
-    metrics: [
-      { label: 'Upload', value: 'Scorecard' },
-      { label: 'Review', value: 'Needed' },
-      { label: 'Feeds', value: 'Coach Hub' },
-    ],
-    href: '/data-assist?intent=upload-source&context=Coaches%20next%20actions',
-    cta: 'Open Data Assist',
-    event: {
-      eventName: 'data_assist_opened',
-      surface: 'data_assist',
-      metadata: {
-        location: 'coaches_next_actions',
-      },
-    },
-    trust: [
-      { label: 'Source', value: 'User upload', tone: 'info' },
-      { label: 'Status', value: 'Review before use', tone: 'warn' },
-    ],
-  },
-  {
     eyebrow: 'Follow up',
-    title: 'Support between sessions',
-    body: 'Use Coach Hub to keep the assignment, next focus, proof review, and player touchpoint connected.',
+    title: 'How can I support players between sessions?',
+    body: 'Keep the assignment, next focus, proof review, and player touchpoint connected after the lesson ends.',
     metrics: [
       { label: 'Support', value: 'Between' },
       { label: 'Touch', value: 'Player' },
