@@ -39,9 +39,9 @@ export default function LeaguesAndTournamentsPage() {
 
         <section style={sectionStyle} aria-labelledby="organizer-paths-title">
           <SectionHeader
-            eyebrow="Organizer paths"
-            title="Choose the job before the tool."
-            body="Whether the competition is a season, ladder, round robin, or event weekend, the first step should be obvious from a phone."
+            eyebrow="Organizer work path"
+            title="Set up, schedule, score, publish."
+            body="Start with the job you need to finish: organize schedules, manage players or teams, track scores, publish updates, and reduce admin work."
             titleId="organizer-paths-title"
           />
           <div style={gridStyle}>
@@ -124,37 +124,16 @@ export default function LeaguesAndTournamentsPage() {
 
 const organizerActions = [
   {
-    eyebrow: 'Find',
-    title: 'Find league context',
-    body: 'Search seasons, flights, standings, schedules, results, and public league pages before opening admin tools.',
+    eyebrow: 'Setup',
+    title: 'Set up a league',
+    body: 'Create the season structure, add players or teams, organize flights, and make the next admin step clear.',
     metrics: [
-      { label: 'Use', value: 'Explore' },
-      { label: 'Context', value: 'Public' },
-      { label: 'Next', value: 'Follow' },
-    ],
-    href: '/leagues',
-    cta: 'Find Leagues',
-    event: {
-      eventName: 'league_search_submitted',
-      surface: 'leagues',
-      metadata: { location: 'leagues_tournaments_hub' },
-    },
-    trust: [
-      { label: 'Source', value: 'League pages', tone: 'info' },
-      { label: 'Status', value: 'Public path', tone: 'good' },
-    ],
-  },
-  {
-    eyebrow: 'Run',
-    title: 'Run a league season',
-    body: 'Set up players or teams, organize schedules, collect scores, update standings, and reduce spreadsheet cleanup.',
-    metrics: [
-      { label: 'Office', value: 'League' },
-      { label: 'Admin', value: 'Less' },
-      { label: 'Scores', value: 'Tracked' },
+      { label: 'Players', value: 'Managed' },
+      { label: 'Teams', value: 'Ready' },
+      { label: 'Flights', value: 'Clear' },
     ],
     href: '/league-coordinator',
-    cta: 'Open League Office',
+    cta: 'Set Up League',
     event: {
       eventName: 'league_office_clicked',
       surface: 'leagues',
@@ -162,49 +141,70 @@ const organizerActions = [
     },
     trust: [
       { label: 'Status', value: 'Organizer path', tone: 'good' },
-      { label: 'Freshness', value: 'Season updates', tone: 'info' },
+      { label: 'Admin', value: 'Less cleanup', tone: 'info' },
     ],
   },
   {
     eyebrow: 'Event',
-    title: 'Run a tournament',
-    body: 'Manage entries, divisions, draws, court assignments, scores, results, winners, and participant updates.',
+    title: 'Set up a tournament',
+    body: 'Manage entries, divisions, seeds, draws, courts, and the decisions that keep event day moving.',
     metrics: [
-      { label: 'Desk', value: 'Tournament' },
-      { label: 'Draws', value: 'Build' },
-      { label: 'Courts', value: 'Assign' },
+      { label: 'Entries', value: 'Open' },
+      { label: 'Draws', value: 'Built' },
+      { label: 'Courts', value: 'Assigned' },
     ],
-    href: '/tournaments',
-    cta: 'Find Tournaments',
+    href: '/league-coordinator/tournaments',
+    cta: 'Set Up Tournament',
     event: {
-      eventName: 'tournament_search_submitted',
+      eventName: 'tournament_desk_clicked',
       surface: 'tournaments',
       metadata: { location: 'leagues_tournaments_hub' },
     },
     trust: [
       { label: 'Status', value: 'Event path', tone: 'good' },
-      { label: 'Source', value: 'Tournament Desk', tone: 'info' },
+      { label: 'Desk', value: 'Tournament', tone: 'info' },
     ],
   },
   {
-    eyebrow: 'Fix',
-    title: 'Fix schedules, rosters, or scores',
-    body: 'Upload source material or request review when competition context needs a correction before users rely on it.',
+    eyebrow: 'Scores',
+    title: 'Track scores',
+    body: 'Enter team results, review scorecards, keep standings current, and cut down on text-thread follow-ups.',
     metrics: [
-      { label: 'Upload', value: 'Source' },
-      { label: 'Review', value: 'Needed' },
-      { label: 'Trust', value: 'Clear' },
+      { label: 'Scores', value: 'Tracked' },
+      { label: 'Review', value: 'Clear' },
+      { label: 'Standings', value: 'Current' },
     ],
-    href: '/data-assist?intent=request-review&context=Leagues%20and%20Tournaments',
-    cta: 'Request Review',
+    href: '/league-coordinator/results',
+    cta: 'Track Scores',
     event: {
-      eventName: 'data_assist_opened',
-      surface: 'data_assist',
+      eventName: 'standings_preview_clicked',
+      surface: 'leagues',
       metadata: { location: 'leagues_tournaments_hub' },
     },
     trust: [
-      { label: 'Confidence', value: 'Review first', tone: 'warn' },
-      { label: 'Status', value: 'Data Assist', tone: 'good' },
+      { label: 'Freshness', value: 'Results path', tone: 'info' },
+      { label: 'Status', value: 'Ready to post', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Publish',
+    title: 'Publish updates',
+    body: 'Send players to one public home for schedules, scores, standings, results, and corrections they can trust.',
+    metrics: [
+      { label: 'Schedules', value: 'Visible' },
+      { label: 'Results', value: 'Posted' },
+      { label: 'Questions', value: 'Fewer' },
+    ],
+    href: '/leagues',
+    cta: 'Publish Updates',
+    event: {
+      eventName: 'league_search_submitted',
+      surface: 'leagues',
+      metadata: { location: 'leagues_tournaments_hub' },
+    },
+    trust: [
+      { label: 'Source', value: 'Public pages', tone: 'info' },
+      { label: 'Confidence', value: 'Shared view', tone: 'good' },
     ],
   },
 ] as const
