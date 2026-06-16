@@ -11,6 +11,7 @@ import {
   pageWrapStyle,
 } from '@/app/components/public-command-center'
 import { TiqActionCard, TiqCoachAssignmentCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
@@ -38,7 +39,7 @@ export default function CoachesPage() {
         <CommandHero
           eyebrow="Coaches"
           title="Help every player leave with a next step."
-          body="TenAceIQ helps players and coaches connect goals, drills, lesson notes, progress, and follow-through so development does not disappear between sessions."
+          body={`${PRODUCT_MOTTO} for coaching means goals, drills, lesson notes, progress, and follow-through stay connected so development does not disappear between sessions.`}
           primary={{ href: '/resources?q=find%20a%20coach', label: 'Find a Coach' }}
           secondary={{ href: '/coach', label: 'Open Coach Hub' }}
           searchPlaceholder="Search coaches, player goals, serve practice, lesson notes, or development paths"
@@ -68,7 +69,9 @@ export default function CoachesPage() {
                 cta={step.cta}
                 event={step.event}
                 trust={[...step.trust]}
-              />
+              >
+                <p style={coachLoopQuestionStyle}>{step.question}</p>
+              </TiqActionCard>
             ))}
           </div>
         </section>
@@ -135,6 +138,7 @@ export default function CoachesPage() {
                 surface: 'coach',
                 metadata: {
                   location: 'coaches_preview',
+                  job: 'review_students',
                 },
               }}
             />
@@ -153,6 +157,7 @@ export default function CoachesPage() {
                 surface: 'coach',
                 metadata: {
                   location: 'coaches_preview',
+                  job: 'assign_drills',
                 },
               }}
             />
@@ -196,6 +201,7 @@ const coachNextActions = [
       surface: 'coach',
       metadata: {
         location: 'coaches_next_actions',
+        job: 'assign_drills',
       },
     },
     trust: [
@@ -281,6 +287,7 @@ const coachDevelopmentLoop = [
   {
     eyebrow: 'Assess',
     title: 'Know what the player needs',
+    question: 'What should this player work on next?',
     body: 'Start with goals, recent match notes, player proof, and the one skill that should improve next.',
     metrics: [
       { label: 'Input', value: 'Goals' },
@@ -305,6 +312,7 @@ const coachDevelopmentLoop = [
   {
     eyebrow: 'Assign',
     title: 'Assign the next drill',
+    question: 'What drill should leave the lesson?',
     body: 'Turn the lesson into a small court task with a due date and proof the player can bring back.',
     metrics: [
       { label: 'Assign', value: 'Drill' },
@@ -329,6 +337,7 @@ const coachDevelopmentLoop = [
   {
     eyebrow: 'Track',
     title: 'Track player development',
+    question: 'Is the player improving between sessions?',
     body: 'Watch assignment status, proof quality, and next focus so progress is easier to discuss.',
     metrics: [
       { label: 'Track', value: 'Status' },
@@ -353,6 +362,7 @@ const coachDevelopmentLoop = [
   {
     eyebrow: 'Follow up',
     title: 'Support between sessions',
+    question: 'What resource or note keeps support moving?',
     body: 'Recommend the right resource, send the next note, and keep the player connected to the plan.',
     metrics: [
       { label: 'Recommend', value: 'Resources' },
@@ -472,4 +482,15 @@ const previewGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const coachLoopQuestionStyle: CSSProperties = {
+  margin: 0,
+  borderTop: '1px solid var(--shell-panel-border)',
+  paddingTop: 10,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
