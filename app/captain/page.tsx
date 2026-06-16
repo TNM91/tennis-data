@@ -191,6 +191,18 @@ type CaptainSaveSignal = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CaptainDecisionPath = {
+  label: string
+  question: string
+  answer: string
+  href: string
+  stage: CaptainResumeStage
+  cta: string
+  icon: TiqFeatureIconName
+  tone: 'good' | 'warn' | 'info'
+  requiresScope?: boolean
+}
+
 const CAPTAIN_LOCAL_SYNC_PROOF_CHECKS = [
   'Browser-saved: selected team week, lineups, event notes, response status, and week status.',
   'Linked context: roster, schedule, and team history from profile links or reviewed Data Assist imports.',
@@ -1624,6 +1636,81 @@ function CaptainHubContent() {
     stage: 'brief' as CaptainResumeStage,
   }
 
+  const captainDecisionPath = useMemo<CaptainDecisionPath[]>(() => [
+    {
+      label: 'Availability',
+      question: 'Who is available?',
+      answer: workspaceState.pendingResponseCount > 0
+        ? `${workspaceState.pendingResponseCount} player${workspaceState.pendingResponseCount === 1 ? '' : 's'} still need a clean answer.`
+        : 'Review who is in, out, maybe, or still needs a follow-up.',
+      href: availabilityHref,
+      stage: 'availability',
+      cta: 'Check Availability',
+      icon: 'schedule',
+      tone: workspaceState.pendingResponseCount > 0 ? 'warn' : 'good',
+      requiresScope: true,
+    },
+    {
+      label: 'Lineup',
+      question: 'What lineup gives us the best chance?',
+      answer: workspaceState.lineupReady
+        ? `${workspaceState.lineupCount} court${workspaceState.lineupCount === 1 ? '' : 's'} already saved for the week.`
+        : 'Build the lineup from availability, player fit, and opponent context.',
+      href: lineupBuilderHref,
+      stage: 'lineup',
+      cta: 'Build Lineup',
+      icon: 'lineupBuilder',
+      tone: workspaceState.lineupReady ? 'good' : 'info',
+      requiresScope: true,
+    },
+    {
+      label: 'Pairings',
+      question: 'Who should play together?',
+      answer: matches.length > 0
+        ? 'Use projection and scenario reads before you lock doubles pairings.'
+        : 'Add match context so pairings have more than guesswork behind them.',
+      href: lineupProjectionHref,
+      stage: 'projection',
+      cta: 'Check Pairings',
+      icon: 'scenarioBuilder',
+      tone: matches.length > 0 ? 'good' : 'info',
+      requiresScope: true,
+    },
+    {
+      label: 'Message',
+      question: 'What should I communicate?',
+      answer: workspaceState.messagingReady
+        ? 'Your team note has enough event and lineup context to send.'
+        : 'Turn the saved lineup into a simple team update and follow-up list.',
+      href: messagingHref,
+      stage: 'messaging',
+      cta: 'Message Team',
+      icon: 'messagingCenter',
+      tone: workspaceState.messagingReady ? 'good' : 'warn',
+      requiresScope: true,
+    },
+    {
+      label: 'Scorecard',
+      question: 'What needs to be cleaned up?',
+      answer: 'Upload scorecards, schedules, or roster source files when team context is missing or stale.',
+      href: dataAssistCaptainHref,
+      stage: 'team',
+      cta: 'Track Scorecard',
+      icon: 'reports',
+      tone: 'info',
+    },
+  ], [
+    availabilityHref,
+    lineupBuilderHref,
+    lineupProjectionHref,
+    matches.length,
+    messagingHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+    workspaceState.pendingResponseCount,
+  ])
+
   function handleCaptainAction(href: string, stage: CaptainResumeStage) {
     if (href.startsWith('#')) {
       document.getElementById(href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -1847,6 +1934,49 @@ function CaptainHubContent() {
               </div>
             ) : null}
 
+          </div>
+        </section>
+
+        <section style={captainDecisionPathShellStyle} aria-label="Captain decision path">
+          <div style={captainDecisionPathHeaderStyle}>
+            <div>
+              <div style={sectionKicker}>Captain decision path</div>
+              <h2 style={captainDecisionPathTitleStyle}>Answer match week from your phone.</h2>
+            </div>
+            <span style={hasTeamScope ? badgeGreen : badgeBlue}>
+              {hasTeamScope ? 'Team selected' : 'Choose team first'}
+            </span>
+          </div>
+          <p style={captainDecisionPathIntroStyle}>
+            Start with availability, turn it into a lineup, check pairings, message the team, and clean up the scorecard trail.
+          </p>
+          <div style={captainDecisionPathGridStyle}>
+            {captainDecisionPath.map((item) => {
+              const needsScope = item.requiresScope && !hasTeamScope
+              const targetHref = needsScope ? '#captain-team-scope' : item.href
+              const targetStage = needsScope ? 'team' : item.stage
+
+              return (
+                <article key={item.label} style={captainDecisionPathCardStyle}>
+                  <div style={captainDecisionPathTopStyle}>
+                    <div style={captainDecisionPathLabelClusterStyle}>
+                      <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
+                      <span style={captainDecisionPathLabelStyle}>{item.label}</span>
+                    </div>
+                    <span style={needsScope ? badgeSlate : item.tone === 'good' ? badgeGreen : item.tone === 'warn' ? warnBadge : badgeBlue}>
+                      {needsScope ? 'Needs team' : item.tone === 'good' ? 'Ready' : item.tone === 'warn' ? 'Check' : 'Open'}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 style={captainDecisionPathQuestionStyle}>{item.question}</h3>
+                    <p style={captainDecisionPathAnswerStyle}>{needsScope ? 'Choose the team, league, and flight first so this action opens with the right week.' : item.answer}</p>
+                  </div>
+                  <PrimarySmallBtn fullWidth onClick={() => handleCaptainAction(targetHref, targetStage)}>
+                    {needsScope ? 'Choose Team' : item.cta}
+                  </PrimarySmallBtn>
+                </article>
+              )
+            })}
           </div>
         </section>
 
@@ -3025,6 +3155,106 @@ const captainLevelUpChallengeCardStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 13,
   lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionPathShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 18,
+  borderRadius: 20,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,13,28,0.64)',
+  boxShadow: '0 18px 45px rgba(2,8,23,0.28)',
+}
+
+const captainDecisionPathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainDecisionPathTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.18rem, 2vw, 1.45rem)',
+  lineHeight: 1.15,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionPathIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.6,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainDecisionPathCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  minHeight: 220,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(255,255,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionPathTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const captainDecisionPathLabelClusterStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainDecisionPathLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
+const captainDecisionPathQuestionStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 16,
+  lineHeight: 1.18,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainDecisionPathAnswerStyle: CSSProperties = {
+  margin: '7px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 750,
   overflowWrap: 'anywhere',
 }
 
