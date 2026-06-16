@@ -514,10 +514,10 @@ export default function TeamsPage() {
           <section style={filtersCard}>
             <div style={sectionHeader}>
               <div>
-                <p style={sectionKicker}>Team next actions</p>
-                <h2 style={sectionTitle}>Pick the match-week job, then open the right tool.</h2>
+                <p style={sectionKicker}>Captain decision path</p>
+                <h2 style={sectionTitle}>Who can play, where they fit, and what gets sent?</h2>
                 <p style={sectionText}>
-                  Teams are public. Captain Tools are the leadership lane for availability, lineups, scouting, and clean team data.
+                  Teams are public. Captain Tools help captains reduce match-week chaos by turning availability, lineup choices, pairings, and team communication into one clear path.
                 </p>
               </div>
             </div>
@@ -898,36 +898,13 @@ export default function TeamsPage() {
 
 const teamNextActions = [
   {
-    eyebrow: 'Find',
-    title: 'Find a team or roster',
-    body: 'Search by team name, league, captain, club, or flight before opening the public team record.',
-    metrics: [
-      { label: 'Search', value: 'Team' },
-      { label: 'Context', value: 'Roster' },
-      { label: 'Next', value: 'Open' },
-    ],
-    href: '#team-directory-search',
-    cta: 'Find Teams',
-    event: {
-      eventName: 'team_search_submitted',
-      surface: 'teams',
-      metadata: {
-        location: 'team_next_actions',
-      },
-    },
-    trust: [
-      { label: 'Source', value: 'Reviewed team layer', tone: 'info' },
-      { label: 'Status', value: 'Discovery ready', tone: 'good' },
-    ],
-  },
-  {
     eyebrow: 'Availability',
-    title: 'Collect who can play',
-    body: 'Captain Tools help turn scattered replies into a match-week availability read.',
+    title: 'Who is available?',
+    body: 'Collect who is in, out, or on the bubble so the player pool is clear before lineup work starts.',
     metrics: [
       { label: 'Players', value: 'In / out' },
-      { label: 'Deadline', value: 'Match week' },
-      { label: 'Use', value: 'Lineup' },
+      { label: 'Bubble', value: 'Clear' },
+      { label: 'Next', value: 'Lineup' },
     ],
     href: '/captain/availability',
     cta: 'Check Availability',
@@ -940,17 +917,17 @@ const teamNextActions = [
     },
     trust: [
       { label: 'Source', value: 'Captain update', tone: 'info' },
-      { label: 'Freshness', value: 'Week of match', tone: 'good' },
+      { label: 'Freshness', value: 'Match week', tone: 'good' },
     ],
   },
   {
     eyebrow: 'Lineup',
-    title: 'Build the courts',
-    body: 'Compare availability, player fit, projected court strength, and opponent context before locking lines.',
+    title: 'What lineup gives us the best chance?',
+    body: 'Compare available players, court strength, opponent context, and risk before locking the lineup.',
     metrics: [
       { label: 'Tool', value: 'Lineup' },
       { label: 'Risk', value: 'Court swaps' },
-      { label: 'Next', value: 'Submit' },
+      { label: 'Next', value: 'Save' },
     ],
     href: '/captain/lineup-builder',
     cta: 'Build Lineup',
@@ -967,26 +944,49 @@ const teamNextActions = [
     ],
   },
   {
-    eyebrow: 'Fix data',
-    title: 'Refresh team context',
-    body: 'Use Data Assist when rosters, scorecards, schedules, or team names need a reviewed source.',
+    eyebrow: 'Pairings',
+    title: 'Who should play together?',
+    body: 'Pressure-test doubles combinations, scenario changes, and court swaps before the plan gets shared.',
     metrics: [
-      { label: 'Upload', value: 'Roster' },
-      { label: 'Review', value: 'Required' },
-      { label: 'Feeds', value: 'Team Hub' },
+      { label: 'Combos', value: 'Compare' },
+      { label: 'Scenario', value: 'Test' },
+      { label: 'Risk', value: 'Visible' },
     ],
-    href: '/data-assist?intent=upload-source&context=Team%20Hub',
-    cta: DATA_ASSIST_STORY.cta,
+    href: '/captain/scenario-builder',
+    cta: 'Test Pairings',
     event: {
-      eventName: 'data_assist_opened',
-      surface: 'data_assist',
+      eventName: 'lineup_preview_clicked',
+      surface: 'teams',
       metadata: {
         location: 'team_next_actions',
       },
     },
     trust: [
-      { label: 'Source', value: 'User upload', tone: 'info' },
-      { label: 'Status', value: 'Review before public use', tone: 'warn' },
+      { label: 'Confidence', value: 'Improves with results', tone: 'warn' },
+      { label: 'Status', value: 'Scenario ready', tone: 'good' },
+    ],
+  },
+  {
+    eyebrow: 'Message',
+    title: 'What should I communicate?',
+    body: 'Turn the lineup decision into a clear team note so players know where to be, who they play with, and what matters.',
+    metrics: [
+      { label: 'Plan', value: 'Shared' },
+      { label: 'Players', value: 'Aligned' },
+      { label: 'Chaos', value: 'Less' },
+    ],
+    href: '/captain/messaging',
+    cta: 'Send Team Plan',
+    event: {
+      eventName: 'captain_tools_clicked',
+      surface: 'teams',
+      metadata: {
+        location: 'team_next_actions',
+      },
+    },
+    trust: [
+      { label: 'Status', value: 'Ready to send', tone: 'good' },
+      { label: 'Follow-up', value: 'Team week', tone: 'info' },
     ],
   },
 ] as const
