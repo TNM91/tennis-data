@@ -62,6 +62,13 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(commandCenterSource, 'heroPanelStyle')).toContain("boxSizing: 'border-box'")
     expect(styleBlock(commandCenterSource, 'heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(commandCenterSource, 'primaryButtonStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(commandCenterSource, 'homePrimaryCtaStyle')).toContain("width: '100%'")
+    expect(styleBlock(commandCenterSource, 'homePrimaryCtaStyle')).toContain("boxSizing: 'border-box'")
+    expect(styleBlock(commandCenterSource, 'homeSecondaryCtaStyle')).toContain("alignItems: 'flex-start'")
+    expect(styleBlock(commandCenterSource, 'homeCtaTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(commandCenterSource, 'homeCtaHelperStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(commandCenterSource).toContain("helper: 'Search the tennis map.'")
+    expect(commandCenterSource).toContain("helper: 'Find drills and skills.'")
   })
 
   it('keeps the persistent public portal toolbar from becoming a clipped mobile rail', () => {

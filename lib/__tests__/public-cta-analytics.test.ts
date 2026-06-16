@@ -34,10 +34,23 @@ describe('public CTA analytics', () => {
       'data_assist_opened',
       'data_issue_reported',
       'matchup_started',
+      'search_category_selected',
+      'search_result_clicked',
     ]) {
       expect(eventsSource).toContain(`'${eventName}'`)
       expect(commandCenterSource).toContain(`eventName: '${eventName}'`)
     }
+  })
+
+  it('tracks the homepage quick-start CTA language directly', () => {
+    expect(commandCenterSource).toContain("target.includes('start exploring')")
+    expect(commandCenterSource).toContain("target.includes('find player insights')")
+    expect(commandCenterSource).toContain("target.includes('level up my game')")
+    expect(commandCenterSource).toContain("target.includes('manage my team')")
+    expect(commandCenterSource).toContain("target.includes('run a league or tournament')")
+    expect(commandCenterSource).toContain("eventName: 'search_category_selected', surface: 'public_site'")
+    expect(commandCenterSource).toContain("eventName: 'captain_tools_clicked', surface: 'captain'")
+    expect(commandCenterSource).toContain("eventName: 'run_tournament_clicked', surface: 'tournaments'")
   })
 
   it('checks specific Data Assist trust actions before the generic Data Assist route', () => {

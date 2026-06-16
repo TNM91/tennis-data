@@ -59,6 +59,11 @@ function getPublicLinkEvent(label: string, href: string, context: string): Produ
   if (target.includes('coach hub')) return { eventName: 'coach_hub_clicked', surface: 'coach', metadata }
   if (target.includes('assignment') || target.includes('open paths')) return { eventName: 'coach_assignment_preview_clicked', surface: 'coach', metadata }
   if (target.includes('explore coaches')) return { eventName: 'find_coach_clicked', surface: 'coach', metadata }
+  if (target.includes('start exploring')) return { eventName: 'search_category_selected', surface: 'public_site', metadata }
+  if (target.includes('find player insights')) return { eventName: 'search_result_clicked', surface: 'public_site', metadata }
+  if (target.includes('level up my game')) return { eventName: 'search_result_clicked', surface: 'public_site', metadata }
+  if (target.includes('manage my team')) return { eventName: 'captain_tools_clicked', surface: 'captain', metadata }
+  if (target.includes('run a league or tournament')) return { eventName: 'run_tournament_clicked', surface: 'tournaments', metadata }
   if (target.includes('find teams')) return { eventName: 'team_search_submitted', surface: 'teams', metadata }
   if (target.includes('captain tools')) return { eventName: 'captain_tools_clicked', surface: 'teams', metadata }
   if (target.includes('build lineup')) return { eventName: 'lineup_preview_clicked', surface: 'teams', metadata }
@@ -287,11 +292,11 @@ export function CommandHero({
 
 export function HomeCtaGrid() {
   const ctas = [
-    { label: 'Start Exploring', href: '/explore' },
-    { label: 'Find Player Insights', href: '/explore/players' },
-    { label: 'Manage My Team', href: '/captain' },
-    { label: 'Level Up My Game', href: '/player-development' },
-    { label: 'Run a League or Tournament', href: '/leagues-and-tournaments' },
+    { label: 'Start Exploring', href: '/explore', helper: 'Search the tennis map.' },
+    { label: 'Find Player Insights', href: '/explore/players', helper: 'See player context fast.' },
+    { label: 'Manage My Team', href: '/captain', helper: 'Cut down match-week admin.' },
+    { label: 'Level Up My Game', href: '/player-development', helper: 'Find drills and skills.' },
+    { label: 'Run a League or Tournament', href: '/leagues-and-tournaments', helper: 'Organize play with less work.' },
   ] as const
 
   return (
@@ -301,9 +306,11 @@ export function HomeCtaGrid() {
           key={cta.href}
           href={cta.href}
           style={index === 0 ? homePrimaryCtaStyle : homeSecondaryCtaStyle}
+          ariaLabel={`${cta.label}: ${cta.helper}`}
           event={getPublicLinkEvent(cta.label, cta.href, 'homepage-quick-start')}
         >
-          {cta.label}
+          <strong style={homeCtaTitleStyle}>{cta.label}</strong>
+          <span style={homeCtaHelperStyle}>{cta.helper}</span>
         </TrackedProductLink>
       ))}
     </section>
@@ -778,16 +785,47 @@ const homeCtaGridStyle: CSSProperties = {
 
 const homePrimaryCtaStyle: CSSProperties = {
   ...primaryButtonStyle,
+  flexDirection: 'column',
+  alignItems: 'flex-start',
   minHeight: 50,
+  width: '100%',
+  boxSizing: 'border-box',
   borderRadius: 8,
   fontSize: 13,
+  gap: 4,
+  padding: '10px 12px',
+  textAlign: 'left',
 }
 
 const homeSecondaryCtaStyle: CSSProperties = {
   ...ghostButtonStyle,
+  flexDirection: 'column',
+  alignItems: 'flex-start',
   minHeight: 50,
+  width: '100%',
+  boxSizing: 'border-box',
   borderRadius: 8,
   fontSize: 13,
+  gap: 4,
+  padding: '10px 12px',
+  textAlign: 'left',
+}
+
+const homeCtaTitleStyle: CSSProperties = {
+  color: 'inherit',
+  fontSize: 13,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const homeCtaHelperStyle: CSSProperties = {
+  color: 'inherit',
+  opacity: 0.78,
+  fontSize: 11.5,
+  lineHeight: 1.25,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
 }
 
 const pillarGridStyle: CSSProperties = {
