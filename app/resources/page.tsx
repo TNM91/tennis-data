@@ -305,6 +305,30 @@ const resourceQuickStarts = [
     ],
   },
   {
+    eyebrow: 'Improve',
+    title: 'Find drills and skills',
+    body: 'Open development paths when the next step should be a focused drill, skill cue, or simple practice plan.',
+    metrics: [
+      { label: 'Need', value: 'Improve' },
+      { label: 'Path', value: 'Drills' },
+      { label: 'Next', value: 'Practice' },
+    ],
+    href: '/player-development',
+    cta: 'Find Drills',
+    event: {
+      eventName: 'search_result_clicked',
+      surface: 'public_site',
+      metadata: {
+        location: 'resources_quick_start',
+        job: 'find_drills_skills',
+      },
+    },
+    trust: [
+      { label: 'Source', value: 'Development paths', tone: 'info' },
+      { label: 'Status', value: 'Practice ready', tone: 'good' },
+    ],
+  },
+  {
     eyebrow: 'Lead',
     title: 'Captain match week',
     body: 'Use Teams when availability, lineup ideas, opponent scouting, communication, and scorecard reminders need one path.',
@@ -543,11 +567,20 @@ const resourceListStyle: CSSProperties = {
 }
 
 const resourceLinkStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: 40,
+  maxWidth: '100%',
+  padding: '9px 11px',
+  borderRadius: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-panel-border) 84%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontSize: 14,
   fontWeight: 850,
   lineHeight: 1.35,
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
