@@ -26,66 +26,77 @@ const groups = [
     id: 'play',
     title: 'Play',
     body: 'Find the fastest path from wanting a match, team, event, or court time to actually getting on court.',
+    searchTerms: ['find a place to play', 'join tennis', 'open play near me', 'where can I play', 'court time'],
     items: ['Find players', 'Find teams', 'Find leagues', 'Find tournaments', 'Open play ideas', 'Court and club checklist'],
   },
   {
     id: 'drills',
     title: 'Drills',
     body: 'Find focused practice work that turns one tennis problem into one repeatable court task.',
+    searchTerms: ['what drill should I do', 'practice plan', 'serve reps', 'return reps', 'court work'],
     items: ['Serve target ladder', 'Return depth reps', 'Crosscourt consistency', 'Approach and close', 'Second-serve pressure', 'Doubles poach timing'],
   },
   {
     id: 'skills',
     title: 'Skills',
     body: 'Break the game into simple skills players can understand, train, and track.',
+    searchTerms: ['what skill should I improve', 'what should I work on', 'level up faster', 'how am I improving'],
     items: ['Serve routine', 'Return plan', 'Rally tolerance', 'Net finishing', 'Doubles communication', 'Pressure habits'],
   },
   {
     id: 'strategy',
     title: 'Strategy',
     body: 'Turn scouting and match patterns into plain-English plans players can remember under pressure.',
+    searchTerms: ['what matchups matter', 'match plan', 'scout opponent', 'how do I compete', 'what strategy should I use'],
     items: ['Singles patterns', 'Doubles positioning', 'Tiebreaker plan', 'Playoff watch items', 'Opponent scouting', 'Ratings explained'],
   },
   {
     id: 'fitness-movement',
     title: 'Fitness / movement',
     body: 'Support tennis movement, readiness, recovery, and court habits without overcomplicating training.',
+    searchTerms: ['movement', 'fitness', 'footwork', 'warm up', 'recovery', 'match readiness'],
     items: ['Split-step routine', 'Recovery patterns', 'Warm-up checklist', 'Lateral movement', 'Match-day readiness', 'Injury-aware practice'],
   },
   {
     id: 'match-prep',
     title: 'Match prep',
     body: 'Answer what matchups matter, what to watch, and what plan gives a player or team a better chance.',
+    searchTerms: ['prepare for a match', 'matchup insight', 'matchups matter', 'what to watch', 'scouting'],
     items: ['Matchup prep', 'Player scouting', 'Team scouting', 'Singles/doubles split', 'Lineup pressure checks', 'Pre-match checklist'],
   },
   {
     id: 'captain-tools',
     title: 'Captain tools',
     body: 'Help captains answer who can play, what lineup to use, who should play together, and what to communicate.',
+    searchTerms: ['who is available', 'best lineup', 'who should play together', 'what should I communicate', 'manage less chaos'],
     items: ['Captain checklist', 'Availability template', 'Lineup builder guide', 'Partner fit prompts', 'Team communication guide', 'Scorecard reminders'],
   },
   {
     id: 'coach-tools',
     title: 'Coach tools',
     body: 'Help coaches assign drills, track development, recommend resources, and support players between sessions.',
+    searchTerms: ['assign drills', 'track player development', 'recommend resources', 'support players between sessions', 'lesson plan'],
     items: ['Find a coach', 'Lesson plan frame', 'Coach assignment templates', 'Player development check-in', 'Practice proof guide', 'Coach planner'],
   },
   {
     id: 'league-tournament-tools',
     title: 'League/tournament tools',
     body: 'Help organizers set up competition, manage schedules, track scores, and reduce admin work.',
-    items: ['League setup checklist', 'Tournament setup checklist', 'Draw formats', 'Round-robin formats', 'Scheduling checklist', 'Tiebreaker guide'],
+    searchTerms: ['organize schedules', 'manage players teams', 'track scores', 'reduce admin work', 'run a league or tournament'],
+    items: ['League setup checklist', 'Tournament setup checklist', 'Track scores checklist', 'Draw formats', 'Round-robin formats', 'Scheduling checklist', 'Tiebreaker guide'],
   },
   {
     id: 'player-development-modules',
     title: 'Player development modules',
     body: 'Use development paths to connect ratings, goals, drills, skills, and progress into a practical player plan.',
+    searchTerms: ['what should I work on', 'how am I improving', 'drills or resources', 'level up faster', 'player progress'],
     items: ['Player development paths', 'Level Up cards', 'Match reflection templates', 'Progress tracking', 'Coach connection', 'Training resources'],
   },
   {
     id: 'fix-data',
     title: 'Fix tennis context',
     body: 'Upload source material, report corrections, and request a reviewed data refresh.',
+    searchTerms: ['wrong score', 'missing result', 'fix data', 'upload source', 'data review'],
     items: ['Upload scorecard', 'Upload team summary', 'Upload schedule', 'Report wrong player', 'Report wrong team', 'Request data refresh'],
   },
 ] as const
@@ -410,7 +421,7 @@ function getResourceMatches(query: string) {
         .filter((item) => item.score > 0)
         .sort((left, right) => right.score - left.score)
       const items = scoredItems.map((item) => item.item)
-      const groupText = `${group.title} ${group.body}`.toLowerCase()
+      const groupText = `${group.title} ${group.body} ${group.searchTerms.join(' ')}`.toLowerCase()
       const groupExactMatch = groupText.includes(normalizedQuery)
       const groupAllTokenMatch = tokens.length > 0 && tokens.every((token) => groupText.includes(token))
       const groupLooseTokenMatch = !isFocusedQuery && tokens.some((token) => groupText.includes(token))
@@ -431,6 +442,7 @@ function resourceHref(item: string) {
   if (
     lower.includes('league setup') ||
     lower.includes('tournament setup') ||
+    lower.includes('track scores') ||
     lower.includes('round-robin') ||
     lower.includes('scheduling checklist') ||
     lower.includes('tiebreaker guide') ||
@@ -472,7 +484,7 @@ function resourceClickEvent(item: string, group: string) {
   } else if (lower.includes('team')) {
     eventName = 'team_search_submitted'
     surface = 'teams'
-  } else if (lower.includes('league')) {
+  } else if (lower.includes('league') || lower.includes('track scores')) {
     eventName = 'league_search_submitted'
     surface = 'leagues'
   } else if (lower.includes('tournament') || lower.includes('draw')) {

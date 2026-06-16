@@ -21,6 +21,7 @@ describe('Resources hub actions', () => {
     expect(source).toContain('Captain tools')
     expect(source).toContain('Coach tools')
     expect(source).toContain('League/tournament tools')
+    expect(source).toContain('Track scores checklist')
     expect(source).toContain('Player development modules')
     expect(source).toContain('Captain match week')
     expect(source).toContain('Prep the next match')
@@ -55,6 +56,7 @@ describe('Resources hub actions', () => {
     expect(source).toContain("return '/data-assist?intent=request-review&context=Resources%20hub'")
     expect(source).toContain("return '/data-assist?intent=upload-source&context=Resources%20hub'")
     expect(source).toContain("lower.includes('court and club')")
+    expect(source).toContain("lower.includes('track scores')")
     expect(source).toContain("return '/leagues-and-tournaments'")
     expect(source).toContain('context="Resources trust strip"')
   })
@@ -72,5 +74,30 @@ describe('Resources hub actions', () => {
     expect(source).toContain('const allTokenMatch = tokens.length > 0 && tokens.every((token) => itemText.includes(token))')
     expect(source).toContain('const looseTokenMatch = !isFocusedQuery && tokens.some((token) => itemText.includes(token))')
     expect(source).toContain('const score = exactMatch ? 12 : allTokenMatch ? 8 : looseTokenMatch ? 2 : 0')
+  })
+
+  it('matches plain role questions from the platform story', () => {
+    for (const phrase of [
+      'what should I work on',
+      'how am I improving',
+      'who is available',
+      'best lineup',
+      'who should play together',
+      'what should I communicate',
+      'assign drills',
+      'track player development',
+      'support players between sessions',
+      'organize schedules',
+      'track scores',
+      'reduce admin work',
+      'run a league or tournament',
+    ]) {
+      expect(source).toContain(phrase)
+    }
+
+    expect(source).toContain("searchTerms: ['who is available'")
+    expect(source).toContain("searchTerms: ['assign drills'")
+    expect(source).toContain("searchTerms: ['organize schedules'")
+    expect(source).toContain("group.searchTerms.join(' ')")
   })
 })
