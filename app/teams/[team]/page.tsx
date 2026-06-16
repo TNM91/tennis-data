@@ -31,7 +31,7 @@ import {
   listMyMatchAccuracyReports,
   type MatchAccuracyReport,
 } from '@/lib/match-accuracy-reports'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -1124,8 +1124,11 @@ function TeamPageContent() {
 
   const captainLinks = [
     {
-      title: 'Availability',
+      question: 'Who is available?',
+      title: 'Check availability',
       description: 'Track who is in, out, and on the bubble before lineup lock.',
+      cta: 'Check availability',
+      job: 'check_availability',
       href: buildCaptainScopedHref('/captain/availability', {
         competitionLayer,
         team,
@@ -1134,8 +1137,11 @@ function TeamPageContent() {
       }),
     },
     {
-      title: 'Lineup Builder',
-      description: 'Build stronger singles and doubles combinations around your core.',
+      question: 'What lineup gives us the best chance?',
+      title: 'Build the lineup',
+      description: 'Compare available players, court strength, opponent context, and risk before match day.',
+      cta: 'Build lineup',
+      job: 'build_lineup',
       href: buildCaptainScopedHref('/captain/lineup-builder', {
         competitionLayer,
         team,
@@ -1144,9 +1150,25 @@ function TeamPageContent() {
       }),
     },
     {
-      title: 'Scenario Compare',
-      description: 'Stress-test alternate lineups and compare projected outcomes.',
+      question: 'Who should play together?',
+      title: 'Compare pairings',
+      description: 'Stress-test doubles combinations and alternate lineups before the weekly call gets hard.',
+      cta: 'Compare scenarios',
+      job: 'compare_pairings',
       href: buildCaptainScopedHref('/captain/scenario-builder', {
+        competitionLayer,
+        team,
+        league: leagueFilter || teamMeta.league || undefined,
+        flight: flightFilter || teamMeta.flight || undefined,
+      }),
+    },
+    {
+      question: 'What should I communicate?',
+      title: 'Send the team plan',
+      description: 'Turn the lineup decision into a clear team note so players know where to be, who they play with, and what matters.',
+      cta: 'Send team plan',
+      job: 'send_team_plan',
+      href: buildCaptainScopedHref('/captain/messaging', {
         competitionLayer,
         team,
         league: leagueFilter || teamMeta.league || undefined,
@@ -1211,7 +1233,7 @@ function TeamPageContent() {
     {
       label: 'Weekly planning',
       value: `${matches.length} matches tracked`,
-      note: 'Move from roster review into availability, lineup building, and scenario testing.',
+      note: 'Move from roster review into availability, lineup building, pairings, and the team message.',
     },
     {
       label: 'TIQ leagues',
@@ -1249,7 +1271,7 @@ function TeamPageContent() {
             <p style={eyebrow}>Team Intelligence</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
             <p style={heroText}>
-              See the roster, recent form, singles strength, doubles options, and the Captain context that helps you plan the week.
+              {PRODUCT_MOTTO} See the roster, recent form, singles strength, doubles options, and the Team Hub context that helps captains plan the week.
             </p>
 
             <div style={heroBadgeRow}>
@@ -1360,6 +1382,31 @@ function TeamPageContent() {
                 Entered in {tiqParticipations.length} TIQ {tiqParticipations.length === 1 ? 'league' : 'leagues'}.
               </div>
             ) : null}
+          </div>
+        </section>
+
+        <section style={teamWeekPathStyle(isTablet)} aria-label="Team week path">
+          <div style={teamWeekPathCopyStyle}>
+            <p style={sectionKicker}>Team week path</p>
+            <h2 style={teamWeekPathTitleStyle}>Answer match week from your phone.</h2>
+            <p style={teamWeekPathTextStyle}>
+              Start with the team page, then move straight into availability, lineup, pairings, and the team note.
+            </p>
+          </div>
+          <div style={teamWeekPathGridStyle(isSmallMobile)}>
+            {captainLinks.map((item) => (
+              <Link
+                key={item.question}
+                href={item.href}
+                style={teamWeekActionCardStyle}
+                aria-label={`${item.cta}: ${item.question}`}
+                data-team-week-job={item.job}
+              >
+                <span style={teamWeekActionQuestionStyle}>{item.question}</span>
+                <strong style={teamWeekActionTitleStyle}>{item.title}</strong>
+                <span style={teamWeekActionTextStyle}>{item.description}</span>
+              </Link>
+            ))}
           </div>
         </section>
 
@@ -1597,7 +1644,15 @@ function TeamPageContent() {
 
             <div style={stackList}>
               {captainLinks.map((item) => (
-                <CaptainListCard key={item.title} href={item.href} title={item.title} description={item.description} />
+                <CaptainListCard
+                  key={item.question}
+                  href={item.href}
+                  question={item.question}
+                  title={item.title}
+                  description={item.description}
+                  cta={item.cta}
+                  job={item.job}
+                />
               ))}
             </div>
           </article>
@@ -2042,11 +2097,27 @@ function GhostLink({ href, children }: { href: string; children: React.ReactNode
   )
 }
 
-function CaptainListCard({ href, title, description }: { href: string; title: string; description: string }) {
+function CaptainListCard({
+  href,
+  question,
+  title,
+  description,
+  cta,
+  job,
+}: {
+  href: string
+  question: string
+  title: string
+  description: string
+  cta: string
+  job: string
+}) {
   const [hovered, setHovered] = useState(false)
   return (
     <Link
       href={href}
+      aria-label={`${cta}: ${question}`}
+      data-team-week-job={job}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -2057,8 +2128,10 @@ function CaptainListCard({ href, title, description }: { href: string; title: st
         transition: 'all 150ms ease',
       }}
     >
+      <span style={teamWeekActionQuestionStyle}>{question}</span>
       <strong style={{ color: hovered ? '#f8fbff' : '#f0f6ff' }}>{title}</strong>
       <span style={{ color: 'rgba(214,228,246,0.70)', fontSize: '14px' }}>{description}</span>
+      <span style={teamWeekActionCtaStyle}>{cta}</span>
     </Link>
   )
 }
@@ -2389,6 +2462,95 @@ const recentFormRowStyle: CSSProperties = {
   gap: 8,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const teamWeekPathStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.8fr) minmax(0, 1.2fr)',
+  gap: '18px',
+  alignItems: 'stretch',
+  minWidth: 0,
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(8,13,28,0.82), rgba(15,23,42,0.72))',
+  boxShadow: 'var(--shadow-soft)',
+})
+
+const teamWeekPathCopyStyle: CSSProperties = {
+  minWidth: 0,
+  alignSelf: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekPathTitleStyle: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  fontSize: '26px',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekPathTextStyle: CSSProperties = {
+  margin: '10px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '15px',
+  lineHeight: 1.6,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekPathGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
+  gap: '12px',
+  minWidth: 0,
+})
+
+const teamWeekActionCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateRows: 'auto auto minmax(0, 1fr)',
+  gap: '7px',
+  minWidth: 0,
+  minHeight: 146,
+  padding: '15px',
+  borderRadius: '18px',
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekActionQuestionStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekActionTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '17px',
+  fontWeight: 900,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekActionTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekActionCtaStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
