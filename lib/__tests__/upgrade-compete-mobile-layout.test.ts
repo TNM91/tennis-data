@@ -92,6 +92,7 @@ describe('upgrade and compete mobile layout guards', () => {
       'cardStyle',
       'cardMetaStyle',
       'cardTitleStyle',
+      'cardQuestionStyle',
       'cardTextStyle',
       'cardCtaStyle',
     ]) {

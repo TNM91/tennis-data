@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -251,23 +252,29 @@ export function CompeteCard({
   text,
   href,
   meta,
+  question,
   icon = 'teamRankings',
   action = 'Open',
+  event,
 }: {
   title: string
   text: string
   href: string
   meta: string
+  question?: string
   icon?: TiqFeatureIconName
   action?: string
+  event?: ProductLinkEvent
 }) {
   const [hovered, setHovered] = useState(false)
 
   return (
-    <Link
+    <TrackedProductLink
       href={href}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      ariaLabel={`${action}: ${title}. ${question || text}`}
+      event={event}
       style={{
         ...cardStyle,
         transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
@@ -281,9 +288,10 @@ export function CompeteCard({
         <div style={cardMetaStyle}>{meta}</div>
       </div>
       <div style={cardTitleStyle}>{title}</div>
+      {question ? <div style={cardQuestionStyle}>{question}</div> : null}
       <div style={cardTextStyle}>{text}</div>
       <div style={cardCtaStyle}>{action} {'\u2192'}</div>
-    </Link>
+    </TrackedProductLink>
   )
 }
 
@@ -389,6 +397,14 @@ const cardTitleStyle: CSSProperties = {
   fontSize: '22px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const cardQuestionStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  lineHeight: 1.35,
+  fontWeight: 900,
   overflowWrap: 'anywhere',
 }
 

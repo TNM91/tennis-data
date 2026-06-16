@@ -18,6 +18,8 @@ export default function TrackedProductLink({
   className,
   ariaLabel,
   event,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   href: string
   children: ReactNode
@@ -25,6 +27,8 @@ export default function TrackedProductLink({
   className?: string
   ariaLabel?: string
   event?: ProductLinkEvent
+  onMouseEnter?: MouseEventHandler<HTMLAnchorElement>
+  onMouseLeave?: MouseEventHandler<HTMLAnchorElement>
 }) {
   const handleClick: MouseEventHandler<HTMLAnchorElement> = () => {
     if (!event) return
@@ -32,7 +36,15 @@ export default function TrackedProductLink({
   }
 
   return (
-    <Link href={href} style={style} className={className} aria-label={ariaLabel} onClick={handleClick}>
+    <Link
+      href={href}
+      style={style}
+      className={className}
+      aria-label={ariaLabel}
+      onClick={handleClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       {children}
     </Link>
   )
