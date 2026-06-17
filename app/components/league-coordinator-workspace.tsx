@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
-import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
   getTiqIndividualCompetitionFormatDescription,
@@ -763,6 +763,40 @@ export function LeagueCoordinatorWorkspace() {
       ? teamResultEntryHref
       : individualResultEntryHref
     : '#league-setup-form'
+  const leagueOfficePaths = [
+    {
+      job: 'organize_schedules',
+      question: 'How do I organize schedules?',
+      title: 'Build the season shell',
+      body: 'Set the format, season window, match-day defaults, facility notes, and schedule capacity before dates start moving.',
+      href: '#shared-calendar',
+      cta: 'Review scheduler',
+    },
+    {
+      job: 'manage_players_teams',
+      question: 'How do I manage players or teams?',
+      title: 'Keep participants clean',
+      body: 'Add teams or players, approve join requests, and keep public league pages from drifting ahead of coordinator review.',
+      href: '#league-registry',
+      cta: 'Review participants',
+    },
+    {
+      job: 'track_scores',
+      question: 'How do I track scores?',
+      title: 'Open the right result book',
+      body: 'Use Team Results or Player Results so scorecards, corrections, standings, and awards move from one source.',
+      href: resultEntryHref,
+      cta: hasResultReadyLeague ? 'Record results' : 'Finish setup',
+    },
+    {
+      job: 'reduce_admin_work',
+      question: 'How do I reduce admin work?',
+      title: 'Check the member view',
+      body: 'Use public page readiness and Data Assist review so schedules, participants, scores, and standings stay trustworthy.',
+      href: '#league-public-pages',
+      cta: 'Check public pages',
+    },
+  ] as const
   const resultReadinessDetail =
     teamLeagues.length > 0 && individualLeagues.length > 0
       ? 'Team Results handles team match events and line scores; Player Results handles individual league matches.'
@@ -1302,6 +1336,37 @@ export function LeagueCoordinatorWorkspace() {
                 </Link>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section style={leaguePathStyle} aria-labelledby="league-office-path-title">
+          <div style={leaguePathHeaderStyle}>
+            <div>
+              <div style={sectionEyebrow}>League Office path</div>
+              <h2 id="league-office-path-title" style={leaguePathTitleStyle}>{PRODUCT_MOTTO}</h2>
+            </div>
+            <p style={leaguePathIntroStyle}>
+              Start with the season question, then open the workspace that removes the most admin work.
+            </p>
+          </div>
+          <div style={leaguePathGridStyle}>
+            {leagueOfficePaths.map((path) => (
+              <Link
+                key={path.job}
+                href={path.href}
+                style={leaguePathCardStyle}
+                data-league-path-job={path.job}
+                aria-label={`${path.cta}: ${path.question}`}
+              >
+                <span style={leaguePathMarkerStyle} aria-hidden="true" />
+                <span style={leaguePathCopyStyle}>
+                  <em>{path.question}</em>
+                  <strong>{path.title}</strong>
+                  <span>{path.body}</span>
+                  <span style={leaguePathCtaStyle}>{path.cta}</span>
+                </span>
+              </Link>
+            ))}
           </div>
         </section>
 
@@ -3082,6 +3147,97 @@ const commandText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  minWidth: 0,
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  background:
+    'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.045)), linear-gradient(180deg, rgba(11,25,48,0.9), rgba(6,15,30,0.95))',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.22)',
+  overflow: 'hidden',
+}
+
+const leaguePathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'end',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const leaguePathTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 3vw, 2.25rem)',
+  lineHeight: 1.04,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathIntroStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '15px',
+  lineHeight: 1.62,
+  overflowWrap: 'anywhere',
+  maxWidth: 510,
+}
+
+const leaguePathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: '12px',
+  minWidth: 0,
+}
+
+const leaguePathCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '38px minmax(0, 1fr)',
+  gap: '11px',
+  minWidth: 0,
+  minHeight: 158,
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(223,248,194,0.13)',
+  background: 'linear-gradient(180deg, rgba(18,39,70,0.72), rgba(8,18,36,0.9))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflow: 'hidden',
+}
+
+const leaguePathMarkerStyle: CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: '50%',
+  border: '1px solid rgba(155,225,29,0.32)',
+  background:
+    'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.82) 0 10%, transparent 11%), radial-gradient(circle at 50% 50%, rgba(155,225,29,0.94) 0 48%, rgba(155,225,29,0.12) 49%, transparent 62%)',
+  boxShadow: '0 0 0 5px rgba(155,225,29,0.07)',
+}
+
+const leaguePathCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.42,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
   overflowWrap: 'anywhere',
 }
 
