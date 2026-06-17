@@ -71,6 +71,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/level-up', label: 'Level Up' },
       { href: '/player-development', label: 'Player development' },
+      { href: '/resources', label: 'Resource hub' },
       { href: '/mylab', label: 'Open My Lab' },
       { href: '/data-assist', label: 'Improve data' },
       { href: '/matchup', label: 'Prep matchup' },

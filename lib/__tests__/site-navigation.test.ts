@@ -45,6 +45,15 @@ describe('site navigation language', () => {
     expect(organizerSection?.items).toContainEqual({ href: '/league-coordinator/tournaments', label: 'Build tournament' })
   })
 
+  it('keeps the resource hub discoverable from the Improve footer path', () => {
+    const improveSection = FOOTER_NAV_SECTIONS.find((section) => section.title === 'Improve')
+
+    expect(improveSection?.items).toContainEqual({ href: '/resources', label: 'Resource hub' })
+    expect(improveSection?.items.findIndex((item) => item.href === '/resources')).toBeGreaterThan(
+      improveSection?.items.findIndex((item) => item.href === '/player-development') ?? -1,
+    )
+  })
+
   it('keeps Captain quick links aligned with the Team portal actions', () => {
     expect(CAPTAIN_QUICK_NAV_ITEMS).toEqual([
       { href: '/captain/availability', label: 'Who can play' },
