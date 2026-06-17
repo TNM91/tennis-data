@@ -20,6 +20,9 @@ describe('player profile next actions', () => {
     expect(source).toContain("question: 'What matchup matters next?'")
     expect(source).toContain("question: 'What drills or resources can help?'")
     expect(source).toContain("href: '/resources?q=drills%20skills%20strategy'")
+    expect(source).toContain("question: 'How do I level up faster?'")
+    expect(source).toContain("label: 'Open Level Up'")
+    expect(source).toContain('Turn the next weakness into a focused card')
   })
 
   it('adds job hooks without changing the existing link surface', () => {
@@ -27,6 +30,7 @@ describe('player profile next actions', () => {
     expect(source).toContain("job: 'track_progress'")
     expect(source).toContain("job: 'prep_matchup'")
     expect(source).toContain("job: 'find_training_resources'")
+    expect(source).toContain("job: 'level_up_faster'")
     expect(source).toContain('data-player-path-job={action.job}')
     expect(source).toContain('aria-label={`${action.label}: ${action.question}`}')
   })

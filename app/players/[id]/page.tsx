@@ -911,6 +911,13 @@ function PlayerProfileContent() {
       href: '/resources?q=drills%20skills%20strategy',
       job: 'find_training_resources',
     },
+    {
+      question: 'How do I level up faster?',
+      label: 'Open Level Up',
+      body: 'Turn the next weakness into a focused card, a short practice rep, and a proof point you can repeat.',
+      href: '/level-up',
+      job: 'level_up_faster',
+    },
   ] as const
   const primaryUstaMembership = ustaTeamMemberships[0] ?? null
   const primaryTeamHref = primaryUstaMembership
