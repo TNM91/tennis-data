@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import CompetePageFrame, {
   CompeteCard,
   CompeteGrid,
@@ -23,9 +23,44 @@ import {
   getTiqIndividualCompetitionFormatNextAction,
   getTiqIndividualCompetitionFormatPreview,
 } from '@/lib/tiq-individual-format'
-import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY, MY_LAB_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY, MY_LAB_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
+
+const leaguePathActions = [
+  {
+    href: '/league-coordinator',
+    job: 'run_league',
+    question: 'How do I run the season?',
+    title: 'Open League Office',
+    body: 'Set up seasons, approve entries, publish league rooms, schedule matches, and keep standings moving.',
+    cta: 'Open League Office',
+  },
+  {
+    href: '/explore/leagues',
+    job: 'find_league',
+    question: 'Which league am I looking for?',
+    title: 'Browse leagues',
+    body: 'Search USTA history, TIQ team leagues, and TIQ individual leagues from one public map.',
+    cta: 'Browse leagues',
+  },
+  {
+    href: DATA_ASSIST_STORY.href,
+    job: 'refresh_league_data',
+    question: 'How do I refresh schedules or scorecards?',
+    title: 'Upload league data',
+    body: 'Use reviewed Data Assist uploads for schedules, rosters, team summaries, and official scorecards.',
+    cta: 'Upload data',
+  },
+  {
+    href: '/captain',
+    job: 'open_team_week',
+    question: 'What does this mean for my team?',
+    title: 'Open Team week',
+    body: 'Turn league context into availability, lineups, scenarios, and team messages.',
+    cta: 'Open week',
+  },
+] as const
 
 export default function CompeteLeaguesPage() {
   const [records, setRecords] = useState<TiqLeagueRecord[]>([])
@@ -70,6 +105,8 @@ export default function CompeteLeaguesPage() {
       title="Open the right league room."
       description="Saved TIQ leagues, public league pages, data refreshes, and team-week handoffs stay under the League Office lane."
     >
+      <LeaguePathPanel />
+
       <CompeteGrid>
         <CompeteCard
           href="/league-coordinator"
@@ -185,6 +222,38 @@ function RowLink({ href, children }: { href: string; children: ReactNode }) {
     >
       {children}
     </Link>
+  )
+}
+
+function LeaguePathPanel() {
+  return (
+    <section style={leaguePathStyle} aria-labelledby="compete-league-path-title">
+      <div style={leaguePathHeaderStyle}>
+        <div>
+          <span style={leaguePathEyebrowStyle}>League path</span>
+          <h2 id="compete-league-path-title" style={leaguePathTitleStyle}>{PRODUCT_MOTTO}</h2>
+        </div>
+        <p style={leaguePathIntroStyle}>
+          Start with the league job, then open the smallest action that keeps seasons, teams, and results organized.
+        </p>
+      </div>
+      <div style={leaguePathGridStyle}>
+        {leaguePathActions.map((action) => (
+          <Link
+            key={action.job}
+            href={action.href}
+            style={leaguePathCardStyle}
+            data-compete-league-path-job={action.job}
+            aria-label={`${action.cta}: ${action.question}`}
+          >
+            <span style={leaguePathQuestionStyle}>{action.question}</span>
+            <strong style={leaguePathCardTitleStyle}>{action.title}</strong>
+            <span>{action.body}</span>
+            <span style={leaguePathCtaStyle}>{action.cta}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -375,6 +444,105 @@ const warningStyle = {
   fontSize: '13px',
   lineHeight: 1.55,
 } as const
+
+const leaguePathStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: '14px',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(116,190,255,0.045)), rgba(8,16,34,0.76)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const leaguePathEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(22px, 5vw, 30px)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.55,
+  fontWeight: 750,
+  maxWidth: 560,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const leaguePathCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  alignContent: 'start',
+  minHeight: 148,
+  minWidth: 0,
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.72)',
+  color: 'var(--shell-copy-muted)',
+  textDecoration: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathQuestionStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  lineHeight: 1.3,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
 
 const upgradeWrapStyle = {
   position: 'relative',
