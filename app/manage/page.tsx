@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import JsonLd from '@/app/components/json-ld'
 import {
@@ -33,6 +34,32 @@ export default function ManagePage() {
           secondary={{ href: '/leagues-and-tournaments', label: 'Run a League or Tournament' }}
           searchPlaceholder="Search teams, leagues, tournaments, schedules, scorecards, or captain tools"
         />
+
+        <section style={quickPathStyle} aria-labelledby="manage-quick-path-title">
+          <div style={quickPathHeaderStyle}>
+            <p style={quickPathEyebrowStyle}>Pick your job</p>
+            <h2 id="manage-quick-path-title" style={quickPathTitleStyle}>
+              What are you trying to organize right now?
+            </h2>
+            <p style={quickPathBodyStyle}>
+              Choose the closest path, then TenAceIQ keeps the next step focused on less admin and more tennis.
+            </p>
+          </div>
+          <div style={quickPathGridStyle}>
+            {manageQuickPaths.map((path) => (
+              <Link
+                key={path.job}
+                href={path.href}
+                style={quickPathCardStyle}
+                data-manage-path-job={path.job}
+              >
+                <span style={quickPathRoleStyle}>{path.role}</span>
+                <strong style={quickPathQuestionStyle}>{path.question}</strong>
+                <span style={quickPathCtaStyle}>{path.cta}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         <section style={sectionStyle} aria-labelledby="manage-actions-title">
           <SectionHeader
@@ -135,6 +162,37 @@ export default function ManagePage() {
     </PublicPageShell>
   )
 }
+
+const manageQuickPaths = [
+  {
+    role: 'Captain',
+    question: 'Who is available and what lineup should I send?',
+    cta: 'Manage My Team',
+    href: '/captain',
+    job: 'manage_team_week',
+  },
+  {
+    role: 'League coordinator',
+    question: 'How do I organize schedules, teams, scores, and standings?',
+    cta: 'Open League Office',
+    href: '/league-coordinator',
+    job: 'run_league_season',
+  },
+  {
+    role: 'Tournament director',
+    question: 'How do I keep entries, courts, draws, and results moving?',
+    cta: 'Open Tournament Desk',
+    href: '/tournaments#desk',
+    job: 'run_event_desk',
+  },
+  {
+    role: 'Data helper',
+    question: 'What scorecard, roster, or schedule needs review?',
+    cta: 'Refresh Tennis Context',
+    href: '/data-assist?intent=upload-source&context=Manage%20quick%20path',
+    job: 'refresh_management_context',
+  },
+] as const
 
 const manageActions = [
   {
@@ -256,6 +314,98 @@ const sectionStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   minWidth: 0,
+}
+
+const quickPathStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+  gap: 16,
+  alignItems: 'stretch',
+  minWidth: 0,
+  border: '1px solid rgba(50, 255, 126, 0.22)',
+  borderRadius: 18,
+  padding: 'clamp(16px, 3vw, 22px)',
+  background:
+    'linear-gradient(135deg, rgba(50, 255, 126, 0.1), rgba(27, 117, 255, 0.08) 46%, rgba(7, 14, 30, 0.82))',
+  boxShadow: '0 22px 58px rgba(0, 0, 0, 0.26)',
+}
+
+const quickPathHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  alignContent: 'center',
+  minWidth: 0,
+}
+
+const quickPathEyebrowStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const quickPathTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--text)',
+  fontSize: 'clamp(22px, 3.5vw, 34px)',
+  lineHeight: 1.02,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const quickPathBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  maxWidth: 540,
+}
+
+const quickPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const quickPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  alignContent: 'space-between',
+  minWidth: 0,
+  minHeight: 138,
+  border: '1px solid rgba(255, 255, 255, 0.13)',
+  borderRadius: 14,
+  padding: 14,
+  color: 'inherit',
+  textDecoration: 'none',
+  background: 'rgba(5, 12, 25, 0.72)',
+}
+
+const quickPathRoleStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const quickPathQuestionStyle: CSSProperties = {
+  color: 'var(--text)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const quickPathCtaStyle: CSSProperties = {
+  color: 'var(--brand-blue)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const gridStyle: CSSProperties = {
