@@ -58,6 +58,35 @@ describe('Data Assist trust engine', () => {
     expect(source).not.toContain('ready without admin review')
   })
 
+  it('gives upload visitors a plain source refresh path before the file picker', () => {
+    expect(source).toContain("import { PRODUCT_MOTTO } from '@/lib/product-story'")
+    expect(source).toContain('const dataAssistSourcePathJobs')
+    expect(source).toContain('DataAssistSourcePathPanel')
+    expect(source).toContain('Source refresh path')
+    expect(source).toContain('Choose the tennis job first. Data Assist will keep the upload review-first before records change.')
+    expect(source).toContain('What result should update first?')
+    expect(source).toContain('Upload a scorecard')
+    expect(source).toContain('What is the season schedule?')
+    expect(source).toContain('Add match dates')
+    expect(source).toContain('Who is on the roster?')
+    expect(source).toContain('Add team summary')
+    expect(source).toContain('What looks wrong?')
+    expect(source).toContain('Report or request review')
+    expect(source).toContain('data-data-assist-source-path-job={job.id}')
+    expect(source).toContain('data-data-assist-source-path-job="report_or_review"')
+    expect(source).toContain('onClick={() => onSelectImportType(job.id)}')
+    expect(source).toContain("location: 'data_assist_source_path'")
+  })
+
+  it('keeps source refresh cards tappable on mobile', () => {
+    expect(source).toContain('const sourcePathPanelStyle: CSSProperties')
+    expect(source).toContain('const sourcePathGridStyle: CSSProperties')
+    expect(source).toContain('const sourcePathCardBaseStyle: CSSProperties')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(source).toContain('minHeight: 152')
+    expect(source).toContain("overflowWrap: 'anywhere'")
+  })
+
   it('acknowledges review/report URL intents from public trust links', () => {
     expect(source).toContain("import { useSearchParams } from 'next/navigation'")
     expect(source).toContain("type DataAssistIntent = 'upload-source' | 'report-issue' | 'request-review'")

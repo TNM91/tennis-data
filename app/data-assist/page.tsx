@@ -37,6 +37,7 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildSupportMessageHref } from '@/lib/message-links'
+import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
 const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
@@ -95,6 +96,30 @@ const dataAssistUploadStateProof = [
   {
     label: 'Trust boundary',
     body: 'Unreviewed uploads do not change players, teams, leagues, rankings, Matchup, My Lab, or Coach Hub.',
+  },
+] as const
+
+const dataAssistSourcePathJobs = [
+  {
+    id: 'scorecard',
+    question: 'What result should update first?',
+    title: 'Upload a scorecard',
+    body: 'Use after match day so scores, winners, players, teams, and standings can move from one reviewed source.',
+    cta: 'Choose scorecard',
+  },
+  {
+    id: 'schedule',
+    question: 'What is the season schedule?',
+    title: 'Add match dates',
+    body: 'Use the schedule export when teams, courts, dates, times, and sites need one cleaner place to live.',
+    cta: 'Choose schedule',
+  },
+  {
+    id: 'team_summary',
+    question: 'Who is on the roster?',
+    title: 'Add team summary',
+    body: 'Use the team summary export when roster names and starting ratings need to connect to player context.',
+    cta: 'Choose roster',
   },
 ] as const
 
@@ -776,6 +801,10 @@ function DataAssistWorkspace() {
       <section style={workspaceStyle()}>
         {showUploadStep ? (
           <section id="upload" style={panelStyle}>
+            <DataAssistSourcePathPanel
+              onSelectImportType={updateImportType}
+              issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
+            />
             <DataAssistTrustEnginePanel />
             <DataAssistReviewFlowPanel />
 
@@ -1094,6 +1123,65 @@ function DataAssistTrustEnginePanel() {
         <a href="#history" style={secondaryButtonStyle}>
           Request review
         </a>
+      </div>
+    </section>
+  )
+}
+
+function DataAssistSourcePathPanel({
+  onSelectImportType,
+  issueHref,
+}: {
+  onSelectImportType: (importType: DataAssistImportType) => void
+  issueHref: string
+}) {
+  return (
+    <section style={sourcePathPanelStyle} aria-labelledby="data-assist-source-path-title">
+      <div style={sourcePathHeaderStyle}>
+        <div>
+          <span style={sourcePathEyebrowStyle}>Source refresh path</span>
+          <h2 id="data-assist-source-path-title" style={sourcePathTitleStyle}>{PRODUCT_MOTTO}</h2>
+        </div>
+        <p style={sourcePathIntroStyle}>
+          Choose the tennis job first. Data Assist will keep the upload review-first before records change.
+        </p>
+      </div>
+      <div style={sourcePathGridStyle}>
+        {dataAssistSourcePathJobs.map((job) => (
+          <button
+            key={job.id}
+            type="button"
+            style={sourcePathCardStyle}
+            onClick={() => onSelectImportType(job.id)}
+            data-data-assist-source-path-job={job.id}
+            aria-label={`${job.cta}: ${job.question}`}
+          >
+            <span style={sourcePathQuestionStyle}>{job.question}</span>
+            <strong style={sourcePathCardTitleStyle}>{job.title}</strong>
+            <span>{job.body}</span>
+            <span style={sourcePathCtaStyle}>{job.cta}</span>
+          </button>
+        ))}
+        <Link
+          href={issueHref}
+          style={sourcePathLinkCardStyle}
+          data-data-assist-source-path-job="report_or_review"
+          aria-label="Report or request review: What looks wrong?"
+          onClick={() => {
+            void trackProductUsageEvent({
+              eventName: 'data_issue_reported',
+              surface: 'data_assist',
+              metadata: {
+                location: 'data_assist_source_path',
+              },
+            })
+          }}
+        >
+          <span style={sourcePathQuestionStyle}>What looks wrong?</span>
+          <strong style={sourcePathCardTitleStyle}>Report or request review</strong>
+          <span>Use this when a player, score, rating, team, draw, or source label needs a closer look.</span>
+          <span style={sourcePathCtaStyle}>Open support report</span>
+        </Link>
       </div>
     </section>
   )
@@ -2771,6 +2859,112 @@ const panelStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   minWidth: 0,
+}
+
+const sourcePathPanelStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 11%, var(--shell-panel-bg) 89%), color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%))',
+  padding: 'clamp(13px, 3vw, 16px)',
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const sourcePathEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(22px, 5vw, 30px)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 750,
+  maxWidth: 520,
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const sourcePathCardBaseStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  alignContent: 'start',
+  minHeight: 152,
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, transparent)',
+  color: 'var(--shell-copy-muted)',
+  padding: 12,
+  textAlign: 'left',
+  textDecoration: 'none',
+  font: 'inherit',
+  overflowWrap: 'anywhere',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const sourcePathCardStyle: CSSProperties = {
+  ...sourcePathCardBaseStyle,
+  cursor: 'pointer',
+}
+
+const sourcePathLinkCardStyle: CSSProperties = {
+  ...sourcePathCardBaseStyle,
+}
+
+const sourcePathQuestionStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1.3,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const trustEnginePanelStyle: CSSProperties = {
