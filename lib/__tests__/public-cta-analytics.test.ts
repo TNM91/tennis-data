@@ -65,6 +65,11 @@ describe('public CTA analytics', () => {
     expect(requestReviewIndex).toBeLessThan(genericIndex)
   })
 
+  it('keeps the homepage board source-review action routed through Data Assist tracking', () => {
+    expect(commandCenterSource).toContain("{ label: 'Fix Tennis Info', detail: 'Scorecards, schedules, rosters', href: DATA_ASSIST_STORY.href }")
+    expect(commandCenterSource).toContain("event={getPublicLinkEvent(action.label, action.href, 'hero-board')}")
+  })
+
   it('passes Data Assist intent and context from the homepage trust strip', () => {
     expect(commandCenterSource).toContain("context = 'Homepage trust strip'")
     expect(commandCenterSource).toContain('const trustContext = encodeURIComponent(context)')

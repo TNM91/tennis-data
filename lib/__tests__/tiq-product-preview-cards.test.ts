@@ -68,6 +68,7 @@ describe('TIQ product preview cards', () => {
     expect(commandCenterSource).toContain('Platform paths')
     expect(commandCenterSource).toContain('Start with what you need to do.')
     expect(commandCenterSource).toContain('Explore, improve, compete, manage, or fix tennis context.')
+    expect(commandCenterSource).toContain("{ label: 'Fix Tennis Info', detail: 'Scorecards, schedules, rosters', href: DATA_ASSIST_STORY.href }")
     expect(commandCenterSource).toContain('heroBoardGridStyle')
     expect(commandCenterSource).toContain('heroBoardActionStyle')
     expect(commandCenterSource).toContain('aria-label="TenAceIQ portal board preview"')

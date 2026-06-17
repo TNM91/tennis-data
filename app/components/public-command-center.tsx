@@ -206,6 +206,7 @@ const heroBoardActions = [
   { label: 'Improve', detail: 'Drills, skills, development paths', href: '/player-development' },
   { label: 'Compete', detail: 'Matchup insight and scouting', href: '/compete' },
   { label: 'Manage', detail: 'Teams, leagues, tournaments', href: '/manage' },
+  { label: 'Fix Tennis Info', detail: 'Scorecards, schedules, rosters', href: DATA_ASSIST_STORY.href },
 ] as const
 
 export function PublicPageShell({ active, children }: { active?: string; children: ReactNode }) {
