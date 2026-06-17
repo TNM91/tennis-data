@@ -12,6 +12,35 @@ function styleBlock(styleName: string) {
 }
 
 describe('compete schedule scheduler status', () => {
+  it('gives Schedule visitors a clear first-action path', () => {
+    expect(source).toContain("import { PRODUCT_MOTTO } from '@/lib/product-story'")
+    expect(source).toContain('const schedulePathActions')
+    expect(source).toContain('function SchedulePathPanel')
+    expect(source).toContain('Schedule path')
+    expect(source).toContain('id="compete-schedule-path-title"')
+    expect(source).toContain('Start with the calendar job, then open the smallest action that keeps match week moving.')
+    expect(source).toContain('How do I organize the season?')
+    expect(source).toContain('Publish dates')
+    expect(source).toContain('How do I avoid retyping dates?')
+    expect(source).toContain('Upload a schedule')
+    expect(source).toContain('What match needs prep?')
+    expect(source).toContain('Open match week')
+    expect(source).toContain('What happens after the match?')
+    expect(source).toContain('Post results')
+    expect(source).toContain('data-compete-schedule-path-job={action.job}')
+    expect(source).toContain("href: '#up-next-schedule'")
+    expect(source).toContain('id="up-next-schedule"')
+  })
+
+  it('keeps Schedule path cards tappable on mobile', () => {
+    expect(styleBlock('schedulePathStyle')).toContain('minWidth: 0')
+    expect(styleBlock('schedulePathStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('schedulePathHeaderStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('schedulePathGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(styleBlock('schedulePathCardStyle')).toContain('minHeight: 148')
+    expect(styleBlock('schedulePathCardStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
   it('connects the schedule page to the shared league scheduler flow', () => {
     expect(source).toContain('schedulerStatusItems')
     expect(source).toContain('title="Publish dates"')
