@@ -38,6 +38,13 @@ describe('site navigation language', () => {
     expect(sectionTitles).toContain('Leagues and tournaments')
   })
 
+  it('starts the leagues and tournaments footer path at the organizer hub', () => {
+    const organizerSection = FOOTER_NAV_SECTIONS.find((section) => section.title === 'Leagues and tournaments')
+
+    expect(organizerSection?.items.at(0)).toEqual({ href: '/leagues-and-tournaments', label: 'Organizer hub' })
+    expect(organizerSection?.items).toContainEqual({ href: '/league-coordinator/tournaments', label: 'Build tournament' })
+  })
+
   it('keeps Captain quick links aligned with the Team portal actions', () => {
     expect(CAPTAIN_QUICK_NAV_ITEMS).toEqual([
       { href: '/captain/availability', label: 'Who can play' },

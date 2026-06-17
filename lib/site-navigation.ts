@@ -104,6 +104,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
   {
     title: 'Leagues and tournaments',
     items: [
+      { href: '/leagues-and-tournaments', label: 'Organizer hub' },
       { href: '/leagues', label: 'Find leagues' },
       { href: '/tournaments', label: 'Find tournaments' },
       { href: '/compete/schedule', label: 'Shared calendar' },
