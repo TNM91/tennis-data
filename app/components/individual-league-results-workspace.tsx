@@ -32,6 +32,7 @@ import {
 } from '@/lib/tiq-individual-format'
 import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
 import { formatDate } from '@/lib/captain-formatters'
+import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 type ResultParticipantOption = {
   value: string
@@ -191,6 +192,85 @@ const scorekeeperTile: CSSProperties = {
 const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
 const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05, overflowWrap: 'anywhere' }
 const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.5, marginTop: 6, overflowWrap: 'anywhere' }
+const resultPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.045)), linear-gradient(180deg, rgba(11,25,48,0.9), rgba(6,15,30,0.95))',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.22)',
+  overflow: 'hidden',
+}
+const resultPathHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'end',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+const resultPathTitle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 3vw, 2.1rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+const resultPathIntro: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  maxWidth: 520,
+  overflowWrap: 'anywhere',
+}
+const resultPathGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+const resultPathCard: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 142,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(223,248,194,0.13)',
+  background: 'linear-gradient(180deg, rgba(18,39,70,0.72), rgba(8,18,36,0.9))',
+  color: 'var(--shell-copy-muted)',
+  textDecoration: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflowWrap: 'anywhere',
+  textAlign: 'left',
+}
+const resultPathButton: CSSProperties = {
+  ...resultPathCard,
+  cursor: 'pointer',
+}
+const resultPathQuestion: CSSProperties = {
+  color: '#93b7ea',
+  fontSize: 12,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+const resultPathCardTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+const resultPathCta: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
 const readinessPanel: CSSProperties = {
   display: 'grid',
   gap: 14,
@@ -1182,6 +1262,55 @@ function IndividualLeagueResultsWorkspaceInner({
             </div>
           </div>
         </div>
+
+        <section style={resultPathStyle} aria-labelledby="player-result-path-title">
+          <div style={resultPathHeader}>
+            <div>
+              <div style={tileLabel}>Player Results path</div>
+              <h2 id="player-result-path-title" style={resultPathTitle}>{PRODUCT_MOTTO}</h2>
+            </div>
+            <p style={resultPathIntro}>
+              Start with the scorekeeper question, then open the smallest action that keeps standings moving.
+            </p>
+          </div>
+          <div style={resultPathGrid}>
+            <button
+              type="button"
+              style={resultPathButton}
+              onClick={() => nextPairing ? handleUsePairing(nextPairing[0], nextPairing[1]) : handleOpenPlayerResultEntry()}
+              disabled={!selectedLeague}
+              data-player-result-path-job="log_result"
+              aria-label="Log player result: What result needs to be entered first?"
+            >
+              <span style={resultPathQuestion}>What result needs to be entered first?</span>
+              <strong style={resultPathCardTitle}>Log the next player result</strong>
+              <span>Choose the league, players, winner, score, and date so standings can update from one result book.</span>
+              <span style={resultPathCta}>{nextPairing ? 'Use next pairing' : 'Log result'}</span>
+            </button>
+            <Link
+              href="#player-result-review"
+              style={resultPathCard}
+              data-player-result-path-job="review_standings"
+              aria-label="Review standings: What changed?"
+            >
+              <span style={resultPathQuestion}>What changed?</span>
+              <strong style={resultPathCardTitle}>Review standings and gaps</strong>
+              <span>Check leaders, next useful pairings, edited results, and missing head-to-head coverage.</span>
+              <span style={resultPathCta}>Review standings</span>
+            </Link>
+            <Link
+              href={dataAssistIndividualResultsHref}
+              style={resultPathCard}
+              data-player-result-path-job="upload_scorecard"
+              aria-label="Upload scorecard: How do I avoid retyping scores?"
+            >
+              <span style={resultPathQuestion}>How do I avoid retyping scores?</span>
+              <strong style={resultPathCardTitle}>Upload a reviewed scorecard</strong>
+              <span>Use Data Assist when source scorecards should be reviewed before League Office standings move.</span>
+              <span style={resultPathCta}>Upload scorecard</span>
+            </Link>
+          </div>
+        </section>
 
         <section style={readinessPanel}>
           <div>
