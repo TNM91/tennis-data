@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import JsonLd from '@/app/components/json-ld'
 import {
@@ -36,6 +37,32 @@ export default function LeaguesAndTournamentsPage() {
           secondary={{ href: '/tournaments', label: 'Find Tournaments' }}
           searchPlaceholder="Search leagues, tournaments, schedules, draws, standings, scores, or organizer tools"
         />
+
+        <section style={organizerQuickPathStyle} aria-labelledby="organizer-quick-path-title">
+          <div style={organizerQuickPathHeaderStyle}>
+            <p style={organizerQuickPathEyebrowStyle}>Organizer quick path</p>
+            <h2 id="organizer-quick-path-title" style={organizerQuickPathTitleStyle}>
+              What admin job needs to move first?
+            </h2>
+            <p style={organizerQuickPathTextStyle}>
+              Pick the practical job, then open the workspace that reduces schedule, player, score, or source chaos.
+            </p>
+          </div>
+          <div style={organizerQuickPathGridStyle}>
+            {organizerQuickPaths.map((path) => (
+              <Link
+                key={path.job}
+                href={path.href}
+                style={organizerQuickPathCardStyle}
+                aria-label={`${path.cta}: ${path.question}`}
+                data-organizer-path-job={path.job}
+              >
+                <span style={organizerQuickPathQuestionStyle}>{path.question}</span>
+                <strong style={organizerQuickPathCtaStyle}>{path.cta}</strong>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         <section style={sectionStyle} aria-labelledby="organizer-paths-title">
           <SectionHeader
@@ -139,6 +166,39 @@ export default function LeaguesAndTournamentsPage() {
   )
 }
 
+const organizerQuickPaths = [
+  {
+    question: 'How do I organize schedules?',
+    cta: 'Open Schedule Setup',
+    href: '/league-coordinator',
+    job: 'organize_schedules',
+  },
+  {
+    question: 'How do I manage players or teams?',
+    cta: 'Open League Office',
+    href: '/league-coordinator',
+    job: 'manage_players_teams',
+  },
+  {
+    question: 'How do I track scores?',
+    cta: 'Open Results',
+    href: '/league-coordinator/results',
+    job: 'track_scores',
+  },
+  {
+    question: 'How do I run the event desk?',
+    cta: 'Open Tournament Desk',
+    href: '/league-coordinator/tournaments',
+    job: 'run_event_desk',
+  },
+  {
+    question: 'What needs source review?',
+    cta: 'Open Data Assist',
+    href: '/data-assist?intent=upload-source&context=Leagues%20and%20Tournaments%20quick%20path',
+    job: 'review_source_data',
+  },
+] as const
+
 const organizerActions = [
   {
     eyebrow: 'Setup',
@@ -234,6 +294,89 @@ const sectionStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   minWidth: 0,
+}
+
+const organizerQuickPathStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+  gap: 14,
+  alignItems: 'stretch',
+  minWidth: 0,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  borderRadius: 8,
+  padding: 'clamp(14px, 3vw, 20px)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%))',
+}
+
+const organizerQuickPathHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  alignContent: 'center',
+  minWidth: 0,
+}
+
+const organizerQuickPathEyebrowStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
+const organizerQuickPathTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(21px, 3vw, 30px)',
+  lineHeight: 1.08,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const organizerQuickPathTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const organizerQuickPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 175px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const organizerQuickPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minHeight: 104,
+  minWidth: 0,
+  alignContent: 'space-between',
+  padding: 13,
+  borderRadius: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 78%, var(--brand-blue-2) 22%)',
+  color: 'inherit',
+  textDecoration: 'none',
+}
+
+const organizerQuickPathQuestionStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const organizerQuickPathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const gridStyle: CSSProperties = {
