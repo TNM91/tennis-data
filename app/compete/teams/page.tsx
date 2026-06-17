@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import CompetePageFrame, {
   CompeteCard,
@@ -10,6 +10,7 @@ import CompetePageFrame, {
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
+import { PRODUCT_MOTTO } from '@/lib/product-story'
 import {
   listTiqTeamParticipations,
   type TiqTeamParticipationRecord,
@@ -21,6 +22,41 @@ const emptyTeamActions = [
   { href: '/league-coordinator', label: 'Create team league' },
   { href: dataAssistTeamsHref, label: 'Refresh team data' },
   { href: '/teams', label: 'Browse teams' },
+] as const
+
+const teamPathActions = [
+  {
+    href: '/teams',
+    job: 'find_team',
+    question: 'Which team am I reading?',
+    title: 'Find a team',
+    body: 'Open public team context before you scout players, depth, standings, or history.',
+    cta: 'Find team',
+  },
+  {
+    href: dataAssistTeamsHref,
+    job: 'refresh_roster',
+    question: 'How do I refresh the roster?',
+    title: 'Upload team data',
+    body: 'Send reviewed team summaries, rosters, or scorecards through Data Assist when team context is stale.',
+    cta: 'Refresh data',
+  },
+  {
+    href: '/captain/lineup-builder',
+    job: 'build_lineup',
+    question: 'What lineup gives us the best chance?',
+    title: 'Build lineup',
+    body: 'Move from team read to captain decision with lineup, partner, and weekly context.',
+    cta: 'Build lineup',
+  },
+  {
+    href: '/league-coordinator/results',
+    job: 'record_results',
+    question: 'What happened last match?',
+    title: 'Open team book',
+    body: 'Record team match events and line scores so future team reads have real evidence.',
+    cta: 'Open scorebook',
+  },
 ] as const
 
 export default function CompeteTeamsPage() {
@@ -107,6 +143,8 @@ function CompeteTeamsContent() {
 
   return (
     <>
+      <TeamPathPanel />
+
       <CompeteGrid>
         <CompeteCard
           href="/teams"
@@ -171,7 +209,7 @@ function CompeteTeamsContent() {
         </div>
       ) : null}
 
-      <section style={sectionStyle}>
+      <section id="tiq-entered-teams" style={sectionStyle}>
         <div style={sectionEyebrowStyle}>TIQ Entered Teams</div>
         <div style={sectionTextStyle}>
           {loading
@@ -251,6 +289,38 @@ function CompeteTeamsContent() {
   )
 }
 
+function TeamPathPanel() {
+  return (
+    <section style={teamPathStyle} aria-labelledby="compete-team-path-title">
+      <div style={teamPathHeaderStyle}>
+        <div>
+          <span style={teamPathEyebrowStyle}>Team path</span>
+          <h2 id="compete-team-path-title" style={teamPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+        </div>
+        <p style={teamPathIntroStyle}>
+          Start with the team job, then open the smallest action that turns context into a captain move.
+        </p>
+      </div>
+      <div style={teamPathGridStyle}>
+        {teamPathActions.map((action) => (
+          <Link
+            key={action.job}
+            href={action.href}
+            style={teamPathCardStyle}
+            data-compete-team-path-job={action.job}
+            aria-label={`${action.cta}: ${action.question}`}
+          >
+            <span style={teamPathQuestionStyle}>{action.question}</span>
+            <strong style={teamPathCardTitleStyle}>{action.title}</strong>
+            <span>{action.body}</span>
+            <span style={teamPathCtaStyle}>{action.cta}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function EmptyTeamsState() {
   return (
     <div style={emptyTeamsStyle}>
@@ -282,6 +352,105 @@ const sectionStyle = {
   boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 } as const
+
+const teamPathStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: '14px',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(116,190,255,0.045)), rgba(8,16,34,0.76)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const teamPathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const teamPathEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const teamPathTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(22px, 5vw, 30px)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamPathIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.55,
+  fontWeight: 750,
+  maxWidth: 560,
+  overflowWrap: 'anywhere',
+}
+
+const teamPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const teamPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  alignContent: 'start',
+  minHeight: 148,
+  minWidth: 0,
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.72)',
+  color: 'var(--shell-copy-muted)',
+  textDecoration: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const teamPathQuestionStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  lineHeight: 1.3,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const teamPathCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const teamPathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
 
 const upgradeGridStyle = {
   position: 'relative',

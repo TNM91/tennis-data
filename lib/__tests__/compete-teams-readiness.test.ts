@@ -12,6 +12,33 @@ function styleBlock(styleName: string) {
 }
 
 describe('compete teams readiness', () => {
+  it('gives Teams visitors a clear first-action path', () => {
+    expect(source).toContain("import { PRODUCT_MOTTO } from '@/lib/product-story'")
+    expect(source).toContain('const teamPathActions')
+    expect(source).toContain('function TeamPathPanel')
+    expect(source).toContain('Team path')
+    expect(source).toContain('id="compete-team-path-title"')
+    expect(source).toContain('Start with the team job, then open the smallest action that turns context into a captain move.')
+    expect(source).toContain('Which team am I reading?')
+    expect(source).toContain('Find a team')
+    expect(source).toContain('How do I refresh the roster?')
+    expect(source).toContain('Upload team data')
+    expect(source).toContain('What lineup gives us the best chance?')
+    expect(source).toContain('What happened last match?')
+    expect(source).toContain('Open team book')
+    expect(source).toContain('data-compete-team-path-job={action.job}')
+    expect(source).toContain('id="tiq-entered-teams"')
+  })
+
+  it('keeps Team path cards tappable on mobile', () => {
+    expect(styleBlock('teamPathStyle')).toContain('minWidth: 0')
+    expect(styleBlock('teamPathStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('teamPathHeaderStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('teamPathGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(styleBlock('teamPathCardStyle')).toContain('minHeight: 148')
+    expect(styleBlock('teamPathCardStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
   it('keeps the Teams top actions aligned with League and Team handoffs', () => {
     expect(source).toContain('title="Team directory"')
     expect(source).toContain('title="Team book"')
