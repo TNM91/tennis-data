@@ -148,6 +148,31 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
           primary={{ href: '/player-development', label: 'Level Up My Game' }}
           secondary={{ href: '/matchup', label: 'Prep a Matchup' }}
         />
+        <section style={needPathStyle} aria-labelledby="resource-need-title">
+          <div style={needPathHeaderStyle}>
+            <p style={needPathEyebrowStyle}>I need to...</p>
+            <h2 id="resource-need-title" style={needPathTitleStyle}>
+              Get to the right tennis help fast.
+            </h2>
+            <p style={needPathTextStyle}>
+              Pick the job in your head. TenAceIQ turns it into a practical resource path instead of another search spiral.
+            </p>
+          </div>
+          <div style={needPathGridStyle}>
+            {resourceNeedPaths.map((path) => (
+              <TrackedProductLink
+                key={path.job}
+                href={path.href}
+                style={needPathCardStyle}
+                ariaLabel={`${path.question}: ${path.cta}`}
+                event={path.event}
+              >
+                <span style={needPathQuestionStyle}>{path.question}</span>
+                <span style={needPathCtaStyle}>{path.cta}</span>
+              </TrackedProductLink>
+            ))}
+          </div>
+        </section>
         {resourceQuery ? (
           <section style={queryPanelStyle} aria-label="Resource search context">
             <div>
@@ -423,6 +448,93 @@ const resourceQuickStarts = [
   },
 ] as const
 
+const resourceNeedPaths = [
+  {
+    question: 'Work on my game',
+    cta: 'Open drills, skills, and development',
+    href: '/resources#player-development-modules',
+    job: 'improve_player_game',
+    event: {
+      eventName: 'search_result_clicked',
+      surface: 'public_site',
+      metadata: {
+        location: 'resources_need_path',
+        job: 'improve_player_game',
+      },
+    },
+  },
+  {
+    question: 'Prepare for a match',
+    cta: 'Open matchup and strategy help',
+    href: '/resources#match-prep',
+    job: 'prepare_match',
+    event: {
+      eventName: 'matchup_started',
+      surface: 'matchup',
+      metadata: {
+        location: 'resources_need_path',
+        job: 'prepare_match',
+      },
+    },
+  },
+  {
+    question: 'Captain this week',
+    cta: 'Open availability and lineup tools',
+    href: '/resources#captain-tools',
+    job: 'captain_week',
+    event: {
+      eventName: 'captain_tools_clicked',
+      surface: 'teams',
+      metadata: {
+        location: 'resources_need_path',
+        job: 'captain_week',
+      },
+    },
+  },
+  {
+    question: 'Support a player',
+    cta: 'Open coach tools',
+    href: '/resources#coach-tools',
+    job: 'support_player',
+    event: {
+      eventName: 'find_coach_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'resources_need_path',
+        job: 'support_player',
+      },
+    },
+  },
+  {
+    question: 'Run a league or tournament',
+    cta: 'Open organizer tools',
+    href: '/resources#league-tournament-tools',
+    job: 'organize_competition',
+    event: {
+      eventName: 'league_office_clicked',
+      surface: 'leagues',
+      metadata: {
+        location: 'resources_need_path',
+        job: 'organize_competition',
+      },
+    },
+  },
+  {
+    question: 'Fix missing or wrong data',
+    cta: 'Open Data Assist steps',
+    href: '/resources#fix-data',
+    job: 'fix_tennis_context',
+    event: {
+      eventName: 'data_assist_opened',
+      surface: 'data_assist',
+      metadata: {
+        location: 'resources_need_path',
+        job: 'fix_tennis_context',
+      },
+    },
+  },
+] as const
+
 function getResourceMatches(query: string) {
   const normalizedQuery = query.toLowerCase()
   if (!normalizedQuery) return []
@@ -558,6 +670,89 @@ const quickStartGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const needPathStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+  gap: 14,
+  alignItems: 'stretch',
+  minWidth: 0,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  borderRadius: 8,
+  padding: 'clamp(14px, 3vw, 20px)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-panel-bg) 91%))',
+}
+
+const needPathHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  alignContent: 'center',
+  minWidth: 0,
+}
+
+const needPathEyebrowStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
+const needPathTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(21px, 3vw, 30px)',
+  lineHeight: 1.08,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const needPathTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const needPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const needPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minHeight: 100,
+  minWidth: 0,
+  alignContent: 'space-between',
+  padding: 13,
+  borderRadius: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 78%, var(--brand-blue-2) 22%)',
+  color: 'inherit',
+  textDecoration: 'none',
+}
+
+const needPathQuestionStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const needPathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const resourceListStyle: CSSProperties = {
