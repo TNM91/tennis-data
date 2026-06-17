@@ -12,6 +12,35 @@ function styleBlock(styleName: string) {
 }
 
 describe('compete results follow-through', () => {
+  it('gives Results visitors a clear first-action path', () => {
+    expect(source).toContain("import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'")
+    expect(source).toContain('const resultsPathActions')
+    expect(source).toContain('function ResultsPathPanel')
+    expect(source).toContain('Results path')
+    expect(source).toContain('id="compete-results-path-title"')
+    expect(source).toContain('Start with the result job, then open the smallest action that keeps prep, standings, or data moving.')
+    expect(source).toContain('What happened?')
+    expect(source).toContain('View recent results')
+    expect(source).toContain('Who won the player match?')
+    expect(source).toContain('Log a player result')
+    expect(source).toContain('Which team match finished?')
+    expect(source).toContain('Record a team match')
+    expect(source).toContain('How do I avoid retyping?')
+    expect(source).toContain('Upload a scorecard')
+    expect(source).toContain('data-compete-results-path-job={action.job}')
+    expect(source).toContain('href: \'#tiq-results-activity\'')
+    expect(source).toContain('id="tiq-results-activity"')
+  })
+
+  it('keeps Results path cards tappable on mobile', () => {
+    expect(styleBlock('resultsPathStyle')).toContain('minWidth: 0')
+    expect(styleBlock('resultsPathStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('resultsPathHeaderStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('resultsPathGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(styleBlock('resultsPathCardStyle')).toContain('minHeight: 148')
+    expect(styleBlock('resultsPathCardStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
   it('keeps the Results top actions aligned with the League portal dock', () => {
     expect(source).toContain('title="Team book"')
     expect(source).toContain('title="Player book"')

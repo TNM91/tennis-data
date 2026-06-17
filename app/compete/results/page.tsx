@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import CompetePageFrame, {
   CompeteCard,
@@ -10,7 +10,7 @@ import CompetePageFrame, {
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import {
   listTiqIndividualLeagueResults,
   type TiqIndividualLeagueResultRecord,
@@ -22,6 +22,41 @@ const emptyResultActions = [
   { href: '/league-coordinator/individual-results', label: 'Log player result' },
   { href: '/league-coordinator/results', label: 'Open team book' },
   { href: DATA_ASSIST_STORY.href, label: 'Improve data' },
+] as const
+
+const resultsPathActions = [
+  {
+    href: '#tiq-results-activity',
+    job: 'view_results',
+    question: 'What happened?',
+    title: 'View recent results',
+    body: 'Scan completed player results, readiness gaps, and the next useful matchup action.',
+    cta: 'View activity',
+  },
+  {
+    href: '/league-coordinator/individual-results',
+    job: 'log_player_result',
+    question: 'Who won the player match?',
+    title: 'Log a player result',
+    body: 'Use for ladders, round robins, challenge leagues, and one-on-one results.',
+    cta: 'Log result',
+  },
+  {
+    href: '/league-coordinator/results',
+    job: 'record_team_match',
+    question: 'Which team match finished?',
+    title: 'Record a team match',
+    body: 'Create the match event, add line scores, and keep team standings moving.',
+    cta: 'Open team book',
+  },
+  {
+    href: DATA_ASSIST_STORY.href,
+    job: 'upload_scorecard',
+    question: 'How do I avoid retyping?',
+    title: 'Upload a scorecard',
+    body: 'Send reviewed scorecards through Data Assist before results shape platform context.',
+    cta: 'Upload source',
+  },
 ] as const
 
 function RowLink({ href, children }: { href: string; children: ReactNode }) {
@@ -99,6 +134,8 @@ function CompeteResultsContent() {
 
   return (
     <>
+      <ResultsPathPanel />
+
       <CompeteGrid>
         <CompeteCard
           href="/league-coordinator/results"
@@ -150,7 +187,7 @@ function CompeteResultsContent() {
         </div>
       ) : null}
 
-      <section style={panelStyle}>
+      <section id="tiq-results-activity" style={panelStyle}>
         <div style={sectionEyebrowStyle}>TIQ individual activity</div>
         <div style={sectionTextStyle}>
           Recent TIQ individual-league outcomes now live inside the weekly results loop instead of
@@ -195,6 +232,38 @@ function CompeteResultsContent() {
 
       {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
     </>
+  )
+}
+
+function ResultsPathPanel() {
+  return (
+    <section style={resultsPathStyle} aria-labelledby="compete-results-path-title">
+      <div style={resultsPathHeaderStyle}>
+        <div>
+          <span style={resultsPathEyebrowStyle}>Results path</span>
+          <h2 id="compete-results-path-title" style={resultsPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+        </div>
+        <p style={resultsPathIntroStyle}>
+          Start with the result job, then open the smallest action that keeps prep, standings, or data moving.
+        </p>
+      </div>
+      <div style={resultsPathGridStyle}>
+        {resultsPathActions.map((action) => (
+          <Link
+            key={action.job}
+            href={action.href}
+            style={resultsPathCardStyle}
+            data-compete-results-path-job={action.job}
+            aria-label={`${action.cta}: ${action.question}`}
+          >
+            <span style={resultsPathQuestionStyle}>{action.question}</span>
+            <strong style={resultsPathCardTitleStyle}>{action.title}</strong>
+            <span>{action.body}</span>
+            <span style={resultsPathCtaStyle}>{action.cta}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -337,6 +406,105 @@ const panelStyle = {
   boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 } as const
+
+const resultsPathStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: '14px',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(116,190,255,0.045)), rgba(8,16,34,0.76)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const resultsPathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const resultsPathEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const resultsPathTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(22px, 5vw, 30px)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const resultsPathIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.55,
+  fontWeight: 750,
+  maxWidth: 560,
+  overflowWrap: 'anywhere',
+}
+
+const resultsPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const resultsPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  alignContent: 'start',
+  minHeight: 148,
+  minWidth: 0,
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8,16,34,0.72)',
+  color: 'var(--shell-copy-muted)',
+  textDecoration: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const resultsPathQuestionStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  lineHeight: 1.3,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const resultsPathCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const resultsPathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
 
 const upgradeWrapStyle = {
   position: 'relative',
