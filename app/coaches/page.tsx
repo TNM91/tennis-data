@@ -11,6 +11,7 @@ import {
   pageWrapStyle,
 } from '@/app/components/public-command-center'
 import { TiqActionCard, TiqCoachAssignmentCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import TrackedProductLink from '@/app/components/tracked-product-link'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
@@ -44,6 +45,31 @@ export default function CoachesPage() {
           secondary={{ href: '/coach', label: 'Open Coach Hub' }}
           searchPlaceholder="Search coaches, player goals, serve practice, lesson notes, or development paths"
         />
+        <section style={coachQuickPathStyle} aria-labelledby="coach-quick-path-title">
+          <div style={coachQuickPathHeaderStyle}>
+            <p style={coachQuickPathEyebrowStyle}>Coach quick path</p>
+            <h2 id="coach-quick-path-title" style={coachQuickPathTitleStyle}>
+              What coaching job needs attention?
+            </h2>
+            <p style={coachQuickPathTextStyle}>
+              Start with the player need, then open the smallest action that keeps development moving.
+            </p>
+          </div>
+          <div style={coachQuickPathGridStyle}>
+            {coachQuickPaths.map((path) => (
+              <TrackedProductLink
+                key={path.job}
+                href={path.href}
+                style={coachQuickPathCardStyle}
+                ariaLabel={`${path.cta}: ${path.question}`}
+                event={path.event}
+              >
+                <span style={coachQuickPathQuestionStyle}>{path.question}</span>
+                <span style={coachQuickPathCtaStyle}>{path.cta}</span>
+              </TrackedProductLink>
+            ))}
+          </div>
+        </section>
         <TwoColumnStory
           leftTitle="For players"
           leftBody="Bring your goals, match questions, progress, and practice proof into every lesson."
@@ -183,6 +209,79 @@ export default function CoachesPage() {
     </PublicPageShell>
   )
 }
+
+const coachQuickPaths = [
+  {
+    question: 'How can I assign drills?',
+    cta: 'Assign Drills',
+    href: '/coach',
+    job: 'assign_drills',
+    event: {
+      eventName: 'coach_assignment_preview_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coaches_quick_path',
+        job: 'assign_drills',
+      },
+    },
+  },
+  {
+    question: 'How can I track player development?',
+    cta: 'Track Development',
+    href: '/coach',
+    job: 'track_development',
+    event: {
+      eventName: 'coach_hub_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coaches_quick_path',
+        job: 'track_development',
+      },
+    },
+  },
+  {
+    question: 'How can I recommend resources?',
+    cta: 'Recommend Resources',
+    href: '/resources?q=coach%20tools',
+    job: 'recommend_resources',
+    event: {
+      eventName: 'search_result_clicked',
+      surface: 'public_site',
+      metadata: {
+        location: 'coaches_quick_path',
+        job: 'recommend_resources',
+      },
+    },
+  },
+  {
+    question: 'How can I support players between sessions?',
+    cta: 'Support Between Sessions',
+    href: '/coach',
+    job: 'support_between_sessions',
+    event: {
+      eventName: 'coach_hub_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coaches_quick_path',
+        job: 'support_between_sessions',
+      },
+    },
+  },
+  {
+    question: 'How can I find coaching support?',
+    cta: 'Find a Coach',
+    href: '/resources?q=find%20a%20coach',
+    job: 'find_coaching_support',
+    event: {
+      eventName: 'find_coach_clicked',
+      surface: 'coach',
+      metadata: {
+        location: 'coaches_quick_path',
+        job: 'find_coaching_support',
+      },
+    },
+  },
+] as const
 
 const coachNextActions = [
   {
@@ -408,6 +507,89 @@ const lessonLoopSectionStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   minWidth: 0,
+}
+
+const coachQuickPathStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 330px), 1fr))',
+  gap: 14,
+  alignItems: 'stretch',
+  minWidth: 0,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  borderRadius: 8,
+  padding: 'clamp(14px, 3vw, 20px)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%))',
+}
+
+const coachQuickPathHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  alignContent: 'center',
+  minWidth: 0,
+}
+
+const coachQuickPathEyebrowStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
+const coachQuickPathTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(21px, 3vw, 30px)',
+  lineHeight: 1.08,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const coachQuickPathTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const coachQuickPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 175px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const coachQuickPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minHeight: 104,
+  minWidth: 0,
+  alignContent: 'space-between',
+  padding: 13,
+  borderRadius: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 78%, var(--brand-blue-2) 22%)',
+  color: 'inherit',
+  textDecoration: 'none',
+}
+
+const coachQuickPathQuestionStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const coachQuickPathCtaStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const developmentLoopSectionStyle: CSSProperties = {
