@@ -524,7 +524,7 @@ export default function HomePageHeroResponsive() {
             {
               label: 'For teams',
               title: 'Connect the whole picture',
-              copy: 'Bring ratings, pairings, opponents, and league movement into one premium workflow.',
+              copy: 'Bring ratings, pairings, opponents, and league movement into one team-ready view.',
             },
           ].map((feature) => (
             <div key={feature.title} style={featureCardStyle}>
