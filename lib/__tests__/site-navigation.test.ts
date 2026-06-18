@@ -54,6 +54,14 @@ describe('site navigation language', () => {
     )
   })
 
+  it('uses plain tennis wording for Data Assist navigation', () => {
+    const improveSection = FOOTER_NAV_SECTIONS.find((section) => section.title === 'Improve')
+
+    expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/data-assist', label: 'Fix tennis info' })
+    expect(improveSection?.items).toContainEqual({ href: '/data-assist', label: 'Fix tennis info' })
+    expect(ACCOUNT_NAV_ITEMS).not.toContainEqual({ href: '/data-assist', label: 'Improve data' })
+  })
+
   it('keeps Captain quick links aligned with the Team portal actions', () => {
     expect(CAPTAIN_QUICK_NAV_ITEMS).toEqual([
       { href: '/captain/availability', label: 'Who can play' },

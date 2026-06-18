@@ -24,7 +24,7 @@ export const ACCOUNT_NAV_ITEMS: NavItem[] = [
   { href: '/mylab', label: 'Open My Lab' },
   { href: '/tactics', label: 'Tactics Tools' },
   { href: '/coach', label: 'Coach Hub' },
-  { href: '/data-assist', label: 'Improve data' },
+  { href: '/data-assist', label: 'Fix tennis info' },
   { href: '/matchup', label: 'Prep matchup' },
   { href: '/messages', label: 'Review messages' },
 ]
@@ -73,7 +73,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
       { href: '/player-development', label: 'Player development' },
       { href: '/resources', label: 'Resource hub' },
       { href: '/mylab', label: 'Open My Lab' },
-      { href: '/data-assist', label: 'Improve data' },
+      { href: '/data-assist', label: 'Fix tennis info' },
       { href: '/matchup', label: 'Prep matchup' },
       { href: '/messages', label: 'Review messages' },
     ],
