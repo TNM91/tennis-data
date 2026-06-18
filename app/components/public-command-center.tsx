@@ -382,7 +382,7 @@ export function AudiencePathGrid() {
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ is organized around tennis actions first, then the workspace that saves time when the job gets serious." />
+      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ is organized around tennis actions first, then the right hub when the job gets serious." />
       <div style={actionGridStyle}>
         {cards.map((card) => (
           <article key={card.title} style={actionCardStyle}>
@@ -409,7 +409,7 @@ export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCa
 export function ProductPreviewGrid({ cards = previewCards }: { cards?: PreviewCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Product previews" title="Useful tools, not a complicated analytics dashboard." body="Preview cards keep each workspace concrete, approachable, and tied to the next tennis action." />
+      <SectionHeader eyebrow="Product previews" title="Useful tools, not a complicated analytics dashboard." body="Preview cards keep each tool concrete, approachable, and tied to the next tennis action." />
       <div style={previewGridStyle}>
         {cards.map((card) => renderPreviewCard(card))}
       </div>

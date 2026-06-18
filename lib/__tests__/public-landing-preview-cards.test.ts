@@ -100,4 +100,11 @@ describe('public landing preview cards', () => {
     expect(commandCenterSource).toContain("{ label: 'Results', value: 'Clear' }")
     expect(commandCenterSource).not.toContain("{ label: 'Results', value: '0 pending' }")
   })
+
+  it('keeps homepage section copy approachable instead of workspace-heavy', () => {
+    expect(commandCenterSource).toContain('TenAceIQ is organized around tennis actions first, then the right hub when the job gets serious.')
+    expect(commandCenterSource).toContain('Preview cards keep each tool concrete, approachable, and tied to the next tennis action.')
+    expect(commandCenterSource).not.toContain('then the workspace that saves time when the job gets serious')
+    expect(commandCenterSource).not.toContain('Preview cards keep each workspace concrete')
+  })
 })
