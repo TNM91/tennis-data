@@ -4309,7 +4309,7 @@ function PlayerDevelopmentPathPanel({
         <div style={sectionTitleClusterStyle}>
           <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
           <div style={sectionHeaderCopyStyle}>
-            <p style={sectionKickerStyle}>Player+ development path</p>
+            <p style={sectionKickerStyle}>Player development path</p>
             <h3 style={compactSectionTitleStyle}>
               {linkedPlayerName ? `${linkedPlayerName}: choose this week's work` : "Choose this week's work"}
             </h3>
@@ -4421,7 +4421,7 @@ function LevelUpReturnStatePanel({
     {
       label: 'Refresh boundary',
       body: latestProof
-        ? 'Recent Level Up proof appears from this browser cache; sync depends on signed-in Player+ or coach link.'
+        ? 'Recent Level Up proof appears from this browser cache; sync depends on signed-in Player or coach link.'
         : 'No Level Up proof is shown unless this browser has saved it.',
     },
   ]
@@ -4544,8 +4544,8 @@ function LevelUpReturnStatePanel({
         <strong style={levelUpReturnStorageNoteStrongStyle}>{signedIn ? 'Signed-in sync check' : 'Local-only proof'}</strong>
         <span>
           {signedIn
-            ? 'This panel shows the Level Up cache on this device. Signed-in Player+ or coach-linked proof can sync history, but private windows may clear unsynced work.'
-            : 'This panel is reading this browser only. Private windows can forget it; sign in through Player+ or a coach invite before expecting proof to follow you across devices.'}
+            ? 'This panel shows the Level Up cache on this device. Signed-in Player or coach-linked proof can sync history, but private windows may clear unsynced work.'
+            : 'This panel is reading this browser only. Private windows can forget it; sign in through Player or a coach invite before expecting proof to follow you across devices.'}
         </span>
       </div>
 
@@ -5358,7 +5358,7 @@ function PlayerCoachAssignmentsPanel({
                   activeAssignmentId === assignment.id ? (
                     <div style={coachCheckInFormStyle}>
                       <div style={coachCheckInGuideStyle}>
-                        <strong>Player+ recap guide</strong>
+                        <strong>Player recap guide</strong>
                         <span>{checkInDraft.recapCue}</span>
                         <em>{checkInDraft.evidenceCue}</em>
                       </div>
@@ -5447,7 +5447,7 @@ function PlayerCoachAssignmentsPanel({
             <>
               <strong>No live coach assignments yet.</strong>
               <span>
-                Use Level Up now, then accept a coach invite when you want assigned check-ins and coach feedback. Player+ adds the full library, favorites, history, and trends.
+                Use Level Up now, then accept a coach invite when you want assigned check-ins and coach feedback. Player adds the full library, favorites, history, and trends.
               </span>
               <div style={developmentActionRowStyle}>
                 <Link href="/level-up" style={miniActionLinkStyle}>Open Level Up</Link>

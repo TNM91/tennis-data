@@ -6,8 +6,10 @@ const myLabSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf
 const playerCoachAssignmentsApiSource = readFileSync(join(process.cwd(), 'app/api/player/coach-assignments/route.ts'), 'utf8')
 
 describe('My Lab coach check-in guide', () => {
-  it('keeps Player+ assignment recaps tied to the coach evidence target', () => {
-    expect(myLabSource).toContain('Player+ recap guide')
+  it('keeps Player assignment recaps tied to the coach evidence target', () => {
+    expect(myLabSource).toContain('Player recap guide')
+    expect(myLabSource).toContain('Player adds the full library, favorites, history, and trends.')
+    expect(myLabSource).not.toContain('Player+ recap guide')
     expect(myLabSource).toContain('buildPlayerAssignmentCheckInDraft')
     expect(myLabSource).toContain('id="coach-assignments"')
     expect(myLabSource).toContain('Assigned to me pack')

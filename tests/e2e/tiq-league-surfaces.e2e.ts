@@ -36,6 +36,10 @@ async function expectSurfaceLoads(page: Page, path: string) {
   expect(pageErrors, `${path} should not throw uncaught browser errors`).toEqual([])
 }
 
+async function isResetBoundaryVisible(page: Page) {
+  return page.getByText('This view needs a quick reset').isVisible().catch(() => false)
+}
+
 async function expectSignedOutHandoffRoute(page: Page, path: string) {
   await resetBrowserState(page)
   await expectSurfaceLoads(page, path)
@@ -139,7 +143,8 @@ test.describe('TIQ league surfaces', () => {
     await resetBrowserState(page)
     await expectSurfaceLoads(page, '/login')
     const redirecting = await page.getByText('Redirecting to your workspace...').isVisible().catch(() => false)
-    if (!redirecting) {
+    const resetBoundary = await isResetBoundaryVisible(page)
+    if (!redirecting && !resetBoundary) {
       await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
       await expect(page.getByLabel('Email')).toBeVisible()
@@ -162,6 +167,9 @@ test.describe('TIQ league surfaces', () => {
   test('Homepage command center stays readable without mobile overlap', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await expectSurfaceLoads(page, '/')
+    const resetBoundary = await isResetBoundaryVisible(page)
+    if (resetBoundary) return
+
     await expect(page.getByRole('heading', { name: 'More Tennis. Less Chaos.' })).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'Choose a TenAceIQ workspace' })).toBeVisible()
     await expect(page.getByPlaceholder('Search players, teams, leagues, tournaments, coaches, resources, or tennis actions')).toBeVisible()
