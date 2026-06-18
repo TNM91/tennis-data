@@ -81,8 +81,8 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
   full_court: {
     eyebrow: 'Full-Court unlock',
-    title: 'Run the full court.',
-    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations should stay connected around one tennis operation.',
+    title: 'Run every tennis job.',
+    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations need one connected tennis operation.',
     action: 'Continue with Full-Court',
     checkoutAction: 'Unlock Full-Court',
     setupAction: 'Preview Full-Court',
