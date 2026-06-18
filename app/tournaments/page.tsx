@@ -244,7 +244,7 @@ const tournamentNextActions = [
       },
     },
     trust: [
-      { label: 'Status', value: 'Organizer workspace', tone: 'info' },
+      { label: 'Status', value: 'Organizer Hub', tone: 'info' },
       { label: 'Source', value: 'Tournament Desk', tone: 'good' },
     ],
   },
@@ -388,7 +388,7 @@ const tournamentDiscoveryCards = [
       },
     },
     trust: [
-      { label: 'Status', value: 'Organizer workspace', tone: 'info' },
+      { label: 'Status', value: 'Organizer Hub', tone: 'info' },
       { label: 'Source', value: 'Tournament Desk', tone: 'good' },
     ],
   },

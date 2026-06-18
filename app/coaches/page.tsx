@@ -328,7 +328,7 @@ const coachNextActions = [
       },
     },
     trust: [
-      { label: 'Status', value: 'Coach workspace', tone: 'good' },
+      { label: 'Status', value: 'Coach Hub', tone: 'good' },
       { label: 'Signal', value: 'Assignment proof', tone: 'info' },
     ],
   },
@@ -376,7 +376,7 @@ const coachNextActions = [
       },
     },
     trust: [
-      { label: 'Status', value: 'Coach workspace', tone: 'good' },
+      { label: 'Status', value: 'Coach Hub', tone: 'good' },
       { label: 'Freshness', value: 'Coach updated', tone: 'info' },
     ],
   },
