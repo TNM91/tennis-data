@@ -194,7 +194,7 @@ const commandModes: Array<{
   {
     planId: 'full_court',
     lane: 'Full-Court',
-    action: 'Run the full suite',
+    action: 'Run every tennis job',
     label: 'Coach, Captain, League, and unlimited tournaments',
     href: '/pricing#full_court',
     cta: 'Unlock Full-Court',
@@ -518,7 +518,7 @@ const commandModeDetails: Record<
     subhead: 'Full-Court combines My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations.',
     searchPlaceholder: 'Search player, team, league, or tournament...',
     queue: ['Build tournament', 'Open Team Hub', 'Track results', 'Open player book'],
-    unlockLine: 'Full-Court unlocks the full suite plus unlimited tournament workspaces.',
+    unlockLine: 'Full-Court unlocks My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk.',
   },
 }
 const commandCenterSurfaceBackground =
@@ -1016,7 +1016,7 @@ function getDashboardLane(planId: PricingPlanId) {
       title: 'The full tennis operation.',
       show: 'My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations in one connected suite.',
       removes: 'Splitting team, league, and tournament work across separate systems.',
-      next: 'Unlock Full-Court when you need the full suite.',
+      next: 'Unlock Full-Court when one role no longer covers the tennis work.',
     }
   }
 
