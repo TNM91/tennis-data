@@ -81,7 +81,7 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
 
             <PlayerSuitePanel
               active="development"
-              playerLabel="Player+ development path"
+              playerLabel={`${playerTier.name} development path`}
               flow={['lab', 'development', 'matchup', 'refresh']}
             />
 
@@ -386,8 +386,8 @@ function WorkbookPreview({
             <span>{moduleCount} modules</span>
           </div>
           <div className={styles.coverAccess}>
-            <strong>Standalone workbook. Player+ connected path.</strong>
-            <p>Use the pages on court with or without the app. Scan to connect goals, progress, and coach handoffs when Player+ access is active.</p>
+            <strong>Standalone workbook. {playerTier.name} connected path.</strong>
+            <p>Use the pages on court with or without the app. Scan to connect goals, progress, and coach handoffs when {playerTier.name} access is active.</p>
             <QrAction href={`/player-development/${identity.slug}/workbook`} label="Open path" />
           </div>
         </div>
@@ -501,15 +501,15 @@ function WorkbookPreview({
         <MatchEvidenceLibrary identity={identity} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Player+ handoff">
-        <PageHeader label="Player+ workflow" title="Turn the workbook into court work" />
+      <WorkbookPage footer={`${playerTier.name} handoff`}>
+        <PageHeader label={`${playerTier.name} workflow`} title="Turn the workbook into court work" />
         <div className={styles.playerPlusBridge}>
           <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
           <div>
             <span>Workbook to My Lab</span>
             <h3>Set one goal, track one behavior, bring one note to your coach.</h3>
             <p>
-              The paper guide stands on its own. Player+ unlocks the connected layer:
+              The paper guide stands on its own. {playerTier.name} unlocks the connected layer:
               goal updates, match reflections, serve target charts, progress history, and coach handoff notes.
             </p>
           </div>
@@ -607,9 +607,9 @@ function WorkbookPreview({
         <div className={styles.phaseHandoff}>
           <TiqFeatureIcon name="myLab" size="md" variant="surface" />
           <div>
-            <span>Player+ rhythm</span>
+            <span>{playerTier.name} rhythm</span>
             <strong>Plan the phase, train the module, upload the evidence.</strong>
-        <p>The workbook pages are useful on paper. Player+ turns each phase into tracked goals, coach notes, and match reflections inside TenAceIQ.</p>
+        <p>The workbook pages are useful on paper. {playerTier.name} turns each phase into tracked goals, coach notes, and match reflections inside TenAceIQ.</p>
           </div>
         </div>
       </WorkbookPage>
@@ -703,7 +703,7 @@ function PlayerPlusAccessNote() {
         <p>
           Anyone can use the workbook as a training guide if it is shared with them.
           Coach-invited players can complete assigned Level Up work through the coach tier.
-          Player+ unlocks self-guided goals, check-ins, progress history, and recommendations.
+          {playerTier.name} unlocks self-guided goals, check-ins, progress history, and recommendations.
         </p>
       </div>
     </div>
@@ -717,7 +717,7 @@ function WorkbookPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity
     ['Training menu', 'Find solo, partner, performance, match, doubles, and off-court work.'],
     ['Performance Upgrade', 'Choose the movement, strength, conditioning, or recovery tool that supports this week\'s habit.'],
     ['Modules', 'Use the module only when it supports this week\'s goal.'],
-    ['Player+ companion', 'Update goals, quick check-ins, and coach assignment status.'],
+    [`${playerTier.name} companion`, 'Update goals, quick check-ins, and coach assignment status.'],
   ] as const
 
   return (
