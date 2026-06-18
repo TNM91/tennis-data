@@ -1,6 +1,9 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { buildProductAccessState, normalizeSubscriptionStatus } from './access-model'
+import { MEMBERSHIP_TIERS } from './product-story'
 import { supabaseKey, supabaseUrl } from './supabase'
+
+const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
 
 export type PlayerApiAuth =
   | {
@@ -32,7 +35,7 @@ export async function getPlayerApiAuth(request: Request): Promise<PlayerApiAuth>
   if (!access.canUseAdvancedPlayerInsights) {
     return {
       ok: false,
-      response: Response.json({ ok: false, message: 'Player+ access is required for this tool.' }, { status: 403 }),
+      response: Response.json({ ok: false, message: `${PLAYER_TIER_NAME} access is required for this tool.` }, { status: 403 }),
     }
   }
 

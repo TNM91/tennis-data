@@ -6,8 +6,10 @@ import {
   getLevelUpSyncContract,
   getLevelUpSyncContractsByStatus,
 } from '../level-up/level-up-sync-contract'
+import { MEMBERSHIP_TIERS } from '../product-story'
 
 const syncAuditSource = readFileSync(join(process.cwd(), 'docs/level-up-sync-audit.md'), 'utf8')
+const syncContractSource = readFileSync(join(process.cwd(), 'lib/level-up/level-up-sync-contract.ts'), 'utf8')
 const portalSource = readFileSync(join(process.cwd(), 'app/player-development/_components/level-up-portal.tsx'), 'utf8')
 const workbenchSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-live-workbench.tsx'), 'utf8')
 const playerSessionApiSource = readFileSync(join(process.cwd(), 'app/api/player/level-up-sessions/route.ts'), 'utf8')
@@ -62,6 +64,13 @@ describe('Level Up sync contract', () => {
     const proofHistory = getLevelUpSyncContract('proof-history')
     expect(proofHistory?.status).toBe('hybrid')
     expect(getLevelUpSyncContractsByStatus('hybrid').map((contract) => contract.id)).toContain('live-workbench-session')
+    expect(syncContractSource).toContain('PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name')
+    expect(proofHistory?.userStory).toContain(`${MEMBERSHIP_TIERS.player_plus.name} history`)
+    expect(proofHistory?.sourceOfTruth).toContain(`coach invite or ${MEMBERSHIP_TIERS.player_plus.name}`)
+    expect(proofHistory?.testSignal).toContain(`${MEMBERSHIP_TIERS.player_plus.name} proof syncs`)
+    expect(
+      LEVEL_UP_SYNC_CONTRACTS.map((contract) => [contract.userStory, contract.sourceOfTruth, contract.testSignal].join(' ')).join(' ')
+    ).not.toContain('Player+')
 
     expect(portalSource).toContain('Saved locally. Sign in from a coach invite or ${PLAYER_TIER_NAME} to sync proof history.')
     expect(portalSource).toContain('Synced. Your linked coach can use this for the next lesson.')

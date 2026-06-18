@@ -6,7 +6,7 @@ const coachAuth = readFileSync(join(process.cwd(), 'lib/coach-api-auth.ts'), 'ut
 const playerAuth = readFileSync(join(process.cwd(), 'lib/player-api-auth.ts'), 'utf8')
 
 describe('API auth subscription status normalization', () => {
-  it('keeps trial subscriptions usable for Coach and Player+ API gates', () => {
+  it('keeps trial subscriptions usable for Coach and Player API gates', () => {
     for (const source of [coachAuth, playerAuth]) {
       expect(source).toContain('normalizeSubscriptionStatus')
       expect(source).not.toContain('function normalizeApiSubscriptionStatus')

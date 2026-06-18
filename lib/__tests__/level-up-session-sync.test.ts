@@ -13,6 +13,9 @@ const authSource = readFileSync(join(process.cwd(), 'lib/player-api-auth.ts'), '
 describe('Level Up session sync', () => {
   it('keeps coach-invited access separate from Player self-guided access', () => {
     expect(authSource).toContain('getSignedInPlayerApiAuth')
+    expect(authSource).toContain('PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name')
+    expect(authSource).toContain('${PLAYER_TIER_NAME} access is required for this tool.')
+    expect(authSource).not.toContain('Player+ access is required for this tool.')
     expect(playerApiSource).toContain("accessMode === 'coach_invited'")
     expect(playerApiSource).toContain("accessMode === 'player_plus'")
     expect(playerApiSource).toContain('loadPlayerAccess')

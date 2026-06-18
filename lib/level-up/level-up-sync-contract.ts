@@ -1,4 +1,8 @@
+import { MEMBERSHIP_TIERS } from '../product-story'
+
 export type LevelUpSyncStatus = 'backend-backed' | 'hybrid' | 'local-only' | 'manual-copy'
+
+const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
 
 export type LevelUpSyncContract = {
   id: string
@@ -32,13 +36,13 @@ export const LEVEL_UP_SYNC_CONTRACTS: LevelUpSyncContract[] = [
     id: 'proof-history',
     label: 'Level Up proof history',
     status: 'hybrid',
-    userStory: 'Player completes proof once; linked coach or Player+ history can use it later.',
-    sourceOfTruth: 'level_up_sessions when signed in with coach invite or Player+; localStorage fallback otherwise',
+    userStory: `Player completes proof once; linked coach or ${PLAYER_TIER_NAME} history can use it later.`,
+    sourceOfTruth: `level_up_sessions when signed in with coach invite or ${PLAYER_TIER_NAME}; localStorage fallback otherwise`,
     backendTables: ['level_up_sessions'],
     apiRoutes: ['/api/player/level-up-sessions', '/api/coach/level-up-sessions'],
     localStorageKeys: ['tiq-level-up-completions', 'tenaceiq:level-up:<identitySlug>'],
     accessModes: ['coach_invited', 'player_plus', 'free_preview'],
-    testSignal: 'Coach-invited proof syncs to coach review; Player+ proof syncs to player history; Free preview remains local.',
+    testSignal: `Coach-invited proof syncs to coach review; ${PLAYER_TIER_NAME} proof syncs to player history; Free preview remains local.`,
     failFastIf: 'UI says synced when the session only exists in localStorage.',
   },
   {

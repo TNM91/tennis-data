@@ -83,7 +83,7 @@ describe('upgrade request pricing snapshots', () => {
     })
   })
 
-  it('captures Coach as a Player+ plus coaching workflow snapshot', () => {
+  it('captures Coach as a Player plan plus coaching workflow snapshot', () => {
     expect(buildUpgradePricingSnapshot('coach')).toMatchObject({
       planName: 'Coach',
       priceLabel: '$9.99/month',
