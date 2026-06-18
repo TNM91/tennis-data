@@ -64,7 +64,7 @@ export default function LeagueSuitePanel({
   const activeConfig = SUITE_STEPS[active]
 
   return (
-    <section style={shellStyle} aria-label="League coordinator suite context">
+    <section style={shellStyle} aria-label="League Office context">
       <div
         style={{
           ...headerStyle,

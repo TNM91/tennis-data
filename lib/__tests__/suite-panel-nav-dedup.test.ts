@@ -54,10 +54,20 @@ describe('suite panel navigation deduplication', () => {
   it('routes player-suite data improvement through guided Data Assist', () => {
     const playerSuite = source('app/components/player-suite-panel.tsx')
 
-    expect(playerSuite).toContain("const dataAssistPlayerSuiteHref = '/data-assist?intent=upload-source&context=Player%20suite'")
+    expect(playerSuite).toContain("const dataAssistPlayerSuiteHref = '/data-assist?intent=upload-source&context=Player%20workspace'")
     expect(playerSuite).toContain("label: 'Fix tennis info'")
     expect(playerSuite).toContain("title: 'Fix tennis info'")
     expect(playerSuite).toContain('href: dataAssistPlayerSuiteHref')
+  })
+
+  it('uses workspace language for contextual panel labels', () => {
+    expect(source('app/components/player-suite-panel.tsx')).toContain('aria-label="Player workspace context"')
+    expect(source('app/components/captain-suite-panel.tsx')).toContain('aria-label="Team workspace context"')
+    expect(source('app/components/league-suite-panel.tsx')).toContain('aria-label="League Office context"')
+
+    for (const path of suitePanelPaths) {
+      expect(source(path)).not.toContain('suite context')
+    }
   })
 
   it('keeps the persistent portal from replacing page-level headings', () => {
