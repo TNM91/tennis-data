@@ -1,4 +1,7 @@
 import type { TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { MEMBERSHIP_TIERS } from './product-story'
+
+const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
 
 export type PlayerDevelopmentSection = {
   id: string
@@ -767,7 +770,7 @@ export const SMART_ATTACKER_IDENTITY: PlayerDevelopmentIdentity = {
       baseline: 'Forces the next attack after a weak first strike.',
       target: 'Recognizes when the attack is not good enough and rebuilds the point.',
       evidence: 'Review sheet names one smart reset that prevented a bad error.',
-      playerPlusAction: 'Log a Player+ note on restraint under pressure.',
+      playerPlusAction: `Log a ${PLAYER_TIER_NAME} note on restraint under pressure.`,
     },
   ],
   weeks: [

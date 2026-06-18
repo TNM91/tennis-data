@@ -4,6 +4,7 @@ import { IDENTITY_LEVEL_UP_PROFILES } from '../level-up/identity-recommendations
 import { LEVEL_UP_MODULES } from '../level-up/level-up-modules'
 import { getRecommendedCardsForIdentity, getRecommendedModulesForIdentity } from '../level-up/recommendations'
 import { PLAYER_DEVELOPMENT_IDENTITIES } from '../player-development'
+import { MEMBERSHIP_TIERS } from '../product-story'
 
 const EMPTY_COPY_PATTERNS = [
   /body\s*toolkit/i,
@@ -170,5 +171,54 @@ describe('Level Up content quality', () => {
         expect(cardIds.has(cardId), `${identity.slug} references missing card ${cardId}`).toBe(true)
       }
     }
+  })
+
+  it('keeps player-development tier copy aligned to the Player plan name', () => {
+    const metricActions = PLAYER_DEVELOPMENT_IDENTITIES.flatMap((identity) =>
+      identity.metrics.map((metric) => metric.playerPlusAction)
+    )
+    const allIdentityCopy = PLAYER_DEVELOPMENT_IDENTITIES.map((identity) =>
+      [
+        identity.title,
+        identity.archetype,
+        identity.ratingBand,
+        identity.programLabel,
+        identity.audience,
+        identity.promise,
+        identity.mantra,
+        identity.levelPath.context,
+        ...identity.traits,
+        ...identity.outcomes,
+        ...identity.sections.flatMap((section) => [section.title, section.cue, ...section.drills, ...section.tracker]),
+        ...identity.phases.flatMap((phase) => [phase.title, phase.weeks, phase.focus, phase.proof]),
+        ...identity.metrics.flatMap((metric) => [
+          metric.skill,
+          metric.baseline,
+          metric.target,
+          metric.evidence,
+          metric.playerPlusAction,
+        ]),
+        ...identity.weeks.flatMap((week) => [
+          week.title,
+          week.objective,
+          week.mainDrill,
+          week.pressureGame,
+          week.accountability,
+          week.coachCue,
+          week.tiqPrompt,
+        ]),
+        ...identity.coachLessons.flatMap((plan) => [plan.focus, plan.objective, ...plan.blocks, plan.homework]),
+        ...identity.reusableSheets,
+        ...identity.tiqPrompts.flatMap((prompt) => [prompt.title, prompt.cue, prompt.href]),
+        ...identity.identityProfile.primaryWeapons,
+        ...identity.identityProfile.pressureHabits,
+        ...identity.identityProfile.styleLeaks,
+        ...identity.identityProfile.matchTriggers,
+        ...identity.identityProfile.coachQuestions,
+      ].join(' ')
+    ).join(' ')
+
+    expect(metricActions).toContain(`Log a ${MEMBERSHIP_TIERS.player_plus.name} note on restraint under pressure.`)
+    expect(allIdentityCopy).not.toContain('Player+')
   })
 })
