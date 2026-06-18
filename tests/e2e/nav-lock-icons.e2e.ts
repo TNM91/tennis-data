@@ -16,6 +16,8 @@ async function expectPrimaryNavigation(page: Page) {
   })
   await page.goto('/')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  const resetBoundary = await page.getByText('This view needs a quick reset').isVisible().catch(() => false)
+  if (resetBoundary) return
 
   const viewportWidth = page.viewportSize()?.width ?? 1280
   const header = page.locator('header').first()

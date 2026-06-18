@@ -19,6 +19,13 @@ describe('coach assignment message context', () => {
   })
 
   it('stores and displays assignment metadata on direct coach-player threads', () => {
+    expect(messagesSource).toContain('PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name')
+    expect(messagesSource).toContain('`${PLAYER_TIER_NAME} coach thread`')
+    expect(messagesSource).toContain('`${PLAYER_TIER_NAME} coach check-in`')
+    expect(messagesSource).toContain('quick {PLAYER_TIER_NAME} check-ins')
+    expect(messagesSource).not.toContain('Player+ coach thread')
+    expect(messagesSource).not.toContain('Player+ coach check-in')
+    expect(messagesSource).not.toContain('quick Player+ check-ins')
     expect(messagesSource).toContain('assignmentId: searchParams.get')
     expect(messagesSource).toContain('assignmentTitle: searchParams.get')
     expect(messagesSource).toContain('assignmentFocus: searchParams.get')

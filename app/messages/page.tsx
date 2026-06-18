@@ -52,12 +52,15 @@ import {
   type CalendarQuickAddCandidate,
 } from '@/lib/message-calendar-quick-add'
 import type { CoachStudentLink } from '@/lib/coach-storage'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ComposeMode = 'support' | 'direct'
 type SupportFilter = 'all' | 'billing' | 'league' | 'result' | 'data' | 'account' | 'general'
 type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'calendar' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'
 type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'system'
+
+const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
 
 type MessagePrefill = {
   mode: ComposeMode
@@ -476,7 +479,7 @@ function buildConversationContextPresentation(conversation: InternalConversation
     const isCoachView = contact?.relationship === 'student'
     const assignmentTitle = conversation.metadata.assignmentTitle
     const assignmentFocus = conversation.metadata.assignmentFocus
-    const relationshipLabel = isCoachView ? 'Coach-player thread' : 'Player+ coach thread'
+    const relationshipLabel = isCoachView ? 'Coach-player thread' : `${PLAYER_TIER_NAME} coach thread`
     const subjectCue = conversation.subject.toLowerCase().includes('first') ? 'First assignment request' : 'Coach-player development thread'
     return {
       label: relationshipLabel,
@@ -1039,7 +1042,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       const isStudent = contact.relationship === 'student'
       const nextSubject = isStudent
         ? `${contact.name} development check-in`
-        : 'Player+ coach check-in'
+        : `${PLAYER_TIER_NAME} coach check-in`
       const nextBody = isStudent
         ? `Quick coach note for ${contact.name}: `
         : 'Quick player note: '
@@ -1708,7 +1711,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             <div className="section-kicker">Coach-player links</div>
             <h2 style={coachContactsTitleStyle}>Start with the people tied to the work.</h2>
             <p style={coachContactsCopyStyle}>
-              Use these links for assignment follow-up, stat notes, lesson goals, and quick Player+ check-ins.
+              Use these links for assignment follow-up, stat notes, lesson goals, and quick {PLAYER_TIER_NAME} check-ins.
             </p>
           </div>
           <div style={coachContactsGridStyle}>
