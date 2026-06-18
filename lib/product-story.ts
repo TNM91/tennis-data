@@ -209,7 +209,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Coaches, captains, clubs, and organizers running the full tennis operation',
     upgradeCue: 'Unlock My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations.',
     description:
-      'Use My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations in one connected suite.',
+      'Use My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations as one tennis operation.',
     valueProps: [
       'Everything in My Lab, Coach Hub, Team Hub, and League Office',
       'Unlimited Tournament Desk and event workspaces',
@@ -377,7 +377,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   full_court: {
     stage: 'Full-Court unlock',
     headline: 'Run the whole tennis operation.',
-    copy: 'Combine My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations so teams, lessons, leagues, ladders, and events live in one premium suite.',
+    copy: 'Combine My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations so teams, lessons, leagues, ladders, and events stay connected around one tennis operation.',
     bullets: [
       'Unlock My Lab, Coach Hub, Team Hub, and League Office together',
       'Create unlimited Tournament Desk workspaces',

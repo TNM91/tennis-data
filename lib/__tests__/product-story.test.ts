@@ -8,6 +8,7 @@ import {
   PRODUCT_AVOID_LIST,
   PRODUCT_MODE_LANGUAGE,
   PRODUCT_NORTH_STAR,
+  TIER_HOMEPAGE_STORY,
 } from '../product-story'
 
 describe('product story guardrails', () => {
@@ -27,7 +28,10 @@ describe('product story guardrails', () => {
     expect(MEMBERSHIP_TIERS.league.valueProps).toContain('Use Data Assist uploads for schedules, rosters, and official scorecards')
     expect(MEMBERSHIP_TIERS.full_court.upgradeCue).toContain('Coach Hub, Team Hub, League Office')
     expect(MEMBERSHIP_TIERS.full_court.description).toContain('unlimited Tournament Desk operations')
+    expect(MEMBERSHIP_TIERS.full_court.description).toContain('as one tennis operation')
+    expect(TIER_HOMEPAGE_STORY.full_court.copy).toContain('around one tennis operation')
     expect(Object.values(MEMBERSHIP_TIERS).map((tier) => tier.description).join(' ')).not.toContain('Player plus')
+    expect(`${MEMBERSHIP_TIERS.full_court.description} ${TIER_HOMEPAGE_STORY.full_court.copy}`).not.toContain('suite')
   })
 
   it('keeps user-facing mode language mapped to the right formal tiers', () => {

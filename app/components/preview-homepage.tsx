@@ -1014,7 +1014,7 @@ function getDashboardLane(planId: PricingPlanId) {
     return {
       label: 'Full-Court',
       title: 'The full tennis operation.',
-      show: 'My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations in one connected suite.',
+      show: 'My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations as one tennis operation.',
       removes: 'Splitting team, league, and tournament work across separate systems.',
       next: 'Unlock Full-Court when one role no longer covers the tennis work.',
     }
@@ -2846,7 +2846,7 @@ function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccess
     >
       <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 10, alignContent: 'center', minWidth: 0 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, alignItems: 'center' }}>
-          <span style={fullCourtFeaturedBadgeStyle}>Championship suite</span>
+          <span style={fullCourtFeaturedBadgeStyle}>Full-Court operation</span>
           <span style={{ ...theme.tierBadge, width: 'fit-content' }}>Full-Court</span>
           <span style={{ ...compactPriceLabelStyle, color: theme.priceColor }}>{accessPresentation.priceLabel}</span>
         </div>
@@ -2879,7 +2879,7 @@ function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccess
             {accessPresentation.primaryCta.label}
           </Link>
           <Link href="/pricing#full_court" style={getTierSecondaryButton(theme)}>
-            Compare suite
+            Compare Full-Court
           </Link>
         </div>
       </div>
