@@ -56,6 +56,7 @@ describe('pricing plans', () => {
 
     expect(getPricingPlan('full_court')).toMatchObject({
       priceLabel: '$19.99/month',
+      badge: 'Every Tennis Job',
       billing: {
         amountCents: 1999,
         interval: 'month',
@@ -63,6 +64,7 @@ describe('pricing plans', () => {
         quantityMode: 'account',
       },
     })
+    expect(getPricingPlan('full_court').badge).not.toBe('Full Suite')
   })
 
   it('keeps Captain, League, and Full-Court entitlement grants clear', () => {

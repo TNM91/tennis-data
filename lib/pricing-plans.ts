@@ -244,7 +244,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     billing: PRICING_BILLING.full_court,
     entitlementGrant: FULL_COURT_ENTITLEMENTS,
     priceLabel: formatPricingBillingLabel(PRICING_BILLING.full_court),
-    badge: 'Full Suite',
+    badge: 'Every Tennis Job',
     ctaLabel: 'Unlock Full-Court',
     problem: 'Running more than one tennis job?',
     friction: 'Coach work, captain work, league operations, tournaments, and player context split apart when the season gets busy.',

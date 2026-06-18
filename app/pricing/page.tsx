@@ -33,7 +33,7 @@ const PLAN_PUBLIC_NAMES: Record<PricingPlanId, string> = {
   coach: 'Coach - Coach Hub for player development',
   captain: 'Captain - Team Hub for match week',
   league: 'League - League Office for a season',
-  full_court: 'Full-Court - Everything connected, including Tournament Desk',
+  full_court: 'Full-Court - Every tennis job, including Tournament Desk',
 }
 
 const WORKSPACE_PREVIEWS: Array<{
