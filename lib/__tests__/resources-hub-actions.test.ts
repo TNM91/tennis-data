@@ -83,6 +83,8 @@ describe('Resources hub actions', () => {
   it('routes Fix Data resources to matching Data Assist intents', () => {
     expect(source).toContain("title=\"The tennis resource hub for less chaos.\"")
     expect(source).toContain("primary={{ href: '/player-development', label: 'Level Up My Game' }}")
+    expect(source).toContain('tennis intelligence and action layer')
+    expect(source).toContain('tennis context needs verification')
     expect(source).toContain("return '/data-assist?intent=report-issue&context=Resources%20hub'")
     expect(source).toContain("return '/data-assist?intent=request-review&context=Resources%20hub'")
     expect(source).toContain("return '/data-assist?intent=upload-source&context=Resources%20hub'")
@@ -90,6 +92,7 @@ describe('Resources hub actions', () => {
     expect(source).toContain("lower.includes('track scores')")
     expect(source).toContain("return '/leagues-and-tournaments'")
     expect(source).toContain('context="Resources trust strip"')
+    expect(source).not.toContain('workflow layer')
   })
 
   it('keeps the I-need-to chooser tappable and mobile-safe', () => {

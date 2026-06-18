@@ -59,7 +59,7 @@ const faqSchemaItems = [
   {
     question: 'How should I report a data issue?',
     answer:
-      'Open a TenAceIQ support thread and include the affected league, team, date, player, or match reference. If you have the source record, start with Data Assist so the fix can be reviewed before it changes platform data.',
+      'Open a TenAceIQ support thread and include the affected league, team, date, player, or match reference. If you have the source record, start with Data Assist so the fix can be reviewed before it changes tennis context.',
   },
 ] as const
 
@@ -115,7 +115,7 @@ export default function FaqPage() {
             Open a <Link href="/messages?compose=support&category=data">TenAceIQ support thread</Link>{' '}
             and include the affected league, team, date, player, or match reference. If you have the
             source record, start with <Link href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</Link> so the
-            fix can be reviewed before it changes platform data.
+            fix can be reviewed before it changes tennis context.
           </p>
         </div>
       </InfoPage>

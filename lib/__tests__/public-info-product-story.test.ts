@@ -45,9 +45,11 @@ describe('public info product story copy', () => {
     expect(faqSource).toContain('League Office runs seasons')
     expect(faqSource).toContain('Coach Hub')
     expect(faqSource).toContain('Tournament Desk')
+    expect(faqSource).toContain('changes tennis context')
     expect(faqSource).not.toContain('Captain leads')
     expect(faqSource).not.toContain('League operates')
     expect(faqSource).not.toContain('Captain adds')
+    expect(faqSource).not.toContain('changes platform data')
 
     expect(advertisingSource).toContain('Team Hub workflow screens')
     expect(advertisingSource).not.toContain('captain workflow screens')

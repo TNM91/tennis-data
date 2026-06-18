@@ -112,7 +112,7 @@ const resourceFaqItems = [
   },
   {
     question: 'Does TenAceIQ replace official league or tournament records?',
-    answer: 'No. TenAceIQ is a tennis intelligence and workflow layer. Source, freshness, confidence, and review status help users understand when data needs verification.',
+    answer: 'No. TenAceIQ is a tennis intelligence and action layer. Source, freshness, confidence, and review status help users understand when tennis context needs verification.',
   },
 ] as const
 
