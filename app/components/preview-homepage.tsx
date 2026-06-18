@@ -514,8 +514,8 @@ const commandModeDetails: Record<
     unlockLine: 'League unlocks shared calendar, league spaces, team books, and player books.',
   },
   full_court: {
-    headline: 'Run the full court from one workspace.',
-    subhead: 'Full-Court combines My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations.',
+    headline: 'Run every tennis job from one place.',
+    subhead: 'Full-Court keeps My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations in one connected tennis operation.',
     searchPlaceholder: 'Search player, team, league, or tournament...',
     queue: ['Build tournament', 'Open Team Hub', 'Track results', 'Open player book'],
     unlockLine: 'Full-Court unlocks My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk.',
@@ -1013,7 +1013,7 @@ function getDashboardLane(planId: PricingPlanId) {
   if (planId === 'full_court') {
     return {
       label: 'Full-Court',
-      title: 'The full tennis operation.',
+      title: 'Every tennis job, connected.',
       show: 'My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations as one tennis operation.',
       removes: 'Splitting team, league, and tournament work across separate systems.',
       next: 'Unlock Full-Court when one role no longer covers the tennis work.',
@@ -2861,7 +2861,7 @@ function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccess
             overflowWrap: 'anywhere',
           }}
         >
-          Run the full tennis operation.
+          Run every tennis job.
         </h3>
         <div style={fullCourtValueStripStyle}>
           {suiteItems.map((item) => (
@@ -2872,7 +2872,7 @@ function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccess
 
       <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 8, justifyItems: isMobile ? 'start' : 'end', minWidth: 0 }}>
         <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.45, fontWeight: 800, maxWidth: 360, textAlign: isMobile ? 'left' : 'right' }}>
-          Everything in the tiers above, plus unlimited tournament and league operations.
+          My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations stay in one connected tennis operation.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
           <Link href={accessPresentation.primaryCta.href} style={fullCourtPrimaryCtaStyle}>
