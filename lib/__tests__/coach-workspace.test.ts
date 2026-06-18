@@ -41,7 +41,7 @@ describe('coach workspace model', () => {
     expect(COACH_LESSON_BLOCKS.at(-1)?.title).toBe('Assignment')
   })
 
-  it('keeps coach session presets practical and Player+ ready', () => {
+  it('keeps coach session presets practical and Player ready', () => {
     expect(COACH_SESSION_PRESETS.map((preset) => preset.id)).toEqual([
       'serve-plus-one-pressure',
       'relentless-movement-repeat',
@@ -56,22 +56,22 @@ describe('coach workspace model', () => {
     expect(getCoachSessionPreset('missing').id).toBe('serve-plus-one-pressure')
   })
 
-  it('turns a session preset into assignment-ready Player+ follow-through', () => {
+  it('turns a session preset into assignment-ready Player follow-through', () => {
     expect(buildSessionPresetAssignment('relentless-movement-repeat')).toMatchObject({
       title: 'Relentless movement repeat',
       focus: 'Stay in motion between shots, split on opponent contact, and recover without panic.',
       tracker: [
         'Objective completed with clear scoring standard',
         'Pressure game result recorded',
-        'Player+ prompt answered before next session',
+        'Player prompt answered before next session',
       ],
     })
     expect(buildSessionPresetAssignment('relentless-movement-repeat').detail).toContain('Live-ball movement chain')
     expect(buildSessionPresetAssignment('relentless-movement-repeat').prompt).toContain('Save three fatigue cues')
   })
 
-  it('documents Player+, Coach, Captain, and Full-Court integration', () => {
-    expect(COACH_INTEGRATION_STEPS.map((step) => step.label)).toEqual(['Player+ link', 'Coach', 'Captain', 'Full-Court'])
+  it('documents Player, Coach, Captain, and Full-Court integration', () => {
+    expect(COACH_INTEGRATION_STEPS.map((step) => step.label)).toEqual(['Player link', 'Coach', 'Captain', 'Full-Court'])
   })
 
   it('builds coach planner routes by identity slug', () => {

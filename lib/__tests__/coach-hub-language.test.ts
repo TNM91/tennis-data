@@ -17,6 +17,9 @@ describe('Coach Hub naming', () => {
     expect(coachPage).toContain('Could not load Coach Hub.')
     expect(coachPage).toContain('Coach Hub brings lesson plans')
     expect(coachPage).toContain('<div style={eyebrowStyle}>Coach Hub</div>')
+    expect(coachPage).toContain('Player connection')
+    expect(coachPage).toContain('Player accounts can receive this inside TenAceIQ')
+    expect(coachPage).toContain('Coach sets the next step. Player carries it between lessons.')
     expect(coachPage).toContain('COACH_REVIEW_PROOF_SYNC_STEPS')
     expect(coachPage).toContain('aria-label="Coach review proof sync cue"')
     expect(coachPage).toContain('Coach review proof sync cue')
@@ -57,9 +60,16 @@ describe('Coach Hub naming', () => {
     expect(coachInvite).toContain('Confirm the account before accepting.')
     expect(coachInvite).toContain('Signed-in account:')
     expect(coachInvite).toContain('Acceptance check:')
+    expect(coachInvite).toContain("label: 'Player'")
+    expect(coachInvite).toContain('Player unlocks full self-guided history and trends.')
+    expect(coachInvite).toContain('Upgrade to Player')
 
     for (const text of [coachPage, messagesPage, loginPage, portal, coachInvite]) {
       expect(text).not.toContain('Coach workspace')
+    }
+
+    for (const text of [coachPage, coachInvite]) {
+      expect(text).not.toContain('Player+')
     }
   })
 })

@@ -11,7 +11,7 @@ describe('coach assignment templates', () => {
     ])
   })
 
-  it('keeps every template measurable and Player+ ready', () => {
+  it('keeps every template measurable and Player ready', () => {
     for (const template of COACH_ASSIGNMENT_TEMPLATES) {
       expect(template.title).toBeTruthy()
       expect(template.focus).toBeTruthy()

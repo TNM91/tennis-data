@@ -186,7 +186,7 @@ const invitePathSteps = [
     copy: 'Your coach can keep you on their student board and hand you useful printed or digital guide work.',
   },
   {
-    label: 'Player+',
+    label: 'Player',
     title: 'Activate connected follow-through',
     copy: 'Assignments, recaps, coach feedback, and progress history appear in My Lab.',
   },
@@ -250,7 +250,7 @@ function CoachInviteContent() {
     next: nextHref,
   })
   if (invite?.inviteEmail) signupParams.set('email', invite.inviteEmail)
-  const playerPlusHref = `/join?${signupParams.toString()}`
+  const playerHref = `/join?${signupParams.toString()}`
   const loginHref = `/login?next=${encodeURIComponent(nextHref)}`
   const signedInEmail = session?.user?.email ?? ''
   const invitedEmailLabel = invite?.inviteEmail || 'Open invite'
@@ -298,7 +298,7 @@ function CoachInviteContent() {
         throw new Error(json.message || 'This coach invite could not be accepted.')
       }
       setInvite((current) => (current ? { ...current, status: 'accepted' } : current))
-      setMessage('Coach connected. Your coach-assigned Level Up work is linked; Player+ unlocks full self-guided history and trends.')
+      setMessage('Coach connected. Your coach-assigned Level Up work is linked; Player unlocks full self-guided history and trends.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'This coach invite could not be accepted.')
     } finally {
@@ -354,7 +354,7 @@ function CoachInviteContent() {
                   <Link href={loginHref} style={pageStyles.primaryButton}>
                     Sign in to accept
                   </Link>
-                  <Link href={playerPlusHref} style={pageStyles.secondaryButton}>
+                  <Link href={playerHref} style={pageStyles.secondaryButton}>
                     Create account
                   </Link>
                 </>
@@ -373,8 +373,8 @@ function CoachInviteContent() {
                     <Link href="/mylab#coach-assignments" style={pageStyles.primaryButton}>
                       Open My Lab
                     </Link>
-                    <Link href={playerPlusHref} style={pageStyles.secondaryButton}>
-                      Unlock Player+
+                    <Link href={playerHref} style={pageStyles.secondaryButton}>
+                      Unlock Player
                     </Link>
                   </>
                 )
@@ -384,8 +384,8 @@ function CoachInviteContent() {
                     {accepting ? 'Connecting' : 'Accept coach invite'}
                   </button>
                   {!access.canUseAdvancedPlayerInsights ? (
-                    <Link href={playerPlusHref} style={pageStyles.secondaryButton}>
-                      Upgrade to Player+
+                    <Link href={playerHref} style={pageStyles.secondaryButton}>
+                      Upgrade to Player
                     </Link>
                   ) : null}
                 </>
@@ -468,7 +468,7 @@ function CoachInviteContent() {
 
             <p style={{ ...pageStyles.copy, marginTop: 18, fontSize: 14 }}>
               The printed workbook remains a standalone development tool. Your coach invite unlocks assigned work and
-              check-ins from that coach; Player+ unlocks the full self-guided layer across your own training.
+              check-ins from that coach; Player unlocks the full self-guided layer across your own training.
             </p>
           </aside>
         </div>

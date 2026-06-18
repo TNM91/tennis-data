@@ -7,7 +7,7 @@ const myLabSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf
 const messagesSource = readFileSync(join(process.cwd(), 'app/messages/page.tsx'), 'utf8')
 
 describe('coach assignment message context', () => {
-  it('passes assignment context from Coach and Player+ assignment cards into Messages', () => {
+  it('passes assignment context from Coach and Player assignment cards into Messages', () => {
     for (const source of [coachSource, myLabSource]) {
       expect(source).toContain('assignmentId: assignment.id')
       expect(source).toContain('assignmentTitle: assignment.title')

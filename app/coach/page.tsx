@@ -792,7 +792,7 @@ function CoachContent() {
       setReviewAssignmentId('')
       setReviewNote('')
       setReviewNextFocus('')
-      setWorkspaceMessage('Review saved. Player+ can now see the next focus in My Lab.')
+      setWorkspaceMessage('Review saved. Player can now see the next focus in My Lab.')
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not save assignment review.')
     } finally {
@@ -974,7 +974,7 @@ function CoachContent() {
         </div>
         <div style={heroPanelStyle}>
           <TiqFeatureIcon name="scenarioBuilder" size="xl" variant="surface" />
-          <strong>Player+ connection</strong>
+          <strong>Player connection</strong>
           <span>Standalone guides stay useful on paper. Linked players get check-ins, assignments, reviewed proof, and progress history inside TenAceIQ.</span>
         </div>
       </section>
@@ -1190,7 +1190,7 @@ function CoachContent() {
           )) : (
             <article style={linkedEmptyStyle}>
               <strong>No linked players yet.</strong>
-              <span>Add a student below, then send a setup link when you want the Player+ layer connected.</span>
+              <span>Add a student below, then send a setup link when you want the Player layer connected.</span>
             </article>
           )}
         </div>
@@ -1467,7 +1467,7 @@ function CoachContent() {
                 <div style={eyebrowStyle}>Assignment ready</div>
                 <h3 style={sessionPlannerTitleStyle}>{lastCreatedAssignment.title}</h3>
                 <p style={studentNextStyle}>
-                  Send to {lastCreatedAssignmentStudent.playerName}. Player+ accounts can receive this inside TenAceIQ; cell numbers can use the free text shortcut.
+                  Send to {lastCreatedAssignmentStudent.playerName}. Player accounts can receive this inside TenAceIQ; cell numbers can use the free text shortcut.
                 </p>
               </div>
               <div style={sessionActionRowStyle}>
@@ -1488,7 +1488,7 @@ function CoachContent() {
                     Send IM
                   </Link>
                 ) : (
-                  <span style={disabledPillStyle}>Link Player+ for IM</span>
+                  <span style={disabledPillStyle}>Link Player for IM</span>
                 )}
                 {lastCreatedAssignmentStudent.playerPhone ? (
                   <a href={buildSmsHref(lastCreatedAssignmentStudent.playerPhone, lastAssignmentNotifyMessage)} style={smallGhostLinkStyle}>
@@ -1540,7 +1540,7 @@ function CoachContent() {
                   Send IM
                 </Link>
               ) : (
-                <span style={disabledPillStyle}>Link Player+ for IM</span>
+                <span style={disabledPillStyle}>Link Player for IM</span>
               )}
               {selectedContactStudent?.playerPhone ? (
                 <a href={buildSmsHref(selectedContactStudent.playerPhone, lessonMessage)} style={smallGhostLinkStyle}>
@@ -1638,7 +1638,7 @@ function CoachContent() {
               <SessionStep label="Objective" value={selectedSessionPreset.objective} />
               <SessionStep label="Drill" value={selectedSessionPreset.drill} />
               <SessionStep label="Pressure game" value={selectedSessionPreset.pressureGame} />
-              <SessionStep label="Player+ prompt" value={selectedSessionPreset.playerPlusPrompt} />
+              <SessionStep label="Player prompt" value={selectedSessionPreset.playerPlusPrompt} />
             </div>
             <div style={sessionActionRowStyle}>
               <button type="button" onClick={useSessionPresetForAssignment} style={smallPrimaryButtonStyle}>
@@ -1901,7 +1901,7 @@ function CoachContent() {
       <section style={integrationStyle}>
         <div>
           <div style={eyebrowStyle}>How this fits TenAceIQ</div>
-          <h2 style={sectionTitleStyle}>Coach sets the next step. Player+ carries it between lessons.</h2>
+          <h2 style={sectionTitleStyle}>Coach sets the next step. Player carries it between lessons.</h2>
           <p style={bodyStyle}>
             The printed workbook should stand alone, but the best version links the athlete back into TenAceIQ:
             QR check-ins, assigned drills, lesson notes, tactical boards, and weekly recaps.
@@ -2161,7 +2161,7 @@ function buildCoachQueueActions(
   if (pendingCard?.pendingInvite) {
     actions.push({
       label: 'Setup',
-      title: `Finish ${pendingCard.student.playerName}'s Player+ link`,
+      title: `Finish ${pendingCard.student.playerName}'s Player link`,
       detail: 'Send the setup link again so assignments, check-ins, and messages connect.',
       href: pendingCard.pendingInvite.inviteHref,
       tone: 'setup',
@@ -2172,7 +2172,7 @@ function buildCoachQueueActions(
     actions.push({
       label: 'Start',
       title: 'Add your first student',
-      detail: 'Create the player record, then send the setup link when you want Player+ follow-through.',
+      detail: 'Create the player record, then send the setup link when you want Player follow-through.',
       href: '#coach-student-board',
       tone: 'assign',
     })
@@ -2394,7 +2394,7 @@ function getLinkedPlayerPriority(card: LinkedPlayerCard) {
 }
 
 function getSetupStatusLabel(student: CoachStudentLink) {
-  if (student.playerUserId || student.setupStatus === 'linked') return 'Linked Player+ account'
+  if (student.playerUserId || student.setupStatus === 'linked') return 'Linked Player account'
   if (student.setupStatus === 'invited') return 'Setup link sent'
   return 'Manual student'
 }
