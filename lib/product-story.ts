@@ -296,7 +296,7 @@ export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> =
     route: '/pricing',
     planId: null,
     job: 'Choose the right unlock',
-    cue: 'Start free, then activate My Lab, Coach Hub, Team Hub, League Office, or Full-Court when that role saves time.',
+    cue: 'Start free, then activate My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a workspace.',
   },
 } as const
 
@@ -396,7 +396,7 @@ export const HOME_HERO_STORY = {
   headlineTop: 'Tennis decisions,',
   headlineBottom: 'made clearer.',
   body:
-    'Start free. Upgrade when you need your lab, your coach workflow, your lineup, your league, or every tennis job connected.',
+    'Start free. Upgrade when the next tennis job needs My Lab, Coach Hub, Team Hub, League Office, or every tennis job connected.',
   proof: ['Free search', 'Player insight', 'Coach development', 'Captain decisions', 'Full-Court operations'],
 } as const
 

@@ -32,47 +32,47 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
   free: {
     eyebrow: 'Create your account',
     mobileTitle: 'Start free.',
-    desktopTitle: 'Start free. Add workspaces when you need them.',
-    mobileText: 'Create an account and explore tennis context.',
-    desktopText: 'Explore tennis context first. Upgrade when you want My Lab, Captain, or League operations.',
-    formCue: 'Create the free account first. Your tier path stays simple from there.',
+    desktopTitle: 'Start free. Pick the tennis job later.',
+    mobileText: 'Create an account and search the tennis map.',
+    desktopText: 'Search players, teams, leagues, rankings, and tennis context first. Upgrade only when a specific job needs a workspace.',
+    formCue: 'Create the free account first. Choose My Lab, Coach Hub, Team Hub, League Office, or Full-Court when a tennis job needs it.',
     success: 'Account created. Sign in, then explore the tennis map.',
   },
   player_plus: {
     eyebrow: 'Player path',
     mobileTitle: 'Set up your lab.',
-    desktopTitle: 'Create your account. Make TenAceIQ personal.',
+    desktopTitle: 'Create your account. Then activate My Lab.',
     mobileText: 'Create the free account first. Player unlocks after the plan is active.',
-    desktopText: 'Player starts with a free account, then unlocks My Lab, Fix tennis info, Prep matchup, and Messages after the plan is active.',
+    desktopText: 'Player starts with Free, then unlocks My Lab, data refreshes, matchup prep, follows, and tennis messages after the plan is active.',
     formCue: 'Signup creates Free access. Activate Player next, then open My Lab so TenAceIQ can revolve around your tennis.',
     success: 'Free account created. Sign in, then activate Player and open My Lab.',
   },
   coach: {
     eyebrow: 'Coach path',
     mobileTitle: 'Set up Coach.',
-    desktopTitle: 'Create your account. Develop players with a connected workspace.',
+    desktopTitle: 'Create your account. Then activate Coach Hub.',
     mobileText: 'Create the free account first. Coach unlocks after the plan is active.',
-    desktopText: 'Coach starts with a free account, then unlocks lesson planning, student tracking, assignments, scheduling, and tactical boards after the plan is active.',
-    formCue: 'Signup creates Free access. Activate Coach next, then open Tactical Studio and your coaching workflow.',
-    success: 'Free account created. Sign in, then activate Coach to open the coaching workspace.',
+    desktopText: 'Coach starts with Free, then unlocks lesson planning, player tracking, assignments, scheduling, and tactical boards after the plan is active.',
+    formCue: 'Signup creates Free access. Activate Coach next, then open Coach Hub and Tactical Studio for the player-development job.',
+    success: 'Free account created. Sign in, then activate Coach to open Coach Hub.',
   },
   captain: {
     eyebrow: 'Team path',
     mobileTitle: 'Set up Captain.',
-    desktopTitle: 'Create your account. Run the team week.',
+    desktopTitle: 'Create your account. Then activate Team Hub.',
     mobileText: 'Create the free account first. Captain unlocks after the plan is active.',
-    desktopText: 'Captain starts with a free account, then unlocks lineups, scouting, readiness, and weekly team decisions after the plan is active.',
-    formCue: 'Signup creates Free access. Activate Captain next, then open the team-week workflow.',
-    success: 'Free account created. Sign in, then activate Captain to open the team-week workspace.',
+    desktopText: 'Captain starts with Free, then unlocks availability, lineups, scouting, readiness, messages, and weekly team decisions after the plan is active.',
+    formCue: 'Signup creates Free access. Activate Captain next, then open Team Hub for the match-week job.',
+    success: 'Free account created. Sign in, then activate Captain to open Team Hub.',
   },
   league: {
     eyebrow: 'League path',
     mobileTitle: 'Set up League.',
-    desktopTitle: 'Create your account. Operate the season.',
+    desktopTitle: 'Create your account. Then activate League Office.',
     mobileText: 'Create the free account first. League unlocks after access is active.',
-    desktopText: 'League starts with a free account, then unlocks shared calendar, league spaces, team books, and player books after access is active.',
-    formCue: 'Signup creates Free access. Activate League access next, then move into the season workspace.',
-    success: 'Free account created. Sign in, then activate League access to continue season setup.',
+    desktopText: 'League starts with Free, then unlocks one season workspace for players or teams, schedules, scores, standings, and admin follow-through.',
+    formCue: 'Signup creates Free access. Activate League next, then open League Office for the season job.',
+    success: 'Free account created. Sign in, then activate League to open League Office.',
   },
   full_court: {
     eyebrow: 'Full-Court path',
@@ -83,6 +83,15 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
     formCue: 'Signup creates Free access. Activate Full-Court next, then open one connected tennis operation.',
     success: 'Free account created. Sign in, then activate Full-Court to run every tennis job.',
   },
+}
+
+const JOIN_SELECTED_PLAN_COPY: Record<MembershipTierId, string> = {
+  free: 'Search the tennis map first. Upgrade only when a specific tennis job needs a workspace.',
+  player_plus: 'Player starts from Free, then opens My Lab for your game, matchup prep, follows, and messages.',
+  coach: 'Coach starts from Free, then opens Coach Hub for lessons, assignments, player proof, and follow-through.',
+  captain: 'Captain starts from Free, then opens Team Hub for availability, lineups, scouting, and team messages.',
+  league: 'League starts from Free, then opens League Office for one season of schedules, scores, and standings.',
+  full_court: 'Full-Court starts from Free, then opens every tennis job plus unlimited Tournament Desk operations.',
 }
 
 function getJoinNextRoute(planId: MembershipTierId) {
@@ -238,19 +247,17 @@ function JoinContent() {
         <div style={joinCopyRailStyle}>
           <div style={eyebrow}>{selectedIntent.eyebrow}</div>
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
-            Create your account.
+            {isMobile ? selectedIntent.mobileTitle : selectedIntent.desktopTitle}
           </h1>
           <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-            Start free. TenAceIQ will point you to the right next step after signup.
+            {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
           </p>
 
           <div style={selectedPlanCardStyle}>
             <div style={selectedPlanLabelStyle}>Selected start</div>
             <div style={selectedPlanTitleStyle}>{selectedTier.name}</div>
             <div style={selectedPlanTextStyle}>
-              {selectedPlanId === 'free'
-                ? 'Explore the tennis map first. Upgrade only when a workspace saves you time.'
-                : `${selectedTier.name} opens after account creation and plan activation.`}
+              {JOIN_SELECTED_PLAN_COPY[selectedPlanId]}
             </div>
             {selectedPlanId !== 'free' ? (
               <div style={entitlementNoticeStyle}>

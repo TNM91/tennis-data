@@ -259,7 +259,7 @@ export function CommandHero({
           <div style={heroPanelHeaderStyle}>
             <span style={panelKickerStyle}>Platform paths</span>
             <strong style={panelTitleStyle}>Start with what you need to do.</strong>
-            <p style={panelCopyStyle}>Search is the front door. These shortcuts move the tennis community toward a useful next action.</p>
+            <p style={panelCopyStyle}>Search is the front door. These shortcuts move the tennis community toward the next job that needs attention.</p>
           </div>
           <div style={miniCourtStyle} aria-label="TenAceIQ portal board preview">
             <span aria-hidden="true" style={courtNetStyle} />
@@ -382,7 +382,7 @@ export function AudiencePathGrid() {
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ is organized around tennis actions first, then the right hub when the job gets serious." />
+      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ is organized around tennis actions first, then the right hub when the next tennis job needs a workspace." />
       <div style={actionGridStyle}>
         {cards.map((card) => (
           <article key={card.title} style={actionCardStyle}>

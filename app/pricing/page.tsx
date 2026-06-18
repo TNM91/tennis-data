@@ -8,7 +8,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
 import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
-import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
   getPricingBillingCue,
@@ -34,6 +34,15 @@ const PLAN_PUBLIC_NAMES: Record<PricingPlanId, string> = {
   captain: 'Captain - Team Hub for match week',
   league: 'League - League Office for a season',
   full_court: 'Full-Court - Every tennis job, including Tournament Desk',
+}
+
+const PLAN_JOB_FIT: Record<PricingPlanId, string> = {
+  free: 'You need to scan players, teams, leagues, rankings, and tennis context before choosing a paid job.',
+  player_plus: 'You want My Lab to track your game, sharpen matchup prep, and keep your tennis context close.',
+  coach: 'You need Coach Hub to plan lessons, assign drills, review proof, and support players between sessions.',
+  captain: 'You need Team Hub to collect availability, compare lineups, scout, and send the match-week plan.',
+  league: 'You need League Office to structure one season, publish schedules, collect scores, and keep standings clean.',
+  full_court: 'You run more than one tennis job and need My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk connected.',
 }
 
 const WORKSPACE_PREVIEWS: Array<{
@@ -304,12 +313,11 @@ function PricingContent() {
       </section>
 
       <section id="choose" style={sectionStyle} aria-labelledby="choose-title">
-        <SectionHeader eyebrow="Choose your role" title="Pick the job you need TenAceIQ to do." body="Each tier is role-based. Free stays useful for discovery; paid plans unlock the workspace behind the work." />
+        <SectionHeader eyebrow="Choose your role" title="Pick the job you need TenAceIQ to do." body="Each tier is role-based. Free stays useful for discovery; paid plans unlock the next tennis job when the work gets specific." />
         <div style={planGridStyle}>
           {PRICING_PLANS.map((plan) => {
             const active = !accessPending && isPlanActive(plan.id, access)
             const recommended = !accessPending && !active && recommendedPlanId === plan.id
-            const tier = getMembershipTier(plan.id)
 
             return (
               <article key={plan.id} id={plan.id} style={{ ...planCardStyle, ...(recommended ? recommendedCardStyle : null), ...(active ? activeCardStyle : null) }}>
@@ -327,7 +335,7 @@ function PricingContent() {
                 <p style={cardTextStyle}>{plan.outcome}</p>
                 <div style={fitBoxStyle}>
                   <strong>Best for</strong>
-                  <span>{tier.audience}</span>
+                  <span>{PLAN_JOB_FIT[plan.id]}</span>
                 </div>
                 <ul style={featureListStyle}>
                   {plan.valueProps.slice(0, 3).map((valueProp) => (
