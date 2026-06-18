@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DATA_ASSIST_STORY,
+  HOME_HERO_STORY,
   MEMBERSHIP_TIERS,
   PLATFORM_AUDIENCE_PATHS,
   PLATFORM_PILLARS,
@@ -26,12 +27,19 @@ describe('product story guardrails', () => {
     expect(MEMBERSHIP_TIERS.coach.description).toContain('Use Player features plus Coach Hub')
     expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player features plus Team Hub and Captain Tools')
     expect(MEMBERSHIP_TIERS.league.valueProps).toContain('Use Data Assist uploads for schedules, rosters, and official scorecards')
+    expect(MEMBERSHIP_TIERS.full_court.shortPromise).toBe('Run every tennis job.')
+    expect(MEMBERSHIP_TIERS.full_court.audience).toContain('running more than one tennis job')
     expect(MEMBERSHIP_TIERS.full_court.upgradeCue).toContain('Coach Hub, Team Hub, League Office')
     expect(MEMBERSHIP_TIERS.full_court.description).toContain('unlimited Tournament Desk operations')
-    expect(MEMBERSHIP_TIERS.full_court.description).toContain('as one tennis operation')
-    expect(TIER_HOMEPAGE_STORY.full_court.copy).toContain('around one tennis operation')
+    expect(MEMBERSHIP_TIERS.full_court.description).toContain('one connected tennis operation')
+    expect(MEMBERSHIP_TIERS.full_court.valueProps).toContain('My Lab, Coach Hub, Team Hub, and League Office together')
+    expect(MEMBERSHIP_TIERS.full_court.valueProps).toContain('One connected tennis operation for coaches, captains, coordinators, and organizers')
+    expect(TIER_HOMEPAGE_STORY.full_court.headline).toBe('Run every tennis job.')
+    expect(TIER_HOMEPAGE_STORY.full_court.copy).toContain('inside one connected tennis operation')
     expect(Object.values(MEMBERSHIP_TIERS).map((tier) => tier.description).join(' ')).not.toContain('Player plus')
     expect(`${MEMBERSHIP_TIERS.full_court.description} ${TIER_HOMEPAGE_STORY.full_court.copy}`).not.toContain('suite')
+    expect(`${MEMBERSHIP_TIERS.full_court.audience} ${MEMBERSHIP_TIERS.full_court.valueProps.join(' ')} ${TIER_HOMEPAGE_STORY.full_court.headline}`).not.toContain('full tennis operation')
+    expect(`${TIER_HOMEPAGE_STORY.full_court.headline} ${TIER_HOMEPAGE_STORY.full_court.copy}`).not.toContain('Run the whole tennis operation')
   })
 
   it('keeps user-facing mode language mapped to the right formal tiers', () => {
@@ -48,6 +56,8 @@ describe('product story guardrails', () => {
   it('keeps the clarified platform why centralized', () => {
     expect(PRODUCT_NORTH_STAR).toContain('players, captains, coaches, leagues, and tournaments')
     expect(PRODUCT_NORTH_STAR).toContain('spend less time managing, guessing, searching, and coordinating')
+    expect(HOME_HERO_STORY.body).toContain('every tennis job connected')
+    expect(HOME_HERO_STORY.body).not.toContain('the full court')
     expect(PLATFORM_POSITIONING).toBe(
       'The tennis platform that helps players, captains, coaches, leagues, and tournaments improve, compete, and manage the game with less friction.',
     )

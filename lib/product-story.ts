@@ -205,17 +205,17 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   full_court: {
     id: 'full_court',
     name: 'Full-Court',
-    shortPromise: 'Unlock every TenAceIQ workspace.',
-    audience: 'Coaches, captains, clubs, and organizers running the full tennis operation',
+    shortPromise: 'Run every tennis job.',
+    audience: 'Coaches, captains, clubs, and organizers running more than one tennis job',
     upgradeCue: 'Unlock My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations.',
     description:
-      'Use My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations as one tennis operation.',
+      'Use My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations as one connected tennis operation.',
     valueProps: [
-      'Everything in My Lab, Coach Hub, Team Hub, and League Office',
+      'My Lab, Coach Hub, Team Hub, and League Office together',
       'Unlimited Tournament Desk and event workspaces',
       'Shared scheduling, results, standings, and rankings',
-      'Team and player books across the full operation',
-      'One workspace for coaches, captains, coordinators, and organizers',
+      'Team and player books across the connected operation',
+      'One connected tennis operation for coaches, captains, coordinators, and organizers',
     ],
   },
 } as const
@@ -376,8 +376,8 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   },
   full_court: {
     stage: 'Full-Court unlock',
-    headline: 'Run the whole tennis operation.',
-    copy: 'Combine My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations so teams, lessons, leagues, ladders, and events stay connected around one tennis operation.',
+    headline: 'Run every tennis job.',
+    copy: 'Combine My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations so teams, lessons, leagues, ladders, and events stay inside one connected tennis operation.',
     bullets: [
       'Unlock My Lab, Coach Hub, Team Hub, and League Office together',
       'Create unlimited Tournament Desk workspaces',
@@ -396,7 +396,7 @@ export const HOME_HERO_STORY = {
   headlineTop: 'Tennis decisions,',
   headlineBottom: 'made clearer.',
   body:
-    'Start free. Upgrade when you need your lab, your coach workflow, your lineup, your league, or the full court.',
+    'Start free. Upgrade when you need your lab, your coach workflow, your lineup, your league, or every tennis job connected.',
   proof: ['Free search', 'Player insight', 'Coach development', 'Captain decisions', 'Full-Court operations'],
 } as const
 
