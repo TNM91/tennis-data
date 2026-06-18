@@ -281,7 +281,7 @@ export default function TiqTacticalStudio() {
         <div className={styles.navPills}>
           <button className={`${styles.button} ${styles.active}`} type="button">Tactics</button>
           <button className={styles.button} type="button">Coach beta</button>
-          <button className={styles.button} type="button">Player+ ready</button>
+          <button className={styles.button} type="button">Player ready</button>
         </div>
       </div>
 
