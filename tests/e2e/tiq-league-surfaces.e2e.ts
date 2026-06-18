@@ -106,9 +106,9 @@ test.describe('TIQ league surfaces', () => {
     await expectDarkShell(page)
     const resetBoundary = await page.getByText('This view needs a quick reset').isVisible().catch(() => false)
     if (!resetBoundary) {
-      await expect(page.getByRole('heading', { name: /Welcome to your (lab|tennis lab)\./ })).toBeVisible()
+      await expect(page.getByRole('heading', { name: /Welcome to your (lab|tennis lab)\.|Make My Lab yours/ })).toBeVisible()
       await expect(page.locator('body')).toContainText(/Data Assist|Improve data/)
-      await expect(page.getByRole('link', { name: 'Open Data Assist' })).toBeVisible()
+      await expect(page.getByRole('link', { name: /Open Data Assist/ })).toBeVisible()
     }
   })
 

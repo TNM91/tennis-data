@@ -483,7 +483,7 @@ const commandModeDetails: Record<
     subhead: 'Start with the tennis map, then unlock the workspace that saves your week.',
     searchPlaceholder: 'Search players, teams, leagues, ratings...',
     queue: ['Find a player', 'Browse teams', 'Check standings', 'Check rankings'],
-    unlockLine: 'Free stays useful. Paid tiers unlock private workflows when the job becomes personal, team-based, or league-wide.',
+    unlockLine: 'Free stays useful. Unlock My Lab, Team Hub, or League Office when the job becomes personal, team-based, or league-wide.',
   },
   player_plus: {
     headline: 'Turn public data into your personal lab.',

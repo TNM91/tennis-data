@@ -41,6 +41,8 @@ describe('homepage portal action alignment', () => {
     expect(homepage).not.toContain("title: 'Create tournament'")
     expect(homepage).toContain('Start with your tennis job')
     expect(homepage).toContain('Explore, improve, compete, or manage with less chaos.')
+    expect(homepage).toContain('Unlock My Lab, Team Hub, or League Office')
+    expect(homepage).not.toContain('Paid tiers unlock private workflows')
     expect(homepage).toContain('title="Team Hub"')
     expect(homepage).toContain('title="League Office"')
     expect(homepage).toContain('League Office')
