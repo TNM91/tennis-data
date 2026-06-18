@@ -147,7 +147,7 @@ export default function CompeteLeaguesPage() {
       <div style={upgradeWrapStyle}>
         <div style={upgradeIntroStyle}>
           <div style={sectionEyebrowStyle}>Unlock path</div>
-          <div style={upgradeTitleStyle}>Open the workspace that matches the job.</div>
+          <div style={upgradeTitleStyle}>Open the path that matches the tennis job.</div>
           <div style={sectionTextStyle}>
             Player handles personal prep, Captain handles team week, and League Office handles seasons, scorebooks, and public league rooms.
           </div>
