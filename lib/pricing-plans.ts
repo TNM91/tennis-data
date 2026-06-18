@@ -249,7 +249,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     problem: 'Running more than one tennis job?',
     friction: 'Coach work, captain work, league operations, tournaments, and player context split apart when the season gets busy.',
     solution: getMembershipTier('full_court').description,
-    outcome: 'Run every TenAceIQ workspace with unlimited tournament room.',
+    outcome: 'Keep every tennis job connected, with unlimited Tournament Desk room.',
     valueProps: getMembershipTier('full_court').valueProps,
   },
 ]
@@ -273,7 +273,7 @@ export const WHY_TENACEIQ_POINTS = [
   },
   {
     title: 'Upgrade by role',
-    text: 'Coach is for player development. Captain is for team decisions. Full-Court unlocks everything.',
+    text: 'Coach is for player development. Captain is for team decisions. Full-Court connects every tennis job.',
   },
 ] as const
 

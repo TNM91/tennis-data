@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { getPricingBillingCue, getPricingPlan } from '../pricing-plans'
+import { getPricingBillingCue, getPricingPlan, WHY_TENACEIQ_POINTS } from '../pricing-plans'
 
 describe('pricing plans', () => {
   it('keeps the public price labels backed by structured billing terms', () => {
@@ -57,6 +57,7 @@ describe('pricing plans', () => {
     expect(getPricingPlan('full_court')).toMatchObject({
       priceLabel: '$19.99/month',
       badge: 'Every Tennis Job',
+      outcome: 'Keep every tennis job connected, with unlimited Tournament Desk room.',
       billing: {
         amountCents: 1999,
         interval: 'month',
@@ -65,6 +66,7 @@ describe('pricing plans', () => {
       },
     })
     expect(getPricingPlan('full_court').badge).not.toBe('Full Suite')
+    expect(getPricingPlan('full_court').outcome).not.toContain('Run every TenAceIQ workspace')
   })
 
   it('keeps Captain, League, and Full-Court entitlement grants clear', () => {
@@ -103,5 +105,12 @@ describe('pricing plans', () => {
     expect(getPricingBillingCue('captain')).toBe('Monthly subscription')
     expect(getPricingBillingCue('league')).toBe('Season fee')
     expect(getPricingBillingCue('full_court')).toBe('Monthly subscription')
+  })
+
+  it('keeps role upgrade proof concrete instead of everything-language', () => {
+    const roleUpgrade = WHY_TENACEIQ_POINTS.find((point) => point.title === 'Upgrade by role')
+
+    expect(roleUpgrade?.text).toContain('Full-Court connects every tennis job.')
+    expect(roleUpgrade?.text).not.toContain('Full-Court unlocks everything')
   })
 })
