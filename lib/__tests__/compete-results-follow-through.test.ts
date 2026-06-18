@@ -72,7 +72,7 @@ describe('compete results follow-through', () => {
     expect(source).toContain('Results start with one finished match.')
     expect(source).toContain('Log player result')
     expect(source).toContain('Open team book')
-    expect(source).toContain('Improve data')
+    expect(source).toContain('Fix tennis info')
     expect(source).not.toContain('No TIQ individual results have been logged yet.')
     expect(styleBlock('emptyResultsStyle')).toContain('minWidth: 0')
     expect(styleBlock('emptyResultsCopyStyle')).toContain("overflowWrap: 'anywhere'")

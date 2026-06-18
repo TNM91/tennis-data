@@ -686,7 +686,7 @@ function ProfilePageInner() {
   ] as const
   const profileNextMoves = [
     { title: 'Open My Lab', href: '/mylab', icon: 'myLab' },
-    { title: 'Improve data', href: dataAssistProfileHref, icon: 'reports' },
+    { title: 'Fix tennis info', href: dataAssistProfileHref, icon: 'reports' },
     { title: 'Prep matchup', href: profileMatchupHref, icon: 'matchPrep' },
     { title: 'Review messages', href: '/messages', icon: 'messagingCenter' },
   ] as const

@@ -34,8 +34,8 @@ const SUITE_STEPS: Record<PlayerSuiteStep, PlayerSuiteConfig> = {
     icon: 'matchPrep',
   },
   refresh: {
-    label: 'Improve data',
-    title: 'Improve data',
+    label: 'Fix tennis info',
+    title: 'Fix tennis info',
     body: 'Upload, report, or refresh the tennis context behind your read.',
     href: dataAssistPlayerSuiteHref,
     icon: 'reports',

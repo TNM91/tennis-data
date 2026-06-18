@@ -489,7 +489,7 @@ const commandModeDetails: Record<
     headline: 'Turn public data into your personal lab.',
     subhead: 'Player adds My Lab, data refreshes, matchup prep, and messages around your next match.',
     searchPlaceholder: 'Search an opponent, partner, or player...',
-    queue: ['Open My Lab', 'Improve data', 'Prep matchup', 'Review messages'],
+    queue: ['Open My Lab', 'Fix tennis info', 'Prep matchup', 'Review messages'],
     unlockLine: 'Player unlocks My Lab, data refreshes, matchup prep, and messages.',
   },
   coach: {

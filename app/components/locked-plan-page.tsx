@@ -169,7 +169,7 @@ function getLockedPreview(planId: PricingPlanId): {
         icon: 'myLab',
       },
       {
-        label: 'Improve data',
+        label: 'Fix tennis info',
         title: 'Refresh tennis context',
         text: 'Upload, report, or refresh the records behind your read.',
         icon: 'reports',

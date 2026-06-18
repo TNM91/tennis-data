@@ -214,7 +214,7 @@ describe('Messages mobile layout guards', () => {
     expect(styleBlock('replyBoxStyle')).toContain("position: 'sticky'")
     expect(source).toContain("const dataAssistMessagesHref = '/data-assist?intent=upload-source&context=Messages'")
     expect(source).toContain("title: 'Open My Lab'")
-    expect(source).toContain("title: 'Improve data'")
+    expect(source).toContain("title: 'Fix tennis info'")
     expect(source).toContain("href: dataAssistMessagesHref")
     expect(source).toContain("title: 'Prep matchup'")
     expect(source).toContain('No thread selected.')

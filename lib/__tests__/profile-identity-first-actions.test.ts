@@ -29,7 +29,7 @@ describe('profile identity first actions', () => {
   it('keeps completed profiles on a useful next-move path', () => {
     expect(source).toContain('const profileNextMoves = [')
     expect(source).toContain("title: 'Open My Lab'")
-    expect(source).toContain("title: 'Improve data'")
+    expect(source).toContain("title: 'Fix tennis info'")
     expect(source).toContain("href: dataAssistProfileHref")
     expect(source).toContain("title: 'Prep matchup'")
     expect(source).toContain("title: 'Review messages'")

@@ -244,7 +244,7 @@ function getUnlockSteps(planId: PricingPlanId) {
   if (planId === 'player_plus') {
     return [
       { title: 'Open My Lab', body: 'Keep your scorecard, goals, and next tennis read together.' },
-      { title: 'Improve data', body: 'Upload, report, or refresh the context behind your tennis read.' },
+      { title: 'Fix tennis info', body: 'Upload, report, or refresh the context behind your tennis read.' },
       { title: 'Prep matchup', body: 'Turn public discovery into personal match prep.' },
     ]
   }

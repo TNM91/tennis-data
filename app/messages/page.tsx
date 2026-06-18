@@ -772,7 +772,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const dataAssistMessagesHref = '/data-assist?intent=upload-source&context=Messages'
   const emptyInboxActions = [
     { title: 'Open My Lab', href: '/mylab' },
-    { title: 'Improve data', href: dataAssistMessagesHref },
+    { title: 'Fix tennis info', href: dataAssistMessagesHref },
     { title: 'Prep matchup', href: '/matchup' },
   ] as const
 

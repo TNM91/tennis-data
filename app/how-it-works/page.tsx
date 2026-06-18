@@ -25,7 +25,7 @@ const workflowCards: InfoActionCard[] = [
   },
   {
     title: 'Personalize',
-    text: 'Open My Lab, improve data, prep matchups, and keep tennis messages together.',
+    text: 'Open My Lab, fix tennis info, prep matchups, and keep tennis messages together.',
     href: '/mylab',
     cta: 'Open My Lab',
     icon: 'myLab',
@@ -87,7 +87,7 @@ export default function HowItWorksPage() {
         </div>
 
         <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. Improve data</h2>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. Fix tennis info</h2>
           <p>
              When rosters, schedules, or scorecards need to be updated, players, captains, coordinators,
              and admins can start with <Link href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</Link>.

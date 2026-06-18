@@ -43,7 +43,7 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
     mobileTitle: 'Set up your lab.',
     desktopTitle: 'Create your account. Make TenAceIQ personal.',
     mobileText: 'Create the free account first. Player unlocks after the plan is active.',
-    desktopText: 'Player starts with a free account, then unlocks My Lab, Improve data, Prep matchup, and Messages after the plan is active.',
+    desktopText: 'Player starts with a free account, then unlocks My Lab, Fix tennis info, Prep matchup, and Messages after the plan is active.',
     formCue: 'Signup creates Free access. Activate Player next, then open My Lab so TenAceIQ can revolve around your tennis.',
     success: 'Free account created. Sign in, then activate Player and open My Lab.',
   },

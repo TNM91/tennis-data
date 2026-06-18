@@ -21,7 +21,7 @@ import { formatDate } from '@/lib/captain-formatters'
 const emptyResultActions = [
   { href: '/league-coordinator/individual-results', label: 'Log player result' },
   { href: '/league-coordinator/results', label: 'Open team book' },
-  { href: DATA_ASSIST_STORY.href, label: 'Improve data' },
+  { href: DATA_ASSIST_STORY.href, label: 'Fix tennis info' },
 ] as const
 
 const resultsPathActions = [

@@ -55,6 +55,8 @@ describe('suite panel navigation deduplication', () => {
     const playerSuite = source('app/components/player-suite-panel.tsx')
 
     expect(playerSuite).toContain("const dataAssistPlayerSuiteHref = '/data-assist?intent=upload-source&context=Player%20suite'")
+    expect(playerSuite).toContain("label: 'Fix tennis info'")
+    expect(playerSuite).toContain("title: 'Fix tennis info'")
     expect(playerSuite).toContain('href: dataAssistPlayerSuiteHref')
   })
 

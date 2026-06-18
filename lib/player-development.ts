@@ -590,7 +590,7 @@ export const RELENTLESS_COMPETITOR_IDENTITY: PlayerDevelopmentIdentity = {
       href: '/matchup',
     },
     {
-      title: 'Improve data',
+      title: 'Fix tennis info',
       cue: 'Upload scorecards or notes when the tennis context needs to refresh.',
       href: dataAssistPlayerDevelopmentHref,
     },
