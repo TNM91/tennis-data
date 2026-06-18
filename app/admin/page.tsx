@@ -260,7 +260,7 @@ export default function AdminDashboardPage() {
         <AdminReviewFrame>
         <AdminReviewHero
           kicker="Admin Command"
-          title="Elite Admin Dashboard"
+          title="Admin Control Center"
           actions={
             <>
               <a href="#imports" className="button-primary" style={{ textDecoration: 'none' }}>
@@ -272,8 +272,8 @@ export default function AdminDashboardPage() {
             </>
           }
         >
-          Centralize imports, manual entry, match cleanup, and player maintenance in one premium
-          control surface that matches the rest of the TenAceIQ experience.
+          Centralize imports, manual entry, match cleanup, and player maintenance in one reviewed
+          control surface for safer tennis data operations.
         </AdminReviewHero>
         <DataQualityPanel />
 
