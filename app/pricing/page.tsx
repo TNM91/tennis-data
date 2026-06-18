@@ -462,7 +462,7 @@ function PricingContent() {
         <div>
           <div style={sectionEyebrowStyle}>Start free / upgrade</div>
           <h2 style={billingTitleStyle}>Find first. Upgrade when the tennis work gets specific.</h2>
-          <p style={heroTextStyle}>Search the tennis landscape for free, then open the role workspace that saves your week.</p>
+          <p style={heroTextStyle}>Search the tennis landscape for free, then choose the next tennis job that needs a workspace.</p>
         </div>
         <div style={heroActionRowStyle}>
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
