@@ -22,11 +22,12 @@ describe('product story guardrails', () => {
   it('keeps Free distinct from paid unlock tiers', () => {
     expect(MEMBERSHIP_TIERS.free.description).toContain('public tennis intelligence')
     expect(MEMBERSHIP_TIERS.player_plus.valueProps).toContain('Unlock My Lab')
-    expect(MEMBERSHIP_TIERS.coach.description).toContain('Use Player plus Coach Hub')
-    expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player plus Team Hub and Captain Tools')
+    expect(MEMBERSHIP_TIERS.coach.description).toContain('Use Player features plus Coach Hub')
+    expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player features plus Team Hub and Captain Tools')
     expect(MEMBERSHIP_TIERS.league.valueProps).toContain('Use Data Assist uploads for schedules, rosters, and official scorecards')
     expect(MEMBERSHIP_TIERS.full_court.upgradeCue).toContain('Coach Hub, Team Hub, League Office')
     expect(MEMBERSHIP_TIERS.full_court.description).toContain('unlimited Tournament Desk operations')
+    expect(Object.values(MEMBERSHIP_TIERS).map((tier) => tier.description).join(' ')).not.toContain('Player plus')
   })
 
   it('keeps user-facing mode language mapped to the right formal tiers', () => {

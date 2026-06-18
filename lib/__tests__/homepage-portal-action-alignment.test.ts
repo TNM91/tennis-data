@@ -29,6 +29,8 @@ describe('homepage portal action alignment', () => {
     expect(homepage).not.toContain("title: 'Upload scorecard'")
     expect(homepage).toContain("href: '/captain/practice'")
     expect(homepage).toContain("queue: ['Who can play', 'Plan practice', 'Build lineup', 'Send plan']")
+    expect(homepage).toContain('Captain includes Player features plus availability')
+    expect(homepage).not.toContain('Captain includes Player plus availability')
     expect(homepage).toContain("href: '/league-coordinator/tournaments'")
     expect(homepage).toContain("queue: ['Shared calendar', 'Build tournament', 'Team book', 'Player book']")
     expect(homepage).toContain("queue: ['Build tournament', 'Open Team Hub', 'Track results', 'Open player book']")

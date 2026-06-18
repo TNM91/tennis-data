@@ -161,7 +161,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Private coaches, school coaches, and training-group leaders',
     upgradeCue: 'Unlock lesson planning, drill assignments, player development tracking, scheduling, and coach-player communication.',
     description:
-      'Use Player plus Coach Hub to assign drills, track player development, recommend resources, schedule lessons, review proof, and support players between sessions.',
+      'Use Player features plus Coach Hub to assign drills, track player development, recommend resources, schedule lessons, review proof, and support players between sessions.',
     valueProps: [
       'Plan lessons and practice blocks',
       'Track player development and training groups',
@@ -177,7 +177,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Captains managing lineups, readiness, and weekly decisions',
     upgradeCue: 'Add Team Hub and Captain Tools on top of Player.',
     description:
-      'Use Player plus Team Hub and Captain Tools for lineups, scouting, team decisions, player readiness, and weekly team flow.',
+      'Use Player features plus Team Hub and Captain Tools for lineups, scouting, team decisions, player readiness, and weekly team flow.',
     valueProps: [
       'Build and compare lineups',
       'Scout players and teams',

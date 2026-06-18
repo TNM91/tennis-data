@@ -504,7 +504,7 @@ const commandModeDetails: Record<
     subhead: 'Captain turns availability, practice, lineup building, and team messages into one practical match-week desk.',
     searchPlaceholder: 'Search player, opponent team, or lineup...',
     queue: ['Who can play', 'Plan practice', 'Build lineup', 'Send plan'],
-    unlockLine: 'Captain includes Player plus availability, practice scheduling, lineup, and team message workflows.',
+    unlockLine: 'Captain includes Player features plus availability, practice scheduling, lineup, and team message workflows.',
   },
   league: {
     headline: 'Run the season with structure.',
