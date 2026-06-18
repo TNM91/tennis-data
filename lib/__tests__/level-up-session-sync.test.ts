@@ -11,13 +11,15 @@ const portalSource = readFileSync(join(process.cwd(), 'app/player-development/_c
 const authSource = readFileSync(join(process.cwd(), 'lib/player-api-auth.ts'), 'utf8')
 
 describe('Level Up session sync', () => {
-  it('keeps coach-invited access separate from Player+ self-guided access', () => {
+  it('keeps coach-invited access separate from Player self-guided access', () => {
     expect(authSource).toContain('getSignedInPlayerApiAuth')
     expect(playerApiSource).toContain("accessMode === 'coach_invited'")
     expect(playerApiSource).toContain("accessMode === 'player_plus'")
     expect(playerApiSource).toContain('loadPlayerAccess')
+    expect(playerApiSource).toContain('PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name')
     expect(playerApiSource).toContain('Connect with a coach invite before syncing coach-visible Level Up work.')
-    expect(playerApiSource).toContain('Player+ is required to sync self-guided Level Up history across devices.')
+    expect(playerApiSource).toContain('${PLAYER_TIER_NAME} is required to sync self-guided Level Up history across devices.')
+    expect(playerApiSource).not.toContain('Player+ is required to sync self-guided Level Up history across devices.')
   })
 
   it('persists Level Up work for players and exposes shared logs to coaches', () => {
@@ -34,16 +36,18 @@ describe('Level Up session sync', () => {
     expect(workbenchSource).toContain('Free preview saved locally.')
   })
 
-  it('syncs portal proof logs through coach invite, Player+, or local fallback', () => {
+  it('syncs portal proof logs through coach invite, Player, or local fallback', () => {
     expect(portalSource).toContain('function useLevelUpCompletions(')
     expect(portalSource).toContain('assignmentByCardId: Map<string, LevelUpAssignment>')
+    expect(portalSource).toContain('PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name')
     expect(portalSource).toContain('supabase.auth.getSession')
     expect(portalSource).toContain('/api/player/level-up-sessions')
     expect(portalSource).toContain('/api/player/coach-assignments')
     expect(portalSource).toContain("accessMode: 'coach_invited'")
     expect(portalSource).toContain("accessMode: 'player_plus'")
     expect(portalSource).toContain('assignmentId: assignmentByCardId.get(cardId)?.id')
-    expect(portalSource).toContain('Saved locally. Sign in from a coach invite or Player+ to sync proof history.')
+    expect(portalSource).toContain('Saved locally. Sign in from a coach invite or ${PLAYER_TIER_NAME} to sync proof history.')
+    expect(portalSource).not.toContain('Saved locally. Sign in from a coach invite or Player+ to sync proof history.')
     expect(portalSource).toContain('Synced. Your linked coach can use this for the next lesson.')
     expect(portalSource).toContain('Synced to your Level Up history.')
     expect(portalSource).toContain('remoteSessionToCompletion')

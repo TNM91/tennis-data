@@ -205,6 +205,8 @@ describe('Level Up page', () => {
     expect(contentSource).toContain('levelUpPortal')
     expect(contentSource).toContain('Coach Assigned')
     expect(contentSource).toContain('Favorites')
+    expect(contentSource).toContain('{playerTier.name} quick starts.')
+    expect(contentSource).not.toContain('Player+ quick starts.')
     expect(contentSource).toContain('Recommended for Your Player Identity')
     expect(contentSource).toContain('Your tennis training hub.')
     expect(contentSource).toContain('questPackPreviews')

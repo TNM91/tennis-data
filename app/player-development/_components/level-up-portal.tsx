@@ -7,6 +7,7 @@ import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity, recommendLevelUpCards } from '@/lib/level-up/recommendations'
 import type { LevelUpAssignment, LevelUpCard, LevelUpCompletion, LevelUpModule, LevelUpRecommendation } from '@/lib/level-up/level-up-types'
 import { getCoachAssignmentSummary, type CoachAssignment, type CoachStudentLink } from '@/lib/coach-storage'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
 
@@ -58,6 +59,8 @@ type NextBestRep = {
   signal: string
   firstRep: string
 }
+
+const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
 
 type CoachRecommendedNext = {
   title: string
@@ -8438,7 +8441,7 @@ function LevelUpLocalSyncProof() {
       </div>
       <div>
         <p>Saved first: rating, tiny note, timer, focus, and proof history stay in this browser immediately.</p>
-        <p>Syncs when connected: Player+ history or coach-invited proof can reach Level Up sessions after sign-in.</p>
+        <p>Syncs when connected: {PLAYER_TIER_NAME} history or coach-invited proof can reach Level Up sessions after sign-in.</p>
         <p>Local-only in v1: favorites and copied coach-update sent markers stay on this device for now.</p>
       </div>
     </aside>
@@ -8690,7 +8693,7 @@ async function syncPortalCompletion({
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) {
-    setSyncState({ status: 'local', message: 'Saved locally. Sign in from a coach invite or Player+ to sync proof history.' })
+    setSyncState({ status: 'local', message: `Saved locally. Sign in from a coach invite or ${PLAYER_TIER_NAME} to sync proof history.` })
     return
   }
 
@@ -8724,7 +8727,7 @@ async function syncPortalCompletion({
 
   setSyncState({
     status: 'local',
-    message: playerPlusResult.message || coachResult.message || 'Saved locally. Coach invite or Player+ turns on cloud history.',
+    message: playerPlusResult.message || coachResult.message || `Saved locally. Coach invite or ${PLAYER_TIER_NAME} turns on cloud history.`,
   })
 }
 

@@ -230,7 +230,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             </Link>
             <Link href="#favorite-cards">
               <span>Favorites</span>
-              <strong>Player+ quick starts.</strong>
+              <strong>{playerTier.name} quick starts.</strong>
               <p>Pin the cards you repeat most often so training starts in one tap.</p>
               <div className={styles.levelUpMiniList}>
                 {favoritePreview.map((card) => <small key={card.id}>{card.title}</small>)}

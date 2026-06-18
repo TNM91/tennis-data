@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
 
@@ -136,6 +137,7 @@ const readinessFeeling: Record<PlayerReadiness, PlayerFeeling> = {
 }
 
 const LEVEL_UP_UNDO_WINDOW_MS = 6500
+const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
 
 const accessModes: Record<AccessMode, { label: string; title: string; copy: string; action: string }> = {
   coach_invited: {
@@ -145,7 +147,7 @@ const accessModes: Record<AccessMode, { label: string; title: string; copy: stri
     action: 'Coach can review shared work',
   },
   player_plus: {
-    label: 'Player+',
+    label: PLAYER_TIER_NAME,
     title: 'Full self-guided Level Up',
     copy: 'Use Level Up without a coach invite, save history across devices, and unlock trends, recommendations, and My Lab progress.',
     action: 'Player owns the full plan',
@@ -153,7 +155,7 @@ const accessModes: Record<AccessMode, { label: string; title: string; copy: stri
   free_preview: {
     label: 'Free preview',
     title: 'Try the on-court flow',
-    copy: 'Explore a limited local session. Coach syncing and full history unlock through a coach invite or Player+.',
+    copy: `Explore a limited local session. Coach syncing and full history unlock through a coach invite or ${PLAYER_TIER_NAME}.`,
     action: 'Local-only sample',
   },
 }
@@ -563,14 +565,14 @@ export default function PlayerLiveWorkbench({
 
   async function syncLevelUpSession(session: SavedSession) {
     if (session.accessMode === 'free_preview') {
-      setSyncState({ status: 'local', message: 'Free preview saved locally. Coach invite or Player+ turns on cloud history.' })
+      setSyncState({ status: 'local', message: `Free preview saved locally. Coach invite or ${PLAYER_TIER_NAME} turns on cloud history.` })
       return
     }
 
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
     if (!token) {
-      setSyncState({ status: 'local', message: 'Saved locally. Sign in from a coach invite or Player+ to sync it.' })
+      setSyncState({ status: 'local', message: `Saved locally. Sign in from a coach invite or ${PLAYER_TIER_NAME} to sync it.` })
       return
     }
 
@@ -757,9 +759,9 @@ export default function PlayerLiveWorkbench({
           <p>Serve, movement, fitness, mental routine, doubles, and match habits all pull into one plan.</p>
         </article>
         <article>
-          <span>Player+ unlock</span>
+          <span>{PLAYER_TIER_NAME} unlock</span>
           <strong>Saved history, trends, and recommendations.</strong>
-          <p>Player+ turns quick logs into My Lab progress, match evidence, and next-focus intelligence.</p>
+          <p>{PLAYER_TIER_NAME} turns quick logs into My Lab progress, match evidence, and next-focus intelligence.</p>
         </article>
       </div>
 
@@ -1095,7 +1097,7 @@ export default function PlayerLiveWorkbench({
                 {syncState.message || (lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
                   ? 'Ready to sync to your coach when linked.'
                   : lastSavedSession.accessMode === 'player_plus'
-                    ? 'Ready for Player+ history and trends.'
+                    ? `Ready for ${PLAYER_TIER_NAME} history and trends.`
                     : 'Kept as a local preview for now.')}
                 {questCreditMessage ? ` ${questCreditMessage}` : ''}
               </p>
@@ -1108,7 +1110,7 @@ export default function PlayerLiveWorkbench({
                 New focus
               </button>
               <a className="button-secondary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
-                {lastSavedSession.accessMode === 'player_plus' ? 'Player+' : 'My Lab'}
+                {lastSavedSession.accessMode === 'player_plus' ? PLAYER_TIER_NAME : 'My Lab'}
               </a>
             </div>
           </div>
@@ -1160,7 +1162,7 @@ export default function PlayerLiveWorkbench({
           </article>
           <article>
             <span>Syncs when connected</span>
-            <p>Player+ history or coach-invited proof can reach Level Up sessions after sign-in.</p>
+            <p>{PLAYER_TIER_NAME} history or coach-invited proof can reach Level Up sessions after sign-in.</p>
           </article>
           <article>
             <span>Local-only in v1</span>
@@ -1192,12 +1194,12 @@ export default function PlayerLiveWorkbench({
         </article>
       </div>
 
-      <div className={styles.liveUnlockPanel} aria-label="Player Plus unlock path">
+      <div className={styles.liveUnlockPanel} aria-label={`${PLAYER_TIER_NAME} unlock path`}>
         <div>
-          <span>Player+ unlock</span>
+          <span>{PLAYER_TIER_NAME} unlock</span>
           <strong>Turn on-court logs into a shared development plan.</strong>
           <p>
-            Coach-invited players get assigned Level Up work through the coach tier. Players without an invite use Player+
+            Coach-invited players get assigned Level Up work through the coach tier. Players without an invite use {PLAYER_TIER_NAME}
             for full self-guided history, trends, recommendations, calendar-linked lessons, and progress ownership.
           </p>
         </div>

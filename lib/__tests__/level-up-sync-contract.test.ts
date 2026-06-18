@@ -58,19 +58,21 @@ describe('Level Up sync contract', () => {
     }
   })
 
-  it('keeps proof history sync status language honest for local, Player+, and coach-invited users', () => {
+  it('keeps proof history sync status language honest for local, Player, and coach-invited users', () => {
     const proofHistory = getLevelUpSyncContract('proof-history')
     expect(proofHistory?.status).toBe('hybrid')
     expect(getLevelUpSyncContractsByStatus('hybrid').map((contract) => contract.id)).toContain('live-workbench-session')
 
-    expect(portalSource).toContain('Saved locally. Sign in from a coach invite or Player+ to sync proof history.')
+    expect(portalSource).toContain('Saved locally. Sign in from a coach invite or ${PLAYER_TIER_NAME} to sync proof history.')
     expect(portalSource).toContain('Synced. Your linked coach can use this for the next lesson.')
     expect(portalSource).toContain('Synced to your Level Up history.')
-    expect(workbenchSource).toContain('Free preview saved locally. Coach invite or Player+ turns on cloud history.')
+    expect(workbenchSource).toContain('Free preview saved locally. Coach invite or ${PLAYER_TIER_NAME} turns on cloud history.')
     expect(workbenchSource).toContain('Synced. Coach assignment progress updated for review.')
     expect(`${portalSource}\n${workbenchSource}`).toContain('Level Up local sync proof')
     expect(`${portalSource}\n${workbenchSource}`).toContain('Saved first: rating, tiny note, timer, focus, and proof history stay in this browser immediately.')
-    expect(`${portalSource}\n${workbenchSource}`).toContain('Syncs when connected: Player+ history or coach-invited proof can reach Level Up sessions after sign-in.')
+    expect(`${portalSource}\n${workbenchSource}`).toContain('PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name')
+    expect(`${portalSource}\n${workbenchSource}`).toContain('Syncs when connected: {PLAYER_TIER_NAME} history or coach-invited proof can reach Level Up sessions after sign-in.')
     expect(`${portalSource}\n${workbenchSource}`).toContain('Local-only in v1: favorites and copied coach-update sent markers stay on this device for now.')
+    expect(`${portalSource}\n${workbenchSource}`).not.toContain('Player+ history or coach-invited proof can reach Level Up sessions after sign-in.')
   })
 })

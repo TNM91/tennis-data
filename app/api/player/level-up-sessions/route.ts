@@ -12,12 +12,15 @@ import {
   type LevelUpSessionRow,
 } from '@/lib/level-up-sessions'
 import { getSignedInPlayerApiAuth, loadPlayerAccess } from '@/lib/player-api-auth'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
 
 const sessionSelect =
   'id,player_user_id,coach_user_id,student_link_id,assignment_id,identity_slug,focus_id,focus_title,work_type,training_context,drill_title,rating,feeling,access_mode,note,elapsed_seconds,shared_with_coach,completed_at,created_at,updated_at'
+
+const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
 
 type SaveLevelUpBody = {
   session?: LevelUpSessionInput
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
   const accessMode = normalizeAccessMode(input.accessMode)
   if (accessMode === 'free_preview') {
     return Response.json(
-      { ok: false, message: 'Free preview logs stay on this device. Use a coach invite or Player+ to sync.' },
+      { ok: false, message: `Free preview logs stay on this device. Use a coach invite or ${PLAYER_TIER_NAME} to sync.` },
       { status: 403 },
     )
   }
@@ -77,7 +80,7 @@ export async function POST(request: Request) {
     const access = await loadPlayerAccess(auth.supabase, auth.userId)
     if (!access.canUseAdvancedPlayerInsights) {
       return Response.json(
-        { ok: false, message: 'Player+ is required to sync self-guided Level Up history across devices.' },
+        { ok: false, message: `${PLAYER_TIER_NAME} is required to sync self-guided Level Up history across devices.` },
         { status: 403 },
       )
     }
