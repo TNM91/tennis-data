@@ -72,6 +72,8 @@ describe('coach workspace model', () => {
 
   it('documents Player, Coach, Captain, and Full-Court integration', () => {
     expect(COACH_INTEGRATION_STEPS.map((step) => step.label)).toEqual(['Player link', 'Coach', 'Captain', 'Full-Court'])
+    expect(COACH_INTEGRATION_STEPS.at(-1)?.value).toBe('Lessons, teams, leagues, and events')
+    expect(COACH_INTEGRATION_STEPS.map((step) => step.value).join(' ')).not.toContain('Everything unlocked')
   })
 
   it('builds coach planner routes by identity slug', () => {

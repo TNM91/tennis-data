@@ -133,7 +133,7 @@ export const COACH_INTEGRATION_STEPS: CoachIntegrationStep[] = [
   { label: 'Player link', value: 'Assignments and check-ins' },
   { label: 'Coach', value: 'Lesson planning and tracking' },
   { label: 'Captain', value: 'Team lineups and match week' },
-  { label: 'Full-Court', value: 'Everything unlocked' },
+  { label: 'Full-Court', value: 'Lessons, teams, leagues, and events' },
 ]
 
 export function buildCoachStudentSnapshots(): CoachStudentSnapshot[] {
