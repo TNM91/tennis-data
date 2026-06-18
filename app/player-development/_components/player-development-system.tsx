@@ -638,7 +638,7 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage footer="Level-up scorecard">
-        <PageHeader label="Player+ scorecard" title={`${identity.levelPath.from} to ${identity.levelPath.to}`} />
+        <PageHeader label={`${playerTier.name} scorecard`} title={`${identity.levelPath.from} to ${identity.levelPath.to}`} />
         <EvidenceRubric />
         <LevelUpScorecard identity={identity} />
       </WorkbookPage>
@@ -661,13 +661,13 @@ function WorkbookPreview({
         </div>
       </WorkbookPage>
 
-      <WorkbookPage footer="Player+ evidence">
-        <PageHeader label="Player+ evidence" title="What goes back into TenAceIQ" />
+      <WorkbookPage footer={`${playerTier.name} evidence`}>
+        <PageHeader label={`${playerTier.name} evidence`} title="What goes back into TenAceIQ" />
         <PlayerPlusEvidenceLog identity={identity} weeks={identity.weeks.slice(0, 4)} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Player+ evidence">
-        <PageHeader label="Player+ evidence" title="Second-half evidence log" />
+      <WorkbookPage footer={`${playerTier.name} evidence`}>
+        <PageHeader label={`${playerTier.name} evidence`} title="Second-half evidence log" />
         <PlayerPlusEvidenceLog identity={identity} weeks={identity.weeks.slice(4)} />
         <div className={styles.twoColumn}>
           <ReflectionLines label="Best evidence from this block" rows={4} />
@@ -684,8 +684,8 @@ function WorkbookPreview({
         </div>
       </WorkbookPage>
 
-      <WorkbookPage footer="Player+ companion">
-        <PageHeader label="Connected companion" title="What Player+ adds to this workbook" />
+      <WorkbookPage footer={`${playerTier.name} companion`}>
+        <PageHeader label="Connected companion" title={`What ${playerTier.name} adds to this workbook`} />
         <PlayerPlusCompanionMap identity={identity} />
       </WorkbookPage>
 
@@ -1728,7 +1728,7 @@ function CoachConversationSheet({ identity }: { identity: PlayerDevelopmentIdent
       </div>
       <div className={styles.coachConversationFooter}>
         <div>
-          <span>Player+ handoff</span>
+          <span>{playerTier.name} handoff</span>
           <strong>Turn the conversation into a saved assignment.</strong>
           <p>The workbook can guide the lesson on paper. My Lab stores your status update; Coach Hub keeps the coach&apos;s plan and review.</p>
         </div>
@@ -1838,7 +1838,7 @@ function WeeklyWorkbookPage({ identity, week }: { identity: PlayerDevelopmentIde
           <ReflectionLines label="What I can repeat under pressure" rows={5} />
           <ReflectionLines label="What broke down or got rushed" rows={5} />
           <ReflectionLines label="Coach cue to carry forward" rows={5} />
-          <ReflectionLines label="Player+ evidence to save" rows={5} />
+          <ReflectionLines label={`${playerTier.name} evidence to save`} rows={5} />
         </div>
       </WorkbookPage>
     </>
@@ -2010,7 +2010,7 @@ function QrAction({
   mode?: 'open' | 'player-plus'
 }) {
   const absoluteHref = toAbsoluteTiqUrl(href)
-  const badge = mode === 'player-plus' ? 'Player+ to save' : 'Open guide'
+  const badge = mode === 'player-plus' ? `${playerTier.name} to save` : 'Open guide'
 
   return (
     <div className={styles.qrAction}>
@@ -2094,7 +2094,7 @@ function PlayerPlusCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }
       <div className={styles.checkInHero}>
         <TiqFeatureIcon name="reports" size="lg" variant="surface" />
         <div>
-          <span>Player+ review loop</span>
+          <span>{playerTier.name} review loop</span>
           <strong>Evidence creates the next assignment.</strong>
           <p>
             Use this page after each phase to decide what you update in My Lab. When you are linked, your assignment recap
@@ -2145,7 +2145,7 @@ function PlayerPlusCompanionMap({ identity }: { identity: PlayerDevelopmentIdent
             <strong>{paperAction}</strong>
           </div>
           <div>
-            <span>Player+ action</span>
+            <span>{playerTier.name} action</span>
             <p>{playerAction}</p>
           </div>
           <QrAction href={href} label="Connect" mode="player-plus" />
@@ -2174,7 +2174,7 @@ function LevelUpScorecard({ identity }: { identity: PlayerDevelopmentIdentity })
                 <dd>{metric.evidence}</dd>
               </div>
               <div>
-                <dt>Player+ action</dt>
+                <dt>{playerTier.name} action</dt>
                 <dd>{metric.playerPlusAction}</dd>
               </div>
             </dl>
@@ -2317,7 +2317,7 @@ function CoachPlannerPreview({
       </WorkbookPage>
 
       <WorkbookPage footer="Coach review">
-        <PageHeader label="Coach review" title="Player+ evidence review" />
+        <PageHeader label="Coach review" title={`${playerTier.name} evidence review`} />
         <CoachEvidenceReview identity={identity} />
         <div className={styles.twoColumn}>
           <ReflectionLines label="Next private lesson priority" rows={4} />
@@ -2652,8 +2652,8 @@ function ReusableWorkbookSheets({ identity }: { identity: PlayerDevelopmentIdent
         <TrackerTable columns={['Day', 'Work completed', 'Confidence', 'Note']} rows={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Match day']} />
       </WorkbookPage>
 
-      <WorkbookPage footer="Player+ review">
-        <PageHeader label="Reusable sheet" title="Player+ review sheet" />
+      <WorkbookPage footer={`${playerTier.name} review`}>
+        <PageHeader label="Reusable sheet" title={`${playerTier.name} review sheet`} />
         <PlayerPlusCheckIn identity={identity} />
       </WorkbookPage>
     </>
@@ -2743,7 +2743,7 @@ function AssignmentContract({ identity }: { identity: PlayerDevelopmentIdentity 
 
   return (
     <div className={styles.assignmentContract}>
-      <TrackerTable columns={['Skill', 'Exact work', 'Scoring standard', 'Evidence due', 'Player+ update']} rows={rows} />
+      <TrackerTable columns={['Skill', 'Exact work', 'Scoring standard', 'Evidence due', `${playerTier.name} update`]} rows={rows} />
       <div className={styles.assignmentNote}>
         <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
         <p>Make the assignment measurable enough that the next coach conversation starts with evidence, not a guess.</p>
