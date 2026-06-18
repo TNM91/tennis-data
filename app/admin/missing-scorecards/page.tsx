@@ -139,7 +139,7 @@ export default function MissingScorecardsPage() {
       setRows((data || []) as MatchLedgerRow[])
     } catch (err) {
       setRows([])
-      setError(err instanceof Error ? err.message : 'Unable to load missing scorecard dashboard.')
+      setError(err instanceof Error ? err.message : 'Unable to load missing scorecard queue.')
     } finally {
       setLoading(false)
     }
@@ -535,7 +535,7 @@ export default function MissingScorecardsPage() {
 
             <AdminActionRow>
               <button type="button" onClick={() => void loadLedger()} className="button-ghost">
-                {loading ? 'Refreshing dashboard...' : 'Refresh dashboard'}
+                {loading ? 'Refreshing queue...' : 'Refresh queue'}
               </button>
               <button type="button" onClick={() => void handleCopyVisibleQueue()} className="button-ghost">
                 {copiedQueue ? 'Queue copied' : 'Copy visible queue'}
@@ -644,7 +644,7 @@ export default function MissingScorecardsPage() {
             </div>
 
             {loading ? (
-              <AdminEmptyState text="Loading missing scorecard dashboard..." />
+              <AdminEmptyState text="Loading missing scorecard queue..." />
             ) : error ? (
               <AdminStatusPanel tone="error" text={error} />
             ) : filteredRows.length === 0 ? (

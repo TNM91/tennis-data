@@ -87,6 +87,12 @@ describe('admin review UI system', () => {
     expect(missingScorecardsSource).toContain('<AdminReviewHero')
     expect(missingScorecardsSource).toContain('<AdminReviewPanel')
     expect(missingScorecardsSource).toContain('<AdminEmptyState')
+    expect(missingScorecardsSource).toContain('Unable to load missing scorecard queue.')
+    expect(missingScorecardsSource).toContain('Refreshing queue...')
+    expect(missingScorecardsSource).toContain('Refresh queue')
+    expect(missingScorecardsSource).toContain('Loading missing scorecard queue...')
+    expect(missingScorecardsSource).not.toContain('missing scorecard dashboard')
+    expect(missingScorecardsSource).not.toContain('Refresh dashboard')
     expect(missingScorecardsSource).toContain('className="metric-card"')
   })
 
