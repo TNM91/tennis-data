@@ -82,10 +82,10 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   full_court: {
     eyebrow: 'Full-Court unlock',
     title: 'Run the full court.',
-    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations should live in one suite.',
+    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations should stay connected around one tennis operation.',
     action: 'Continue with Full-Court',
     checkoutAction: 'Unlock Full-Court',
-    setupAction: 'Preview full suite',
+    setupAction: 'Preview Full-Court',
   },
 }
 
@@ -95,7 +95,7 @@ const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
   coach: ['Request Coach access', 'Open Coach Hub', 'Assign drills and lessons'],
   captain: ['Request Captain access', 'Open Team Hub', 'Build lineup and weekly flow'],
   league: ['Request League access', 'Open League Office', 'Track participants and results'],
-  full_court: ['Request Full-Court access', 'Open the connected suite', 'Create unlimited tournaments'],
+  full_court: ['Request Full-Court access', 'Open every tennis job', 'Create unlimited tournaments'],
 }
 
 const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
@@ -147,12 +147,12 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     steps: ['Create the League Office shell', 'Add participants', 'Track results and rankings'],
   },
   full_court: {
-    title: 'Full-Court is active. Run the full suite.',
-    body: 'Open the connected suite, then use My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations together.',
+    title: 'Full-Court is active. Run every tennis job.',
+    body: 'Open Full-Court, then use My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations together.',
     primaryAction: 'Open Full-Court',
     secondaryAction: 'Find leagues',
     secondaryHref: '/leagues',
-    steps: ['Open the connected suite', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
+    steps: ['Open every tennis job', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
   },
 }
 

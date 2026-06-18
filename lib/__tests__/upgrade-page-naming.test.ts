@@ -15,6 +15,9 @@ describe('upgrade page naming', () => {
       'Team Hub is active',
       'League Office is active',
       'Tournament Desk operations',
+      'Preview Full-Court',
+      'Full-Court is active. Run every tennis job.',
+      'Open every tennis job',
     ]) {
       expect(source).toContain(phrase)
     }
@@ -28,6 +31,9 @@ describe('upgrade page naming', () => {
       "secondaryAction: 'View leagues'",
       "secondaryHref: '/compete'",
       'Player, Coach, Captain, League, and unlimited tournaments',
+      'Preview full suite',
+      'Run the full suite',
+      'Open the connected suite',
     ]) {
       expect(source).not.toContain(oldPhrase)
     }
