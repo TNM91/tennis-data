@@ -457,7 +457,7 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
     },
     {
       title: 'Open player book',
-      detail: 'See player context across the full operation.',
+      detail: 'See player context across every connected tennis job.',
       metric: 'Full-Court',
       href: '/league-coordinator/individual-results',
       requiredPlan: 'league',
@@ -2680,7 +2680,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
             Explore, improve, compete, or manage with less chaos.
           </h2>
           <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
-            Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when that workspace saves your week.
+            Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs one connected place.
           </p>
         </div>
         <Link href="/pricing" style={{ ...buttonGhost, minHeight: 40 }}>
