@@ -23,9 +23,12 @@ import {
   type CaptainSubscriptionStatus,
   type ProductEntitlementSnapshot,
 } from '@/lib/access-model'
+import { getMembershipTier } from '@/lib/product-story'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import type { PricingPlanId } from '@/lib/pricing-plans'
+
+const PLAYER_TIER = getMembershipTier('player_plus')
 
 type ProfileAccessRow = {
   id: string
@@ -653,7 +656,7 @@ export default function AdminAccessPage() {
               </>
             }
           >
-            Control who has Player+, Coach, and {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain
+            Control who has {PLAYER_TIER.name}, Coach, and {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain
             workflows, plus who can run TIQ team or individual leagues at {TIQ_SEASON_FEE_PRICE_LABEL}.
           </AdminReviewHero>
 

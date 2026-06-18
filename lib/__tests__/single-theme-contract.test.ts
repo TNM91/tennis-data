@@ -8,6 +8,7 @@ const manualChecklistSource = readFileSync(join(process.cwd(), 'docs/pr-123-90-m
 
 describe('single dark-shell theme contract', () => {
   it('keeps the app wired to one dark theme provider without toggle APIs', () => {
+    expect(layoutSource).toContain('data-theme="dark"')
     expect(layoutSource).toContain('<ThemeProvider>{children}</ThemeProvider>')
     expect(themeProviderSource).toContain("export type ThemeMode = 'dark'")
     expect(themeProviderSource).toContain("document.documentElement.dataset.theme = 'dark'")

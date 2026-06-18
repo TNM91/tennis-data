@@ -421,6 +421,7 @@ function getActivateButtonLabel(request: UpgradeRequestRecord) {
 
 function getActivationCue(request: UpgradeRequestRecord) {
   const tier = getMembershipTier(request.planId)
+  const playerTier = getMembershipTier('player_plus')
 
   if (request.planId === 'league') {
     return {
@@ -448,7 +449,7 @@ function getActivationCue(request: UpgradeRequestRecord) {
       summary: tier.shortPromise,
       grants: ['My Lab', 'Coach Hub', 'Student assignments'],
       excludes: ['Team Hub', 'League Office'],
-      note: 'Coach activation includes Player+ access plus coach-player planning and follow-through.',
+      note: `Coach activation includes ${playerTier.name} access plus coach-player planning and follow-through.`,
     }
   }
 
