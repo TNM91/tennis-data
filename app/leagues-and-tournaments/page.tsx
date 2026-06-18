@@ -45,7 +45,7 @@ export default function LeaguesAndTournamentsPage() {
               What admin job needs to move first?
             </h2>
             <p style={organizerQuickPathTextStyle}>
-              Pick the practical job, then open the workspace that reduces schedule, player, score, or source chaos.
+              Pick the practical job, then open the organizer path that reduces schedule, player, score, or source chaos.
             </p>
           </div>
           <div style={organizerQuickPathGridStyle}>
