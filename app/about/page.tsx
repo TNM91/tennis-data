@@ -19,7 +19,7 @@ export const metadata: Metadata = buildRouteMetadata({
 const aboutActions: InfoActionCard[] = [
   {
     title: 'Find context',
-    text: 'Search players, teams, leagues, rankings, flights, and areas before you need a paid workspace.',
+    text: 'Search players, teams, leagues, rankings, flights, and areas before the next tennis job needs a hub.',
     href: '/explore',
     cta: 'Open Explore',
     icon: 'opponentScouting',
@@ -72,7 +72,7 @@ export default function AboutPage() {
         </div>
 
         <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>How the platform adds value</h2>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>How TenAceIQ adds value</h2>
           <p>
             {PRODUCT_UPGRADE_MESSAGE}
           </p>
