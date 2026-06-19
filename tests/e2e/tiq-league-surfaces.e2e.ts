@@ -145,7 +145,8 @@ test.describe('TIQ league surfaces', () => {
     const redirecting = await page.getByText('Redirecting to your workspace...').isVisible().catch(() => false)
     const resetBoundary = await isResetBoundaryVisible(page)
     if (!redirecting && !resetBoundary) {
-      await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Open the tennis map.' })).toBeVisible()
+      await expect(page.getByText('Next tennis job: Find')).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
       await expect(page.getByLabel('Email')).toBeVisible()
       await expect(page.getByRole('textbox', { name: 'Password' })).toBeVisible()

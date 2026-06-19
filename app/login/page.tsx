@@ -18,31 +18,45 @@ const LOGIN_AUTH_TIMEOUT_MS = 8000
 
 const LOGIN_INTENT_COPY: Record<MembershipTierId, {
   eyebrow: string
+  title: string
+  body: string
   destination: string
 }> = {
   free: {
     eyebrow: 'TenAceIQ access',
-    destination: 'Free tennis map',
+    title: 'Open the tennis map.',
+    body: 'Sign in, search the tennis map, and choose the next tennis job when it needs a workspace.',
+    destination: 'Find',
   },
   player_plus: {
     eyebrow: 'Player path',
+    title: 'Continue to My Lab.',
+    body: 'Sign in to pick up your player home, matchup prep, follows, and messages.',
     destination: 'My Lab',
   },
   coach: {
     eyebrow: 'Coach path',
+    title: 'Continue to Coach Hub.',
+    body: 'Sign in to return to lessons, drill assignments, player proof, and coach-player follow-through.',
     destination: 'Coach Hub',
   },
   captain: {
     eyebrow: 'Team path',
+    title: 'Continue to Team Hub.',
+    body: 'Sign in to return to availability, lineups, scouting, and the match-week plan.',
     destination: 'Team Hub',
   },
   league: {
     eyebrow: 'League path',
+    title: 'Continue to League Office.',
+    body: 'Sign in to return to schedules, scores, standings, participants, and season admin.',
     destination: 'League Office',
   },
   full_court: {
     eyebrow: 'Full-Court path',
-    destination: 'Full-Court workspace',
+    title: 'Continue to Full-Court.',
+    body: 'Sign in to move between My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk.',
+    destination: 'Full-Court',
   },
 }
 
@@ -289,13 +303,13 @@ function canUseBrowserStorage() {
         <div style={loginCopyRailStyle}>
           <div style={eyebrow}>{selectedIntent.eyebrow}</div>
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
-            Welcome back.
+            {selectedIntent.title}
           </h1>
           <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-            Open TenAceIQ.
+            {selectedIntent.body}
           </p>
 
-          <div style={destinationPillStyle}>Next: {selectedIntent.destination}</div>
+          <div style={destinationPillStyle}>Next tennis job: {selectedIntent.destination}</div>
         </div>
 
         <div style={loginPanelResponsive}>
@@ -369,7 +383,7 @@ function canUseBrowserStorage() {
                   transition: 'transform 140ms ease, box-shadow 140ms ease',
                 }}
               >
-                {submitting ? 'Signing in...' : 'Sign in'}
+                {submitting ? 'Signing in...' : selectedPlanId === 'free' ? 'Sign in' : `Continue to ${selectedIntent.destination}`}
               </button>
 
               {error ? <div id="login-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
