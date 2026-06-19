@@ -458,7 +458,7 @@ function PricingContent() {
             Creating an account opens Free access for public tennis intelligence and data contributions. Paid workspaces open only after the matching plan is active.
           </p>
           <p style={smallTextStyle}>{DATA_ASSIST_STORY.shortCue}</p>
-          <p style={smallTextStyle}>Data Assist uploads refresh the platform and move through review before they shape TenAceIQ.</p>
+          <p style={smallTextStyle}>Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.</p>
         </div>
         <div style={heroActionRowStyle}>
           <Link href="/legal/billing" style={secondaryButtonStyle}>Billing and refunds</Link>

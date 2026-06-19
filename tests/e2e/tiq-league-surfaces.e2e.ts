@@ -119,7 +119,7 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.getByText('Start from what you are trying to do.')).toBeVisible()
     await expect(page.getByText('Creating an account opens Free access for public tennis intelligence and data contributions.')).toBeVisible()
     await expect(page.getByText('Paid workspaces open only after the matching plan is active.')).toBeVisible()
-    await expect(page.getByText('Data Assist uploads refresh the platform and move through review before they shape TenAceIQ.')).toBeVisible()
+    await expect(page.getByText('Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.')).toBeVisible()
   })
 
   test('Explore start and rankings actions stay readable on mobile dark shell', async ({ page }) => {

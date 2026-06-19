@@ -11,11 +11,12 @@ describe('pricing entitlement copy', () => {
     expect(source).toContain("{accessPending ? 'View tiers' : getPlanCta(plan.id, active)}")
   })
 
-  it('keeps Data Assist uploads positioned as the platform refresh path', () => {
+  it('keeps Data Assist uploads positioned as the tennis context refresh path', () => {
     const source = readFileSync('app/pricing/page.tsx', 'utf8')
 
-    expect(source).toContain('uploads refresh the platform')
+    expect(source).toContain('uploads refresh tennis context')
     expect(source).toContain('move through review before they shape TenAceIQ')
     expect(source).toContain('data contributions')
+    expect(source).not.toContain('uploads refresh the platform')
   })
 })
