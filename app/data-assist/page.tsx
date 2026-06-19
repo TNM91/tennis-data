@@ -2503,7 +2503,7 @@ function ScorecardReviewPanel({
       </div>
       <p style={copyStyle}>
         TenAceIQ captured both player side names and the winning side for each line. Import uses these player records,
-        scores, and winners to refresh analytics across the platform.
+        scores, and winners to refresh tennis context across player, team, and rating views.
       </p>
       <div style={parsedLineListStyle}>
         {parsedDraft.lines.slice(0, 5).map((line, index) => (

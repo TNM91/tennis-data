@@ -46,6 +46,7 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('Read the signals')
     expect(source).toContain('Confirm or flag')
     expect(source).toContain('Feed tennis context')
+    expect(source).toContain('refresh tennis context across player, team, and rating views')
     expect(source).toContain('Reviewed data can improve players, teams, leagues, rankings, Matchup, My Lab, and Coach Hub.')
     expect(source).toContain('Data Assist upload state proof cue')
     expect(source).toContain('Upload state proof cue')
@@ -55,6 +56,7 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('Trust boundary')
     expect(source).toContain('Unreviewed uploads do not change players, teams, leagues, rankings, Matchup, My Lab, or Coach Hub.')
     expect(source).toContain('no public records change until the import check finishes')
+    expect(source).not.toContain('refresh analytics across the platform')
     expect(source).not.toContain('ready without admin review')
   })
 
