@@ -27,7 +27,7 @@ const dataSupportHref = buildSupportMessageHref({
   subject: 'Data Assist or data quality question',
   body: [
     'I need help with a TenAceIQ data issue.',
-    'Page or workspace:',
+    'Tennis job or page:',
     'League/team/player:',
     'What looks wrong:',
   ].join('\n'),
@@ -54,7 +54,7 @@ const contactCards: Array<{
 }> = [
   {
     title: 'General support',
-    text: 'Membership, billing, account access, or help finding the right workspace.',
+    text: 'Membership, billing, account access, or help choosing the right tennis path.',
     href: generalSupportHref,
     cta: 'Open support',
     icon: 'accountSecurity',
@@ -101,7 +101,7 @@ export default function ContactPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>General support</h2>
           <p>
             Open a <Link href={generalSupportHref}>TenAceIQ support thread</Link> for
-            membership questions, billing questions, account issues, or general help using the platform.
+            membership questions, billing questions, account issues, or help choosing where your tennis job belongs.
           </p>
         </div>
 
