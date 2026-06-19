@@ -156,7 +156,7 @@ async function sendFallbackEmail(input: {
       html: [
         '<div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a">',
         '<h1 style="font-size:20px">You have a new TenAceIQ alert.</h1>',
-        '<p>Open TenAceIQ Messages to view and reply inside the platform.</p>',
+        '<p>Open TenAceIQ Messages to view and reply in your private TenAceIQ inbox.</p>',
         `<p><a href="${escapeAttribute(input.href)}" style="color:#2563eb;font-weight:700">Open Messages</a></p>`,
         '<p style="font-size:12px;color:#64748b">This email does not include message, billing, league, or support details.</p>',
         '</div>',

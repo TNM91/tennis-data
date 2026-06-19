@@ -1686,7 +1686,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           <span aria-hidden="true" style={watermarkStyle} />
           <h1 style={titleStyle}>Sign in to message players or support.</h1>
           <p style={copyStyle}>
-            TenAceIQ Messages keeps account, league, and player conversations inside the platform.
+            TenAceIQ Messages keeps account, league, and player conversations in one private inbox.
           </p>
           <Link href="/login" style={primaryButtonStyle}>Sign in</Link>
         </div>

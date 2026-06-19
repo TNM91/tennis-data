@@ -121,7 +121,7 @@ export default function ContactPage() {
           <p>
             For partnerships, club or league rollouts, or product collaboration, open a{' '}
             <Link href={partnershipSupportHref}>TenAceIQ support thread</Link>{' '}
-            so the conversation stays inside the platform.
+            so the conversation stays inside TenAceIQ Messages.
           </p>
         </div>
 

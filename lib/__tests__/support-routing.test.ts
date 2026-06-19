@@ -45,6 +45,17 @@ describe('internal support routing', () => {
     expect(pricingSource).toContain('heroActionRowStyle')
   })
 
+  it('keeps support and alert messaging tied to TenAceIQ Messages', () => {
+    const contactSource = readFileSync('app/contact/page.tsx', 'utf8')
+    const messagesSource = readFileSync('app/messages/page.tsx', 'utf8')
+    const emailFallbackSource = readFileSync('app/api/internal-notifications/email-fallback/route.ts', 'utf8')
+
+    expect(contactSource).toContain('so the conversation stays inside TenAceIQ Messages.')
+    expect(messagesSource).toContain('TenAceIQ Messages keeps account, league, and player conversations in one private inbox.')
+    expect(emailFallbackSource).toContain('Open TenAceIQ Messages to view and reply in your private TenAceIQ inbox.')
+    expect(`${contactSource}\n${messagesSource}\n${emailFallbackSource}`).not.toContain('inside the platform')
+  })
+
   it('keeps contact and legal data requests routed to categorized support threads', () => {
     const contactSource = readFileSync('app/contact/page.tsx', 'utf8')
     const dataPolicySource = readFileSync('app/legal/data-policy/page.tsx', 'utf8')
