@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const aboutSource = readFileSync(join(process.cwd(), 'app/about/page.tsx'), 'utf8')
 const faqSource = readFileSync(join(process.cwd(), 'app/faq/page.tsx'), 'utf8')
 const howItWorksSource = readFileSync(join(process.cwd(), 'app/how-it-works/page.tsx'), 'utf8')
+const methodologySource = readFileSync(join(process.cwd(), 'app/methodology/page.tsx'), 'utf8')
 const advertisingSource = readFileSync(join(process.cwd(), 'app/advertising-disclosure/page.tsx'), 'utf8')
 
 describe('public info product story copy', () => {
@@ -65,5 +66,10 @@ describe('public info product story copy', () => {
 
     expect(advertisingSource).toContain('Team Hub workflow screens')
     expect(advertisingSource).not.toContain('captain workflow screens')
+  })
+
+  it('keeps methodology review copy tied to tennis context', () => {
+    expect(methodologySource).toContain('changing tennis context unchecked')
+    expect(methodologySource).not.toContain('changing the platform unchecked')
   })
 })

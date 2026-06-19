@@ -28,7 +28,7 @@ const methodologyCards: InfoActionCard[] = [
   },
   {
     title: 'Reviewed data',
-    text: 'Data Assist and admin review keep source records from changing the platform unchecked.',
+    text: 'Data Assist and admin review keep source records from changing tennis context unchecked.',
     href: dataAssistMethodologyHref,
     cta: 'Open Data Assist',
     icon: 'reports',
