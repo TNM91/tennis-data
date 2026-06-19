@@ -80,6 +80,30 @@ describe('auth entry mobile layout guards', () => {
     expect(source).not.toContain('Next: {selectedIntent.destination}')
   })
 
+  it('keeps password recovery copy tied to returning to tennis work', () => {
+    const forgotPassword = sources.get('app/forget-password/page.tsx')!
+    const resetPassword = sources.get('app/reset-password/page.tsx')!
+
+    expect(forgotPassword).toContain('Get back to your tennis account.')
+    expect(forgotPassword).toContain('Enter your email and TenAceIQ will send a secure link back to your saved tennis work.')
+    expect(forgotPassword).toContain('Next step: check your inbox')
+    expect(forgotPassword).toContain('Send secure link')
+    expect(forgotPassword).toContain('Reset link sent. Check your inbox, then return to your tennis account.')
+    expect(forgotPassword).not.toContain('Reset your password.')
+    expect(forgotPassword).not.toContain('Next: check your inbox')
+    expect(forgotPassword).not.toContain('Send reset email')
+
+    expect(resetPassword).toContain('Password reset')
+    expect(resetPassword).toContain('Set your new password.')
+    expect(resetPassword).toContain('Secure the account, then return to your saved tennis work.')
+    expect(resetPassword).toContain('Next step: sign back in')
+    expect(resetPassword).toContain('Choose new password')
+    expect(resetPassword).toContain('Password updated. Sending you back to login...')
+    expect(resetPassword).not.toContain('Create a new password.')
+    expect(resetPassword).not.toContain('Next: open your workspace')
+    expect(resetPassword).not.toContain('Reset password</h2>')
+  })
+
   it('uses shrink-safe one-column grids on auth entry shells', () => {
     for (const [file, source] of sources) {
       expect(source, file).not.toContain("? '1fr'")

@@ -72,7 +72,7 @@ export default function ResetPasswordPage() {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw new Error(updateError.message)
 
-      setMessage('Password updated. Redirecting to login...')
+      setMessage('Password updated. Sending you back to login...')
       setTimeout(async () => {
         await supabase.auth.signOut()
         router.push('/login')
@@ -124,14 +124,14 @@ export default function ResetPasswordPage() {
       <section style={heroShellResponsive}>
         <span aria-hidden="true" style={watermarkStyle} />
         <div style={copyRailStyle}>
-          <div style={eyebrow}>New password</div>
+          <div style={eyebrow}>Password reset</div>
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
-            Create a new password.
+            Set your new password.
           </h1>
           <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-            Update your password, then sign in again.
+            Secure the account, then return to your saved tennis work.
           </p>
-          <div style={destinationPillStyle}>Next: open your workspace</div>
+          <div style={destinationPillStyle}>Next step: sign back in</div>
         </div>
 
         <div style={formPanelResponsive}>
@@ -139,7 +139,7 @@ export default function ResetPasswordPage() {
           <div style={formPanelInnerResponsive}>
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
               <div style={formLabel}>More Tennis. Less Chaos.</div>
-              <h2 style={isMobile ? formTitleMobile : formTitle}>Reset password</h2>
+              <h2 style={isMobile ? formTitleMobile : formTitle}>Choose new password</h2>
 
               {!sessionReady ? (
                 <div style={errorBanner}>

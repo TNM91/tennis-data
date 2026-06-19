@@ -50,7 +50,7 @@ function ForgotPasswordContent() {
 
       if (resetError) throw new Error(resetError.message)
 
-      setMessage('Reset email sent. Check your inbox, then sign in.')
+      setMessage('Reset link sent. Check your inbox, then return to your tennis account.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to send reset email.')
     } finally {
@@ -97,12 +97,12 @@ function ForgotPasswordContent() {
       <div style={copyRailStyle}>
         <div style={eyebrow}>Account recovery</div>
         <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
-          Reset your password.
+          Get back to your tennis account.
         </h1>
         <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-          Enter your email. TenAceIQ will send the secure reset link.
+          Enter your email and TenAceIQ will send a secure link back to your saved tennis work.
         </p>
-        <div style={destinationPillStyle}>Next: check your inbox</div>
+        <div style={destinationPillStyle}>Next step: check your inbox</div>
       </div>
 
       <div style={formPanelResponsive}>
@@ -110,7 +110,7 @@ function ForgotPasswordContent() {
         <div style={formPanelInnerResponsive}>
           <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
             <div style={formLabel}>More Tennis. Less Chaos.</div>
-            <h2 style={isMobile ? formTitleMobile : formTitle}>Send reset email</h2>
+            <h2 style={isMobile ? formTitleMobile : formTitle}>Send secure link</h2>
 
             <label htmlFor="email" style={inputLabel}>
               Email
