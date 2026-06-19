@@ -42,30 +42,30 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   free: {
     eyebrow: 'Free path',
     title: 'Start with the tennis map.',
-    body: 'Search players, teams, leagues, rankings, flights, and areas before you need a paid workspace.',
+    body: 'Search players, teams, leagues, rankings, flights, and areas before the next tennis job needs a workspace.',
     action: 'Open Find',
     checkoutAction: 'Open Find',
     setupAction: 'Open Free',
   },
   player_plus: {
     eyebrow: 'Player unlock',
-    title: 'Unlock the Player path for $4.99/month.',
-    body: 'Player gives you My Lab, Level Up training cards, Tactics Tools, better data refreshes, matchup prep, follows, and messages around your game.',
+    title: 'Activate My Lab for your game.',
+    body: 'Continue with Player when your game, matchup prep, follows, Level Up work, and tennis messages need one personal home.',
     action: 'Continue with Player',
     checkoutAction: 'Unlock Player',
     setupAction: 'Preview Player setup',
   },
   coach: {
     eyebrow: 'Coach unlock',
-    title: 'Help players leave with the next step.',
-    body: 'Continue with Coach when drill assignments, player development tracking, reviews, resources, scheduling, and tactical boards need one flow.',
+    title: 'Activate Coach Hub for player development.',
+    body: 'Continue with Coach when lessons, drill assignments, player development tracking, reviews, resources, scheduling, and tactical boards need one flow.',
     action: 'Continue with Coach',
     checkoutAction: 'Unlock Coach',
     setupAction: 'Preview Coach',
   },
   captain: {
     eyebrow: 'Captain unlock',
-    title: 'Run the team week.',
+    title: 'Activate Team Hub for match week.',
     body: 'Continue with Captain when Team Hub lineup decisions, scouting, readiness, and team communication need one cleaner flow.',
     action: 'Continue with Team Hub',
     checkoutAction: 'Unlock Captain',
@@ -73,15 +73,15 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
   league: {
     eyebrow: 'League unlock',
-    title: 'Run the season with less admin work.',
-    body: 'Continue with League Office when players or teams, schedules, scores, standings, visibility, and corrections need one place.',
+    title: 'Activate League Office for the season.',
+    body: 'Continue with League Office when players or teams, schedules, scores, standings, visibility, and corrections need one season workspace.',
     action: 'Continue with League Office',
     checkoutAction: 'Unlock League',
     setupAction: 'Preview League Office',
   },
   full_court: {
     eyebrow: 'Full-Court unlock',
-    title: 'Run every tennis job.',
+    title: 'Activate Full-Court for every tennis job.',
     body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations need one connected tennis operation.',
     action: 'Continue with Full-Court',
     checkoutAction: 'Unlock Full-Court',
@@ -89,13 +89,22 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
 }
 
+const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
+  free: 'Search the tennis map first, then pick the next tennis job when it needs a workspace.',
+  player_plus: 'Activate Player when your own game needs My Lab, matchup prep, follows, and messages together.',
+  coach: 'Activate Coach when player development needs lesson plans, drill assignments, proof, and follow-through.',
+  captain: 'Activate Captain when match week needs availability, lineup decisions, scouting, and team updates in Team Hub.',
+  league: 'Activate League when one season needs participants, schedules, scores, standings, and corrections in League Office.',
+  full_court: 'Activate Full-Court when My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk all need to stay connected.',
+}
+
 const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
-  free: ['Open Find', 'Search public tennis context', 'Upgrade when a workspace helps'],
-  player_plus: ['Request Player access', 'Open My Lab', 'Prep matchup'],
-  coach: ['Request Coach access', 'Open Coach Hub', 'Assign drills and lessons'],
-  captain: ['Request Captain access', 'Open Team Hub', 'Build lineup and weekly flow'],
-  league: ['Request League access', 'Open League Office', 'Track participants and results'],
-  full_court: ['Request Full-Court access', 'Open every tennis job', 'Create unlimited tournaments'],
+  free: ['Open Find', 'Search public tennis context', 'Upgrade when the next tennis job needs a workspace'],
+  player_plus: ['Create Free access', 'Activate Player', 'Open My Lab'],
+  coach: ['Create Free access', 'Activate Coach', 'Open Coach Hub'],
+  captain: ['Create Free access', 'Activate Captain', 'Open Team Hub'],
+  league: ['Create Free access', 'Activate League', 'Open League Office'],
+  full_court: ['Create Free access', 'Activate Full-Court', 'Open every tennis job'],
 }
 
 const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
@@ -108,15 +117,15 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
 }> = {
   free: {
     title: 'Free is ready.',
-    body: 'Search public tennis context, then upgrade when a paid workspace helps.',
+    body: 'Search public tennis context, then upgrade when the next tennis job needs a workspace.',
     primaryAction: 'Open Find',
     secondaryAction: 'Compare plans',
     secondaryHref: '/pricing',
-    steps: ['Search players and teams', 'Review public rankings', 'Upgrade when you need more'],
+    steps: ['Search players and teams', 'Review public rankings', 'Choose the next tennis job'],
   },
   player_plus: {
     title: 'Player is active. Start in My Lab.',
-    body: 'Open My Lab, use Level Up, improve the data behind your tennis read, and prep your next match.',
+    body: 'Open My Lab, use Level Up, improve the data behind your tennis read, and prep the next matchup from your player home.',
     primaryAction: 'Open My Lab',
     secondaryAction: 'Start Level Up',
     secondaryHref: '/level-up',
@@ -124,7 +133,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   coach: {
     title: 'Coach Hub is active. Build the next lesson.',
-    body: 'Open Coach Hub, map court work in Tactical Studio, and turn drills into player assignments.',
+    body: 'Open Coach Hub, map court work in Tactical Studio, and turn the next player-development job into assignments.',
     primaryAction: 'Open Coach Hub',
     secondaryAction: 'Open workbook',
     secondaryHref: '/player-development',
@@ -132,7 +141,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   captain: {
     title: 'Team Hub is active. Build the week.',
-    body: 'Start with Team Hub, then turn scouting and lineup decisions into a cleaner match plan.',
+    body: 'Start with Team Hub, then turn the match-week job into availability, scouting, lineup decisions, and a cleaner team plan.',
     primaryAction: 'Open Team Hub',
     secondaryAction: 'Build lineup',
     secondaryHref: '/captain/lineup-builder',
@@ -140,7 +149,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   league: {
     title: 'League Office is active. Set up the season.',
-    body: 'Create the league structure in League Office, bring players or teams into scope, and keep standings visible.',
+    body: 'Create the season structure in League Office, bring players or teams into scope, and keep schedules, scores, and standings visible.',
     primaryAction: 'Open League Office',
     secondaryAction: 'Find leagues',
     secondaryHref: '/leagues',
@@ -148,7 +157,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   full_court: {
     title: 'Full-Court is active. Run every tennis job.',
-    body: 'Open Full-Court, then use My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations together.',
+    body: 'Open Full-Court, then move between My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations without switching plans.',
     primaryAction: 'Open Full-Court',
     secondaryAction: 'Find leagues',
     secondaryHref: '/leagues',
@@ -590,18 +599,18 @@ function UpgradeContent({
             <h1 style={titleStyle}>{checkoutSuccessMessage ? successHandoff.title : hasAccess ? `${plan.name} is already active.` : copy.title}</h1>
             <p style={textStyle}>
               {hasAccess
-                ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open the workspace when you are ready.`
+                ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
                 : copy.body}
             </p>
 
             <div style={actionRowStyle}>
               {showAccessRequest ? (
                 <Link href={`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}#activation`} style={primaryButtonStyle}>
-                  {isPublic ? `Request ${plan.name}` : copy.checkoutAction}
+                  {isPublic ? `Request ${getPlanDestinationLabel(planId)}` : copy.checkoutAction}
                 </Link>
               ) : (
                 <Link href={nextHref} style={primaryButtonStyle}>
-                  {hasAccess ? `Open ${plan.name}` : copy.action}
+                  {hasAccess ? `Open ${getPlanDestinationLabel(planId)}` : copy.action}
                 </Link>
               )}
               <Link
@@ -625,7 +634,7 @@ function UpgradeContent({
             <div style={metaGridStyle}>
               <div style={metaCardStyle}>
                 <span style={labelStyle}>Best for</span>
-                <strong>{tier.audience}</strong>
+                <strong>{UPGRADE_JOB_FIT[planId]}</strong>
               </div>
               <div style={metaCardStyle}>
                 <span style={labelStyle}>Upgrade trigger</span>
@@ -690,10 +699,10 @@ function UpgradeContent({
           <section id="activation" style={activationStyle}>
             <div style={activationCopyStyle}>
               <div style={labelStyle}>{isPublic ? 'Quick request' : 'Activation step'}</div>
-              <h2 style={activationTitleStyle}>Ready to turn on {plan.name}?</h2>
+              <h2 style={activationTitleStyle}>Ready to activate {getPlanDestinationLabel(planId)}?</h2>
               <p style={noteTextStyle}>
                 {isPublic
-                  ? 'Send the plan request first. Account creation starts Free access; the selected plan opens after access is active.'
+                  ? 'Send the plan request first. Account creation starts Free access; the selected tennis job opens after access is active.'
                   : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutError
@@ -719,7 +728,7 @@ function UpgradeContent({
                         : 'Opening Stripe Checkout...'
                       : checkoutError
                         ? 'Checkout needs another try.'
-                        : `Starting ${plan.name} checkout.`}
+                        : `Starting ${getPlanDestinationLabel(planId)} checkout.`}
                 </h3>
                 <p style={noteTextStyle}>
                   {checkoutSuccessMessage
@@ -772,7 +781,7 @@ function UpgradeContent({
             ) : submittedRequest ? (
               <div style={successCardStyle}>
                 <div style={labelStyle}>Request saved</div>
-                <h3 style={successTitleStyle}>We have your {plan.name} request.</h3>
+                <h3 style={successTitleStyle}>We have your {getPlanDestinationLabel(planId)} request.</h3>
                 <p style={noteTextStyle}>
                   {requestStorageMode === 'supabase'
                     ? 'We captured the plan, account contact, and tennis job for admin follow-up.'
@@ -819,8 +828,8 @@ function UpgradeContent({
             ) : (
               <form style={requestFormStyle} onSubmit={handleRequestSubmit}>
                 <div style={selectedPlanStyle}>
-                  <span style={labelStyle}>Selected plan</span>
-                  <strong>{plan.name}</strong>
+                  <span style={labelStyle}>Selected tennis job</span>
+                  <strong>{getPlanDestinationLabel(planId)}</strong>
                 </div>
                 <div style={fieldGridStyle}>
                   <label style={fieldStyle}>
@@ -846,7 +855,7 @@ function UpgradeContent({
                   </label>
                 </div>
                 <label style={fieldStyle}>
-                  Team or league
+                  Team, player, or league
                   <input
                     className="tiq-focus-ring"
                     value={requestOrganization}
@@ -856,7 +865,7 @@ function UpgradeContent({
                   />
                 </label>
                 <label style={fieldStyle}>
-                  What are you trying to do first?
+                  Which tennis job needs help first?
                   <textarea
                     className="tiq-focus-ring"
                     value={requestGoal}
@@ -868,7 +877,7 @@ function UpgradeContent({
                 {requestError ? <p style={errorTextStyle}>{requestError}</p> : null}
                 <div style={formActionRowStyle}>
                   <button type="submit" disabled={requestSubmitting} style={submitButtonStyle}>
-                    {requestSubmitting ? 'Saving request...' : `Request ${plan.name}`}
+                    {requestSubmitting ? 'Saving request...' : `Request ${getPlanDestinationLabel(planId)}`}
                   </button>
                   <Link href={supportThreadHref} style={secondaryButtonStyle}>
                     Ask support
@@ -892,7 +901,7 @@ function buildAccessRequestSupportHref(request: UpgradeRequestRecord) {
       `Billing: ${request.checkoutMode || 'manual'} ${request.billingInterval || ''}`.trim(),
       `Name: ${request.name || 'Not provided'}`,
       `Account contact: ${request.email || 'Not provided'}`,
-      `Team or league: ${request.organization || 'Not provided'}`,
+      `Team, player, or league: ${request.organization || 'Not provided'}`,
       `Goal: ${request.goal || 'Not provided'}`,
       `Requested destination: ${request.nextHref}`,
     ].join('\n'),
@@ -907,9 +916,9 @@ function getSearchParamValue(value: string | string[] | undefined) {
 
 function getPlanDestinationLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'My Lab'
-  if (planId === 'coach') return 'Coach'
-  if (planId === 'captain') return 'Team'
-  if (planId === 'league') return 'League'
+  if (planId === 'coach') return 'Coach Hub'
+  if (planId === 'captain') return 'Team Hub'
+  if (planId === 'league') return 'League Office'
   if (planId === 'full_court') return 'Full-Court'
   return 'Find'
 }
