@@ -23,7 +23,10 @@ describe('Manage hub actions', () => {
     expect(source).toContain('How do I keep schedules, players, teams, scores, and standings organized?')
     expect(source).toContain('How do I keep entries, draws, courts, scores, and winners moving?')
     expect(source).toContain('Which path fits the work: league season, tournament desk, or both?')
-    expect(source).toContain('What source needs review before the platform can trust it?')
+    expect(source).toContain('What source needs review before it shapes the tennis context?')
+    expect(source).toContain("{ label: 'Feeds', value: 'Tennis context' }")
+    expect(source).not.toContain('What source needs review before the platform can trust it?')
+    expect(source).not.toContain("{ label: 'Feeds', value: 'Platform' }")
     expect(source).toContain('<p style={actionQuestionStyle}>{action.question}</p>')
   })
 

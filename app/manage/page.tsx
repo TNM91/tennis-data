@@ -289,12 +289,12 @@ const manageActions = [
   {
     eyebrow: 'Data Assist',
     title: 'Fix the source of confusion',
-    question: 'What source needs review before the platform can trust it?',
+    question: 'What source needs review before it shapes the tennis context?',
     body: 'Upload scorecards, schedules, rosters, team summaries, or corrections when the tennis context needs review.',
     metrics: [
       { label: 'Upload', value: 'Source' },
       { label: 'Review', value: 'Needed' },
-      { label: 'Feeds', value: 'Platform' },
+      { label: 'Feeds', value: 'Tennis context' },
     ],
     href: '/data-assist?intent=upload-source&context=Manage%20hub',
     cta: 'Open Data Assist',
