@@ -22,12 +22,15 @@ describe('site header mobile account drawer', () => {
     expect(source).toContain('function MobileItemLabel')
     expect(source).toContain('<MobileItemLabel label="Admin dashboard" />')
     expect(source).toContain('<MobileItemLabel label="Logout" />')
-    expect(source).toContain('<MobileItemLabel label="Sign in" description="Open your saved tennis workspace." />')
+    expect(source).toContain('<MobileItemLabel label={workspaceShortcut.label} description="Continue the active tennis job." />')
+    expect(source).toContain('<MobileItemLabel label="Sign in" description="Open your saved tennis work." />')
     expect(source).toContain('<MobileItemLabel label="Start Free" description="Explore public tennis context before upgrading." />')
     expect(source).toContain('const mobileItemCopyStyle')
     expect(source).toContain('const mobileItemDescriptionStyle')
     expect(source).toContain("overflowWrap: 'anywhere'")
     expect(source).not.toContain('mobileMessageLinkWrapStyle')
+    expect(source).not.toContain('Jump back into your active workspace.')
+    expect(source).not.toContain('Open your saved tennis workspace.')
   })
 
   it('leaves Messages and Alerts to the portal toolbar instead of duplicating them in the header', () => {

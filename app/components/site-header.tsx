@@ -428,7 +428,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                   ) : null}
                   {workspaceShortcut ? (
                     <Link href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
-                      <MobileItemLabel label={workspaceShortcut.label} description="Jump back into your active workspace." />
+                      <MobileItemLabel label={workspaceShortcut.label} description="Continue the active tennis job." />
                       <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                     </Link>
                   ) : null}
@@ -453,7 +453,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                     </Link>
                   ))}
                   <Link href={signInHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <MobileItemLabel label="Sign in" description="Open your saved tennis workspace." />
+                    <MobileItemLabel label="Sign in" description="Open your saved tennis work." />
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   <Link
