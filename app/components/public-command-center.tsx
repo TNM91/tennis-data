@@ -131,7 +131,7 @@ export const homeActionCards: PublicActionCard[] = [
   },
   {
     title: 'Fix Tennis Context',
-    body: 'Upload scorecards, schedules, rosters, team summaries, and corrections when the platform needs a cleaner source.',
+    body: 'Upload scorecards, schedules, rosters, team summaries, and corrections when tennis context needs a cleaner source.',
     href: DATA_ASSIST_STORY.href,
     cta: 'Open Data Assist',
     meta: 'Source review',
