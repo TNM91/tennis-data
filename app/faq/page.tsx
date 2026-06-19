@@ -33,7 +33,7 @@ const faqActions: InfoActionCard[] = [
   },
   {
     title: 'Need help?',
-    text: 'Open support from inside TenAceIQ so account and data context stays together.',
+    text: 'Open support from inside TenAceIQ so the tennis job, account, and data context stay together.',
     href: '/messages?compose=support',
     cta: 'Open support',
     icon: 'messagingCenter',
@@ -70,7 +70,7 @@ export default function FaqPage() {
       <JsonLd id="faq-page-jsonld" data={buildFaqJsonLd(faqSchemaItems)} />
       <InfoPage
         kicker="FAQ"
-        title="Common questions about the platform."
+        title="Common questions about TenAceIQ."
         intro="These answers explain what TenAceIQ is built to do and how Free, My Lab, Coach Hub, Team Hub, League Office, Tournament Desk, and Full-Court fit together."
       >
         <InfoActionGrid cards={faqActions} />
