@@ -142,7 +142,7 @@ test.describe('TIQ league surfaces', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await resetBrowserState(page)
     await expectSurfaceLoads(page, '/login')
-    const redirecting = await page.getByText('Redirecting to your workspace...').isVisible().catch(() => false)
+    const redirecting = await page.getByText('Opening your next tennis job...').isVisible().catch(() => false)
     const resetBoundary = await isResetBoundaryVisible(page)
     if (!redirecting && !resetBoundary) {
       await expect(page.getByRole('heading', { name: 'Open the tennis map.' })).toBeVisible()
