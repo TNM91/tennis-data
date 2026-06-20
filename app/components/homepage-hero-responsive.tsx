@@ -222,7 +222,7 @@ export default function HomePageHeroResponsive() {
                   transition: 'transform 150ms ease, box-shadow 150ms ease',
                 }}
               >
-                Explore the platform
+                Explore Tennis
               </Link>
 
               <Link

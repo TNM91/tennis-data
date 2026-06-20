@@ -49,6 +49,8 @@ describe('Public home mobile layout guards', () => {
     expect(heroSource).not.toContain('Captain workspace')
     expect(heroSource).toContain('one team-ready view')
     expect(heroSource).not.toContain('one premium workflow')
+    expect(heroSource).toContain('Explore Tennis')
+    expect(heroSource).not.toContain('Explore the platform')
     expect(heroSource).toContain("const heroGrid = isTablet ? 'minmax(0, 1fr)'")
     expect(heroSource).toContain("const statGrid = isMobile ? 'minmax(0, 1fr)'")
     expect(heroSource).toContain("const featureGrid = isMobile ? 'minmax(0, 1fr)'")
