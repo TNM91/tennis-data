@@ -25,11 +25,12 @@ describe('public info product story copy', () => {
   })
 
   it('uses public workspace names on the About explainer', () => {
-    expect(aboutSource).toContain('before the next tennis job needs a hub.')
+    expect(aboutSource).toContain('before the next tennis job needs a home base.')
     expect(aboutSource).toContain('How TenAceIQ adds value')
     expect(aboutSource).toContain('Team Hub and League Office reduce scattered work')
     expect(aboutSource).toContain('Team Hub,')
     expect(aboutSource).toContain('and League Office into one place')
+    expect(aboutSource).not.toContain('before the next tennis job needs a hub')
     expect(aboutSource).not.toContain('before you need a paid workspace')
     expect(aboutSource).not.toContain('How the platform adds value')
     expect(aboutSource).not.toContain('Captain and League workspaces')
@@ -38,12 +39,13 @@ describe('public info product story copy', () => {
 
   it('uses public workspace names on the How It Works explainer', () => {
     expect(howItWorksSource).toContain('repeatable tennis work when the job grows')
-    expect(howItWorksSource).toContain('before the next tennis job needs a hub')
+    expect(howItWorksSource).toContain('before the next tennis job needs a home base')
     expect(howItWorksSource).toContain('Team Hub and Captain Tools')
     expect(howItWorksSource).toContain('Team Hub is built around actual weekly operations')
     expect(howItWorksSource).toContain('League Office is for organizers')
     expect(howItWorksSource).toContain('matchup context, team pages, or Team Hub')
     expect(howItWorksSource).not.toContain('repeatable workspaces when the work grows')
+    expect(howItWorksSource).not.toContain('before the next tennis job needs a hub')
     expect(howItWorksSource).not.toContain('before they need a personal workspace')
     expect(howItWorksSource).not.toContain('Captain workflow')
     expect(howItWorksSource).not.toContain('team workspaces')

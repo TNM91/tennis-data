@@ -55,7 +55,7 @@ export default function HowItWorksPage() {
           <p>
             Public pages like <Link href="/explore/players">Players</Link>, <Link href="/explore/rankings">Rankings</Link>,{' '}
             <Link href="/explore/teams">Teams</Link>, and <Link href="/explore/leagues">Leagues</Link> help players,
-            captains, and organizers understand the landscape before the next tennis job needs a hub.
+            captains, and organizers understand the landscape before the next tennis job needs a home base.
           </p>
         </div>
 

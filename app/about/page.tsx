@@ -19,7 +19,7 @@ export const metadata: Metadata = buildRouteMetadata({
 const aboutActions: InfoActionCard[] = [
   {
     title: 'Find context',
-    text: 'Search players, teams, leagues, rankings, flights, and areas before the next tennis job needs a hub.',
+    text: 'Search players, teams, leagues, rankings, flights, and areas before the next tennis job needs a home base.',
     href: '/explore',
     cta: 'Open Explore',
     icon: 'opponentScouting',
