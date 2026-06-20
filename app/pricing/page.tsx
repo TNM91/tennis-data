@@ -54,7 +54,7 @@ const WORKSPACE_PREVIEWS: Array<{
   {
     planId: 'free',
     title: 'Find',
-    body: 'Search players, teams, leagues, rankings, tournaments, coaches, and tennis resources before choosing a paid workspace.',
+    body: 'Search players, teams, leagues, rankings, tournaments, coaches, and tennis resources before the next tennis job needs a home base.',
     chips: ['Players', 'Teams', 'Leagues', 'Rankings'],
   },
   {
