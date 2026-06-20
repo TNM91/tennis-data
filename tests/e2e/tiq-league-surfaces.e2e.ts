@@ -122,6 +122,15 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.getByText('Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.')).toBeVisible()
   })
 
+  test('Upgrade keeps the Free path tied to the next tennis job', async ({ page }) => {
+    await expectSurfaceLoads(page, '/upgrade?plan=free')
+    await expectDarkShell(page)
+    await expect(page.getByRole('heading', { name: 'Free is already active.' })).toBeVisible()
+    await expect(page.getByText('Search the tennis map first, then pick the next tennis job when it needs a home base.')).toBeVisible()
+    await expect(page.getByText('Upgrade when the next tennis job needs a home base')).toBeVisible()
+    await expect(page.locator('body')).not.toContainText('Upgrade when the next tennis job needs a workspace')
+  })
+
   test('Explore start and rankings actions stay readable on mobile dark shell', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await expectSurfaceLoads(page, '/explore')

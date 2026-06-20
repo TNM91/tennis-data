@@ -42,7 +42,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   free: {
     eyebrow: 'Free path',
     title: 'Start with the tennis map.',
-    body: 'Search players, teams, leagues, rankings, flights, and areas before the next tennis job needs a workspace.',
+    body: 'Search players, teams, leagues, rankings, flights, and areas before the next tennis job needs a home base.',
     action: 'Open Find',
     checkoutAction: 'Open Find',
     setupAction: 'Open Free',
@@ -90,7 +90,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
 }
 
 const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
-  free: 'Search the tennis map first, then pick the next tennis job when it needs a workspace.',
+  free: 'Search the tennis map first, then pick the next tennis job when it needs a home base.',
   player_plus: 'Activate Player when your own game needs My Lab, matchup prep, follows, and messages together.',
   coach: 'Activate Coach when player development needs lesson plans, drill assignments, proof, and follow-through.',
   captain: 'Activate Captain when match week needs availability, lineup decisions, scouting, and team updates in Team Hub.',
@@ -99,7 +99,7 @@ const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
 }
 
 const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
-  free: ['Open Find', 'Search public tennis context', 'Upgrade when the next tennis job needs a workspace'],
+  free: ['Open Find', 'Search public tennis context', 'Upgrade when the next tennis job needs a home base'],
   player_plus: ['Create Free access', 'Activate Player', 'Open My Lab'],
   coach: ['Create Free access', 'Activate Coach', 'Open Coach Hub'],
   captain: ['Create Free access', 'Activate Captain', 'Open Team Hub'],
@@ -117,7 +117,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
 }> = {
   free: {
     title: 'Free is ready.',
-    body: 'Search public tennis context, then upgrade when the next tennis job needs a workspace.',
+    body: 'Search public tennis context, then upgrade when the next tennis job needs a home base.',
     primaryAction: 'Open Find',
     secondaryAction: 'Compare plans',
     secondaryHref: '/pricing',
