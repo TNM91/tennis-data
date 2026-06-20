@@ -455,7 +455,7 @@ function PricingContent() {
             Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $14.99 per season workspace for one bounded league, ladder, or tournament season.
           </p>
           <p style={heroTextStyle}>
-            Creating an account opens Free access for public tennis intelligence and data contributions. Paid workspaces open only after the matching plan is active.
+            Creating an account opens Free access for public tennis intelligence and data contributions. My Lab, Coach Hub, Team Hub, League Office, and Full-Court open only after the matching plan is active.
           </p>
           <p style={smallTextStyle}>{DATA_ASSIST_STORY.shortCue}</p>
           <p style={smallTextStyle}>Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.</p>
