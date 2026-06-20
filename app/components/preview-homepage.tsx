@@ -480,7 +480,7 @@ const commandModeDetails: Record<
 > = {
   free: {
     headline: 'More Tennis. Less Chaos.',
-    subhead: 'Start with the tennis map, then unlock the workspace that saves your week.',
+    subhead: 'Start with the tennis map, then unlock the home base that saves your week.',
     searchPlaceholder: 'Search players, teams, leagues, ratings...',
     queue: ['Find a player', 'Browse teams', 'Check standings', 'Check rankings'],
     unlockLine: 'Free stays useful. Unlock My Lab, Team Hub, or League Office when the job becomes personal, team-based, or league-wide.',
@@ -2348,7 +2348,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
             ? 'Find a player, team, league, flight, or area, then choose the tier that helps next.'
             : compact
               ? 'Search a player, team, league, flight, or area before choosing a tier.'
-              : 'Start with a targeted search by player, team, league, flight, or area, then unlock the workspace that solves the next problem in your week.'}
+              : 'Start with a targeted search by player, team, league, flight, or area, then open the home base for the next problem in your week.'}
         </div>
       </div>
 
@@ -2592,7 +2592,7 @@ function AppCommandDeck({ access, authenticated }: { access: ProductAccessState;
             </Link>
             {selectedMode.planId === 'free' ? (
               <Link href="/pricing" style={buttonGhost}>
-                See paid workspaces
+                Compare paid plans
               </Link>
             ) : (
               <Link href={selectedMode.href} style={buttonGhost}>
@@ -2680,7 +2680,7 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
             Explore, improve, compete, or manage with less chaos.
           </h2>
           <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
-            Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs one connected place.
+            Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.
           </p>
         </div>
         <Link href="/pricing" style={{ ...buttonGhost, minHeight: 40 }}>

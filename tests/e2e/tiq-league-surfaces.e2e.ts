@@ -226,6 +226,15 @@ test.describe('TIQ league surfaces', () => {
       .toBe(true)
   })
 
+  test('Preview homepage keeps the Free plan handoff tied to a home base', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expectSurfaceLoads(page, '/preview-home')
+
+    await expect(page.getByText('Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.')).toBeVisible()
+    await expect(page.locator('body')).not.toContainText('See paid workspaces')
+    await expect(page.locator('body')).not.toContainText('when the next tennis job needs one connected place')
+  })
+
   test('Coordinator setup stays readable on mobile dark shell', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await expectSurfaceLoads(page, '/league-coordinator')
