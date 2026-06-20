@@ -41,7 +41,7 @@ export default function GlobalError({
             TenAceIQ needs a quick reset
           </h1>
           <p style={{ marginTop: 14, color: 'var(--shell-copy-muted)', lineHeight: 1.65, fontSize: '0.97rem' }}>
-            A critical view failed to load. Try again to reopen the platform.
+            A critical view failed to load. Try again to reopen TenAceIQ.
           </p>
           <button
             onClick={unstable_retry}

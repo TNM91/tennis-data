@@ -40,8 +40,10 @@ describe('shared shell component mobile layout guards', () => {
 
   it('keeps the global error fallback shell mobile-safe', () => {
     expect(globalErrorSource).toContain("width: 'calc(100% - clamp(24px, 6vw, 48px))'")
+    expect(globalErrorSource).toContain('Try again to reopen TenAceIQ.')
     expect(globalErrorSource).toContain('minWidth: 0')
     expect(globalErrorSource).toContain("overflowWrap: 'anywhere'")
+    expect(globalErrorSource).not.toContain('Try again to reopen the platform.')
     expect(globalErrorSource).not.toContain("calc(100% - 48px)")
   })
 })
