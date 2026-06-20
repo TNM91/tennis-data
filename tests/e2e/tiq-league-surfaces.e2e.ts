@@ -193,6 +193,8 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.getByRole('heading', { name: 'More Tennis. Less Chaos.' })).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'Choose a TenAceIQ workspace' })).toBeVisible()
     await expect(page.getByPlaceholder('Search players, teams, leagues, tournaments, coaches, resources, or tennis actions')).toBeVisible()
+    await expect(page.getByText('TenAceIQ is organized around tennis actions first, then the right hub when the next tennis job needs a home base.')).toBeVisible()
+    await expect(page.locator('body')).not.toContainText('then the right hub when the next tennis job needs a workspace')
 
     await expect
       .poll(

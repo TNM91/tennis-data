@@ -382,7 +382,7 @@ export function AudiencePathGrid() {
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ is organized around tennis actions first, then the right hub when the next tennis job needs a workspace." />
+      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ is organized around tennis actions first, then the right hub when the next tennis job needs a home base." />
       <div style={actionGridStyle}>
         {cards.map((card) => (
           <article key={card.title} style={actionCardStyle}>

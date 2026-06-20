@@ -106,10 +106,11 @@ describe('public landing preview cards', () => {
   })
 
   it('keeps homepage section copy approachable instead of workspace-heavy', () => {
-    expect(commandCenterSource).toContain('TenAceIQ is organized around tennis actions first, then the right hub when the next tennis job needs a workspace.')
+    expect(commandCenterSource).toContain('TenAceIQ is organized around tennis actions first, then the right hub when the next tennis job needs a home base.')
     expect(commandCenterSource).toContain('These shortcuts move the tennis community toward the next job that needs attention.')
     expect(commandCenterSource).toContain('when tennis context needs a cleaner source.')
     expect(commandCenterSource).toContain('Preview cards keep each tool concrete, approachable, and tied to the next tennis action.')
+    expect(commandCenterSource).not.toContain('then the right hub when the next tennis job needs a workspace')
     expect(commandCenterSource).not.toContain('then the right hub when the job gets serious')
     expect(commandCenterSource).not.toContain('then the workspace that saves time when the job gets serious')
     expect(commandCenterSource).not.toContain('when the platform needs a cleaner source.')
