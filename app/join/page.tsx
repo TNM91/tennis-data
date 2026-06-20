@@ -34,7 +34,7 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
     mobileTitle: 'Start free.',
     desktopTitle: 'Start free. Pick the tennis job later.',
     mobileText: 'Create an account and search the tennis map.',
-    desktopText: 'Search players, teams, leagues, rankings, and tennis context first. Upgrade only when a specific job needs a workspace.',
+    desktopText: 'Search players, teams, leagues, rankings, and tennis context first. Upgrade only when a specific job needs a home base.',
     formCue: 'Create the free account first. Choose My Lab, Coach Hub, Team Hub, League Office, or Full-Court when a tennis job needs it.',
     success: 'Account created. Sign in, then explore the tennis map.',
   },
@@ -86,7 +86,7 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
 }
 
 const JOIN_SELECTED_PLAN_COPY: Record<MembershipTierId, string> = {
-  free: 'Search the tennis map first. Upgrade only when a specific tennis job needs a workspace.',
+  free: 'Search the tennis map first. Upgrade only when a specific tennis job needs a home base.',
   player_plus: 'Player starts from Free, then opens My Lab for your game, matchup prep, follows, and messages.',
   coach: 'Coach starts from Free, then opens Coach Hub for lessons, assignments, player proof, and follow-through.',
   captain: 'Captain starts from Free, then opens Team Hub for availability, lineups, scouting, and team messages.',

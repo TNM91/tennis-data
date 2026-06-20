@@ -123,6 +123,15 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.getByText('Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.')).toBeVisible()
   })
 
+  test('Join keeps the Free handoff tied to a tennis home base', async ({ page }) => {
+    await expectSurfaceLoads(page, '/join')
+    await expectDarkShell(page)
+    await expect(page.getByRole('heading', { name: /Start free(\. Pick the tennis job later\.)?/ })).toBeVisible()
+    await expect(page.getByText('Search the tennis map first. Upgrade only when a specific tennis job needs a home base.')).toBeVisible()
+    await expect(page.locator('body')).not.toContainText('Upgrade only when a specific job needs a workspace')
+    await expect(page.locator('body')).not.toContainText('Upgrade only when a specific tennis job needs a workspace')
+  })
+
   test('Upgrade keeps the Free path tied to the next tennis job', async ({ page }) => {
     await expectSurfaceLoads(page, '/upgrade?plan=free')
     await expectDarkShell(page)
