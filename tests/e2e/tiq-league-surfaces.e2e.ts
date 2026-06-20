@@ -117,6 +117,7 @@ test.describe('TIQ league surfaces', () => {
     await expectDarkShell(page)
     await expect(page.getByRole('heading', { name: 'Choose your role.' })).toBeVisible()
     await expect(page.getByText('Start from what you are trying to do.')).toBeVisible()
+    await expect(page.getByText('Start free, then unlock the home base that matches your tennis job: My Lab, Coach Hub, Team Hub, League Office, or Full-Court.')).toBeVisible()
     await expect(page.getByText('Creating an account opens Free access for public tennis intelligence and data contributions.')).toBeVisible()
     await expect(page.getByText('My Lab, Coach Hub, Team Hub, League Office, and Full-Court open only after the matching plan is active.')).toBeVisible()
     await expect(page.getByText('Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.')).toBeVisible()

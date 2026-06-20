@@ -283,7 +283,7 @@ function PricingContent() {
         <div style={eyebrowStyle}>Pricing</div>
         <h1 style={heroTitleStyle}>Choose your role.</h1>
         <p style={heroTextStyle}>
-          Start free, then unlock the workspace that matches your tennis job: My Lab, Coach Hub, Team Hub, League Office, or Full-Court.
+          Start free, then unlock the home base that matches your tennis job: My Lab, Coach Hub, Team Hub, League Office, or Full-Court.
         </p>
         <div style={heroActionRowStyle}>
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
@@ -470,7 +470,7 @@ function PricingContent() {
         <div>
           <div style={sectionEyebrowStyle}>Start free / upgrade</div>
           <h2 style={billingTitleStyle}>Find first. Upgrade when the tennis work gets specific.</h2>
-          <p style={heroTextStyle}>Search the tennis landscape for free, then choose the next tennis job that needs a workspace.</p>
+          <p style={heroTextStyle}>Search the tennis landscape for free, then choose the next tennis job that needs a home base.</p>
         </div>
         <div style={heroActionRowStyle}>
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
