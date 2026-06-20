@@ -50,7 +50,11 @@ describe('product story guardrails', () => {
     expect(PRODUCT_MODE_LANGUAGE.team).toMatchObject({ label: 'Team', route: '/captain', planId: 'captain' })
     expect(PRODUCT_MODE_LANGUAGE.league).toMatchObject({ label: 'Leagues', route: '/league-coordinator', planId: 'league' })
     expect(PRODUCT_MODE_LANGUAGE.plans).toMatchObject({ label: 'Pricing', route: '/pricing', planId: null })
+    expect(PRODUCT_MODE_LANGUAGE.find.cue).toBe('Search players, teams, leagues, and rankings before the next tennis job needs a home base.')
+    expect(PRODUCT_MODE_LANGUAGE.plans.cue).toContain('when the next tennis job needs a home base')
     expect(PRODUCT_MODE_LANGUAGE.plans.cue).toContain('My Lab, Coach Hub, Team Hub, League Office')
+    expect(PRODUCT_MODE_LANGUAGE.find.cue).not.toContain('paid workspace')
+    expect(PRODUCT_MODE_LANGUAGE.plans.cue).not.toContain('needs a workspace')
   })
 
   it('keeps the clarified platform why centralized', () => {

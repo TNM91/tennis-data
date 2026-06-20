@@ -248,7 +248,7 @@ export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> =
     route: '/explore',
     planId: 'free',
     job: 'Find public tennis context',
-    cue: 'Search players, teams, leagues, and rankings before you need a paid workspace.',
+    cue: 'Search players, teams, leagues, and rankings before the next tennis job needs a home base.',
   },
   you: {
     id: 'you',
@@ -296,7 +296,7 @@ export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> =
     route: '/pricing',
     planId: null,
     job: 'Choose the right unlock',
-    cue: 'Start free, then activate My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a workspace.',
+    cue: 'Start free, then activate My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.',
   },
 } as const
 
