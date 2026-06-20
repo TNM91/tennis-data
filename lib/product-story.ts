@@ -130,7 +130,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Players, captains, and fans getting oriented',
     upgradeCue: 'Start with public tennis intelligence.',
     description:
-      'Find players, leagues, teams, rankings, and public tennis intelligence before you need a personal workspace.',
+      'Find players, leagues, teams, rankings, and public tennis intelligence before the next tennis job needs a home base.',
     valueProps: [
       'Search players, teams, leagues, and rankings',
       'View public tennis context',
@@ -314,7 +314,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   free: {
     stage: 'Start here',
     headline: 'Start free. Find the tennis landscape.',
-    copy: 'Search players, teams, leagues, rankings, flights, and areas before you need a personal workspace.',
+    copy: 'Search players, teams, leagues, rankings, flights, and areas before the next tennis job needs a home base.',
     bullets: [
       'Search players, teams, leagues, and rankings',
       'Find public tennis context fast',

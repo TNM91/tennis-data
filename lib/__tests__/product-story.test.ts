@@ -23,6 +23,8 @@ describe('product story guardrails', () => {
 
   it('keeps Free distinct from paid unlock tiers', () => {
     expect(MEMBERSHIP_TIERS.free.description).toContain('public tennis intelligence')
+    expect(MEMBERSHIP_TIERS.free.description).toContain('before the next tennis job needs a home base')
+    expect(TIER_HOMEPAGE_STORY.free.copy).toContain('before the next tennis job needs a home base')
     expect(MEMBERSHIP_TIERS.player_plus.valueProps).toContain('Unlock My Lab')
     expect(MEMBERSHIP_TIERS.coach.description).toContain('Use Player features plus Coach Hub')
     expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player features plus Team Hub and Captain Tools')
@@ -37,6 +39,7 @@ describe('product story guardrails', () => {
     expect(TIER_HOMEPAGE_STORY.full_court.headline).toBe('Run every tennis job.')
     expect(TIER_HOMEPAGE_STORY.full_court.copy).toContain('inside one connected tennis operation')
     expect(Object.values(MEMBERSHIP_TIERS).map((tier) => tier.description).join(' ')).not.toContain('Player plus')
+    expect(`${MEMBERSHIP_TIERS.free.description} ${TIER_HOMEPAGE_STORY.free.copy}`).not.toContain('personal workspace')
     expect(`${MEMBERSHIP_TIERS.full_court.description} ${TIER_HOMEPAGE_STORY.full_court.copy}`).not.toContain('suite')
     expect(`${MEMBERSHIP_TIERS.full_court.audience} ${MEMBERSHIP_TIERS.full_court.valueProps.join(' ')} ${TIER_HOMEPAGE_STORY.full_court.headline}`).not.toContain('full tennis operation')
     expect(`${TIER_HOMEPAGE_STORY.full_court.headline} ${TIER_HOMEPAGE_STORY.full_court.copy}`).not.toContain('Run the whole tennis operation')
