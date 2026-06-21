@@ -74,7 +74,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   league: {
     eyebrow: 'League unlock',
     title: 'Activate League Office for the season.',
-    body: 'Continue with League Office when players or teams, schedules, scores, standings, visibility, and corrections need one season workspace.',
+    body: 'Continue with League Office when players or teams, schedules, scores, standings, visibility, and corrections need one organized competition tool.',
     action: 'Continue with League Office',
     checkoutAction: 'Unlock League',
     setupAction: 'Preview League Office',

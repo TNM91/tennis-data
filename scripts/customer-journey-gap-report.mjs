@@ -93,6 +93,6 @@ function evidencePrompt(row) {
   if (row.feature === 'Data Assist Entry') return 'Capture the Data Assist review-first handoff cue, Data Assist upload state proof cue, and whether unreviewed data stays out of trusted records.'
   if (row.tier === 'League') return 'Use seeded league data, capture the League Office operation proof cue and source-to-public proof cue, then capture coordinator source state and member-facing context.'
   if (row.tier === 'Captain') return 'Capture the weekly decision path plus the Compete Bridge captain handoff cue from context to lineup or team communication.'
-  if (row.tier === 'Full-Court') return 'Use a full-access test account, capture the Full-Court access pass cue, Full-Court workspace fit proof cue, Full-Court role switching proof cue, and each paid workspace without stale locks.'
+  if (row.tier === 'Full-Court') return 'Use a full-access test account, capture the Full-Court access pass cue, Full-Court tool fit proof cue, Full-Court role switching proof cue, and each paid tool without stale locks.'
   return 'Capture the journey evidence that proves the pain point is solved, not just that the route loads.'
 }

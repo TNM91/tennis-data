@@ -24,11 +24,11 @@ TenAceIQ helps tennis players, captains, and league coordinators spend less time
 | Tier | Plan id | Price | Billing model | Checkout mode | Quantity mode | Audience |
 | --- | --- | ---: | --- | --- | --- | --- |
 | Free | `free` | `$0` | Free account | None | Account | Players, captains, and fans getting oriented |
-| Player | `player_plus` | `$4.99/month` | Monthly subscription | Subscription | Account | Players who want clearer prep and a personalized tennis home |
+| Player | `player_plus` | `$4.99/month` | Monthly subscription | Subscription | Account | Players who want clearer prep and personalized tennis tools |
 | Coach | `coach` | `$9.99/month` | Monthly subscription | Subscription | Account | Private coaches, school coaches, and training-group leaders |
 | Captain | `captain` | `$9.99/month` | Monthly subscription | Subscription | Account | Captains managing lineups, readiness, and weekly decisions |
-| League | `league` | `$14.99/season workspace` | Season fee | One-time | League | League coordinators and organizers running one competition workspace |
-| Full-Court | `full_court` | `$19.99/month` | Monthly subscription | Subscription | Account | Coaches, captains, clubs, and organizers running the full tennis operation |
+| League | `league` | `$14.99/season` | Season fee | One-time | League | League coordinators and organizers running one league, ladder, or tournament |
+| Full-Court | `full_court` | `$19.99/month` | Monthly subscription | Subscription | Account | Coaches, captains, clubs, and organizers using the complete TenAceIQ toolkit |
 
 Current entitlement grants:
 
@@ -36,7 +36,7 @@ Current entitlement grants:
 - Coach grants `playerPlus` and `coach`.
 - Captain grants `playerPlus` and `captain`.
 - League grants `leagueCoordinator`, `tiqTeamLeagueEntry`, and `tiqIndividualLeagueCreator`.
-- Full-Court grants Player, Coach, Captain, and League workspace access.
+- Full-Court grants Player, Coach, Captain, and League tool access.
 
 Current access notes:
 

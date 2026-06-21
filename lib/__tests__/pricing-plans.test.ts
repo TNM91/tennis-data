@@ -35,7 +35,7 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('league')).toMatchObject({
-      priceLabel: '$14.99/season workspace',
+      priceLabel: '$14.99/season',
       billing: {
         amountCents: 1499,
         interval: 'season',
@@ -43,6 +43,8 @@ describe('pricing plans', () => {
         quantityMode: 'league',
       },
     })
+    expect(getPricingPlan('league').outcome).toContain('one cleaner competition')
+    expect(getPricingPlan('league').outcome).not.toContain('competition workspace')
 
     expect(getPricingPlan('coach')).toMatchObject({
       priceLabel: '$9.99/month',

@@ -22,7 +22,7 @@ Automation rule: every entry route in this agenda must be covered by `scripts/ve
 | 4 | Player My Lab return state | Player | `/mylab` | high | `player_plus_linked` | My Lab makes the player identity, linked profile, Level Up return state, and next action clear after refresh. |
 | 5 | Captain week flow | Captain | `/captain` | high | `captain_primary` | Captain can make a weekly decision and produce a useful team-facing update. |
 | 6 | League result to public context | League | `/league-coordinator` | high | `league_coordinator` | Coordinator operation and member-facing league context stay connected without exposing private controls. |
-| 7 | Full-Court access pass | Full-Court | `/pricing` | medium | `full_court_operator` | All paid workspaces open cleanly and the user can tell which workspace fits the job. |
+| 7 | Full-Court access pass | Full-Court | `/pricing` | medium | `full_court_operator` | All paid tools open cleanly and the user can tell which tool fits the need. |
 | 8 | Admin access and data quality | Admin/Internal | `/admin/access` | high | `admin_test` | Access/data repair is understandable, fixture-safe, and reflected in affected product surfaces. |
 | 9 | Free public discovery | Free | `/explore` | medium | `free_viewer` | Public tennis intelligence is visible first, and upgrade/data-assist paths are clear. |
 

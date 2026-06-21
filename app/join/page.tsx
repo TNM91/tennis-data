@@ -70,7 +70,7 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
     mobileTitle: 'Set up League.',
     desktopTitle: 'Create your account. Then activate League Office.',
     mobileText: 'Create the free account first. League unlocks after access is active.',
-    desktopText: 'League starts with Free, then unlocks one season workspace for players or teams, schedules, scores, standings, and admin follow-through.',
+    desktopText: 'League starts with Free, then unlocks one season or event tool for players or teams, schedules, scores, standings, and admin follow-through.',
     formCue: 'Signup creates Free access. Activate League next, then open League Office for the season or event.',
     success: 'Free account created. Sign in, then activate League to open League Office.',
   },

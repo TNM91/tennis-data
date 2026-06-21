@@ -71,7 +71,7 @@ Use this as the handoff checklist for each tier before a journey is called ready
 | Coach | Coach tester with linked player | `coach_primary`, `player_plus_linked`, `coach-invite-token`, `level-up-assignment`, `level-up-completion` | Coach can invite, assign, and review only linked students; player sees only their assigned challenge and own proof. | Invite/link state, Linking proof privacy cue, Invite acceptance proof cue, Coach invite account proof cue, assignment card, player proof completion, coach review proof sync cue, Coach lesson support proof cue, and Level Up assignment handoff cue. | Return to Coach Hub and coach planner, then confirm the latest proof informs the next lesson focus. |
 | Captain | Captain tester | `captain_primary`, `captain-team-week` | Captain access includes team-week tools and Player value without exposing league coordinator controls. | Availability/readiness state, lineup option, save-status local honesty cue, Captain local sync proof cue, Captain decision handoff proof cue, Compete Bridge captain handoff cue, opponent/team context, and team brief screenshot. | Return after a result or fixture update and confirm the next week starts from current team context without implying browser-saved work is account sync. |
 | League | League coordinator tester | `league_coordinator`, `league-week` | Coordinator can manage league operations while public/member pages hide private controls. | Coordinator schedule/result state, League Office operation proof cue, source-to-public proof cue, standings update, public league page, and privacy check screenshot. | Return to League Office and public league detail after result entry to confirm the same match-week reality appears. |
-| Full-Court | Full-Court tester | `full_court_operator`, `full-court-access-state` | Full-Court access opens Player, Coach, Captain, and League workspaces with no stale paid locks. | Pricing tier copy, Full-Court access pass cue, Full-Court workspace fit proof cue, Full-Court role switching proof cue, plus one access screenshot from each paid workspace. | Return through navigation and confirm role switching remains clear without duplicate upgrade prompts. |
+| Full-Court | Full-Court tester | `full_court_operator`, `full-court-access-state` | Full-Court access opens Player, Coach, Captain, and League surfaces with no stale paid locks. | Pricing tier copy, Full-Court access pass cue, Full-Court tool fit proof cue, Full-Court role switching proof cue, plus one access screenshot from each paid tool. | Return through navigation and confirm role switching remains clear without duplicate upgrade prompts. |
 | Admin/Internal | Admin/internal tester | `admin_test`, `admin-access-repair`, `data-assist-upload` | Admin-only tools are protected, use safe fixtures, and do not expose private controls to non-admin tiers. | Access repair before/after screenshot, fixture safety rollback cue, Admin access repair proof cue, import queue data trust guard cue, Admin import outcome proof cue, and affected surface confirmation. | Return to the affected product surface and confirm access or data quality changed only where intended. |
 
 Run `npm run qa:handoffs` before any linked player/coach, captain/league, Full-Court, or Data Assist/Admin test pass.
@@ -148,11 +148,11 @@ Pain being solved: coordinators need one operating workspace for schedules, resu
 flowchart LR
   A["Unlock all workspaces"] --> B["Move between Player, Coach, Captain, League"]
   B --> C["Avoid repeated upgrade prompts"]
-  C --> D["Use the right workspace for the job"]
+  C --> D["Use the right tool for the need"]
   D --> E["Keep shared tennis context connected"]
 ```
 
-Pain being solved: multi-role users need clean access across every workspace without tier confusion.
+Pain being solved: multi-role users need clean access across every paid tool without tier confusion.
 
 ### Admin/Internal
 

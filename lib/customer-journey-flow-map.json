@@ -291,8 +291,8 @@
     "entryRoute": "/pricing",
     "testerRole": "Full-Court tester",
     "fixtureIds": ["full_court_operator", "full-court-access-state"],
-    "accessCheck": "Full-Court access opens Player, Coach, Captain, and League workspaces with no stale paid locks.",
-    "evidenceArtifact": "Pricing tier copy, Full-Court access pass cue, Full-Court workspace fit proof cue, Full-Court role switching proof cue, plus one access screenshot from each paid workspace.",
+    "accessCheck": "Full-Court access opens Player, Coach, Captain, and League surfaces with no stale paid locks.",
+    "evidenceArtifact": "Pricing tier copy, Full-Court access pass cue, Full-Court tool fit proof cue, Full-Court role switching proof cue, plus one access screenshot from each paid tool.",
     "returnStateProof": "Return through navigation and confirm role switching remains clear without duplicate upgrade prompts.",
     "primaryFeatureIds": ["full-court-navigation", "player-my-lab", "coach-hub", "captain-lineup-week", "league-office"],
     "steps": [
@@ -301,24 +301,24 @@
         "action": "Confirm Full-Court tier language and access state.",
         "surface": "Pricing",
         "route": "/pricing",
-        "productSignal": "Full-Court explains every included workspace.",
+        "productSignal": "Full-Court explains every included tool.",
         "evidence": "Pricing tier copy."
       },
       {
         "stage": "act",
-        "action": "Open Player, Coach, Captain, and League workspaces.",
-        "surface": "Role Workspaces",
+        "action": "Open Player, Coach, Captain, and League surfaces.",
+        "surface": "Role Surfaces",
         "route": "/mylab",
-        "productSignal": "No paid workspace shows stale locks or redundant upgrade prompts.",
-        "evidence": "Workspace access screenshots."
+        "productSignal": "No paid tool shows stale locks or redundant upgrade prompts.",
+        "evidence": "Tool access screenshots."
       },
       {
         "stage": "return",
-        "action": "Come back and choose the right workspace for the job.",
+        "action": "Come back and choose the right tool for the need.",
         "surface": "Navigation",
         "route": "/pricing",
         "productSignal": "Role switching feels deliberate and understandable.",
-        "evidence": "Full-Court access pass cue, Full-Court workspace fit proof cue, and Full-Court role switching proof cue."
+        "evidence": "Full-Court access pass cue, Full-Court tool fit proof cue, and Full-Court role switching proof cue."
       }
     ],
     "handoffs": [

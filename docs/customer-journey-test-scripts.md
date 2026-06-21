@@ -261,7 +261,7 @@ Pass signal: members can understand league context and coordinator updates show 
 
 ## Full-Court Journey
 
-Primary pain point: multi-role users need clean access across every workspace without tier confusion.
+Primary pain point: multi-role users need clean access across every paid tool without tier confusion.
 
 ### Full-Court Navigation
 
@@ -269,14 +269,14 @@ Route: `/pricing`, then Player/Coach/Captain/League surfaces
 
 1. Sign in with a Full-Court account.
 2. Open `/pricing` and confirm Full-Court language is clear.
-3. Confirm the Full-Court access pass cue says all paid workspaces are active.
-4. Confirm the Full-Court workspace fit proof cue explains which tennis job belongs in each workspace.
+3. Confirm the Full-Court access pass cue says all paid tools are active.
+4. Confirm the Full-Court tool fit proof cue explains which tennis need belongs in each tool.
 5. Confirm the Full-Court role switching proof cue names start, open, check, and return proof.
 6. Visit `/mylab`, `/coach`, `/captain`, and `/league-coordinator`.
 7. Confirm each workspace is available without stale locks or redundant upgrade prompts.
 8. Confirm navigation does not bury the user in every possible tool at once.
 
-Pass signal: the user can move across roles cleanly and knows which workspace fits the job.
+Pass signal: the user can move across roles cleanly and knows which tool fits the need.
 
 ## Admin/Internal Journey
 

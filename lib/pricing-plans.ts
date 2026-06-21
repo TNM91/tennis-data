@@ -149,7 +149,7 @@ function formatUsd(amountCents: number) {
 export function formatPricingBillingLabel(billing: PricingBillingModel) {
   if (billing.amountCents === 0 || billing.interval === 'none') return '$0'
   if (billing.interval === 'month') return `${formatUsd(billing.amountCents)}/month`
-  return `${formatUsd(billing.amountCents)}/season workspace`
+  return `${formatUsd(billing.amountCents)}/season`
 }
 
 export function getPricingBillingCue(planId: PricingPlanId) {
@@ -233,7 +233,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     problem: 'Organizing a league, ladder, or tournament?',
     friction: 'Participants, schedules, results, and communication get messy fast in spreadsheets and message threads.',
     solution: getMembershipTier('league').description,
-    outcome: 'Run one cleaner competition workspace with less manual cleanup and clearer visibility for everyone involved.',
+    outcome: 'Run one cleaner competition with less manual cleanup and clearer visibility for everyone involved.',
     valueProps: getMembershipTier('league').valueProps,
   },
   {

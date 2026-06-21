@@ -58,7 +58,7 @@ describe('buildProductAccessState', () => {
     expect(freeAccess.captainTierMessage).toBe(MEMBERSHIP_TIERS.captain.description)
     expect(freeAccess.coachTierLabel).toBe(`${MEMBERSHIP_TIERS.coach.name} - $9.99/month`)
     expect(freeAccess.coachTierMessage).toBe(MEMBERSHIP_TIERS.coach.description)
-    expect(freeAccess.leagueTierLabel).toBe(`${MEMBERSHIP_TIERS.league.name} - $14.99/season workspace`)
+    expect(freeAccess.leagueTierLabel).toBe(`${MEMBERSHIP_TIERS.league.name} - $14.99/season`)
     expect(freeAccess.leagueTierMessage).toBe(MEMBERSHIP_TIERS.league.description)
     expect(freeAccess.teamLeagueMessage).toContain(MEMBERSHIP_TIERS.league.upgradeCue)
     expect(freeAccess.individualLeagueMessage).toContain(MEMBERSHIP_TIERS.league.upgradeCue)

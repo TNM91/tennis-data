@@ -22,7 +22,7 @@ describe('upgrade request pricing snapshots', () => {
     })).toMatchObject({
       plan_id: 'league',
       plan_name: 'League',
-      price_label: '$14.99/season workspace',
+      price_label: '$14.99/season',
       billing_amount_cents: 1499,
       billing_currency: 'usd',
       billing_interval: 'season',

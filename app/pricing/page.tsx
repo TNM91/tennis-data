@@ -93,22 +93,22 @@ const FULL_COURT_WORKSPACE_PASS = [
   {
     label: 'My Lab',
     href: '/mylab',
-    proof: 'Player workspace',
+    proof: 'Player tools',
   },
   {
     label: 'Coach Hub',
     href: '/coach',
-    proof: 'Coach workspace',
+    proof: 'Coach tools',
   },
   {
     label: 'Team Hub',
     href: '/captain',
-    proof: 'Captain workspace',
+    proof: 'Team tools',
   },
   {
     label: 'League Office',
     href: '/league-coordinator',
-    proof: 'League workspace',
+    proof: 'Competition tools',
   },
 ]
 
@@ -146,7 +146,7 @@ const FULL_COURT_ROLE_SWITCHING_PROOF = [
   },
   {
     label: 'Return',
-    body: 'Come back to Pricing and choose the next workspace without role-switching confusion.',
+    body: 'Come back to Pricing and choose the next role path without role-switching confusion.',
   },
 ] as const
 
@@ -188,7 +188,7 @@ const JOB_CHOOSER: Array<{
   },
   {
     job: 'Use the full toolkit',
-    cue: 'All workspaces plus unlimited Tournament Desk operations.',
+    cue: 'All role tools plus unlimited Tournament Desk operations.',
     planId: 'full_court',
     href: getPlanUnlockHref('full_court'),
   },
@@ -240,7 +240,7 @@ const COMPARE_ROWS: Array<{
     full_court: 'Included',
   },
   {
-    job: 'Run a season workspace',
+    job: 'Run a season or event',
     free: '-',
     player_plus: '-',
     coach: '-',
@@ -352,7 +352,7 @@ function PricingContent() {
       </section>
 
       <section id="workspace" style={sectionStyle} aria-labelledby="workspace-title">
-        <SectionHeader eyebrow="See the workspace" title="Know what opens before you upgrade." body="TenAceIQ pricing is easier when the workspace names match the tennis work." />
+        <SectionHeader eyebrow="See the tools" title="Know what opens before you upgrade." body="TenAceIQ pricing is easier when each tier names the tennis support it unlocks." />
         <div style={workspaceGridStyle}>
           {WORKSPACE_PREVIEWS.map((preview) => (
             <article key={preview.planId} style={workspaceCardStyle}>
@@ -371,7 +371,7 @@ function PricingContent() {
         <section id="full-court-access-pass" style={fullCourtPassStyle} aria-labelledby="full-court-access-pass-title">
           <div>
             <div style={sectionEyebrowStyle}>Full-Court access pass</div>
-            <h2 id="full-court-access-pass-title" style={billingTitleStyle}>All paid workspaces are active.</h2>
+            <h2 id="full-court-access-pass-title" style={billingTitleStyle}>All paid tools are active.</h2>
             <p style={heroTextStyle}>
               Use this pass to capture My Lab, Coach Hub, Team Hub, and League Office without stale locks or repeated upgrade prompts.
             </p>
@@ -384,9 +384,9 @@ function PricingContent() {
               </Link>
             ))}
           </div>
-          <div style={fullCourtWorkspaceFitProofStyle} aria-label="Full-Court workspace fit proof cue">
+          <div style={fullCourtWorkspaceFitProofStyle} aria-label="Full-Court tool fit proof cue">
             <div style={fullCourtWorkspaceFitHeaderStyle}>
-              <span style={sectionEyebrowStyle}>Full-Court workspace fit proof cue</span>
+              <span style={sectionEyebrowStyle}>Full-Court tool fit proof cue</span>
               <strong>Pick the right tool for the tennis need.</strong>
             </div>
             <div style={fullCourtWorkspaceFitGridStyle}>
@@ -401,7 +401,7 @@ function PricingContent() {
           <div style={fullCourtRoleSwitchingProofStyle} aria-label="Full-Court role switching proof cue">
             <div style={fullCourtWorkspaceFitHeaderStyle}>
               <span style={sectionEyebrowStyle}>Full-Court role switching proof cue</span>
-              <strong>Prove every paid workspace opens without stale locks.</strong>
+              <strong>Prove every paid tool opens without stale locks.</strong>
             </div>
             <div style={fullCourtRoleSwitchingProofGridStyle}>
               {FULL_COURT_ROLE_SWITCHING_PROOF.map((item) => (
@@ -450,9 +450,9 @@ function PricingContent() {
       <section id="billing" style={billingBandStyle} aria-label="Billing clarity">
         <div>
           <div style={sectionEyebrowStyle}>Billing clarity</div>
-          <h2 style={billingTitleStyle}>Monthly plans renew until canceled. League is a season workspace fee.</h2>
+          <h2 style={billingTitleStyle}>Monthly plans renew until canceled. League is a season fee.</h2>
           <p style={heroTextStyle}>
-            Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $14.99 per season workspace for one bounded league, ladder, or tournament season.
+            Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $14.99 per season for one bounded league, ladder, or tournament.
           </p>
           <p style={heroTextStyle}>
             Creating an account opens Free access for public tennis intelligence and data contributions. My Lab, Coach Hub, Team Hub, League Office, and Full-Court open only after the matching plan is active.
