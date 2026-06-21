@@ -65,7 +65,7 @@ export default function ManagePage() {
           <SectionHeader
             eyebrow="Manage paths"
             title="Start with the need that is causing the chaos."
-            body="TenAceIQ organizes management work around the next practical action, not a complicated dashboard."
+            body="TenAceIQ keeps team, league, and tournament work tied to the next practical tennis action."
             titleId="manage-actions-title"
           />
           <div style={gridStyle}>

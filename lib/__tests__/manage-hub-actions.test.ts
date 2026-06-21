@@ -21,6 +21,8 @@ describe('Manage hub actions', () => {
   it('frames each management path around the practical user question', () => {
     expect(source).toContain('Start with the need that is causing the chaos.')
     expect(source).not.toContain('Start with the job that is causing the chaos.')
+    expect(source).toContain('TenAceIQ keeps team, league, and tournament work tied to the next practical tennis action.')
+    expect(source).not.toContain('TenAceIQ organizes management work around the next practical action, not a complicated dashboard.')
     expect(source).toContain('Who is available, what lineup should we send, and what needs to be communicated?')
     expect(source).toContain('How do I keep schedules, players, teams, scores, and standings organized?')
     expect(source).toContain('How do I keep entries, draws, courts, scores, and winners moving?')
