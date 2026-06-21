@@ -234,7 +234,7 @@ function LeaguePathPanel() {
           <h2 id="compete-league-path-title" style={leaguePathTitleStyle}>{PRODUCT_MOTTO}</h2>
         </div>
         <p style={leaguePathIntroStyle}>
-          Start with the league job, then open the smallest action that keeps seasons, teams, and results organized.
+          Start with the league need, then open the smallest action that keeps seasons, teams, and results organized.
         </p>
       </div>
       <div style={leaguePathGridStyle}>

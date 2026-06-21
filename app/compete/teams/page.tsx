@@ -298,7 +298,7 @@ function TeamPathPanel() {
           <h2 id="compete-team-path-title" style={teamPathTitleStyle}>{PRODUCT_MOTTO}</h2>
         </div>
         <p style={teamPathIntroStyle}>
-          Start with the team job, then open the smallest action that turns context into a captain move.
+          Start with the team need, then open the smallest action that turns context into a captain move.
         </p>
       </div>
       <div style={teamPathGridStyle}>

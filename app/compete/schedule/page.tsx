@@ -314,7 +314,7 @@ function SchedulePathPanel() {
           <h2 id="compete-schedule-path-title" style={schedulePathTitleStyle}>{PRODUCT_MOTTO}</h2>
         </div>
         <p style={schedulePathIntroStyle}>
-          Start with the calendar job, then open the smallest action that keeps match week moving.
+          Start with the calendar need, then open the smallest action that keeps match week moving.
         </p>
       </div>
       <div style={schedulePathGridStyle}>

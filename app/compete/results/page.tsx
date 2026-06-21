@@ -244,7 +244,7 @@ function ResultsPathPanel() {
           <h2 id="compete-results-path-title" style={resultsPathTitleStyle}>{PRODUCT_MOTTO}</h2>
         </div>
         <p style={resultsPathIntroStyle}>
-          Start with the result job, then open the smallest action that keeps prep, standings, or data moving.
+          Start with the result need, then open the smallest action that keeps prep, standings, or data moving.
         </p>
       </div>
       <div style={resultsPathGridStyle}>
