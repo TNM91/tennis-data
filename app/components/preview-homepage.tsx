@@ -483,7 +483,7 @@ const commandModeDetails: Record<
     subhead: 'Start with the tennis map, then unlock the tools that save your week.',
     searchPlaceholder: 'Search players, teams, leagues, ratings...',
     queue: ['Find a player', 'Browse teams', 'Check standings', 'Check rankings'],
-    unlockLine: 'Free stays useful. Unlock My Lab, Team Hub, or League Office when the job becomes personal, team-based, or league-wide.',
+    unlockLine: 'Free stays useful. Unlock My Lab, Team Hub, or League Office when your tennis needs become personal, team-based, or league-wide.',
   },
   player_plus: {
     headline: 'Turn public data into your personal lab.',
@@ -1565,7 +1565,7 @@ function DiscoveryMapPreview() {
         </div>
         <div style={{ display: 'grid', gap: 8, padding: 12, borderRadius: 8, background: '#f7fbff', border: '1px solid #e2eaf4' }}>
           <strong style={{ color: '#07142c', fontSize: 14 }}>Free shows the tennis map.</strong>
-          <span style={{ color: '#526177', fontSize: 13, lineHeight: 1.55 }}>Search first, then choose whether the next job is personal prep, team decisions, or league operations.</span>
+          <span style={{ color: '#526177', fontSize: 13, lineHeight: 1.55 }}>Search first, then choose whether the next need is personal prep, team decisions, or league operations.</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
             <MiniCount value="18k" label="Players" />
             <MiniCount value="1.2k" label="Teams" />

@@ -6,7 +6,9 @@ const source = readFileSync(join(process.cwd(), 'app/components/tier-pathway.tsx
 
 describe('tier pathway naming', () => {
   it('uses public workspace names in the default pathway intro', () => {
+    expect(source).toContain('Choose the layer that matches your tennis need.')
     expect(source).toContain('Player, Team Hub, or League Office')
+    expect(source).not.toContain('Choose the layer that matches the job.')
     expect(source).not.toContain('TIQ League Coordinator when that next layer')
   })
 })

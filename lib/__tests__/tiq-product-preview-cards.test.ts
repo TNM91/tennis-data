@@ -66,7 +66,8 @@ describe('TIQ product preview cards', () => {
   it('turns the homepage hero panel into an action board instead of an empty court frame', () => {
     expect(commandCenterSource).toContain('const heroBoardActions')
     expect(commandCenterSource).toContain('Platform paths')
-    expect(commandCenterSource).toContain('Start with what you need to do.')
+    expect(commandCenterSource).toContain('Start with the tennis need in front of you.')
+    expect(commandCenterSource).not.toContain('Start with what you need to do.')
     expect(commandCenterSource).toContain('Explore, improve, compete, manage, or fix tennis context.')
     expect(commandCenterSource).toContain("{ label: 'Fix Tennis Info', detail: 'Scorecards, schedules, rosters', href: DATA_ASSIST_STORY.href }")
     expect(commandCenterSource).toContain('heroBoardGridStyle')

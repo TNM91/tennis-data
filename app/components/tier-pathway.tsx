@@ -18,7 +18,7 @@ type TierPathwayProps = {
 }
 
 export default function TierPathway({
-  title = 'Choose the layer that matches the job.',
+  title = 'Choose the layer that matches your tennis need.',
   intro = 'Start with free discovery, then add Player, Team Hub, or League Office when that next layer makes tennis easier to run.',
   compact = false,
   showCtas = false,

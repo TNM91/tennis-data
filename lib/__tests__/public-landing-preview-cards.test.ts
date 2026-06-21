@@ -108,9 +108,12 @@ describe('public landing preview cards', () => {
 
   it('keeps homepage section copy approachable instead of workspace-heavy', () => {
     expect(commandCenterSource).toContain('TenAceIQ starts with tennis context, then points players, captains, coaches, leagues, and tournaments to the right tools.')
-    expect(commandCenterSource).toContain('These shortcuts move the tennis community toward the next job that needs attention.')
+    expect(commandCenterSource).toContain('Start with the tennis need in front of you.')
+    expect(commandCenterSource).toContain('These shortcuts move the tennis community toward the next action worth taking.')
     expect(commandCenterSource).toContain('when tennis context needs a cleaner source.')
     expect(commandCenterSource).toContain('Preview cards keep each tool concrete, approachable, and tied to the next tennis action.')
+    expect(commandCenterSource).not.toContain('Start with what you need to do.')
+    expect(commandCenterSource).not.toContain('These shortcuts move the tennis community toward the next job that needs attention.')
     expect(commandCenterSource).not.toContain('then the right hub when the next tennis job needs a workspace')
     expect(commandCenterSource).not.toContain('then the right hub when the next tennis job needs a home base')
     expect(commandCenterSource).not.toContain('then the right hub when the job gets serious')
