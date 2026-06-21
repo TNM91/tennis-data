@@ -155,7 +155,7 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
               Get to the right tennis help fast.
             </h2>
             <p style={needPathTextStyle}>
-              Pick the job in your head. TenAceIQ turns it into a practical resource path instead of another search spiral.
+              Pick the tennis need you came with. TenAceIQ turns it into a practical resource path instead of another search spiral.
             </p>
           </div>
           <div style={needPathGridStyle}>
@@ -285,7 +285,7 @@ const resourceQuickStarts = [
   {
     eyebrow: 'Play',
     title: 'Find a place to play',
-    body: 'Start with teams, leagues, tournaments, courts, clubs, ladders, or open play when the job is getting on court.',
+    body: 'Start with teams, leagues, tournaments, courts, clubs, ladders, or open play when you just need to get on court.',
     metrics: [
       { label: 'Paths', value: 'Play' },
       { label: 'Context', value: 'Local' },

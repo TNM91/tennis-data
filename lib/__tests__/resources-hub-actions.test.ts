@@ -8,7 +8,8 @@ describe('Resources hub actions', () => {
   it('gives visitors a fast I-need-to chooser before the full hub', () => {
     expect(source).toContain('I need to...')
     expect(source).toContain('Get to the right tennis help fast.')
-    expect(source).toContain('Pick the job in your head. TenAceIQ turns it into a practical resource path instead of another search spiral.')
+    expect(source).toContain('Pick the tennis need you came with. TenAceIQ turns it into a practical resource path instead of another search spiral.')
+    expect(source).not.toContain('Pick the job in your head. TenAceIQ turns it into a practical resource path instead of another search spiral.')
     expect(source).toContain('resourceNeedPaths.map((path)')
     expect(source).toContain('Work on my game')
     expect(source).toContain('Prepare for a match')
@@ -28,6 +29,8 @@ describe('Resources hub actions', () => {
     expect(source).toContain('TiqActionCard')
     expect(source).toContain('Quick starts')
     expect(source).toContain('Start with the tennis need, then open the right path.')
+    expect(source).toContain('Start with teams, leagues, tournaments, courts, clubs, ladders, or open play when you just need to get on court.')
+    expect(source).not.toContain('when the job is getting on court')
     expect(source).toContain('resourceQuickStarts.map((quickStart)')
     expect(source).toContain("id: 'play'")
     expect(source).toContain("title: 'Play'")
