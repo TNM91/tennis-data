@@ -68,9 +68,11 @@ describe('public and private indexing boundaries', () => {
     expect(previewHomePage).toContain('follow: false')
   })
 
-  it('keeps the install manifest aligned to the public home-base story', () => {
-    expect(manifestSource).toContain('Explore tennis for free, then open My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.')
+  it('keeps the install manifest aligned to the public toolkit story', () => {
+    expect(manifestSource).toContain('PRODUCT_LANGUAGE_SYSTEM')
+    expect(manifestSource).toContain('PRODUCT_LANGUAGE_SYSTEM.coreLine')
     expect(manifestSource).toContain('PRODUCT_MOTTO')
+    expect(manifestSource).not.toContain('next tennis job needs a home base')
     expect(manifestSource).not.toContain('Full-Court workspaces')
     expect(manifestSource).not.toContain('then use My Lab, Team Hub, League Office')
   })

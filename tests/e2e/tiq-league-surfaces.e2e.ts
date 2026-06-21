@@ -243,12 +243,13 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.locator('body')).not.toContainText('League Office adds the workspace for leagues of players or teams.')
   })
 
-  test('Install manifest keeps the public home-base story', async ({ page }) => {
+  test('Install manifest keeps the public toolkit story', async ({ page }) => {
     const response = await page.goto('/manifest.webmanifest')
     expect(response?.status() || 200, '/manifest.webmanifest should load').toBe(200)
 
     const manifest = JSON.parse(await page.locator('body').innerText()) as { description?: string }
-    expect(manifest.description).toContain('Explore tennis for free, then open My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.')
+    expect(manifest.description).toContain('Explore tennis context for free. Unlock the right TenAceIQ tools when you are ready to play, improve, captain, coach, or run competition with less chaos.')
+    expect(manifest.description).not.toContain('next tennis job needs a home base')
     expect(manifest.description).not.toContain('Full-Court workspaces')
   })
 

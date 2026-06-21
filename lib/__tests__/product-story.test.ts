@@ -4,11 +4,15 @@ import {
   HOME_HERO_STORY,
   MEMBERSHIP_TIERS,
   PLATFORM_AUDIENCE_PATHS,
+  PLATFORM_MISSION,
   PLATFORM_PILLARS,
   PLATFORM_POSITIONING,
   PRODUCT_AVOID_LIST,
+  PRODUCT_LANGUAGE_SYSTEM,
   PRODUCT_MODE_LANGUAGE,
   PRODUCT_NORTH_STAR,
+  PRODUCT_PRINCIPLES,
+  PRODUCT_UPGRADE_MESSAGE,
   TIER_HOMEPAGE_STORY,
 } from '../product-story'
 
@@ -22,22 +26,22 @@ describe('product story guardrails', () => {
   })
 
   it('keeps Free distinct from paid unlock tiers', () => {
-    expect(MEMBERSHIP_TIERS.free.description).toContain('public tennis intelligence')
-    expect(MEMBERSHIP_TIERS.free.description).toContain('before the next tennis job needs a home base')
-    expect(TIER_HOMEPAGE_STORY.free.copy).toContain('before the next tennis job needs a home base')
+    expect(MEMBERSHIP_TIERS.free.description).toContain('tennis context for free')
+    expect(MEMBERSHIP_TIERS.free.description).toContain('tournaments')
+    expect(TIER_HOMEPAGE_STORY.free.copy).toContain('before choosing paid tools')
     expect(MEMBERSHIP_TIERS.player_plus.valueProps).toContain('Unlock My Lab')
     expect(MEMBERSHIP_TIERS.coach.description).toContain('Use Player features plus Coach Hub')
     expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player features plus Team Hub and Captain Tools')
     expect(MEMBERSHIP_TIERS.league.valueProps).toContain('Use Data Assist uploads for schedules, rosters, and official scorecards')
-    expect(MEMBERSHIP_TIERS.full_court.shortPromise).toBe('Run every tennis job.')
-    expect(MEMBERSHIP_TIERS.full_court.audience).toContain('running more than one tennis job')
+    expect(MEMBERSHIP_TIERS.full_court.shortPromise).toBe('Unlock the complete TenAceIQ toolkit.')
+    expect(MEMBERSHIP_TIERS.full_court.audience).toContain('players, teams, leagues, and tournaments')
     expect(MEMBERSHIP_TIERS.full_court.upgradeCue).toContain('Coach Hub, Team Hub, League Office')
-    expect(MEMBERSHIP_TIERS.full_court.description).toContain('unlimited Tournament Desk operations')
-    expect(MEMBERSHIP_TIERS.full_court.description).toContain('one connected tennis operation')
+    expect(MEMBERSHIP_TIERS.full_court.description).toContain('complete TenAceIQ toolkit')
+    expect(MEMBERSHIP_TIERS.full_court.description).toContain('tournaments')
     expect(MEMBERSHIP_TIERS.full_court.valueProps).toContain('My Lab, Coach Hub, Team Hub, and League Office together')
-    expect(MEMBERSHIP_TIERS.full_court.valueProps).toContain('One connected tennis operation for coaches, captains, coordinators, and organizers')
-    expect(TIER_HOMEPAGE_STORY.full_court.headline).toBe('Run every tennis job.')
-    expect(TIER_HOMEPAGE_STORY.full_court.copy).toContain('inside one connected tennis operation')
+    expect(MEMBERSHIP_TIERS.full_court.valueProps).toContain('One connected toolkit for coaches, captains, coordinators, and organizers')
+    expect(TIER_HOMEPAGE_STORY.full_court.headline).toBe('Unlock the complete TenAceIQ toolkit.')
+    expect(TIER_HOMEPAGE_STORY.full_court.copy).toContain('Tournament Desk tools')
     expect(Object.values(MEMBERSHIP_TIERS).map((tier) => tier.description).join(' ')).not.toContain('Player plus')
     expect(`${MEMBERSHIP_TIERS.free.description} ${TIER_HOMEPAGE_STORY.free.copy}`).not.toContain('personal workspace')
     expect(`${MEMBERSHIP_TIERS.full_court.description} ${TIER_HOMEPAGE_STORY.full_court.copy}`).not.toContain('suite')
@@ -53,20 +57,28 @@ describe('product story guardrails', () => {
     expect(PRODUCT_MODE_LANGUAGE.team).toMatchObject({ label: 'Team', route: '/captain', planId: 'captain' })
     expect(PRODUCT_MODE_LANGUAGE.league).toMatchObject({ label: 'Leagues', route: '/league-coordinator', planId: 'league' })
     expect(PRODUCT_MODE_LANGUAGE.plans).toMatchObject({ label: 'Pricing', route: '/pricing', planId: null })
-    expect(PRODUCT_MODE_LANGUAGE.find.cue).toBe('Search players, teams, leagues, and rankings before the next tennis job needs a home base.')
-    expect(PRODUCT_MODE_LANGUAGE.plans.cue).toContain('when the next tennis job needs a home base')
+    expect(PRODUCT_MODE_LANGUAGE.find.cue).toBe('Explore players, teams, leagues, rankings, tournaments, and tennis context for free.')
+    expect(PRODUCT_MODE_LANGUAGE.plans.cue).toContain('right tools')
+    expect(PRODUCT_MODE_LANGUAGE.plans.cue).toContain('league, or tournament')
     expect(PRODUCT_MODE_LANGUAGE.plans.cue).toContain('My Lab, Coach Hub, Team Hub, League Office')
     expect(PRODUCT_MODE_LANGUAGE.find.cue).not.toContain('paid workspace')
     expect(PRODUCT_MODE_LANGUAGE.plans.cue).not.toContain('needs a workspace')
+    expect(`${PRODUCT_MODE_LANGUAGE.find.cue} ${PRODUCT_MODE_LANGUAGE.plans.cue}`).not.toContain('home base')
+    expect(`${PRODUCT_MODE_LANGUAGE.find.cue} ${PRODUCT_MODE_LANGUAGE.plans.cue}`).not.toContain('tennis job')
   })
 
   it('keeps the clarified platform why centralized', () => {
-    expect(PRODUCT_NORTH_STAR).toContain('players, captains, coaches, leagues, and tournaments')
-    expect(PRODUCT_NORTH_STAR).toContain('spend less time managing, guessing, searching, and coordinating')
-    expect(HOME_HERO_STORY.body).toContain('every tennis job connected')
+    expect(PRODUCT_NORTH_STAR).toContain('players, captains, coaches, leagues, and tournament organizers')
+    expect(PRODUCT_NORTH_STAR).toContain('spend less time searching, guessing, and coordinating')
+    expect(PRODUCT_NORTH_STAR).toContain('more time playing, improving, coaching, captaining, and enjoying tennis')
+    expect(PLATFORM_MISSION).toContain('more time playing, improving, and enjoying the sport')
+    expect(HOME_HERO_STORY.body).toContain('Explore tennis context for free')
+    expect(HOME_HERO_STORY.body).toContain('when you want more support')
     expect(HOME_HERO_STORY.body).not.toContain('the full court')
+    expect(HOME_HERO_STORY.body).not.toContain('tennis job')
+    expect(HOME_HERO_STORY.body).not.toContain('home base')
     expect(PLATFORM_POSITIONING).toBe(
-      'The tennis platform that helps players, captains, coaches, leagues, and tournaments improve, compete, and manage the game with less friction.',
+      'The tennis platform that gives players, captains, coaches, leagues, and tournaments the context, tools, and resources to play, improve, and run competition with less friction.',
     )
     expect(PLATFORM_PILLARS.map((pillar) => pillar.title)).toEqual(['Improve', 'Compete', 'Manage'])
     expect(PLATFORM_PILLARS.map((pillar) => pillar.href)).toEqual(['/player-development', '/compete', '/manage'])
@@ -76,5 +88,22 @@ describe('product story guardrails', () => {
       'Coaches',
       'Leagues and tournaments',
     ])
+  })
+
+  it('centralizes the approved toolkit language system', () => {
+    expect(PRODUCT_LANGUAGE_SYSTEM.coreLine).toBe(
+      'Explore tennis context for free. Unlock the right TenAceIQ tools when you are ready to play, improve, captain, coach, or run competition with less chaos.',
+    )
+    expect(PRODUCT_LANGUAGE_SYSTEM.mission).toContain('Spend less time searching, guessing, and coordinating')
+    expect(PRODUCT_LANGUAGE_SYSTEM.umbrellaTerms).toEqual(['tools', 'toolkit', 'resources', 'tennis context', 'support', 'competition'])
+    expect(PRODUCT_LANGUAGE_SYSTEM.roleTerms).toContain('Tournament Desk')
+    expect(PRODUCT_LANGUAGE_SYSTEM.competitionTerms).toEqual({ league: 'season', tournament: 'event', shared: 'competition' })
+    expect(PRODUCT_LANGUAGE_SYSTEM.discouragedPublicTerms).toContain('home base')
+    expect(PRODUCT_LANGUAGE_SYSTEM.discouragedPublicTerms).toContain('tennis job')
+    expect(PRODUCT_UPGRADE_MESSAGE).toContain('right tools')
+    expect(PRODUCT_UPGRADE_MESSAGE).toContain('game, team, players, league, or tournament')
+    expect(PRODUCT_PRINCIPLES).toContain('Practical tools over generic dashboards')
+    expect(PRODUCT_PRINCIPLES).toContain('Competition tools for league and tournament organizers')
+    expect(PRODUCT_AVOID_LIST).toContain('Home base or tennis job as umbrella language')
   })
 })

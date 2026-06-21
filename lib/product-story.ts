@@ -1,13 +1,28 @@
 export const PRODUCT_NORTH_STAR =
-  'TenAceIQ helps players, captains, coaches, leagues, and tournaments spend less time managing, guessing, searching, and coordinating, and more time improving, competing, coaching, leading, and playing.'
+  'TenAceIQ helps players, captains, coaches, leagues, and tournament organizers spend less time searching, guessing, and coordinating, and more time playing, improving, coaching, captaining, and enjoying tennis.'
 
 export const PRODUCT_MOTTO = 'More Tennis. Less Chaos.'
 
 export const PLATFORM_POSITIONING =
-  'The tennis platform that helps players, captains, coaches, leagues, and tournaments improve, compete, and manage the game with less friction.'
+  'The tennis platform that gives players, captains, coaches, leagues, and tournaments the context, tools, and resources to play, improve, and run competition with less friction.'
 
 export const PLATFORM_MISSION =
-  'Help the tennis community spend less time managing tennis and more time playing, improving, and enjoying it.'
+  'Help the tennis community spend less time searching, guessing, and coordinating, and more time playing, improving, and enjoying the sport.'
+
+export const PRODUCT_LANGUAGE_SYSTEM = {
+  coreLine:
+    'Explore tennis context for free. Unlock the right TenAceIQ tools when you are ready to play, improve, captain, coach, or run competition with less chaos.',
+  mission:
+    'Spend less time searching, guessing, and coordinating. Spend more time playing, improving, and enjoying tennis.',
+  umbrellaTerms: ['tools', 'toolkit', 'resources', 'tennis context', 'support', 'competition'] as const,
+  roleTerms: ['My Lab', 'Coach Hub', 'Team Hub', 'League Office', 'Tournament Desk', 'Full-Court'] as const,
+  discouragedPublicTerms: ['home base', 'tennis job', 'workspace', 'suite', 'platform-first language'] as const,
+  competitionTerms: {
+    league: 'season',
+    tournament: 'event',
+    shared: 'competition',
+  },
+} as const
 
 export const PLATFORM_PILLARS = [
   {
@@ -70,18 +85,18 @@ export const PLATFORM_AUDIENCE_PATHS = [
 ] as const
 
 export const PRODUCT_UPGRADE_MESSAGE =
-  'Upgrade based on what makes your tennis life easier: simple tiers, clear workspaces, clearer next steps.'
+  'Explore tennis context for free, then unlock the right tools when you want more support for your game, team, players, league, or tournament.'
 
 export const PRODUCT_PRINCIPLES = [
   'Simple tiers',
   'Clear upgrade value',
   'Tennis-specific intelligence',
   'User-uploaded Data Assist refreshes',
-  'Practical workspaces over generic dashboards',
+  'Practical tools over generic dashboards',
   'Personalized insight for players',
   'Connected development workflows for coaches',
   'Team decision support for captains',
-  'League operations for coordinators and admins',
+  'Competition tools for league and tournament organizers',
 ] as const
 
 export const PRODUCT_AVOID_LIST = [
@@ -91,6 +106,7 @@ export const PRODUCT_AVOID_LIST = [
   'Decorative pages that do not help users act',
   'Tier confusion',
   'Copy that sounds disconnected from tennis',
+  'Home base or tennis job as umbrella language',
   'Promises that imply direct USTA API dependence',
 ] as const
 
@@ -130,7 +146,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Players, captains, and fans getting oriented',
     upgradeCue: 'Start with public tennis intelligence.',
     description:
-      'Find players, leagues, teams, rankings, and public tennis intelligence before the next tennis job needs a home base.',
+      'Explore players, teams, leagues, rankings, tournaments, and tennis context for free.',
     valueProps: [
       'Search players, teams, leagues, and rankings',
       'View public tennis context',
@@ -190,10 +206,10 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     id: 'league',
     name: 'League',
     shortPromise: 'Run competition with less admin work.',
-    audience: 'League coordinators and organizers running one competition workspace',
+    audience: 'League coordinators and organizers running one league, ladder, or tournament',
     upgradeCue: 'Give members one place for requests, schedules, players or teams, scores, and standings.',
     description:
-      'Run one league, ladder, or tournament workspace with player or team setup, scheduling, score tracking, standings, visibility, and admin workflows.',
+      'Use League Office for one league, ladder, or tournament with player or team setup, scheduling, score tracking, standings, visibility, and organizer tools.',
     valueProps: [
       'Approve teams or players before they enter the season',
       'Keep schedules, sites, and match details in one league home',
@@ -205,17 +221,17 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   full_court: {
     id: 'full_court',
     name: 'Full-Court',
-    shortPromise: 'Run every tennis job.',
-    audience: 'Coaches, captains, clubs, and organizers running more than one tennis job',
-    upgradeCue: 'Unlock My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations.',
+    shortPromise: 'Unlock the complete TenAceIQ toolkit.',
+    audience: 'Coaches, captains, clubs, and organizers supporting players, teams, leagues, and tournaments',
+    upgradeCue: 'Unlock My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk tools.',
     description:
-      'Use My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations as one connected tennis operation.',
+      'Use the complete TenAceIQ toolkit for player development, coaching, team decisions, leagues, ladders, tournaments, and event follow-through.',
     valueProps: [
       'My Lab, Coach Hub, Team Hub, and League Office together',
-      'Unlimited Tournament Desk and event workspaces',
+      'Unlimited Tournament Desk tools for events',
       'Shared scheduling, results, standings, and rankings',
-      'Team and player books across the connected operation',
-      'One connected tennis operation for coaches, captains, coordinators, and organizers',
+      'Team and player books across competition',
+      'One connected toolkit for coaches, captains, coordinators, and organizers',
     ],
   },
 } as const
@@ -227,7 +243,7 @@ export const PRODUCT_PROOF_POINTS = [
   'Clearer match prep',
   'Better player development',
   'Smarter team decisions',
-  'Cleaner league operations',
+  'Cleaner competition tools',
 ] as const
 
 export type ProductModeId = 'find' | 'you' | 'coach' | 'prep' | 'team' | 'league' | 'plans'
@@ -248,7 +264,7 @@ export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> =
     route: '/explore',
     planId: 'free',
     job: 'Find public tennis context',
-    cue: 'Search players, teams, leagues, and rankings before the next tennis job needs a home base.',
+    cue: 'Explore players, teams, leagues, rankings, tournaments, and tennis context for free.',
   },
   you: {
     id: 'you',
@@ -295,8 +311,8 @@ export const PRODUCT_MODE_LANGUAGE: Record<ProductModeId, ProductModeLanguage> =
     label: 'Pricing',
     route: '/pricing',
     planId: null,
-    job: 'Choose the right unlock',
-    cue: 'Start free, then activate My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.',
+    job: 'Choose the right tools',
+    cue: 'Start free, then unlock the right tools: My Lab, Coach Hub, Team Hub, League Office, or Full-Court for your game, team, players, league, or tournament.',
   },
 } as const
 
@@ -314,7 +330,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   free: {
     stage: 'Start here',
     headline: 'Start free. Find the tennis landscape.',
-    copy: 'Search players, teams, leagues, rankings, flights, and areas before the next tennis job needs a home base.',
+    copy: 'Explore players, teams, leagues, rankings, tournaments, and tennis context before choosing paid tools.',
     bullets: [
       'Search players, teams, leagues, and rankings',
       'Find public tennis context fast',
@@ -376,43 +392,43 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   },
   full_court: {
     stage: 'Full-Court unlock',
-    headline: 'Run every tennis job.',
-    copy: 'Combine My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations so teams, lessons, leagues, ladders, and events stay inside one connected tennis operation.',
+    headline: 'Unlock the complete TenAceIQ toolkit.',
+    copy: 'Combine My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk tools so players, lessons, teams, leagues, ladders, and events stay connected.',
     bullets: [
       'Unlock My Lab, Coach Hub, Team Hub, and League Office together',
-      'Create unlimited Tournament Desk workspaces',
+      'Create unlimited Tournament Desk event tools',
       'Keep scheduling, results, rankings, and communication connected',
     ],
     primaryCta: { label: 'Unlock Full-Court', href: '/pricing#full_court' },
     secondaryCta: { label: 'Open League Office', href: '/league-coordinator' },
-    featuredNote: 'Best for organizers who run more than one tennis job at once.',
+    featuredNote: 'Best for organizers who support players, teams, leagues, and tournaments at once.',
   },
 }
 
 export const HOME_HERO_STORY = {
   eyebrow: 'Premium tennis intelligence',
   badge: 'Built by role',
-  kicker: 'Choose the tennis job you need solved.',
+  kicker: 'Choose the tools that match your tennis life.',
   headlineTop: 'Tennis decisions,',
   headlineBottom: 'made clearer.',
   body:
-    'Start free. Upgrade when the next tennis job needs My Lab, Coach Hub, Team Hub, League Office, or every tennis job connected.',
-  proof: ['Free search', 'Player insight', 'Coach development', 'Captain decisions', 'Full-Court operations'],
+    'Explore tennis context for free, then unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when you want more support.',
+  proof: ['Free search', 'Player insight', 'Coach development', 'Captain decisions', 'Full-Court toolkit'],
 } as const
 
 export const MY_LAB_STORY = {
-  eyebrow: 'Player home base',
+  eyebrow: 'Player tools',
   headline: 'Welcome to your tennis lab.',
   body:
     'See where you are, how you are playing, what to work on next, and who makes sense to play as uploaded results connect to your profile.',
-  railKicker: 'Your home base',
+  railKicker: 'Your tools',
   railTitle: 'Built around you',
   upgradeHeadline: 'Make My Lab yours',
   upgradeBody:
-    'Player unlocks a home base with self-analysis, matchup prep, who-to-play-next context, and cleaner tennis messages.',
+    'Player unlocks tools for self-analysis, matchup prep, who-to-play-next context, and cleaner tennis messages.',
   upgradeCta: 'Unlock My Lab with Player',
   upgradeSecondary: 'See Player plan',
-  upgradeFootnote: 'Best for players who want smarter match prep and one home for their tennis.',
+  upgradeFootnote: 'Best for players who want smarter match prep and clearer tools for their tennis.',
   workspaceProof: [
     {
       label: 'Identity',
@@ -498,19 +514,19 @@ export const LEAGUE_COORDINATOR_STORY = {
     'Approve players or teams, organize schedules, collect scores, review Data Assist uploads, and keep standings moving so everyone can focus on playing.',
   subnavTitle: 'League Command',
   subnavDescription:
-    'Manage league operations separately from the weekly Team workspace, with Data Assist as the upload path for schedules, rosters, and scorecards.',
+    'Manage league and tournament competition separately from the weekly team tools, with Data Assist as the upload path for schedules, rosters, and scorecards.',
   newLeagueTitle: 'Create league setup',
   newLeagueBody:
     'Choose team or individual format, name the season, set visibility, then approve participants and prepare the schedule.',
   upgradeHeadline: 'Ready to run organized competition without spreadsheets?',
   upgradeBody:
     'League Office gives organizers one place for participants, schedules, scores, standings, and member clarity.',
-  draftUpgradeHeadline: 'Need this draft to become a real League Office workspace?',
+  draftUpgradeHeadline: 'Need this draft to become active League Office tools?',
   draftUpgradeBody:
-    'League Office turns setup into a season workspace where requests, scheduling, results, and standings stay together.',
+    'League Office turns setup into season tools where requests, scheduling, results, and standings stay together.',
   registryTitle: 'Current TIQ league definitions',
   registryBody:
-    'Manage the league records that power participants, uploaded schedules, score tracking, standings, and organizer workflows.',
+    'Manage the league records that power participants, uploaded schedules, score tracking, standings, and organizer follow-through.',
   finalUpgradeHeadline: 'Ready to run the season without spreadsheet cleanup?',
   finalUpgradeBody:
     'League Office turns league records into one cleaner system for schedules, participants, scores, standings, and league-wide clarity.',

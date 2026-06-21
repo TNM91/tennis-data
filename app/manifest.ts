@@ -1,12 +1,12 @@
 import type { MetadataRoute } from 'next'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { PRODUCT_LANGUAGE_SYSTEM, PRODUCT_MOTTO } from '@/lib/product-story'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'TenAceIQ',
     short_name: 'TenAceIQ',
     description:
-      `${PRODUCT_MOTTO} Explore tennis for free, then open My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.`,
+      `${PRODUCT_MOTTO} ${PRODUCT_LANGUAGE_SYSTEM.coreLine}`,
     start_url: '/',
     scope: '/',
     display: 'standalone',
