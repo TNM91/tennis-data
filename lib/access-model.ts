@@ -269,31 +269,31 @@ export function buildProductAccessState(
       ? `${PLAYER_TIER.name} active`
       : `${PLAYER_TIER.name} - ${PLAYER_PRICE_LABEL}`,
     playerPlusMessage: playerPlusActive
-      ? `${PLAYER_TIER.name} workspace is active. ${PLAYER_TIER.description}`
+      ? `${PLAYER_TIER.name} tools are active. ${PLAYER_TIER.description}`
       : PLAYER_TIER.description,
     coachTierLabel: coachSubscriptionActive
       ? `${COACH_TIER.name} active`
       : `${COACH_TIER.name} - ${COACH_SUBSCRIPTION_PRICE_LABEL}`,
     coachTierMessage: coachSubscriptionActive
-      ? `${COACH_TIER.name} workspace is active. ${COACH_TIER.description}`
+      ? `${COACH_TIER.name} tools are active. ${COACH_TIER.description}`
       : COACH_TIER.description,
     captainTierLabel: captainSubscriptionActive
       ? `${CAPTAIN_TIER.name} ${captainTierStatusLabel}`
       : `${CAPTAIN_TIER.name} - ${CAPTAIN_SUBSCRIPTION_PRICE_LABEL}`,
     captainTierMessage: captainSubscriptionActive
-      ? `${CAPTAIN_TIER.name} workspace is active. ${CAPTAIN_TIER.description}`
+      ? `${CAPTAIN_TIER.name} tools are active. ${CAPTAIN_TIER.description}`
       : CAPTAIN_TIER.description,
     leagueTierLabel: canUseLeagueTools
       ? `${LEAGUE_TIER.name} active`
       : `${LEAGUE_TIER.name} - ${LEAGUE_PRICE_LABEL}`,
     leagueTierMessage: canUseLeagueTools
-      ? `${LEAGUE_TIER.name} workspace is active. ${LEAGUE_TIER.description}`
+      ? `${LEAGUE_TIER.name} tools are active. ${LEAGUE_TIER.description}`
       : LEAGUE_TIER.description,
     teamLeagueMessage: canCreateTiqTeamLeague
-      ? `${fullCourtActive ? FULL_COURT_TIER.name : LEAGUE_TIER.name} workspace is active. Create team leagues, structure participants, and keep competition inside TIQ.`
+      ? `${fullCourtActive ? FULL_COURT_TIER.name : LEAGUE_TIER.name} tools are active. Create team leagues, structure participants, and keep competition inside TIQ.`
       : `${LEAGUE_TIER.upgradeCue} Team leagues keep teams, season flow, and competition work together.`,
     individualLeagueMessage: canCreateTiqIndividualLeague
-      ? `${fullCourtActive ? FULL_COURT_TIER.name : LEAGUE_TIER.name} workspace is active. Create the competition container, organize players, and keep standings out of spreadsheets.`
+      ? `${fullCourtActive ? FULL_COURT_TIER.name : LEAGUE_TIER.name} tools are active. Create the competition container, organize players, and keep standings out of spreadsheets.`
       : `${LEAGUE_TIER.upgradeCue} Individual leagues can start without forcing every player into a subscription.`,
   }
 }

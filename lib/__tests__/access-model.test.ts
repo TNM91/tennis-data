@@ -4,7 +4,7 @@ import { buildProductAccessState, normalizeSubscriptionStatus } from '../access-
 import { MEMBERSHIP_TIERS } from '../product-story'
 
 describe('buildProductAccessState', () => {
-  it('normalizes subscription statuses consistently for all paid workspaces', () => {
+  it('normalizes subscription statuses consistently for all paid tools', () => {
     expect(normalizeSubscriptionStatus('trial')).toBe('trial')
     expect(normalizeSubscriptionStatus('active')).toBe('active')
     expect(normalizeSubscriptionStatus('past_due')).toBe('past_due')
@@ -66,9 +66,38 @@ describe('buildProductAccessState', () => {
     const captainAccess = buildProductAccessState('captain')
 
     expect(captainAccess.playerPlusLabel).toBe(`${MEMBERSHIP_TIERS.player_plus.name} active`)
+    expect(captainAccess.playerPlusMessage).toContain('Player tools are active.')
     expect(captainAccess.playerPlusMessage).toContain(MEMBERSHIP_TIERS.player_plus.description)
     expect(captainAccess.captainTierLabel).toBe(`${MEMBERSHIP_TIERS.captain.name} active`)
+    expect(captainAccess.captainTierMessage).toContain('Captain tools are active.')
     expect(captainAccess.captainTierMessage).toContain(MEMBERSHIP_TIERS.captain.description)
+    expect(captainAccess.playerPlusMessage).not.toContain('workspace is active')
+    expect(captainAccess.captainTierMessage).not.toContain('workspace is active')
+  })
+
+  it('keeps active access messages on tennis tool language', () => {
+    const fullAccess = buildProductAccessState('member', {
+      playerPlusSubscriptionActive: true,
+      playerPlusSubscriptionStatus: 'active',
+      coachSubscriptionActive: true,
+      coachSubscriptionStatus: 'active',
+      captainSubscriptionActive: true,
+      captainSubscriptionStatus: 'active',
+      tiqTeamLeagueEntryEnabled: true,
+      tiqIndividualLeagueCreatorEnabled: true,
+    })
+
+    for (const message of [
+      fullAccess.playerPlusMessage,
+      fullAccess.coachTierMessage,
+      fullAccess.captainTierMessage,
+      fullAccess.leagueTierMessage,
+      fullAccess.teamLeagueMessage,
+      fullAccess.individualLeagueMessage,
+    ]) {
+      expect(message).toContain('tools are active')
+      expect(message).not.toContain('workspace is active')
+    }
   })
 
   it('keeps admin access active even when profile entitlement flags are false', () => {
