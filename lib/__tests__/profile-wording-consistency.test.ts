@@ -9,12 +9,15 @@ function source(path: string) {
 describe('profile wording consistency', () => {
   it('uses set-profile language in the homepage portal prompt', () => {
     const homepage = source('app/components/preview-homepage.tsx')
+    const profile = source('app/profile/page.tsx')
 
     expect(homepage).toContain('Welcome back. Set your profile.')
     expect(homepage).toContain('Set profile')
     expect(homepage).toContain('power your tennis tools')
     expect(homepage).not.toContain('Welcome back. Improve your profile.')
     expect(homepage).not.toContain('power your workspace')
+    expect(profile).toContain('Sign in once, then choose or create the player identity that powers your tennis tools.')
+    expect(profile).not.toContain('Sign in once, then choose or create the player identity that powers your workspace.')
   })
 
   it('keeps My Lab and Captain setup prompts aligned with profile creation', () => {

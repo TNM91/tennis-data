@@ -4406,7 +4406,7 @@ function LevelUpReturnStatePanel({
   const refreshProofItems = [
     {
       label: 'Identity',
-      body: playerLabel ? `${playerLabel} is the active My Lab player.` : 'Find yourself first so My Lab is not a generic dashboard.',
+      body: playerLabel ? `${playerLabel} is the active My Lab player.` : 'Find yourself first so My Lab can stay personal.',
     },
     {
       label: 'Linked profile',
@@ -5010,7 +5010,7 @@ function PlayerCoachAssignmentsPanel({
       setActiveAssignmentId('')
       setRecap('')
       setEvidence('')
-      setCheckInMessage('Assignment completed. Your coach can review the recap from their workspace.')
+      setCheckInMessage('Assignment completed. Your coach can review the recap from Coach Hub.')
     } catch (err) {
       setCheckInMessage(err instanceof Error ? err.message : 'Could not complete coach assignment.')
     } finally {

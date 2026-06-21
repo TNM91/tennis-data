@@ -267,7 +267,7 @@ export default function PortalToolBar() {
         </div>
 
         <nav
-          aria-label="Choose a TenAceIQ workspace"
+          aria-label="Choose a TenAceIQ tool"
           style={{
             display: 'grid',
             gridTemplateColumns: publicVisitor && isMobile

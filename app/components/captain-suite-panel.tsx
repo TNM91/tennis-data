@@ -93,7 +93,7 @@ export default function CaptainSuitePanel({
   const activeConfig = SUITE_STEPS[active]
 
   return (
-    <section style={shellStyle} aria-label="Team workspace context">
+    <section style={shellStyle} aria-label="Team Hub context">
       <div
         style={{
           ...headerStyle,

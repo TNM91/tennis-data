@@ -709,7 +709,7 @@ function ProfilePageInner() {
     ? 'My Lab, Matchup, Team, and League now start from this identity.'
     : signedIn
       ? 'Type your name, self-rate if needed, or choose an existing public record.'
-      : 'Sign in once, then choose or create the player identity that powers your workspace.'
+      : 'Sign in once, then choose or create the player identity that powers your tennis tools.'
 
   return (
     <section style={pageStyle}>

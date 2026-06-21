@@ -16,7 +16,7 @@ type PlayerSuiteConfig = {
 }
 
 const PLAYER_TIER = MEMBERSHIP_TIERS.player_plus
-const dataAssistPlayerSuiteHref = '/data-assist?intent=upload-source&context=Player%20workspace'
+const dataAssistPlayerSuiteHref = '/data-assist?intent=upload-source&context=Player%20tools'
 
 const SUITE_STEPS: Record<PlayerSuiteStep, PlayerSuiteConfig> = {
   lab: {
@@ -68,7 +68,7 @@ export default function PlayerSuitePanel({
   const activeConfig = SUITE_STEPS[active]
 
   return (
-    <section style={shellStyle} aria-label="Player workspace context">
+    <section style={shellStyle} aria-label="Player tool context">
       <div
         style={{
           ...headerStyle,

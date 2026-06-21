@@ -1925,7 +1925,7 @@ function CaptainHubContent() {
                 <div>
                   <strong>Team scope is set.</strong>
                   <span>
-                    Captain started from {selectedCaptainScopeSourceLabel}; roster, schedule, and scorecard uploads can keep this workspace current.
+                    Captain started from {selectedCaptainScopeSourceLabel}; roster, schedule, and scorecard uploads can keep Team Hub current.
                   </span>
                 </div>
                 <Link href={dataAssistCaptainHref} style={captainDataAssistLinkStyle}>
@@ -2441,7 +2441,7 @@ function CaptainHubContent() {
         <details style={sectionCard}>
           <summary style={optionalSummaryStyle}>
             <span>
-              <span style={sectionKicker}>Team workspace actions</span>
+              <span style={sectionKicker}>Team Hub actions</span>
               <span style={optionalSummaryTitle}>Availability, lineups, messages, season work</span>
             </span>
             <span style={badgeSlate}>Show paths</span>
@@ -2449,7 +2449,7 @@ function CaptainHubContent() {
 
           <div style={sectionHead}>
             <div>
-              <div style={sectionKicker}>In-workspace actions</div>
+              <div style={sectionKicker}>In-tool actions</div>
               <h2 style={sectionTitle}>Keep the team week moving.</h2>
               <div style={sectionSub}>
                 Use these when you are already in the team flow and need the next captain action fast.

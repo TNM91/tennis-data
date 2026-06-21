@@ -195,7 +195,7 @@ test.describe('TIQ league surfaces', () => {
     if (resetBoundary) return
 
     await expect(page.getByRole('heading', { name: 'More Tennis. Less Chaos.' })).toBeVisible()
-    await expect(page.getByRole('navigation', { name: 'Choose a TenAceIQ workspace' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Choose a TenAceIQ tool' })).toBeVisible()
     await expect(page.getByPlaceholder('Search players, teams, leagues, tournaments, coaches, resources, or tennis actions')).toBeVisible()
     await expect(page.getByText('TenAceIQ starts with tennis context, then points players, captains, coaches, leagues, and tournaments to the right tools.')).toBeVisible()
     await expect(page.locator('body')).not.toContainText('then the right hub when the next tennis job needs a workspace')
@@ -206,9 +206,9 @@ test.describe('TIQ league surfaces', () => {
         () =>
           page.evaluate(() => {
             const viewportWidth = document.documentElement.clientWidth
-            const portalNav = document.querySelector('nav[aria-label="Choose a TenAceIQ workspace"]')?.getBoundingClientRect()
+            const portalNav = document.querySelector('nav[aria-label="Choose a TenAceIQ tool"]')?.getBoundingClientRect()
             const homepageHero = document.querySelector('#main-content h1')?.getBoundingClientRect()
-            const laneCards = Array.from(document.querySelectorAll('nav[aria-label="Choose a TenAceIQ workspace"] a')).map((element) =>
+            const laneCards = Array.from(document.querySelectorAll('nav[aria-label="Choose a TenAceIQ tool"] a')).map((element) =>
               element.getBoundingClientRect(),
             )
 

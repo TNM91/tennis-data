@@ -44,8 +44,12 @@ describe('suite panel navigation deduplication', () => {
   it('keeps the Captain hub from presenting a second tools menu', () => {
     const captain = source('app/captain/page.tsx')
 
-    expect(captain).toContain('Team workspace actions')
-    expect(captain).toContain('In-workspace actions')
+    expect(captain).toContain('Team Hub actions')
+    expect(captain).toContain('In-tool actions')
+    expect(captain).toContain('roster, schedule, and scorecard uploads can keep Team Hub current.')
+    expect(captain).not.toContain('Team workspace actions')
+    expect(captain).not.toContain('In-workspace actions')
+    expect(captain).not.toContain('keep this workspace current')
     expect(captain).not.toContain('Team workspace shortcuts')
     expect(captain).not.toContain('More captain tools')
     expect(captain).not.toContain('Open tools')
@@ -54,15 +58,15 @@ describe('suite panel navigation deduplication', () => {
   it('routes player-suite data improvement through guided Data Assist', () => {
     const playerSuite = source('app/components/player-suite-panel.tsx')
 
-    expect(playerSuite).toContain("const dataAssistPlayerSuiteHref = '/data-assist?intent=upload-source&context=Player%20workspace'")
+    expect(playerSuite).toContain("const dataAssistPlayerSuiteHref = '/data-assist?intent=upload-source&context=Player%20tools'")
     expect(playerSuite).toContain("label: 'Fix tennis info'")
     expect(playerSuite).toContain("title: 'Fix tennis info'")
     expect(playerSuite).toContain('href: dataAssistPlayerSuiteHref')
   })
 
-  it('uses workspace language for contextual panel labels', () => {
-    expect(source('app/components/player-suite-panel.tsx')).toContain('aria-label="Player workspace context"')
-    expect(source('app/components/captain-suite-panel.tsx')).toContain('aria-label="Team workspace context"')
+  it('uses tool and hub language for contextual panel labels', () => {
+    expect(source('app/components/player-suite-panel.tsx')).toContain('aria-label="Player tool context"')
+    expect(source('app/components/captain-suite-panel.tsx')).toContain('aria-label="Team Hub context"')
     expect(source('app/components/league-suite-panel.tsx')).toContain('aria-label="League Office context"')
 
     for (const path of suitePanelPaths) {
@@ -77,7 +81,7 @@ describe('suite panel navigation deduplication', () => {
     const league = source('app/components/league-coordinator-workspace.tsx')
 
     expect(portal).toContain('aria-label="TenAceIQ platform navigation"')
-    expect(portal).toContain('aria-label="Choose a TenAceIQ workspace"')
+    expect(portal).toContain('aria-label="Choose a TenAceIQ tool"')
     expect(portal).toContain('Plan practice')
     expect(portal).toContain("const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'")
     expect(portal).toContain('href: dataAssistPortalHref')

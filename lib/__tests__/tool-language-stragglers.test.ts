@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const coachLayoutSource = readFileSync(join(process.cwd(), 'app/coach/layout.tsx'), 'utf8')
 const errorSource = readFileSync(join(process.cwd(), 'app/error.tsx'), 'utf8')
+const coachApiAuthSource = readFileSync(join(process.cwd(), 'lib/coach-api-auth.ts'), 'utf8')
 
 describe('tool language stragglers', () => {
   it('keeps Coach Hub metadata on tool language', () => {
@@ -16,5 +17,10 @@ describe('tool language stragglers', () => {
   it('keeps the global error fallback from sending users to a generic workspace', () => {
     expect(errorSource).toContain('reopen the right tennis tool from there')
     expect(errorSource).not.toContain('reopen the tennis workspace from there')
+  })
+
+  it('keeps coach access errors tied to Coach Hub instead of generic workspace language', () => {
+    expect(coachApiAuthSource).toContain('Coach access is required for Coach Hub.')
+    expect(coachApiAuthSource).not.toContain('Coach access is required for this workspace.')
   })
 })

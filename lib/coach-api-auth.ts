@@ -59,7 +59,7 @@ export async function getCoachApiAuth(request: Request): Promise<CoachApiAuth> {
   if (!access.canUseCoachWorkflow) {
     return {
       ok: false,
-      response: Response.json({ ok: false, message: 'Coach access is required for this workspace.' }, { status: 403 }),
+      response: Response.json({ ok: false, message: 'Coach access is required for Coach Hub.' }, { status: 403 }),
     }
   }
 
