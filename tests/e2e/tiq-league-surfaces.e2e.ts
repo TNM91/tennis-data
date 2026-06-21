@@ -243,6 +243,15 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.locator('body')).not.toContainText('League Office adds the workspace for leagues of players or teams.')
   })
 
+  test('Install manifest keeps the public home-base story', async ({ page }) => {
+    const response = await page.goto('/manifest.webmanifest')
+    expect(response?.status() || 200, '/manifest.webmanifest should load').toBe(200)
+
+    const manifest = JSON.parse(await page.locator('body').innerText()) as { description?: string }
+    expect(manifest.description).toContain('Explore tennis for free, then open My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.')
+    expect(manifest.description).not.toContain('Full-Court workspaces')
+  })
+
   test('Coordinator setup stays readable on mobile dark shell', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await expectSurfaceLoads(page, '/league-coordinator')

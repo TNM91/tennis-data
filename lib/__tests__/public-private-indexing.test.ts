@@ -68,6 +68,13 @@ describe('public and private indexing boundaries', () => {
     expect(previewHomePage).toContain('follow: false')
   })
 
+  it('keeps the install manifest aligned to the public home-base story', () => {
+    expect(manifestSource).toContain('Explore tennis for free, then open My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.')
+    expect(manifestSource).toContain('PRODUCT_MOTTO')
+    expect(manifestSource).not.toContain('Full-Court workspaces')
+    expect(manifestSource).not.toContain('then use My Lab, Team Hub, League Office')
+  })
+
   it('keeps Nathan-only My Quest out of public discovery surfaces', () => {
     expect(sitemapSource).not.toContain('/level-up/my-quest')
     expect(siteNavigationSource).not.toContain('/level-up/my-quest')

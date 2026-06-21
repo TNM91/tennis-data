@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'TenAceIQ',
     short_name: 'TenAceIQ',
     description:
-      `${PRODUCT_MOTTO} Explore tennis for free, then use My Lab, Team Hub, League Office, and Full-Court workspaces.`,
+      `${PRODUCT_MOTTO} Explore tennis for free, then open My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.`,
     start_url: '/',
     scope: '/',
     display: 'standalone',
