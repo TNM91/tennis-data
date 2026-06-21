@@ -53,7 +53,7 @@ describe('public info product story copy', () => {
     expect(howItWorksSource).not.toContain('team workspaces')
   })
 
-  it('uses public workspace names on FAQ and advertising pages', () => {
+  it('uses public tool names on FAQ and advertising pages', () => {
     expect(faqSource).toContain('Team Hub leads teams')
     expect(faqSource).toContain('League Office runs seasons')
     expect(faqSource).toContain('Coach Hub')
@@ -72,7 +72,11 @@ describe('public info product story copy', () => {
     expect(faqSource).not.toContain('season home base')
 
     expect(advertisingSource).toContain('Team Hub workflow screens')
+    expect(advertisingSource).toContain('tennis tools, and private user workflows')
+    expect(advertisingSource).toContain('Ads are not intended for admin tools')
     expect(advertisingSource).not.toContain('captain workflow screens')
+    expect(advertisingSource).not.toContain('navigation, workspaces, and private user workflows')
+    expect(advertisingSource).not.toContain('admin workspaces')
   })
 
   it('keeps methodology review copy tied to tennis context', () => {

@@ -137,7 +137,7 @@ export function getTiqLeagueVisibilityDescription(isPublic: boolean) {
     return 'Public leagues are discoverable and shareable, but join requests still require League Office approval.'
   }
 
-  return 'Private leagues are hidden from public browse pages. League Office users manage requests and active participants from this workspace.'
+  return 'Private leagues are hidden from public browse pages. League Office users manage requests and active participants from League Office.'
 }
 
 export function getTiqLeagueSchedulingModeLabel(mode: TiqLeagueSchedulingMode) {

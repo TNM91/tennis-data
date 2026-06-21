@@ -68,6 +68,8 @@ describe('TIQ league registry helpers', () => {
     expect(getTiqLeagueVisibilityLabel(false)).toBe('Private league')
     expect(getTiqLeagueVisibilityDescription(false)).toContain('hidden from public browse pages')
     expect(getTiqLeagueVisibilityDescription(false)).toContain('League Office users manage requests')
+    expect(getTiqLeagueVisibilityDescription(false)).toContain('active participants from League Office')
+    expect(getTiqLeagueVisibilityDescription(false)).not.toContain('active participants from this workspace')
   })
 
   it('deduplicates roster and participant list input from uploads or manual paste', () => {

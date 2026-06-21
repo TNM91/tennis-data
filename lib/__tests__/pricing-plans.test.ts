@@ -45,6 +45,8 @@ describe('pricing plans', () => {
     })
     expect(getPricingPlan('league').outcome).toContain('one cleaner competition')
     expect(getPricingPlan('league').outcome).not.toContain('competition workspace')
+    expect(getPricingPlan('free').outcome).toContain('paid tools make your tennis life easier')
+    expect(getPricingPlan('free').outcome).not.toContain('workspace makes your tennis life easier')
 
     expect(getPricingPlan('coach')).toMatchObject({
       priceLabel: '$9.99/month',

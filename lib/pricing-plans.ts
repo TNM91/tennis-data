@@ -172,7 +172,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     problem: 'Want to understand the tennis landscape faster?',
     friction: 'Player, team, league, and ranking information is scattered across too many places.',
     solution: getMembershipTier('free').description,
-    outcome: 'Find context faster, then upgrade only when a workspace makes your tennis life easier.',
+    outcome: 'Find context faster, then upgrade only when paid tools make your tennis life easier.',
     valueProps: getMembershipTier('free').valueProps,
   },
   {
