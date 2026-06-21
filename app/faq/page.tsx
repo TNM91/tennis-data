@@ -44,7 +44,7 @@ const faqSchemaItems = [
   {
     question: 'Is TenAceIQ only for captains?',
     answer:
-      'No. Free pages help anyone explore players, teams, leagues, and rankings. Player adds My Lab, data refreshes, Matchup, and Messages. Team Hub adds weekly team decisions. League Office adds the workspace for leagues of players or teams.',
+      'No. Free pages help anyone explore players, teams, leagues, and rankings. Player adds My Lab, data refreshes, Matchup, and Messages. Team Hub adds weekly team decisions. League Office gives leagues of players or teams a season home base.',
   },
   {
     question: 'What kind of tennis information appears here?',
@@ -87,7 +87,7 @@ export default function FaqPage() {
           <p>
             No. Free pages help anyone explore players, teams, leagues, and rankings. Player adds
             My Lab, data refreshes, Matchup, and Messages. Team Hub adds weekly team decisions.
-            League Office adds the workspace for leagues of players or teams.
+            League Office gives leagues of players or teams a season home base.
           </p>
         </div>
 

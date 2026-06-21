@@ -235,6 +235,14 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.locator('body')).not.toContainText('when the next tennis job needs one connected place')
   })
 
+  test('FAQ keeps League Office tied to a season home base', async ({ page }) => {
+    await expectSurfaceLoads(page, '/faq')
+
+    await expect(page.getByRole('heading', { name: 'Is TenAceIQ only for captains?' })).toBeVisible()
+    await expect(page.getByText('League Office gives leagues of players or teams a season home base.')).toBeVisible()
+    await expect(page.locator('body')).not.toContainText('League Office adds the workspace for leagues of players or teams.')
+  })
+
   test('Coordinator setup stays readable on mobile dark shell', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await expectSurfaceLoads(page, '/league-coordinator')
