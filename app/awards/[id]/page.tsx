@@ -160,7 +160,7 @@ function AwardCertificateInner() {
           <div style={eyebrowStyle}>Award unavailable</div>
           <h2 style={emptyTitleStyle}>{error}</h2>
           <Link href="/league-coordinator/tournaments" style={buttonStyle}>
-            Open tournament workspace
+            Open Tournament Desk
           </Link>
         </section>
       )}

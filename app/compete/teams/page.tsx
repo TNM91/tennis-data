@@ -187,7 +187,7 @@ function CompeteTeamsContent() {
               planId="captain"
               compact
               headline="Still moving from team context to lineups by hand?"
-              body="Unlock Captain to connect team workflow, availability, lineup building, and messaging in one workspace."
+              body="Unlock Captain to connect team workflow, availability, lineup building, and messaging through Team Hub."
               ctaLabel="Unlock Captain"
               ctaHref="/pricing"
               secondaryLabel="See Captain plan"

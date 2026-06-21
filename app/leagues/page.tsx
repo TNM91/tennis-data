@@ -457,7 +457,7 @@ export default function LeaguesPage() {
               <div style={sectionKicker}>League discovery</div>
               <div>Choose a league path.</div>
               <div style={stateHelperTextStyle}>
-                Find existing league context or create a TIQ League Office workspace. The live league layer is refreshing behind this starter view.
+                Find existing league context or create a TIQ League Office tool. The live league layer is refreshing behind this starter view.
               </div>
               <DataTrustPanel
                 title="League data trust"

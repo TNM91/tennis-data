@@ -56,7 +56,7 @@ describe('primary nav access', () => {
     )
   })
 
-  it('uses the League Office workspace name for league lock titles', () => {
+  it('uses the League Office name for league lock titles', () => {
     expect(getPrimaryNavLockedTitle('League', 'league')).toBe('League requires League Office access')
   })
 })

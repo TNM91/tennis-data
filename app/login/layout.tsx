@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Login',
   description:
-    'Sign in to TenAceIQ and open the workspace tied to your role: My Lab, Coach Hub, Team Hub, or League Office.',
+    'Sign in to TenAceIQ and open the tennis tools tied to your role: My Lab, Coach Hub, Team Hub, or League Office.',
   robots: {
     index: false,
     follow: false,

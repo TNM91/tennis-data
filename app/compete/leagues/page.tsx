@@ -110,7 +110,7 @@ export default function CompeteLeaguesPage() {
       <CompeteGrid>
         <CompeteCard
           href="/league-coordinator"
-          meta="Workspace"
+          meta="League tool"
           title="League Office"
           text="Set up seasons, approve entries, publish pages, and record results."
           icon="teamRankings"

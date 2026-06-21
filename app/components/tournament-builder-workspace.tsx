@@ -68,7 +68,7 @@ const lockedTournamentActions = [
   },
   {
     title: 'Finish with awards',
-    detail: 'Issue certificates, badges, and recap alerts from the same workspace.',
+    detail: 'Issue certificates, badges, and recap alerts from Tournament Desk.',
   },
 ]
 
@@ -481,12 +481,12 @@ export default function TournamentBuilderWorkspace() {
     setNotice('')
 
     if (!canUseLeague) {
-      setNotice('Unlock League or Full-Court before saving tournament workspaces.')
+      setNotice('Unlock League or Full-Court before saving tournament rooms.')
       return
     }
 
     if (!canCreateMore) {
-      setNotice('League includes one tournament workspace. Full-Court unlocks unlimited tournaments.')
+      setNotice('League includes one tournament room. Full-Court unlocks unlimited tournaments.')
       return
     }
 

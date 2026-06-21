@@ -29,7 +29,9 @@ describe('compete leagues readiness', () => {
     expect(source).toContain('Open Team week')
     expect(source).toContain('data-compete-league-path-job={action.job}')
     expect(source).toContain('Open the path that matches the tennis need.')
+    expect(source).toContain('meta="League tool"')
     expect(source).not.toContain('Open the workspace that matches the job.')
+    expect(source).not.toContain('meta="Workspace"')
   })
 
   it('keeps League path cards tappable on mobile', () => {

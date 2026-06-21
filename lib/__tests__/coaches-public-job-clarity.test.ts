@@ -36,6 +36,11 @@ describe('public coaches job clarity', () => {
     expect(source).toContain('<p style={coachLoopQuestionStyle}>{step.question}</p>')
   })
 
+  it('keeps public coach actions on toolkit language instead of workspace language', () => {
+    expect(source).toContain("{ label: 'Status', value: 'Coach action', tone: 'good' }")
+    expect(source).not.toContain('Workspace action')
+  })
+
   it('tracks coach jobs from public CTAs', () => {
     expect(source).toContain("location: 'coaches_quick_path'")
     expect(source).toContain("job: 'assign_drills'")

@@ -373,7 +373,7 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
     },
     {
       title: 'Send plan',
-      detail: 'Message the team from the same workspace.',
+      detail: 'Message the team from Team Hub.',
       metric: 'Captain',
       href: '/captain/messaging',
       requiredPlan: 'captain',
@@ -494,7 +494,7 @@ const commandModeDetails: Record<
   },
   coach: {
     headline: 'Develop players with a clearer plan.',
-    subhead: 'Coach turns lessons, tactical boards, assignments, scheduling, and student tracking into one workspace.',
+    subhead: 'Coach turns lessons, tactical boards, assignments, scheduling, and student tracking into one coach toolkit.',
     searchPlaceholder: 'Search player, drill, lesson, or assignment...',
     queue: ['Map a drill', 'Plan lesson', 'Assign work', 'Message player'],
     unlockLine: 'Coach unlocks lessons, student tracking, assignments, tactical boards, and coach-player communication.',
@@ -704,7 +704,7 @@ function CommandCenterHome({
         : 'Welcome back.'
     : selectedDetails.headline
   const heroSubhead = needsProfileLink
-    ? 'TenAceIQ knows your account is signed in, but it does not know which player record should power your workspace yet.'
+    ? 'TenAceIQ knows your account is signed in, but it does not know which player record should power your tennis tools yet.'
     : authenticated
       ? 'What do we want to work on today?'
     : selectedDetails.subhead

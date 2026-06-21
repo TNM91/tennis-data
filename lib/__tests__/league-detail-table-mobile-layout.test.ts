@@ -12,8 +12,10 @@ function styleBlock(styleName: string) {
 }
 
 describe('league detail table mobile layout guards', () => {
-  it('uses League Office wording for the season workspace CTA', () => {
+  it('uses League Office wording for the season tools CTA', () => {
     expect(source).toContain('Open League Office')
+    expect(source).toContain('Season tools')
+    expect(source).not.toContain('Season workspace')
     expect(source).not.toContain('Open Compete')
   })
 

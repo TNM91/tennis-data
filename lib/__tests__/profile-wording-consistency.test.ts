@@ -12,7 +12,9 @@ describe('profile wording consistency', () => {
 
     expect(homepage).toContain('Welcome back. Set your profile.')
     expect(homepage).toContain('Set profile')
+    expect(homepage).toContain('power your tennis tools')
     expect(homepage).not.toContain('Welcome back. Improve your profile.')
+    expect(homepage).not.toContain('power your workspace')
   })
 
   it('keeps My Lab and Captain setup prompts aligned with profile creation', () => {

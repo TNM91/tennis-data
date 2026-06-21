@@ -636,7 +636,7 @@ export default function LeagueDetailPage() {
           </div>
 
           <div style={dynamicSeasonToolsCard}>
-            <div style={seasonToolsLabel}>Season workspace</div>
+            <div style={seasonToolsLabel}>Season tools</div>
             <div style={seasonToolsValue}>
               {leagueInfo.flight || getCompetitionLayerLabel(competitionLayer)}
             </div>

@@ -359,7 +359,7 @@ const resourceQuickStarts = [
     body: 'Use Teams when availability, lineup ideas, opponent scouting, communication, and scorecard reminders need one path.',
     metrics: [
       { label: 'Role', value: 'Captain' },
-      { label: 'Workspace', value: 'Team Hub' },
+      { label: 'Tool', value: 'Team Hub' },
       { label: 'Tools', value: 'Match week' },
     ],
     href: '/teams',

@@ -28,6 +28,8 @@ describe('compete teams readiness', () => {
     expect(source).toContain('Open team book')
     expect(source).toContain('data-compete-team-path-job={action.job}')
     expect(source).toContain('id="tiq-entered-teams"')
+    expect(source).toContain('messaging through Team Hub')
+    expect(source).not.toContain('messaging in one workspace')
   })
 
   it('keeps Team path cards tappable on mobile', () => {

@@ -46,6 +46,7 @@ describe('Resources hub actions', () => {
     expect(source).toContain("job: 'find_drills_skills'")
     expect(source).toContain("cta: 'Find Drills'")
     expect(source).toContain('Captain match week')
+    expect(source).toContain("{ label: 'Tool', value: 'Team Hub' }")
     expect(source).toContain('Prep the next match')
     expect(source).toContain('Run an event')
     expect(source).toContain("href: '/leagues-and-tournaments'")
@@ -58,6 +59,7 @@ describe('Resources hub actions', () => {
     expect(source).toContain("minHeight: 40")
     expect(source).toContain("borderRadius: 8")
     expect(source).not.toContain('borderRadius: 22')
+    expect(source).not.toContain("{ label: 'Workspace', value: 'Team Hub' }")
   })
 
   it('tracks resource clicks by tennis need and destination', () => {

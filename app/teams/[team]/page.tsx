@@ -1637,7 +1637,7 @@ function TeamPageContent() {
           <article style={surfaceCard}>
             <div style={sectionHeadingRow}>
               <div style={sectionHeadingCopyStyle}>
-                <p style={sectionKicker}>Captain Workspace</p>
+                <p style={sectionKicker}>Captain tools</p>
                 <h2 style={sectionTitle}>Next Best Actions</h2>
               </div>
             </div>

@@ -300,7 +300,7 @@ function ExploreLeaguesContent() {
           <div style={stateStyle}>
             <strong>Choose a league path.</strong>
             <div style={{ marginTop: 8, color: 'var(--shell-copy-muted)', lineHeight: 1.6 }}>
-              Find existing league context or create a TIQ League Office workspace. The live league layer is refreshing behind this starter view.
+              Find existing league context or create a TIQ League Office tool. The live league layer is refreshing behind this starter view.
             </div>
             <TiqDirectoryFallbackCard
               eyebrow="Featured league path"

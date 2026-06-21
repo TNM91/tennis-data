@@ -1021,7 +1021,7 @@ function buildDefaultTournamentAlertBody(
 }
 
 export function getTournamentLimitSummary(isFullCourt: boolean) {
-  return isFullCourt ? 'Unlimited tournaments with Full-Court' : 'League includes one tournament workspace'
+  return isFullCourt ? 'Unlimited tournaments with Full-Court' : 'League includes one tournament room'
 }
 
 export function buildSingleEliminationPreview(

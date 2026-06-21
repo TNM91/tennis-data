@@ -51,6 +51,12 @@ describe('homepage portal action alignment', () => {
     expect(homepage).not.toContain('Compare suite')
     expect(homepage).not.toContain('See paid workspaces')
     expect(homepage).not.toContain('Run the full court from one workspace.')
+    expect(homepage).not.toContain('same workspace')
+    expect(homepage).not.toContain('one workspace')
+    expect(homepage).not.toContain('power your workspace')
+    expect(homepage).toContain('Message the team from Team Hub.')
+    expect(homepage).toContain('one coach toolkit')
+    expect(homepage).toContain('power your tennis tools')
     expect(homepage).not.toContain('The full tennis operation.')
     expect(homepage).not.toContain('Run the full tennis operation.')
     expect(homepage).not.toContain('Everything in the tiers above')
@@ -82,6 +88,8 @@ describe('homepage portal action alignment', () => {
     expect(homepage).not.toContain('Full-Court combines Player, Coach, Captain, League')
     expect(homepage).not.toContain('Open Coach\'')
     expect(homepage).not.toContain('Open Team\'')
+    expect(portal).toContain('Message the team from Team Hub.')
+    expect(portal).not.toContain('same workspace')
   })
 
   it('keeps legacy hero chips aligned when those components are reused', () => {

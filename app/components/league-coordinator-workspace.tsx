@@ -897,7 +897,7 @@ export function LeagueCoordinatorWorkspace() {
       detail:
         storageSource === 'supabase'
           ? 'League setup is synced for public pages, standings, and coordinator review.'
-          : 'This workspace is still using saved preview data until live sync is available.',
+          : 'This League Office tool is still using saved preview data until live sync is available.',
       href: records.length > 0 ? '/leagues' : '#league-setup-form',
       cta: records.length > 0 ? 'View public leagues' : 'Create first',
       complete: storageSource === 'supabase',
@@ -1303,8 +1303,8 @@ export function LeagueCoordinatorWorkspace() {
                   {access.canUseLeagueTools
                     ? records.length > 0
                       ? 'Your next League Office move is ready.'
-                      : 'Set up the first League Office workspace.'
-                    : 'Unlock League access to save League Office workspaces.'}
+                      : 'Set up the first League Office season.'
+                    : 'Unlock League access to save League Office seasons.'}
                 </h1>
                 <p style={leagueOpsTextStyle}>
                   {nextLeagueOpsStep.detail}
@@ -1346,7 +1346,7 @@ export function LeagueCoordinatorWorkspace() {
               <h2 id="league-office-path-title" style={leaguePathTitleStyle}>{PRODUCT_MOTTO}</h2>
             </div>
             <p style={leaguePathIntroStyle}>
-              Start with the season question, then open the workspace that removes the most admin work.
+              Start with the season question, then open the tool that removes the most admin work.
             </p>
           </div>
           <div style={leaguePathGridStyle}>
@@ -1461,7 +1461,7 @@ export function LeagueCoordinatorWorkspace() {
             <div style={dataAssistOpsCardStyle}>
               <span style={pillGreen}>Rosters</span>
               <strong>Refresh teams or players</strong>
-              <span>Bring participant lists into the workspace, then approve what becomes active league structure.</span>
+              <span>Bring participant lists into League Office, then approve what becomes active league structure.</span>
             </div>
             <div style={dataAssistOpsCardStyle}>
               <span style={pillSlate}>Scorecards</span>
@@ -1577,7 +1577,7 @@ export function LeagueCoordinatorWorkspace() {
               <div style={sectionEyebrow}>Result review queue</div>
               <h2 style={leagueOpsTitleStyle}>{resultQueueHeadline}</h2>
               <p style={leagueOpsTextStyle}>
-                Use the correct workspace: Team Results for team match events and line scores; Player Results for individual matches. Reviewed Data Assist scorecards can support updates before standings move.
+                Use the correct result tool: Team Results for team match events and line scores; Player Results for individual matches. Reviewed Data Assist scorecards can support updates before standings move.
               </p>
             </div>
             <span style={resultQueueItemCount > 0 ? pillSlate : pillGreen}>

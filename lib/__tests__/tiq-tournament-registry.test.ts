@@ -113,7 +113,8 @@ describe('TIQ tournament registry helpers', () => {
   })
 
   it('labels League and Full-Court tournament limits', () => {
-    expect(getTournamentLimitSummary(false)).toContain('one tournament')
+    expect(getTournamentLimitSummary(false)).toContain('one tournament room')
+    expect(getTournamentLimitSummary(false)).not.toContain('tournament workspace')
     expect(getTournamentLimitSummary(true)).toContain('Unlimited')
   })
 

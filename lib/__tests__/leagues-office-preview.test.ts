@@ -16,8 +16,9 @@ describe('Leagues Office preview', () => {
     expect(source).toContain('TiqWorkspacePreview')
     expect(source).toContain('TiqLeagueStandingCard')
     expect(source).toContain('Data Assist handoff')
-    expect(source).toContain('create a TIQ League Office workspace')
+    expect(source).toContain('create a TIQ League Office tool')
     expect(source).not.toContain('create a TIQ league workspace')
+    expect(source).not.toContain('create a TIQ League Office workspace')
   })
 
   it('tracks schedule, standings, and Data Assist handoff actions', () => {

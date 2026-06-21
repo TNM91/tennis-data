@@ -9,7 +9,8 @@ describe('League Office organizer path', () => {
     expect(source).toContain('leagueOfficePaths')
     expect(source).toContain('League Office path')
     expect(source).toContain('PRODUCT_MOTTO')
-    expect(source).toContain('Start with the season question, then open the workspace that removes the most admin work.')
+    expect(source).toContain('Start with the season question, then open the tool that removes the most admin work.')
+    expect(source).not.toContain('Start with the season question, then open the workspace that removes the most admin work.')
 
     expect(source).toContain("question: 'How do I organize schedules?'")
     expect(source).toContain("question: 'How do I manage players or teams?'")
