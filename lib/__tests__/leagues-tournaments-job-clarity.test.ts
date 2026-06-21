@@ -6,7 +6,8 @@ const source = readFileSync(join(process.cwd(), 'app/leagues-and-tournaments/pag
 
 describe('leagues and tournaments job clarity', () => {
   it('frames organizer actions around practical admin questions', () => {
-    expect(source).toContain('Start with the job you need to finish')
+    expect(source).toContain('Start with the organizer need in front of you')
+    expect(source).not.toContain('Start with the job you need to finish')
     expect(source).toContain('How do I organize the season before players start asking where everything lives?')
     expect(source).toContain('How do I manage entries, draws, courts, and event-day movement?')
     expect(source).toContain('Where do scores go, and what needs review before standings move?')

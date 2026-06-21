@@ -37,7 +37,7 @@ export default function ManagePage() {
 
         <section style={quickPathStyle} aria-labelledby="manage-quick-path-title">
           <div style={quickPathHeaderStyle}>
-            <p style={quickPathEyebrowStyle}>Pick your job</p>
+            <p style={quickPathEyebrowStyle}>Pick your path</p>
             <h2 id="manage-quick-path-title" style={quickPathTitleStyle}>
               What are you trying to organize right now?
             </h2>
@@ -64,7 +64,7 @@ export default function ManagePage() {
         <section style={sectionStyle} aria-labelledby="manage-actions-title">
           <SectionHeader
             eyebrow="Manage paths"
-            title="Start with the job that is causing the chaos."
+            title="Start with the need that is causing the chaos."
             body="TenAceIQ organizes management work around the next practical action, not a complicated dashboard."
             titleId="manage-actions-title"
           />

@@ -268,7 +268,7 @@ export default function LeaguesPage() {
           <div style={panelHead}>
             <div>
               <div style={sectionKicker}>League next actions</div>
-              <h2 style={panelTitle}>Pick the season job, then open the right path.</h2>
+              <h2 style={panelTitle}>Pick the season need, then open the right path.</h2>
               <p style={panelIntro}>
                 League pages should help players and organizers move from discovery to schedules, scores, standings, or corrections without hunting through a spreadsheet.
               </p>

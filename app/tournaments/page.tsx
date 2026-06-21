@@ -38,8 +38,8 @@ export default function TournamentsPage() {
         <section style={nextActionSectionStyle} aria-labelledby="tournament-next-actions-title">
           <SectionHeader
             eyebrow="Tournament next actions"
-            title="Pick the event job, then open the right tournament path."
-            body="Tournaments need clear paths for players, directors, court scheduling, scores, and corrections. Start with the job that needs attention now."
+            title="Pick the event need, then open the right tournament path."
+            body="Tournaments need clear paths for players, directors, court scheduling, scores, and corrections. Start with the area that needs attention now."
             titleId="tournament-next-actions-title"
           />
           <div style={nextActionGridStyle}>
@@ -91,7 +91,7 @@ export default function TournamentsPage() {
           <SectionHeader
             eyebrow="Tournament flow"
             title="From entry to results, keep the event moving."
-            body="Each tournament job has a clear next action so players know where to go and directors know what still needs attention."
+            body="Each tournament path has a clear next action so players know where to go and directors know what still needs attention."
             titleId="tournament-flow-title"
           />
           <ol style={flowGridStyle}>

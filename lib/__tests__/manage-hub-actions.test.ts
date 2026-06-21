@@ -6,7 +6,8 @@ const source = readFileSync(join(process.cwd(), 'app/manage/page.tsx'), 'utf8')
 
 describe('Manage hub actions', () => {
   it('puts the fastest Manage path directly under the hero', () => {
-    expect(source).toContain('Pick your job')
+    expect(source).toContain('Pick your path')
+    expect(source).not.toContain('Pick your job')
     expect(source).toContain('What are you trying to organize right now?')
     expect(source).toContain('Choose the closest path, then TenAceIQ keeps the next step focused on less admin and more tennis.')
     expect(source).toContain('manageQuickPaths')
@@ -18,7 +19,8 @@ describe('Manage hub actions', () => {
   })
 
   it('frames each management path around the practical user question', () => {
-    expect(source).toContain('Start with the job that is causing the chaos.')
+    expect(source).toContain('Start with the need that is causing the chaos.')
+    expect(source).not.toContain('Start with the job that is causing the chaos.')
     expect(source).toContain('Who is available, what lineup should we send, and what needs to be communicated?')
     expect(source).toContain('How do I keep schedules, players, teams, scores, and standings organized?')
     expect(source).toContain('How do I keep entries, draws, courts, scores, and winners moving?')

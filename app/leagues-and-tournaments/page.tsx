@@ -42,10 +42,10 @@ export default function LeaguesAndTournamentsPage() {
           <div style={organizerQuickPathHeaderStyle}>
             <p style={organizerQuickPathEyebrowStyle}>Organizer quick path</p>
             <h2 id="organizer-quick-path-title" style={organizerQuickPathTitleStyle}>
-              What admin job needs to move first?
+              What organizer need moves first?
             </h2>
             <p style={organizerQuickPathTextStyle}>
-              Pick the practical job, then open the organizer path that reduces schedule, player, score, or source chaos.
+              Pick the practical need, then open the organizer path that reduces schedule, player, score, or source chaos.
             </p>
           </div>
           <div style={organizerQuickPathGridStyle}>
@@ -68,7 +68,7 @@ export default function LeaguesAndTournamentsPage() {
           <SectionHeader
             eyebrow="Organizer work path"
             title="Set up, schedule, score, publish."
-            body="Start with the job you need to finish: organize schedules, manage players or teams, track scores, publish updates, and reduce admin work."
+            body="Start with the organizer need in front of you: organize schedules, manage players or teams, track scores, publish updates, and reduce admin work."
             titleId="organizer-paths-title"
           />
           <div style={gridStyle}>

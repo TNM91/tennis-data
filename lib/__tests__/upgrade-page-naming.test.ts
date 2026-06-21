@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const source = readFileSync(join(process.cwd(), 'app/upgrade/page.tsx'), 'utf8')
 
 describe('upgrade page naming', () => {
-  it('uses public/workspace naming in unlock and success copy', () => {
+  it('uses public/tool naming in unlock and success copy', () => {
     for (const phrase of [
       'Continue with Team Hub',
       'Preview Team Hub',
@@ -27,8 +27,8 @@ describe('upgrade page naming', () => {
       'Coach Hub is active',
       'Team Hub is active',
       'League Office is active',
-      'Open Coach Hub, map court work in Tactical Studio, and turn the next player-development job into assignments.',
-      'Start with Team Hub, then turn the match-week job into availability, scouting, lineup decisions, and a cleaner team plan.',
+      'Open Coach Hub, map court work in Tactical Studio, and turn the next player-development need into assignments.',
+      'Start with Team Hub, then turn the match-week need into availability, scouting, lineup decisions, and a cleaner team plan.',
       'Open Full-Court, then move between My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations without switching plans.',
       'Tournament Desk operations',
       'Use the complete toolkit.',
@@ -41,6 +41,7 @@ describe('upgrade page naming', () => {
       'selected tool opens after access is active.',
       'Selected tennis need',
       'Which tennis need should TenAceIQ support first?',
+      'Choose by need',
       'Request ${getPlanDestinationLabel(planId)}',
       "if (planId === 'coach') return 'Coach Hub'",
       "if (planId === 'captain') return 'Team Hub'",
@@ -75,6 +76,9 @@ describe('upgrade page naming', () => {
       'Ready to turn on',
       'selected plan opens after access is active',
       'What are you trying to do first?',
+      'Choose by job',
+      'player-development job',
+      'match-week job',
       'Team or league',
       'Starting ${plan.name} checkout.',
       'Request ${plan.name}',

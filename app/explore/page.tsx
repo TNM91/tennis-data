@@ -89,7 +89,7 @@ const PUBLIC_DISCOVERY_PROOF_STEPS: Array<{
   {
     label: 'Next tier',
     title: 'Know what unlocks',
-    body: 'Pricing explains when My Lab, Coach Hub, Team Hub, League Office, or Full-Court fits the job.',
+    body: 'Pricing explains when My Lab, Coach Hub, Team Hub, League Office, or Full-Court fits the need.',
     href: '/pricing',
     event: { eventName: 'search_category_selected', surface: 'public_site', metadata: { location: 'public_discovery_proof', job: 'compare_tiers' } },
   },

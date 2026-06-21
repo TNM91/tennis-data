@@ -133,7 +133,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   coach: {
     title: 'Coach Hub is active. Build the next lesson.',
-    body: 'Open Coach Hub, map court work in Tactical Studio, and turn the next player-development job into assignments.',
+    body: 'Open Coach Hub, map court work in Tactical Studio, and turn the next player-development need into assignments.',
     primaryAction: 'Open Coach Hub',
     secondaryAction: 'Open workbook',
     secondaryHref: '/player-development',
@@ -141,7 +141,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   captain: {
     title: 'Team Hub is active. Build the week.',
-    body: 'Start with Team Hub, then turn the match-week job into availability, scouting, lineup decisions, and a cleaner team plan.',
+    body: 'Start with Team Hub, then turn the match-week need into availability, scouting, lineup decisions, and a cleaner team plan.',
     primaryAction: 'Open Team Hub',
     secondaryAction: 'Build lineup',
     secondaryHref: '/captain/lineup-builder',
@@ -663,7 +663,7 @@ function UpgradeContent({
         <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis need">
           <div style={tierMapHeaderStyle}>
             <div>
-              <div style={labelStyle}>Choose by job</div>
+              <div style={labelStyle}>Choose by need</div>
               <h2 style={tierMapTitleStyle}>Unlock the level that removes the work in front of you.</h2>
             </div>
             <Link href="/pricing" style={secondaryButtonStyle}>
