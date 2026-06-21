@@ -1143,7 +1143,7 @@ function DataAssistSourcePathPanel({
           <h2 id="data-assist-source-path-title" style={sourcePathTitleStyle}>{PRODUCT_MOTTO}</h2>
         </div>
         <p style={sourcePathIntroStyle}>
-          Choose the tennis job first. Data Assist will keep the upload review-first before records change.
+          Choose the tennis need first. Data Assist will keep the upload review-first before records change.
         </p>
       </div>
       <div style={sourcePathGridStyle}>

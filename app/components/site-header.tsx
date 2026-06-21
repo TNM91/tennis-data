@@ -403,7 +403,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                 <UniversalSearch compact placeholder="Search TenAceIQ" showResults={false} />
               </div>
               <p style={mobileMenuCueStyle}>
-                {PRODUCT_MOTTO} Pick the tennis job you need solved.
+                {PRODUCT_MOTTO} Pick the tennis support you need next.
               </p>
 
               {authPending ? null : authenticated ? (
@@ -428,7 +428,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                   ) : null}
                   {workspaceShortcut ? (
                     <Link href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={mobileWorkspaceItemStyle}>
-                      <MobileItemLabel label={workspaceShortcut.label} description="Continue the active tennis job." />
+                      <MobileItemLabel label={workspaceShortcut.label} description="Continue the active tennis tool." />
                       <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                     </Link>
                   ) : null}

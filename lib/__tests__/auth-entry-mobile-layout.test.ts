@@ -61,10 +61,10 @@ describe('auth entry mobile layout guards', () => {
     expect(source).not.toContain('supabase.auth.onAuthStateChange')
   })
 
-  it('keeps Login return-path copy tied to the selected tennis job', () => {
+  it('keeps Login return-path copy tied to the selected tennis tool', () => {
     const source = sources.get('app/login/page.tsx')!
     expect(source).toContain('Open the tennis map.')
-    expect(source).toContain('Sign in, search the tennis map, and choose the next tennis job when it needs a home base.')
+    expect(source).toContain('Sign in, search the tennis map, and choose the right tools when your tennis needs more support.')
     expect(source).toContain('Continue to My Lab.')
     expect(source).toContain('Sign in to pick up your player home, matchup prep, follows, and messages.')
     expect(source).toContain('Continue to Coach Hub.')
@@ -73,11 +73,13 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('Continue to League Office.')
     expect(source).toContain('Continue to Full-Court.')
     expect(source).toContain('Sign in to move between My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk.')
-    expect(source).toContain('Next tennis job: {selectedIntent.destination}')
-    expect(source).toContain('Opening your next tennis job...')
+    expect(source).toContain('Next tennis tool: {selectedIntent.destination}')
+    expect(source).toContain('Opening your next tennis tool...')
     expect(source).toContain("selectedPlanId === 'free' ? 'Sign in' : `Continue to ${selectedIntent.destination}`")
     expect(source).not.toContain('Redirecting to your workspace...')
     expect(source).not.toContain('when it needs a workspace.')
+    expect(source).not.toContain('when it needs a home base.')
+    expect(source).not.toContain('next tennis job')
     expect(source).not.toContain('Open TenAceIQ.')
     expect(source).not.toContain('Welcome back.')
     expect(source).not.toContain("destination: 'Full-Court workspace'")

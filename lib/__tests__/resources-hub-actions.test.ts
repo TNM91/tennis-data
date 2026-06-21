@@ -27,7 +27,7 @@ describe('Resources hub actions', () => {
   it('uses reusable resource cards instead of static directory cards', () => {
     expect(source).toContain('TiqActionCard')
     expect(source).toContain('Quick starts')
-    expect(source).toContain('Start with the tennis job, then open the right path.')
+    expect(source).toContain('Start with the tennis need, then open the right path.')
     expect(source).toContain('resourceQuickStarts.map((quickStart)')
     expect(source).toContain("id: 'play'")
     expect(source).toContain("title: 'Play'")
@@ -60,7 +60,7 @@ describe('Resources hub actions', () => {
     expect(source).not.toContain('borderRadius: 22')
   })
 
-  it('tracks resource clicks by tennis job and destination', () => {
+  it('tracks resource clicks by tennis need and destination', () => {
     expect(source).toContain('TrackedProductLink')
     expect(source).toContain("location: 'resources_need_path'")
     expect(source).toContain("job: 'improve_player_game'")

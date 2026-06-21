@@ -5886,7 +5886,7 @@ function getPostProofNextCardPlan(
       : `You proved ${card.title}. Connect it to ${nextCard.title}.`,
     reason: nextCard.id === card.id
       ? 'The proof is repeatable enough to add one pressure layer.'
-      : 'The proof was strong enough to connect this habit to the next tennis job.',
+      : 'The proof was strong enough to connect this habit to the next tennis task.',
     proofTarget: nextCard.proof,
     firstRep: getPostProofFirstRep(nextCard, nextCard.id === card.id ? 'add-pressure' : 'next-card'),
     actionLabel: nextCard.id === card.id ? 'Add pressure here' : 'Start next card',

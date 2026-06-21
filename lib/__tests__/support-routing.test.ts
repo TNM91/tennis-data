@@ -67,12 +67,12 @@ describe('internal support routing', () => {
     expect(`${contactSource}\n${dataPolicySource}\n${privacySource}`).toContain('buildSupportMessageHref')
   })
 
-  it('keeps contact support copy tied to tennis jobs instead of generic workspaces', () => {
+  it('keeps contact support copy tied to tennis needs instead of generic workspaces', () => {
     const contactSource = readFileSync('app/contact/page.tsx', 'utf8')
 
-    expect(contactSource).toContain('Tennis job or page:')
+    expect(contactSource).toContain('Tennis need or page:')
     expect(contactSource).toContain('help choosing the right tennis path.')
-    expect(contactSource).toContain('help choosing where your tennis job belongs.')
+    expect(contactSource).toContain('help choosing where your tennis need belongs.')
     expect(contactSource).not.toContain('Page or workspace:')
     expect(contactSource).not.toContain('help finding the right workspace.')
   })

@@ -205,7 +205,7 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
         <section style={quickStartSectionStyle} aria-labelledby="resource-quick-start-title">
           <SectionHeader
             eyebrow="Quick starts"
-            title="Start with the tennis job, then open the right path."
+            title="Start with the tennis need, then open the right path."
             body="These routes cover the most common reasons someone lands here: improving, preparing, captaining, coaching, organizing, or fixing the context that powers TenAceIQ."
             titleId="resource-quick-start-title"
           />

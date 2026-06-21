@@ -27,7 +27,7 @@ const dataSupportHref = buildSupportMessageHref({
   subject: 'Data Assist or data quality question',
   body: [
     'I need help with a TenAceIQ data issue.',
-    'Tennis job or page:',
+    'Tennis need or page:',
     'League/team/player:',
     'What looks wrong:',
   ].join('\n'),
@@ -101,7 +101,7 @@ export default function ContactPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>General support</h2>
           <p>
             Open a <Link href={generalSupportHref}>TenAceIQ support thread</Link> for
-            membership questions, billing questions, account issues, or help choosing where your tennis job belongs.
+            membership questions, billing questions, account issues, or help choosing where your tennis need belongs.
           </p>
         </div>
 

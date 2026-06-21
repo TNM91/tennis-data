@@ -4004,7 +4004,7 @@ export const ALL_COURT_ADAPTER_IDENTITY: PlayerDevelopmentIdentity = {
   levelPath: {
     from: 'USTA 4.0',
     to: 'Adaptable 4.5 readiness',
-    context: 'Player building the ability to choose the right tennis job: defend, build, attack, close, or reset.',
+    context: 'Player building the ability to choose the right tennis task: defend, build, attack, close, or reset.',
   },
   audience: 'A player with multiple tools who needs cleaner reads, better transitions, and a repeatable plan against different opponents.',
   promise:

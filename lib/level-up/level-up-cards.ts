@@ -751,7 +751,7 @@ function buildCue(seed: CardSeed) {
   if (seed.tags.includes('balance')) return 'Stick the finish before adding speed.'
   if (seed.tags.includes('light-feet')) return 'Land quiet and move with control.'
   if (seed.category === 'mobility-stretch' || seed.category === 'recovery-reset') return 'Move slowly and re-check readiness.'
-  return seed.tags.includes('match-day') ? 'Prepare the same way before pressure starts.' : 'One tennis job, clean reps, honest score.'
+  return seed.tags.includes('match-day') ? 'Prepare the same way before pressure starts.' : 'One tennis task, clean reps, honest score.'
 }
 
 function buildRoutine(seed: CardSeed) {
@@ -779,7 +779,7 @@ function buildRoutine(seed: CardSeed) {
   if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') {
     return ['Set the constraint.', 'Play the rep.', 'Call the cue out loud.', 'Score the habit before changing drills.']
   }
-  return ['Choose one tennis job.', 'Do 6-10 clean reps.', 'Reset posture and breathing.', 'Repeat for 3 rounds and score the proof.']
+  return ['Choose one tennis task.', 'Do 6-10 clean reps.', 'Reset posture and breathing.', 'Repeat for 3 rounds and score the proof.']
 }
 
 function buildReward(seed: CardSeed) {
@@ -848,7 +848,7 @@ function buildRegression(seed: CardSeed) {
   if (seed.category === 'conditioning' || seed.category === 'strength-stability') return 'Cut the work in half and keep posture clean.'
   if (seed.category === 'movement-engine') return 'Walk the pattern first, then add tennis speed only when balance stays clean.'
   if (seed.category === 'solo-drill') return 'Shorten the target area or slow the feed until contact and recovery both hold.'
-  return 'Cut the reps in half and keep the tennis job clean.'
+  return 'Cut the reps in half and keep the tennis task clean.'
 }
 
 function buildQualityChecks(seed: CardSeed) {
@@ -879,7 +879,7 @@ function buildQualityChecks(seed: CardSeed) {
   if (seed.category === 'mental-routine') {
     return ['Trigger is named in one short phrase.', 'Breath, cue, and target happen before the next rep.', 'The routine is used after makes and misses.']
   }
-  return ['One tennis job is named before the rep.', 'The cue stays visible through the finish.', 'The proof score matches what actually happened.']
+  return ['One tennis task is named before the rep.', 'The cue stays visible through the finish.', 'The proof score matches what actually happened.']
 }
 
 function buildCommonMiss(seed: CardSeed) {
@@ -927,7 +927,7 @@ function buildCommonMiss(seed: CardSeed) {
   }
   return {
     miss: 'The player logs effort without knowing what improved.',
-    fix: 'Name the tennis job first, then score the proof after the reps.',
+    fix: 'Name the tennis task first, then score the proof after the reps.',
   }
 }
 
@@ -982,7 +982,7 @@ function buildProofAnchors(seed: CardSeed) {
     }
   }
   return {
-    low: 'The tennis job was unclear or rarely visible.',
+    low: 'The tennis task was unclear or rarely visible.',
     mid: 'The habit appeared in stretches but needs cleaner repetition.',
     high: 'The habit was visible, repeatable, and easy to score honestly.',
   }

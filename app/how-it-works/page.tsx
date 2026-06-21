@@ -32,7 +32,7 @@ const workflowCards: InfoActionCard[] = [
   },
   {
     title: 'Operate',
-    text: 'Move team weeks, tournaments, and league seasons into repeatable tennis work when the job grows.',
+    text: 'Move team weeks, tournaments, and league seasons into repeatable tennis tools when the need grows.',
     href: '/pricing',
     cta: 'Choose a tier',
     icon: 'teamRankings',
@@ -55,7 +55,7 @@ export default function HowItWorksPage() {
           <p>
             Public pages like <Link href="/explore/players">Players</Link>, <Link href="/explore/rankings">Rankings</Link>,{' '}
             <Link href="/explore/teams">Teams</Link>, and <Link href="/explore/leagues">Leagues</Link> help players,
-            captains, and organizers understand the landscape before the next tennis job needs a home base.
+            captains, and organizers understand the landscape before choosing the right paid tools.
           </p>
         </div>
 

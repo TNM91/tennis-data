@@ -28,7 +28,7 @@ describe('compete leagues readiness', () => {
     expect(source).toContain('What does this mean for my team?')
     expect(source).toContain('Open Team week')
     expect(source).toContain('data-compete-league-path-job={action.job}')
-    expect(source).toContain('Open the path that matches the tennis job.')
+    expect(source).toContain('Open the path that matches the tennis need.')
     expect(source).not.toContain('Open the workspace that matches the job.')
   })
 

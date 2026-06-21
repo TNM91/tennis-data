@@ -25,7 +25,7 @@ const LOGIN_INTENT_COPY: Record<MembershipTierId, {
   free: {
     eyebrow: 'TenAceIQ access',
     title: 'Open the tennis map.',
-    body: 'Sign in, search the tennis map, and choose the next tennis job when it needs a home base.',
+    body: 'Sign in, search the tennis map, and choose the right tools when your tennis needs more support.',
     destination: 'Find',
   },
   player_plus: {
@@ -291,7 +291,7 @@ function canUseBrowserStorage() {
       <section style={loadingShell}>
         <div style={loadingCard}>
           <span style={spinnerStyle} />
-          {submitting ? 'Signing you in...' : 'Opening your next tennis job...'}
+          {submitting ? 'Signing you in...' : 'Opening your next tennis tool...'}
         </div>
       </section>
     )
@@ -309,7 +309,7 @@ function canUseBrowserStorage() {
             {selectedIntent.body}
           </p>
 
-          <div style={destinationPillStyle}>Next tennis job: {selectedIntent.destination}</div>
+          <div style={destinationPillStyle}>Next tennis tool: {selectedIntent.destination}</div>
         </div>
 
         <div style={loginPanelResponsive}>

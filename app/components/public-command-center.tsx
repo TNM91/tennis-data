@@ -357,8 +357,8 @@ export function AudiencePathGrid() {
     <section style={sectionStyle} aria-labelledby="audience-paths-title">
       <SectionHeader
         eyebrow="Who it helps"
-        title="One home base for the tennis community."
-        body="Every path explains who it is for and what action to take next."
+        title="One toolkit for the tennis community."
+        body="Every path explains who it helps and what action to take next."
         titleId="audience-paths-title"
       />
       <div style={audienceGridStyle}>
@@ -382,7 +382,7 @@ export function AudiencePathGrid() {
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ is organized around tennis actions first, then the right hub when the next tennis job needs a home base." />
+      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ starts with tennis context, then points players, captains, coaches, leagues, and tournaments to the right tools." />
       <div style={actionGridStyle}>
         {cards.map((card) => (
           <article key={card.title} style={actionCardStyle}>

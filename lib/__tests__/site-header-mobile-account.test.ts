@@ -22,7 +22,7 @@ describe('site header mobile account drawer', () => {
     expect(source).toContain('function MobileItemLabel')
     expect(source).toContain('<MobileItemLabel label="Admin dashboard" />')
     expect(source).toContain('<MobileItemLabel label="Logout" />')
-    expect(source).toContain('<MobileItemLabel label={workspaceShortcut.label} description="Continue the active tennis job." />')
+    expect(source).toContain('<MobileItemLabel label={workspaceShortcut.label} description="Continue the active tennis tool." />')
     expect(source).toContain('<MobileItemLabel label="Sign in" description="Open your saved tennis work." />')
     expect(source).toContain('<MobileItemLabel label="Start Free" description="Explore public tennis context before upgrading." />')
     expect(source).toContain('const mobileItemCopyStyle')

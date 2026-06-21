@@ -117,30 +117,32 @@ test.describe('TIQ league surfaces', () => {
     await expectDarkShell(page)
     await expect(page.getByRole('heading', { name: 'Choose your role.' })).toBeVisible()
     await expect(page.getByText('Start from what you are trying to do.')).toBeVisible()
-    await expect(page.getByText('Start free, then unlock the home base that matches your tennis job: My Lab, Coach Hub, Team Hub, League Office, or Full-Court.')).toBeVisible()
-    await expect(page.getByText('Search players, teams, leagues, rankings, tournaments, coaches, and tennis resources before the next tennis job needs a home base.')).toBeVisible()
+    await expect(page.getByText('Start free, then unlock the right TenAceIQ tools: My Lab, Coach Hub, Team Hub, League Office, or Full-Court.')).toBeVisible()
+    await expect(page.getByText('Search players, teams, leagues, rankings, tournaments, coaches, and tennis resources before choosing paid tools.')).toBeVisible()
     await expect(page.getByText('Creating an account opens Free access for public tennis intelligence and data contributions.')).toBeVisible()
     await expect(page.getByText('My Lab, Coach Hub, Team Hub, League Office, and Full-Court open only after the matching plan is active.')).toBeVisible()
     await expect(page.getByText('Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.')).toBeVisible()
     await expect(page.locator('body')).not.toContainText('before choosing a paid workspace')
   })
 
-  test('Join keeps the Free handoff tied to a tennis home base', async ({ page }) => {
+  test('Join keeps the Free handoff tied to the right tennis tools', async ({ page }) => {
     await expectSurfaceLoads(page, '/join')
     await expectDarkShell(page)
-    await expect(page.getByRole('heading', { name: /Start free(\. Pick the tennis job later\.)?/ })).toBeVisible()
-    await expect(page.getByText('Search the tennis map first. Upgrade only when a specific tennis job needs a home base.')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Start free(\. Pick the tennis tools later\.)?/ })).toBeVisible()
+    await expect(page.getByText('Search the tennis map first. Upgrade only when a specific tennis need calls for more support.')).toBeVisible()
     await expect(page.locator('body')).not.toContainText('Upgrade only when a specific job needs a workspace')
     await expect(page.locator('body')).not.toContainText('Upgrade only when a specific tennis job needs a workspace')
+    await expect(page.locator('body')).not.toContainText('Upgrade only when a specific tennis job needs a home base')
   })
 
-  test('Upgrade keeps the Free path tied to the next tennis job', async ({ page }) => {
+  test('Upgrade keeps the Free path tied to the right tennis tools', async ({ page }) => {
     await expectSurfaceLoads(page, '/upgrade?plan=free')
     await expectDarkShell(page)
     await expect(page.getByRole('heading', { name: 'Free is already active.' })).toBeVisible()
-    await expect(page.getByText('Search the tennis map first, then pick the next tennis job when it needs a home base.')).toBeVisible()
-    await expect(page.getByText('Upgrade when the next tennis job needs a home base')).toBeVisible()
+    await expect(page.getByText('Search the tennis map first, then pick the right tools when your tennis needs more support.')).toBeVisible()
+    await expect(page.getByText('Upgrade when you need more support')).toBeVisible()
     await expect(page.locator('body')).not.toContainText('Upgrade when the next tennis job needs a workspace')
+    await expect(page.locator('body')).not.toContainText('Upgrade when the next tennis job needs a home base')
   })
 
   test('Explore start and rankings actions stay readable on mobile dark shell', async ({ page }) => {
@@ -163,11 +165,11 @@ test.describe('TIQ league surfaces', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await resetBrowserState(page)
     await expectSurfaceLoads(page, '/login')
-    const redirecting = await page.getByText('Opening your next tennis job...').isVisible().catch(() => false)
+    const redirecting = await page.getByText('Opening your next tennis tool...').isVisible().catch(() => false)
     const resetBoundary = await isResetBoundaryVisible(page)
     if (!redirecting && !resetBoundary) {
       await expect(page.getByRole('heading', { name: 'Open the tennis map.' })).toBeVisible()
-      await expect(page.getByText('Next tennis job: Find')).toBeVisible()
+      await expect(page.getByText('Next tennis tool: Find')).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
       await expect(page.getByLabel('Email')).toBeVisible()
       await expect(page.getByRole('textbox', { name: 'Password' })).toBeVisible()
@@ -195,8 +197,9 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.getByRole('heading', { name: 'More Tennis. Less Chaos.' })).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'Choose a TenAceIQ workspace' })).toBeVisible()
     await expect(page.getByPlaceholder('Search players, teams, leagues, tournaments, coaches, resources, or tennis actions')).toBeVisible()
-    await expect(page.getByText('TenAceIQ is organized around tennis actions first, then the right hub when the next tennis job needs a home base.')).toBeVisible()
+    await expect(page.getByText('TenAceIQ starts with tennis context, then points players, captains, coaches, leagues, and tournaments to the right tools.')).toBeVisible()
     await expect(page.locator('body')).not.toContainText('then the right hub when the next tennis job needs a workspace')
+    await expect(page.locator('body')).not.toContainText('then the right hub when the next tennis job needs a home base')
 
     await expect
       .poll(
@@ -226,20 +229,21 @@ test.describe('TIQ league surfaces', () => {
       .toBe(true)
   })
 
-  test('Preview homepage keeps the Free plan handoff tied to a home base', async ({ page }) => {
+  test('Preview homepage keeps the Free plan handoff tied to tennis tools', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await expectSurfaceLoads(page, '/preview-home')
 
-    await expect(page.getByText('Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.')).toBeVisible()
+    await expect(page.getByText('Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when your game, team, players, league, or tournament needs more support.')).toBeVisible()
     await expect(page.locator('body')).not.toContainText('See paid workspaces')
     await expect(page.locator('body')).not.toContainText('when the next tennis job needs one connected place')
+    await expect(page.locator('body')).not.toContainText('when the next tennis job needs a home base')
   })
 
-  test('FAQ keeps League Office tied to a season home base', async ({ page }) => {
+  test('FAQ keeps League Office tied to competition tools', async ({ page }) => {
     await expectSurfaceLoads(page, '/faq')
 
     await expect(page.getByRole('heading', { name: 'Is TenAceIQ only for captains?' })).toBeVisible()
-    await expect(page.getByText('League Office gives leagues of players or teams a season home base.')).toBeVisible()
+    await expect(page.getByText('League Office gives leagues, ladders, and tournaments organized competition tools.')).toBeVisible()
     await expect(page.locator('body')).not.toContainText('League Office adds the workspace for leagues of players or teams.')
   })
 

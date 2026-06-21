@@ -194,7 +194,7 @@ const commandModes: Array<{
   {
     planId: 'full_court',
     lane: 'Full-Court',
-    action: 'Run every tennis job',
+    action: 'Open the full toolkit',
     label: 'Coach, Captain, League, and unlimited tournaments',
     href: '/pricing#full_court',
     cta: 'Unlock Full-Court',
@@ -457,7 +457,7 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
     },
     {
       title: 'Open player book',
-      detail: 'See player context across every connected tennis job.',
+      detail: 'See player context across connected tennis activity.',
       metric: 'Full-Court',
       href: '/league-coordinator/individual-results',
       requiredPlan: 'league',
@@ -480,7 +480,7 @@ const commandModeDetails: Record<
 > = {
   free: {
     headline: 'More Tennis. Less Chaos.',
-    subhead: 'Start with the tennis map, then unlock the home base that saves your week.',
+    subhead: 'Start with the tennis map, then unlock the tools that save your week.',
     searchPlaceholder: 'Search players, teams, leagues, ratings...',
     queue: ['Find a player', 'Browse teams', 'Check standings', 'Check rankings'],
     unlockLine: 'Free stays useful. Unlock My Lab, Team Hub, or League Office when the job becomes personal, team-based, or league-wide.',
@@ -514,8 +514,8 @@ const commandModeDetails: Record<
     unlockLine: 'League unlocks shared calendar, league spaces, team books, and player books.',
   },
   full_court: {
-    headline: 'Run every tennis job from one place.',
-    subhead: 'Full-Court keeps My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations in one connected tennis operation.',
+    headline: 'Use the complete TenAceIQ toolkit.',
+    subhead: 'Full-Court keeps My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations in one connected tennis toolkit.',
     searchPlaceholder: 'Search player, team, league, or tournament...',
     queue: ['Build tournament', 'Open Team Hub', 'Track results', 'Open player book'],
     unlockLine: 'Full-Court unlocks My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk.',
@@ -1013,7 +1013,7 @@ function getDashboardLane(planId: PricingPlanId) {
   if (planId === 'full_court') {
     return {
       label: 'Full-Court',
-      title: 'Every tennis job, connected.',
+      title: 'Every tennis role, connected.',
       show: 'My Lab, Coach Hub, Team Hub, League Office, ladders, and unlimited Tournament Desk operations as one tennis operation.',
       removes: 'Splitting team, league, and tournament work across separate systems.',
       next: 'Unlock Full-Court when one role no longer covers the tennis work.',
@@ -2348,7 +2348,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
             ? 'Find a player, team, league, flight, or area, then choose the tier that helps next.'
             : compact
               ? 'Search a player, team, league, flight, or area before choosing a tier.'
-              : 'Start with a targeted search by player, team, league, flight, or area, then open the home base for the next problem in your week.'}
+              : 'Start with a targeted search by player, team, league, flight, or area, then open the right tool for the next problem in your week.'}
         </div>
       </div>
 
@@ -2675,12 +2675,12 @@ function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState;
         }}
       >
         <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
-          <div style={sectionKicker}>Start with your tennis job</div>
+          <div style={sectionKicker}>Start with your tennis need</div>
           <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.65rem)', lineHeight: 1.02 }}>
             Explore, improve, compete, or manage with less chaos.
           </h2>
           <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
-            Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when the next tennis job needs a home base.
+            Start with the tennis map. Unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when your game, team, players, league, or tournament needs more support.
           </p>
         </div>
         <Link href="/pricing" style={{ ...buttonGhost, minHeight: 40 }}>
@@ -2861,7 +2861,7 @@ function FullCourtSuiteBanner({ access, authenticated }: { access: ProductAccess
             overflowWrap: 'anywhere',
           }}
         >
-          Run every tennis job.
+          Open the full toolkit.
         </h3>
         <div style={fullCourtValueStripStyle}>
           {suiteItems.map((item) => (
@@ -3003,7 +3003,7 @@ function RoleChooserPreview() {
               What are you here to do?
             </div>
             <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.55, maxWidth: 420, overflowWrap: 'anywhere' }}>
-              Pick the tennis job first. The tier decision follows naturally.
+              Pick the tennis need first. The tier decision follows naturally.
             </div>
           </div>
           <Link href="/pricing" style={{ ...buttonPrimary, minHeight: 40, paddingInline: 15, width: isMobile ? '100%' : undefined }}>

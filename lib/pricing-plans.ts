@@ -244,12 +244,12 @@ export const PRICING_PLANS: PricingPlan[] = [
     billing: PRICING_BILLING.full_court,
     entitlementGrant: FULL_COURT_ENTITLEMENTS,
     priceLabel: formatPricingBillingLabel(PRICING_BILLING.full_court),
-    badge: 'Every Tennis Job',
+    badge: 'Complete Toolkit',
     ctaLabel: 'Unlock Full-Court',
-    problem: 'Running more than one tennis job?',
+    problem: 'Supporting more than one tennis role?',
     friction: 'Coach work, captain work, league operations, tournaments, and player context split apart when the season gets busy.',
     solution: getMembershipTier('full_court').description,
-    outcome: 'Keep every tennis job connected, with unlimited Tournament Desk room.',
+    outcome: 'Keep every tennis role connected, with unlimited Tournament Desk room.',
     valueProps: getMembershipTier('full_court').valueProps,
   },
 ]
@@ -273,7 +273,7 @@ export const WHY_TENACEIQ_POINTS = [
   },
   {
     title: 'Upgrade by role',
-    text: 'Coach is for player development. Captain is for team decisions. Full-Court connects every tennis job.',
+    text: 'Coach is for player development. Captain is for team decisions. Full-Court connects the complete tennis toolkit.',
   },
 ] as const
 

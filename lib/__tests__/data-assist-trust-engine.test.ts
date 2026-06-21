@@ -65,7 +65,7 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('const dataAssistSourcePathJobs')
     expect(source).toContain('DataAssistSourcePathPanel')
     expect(source).toContain('Source refresh path')
-    expect(source).toContain('Choose the tennis job first. Data Assist will keep the upload review-first before records change.')
+    expect(source).toContain('Choose the tennis need first. Data Assist will keep the upload review-first before records change.')
     expect(source).toContain('What result should update first?')
     expect(source).toContain('Upload a scorecard')
     expect(source).toContain('What is the season schedule?')

@@ -8,7 +8,7 @@ const headerSource = readFileSync(join(process.cwd(), 'app/components/site-heade
 describe('site header mobile navigation descriptions', () => {
   it('uses the product motto and benefit-led descriptions in the compact menu', () => {
     expect(headerSource).toContain("import { PRODUCT_MOTTO } from '@/lib/product-story'")
-    expect(headerSource).toContain('{PRODUCT_MOTTO} Pick the tennis job you need solved.')
+    expect(headerSource).toContain('{PRODUCT_MOTTO} Pick the tennis support you need next.')
     expect(headerSource).toContain('function MobileItemLabel')
     expect(headerSource).toContain('<MobileItemLabel label={item.label} description={item.description} />')
     expect(headerSource).toContain('const mobileMenuCueStyle')

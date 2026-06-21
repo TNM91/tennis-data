@@ -33,7 +33,7 @@ const faqActions: InfoActionCard[] = [
   },
   {
     title: 'Need help?',
-    text: 'Open support from inside TenAceIQ so the tennis job, account, and data context stay together.',
+    text: 'Open support from inside TenAceIQ so the tennis need, account, and data context stay together.',
     href: '/messages?compose=support',
     cta: 'Open support',
     icon: 'messagingCenter',
@@ -44,7 +44,7 @@ const faqSchemaItems = [
   {
     question: 'Is TenAceIQ only for captains?',
     answer:
-      'No. Free pages help anyone explore players, teams, leagues, and rankings. Player adds My Lab, data refreshes, Matchup, and Messages. Team Hub adds weekly team decisions. League Office gives leagues of players or teams a season home base.',
+      'No. Free pages help anyone explore players, teams, leagues, and rankings. Player adds My Lab, data refreshes, Matchup, and Messages. Team Hub adds weekly team decisions. League Office gives leagues, ladders, and tournaments organized competition tools.',
   },
   {
     question: 'What kind of tennis information appears here?',
@@ -87,7 +87,7 @@ export default function FaqPage() {
           <p>
             No. Free pages help anyone explore players, teams, leagues, and rankings. Player adds
             My Lab, data refreshes, Matchup, and Messages. Team Hub adds weekly team decisions.
-            League Office gives leagues of players or teams a season home base.
+            League Office gives leagues, ladders, and tournaments organized competition tools.
           </p>
         </div>
 

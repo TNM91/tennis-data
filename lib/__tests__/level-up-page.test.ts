@@ -1144,7 +1144,7 @@ describe('Level Up page', () => {
     expect(playerDevelopmentPortalSource).toContain('getPostProofFirstRep')
     expect(playerDevelopmentPortalSource).toContain('First rep')
     expect(playerDevelopmentPortalSource).toContain('Start here:')
-    expect(playerDevelopmentPortalSource).toContain('The proof was strong enough to connect this habit to the next tennis job.')
+    expect(playerDevelopmentPortalSource).toContain('The proof was strong enough to connect this habit to the next tennis task.')
     expect(playerDevelopmentPortalSource).toContain('data-finish-next-card="true"')
     expect(playerDevelopmentPortalSource).toContain('levelUpFinishChoices')
     expect(playerDevelopmentPortalSource).toContain('Finish choices')

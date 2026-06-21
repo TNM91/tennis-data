@@ -42,7 +42,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   free: {
     eyebrow: 'Free path',
     title: 'Start with the tennis map.',
-    body: 'Search players, teams, leagues, rankings, flights, and areas before the next tennis job needs a home base.',
+    body: 'Search players, teams, leagues, rankings, flights, and areas before choosing paid tools.',
     action: 'Open Find',
     checkoutAction: 'Open Find',
     setupAction: 'Open Free',
@@ -81,7 +81,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
   full_court: {
     eyebrow: 'Full-Court unlock',
-    title: 'Activate Full-Court for every tennis job.',
+    title: 'Activate Full-Court for the complete toolkit.',
     body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations need one connected tennis operation.',
     action: 'Continue with Full-Court',
     checkoutAction: 'Unlock Full-Court',
@@ -90,7 +90,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
 }
 
 const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
-  free: 'Search the tennis map first, then pick the next tennis job when it needs a home base.',
+  free: 'Search the tennis map first, then pick the right tools when your tennis needs more support.',
   player_plus: 'Activate Player when your own game needs My Lab, matchup prep, follows, and messages together.',
   coach: 'Activate Coach when player development needs lesson plans, drill assignments, proof, and follow-through.',
   captain: 'Activate Captain when match week needs availability, lineup decisions, scouting, and team updates in Team Hub.',
@@ -99,12 +99,12 @@ const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
 }
 
 const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
-  free: ['Open Find', 'Search public tennis context', 'Upgrade when the next tennis job needs a home base'],
+  free: ['Open Find', 'Search public tennis context', 'Upgrade when you need more support'],
   player_plus: ['Create Free access', 'Activate Player', 'Open My Lab'],
   coach: ['Create Free access', 'Activate Coach', 'Open Coach Hub'],
   captain: ['Create Free access', 'Activate Captain', 'Open Team Hub'],
   league: ['Create Free access', 'Activate League', 'Open League Office'],
-  full_court: ['Create Free access', 'Activate Full-Court', 'Open every tennis job'],
+  full_court: ['Create Free access', 'Activate Full-Court', 'Open the full toolkit'],
 }
 
 const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
@@ -117,11 +117,11 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
 }> = {
   free: {
     title: 'Free is ready.',
-    body: 'Search public tennis context, then upgrade when the next tennis job needs a home base.',
+    body: 'Search public tennis context, then upgrade when your game, team, players, league, or tournament needs more support.',
     primaryAction: 'Open Find',
     secondaryAction: 'Compare plans',
     secondaryHref: '/pricing',
-    steps: ['Search players and teams', 'Review public rankings', 'Choose the next tennis job'],
+    steps: ['Search players and teams', 'Review public rankings', 'Choose the right tools'],
   },
   player_plus: {
     title: 'Player is active. Start in My Lab.',
@@ -156,12 +156,12 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     steps: ['Create the League Office shell', 'Add participants', 'Track results and rankings'],
   },
   full_court: {
-    title: 'Full-Court is active. Run every tennis job.',
+    title: 'Full-Court is active. Use the complete toolkit.',
     body: 'Open Full-Court, then move between My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations without switching plans.',
     primaryAction: 'Open Full-Court',
     secondaryAction: 'Find leagues',
     secondaryHref: '/leagues',
-    steps: ['Open every tennis job', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
+    steps: ['Open the full toolkit', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
   },
 }
 
@@ -660,7 +660,7 @@ function UpgradeContent({
           </aside>
         </section>
 
-        <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis job">
+        <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis need">
           <div style={tierMapHeaderStyle}>
             <div>
               <div style={labelStyle}>Choose by job</div>
@@ -702,7 +702,7 @@ function UpgradeContent({
               <h2 style={activationTitleStyle}>Ready to activate {getPlanDestinationLabel(planId)}?</h2>
               <p style={noteTextStyle}>
                 {isPublic
-                  ? 'Send the plan request first. Account creation starts Free access; the selected tennis job opens after access is active.'
+                  ? 'Send the plan request first. Account creation starts Free access; the selected tool opens after access is active.'
                   : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutError
@@ -784,7 +784,7 @@ function UpgradeContent({
                 <h3 style={successTitleStyle}>We have your {getPlanDestinationLabel(planId)} request.</h3>
                 <p style={noteTextStyle}>
                   {requestStorageMode === 'supabase'
-                    ? 'We captured the plan, account contact, and tennis job for admin follow-up.'
+                    ? 'We captured the plan, account contact, and tennis need for admin follow-up.'
                     : 'We saved this request in the browser. Open a support thread if you want this routed inside TenAceIQ.'}
                 </p>
                 {requestLinkStatus ? <p style={successMetaStyle}>{requestLinkStatus}</p> : null}
@@ -828,7 +828,7 @@ function UpgradeContent({
             ) : (
               <form style={requestFormStyle} onSubmit={handleRequestSubmit}>
                 <div style={selectedPlanStyle}>
-                  <span style={labelStyle}>Selected tennis job</span>
+                  <span style={labelStyle}>Selected tennis need</span>
                   <strong>{getPlanDestinationLabel(planId)}</strong>
                 </div>
                 <div style={fieldGridStyle}>
@@ -865,7 +865,7 @@ function UpgradeContent({
                   />
                 </label>
                 <label style={fieldStyle}>
-                  Which tennis job needs help first?
+                  Which tennis need should TenAceIQ support first?
                   <textarea
                     className="tiq-focus-ring"
                     value={requestGoal}
