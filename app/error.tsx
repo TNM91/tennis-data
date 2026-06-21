@@ -28,7 +28,7 @@ export default function ErrorPage({
           This view needs a quick reset
         </h2>
         <p style={{ marginTop: 12, color: 'var(--muted-strong)', fontSize: '0.95rem', lineHeight: 1.65, marginBottom: 0 }}>
-          Try again, or return home and reopen the tennis workspace from there.
+          Try again, or return home and reopen the right tennis tool from there.
         </p>
         <div style={{ display: 'flex', gap: 12, marginTop: 28, justifyContent: 'center', flexWrap: 'wrap', minWidth: 0 }}>
           <button className="button-primary" onClick={unstable_retry} style={{ minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', fontSize: '0.95rem' }}>

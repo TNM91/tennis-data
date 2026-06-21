@@ -15,8 +15,9 @@ describe('public coaches job clarity', () => {
 
   it('gives coaches and players a fast public quick path', () => {
     expect(source).toContain('Coach quick path')
-    expect(source).toContain('What coaching job needs attention?')
+    expect(source).toContain('What coaching need needs attention?')
     expect(source).toContain('Start with the player need, then open the smallest action that keeps development moving.')
+    expect(source).not.toContain('What coaching job needs attention?')
     expect(source).toContain('coachQuickPaths.map((path)')
     expect(source).toContain('How can I assign drills?')
     expect(source).toContain('How can I track player development?')
@@ -38,7 +39,9 @@ describe('public coaches job clarity', () => {
 
   it('keeps public coach actions on toolkit language instead of workspace language', () => {
     expect(source).toContain("{ label: 'Status', value: 'Coach action', tone: 'good' }")
+    expect(source).toContain('Coach Hub keeps the post-lesson handoff simple')
     expect(source).not.toContain('Workspace action')
+    expect(source).not.toContain('post-lesson job')
   })
 
   it('tracks coach jobs from public CTAs', () => {

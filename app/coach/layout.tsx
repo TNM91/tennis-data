@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     absolute: 'Coach Hub | TenAceIQ',
   },
   description:
-    'Coach Hub is the TenAceIQ workspace for lesson planning, assignments, Tactical Studio, and coach-player follow-through.',
+    'Coach Hub is the TenAceIQ tool for lesson planning, assignments, Tactical Studio, and coach-player follow-through.',
   robots: {
     index: false,
     follow: false,

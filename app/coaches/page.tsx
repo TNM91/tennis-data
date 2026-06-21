@@ -49,7 +49,7 @@ export default function CoachesPage() {
           <div style={coachQuickPathHeaderStyle}>
             <p style={coachQuickPathEyebrowStyle}>Coach quick path</p>
             <h2 id="coach-quick-path-title" style={coachQuickPathTitleStyle}>
-              What coaching job needs attention?
+              What coaching need needs attention?
             </h2>
             <p style={coachQuickPathTextStyle}>
               Start with the player need, then open the smallest action that keeps development moving.
@@ -122,7 +122,7 @@ export default function CoachesPage() {
           <SectionHeader
             eyebrow="Coach path"
             title="Assign, track, recommend, follow up."
-            body="Coach Hub keeps the post-lesson job simple: give the player clear work, watch development, point them to the right resource, and keep support visible between sessions."
+            body="Coach Hub keeps the post-lesson handoff simple: give the player clear work, watch development, point them to the right resource, and keep support visible between sessions."
             titleId="coach-next-actions-title"
           />
           <div style={nextActionGridStyle}>
