@@ -30,7 +30,9 @@ describe('compete teams readiness', () => {
     expect(source).toContain('data-compete-team-path-job={action.job}')
     expect(source).toContain('id="tiq-entered-teams"')
     expect(source).toContain('messaging through Team Hub')
+    expect(source).toContain('League Office keeps season structure, standings, scheduling, and team coordination organized instead of scattered spreadsheet cleanup.')
     expect(source).not.toContain('messaging in one workspace')
+    expect(source).not.toContain('League gives you one place for season structure')
   })
 
   it('keeps Team path cards tappable on mobile', () => {

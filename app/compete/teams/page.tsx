@@ -199,7 +199,7 @@ function CompeteTeamsContent() {
               planId="league"
               compact
               headline="Running TIQ team seasons without a real organizer layer?"
-              body="League gives you one place for season structure, standings, scheduling, and team-level coordination instead of spreadsheet cleanup."
+              body="League Office keeps season structure, standings, scheduling, and team coordination organized instead of scattered spreadsheet cleanup."
               ctaLabel="Unlock League"
               ctaHref="/pricing"
               secondaryLabel="See league plan"
