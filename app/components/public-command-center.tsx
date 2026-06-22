@@ -409,7 +409,7 @@ export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCa
 export function ProductPreviewGrid({ cards = previewCards }: { cards?: PreviewCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Product previews" title="Useful tools, not a complicated analytics dashboard." body="Preview cards keep each tool concrete, approachable, and tied to the next tennis action." />
+      <SectionHeader eyebrow="Product previews" title="Useful tennis tools for the next action." body="Preview cards keep each tool concrete, approachable, and tied to the next tennis action." />
       <div style={previewGridStyle}>
         {cards.map((card) => renderPreviewCard(card))}
       </div>
