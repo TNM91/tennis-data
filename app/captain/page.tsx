@@ -352,7 +352,7 @@ function CaptainLockedSurface({
             <h1 style={scopeTitleStyle}>Run match week with less chaos.</h1>
           </div>
           <p style={captainPreviewTextStyle}>
-            See who is available, compare lineup options, choose pairings, and send the team plan from one place.
+            See who is available, compare lineup options, choose pairings, and send the match-week plan.
           </p>
           <div style={captainPreviewGridStyle}>
             {CAPTAIN_STORY.workflow.map(([step, title, body]) => (
@@ -2335,7 +2335,7 @@ function CaptainHubContent() {
                 {workspaceState.briefReady ? 'Weekly brief is ready' : 'Still gathering week context'}
               </div>
               <div style={nextActionText}>
-                Open the weekly brief for lineup, notes, opponent context, and final captain actions in one place.
+                Open the weekly brief for lineup, notes, opponent context, and final captain actions.
               </div>
             </div>
 
