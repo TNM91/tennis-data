@@ -18,8 +18,12 @@ describe('pricing simplification', () => {
     expect(pricingSource).toContain('Choose your role')
     expect(pricingSource).toContain('See the tools')
     expect(pricingSource).toContain('Compare what unlocks')
+    expect(pricingSource).toContain('<th style={tableHeadStyle}>Need</th>')
+    expect(pricingSource).toContain('<td style={tableNeedStyle}>{row.need}</td>')
     expect(pricingSource).toContain('Billing clarity')
     expect(pricingSource).toContain('Start free / upgrade')
+    expect(pricingSource).not.toContain('<th style={tableHeadStyle}>Job</th>')
+    expect(pricingSource).not.toContain('<td style={tableJobStyle}>{row.job}</td>')
   })
 
   it('uses public workspace naming and consistent League billing', () => {

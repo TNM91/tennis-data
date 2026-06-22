@@ -63,7 +63,7 @@ describe('pricing mobile layout guards', () => {
     expect(styleBlock('compareTableStyle')).toContain('minWidth: 820')
     for (const styleName of [
       'tableHeadStyle',
-      'tableJobStyle',
+      'tableNeedStyle',
       'tableCellStyle',
       'jobChooserCardStyle',
       'workspaceCardStyle',

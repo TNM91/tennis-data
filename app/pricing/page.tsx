@@ -195,7 +195,7 @@ const JOB_CHOOSER: Array<{
 ]
 
 const COMPARE_ROWS: Array<{
-  job: string
+  need: string
   free: string
   player_plus: string
   coach: string
@@ -204,7 +204,7 @@ const COMPARE_ROWS: Array<{
   full_court: string
 }> = [
   {
-    job: 'Find public tennis context',
+    need: 'Find public tennis context',
     free: 'Included',
     player_plus: 'Included',
     coach: 'Included',
@@ -213,7 +213,7 @@ const COMPARE_ROWS: Array<{
     full_court: 'Included',
   },
   {
-    job: 'Personalize around your game',
+    need: 'Personalize around your game',
     free: '-',
     player_plus: 'Best fit',
     coach: 'Included',
@@ -222,7 +222,7 @@ const COMPARE_ROWS: Array<{
     full_court: 'Included',
   },
   {
-    job: 'Coach players',
+    need: 'Coach players',
     free: '-',
     player_plus: '-',
     coach: 'Best fit',
@@ -231,7 +231,7 @@ const COMPARE_ROWS: Array<{
     full_court: 'Included',
   },
   {
-    job: 'Captain match week',
+    need: 'Captain match week',
     free: '-',
     player_plus: '-',
     coach: '-',
@@ -240,7 +240,7 @@ const COMPARE_ROWS: Array<{
     full_court: 'Included',
   },
   {
-    job: 'Run a season or event',
+    need: 'Run a season or event',
     free: '-',
     player_plus: '-',
     coach: '-',
@@ -249,7 +249,7 @@ const COMPARE_ROWS: Array<{
     full_court: 'Included',
   },
   {
-    job: 'Run unlimited tournaments',
+    need: 'Run unlimited tournaments',
     free: '-',
     player_plus: '-',
     coach: '-',
@@ -421,7 +421,7 @@ function PricingContent() {
           <table style={compareTableStyle}>
             <thead>
               <tr>
-                <th style={tableHeadStyle}>Job</th>
+                <th style={tableHeadStyle}>Need</th>
                 <th style={tableHeadStyle}>Free</th>
                 <th style={tableHeadStyle}>Player</th>
                 <th style={tableHeadStyle}>Coach</th>
@@ -432,8 +432,8 @@ function PricingContent() {
             </thead>
             <tbody>
               {COMPARE_ROWS.map((row) => (
-                <tr key={row.job}>
-                  <td style={tableJobStyle}>{row.job}</td>
+                <tr key={row.need}>
+                  <td style={tableNeedStyle}>{row.need}</td>
                   <CompareCell value={row.free} />
                   <CompareCell value={row.player_plus} />
                   <CompareCell value={row.coach} />
@@ -969,7 +969,7 @@ const tableHeadStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const tableJobStyle: CSSProperties = {
+const tableNeedStyle: CSSProperties = {
   padding: 13,
   color: 'var(--foreground-strong)',
   fontWeight: 900,
