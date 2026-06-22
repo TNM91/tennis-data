@@ -26,7 +26,7 @@ export default function TiqTacticalStudioGate() {
         <section className={styles.hero}>
           <div>
             <div className={styles.eyebrow}>TIQ Tactical Studio</div>
-            <h1>Loading your tactical workspace.</h1>
+            <h1>Loading your tactical board.</h1>
             <p>Checking Player, Coach, Captain, and Full-Court access.</p>
           </div>
         </section>

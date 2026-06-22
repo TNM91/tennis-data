@@ -8,6 +8,8 @@ const studioSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTa
 describe('Tactical Studio player access', () => {
   it('lets Player users open Tactics Tools without requiring Coach', () => {
     expect(gateSource).toContain('access.canUseAdvancedPlayerInsights')
+    expect(gateSource).toContain('Loading your tactical board.')
+    expect(gateSource).not.toContain('Loading your tactical workspace.')
     expect(gateSource).toContain('TIQ Tactical Studio is part of Player, Coach, Captain, and Full-Court access.')
     expect(gateSource).toContain('planId="player_plus"')
     expect(gateSource).toContain('Unlock TIQ Tactical Studio with Player.')
