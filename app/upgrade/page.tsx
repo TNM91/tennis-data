@@ -50,7 +50,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   player_plus: {
     eyebrow: 'Player unlock',
     title: 'Activate My Lab for your game.',
-    body: 'Continue with Player when your game, matchup prep, follows, Level Up work, and tennis messages need one personal home.',
+    body: 'Continue with Player when My Lab should connect your game, matchup prep, follows, Level Up work, and tennis messages.',
     action: 'Continue with Player',
     checkoutAction: 'Unlock Player',
     setupAction: 'Preview Player setup',
@@ -58,7 +58,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   coach: {
     eyebrow: 'Coach unlock',
     title: 'Activate Coach Hub for player development.',
-    body: 'Continue with Coach when lessons, drill assignments, player development tracking, reviews, resources, scheduling, and tactical boards need one flow.',
+    body: 'Continue with Coach when lessons need a clearer loop for drill assignments, development tracking, reviews, resources, scheduling, and tactical boards.',
     action: 'Continue with Coach',
     checkoutAction: 'Unlock Coach',
     setupAction: 'Preview Coach',
@@ -66,7 +66,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   captain: {
     eyebrow: 'Captain unlock',
     title: 'Activate Team Hub for match week.',
-    body: 'Continue with Captain when Team Hub lineup decisions, scouting, readiness, and team communication need one cleaner flow.',
+    body: 'Continue with Captain when Team Hub should connect lineup decisions, scouting, readiness, and team communication for match week.',
     action: 'Continue with Team Hub',
     checkoutAction: 'Unlock Captain',
     setupAction: 'Preview Team Hub',
@@ -74,7 +74,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   league: {
     eyebrow: 'League unlock',
     title: 'Activate League Office for the season.',
-    body: 'Continue with League Office when players or teams, schedules, scores, standings, visibility, and corrections need one organized competition tool.',
+    body: 'Continue with League Office when players or teams, schedules, scores, standings, visibility, and corrections need organized season tools.',
     action: 'Continue with League Office',
     checkoutAction: 'Unlock League',
     setupAction: 'Preview League Office',
@@ -82,7 +82,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   full_court: {
     eyebrow: 'Full-Court unlock',
     title: 'Activate Full-Court for the complete toolkit.',
-    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations need one connected tennis operation.',
+    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations need the complete TenAceIQ toolkit.',
     action: 'Continue with Full-Court',
     checkoutAction: 'Unlock Full-Court',
     setupAction: 'Preview Full-Court',
@@ -125,7 +125,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
   player_plus: {
     title: 'Player is active. Start in My Lab.',
-    body: 'Open My Lab, use Level Up, improve the data behind your tennis read, and prep the next matchup from your player home.',
+    body: 'Open My Lab, use Level Up, improve the data behind your tennis read, and prep the next matchup from your player profile.',
     primaryAction: 'Open My Lab',
     secondaryAction: 'Start Level Up',
     secondaryHref: '/level-up',
