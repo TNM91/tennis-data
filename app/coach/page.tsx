@@ -948,7 +948,7 @@ function CoachContent() {
         active="/coach"
         planId="coach"
         headline="Unlock Coach to keep player development moving."
-        body="Coach Hub brings lesson plans, Tactical Studio boards, drill assignments, player development tracking, reviews, and scheduling into one place."
+        body="Coach Hub keeps lesson plans, Tactical Studio boards, drill assignments, player development tracking, reviews, and scheduling tied to the lesson loop."
         result="Assign the next step, review player proof, and support players between sessions without chasing scattered notes."
         ctaLabel="Unlock Coach"
         secondaryLabel="Compare Full-Court"
@@ -964,7 +964,7 @@ function CoachContent() {
           <div style={eyebrowStyle}>Coach Hub</div>
           <h1 style={titleStyle}>Assign the next step. Track the player. Support the work between lessons.</h1>
           <p style={bodyStyle}>
-            Coach is for private teachers, development coaches, and team coaches who need drills, proof, resources, and player follow-through in one place.
+            Coach is for private teachers, development coaches, and team coaches who need drills, proof, resources, and player follow-through between lessons.
             Team competition operations stay in Captain; Full-Court includes both.
           </p>
           <div style={heroActionsStyle}>
