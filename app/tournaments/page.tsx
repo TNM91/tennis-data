@@ -228,7 +228,7 @@ const tournamentNextActions = [
   {
     eyebrow: 'Run',
     title: 'Run the event desk',
-    body: 'Open Tournament Desk when entries, draws, court times, scores, results, and player updates need one operational home.',
+    body: 'Open Tournament Desk when entries, draws, court times, scores, results, and player updates need one tournament run sheet.',
     metrics: [
       { label: 'Desk', value: 'Full-Court' },
       { label: 'Results', value: 'Reviewable' },
@@ -372,7 +372,7 @@ const tournamentDiscoveryCards = [
   },
   {
     title: 'Run an event',
-    body: 'Open Tournament Desk when entries, draws, courts, results, and notifications need one place.',
+    body: 'Open Tournament Desk when entries, draws, courts, results, and notifications need one tournament run sheet.',
     metrics: [
       { label: 'Desk', value: 'Full-Court' },
       { label: 'Results', value: 'Reviewable' },
