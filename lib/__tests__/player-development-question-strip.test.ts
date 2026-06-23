@@ -11,7 +11,7 @@ describe('player development question strip', () => {
     expect(systemSource).toContain('{PRODUCT_MOTTO} Choose what to work on, prove one habit, and keep the next step visible')
     expect(systemSource).toContain('PlayerQuestionStrip')
     expect(systemSource).toContain('Find the next useful tennis move.')
-    expect(systemSource).toContain('Start with the question in your head')
+    expect(systemSource).toContain('Start with the tennis need you have today')
     expect(systemSource).toContain('What should I work on?')
     expect(systemSource).toContain('How am I improving?')
     expect(systemSource).toContain('What matchups matter?')
@@ -26,7 +26,7 @@ describe('player development question strip', () => {
     expect(systemSource).toContain("cta: 'Choose a focus'")
     expect(systemSource).toContain("cta: 'Check progress'")
     expect(systemSource).toContain("cta: 'Prep the match'")
-    expect(systemSource).toContain("cta: 'Open Level Up'")
+    expect(systemSource).toContain("cta: 'Start Level Up'")
   })
 
   it('keeps the question cards mobile-safe and tappable', () => {

@@ -56,13 +56,13 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
                 </p>
                 <div className={styles.actions}>
                   <Link className="button-primary" href={`/player-development/${identity.slug}/level-up`}>
-                    Start Level Up Portal
+                    Start Level Up Today
                   </Link>
                   <Link className="button-secondary" href={`/player-development/${identity.slug}/workbook`}>
-                    Player workbook
+                    Print Workbook
                   </Link>
                   <Link className="button-secondary" href={`/player-development/${identity.slug}/coach-planner`}>
-                    Coach / Lesson Plan
+                    Coach Planner
                   </Link>
                 </div>
               </div>
@@ -184,7 +184,7 @@ function PlayerQuestionStrip({ identity }: { identity: PlayerDevelopmentIdentity
       <div className={styles.playerQuestionStripHeader}>
         <p className={styles.kicker}>Player quick starts</p>
         <h2 id="player-question-strip-title">Find the next useful tennis move.</h2>
-        <p>Start with the question in your head, then open the path that gets you back to court work fastest.</p>
+        <p>Start with the tennis need you have today, then open the path that gets you back to court work fastest.</p>
       </div>
       <div className={styles.playerQuestionGrid}>
         {cards.map((card) => (
@@ -233,7 +233,7 @@ function getPlayerQuestionCards(identity: PlayerDevelopmentIdentity) {
       question: 'What drills or resources can help me level up faster?',
       answer: 'Open Level Up for the recommended cards, coach assignments, favorites, and proof history tied to this player path.',
       href: `/player-development/${identity.slug}/level-up`,
-      cta: 'Open Level Up',
+      cta: 'Start Level Up',
     },
   ] satisfies Array<{
     icon: TiqFeatureIconName
