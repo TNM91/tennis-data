@@ -61,7 +61,7 @@ const portalLanes: PortalLane[] = [
     route: '/mylab',
     planRoute: '/mylab',
     icon: 'myLab',
-    paths: ['/mylab', '/profile', '/messages', '/data-assist', '/matchup', '/level-up', '/player-development', '/tactics'],
+    paths: ['/mylab', '/profile', '/messages', '/data-assist', '/matchup', '/level-up', '/player-development', '/resources', '/tactics'],
     searchScope: 'players',
     tasks: [
       { title: 'Open My Lab', detail: 'Your scorecard, goals, follows, and next read.', metric: 'Player', href: '/mylab', icon: 'myLab', requiredRoute: '/mylab' },

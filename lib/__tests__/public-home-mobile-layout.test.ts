@@ -118,6 +118,7 @@ describe('Public home mobile layout guards', () => {
   it('keeps public hub routes mapped to the right mobile portal lane', () => {
     expect(portalToolbarSource).toContain("paths: ['/coach', '/coaches', '/player-development', '/tactics']")
     expect(portalToolbarSource).toContain("paths: ['/captain', '/manage', '/compete/teams']")
+    expect(portalToolbarSource).toContain("'/player-development', '/resources', '/tactics'")
     expect(portalToolbarSource).toContain("paths: ['/leagues-and-tournaments', '/league-coordinator', '/tournaments'")
   })
 })
