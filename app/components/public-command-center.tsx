@@ -235,27 +235,31 @@ export function CommandHero({
   return (
     <section style={showBoard ? heroStyle : heroSingleColumnStyle}>
       <div style={heroCopyStyle}>
-        <div style={eyebrowStyle}>{eyebrow}</div>
-        <h1 style={heroTitleStyle}>{title}</h1>
-        <p style={heroBodyStyle}>{body}</p>
-        {showSearch ? <UniversalSearch placeholder={searchPlaceholder} /> : null}
-        {(primary || secondary) ? (
-          <div style={actionRowStyle}>
-            {primary ? (
-              <TrackedProductLink href={primary.href} style={primaryButtonStyle} event={getPublicLinkEvent(primary.label, primary.href, 'hero-primary')}>
-                {primary.label}
-              </TrackedProductLink>
-            ) : null}
-            {secondary ? (
-              <TrackedProductLink href={secondary.href} style={ghostButtonStyle} event={getPublicLinkEvent(secondary.label, secondary.href, 'hero-secondary')}>
-                {secondary.label}
-              </TrackedProductLink>
-            ) : null}
-          </div>
-        ) : null}
+        <span aria-hidden="true" style={heroCopyBrandMarkStyle} />
+        <div style={heroCopyContentStyle}>
+          <div style={eyebrowStyle}>{eyebrow}</div>
+          <h1 style={heroTitleStyle}>{title}</h1>
+          <p style={heroBodyStyle}>{body}</p>
+          {showSearch ? <UniversalSearch placeholder={searchPlaceholder} /> : null}
+          {(primary || secondary) ? (
+            <div style={actionRowStyle}>
+              {primary ? (
+                <TrackedProductLink href={primary.href} style={primaryButtonStyle} event={getPublicLinkEvent(primary.label, primary.href, 'hero-primary')}>
+                  {primary.label}
+                </TrackedProductLink>
+              ) : null}
+              {secondary ? (
+                <TrackedProductLink href={secondary.href} style={ghostButtonStyle} event={getPublicLinkEvent(secondary.label, secondary.href, 'hero-secondary')}>
+                  {secondary.label}
+                </TrackedProductLink>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
       {showBoard ? (
         <div style={heroPanelStyle}>
+          <span aria-hidden="true" style={heroPanelBrandMarkStyle} />
           <div style={heroPanelHeaderStyle}>
             <span style={panelKickerStyle}>Platform paths</span>
             <strong style={panelTitleStyle}>Start with the tennis need in front of you.</strong>
@@ -556,6 +560,7 @@ const heroSingleColumnStyle: CSSProperties = {
 }
 
 const heroCopyStyle: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   alignContent: 'center',
   gap: 16,
@@ -567,9 +572,32 @@ const heroCopyStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.18)',
   background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(7,20,40,0.90))',
   boxShadow: '0 30px 86px rgba(2, 8, 23, 0.42), inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflow: 'hidden',
+}
+
+const heroCopyBrandMarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(14px, 4vw, 36px)',
+  bottom: 'clamp(12px, 4vw, 34px)',
+  width: 'min(58%, 420px)',
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  opacity: 0.12,
+  mixBlendMode: 'screen',
+  pointerEvents: 'none',
+  zIndex: 0,
+}
+
+const heroCopyContentStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
 }
 
 const heroPanelStyle: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   alignContent: 'start',
   gap: 14,
@@ -583,9 +611,25 @@ const heroPanelStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 760,
+  overflow: 'hidden',
+}
+
+const heroPanelBrandMarkStyle: CSSProperties = {
+  position: 'absolute',
+  right: 'clamp(14px, 3vw, 28px)',
+  top: 'clamp(26px, 5vw, 58px)',
+  width: 'min(70%, 430px)',
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  opacity: 0.2,
+  mixBlendMode: 'screen',
+  pointerEvents: 'none',
+  zIndex: 0,
 }
 
 const heroPanelHeaderStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'grid',
   gap: 8,
   minWidth: 0,
@@ -914,6 +958,7 @@ const storyCardStyle: CSSProperties = {
 
 const miniCourtStyle: CSSProperties = {
   position: 'relative',
+  zIndex: 1,
   minHeight: 176,
   borderRadius: 8,
   border: '2px solid rgba(155,225,29,0.44)',
@@ -978,6 +1023,8 @@ const courtBoardTitleStyle: CSSProperties = {
 }
 
 const heroBoardGridStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: 10,
@@ -1014,6 +1061,8 @@ const heroBoardActionDetailStyle: CSSProperties = {
 }
 
 const panelFooterStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   margin: 0,
   paddingTop: 2,
   color: 'var(--shell-copy-muted)',

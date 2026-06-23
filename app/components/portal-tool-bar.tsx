@@ -244,6 +244,7 @@ export default function PortalToolBar() {
     >
       <div
         style={{
+          position: 'relative',
           width: 'min(1280px, 100%)',
           margin: '0 auto',
           display: 'grid',
@@ -259,7 +260,17 @@ export default function PortalToolBar() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+        <span
+          aria-hidden="true"
+          style={{
+            ...portalBrandMarkStyle,
+            top: publicVisitor && isMobile ? 28 : 34,
+            right: publicVisitor && isMobile ? 12 : 24,
+            width: publicVisitor && isMobile ? 'min(72vw, 300px)' : 'min(42vw, 520px)',
+            opacity: publicVisitor ? (isMobile ? 0.14 : 0.16) : 0.1,
+          }}
+        />
+        <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 6, minWidth: 0 }}>
           <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
           <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
             {authenticated ? 'What do we want to work on today?' : PLATFORM_POSITIONING}
@@ -269,6 +280,8 @@ export default function PortalToolBar() {
         <nav
           aria-label="Choose a TenAceIQ tool"
           style={{
+            position: 'relative',
+            zIndex: 1,
             display: 'grid',
             gridTemplateColumns: publicVisitor && isMobile
               ? screenWidth < 360
@@ -301,6 +314,8 @@ export default function PortalToolBar() {
         <form
           onSubmit={handleSearch}
           style={{
+            position: 'relative',
+            zIndex: 1,
             display: 'grid',
             gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
             gap: 12,
@@ -325,6 +340,8 @@ export default function PortalToolBar() {
         {visibleTasks.length > 0 ? (
           <div
             style={{
+              position: 'relative',
+              zIndex: 1,
               display: 'grid',
               gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
               gap: 10,
@@ -517,6 +534,15 @@ const publicPortalTitleStyle: CSSProperties = {
 const publicPortalSubtitleStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.35,
+}
+
+const portalBrandMarkStyle: CSSProperties = {
+  position: 'absolute',
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  mixBlendMode: 'screen',
+  pointerEvents: 'none',
+  zIndex: 0,
 }
 
 const laneCardStyle: CSSProperties = {
