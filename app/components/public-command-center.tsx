@@ -262,7 +262,7 @@ export function CommandHero({
           <span aria-hidden="true" style={heroPanelBrandMarkStyle} />
           <div style={heroPanelHeaderStyle}>
             <span style={panelKickerStyle}>Platform paths</span>
-            <strong style={panelTitleStyle}>Start with the tennis need in front of you.</strong>
+            <strong style={panelTitleStyle}>Start with the tennis need you have today.</strong>
             <p style={panelCopyStyle}>Search is the front door. These shortcuts move the tennis community toward the next action worth taking.</p>
           </div>
           <div style={miniCourtStyle} aria-label="TenAceIQ portal board preview">
