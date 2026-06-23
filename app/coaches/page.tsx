@@ -49,10 +49,10 @@ export default function CoachesPage() {
           <div style={coachQuickPathHeaderStyle}>
             <p style={coachQuickPathEyebrowStyle}>Coach quick path</p>
             <h2 id="coach-quick-path-title" style={coachQuickPathTitleStyle}>
-              What coaching need needs attention?
+              What does the player need next?
             </h2>
             <p style={coachQuickPathTextStyle}>
-              Start with the player need, then open the smallest action that keeps development moving.
+              Start with the player in front of you, then open the smallest action that keeps development moving.
             </p>
           </div>
           <div style={coachQuickPathGridStyle}>

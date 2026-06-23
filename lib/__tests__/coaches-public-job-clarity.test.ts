@@ -15,9 +15,10 @@ describe('public coaches job clarity', () => {
 
   it('gives coaches and players a fast public quick path', () => {
     expect(source).toContain('Coach quick path')
-    expect(source).toContain('What coaching need needs attention?')
-    expect(source).toContain('Start with the player need, then open the smallest action that keeps development moving.')
+    expect(source).toContain('What does the player need next?')
+    expect(source).toContain('Start with the player in front of you, then open the smallest action that keeps development moving.')
     expect(source).not.toContain('What coaching job needs attention?')
+    expect(source).not.toContain('What coaching need needs attention?')
     expect(source).toContain('coachQuickPaths.map((path)')
     expect(source).toContain('How can I assign drills?')
     expect(source).toContain('How can I track player development?')
