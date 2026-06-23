@@ -20,6 +20,8 @@ describe('Coach Hub support path', () => {
     expect(source).toContain("href: '#coach-linked-dashboard'")
     expect(source).toContain("href: '/resources?q=coach%20drills%20skills'")
     expect(source).toContain("href: '#coach-student-board'")
+    expect(source).toContain("title: 'Open the player bench'")
+    expect(source).toContain("cta: 'Open player bench'")
   })
 
   it('keeps the path tappable and measurable on mobile', () => {
@@ -27,6 +29,7 @@ describe('Coach Hub support path', () => {
     expect(source).toContain('data-coach-path-job={path.job}')
     expect(source).toContain('aria-label={`${path.cta}: ${path.question}`}')
     expect(source).toContain('id="coach-linked-dashboard"')
+    expect(source).toContain('aria-label="Coach player bench"')
   })
 
   it('keeps linked player cards readable without creating a long phone column', () => {
@@ -37,5 +40,17 @@ describe('Coach Hub support path', () => {
     expect(source).toContain("scrollSnapType: 'x mandatory'")
     expect(source).toContain("flex: '0 0 min(86vw, 340px)'")
     expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+  })
+
+  it('turns the linked-player dashboard into a direct player bench', () => {
+    expect(source).toContain('<div style={eyebrowStyle}>Player bench</div>')
+    expect(source).toContain('Open a player, then move their work forward.')
+    expect(source).toContain('Your bench keeps each player profile, development path, active assignment, setup link, and coach contact path in one place.')
+    expect(source).toContain('function getCoachPlayerProfileHref(student: CoachStudentLink)')
+    expect(source).toContain("`/players/${encodeURIComponent(student.playerId)}`")
+    expect(source).toContain('Open player hub')
+    expect(source).toContain('Current work')
+    expect(source).toContain('Development path')
+    expect(source).toContain('playerProfileRouteStyle')
   })
 })

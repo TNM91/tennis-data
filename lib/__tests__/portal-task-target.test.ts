@@ -5,6 +5,8 @@ import { getPortalTaskTarget } from '../portal-task-target'
 const inactiveEntitlements: ProductEntitlementSnapshot = {
   playerPlusSubscriptionActive: false,
   playerPlusSubscriptionStatus: 'inactive',
+  coachSubscriptionActive: false,
+  coachSubscriptionStatus: 'inactive',
   captainSubscriptionActive: false,
   captainSubscriptionStatus: 'inactive',
   tiqTeamLeagueEntryEnabled: false,
@@ -93,6 +95,48 @@ describe('portal task targets', () => {
       accessPending: false,
       profileLinked: true,
     })).toEqual({ href: '/captain/lineup-builder', title: 'Build lineup', locked: false, requiredPlan: 'captain' })
+  })
+
+  it('keeps Coach Bench anchored for active coaches', () => {
+    const access = buildProductAccessState('member', {
+      ...inactiveEntitlements,
+      coachSubscriptionActive: true,
+      coachSubscriptionStatus: 'active',
+    })
+
+    expect(getPortalTaskTarget({
+      href: '/coach#coach-linked-dashboard',
+      requiredRoute: '/coach',
+      title: 'Player bench',
+      access,
+      authenticated: true,
+      accessPending: false,
+      profileLinked: true,
+    })).toEqual({
+      href: '/coach#coach-linked-dashboard',
+      title: 'Player bench',
+      locked: false,
+      requiredPlan: 'coach',
+    })
+  })
+
+  it('preserves the Coach Bench anchor through the locked unlock path', () => {
+    const access = buildProductAccessState('member', inactiveEntitlements)
+
+    expect(getPortalTaskTarget({
+      href: '/coach#coach-linked-dashboard',
+      requiredRoute: '/coach',
+      title: 'Player bench',
+      access,
+      authenticated: true,
+      accessPending: false,
+      profileLinked: true,
+    })).toEqual({
+      href: '/upgrade?plan=coach&next=%2Fcoach%23coach-linked-dashboard',
+      title: 'Player bench',
+      locked: true,
+      requiredPlan: 'coach',
+    })
   })
 
   it('routes locked tournament entry through the Full-Court path', () => {

@@ -35,7 +35,7 @@ export function getPortalTaskTarget({
   }
 
   return {
-    href: target.locked ? target.href : href,
+    href: target.locked && target.requiredPlan ? getPlanUnlockHref(target.requiredPlan, href) : href,
     title,
     locked: target.locked,
     requiredPlan: target.requiredPlan,

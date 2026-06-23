@@ -121,10 +121,10 @@ const COACH_SUPPORT_PATHS = [
   {
     job: 'track_development',
     question: 'How can I track player development?',
-    title: 'Review the player queue',
+    title: 'Open the player bench',
     body: 'See linked players, active assignments, proof to review, due pressure, and the next focus before the next lesson.',
     href: '#coach-linked-dashboard',
-    cta: 'Review player queue',
+    cta: 'Open player bench',
     icon: 'playerRatings',
   },
   {
@@ -1294,13 +1294,13 @@ function CoachContent() {
         </section>
       ) : null}
 
-      <section id="coach-linked-dashboard" style={linkedDashboardStyle} aria-label="Linked players dashboard">
+      <section id="coach-linked-dashboard" style={linkedDashboardStyle} aria-label="Coach player bench">
         <div style={responsiveLinkedDashboardHeaderStyle}>
           <div>
-            <div style={eyebrowStyle}>Linked players</div>
-            <h2 style={sectionTitleStyle}>Know who needs the next coaching move.</h2>
+            <div style={eyebrowStyle}>Player bench</div>
+            <h2 style={sectionTitleStyle}>Open a player, then move their work forward.</h2>
             <p style={bodyStyle}>
-              Track setup status, coach-linked access, assignment pressure, proof to review, and the next focus before the next lesson.
+              Your bench keeps each player profile, development path, active assignment, setup link, and coach contact path in one place.
             </p>
           </div>
           <div style={responsiveLinkedMetricGridStyle}>
@@ -1327,60 +1327,79 @@ function CoachContent() {
           </div>
         </div>
         <div style={responsiveLinkedCardsGridStyle}>
-          {linkedPlayerCards.length ? linkedPlayerCards.map((card) => (
-            <article key={card.student.id} style={responsiveLinkedPlayerCardStyle}>
-              <div style={responsiveLinkedCardTopStyle}>
-                <div>
-                  <strong>{card.student.playerName}</strong>
-                  <span>{getIdentityTitle(card.student.identitySlug)} / {card.student.levelLabel || 'Development path'}</span>
+          {linkedPlayerCards.length ? linkedPlayerCards.map((card) => {
+            const profileHref = getCoachPlayerProfileHref(card.student)
+            const assignmentCourtHref = card.latestAssignment ? buildCoachAssignmentCourtHref(card.latestAssignment, card.student) : ''
+
+            return (
+              <article id={`coach-player-${card.student.id}`} key={card.student.id} style={responsiveLinkedPlayerCardStyle}>
+                <div style={responsiveLinkedCardTopStyle}>
+                  <div>
+                    <strong>{card.student.playerName}</strong>
+                    <span>{getIdentityTitle(card.student.identitySlug)} / {card.student.levelLabel || 'Development path'}</span>
+                  </div>
+                  <span style={connectionBadgeStyle(card.connection)}>{card.connectionLabel}</span>
                 </div>
-                <span style={connectionBadgeStyle(card.connection)}>{card.connectionLabel}</span>
-              </div>
-              <div style={linkedBadgeRowStyle}>
-                <span style={pressureBadgeStyle(card.dueTone)}>{card.dueLabel}</span>
-                <span style={miniBadgeStyle}>{card.activeAssignments} active</span>
-                {card.needsReview ? <span style={reviewBadgeStyle}>Needs review</span> : null}
-              </div>
-              <p style={studentNextStyle}>
-                {card.latestAssignment
-                  ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
-                  : card.pendingInvite
-                    ? 'Invite pending. Send setup link, then create the first Level Up assignment.'
-                    : 'Create a measurable next action from the last lesson.'}
-              </p>
-              <div style={studentActionRowStyle}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAssignmentStudentId(card.student.id)
-                    setAssignmentTitle('')
-                    setAssignmentFocus('')
-                    setWorkspaceMessage(`Assignment form is ready for ${card.student.playerName}.`)
-                  }}
-                  style={inlineActionButtonStyle}
-                >
-                  Assign work
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setContactStudentId(card.student.id)
-                    setWorkspaceMessage(`Quick contact is ready for ${card.student.playerName}.`)
-                  }}
-                  style={inlineActionButtonStyle}
-                >
-                  Contact
-                </button>
-                {card.student.playerUserId ? (
-                  <Link href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)} style={studentActionStyle}>
-                    Message
+                <div style={playerProfileRouteStyle}>
+                  <Link href={profileHref} style={playerProfileLinkStyle} aria-label={`Open ${card.student.playerName} player hub`}>
+                    Open player hub
                   </Link>
-                ) : card.pendingInvite ? (
-                  <a href={card.pendingInvite.inviteHref} style={studentActionStyle}>Setup link</a>
-                ) : null}
-              </div>
-            </article>
-          )) : (
+                  <span>{card.student.playerId ? 'TIQ profile' : 'Development path'}</span>
+                </div>
+                <div style={linkedBadgeRowStyle}>
+                  <span style={pressureBadgeStyle(card.dueTone)}>{card.dueLabel}</span>
+                  <span style={miniBadgeStyle}>{card.activeAssignments} active</span>
+                  {card.needsReview ? <span style={reviewBadgeStyle}>Needs review</span> : null}
+                </div>
+                <p style={studentNextStyle}>
+                  {card.latestAssignment
+                    ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
+                    : card.pendingInvite
+                      ? 'Invite pending. Send setup link, then create the first Level Up assignment.'
+                      : 'Create a measurable next action from the last lesson.'}
+                </p>
+                <div style={studentActionRowStyle}>
+                  {assignmentCourtHref ? (
+                    <Link href={assignmentCourtHref} style={studentActionStyle}>
+                      Current work
+                    </Link>
+                  ) : null}
+                  <Link href={getCoachPlannerHref(card.student.identitySlug)} style={studentActionStyle}>
+                    Development path
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssignmentStudentId(card.student.id)
+                      setAssignmentTitle('')
+                      setAssignmentFocus('')
+                      setWorkspaceMessage(`Assignment form is ready for ${card.student.playerName}.`)
+                    }}
+                    style={inlineActionButtonStyle}
+                  >
+                    Assign work
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContactStudentId(card.student.id)
+                      setWorkspaceMessage(`Quick contact is ready for ${card.student.playerName}.`)
+                    }}
+                    style={inlineActionButtonStyle}
+                  >
+                    Contact
+                  </button>
+                  {card.student.playerUserId ? (
+                    <Link href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)} style={studentActionStyle}>
+                      Message
+                    </Link>
+                  ) : card.pendingInvite ? (
+                    <a href={card.pendingInvite.inviteHref} style={studentActionStyle}>Setup link</a>
+                  ) : null}
+                </div>
+              </article>
+            )
+          }) : (
             <article style={linkedEmptyStyle}>
               <strong>No linked players yet.</strong>
               <span>Add a student below, then send a setup link when you want the Player layer connected.</span>
@@ -2702,6 +2721,12 @@ function getAssignmentLevelUpCardId(assignment: CoachAssignment, session: LevelU
   return LEVEL_UP_CARDS[0]?.id ?? ''
 }
 
+function getCoachPlayerProfileHref(student: CoachStudentLink) {
+  return student.playerId
+    ? `/players/${encodeURIComponent(student.playerId)}`
+    : getCoachPlannerHref(student.identitySlug)
+}
+
 function getCoachAssignmentTemplateIdForCard(cardId: string) {
   const exactTemplate = COACH_ASSIGNMENT_TEMPLATES.find((template) => template.id === cardId)
   if (exactTemplate) return exactTemplate.id
@@ -3451,6 +3476,31 @@ const linkedBadgeRowStyle: CSSProperties = {
   gap: 7,
   alignItems: 'center',
   minWidth: 0,
+}
+
+const playerProfileRouteStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(116,190,255,0.05))',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  lineHeight: 1.25,
+}
+
+const playerProfileLinkStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const miniBadgeStyle: CSSProperties = {

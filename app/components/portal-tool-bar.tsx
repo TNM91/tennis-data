@@ -98,7 +98,7 @@ const portalLanes: PortalLane[] = [
     paths: ['/coach', '/coaches', '/player-development', '/tactics'],
     searchScope: 'players',
     tasks: [
-      { title: 'Coach Hub', detail: 'Review students, assignments, due work, and coach feedback.', metric: 'Coach', href: '/coach', icon: 'scenarioBuilder', requiredRoute: '/coach' },
+      { title: 'Player bench', detail: 'Open your roster, player profiles, assignments, and next coaching moves.', metric: 'Coach', href: '/coach#coach-linked-dashboard', icon: 'playerRatings', requiredRoute: '/coach' },
       { title: 'Tactical Studio', detail: 'Map the drill or pattern before assigning it.', metric: 'Coach', href: '/tactics', icon: 'matchPrep', requiredRoute: '/coach' },
       { title: 'Level Up library', detail: 'Assign training modules and keep player work aligned.', metric: 'Coach', href: '/level-up', icon: 'reports', requiredRoute: '/coach' },
       { title: 'Coach-player messages', detail: 'Keep lesson follow-up tied to player goals and assignments.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/coach' },
@@ -655,8 +655,12 @@ function getMobileLaneLabel(laneId: PortalLaneId) {
 }
 
 function getMobileTaskLabel(title: string) {
+  if (title === 'Player bench') return 'Bench'
   if (title === 'Open My Lab') return 'My Lab'
   if (title === 'Tactics Tools') return 'Tactics'
+  if (title === 'Tactical Studio') return 'Tactics'
+  if (title === 'Level Up library') return 'Level Up'
+  if (title === 'Coach-player messages') return 'Messages'
   if (title === 'Fix tennis context') return 'Fix context'
   if (title === 'Prep matchup') return 'Match prep'
   if (title === 'Shared calendar') return 'Calendar'

@@ -121,6 +121,7 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(portalToolbarSource, 'mobilePortalActionPaletteStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(styleBlock(portalToolbarSource, 'mobilePortalTileStyle')).toContain('gridTemplateRows')
     expect(styleBlock(portalToolbarSource, 'mobilePortalTileLabelStyle')).toContain('fontSize: 10.5')
+    expect(portalToolbarSource).toContain("if (title === 'Player bench') return 'Bench'")
     expect(portalToolbarSource).toContain("if (title === 'Open My Lab') return 'My Lab'")
     expect(portalToolbarSource).toContain("if (title === 'Fix tennis context') return 'Fix context'")
   })

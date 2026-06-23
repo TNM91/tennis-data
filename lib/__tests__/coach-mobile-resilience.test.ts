@@ -24,4 +24,16 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('setStudentPhone(cleanText(draft.studentPhone))')
     expect(coachSource).toContain('function normalizeContactPreference')
   })
+
+  it('keeps the phone coach bench one tap away from player profile work', () => {
+    const portalSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
+
+    expect(portalSource).toContain("title: 'Player bench'")
+    expect(portalSource).toContain("href: '/coach#coach-linked-dashboard'")
+    expect(portalSource).toContain("if (title === 'Player bench') return 'Bench'")
+    expect(coachSource).toContain('aria-label="Coach player bench"')
+    expect(coachSource).toContain('Open player hub')
+    expect(coachSource).toContain('Current work')
+    expect(coachSource).toContain('getCoachPlayerProfileHref')
+  })
 })
