@@ -47,11 +47,23 @@ import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
 const CUSTOM_ASSIGNMENT_TEMPLATE_ID = 'custom-assignment'
+const DEFAULT_STUDENT_IDENTITY_ID = 'relentless-competitor-4-0'
+const COACH_STUDENT_DRAFT_KEY = 'tenaceiq.coach.studentDraft.v1'
 
 type CoachCalendarFeedStatus = {
   active: boolean
   createdAt: string | null
   lastUsedAt: string | null
+}
+
+type CoachStudentDraft = {
+  studentName: string
+  studentLevel: string
+  studentIdentity: string
+  studentCustomIdentity: string
+  inviteEmail: string
+  studentPhone: string
+  contactPreference: CoachStudentLink['contactPreference']
 }
 
 const FIRST_ASSIGNMENT_STARTERS = [
@@ -208,11 +220,12 @@ function CoachContent() {
   const [levelUpSessions, setLevelUpSessions] = useState<LevelUpSession[]>([])
   const [studentName, setStudentName] = useState('')
   const [studentLevel, setStudentLevel] = useState('')
-  const [studentIdentity, setStudentIdentity] = useState('relentless-competitor-4-0')
+  const [studentIdentity, setStudentIdentity] = useState(DEFAULT_STUDENT_IDENTITY_ID)
   const [studentCustomIdentity, setStudentCustomIdentity] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [studentPhone, setStudentPhone] = useState('')
   const [contactPreference, setContactPreference] = useState<CoachStudentLink['contactPreference']>('in_app')
+  const [studentDraftHydrated, setStudentDraftHydrated] = useState(false)
   const [invites, setInvites] = useState<CoachStudentInvite[]>([])
   const [assignmentStudentId, setAssignmentStudentId] = useState('')
   const [assignmentTitle, setAssignmentTitle] = useState('')
@@ -243,6 +256,55 @@ function CoachContent() {
   useEffect(() => {
     setShareOrigin(window.location.origin)
   }, [])
+
+  useEffect(() => {
+    try {
+      const rawDraft = window.localStorage.getItem(COACH_STUDENT_DRAFT_KEY)
+      if (rawDraft) {
+        const draft = JSON.parse(rawDraft) as Partial<CoachStudentDraft>
+        setStudentName(cleanText(draft.studentName))
+        setStudentLevel(cleanText(draft.studentLevel))
+        setStudentIdentity(cleanText(draft.studentIdentity) || DEFAULT_STUDENT_IDENTITY_ID)
+        setStudentCustomIdentity(cleanText(draft.studentCustomIdentity))
+        setInviteEmail(cleanText(draft.inviteEmail))
+        setStudentPhone(cleanText(draft.studentPhone))
+        setContactPreference(normalizeContactPreference(draft.contactPreference))
+      }
+    } catch {
+      window.localStorage.removeItem(COACH_STUDENT_DRAFT_KEY)
+    } finally {
+      setStudentDraftHydrated(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!studentDraftHydrated) return
+
+    const draft: CoachStudentDraft = {
+      studentName,
+      studentLevel,
+      studentIdentity,
+      studentCustomIdentity,
+      inviteEmail,
+      studentPhone,
+      contactPreference,
+    }
+    const hasDraft =
+      studentName.trim() ||
+      studentLevel.trim() ||
+      studentCustomIdentity.trim() ||
+      inviteEmail.trim() ||
+      studentPhone.trim() ||
+      studentIdentity !== DEFAULT_STUDENT_IDENTITY_ID ||
+      contactPreference !== 'in_app'
+
+    if (!hasDraft) {
+      window.localStorage.removeItem(COACH_STUDENT_DRAFT_KEY)
+      return
+    }
+
+    window.localStorage.setItem(COACH_STUDENT_DRAFT_KEY, JSON.stringify(draft))
+  }, [contactPreference, inviteEmail, studentCustomIdentity, studentDraftHydrated, studentIdentity, studentLevel, studentName, studentPhone])
 
   const loadCoachWorkspace = useCallback(async () => {
     if (!session?.access_token || !access.canUseCoachWorkflow) return
@@ -1074,79 +1136,85 @@ function CoachContent() {
 
   return (
     <main style={pageStyle}>
-      <section style={heroStyle}>
-        <div style={heroCopyStyle}>
-          <div style={eyebrowStyle}>Coach Hub</div>
-          <h1 style={titleStyle}>Assign the next step. Track the player. Support the work between lessons.</h1>
-          <p style={bodyStyle}>
-            Coach is for private teachers, development coaches, and team coaches who need drills, proof, resources, and player follow-through between lessons.
-            Team competition operations stay in Captain; Full-Court includes both.
-          </p>
-          <div style={heroActionsStyle}>
-            <Link href="/tactics" style={primaryLinkStyle}>Open Tactical Studio</Link>
-            <Link href="/player-development" style={secondaryLinkStyle}>Open development paths</Link>
-          </div>
-        </div>
-        <div style={heroPanelStyle}>
-          <TiqFeatureIcon name="scenarioBuilder" size="xl" variant="surface" />
-          <strong>Player connection</strong>
-          <span>Standalone guides stay useful on paper. Linked players get check-ins, assignments, reviewed proof, and progress history inside TenAceIQ.</span>
-        </div>
-      </section>
+      {isMobile ? (
+        <h1 style={visuallyHiddenStyle}>Coach Hub</h1>
+      ) : (
+        <>
+          <section style={heroStyle}>
+            <div style={heroCopyStyle}>
+              <div style={eyebrowStyle}>Coach Hub</div>
+              <h1 style={titleStyle}>Assign the next step. Track the player. Support the work between lessons.</h1>
+              <p style={bodyStyle}>
+                Coach is for private teachers, development coaches, and team coaches who need drills, proof, resources, and player follow-through between lessons.
+                Team competition operations stay in Captain; Full-Court includes both.
+              </p>
+              <div style={heroActionsStyle}>
+                <Link href="/tactics" style={primaryLinkStyle}>Open Tactical Studio</Link>
+                <Link href="/player-development" style={secondaryLinkStyle}>Open development paths</Link>
+              </div>
+            </div>
+            <div style={heroPanelStyle}>
+              <TiqFeatureIcon name="scenarioBuilder" size="xl" variant="surface" />
+              <strong>Player connection</strong>
+              <span>Standalone guides stay useful on paper. Linked players get check-ins, assignments, reviewed proof, and progress history inside TenAceIQ.</span>
+            </div>
+          </section>
 
-      <section style={coachLoopStripStyle} aria-label="Coach player loop">
-        {coachLoopItems.map((item) => (
-          <a key={item.label} href={item.href} style={coachLoopItemStyle}>
-            <span style={coachLoopMetricStyle}>{item.label} / {item.value}</span>
-            <strong>{item.title}</strong>
-            <small>{item.body}</small>
-          </a>
-        ))}
-      </section>
+          <section style={coachLoopStripStyle} aria-label="Coach player loop">
+            {coachLoopItems.map((item) => (
+              <a key={item.label} href={item.href} style={coachLoopItemStyle}>
+                <span style={coachLoopMetricStyle}>{item.label} / {item.value}</span>
+                <strong>{item.title}</strong>
+                <small>{item.body}</small>
+              </a>
+            ))}
+          </section>
 
-      <section style={coachSupportPathStyle} aria-labelledby="coach-support-path-title">
-        <div style={coachSupportPathHeaderStyle}>
-          <div>
-            <div style={eyebrowStyle}>Coach support path</div>
-            <h2 id="coach-support-path-title" style={coachSupportPathTitleStyle}>{PRODUCT_MOTTO}</h2>
-          </div>
-          <p style={coachSupportPathIntroStyle}>
-            Start with the coaching question that keeps a player moving between sessions.
-          </p>
-        </div>
-        <div style={coachSupportPathGridStyle}>
-          {COACH_SUPPORT_PATHS.map((path) => (
-            <Link
-              key={path.job}
-              href={path.href}
-              style={coachSupportPathCardStyle}
-              data-coach-path-job={path.job}
-              aria-label={`${path.cta}: ${path.question}`}
-            >
-              <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
-              <span style={coachSupportPathCopyStyle}>
-                <em>{path.question}</em>
-                <strong>{path.title}</strong>
-                <span>{path.body}</span>
-                <span style={coachSupportPathCtaStyle}>{path.cta}</span>
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
+          <section style={coachSupportPathStyle} aria-labelledby="coach-support-path-title">
+            <div style={coachSupportPathHeaderStyle}>
+              <div>
+                <div style={eyebrowStyle}>Coach support path</div>
+                <h2 id="coach-support-path-title" style={coachSupportPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+              </div>
+              <p style={coachSupportPathIntroStyle}>
+                Start with the coaching question that keeps a player moving between sessions.
+              </p>
+            </div>
+            <div style={coachSupportPathGridStyle}>
+              {COACH_SUPPORT_PATHS.map((path) => (
+                <Link
+                  key={path.job}
+                  href={path.href}
+                  style={coachSupportPathCardStyle}
+                  data-coach-path-job={path.job}
+                  aria-label={`${path.cta}: ${path.question}`}
+                >
+                  <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
+                  <span style={coachSupportPathCopyStyle}>
+                    <em>{path.question}</em>
+                    <strong>{path.title}</strong>
+                    <span>{path.body}</span>
+                    <span style={coachSupportPathCtaStyle}>{path.cta}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
 
-      <section style={commandGridStyle} aria-label="Coach workflow">
-        {COACH_WORKSPACE_COMMANDS.map((command) => (
-          <Link key={command.title} href={command.href} style={commandCardStyle}>
-            <TiqFeatureIcon name={command.icon} size="md" variant="ghost" />
-            <span style={commandCopyStyle}>
-              <strong>{command.title}</strong>
-              <span>{command.detail}</span>
-              <em>{command.cta}</em>
-            </span>
-          </Link>
-        ))}
-      </section>
+          <section style={commandGridStyle} aria-label="Coach workflow">
+            {COACH_WORKSPACE_COMMANDS.map((command) => (
+              <Link key={command.title} href={command.href} style={commandCardStyle}>
+                <TiqFeatureIcon name={command.icon} size="md" variant="ghost" />
+                <span style={commandCopyStyle}>
+                  <strong>{command.title}</strong>
+                  <span>{command.detail}</span>
+                  <em>{command.cta}</em>
+                </span>
+              </Link>
+            ))}
+          </section>
+        </>
+      )}
 
       {levelUpHandoffPack ? (
         <section style={levelUpCoachHandoffStyle} aria-label="Level Up coach assignment bridge">
@@ -2729,6 +2797,10 @@ function cleanText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function normalizeContactPreference(value: unknown): CoachStudentLink['contactPreference'] {
+  return value === 'text' || value === 'both' || value === 'in_app' ? value : 'in_app'
+}
+
 function formatSharedCalendarEventDate(event: { date: string; time?: string }) {
   return event.time ? formatLessonDateTimeForMessage(`${event.date}T${event.time}`) : formatCalendarDate(event.date)
 }
@@ -2908,6 +2980,18 @@ const pageStyle: CSSProperties = {
   display: 'grid',
   gap: 16,
   minWidth: 0,
+}
+
+const visuallyHiddenStyle: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
 }
 
 const heroStyle: CSSProperties = {

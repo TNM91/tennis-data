@@ -93,17 +93,21 @@ describe('Public home mobile layout guards', () => {
   })
 
   it('keeps the persistent mobile portal as a docked two-level icon palette', () => {
-    expect(portalToolbarSource).toContain('const [mobilePortalLaneId, setMobilePortalLaneId] = useState<PortalLaneId | null>(null)')
+    expect(portalToolbarSource).toContain('const [mobilePortalLaneState, setMobilePortalLaneState] = useState<{ pathname: string; laneId: PortalLaneId | null }>')
+    expect(portalToolbarSource).toContain('const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null')
     expect(portalToolbarSource).toContain('const collapseMobilePortal = isMobile && !showPortalBrandRunway')
     expect(portalToolbarSource).toContain('const mobilePortalLane = mobilePortalLaneId ? portalLanes.find')
     expect(portalToolbarSource).toContain("const mobilePortalStickyTop = 'var(--header-height)'")
     expect(portalToolbarSource).toContain('const showExpandedPortalIntro = !collapseMobilePortal')
     expect(portalToolbarSource).toContain("const portalMenuId = 'tenaceiq-mobile-portal-menu'")
     expect(portalToolbarSource).toContain("aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : 'Main TenAceIQ menu'}")
-    expect(portalToolbarSource).toContain('onClick={() => setMobilePortalLaneId(null)}')
-    expect(portalToolbarSource).toContain('onClick={() => setMobilePortalLaneId(lane.id)}')
+    expect(portalToolbarSource).toContain('aria-live="polite"')
+    expect(portalToolbarSource).toContain('onClick={() => setMobilePortalLaneState({ pathname, laneId: null })}')
+    expect(portalToolbarSource).toContain('onClick={() => setMobilePortalLaneState({ pathname, laneId: lane.id })}')
     expect(portalToolbarSource).toContain('MobilePortalTaskTile')
     expect(portalToolbarSource).toContain('getMobileLaneLabel')
+    expect(portalToolbarSource).toContain('getMobileTaskLabel')
+    expect(portalToolbarSource).toContain("aria-label={`${target.title}${target.locked ? ' locked' : ''}: ${task.detail}`}")
     expect(portalToolbarSource).toContain("position: collapseMobilePortal ? 'sticky' : 'relative'")
     expect(portalToolbarSource).toContain('top: collapseMobilePortal ? mobilePortalStickyTop : undefined')
     expect(portalToolbarSource).toContain("zIndex: collapseMobilePortal ? 32 : 25")
@@ -117,6 +121,8 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(portalToolbarSource, 'mobilePortalActionPaletteStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(styleBlock(portalToolbarSource, 'mobilePortalTileStyle')).toContain('gridTemplateRows')
     expect(styleBlock(portalToolbarSource, 'mobilePortalTileLabelStyle')).toContain('fontSize: 10.5')
+    expect(portalToolbarSource).toContain("if (title === 'Open My Lab') return 'My Lab'")
+    expect(portalToolbarSource).toContain("if (title === 'Fix tennis context') return 'Fix context'")
   })
 
   it('keeps public hub routes mapped to the right mobile portal lane', () => {

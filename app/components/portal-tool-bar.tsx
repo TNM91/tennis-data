@@ -181,7 +181,10 @@ export default function PortalToolBar() {
   const [query, setQuery] = useState('')
   const [profileName, setProfileName] = useState('')
   const [profileLinked, setProfileLinked] = useState(false)
-  const [mobilePortalLaneId, setMobilePortalLaneId] = useState<PortalLaneId | null>(null)
+  const [mobilePortalLaneState, setMobilePortalLaneState] = useState<{ pathname: string; laneId: PortalLaneId | null }>({
+    pathname: '',
+    laneId: null,
+  })
 
   const authenticated = Boolean(userId) || role !== 'public'
   const accessPending = authenticated && (!authResolved || entitlements === null)
@@ -220,6 +223,7 @@ export default function PortalToolBar() {
   const visibleTasks = publicVisitor ? (showPublicTasks ? activeLane.tasks.slice(0, 4) : []) : activeLane.tasks
   const showPortalBrandRunway = publicVisitor && pathname === '/'
   const collapseMobilePortal = isMobile && !showPortalBrandRunway
+  const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
   const mobilePortalStickyTop = 'var(--header-height)'
   const showExpandedPortalIntro = !collapseMobilePortal
@@ -287,12 +291,13 @@ export default function PortalToolBar() {
             id={portalMenuId}
             style={mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle}
             aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : 'Main TenAceIQ menu'}
+            aria-live="polite"
           >
             {mobilePortalLane ? (
               <>
                 <button
                   type="button"
-                  onClick={() => setMobilePortalLaneId(null)}
+                  onClick={() => setMobilePortalLaneState({ pathname, laneId: null })}
                   style={mobilePortalHomeTileStyle}
                   aria-label="Show main TenAceIQ menu"
                 >
@@ -318,7 +323,7 @@ export default function PortalToolBar() {
               <button
                 key={lane.id}
                 type="button"
-                onClick={() => setMobilePortalLaneId(lane.id)}
+                onClick={() => setMobilePortalLaneState({ pathname, laneId: lane.id })}
                 style={{
                   ...mobilePortalTileStyle,
                   borderColor: lane.id === activeLane.id ? getLaneAccent(lane.id) : 'rgba(116,190,255,0.15)',
@@ -613,6 +618,7 @@ function MobilePortalTaskTile({
     <Link
       href={target.href}
       aria-current={active ? 'page' : undefined}
+      aria-label={`${target.title}${target.locked ? ' locked' : ''}: ${task.detail}`}
       title={task.detail}
       style={{
         ...mobilePortalTileStyle,
@@ -623,7 +629,7 @@ function MobilePortalTaskTile({
         <TiqFeatureIcon name={task.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
       </span>
       <span style={mobilePortalTileLabelStyle}>
-        {target.title}
+        {getMobileTaskLabel(target.title)}
         {target.locked ? <NavLockIcon size={10} /> : null}
       </span>
     </Link>
@@ -646,6 +652,16 @@ function getMobileLaneLabel(laneId: PortalLaneId) {
   if (laneId === 'coach') return 'Coaches'
   if (laneId === 'team') return 'Manage'
   return 'Leagues'
+}
+
+function getMobileTaskLabel(title: string) {
+  if (title === 'Open My Lab') return 'My Lab'
+  if (title === 'Tactics Tools') return 'Tactics'
+  if (title === 'Fix tennis context') return 'Fix context'
+  if (title === 'Prep matchup') return 'Match prep'
+  if (title === 'Shared calendar') return 'Calendar'
+  if (title === 'Build tournament') return 'Tournament'
+  return title
 }
 
 function getActiveTaskCardStyle(accent: string): CSSProperties {
