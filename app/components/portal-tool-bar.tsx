@@ -215,6 +215,7 @@ export default function PortalToolBar() {
   const publicVisitor = !authenticated
   const showPublicTasks = !(publicVisitor && isMobile)
   const visibleTasks = publicVisitor ? (showPublicTasks ? activeLane.tasks.slice(0, 4) : []) : activeLane.tasks
+  const showPortalBrandRunway = publicVisitor && pathname === '/'
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -260,22 +261,30 @@ export default function PortalToolBar() {
           overflow: 'hidden',
         }}
       >
-        <span
-          aria-hidden="true"
-          style={{
-            ...portalBrandMarkStyle,
-            top: publicVisitor && isMobile ? 28 : 34,
-            right: publicVisitor && isMobile ? 12 : 24,
-            width: publicVisitor && isMobile ? 'min(72vw, 300px)' : 'min(42vw, 520px)',
-            opacity: publicVisitor ? (isMobile ? 0.14 : 0.16) : 0.1,
-          }}
-        />
         <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 6, minWidth: 0 }}>
           <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
           <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
             {authenticated ? 'What do we want to work on today?' : PLATFORM_POSITIONING}
           </p>
         </div>
+
+        {showPortalBrandRunway ? (
+          <div
+            aria-hidden="true"
+            style={{
+              ...portalBrandRunwayStyle,
+              minHeight: isMobile ? 66 : 88,
+            }}
+          >
+            <span
+              style={{
+                ...portalBrandRunwayMarkStyle,
+                width: isMobile ? 'min(88vw, 340px)' : 'min(46vw, 560px)',
+                opacity: isMobile ? 0.28 : 0.22,
+              }}
+            />
+          </div>
+        ) : null}
 
         <nav
           aria-label="Choose a TenAceIQ tool"
@@ -536,13 +545,26 @@ const publicPortalSubtitleStyle: CSSProperties = {
   lineHeight: 1.35,
 }
 
-const portalBrandMarkStyle: CSSProperties = {
-  position: 'absolute',
+const portalBrandRunwayStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  alignItems: 'center',
+  justifyItems: 'end',
+  minWidth: 0,
+  overflow: 'hidden',
+  borderTop: '1px solid rgba(116,190,255,0.08)',
+  borderBottom: '1px solid rgba(116,190,255,0.08)',
+  background:
+    'linear-gradient(90deg, rgba(116,190,255,0.045), rgba(155,225,29,0.055) 46%, rgba(255,255,255,0.025))',
+}
+
+const portalBrandRunwayMarkStyle: CSSProperties = {
+  display: 'block',
   aspectRatio: '1045 / 490',
   background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
   mixBlendMode: 'screen',
   pointerEvents: 'none',
-  zIndex: 0,
 }
 
 const laneCardStyle: CSSProperties = {
