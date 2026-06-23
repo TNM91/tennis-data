@@ -179,7 +179,7 @@ export default function PortalToolBar() {
   const [query, setQuery] = useState('')
   const [profileName, setProfileName] = useState('')
   const [profileLinked, setProfileLinked] = useState(false)
-  const [mobilePortalOpenPath, setMobilePortalOpenPath] = useState('')
+  const [mobilePortalLaneId, setMobilePortalLaneId] = useState<PortalLaneId | null>(null)
 
   const authenticated = Boolean(userId) || role !== 'public'
   const accessPending = authenticated && (!authResolved || entitlements === null)
@@ -218,9 +218,9 @@ export default function PortalToolBar() {
   const visibleTasks = publicVisitor ? (showPublicTasks ? activeLane.tasks.slice(0, 4) : []) : activeLane.tasks
   const showPortalBrandRunway = publicVisitor && pathname === '/'
   const collapseMobilePortal = isMobile && !showPortalBrandRunway
-  const mobilePortalOpen = collapseMobilePortal && mobilePortalOpenPath === pathname
+  const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
   const mobilePortalFixedTop = 'calc(max(0px, env(safe-area-inset-top)) + 74px)'
-  const mobilePortalFlowHeight = publicVisitor ? (isSmallMobile ? 88 : 94) : isSmallMobile ? 138 : 148
+  const mobilePortalFlowHeight = mobilePortalLane ? (isSmallMobile ? 180 : 188) : isSmallMobile ? 92 : 98
   const showExpandedPortalIntro = !collapseMobilePortal
   const portalMenuId = 'tenaceiq-mobile-portal-menu'
 
@@ -273,38 +273,67 @@ export default function PortalToolBar() {
         }}
       >
         {collapseMobilePortal ? (
-          <div style={mobilePortalSummaryStyle}>
-            <span style={{ ...mobilePortalIconStyle, borderColor: activeAccent }}>
-              <TiqFeatureIcon name={activeLane.icon} size="sm" variant="surface" />
-            </span>
-            <span style={mobilePortalCopyStyle}>
-              <strong>{activeLane.label}</strong>
-              <span>{activeLane.cue}</span>
-            </span>
-            <button
-              type="button"
-              aria-expanded={mobilePortalOpen}
-              aria-controls={portalMenuId}
-              onClick={() => setMobilePortalOpenPath((openPath) => (openPath === pathname ? '' : pathname))}
-              style={mobilePortalToggleStyle}
-            >
-              {mobilePortalOpen ? 'Hide' : 'Menu'}
-            </button>
+          <div
+            id={portalMenuId}
+            style={mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle}
+            aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : 'Main TenAceIQ menu'}
+          >
+            {mobilePortalLane ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setMobilePortalLaneId(null)}
+                  style={mobilePortalHomeTileStyle}
+                  aria-label="Show main TenAceIQ menu"
+                >
+                  <span style={mobilePortalTileIconStyle}>
+                    <TiqFeatureIcon name="opponentScouting" size="sm" variant="ghost" />
+                  </span>
+                  <span style={mobilePortalTileLabelStyle}>Main</span>
+                </button>
+                {mobilePortalLane.tasks.slice(0, 5).map((task) => (
+                  <MobilePortalTaskTile
+                    key={task.title}
+                    task={task}
+                    access={access}
+                    authenticated={authenticated}
+                    accessPending={accessPending}
+                    active={isPortalTaskActive(pathname, task.href)}
+                    profileLinked={profileLinked}
+                    accent={getLaneAccent(mobilePortalLane.id)}
+                  />
+                ))}
+              </>
+            ) : portalLanes.map((lane) => (
+              <button
+                key={lane.id}
+                type="button"
+                onClick={() => setMobilePortalLaneId(lane.id)}
+                style={{
+                  ...mobilePortalTileStyle,
+                  borderColor: lane.id === activeLane.id ? getLaneAccent(lane.id) : 'rgba(116,190,255,0.15)',
+                  background: lane.id === activeLane.id ? portalActiveCardBackground : 'rgba(255,255,255,0.045)',
+                }}
+                aria-pressed={lane.id === activeLane.id}
+                aria-label={`${lane.label}: ${lane.cue}`}
+              >
+                <span style={mobilePortalTileIconStyle}>
+                  <TiqFeatureIcon name={lane.icon} size="sm" variant={lane.id === activeLane.id ? 'surface' : 'ghost'} />
+                </span>
+                <span style={mobilePortalTileLabelStyle}>{getMobileLaneLabel(lane.id)}</span>
+              </button>
+            ))}
           </div>
-        ) : null}
+        ) : (
+          <>
 
-        <div
-          id={collapseMobilePortal ? portalMenuId : undefined}
+          <div
           style={{
             position: 'relative',
             zIndex: 1,
-            display: collapseMobilePortal && !mobilePortalOpen ? 'none' : 'grid',
+            display: 'grid',
             gap: publicVisitor ? 10 : isMobile ? 14 : 16,
             minWidth: 0,
-            maxHeight: mobilePortalOpen ? 'min(70vh, 560px)' : undefined,
-            overflowY: mobilePortalOpen ? 'auto' : undefined,
-            overscrollBehavior: mobilePortalOpen ? 'contain' : undefined,
-            paddingRight: mobilePortalOpen ? 2 : undefined,
           }}
         >
           {showExpandedPortalIntro ? (
@@ -417,31 +446,12 @@ export default function PortalToolBar() {
                   profileLinked={profileLinked}
                   compact={publicVisitor}
                 />
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        {collapseMobilePortal && !mobilePortalOpen && visibleTasks.length > 0 ? (
-          <div
-            aria-label={`${activeLane.label} quick actions`}
-            style={mobilePortalQuickActionsStyle}
-          >
-            {visibleTasks.slice(0, 3).map((task) => (
-              <PortalTaskCard
-                key={task.title}
-                task={task}
-                access={access}
-                authenticated={authenticated}
-                accessPending={accessPending}
-                accent={activeAccent}
-                active={isPortalTaskActive(pathname, task.href)}
-                profileLinked={profileLinked}
-                compact
-              />
             ))}
           </div>
         ) : null}
+        </div>
+          </>
+        )}
       </div>
     </section>
     {collapseMobilePortal ? <div aria-hidden="true" style={{ height: mobilePortalFlowHeight }} /> : null}
@@ -563,6 +573,54 @@ function PortalTaskCard({
   )
 }
 
+function MobilePortalTaskTile({
+  task,
+  access,
+  authenticated,
+  accessPending,
+  active,
+  profileLinked,
+  accent,
+}: {
+  task: PortalLane['tasks'][number]
+  access: ProductAccessState
+  authenticated: boolean
+  accessPending: boolean
+  active: boolean
+  profileLinked: boolean
+  accent: string
+}) {
+  const target = getPortalTaskTarget({
+    href: task.href,
+    requiredRoute: task.requiredRoute,
+    title: task.title,
+    access,
+    authenticated,
+    accessPending,
+    profileLinked,
+  })
+
+  return (
+    <Link
+      href={target.href}
+      aria-current={active ? 'page' : undefined}
+      title={task.detail}
+      style={{
+        ...mobilePortalTileStyle,
+        ...(active ? getActiveTaskCardStyle(accent) : null),
+      }}
+    >
+      <span style={mobilePortalTileIconStyle}>
+        <TiqFeatureIcon name={task.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
+      </span>
+      <span style={mobilePortalTileLabelStyle}>
+        {target.title}
+        {target.locked ? <NavLockIcon size={10} /> : null}
+      </span>
+    </Link>
+  )
+}
+
 function getLaneAccent(laneId: PortalLaneId) {
   if (laneId === 'find') return '#9be11d'
   if (laneId === 'you') return '#4aa3ff'
@@ -570,6 +628,15 @@ function getLaneAccent(laneId: PortalLaneId) {
   if (laneId === 'coach') return '#a6ff2e'
   if (laneId === 'team') return '#f3b51b'
   return '#9be11d'
+}
+
+function getMobileLaneLabel(laneId: PortalLaneId) {
+  if (laneId === 'find') return 'Explore'
+  if (laneId === 'you') return 'Improve'
+  if (laneId === 'compete') return 'Compete'
+  if (laneId === 'coach') return 'Coaches'
+  if (laneId === 'team') return 'Manage'
+  return 'Leagues'
 }
 
 function getActiveTaskCardStyle(accent: string): CSSProperties {
@@ -639,54 +706,64 @@ const portalBrandRunwayMarkStyle: CSSProperties = {
   pointerEvents: 'none',
 }
 
-const mobilePortalSummaryStyle: CSSProperties = {
+const mobilePortalPaletteStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: '38px minmax(0, 1fr) auto',
-  alignItems: 'center',
-  gap: 10,
+  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+  gap: 5,
   minWidth: 0,
 }
 
-const mobilePortalIconStyle: CSSProperties = {
-  display: 'grid',
-  placeItems: 'center',
-  width: 38,
-  height: 38,
-  borderRadius: 14,
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(255,255,255,0.055)',
+const mobilePortalActionPaletteStyle: CSSProperties = {
+  ...mobilePortalPaletteStyle,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
 }
 
-const mobilePortalCopyStyle: CSSProperties = {
+const mobilePortalTileStyle: CSSProperties = {
   display: 'grid',
-  gap: 2,
+  gridTemplateRows: '26px minmax(0, auto)',
+  justifyItems: 'center',
+  alignContent: 'center',
+  gap: 4,
+  minHeight: 62,
+  padding: '8px 5px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
   minWidth: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 12,
-  lineHeight: 1.25,
-  fontWeight: 780,
-}
-
-const mobilePortalToggleStyle: CSSProperties = {
-  minHeight: 38,
-  borderRadius: 999,
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(155,225,29,0.12)',
-  color: 'var(--foreground-strong)',
-  padding: '0 14px',
-  fontSize: 12,
-  fontWeight: 950,
+  width: '100%',
+  boxSizing: 'border-box',
   cursor: 'pointer',
 }
 
-const mobilePortalQuickActionsStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
+const mobilePortalHomeTileStyle: CSSProperties = {
+  ...mobilePortalTileStyle,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.12)',
+}
+
+const mobilePortalTileIconStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 8,
+  placeItems: 'center',
+  width: 26,
+  height: 26,
+}
+
+const mobilePortalTileLabelStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 8.8,
+  lineHeight: 1.05,
+  fontWeight: 950,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
   minWidth: 0,
 }
 
