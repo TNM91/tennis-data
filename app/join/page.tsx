@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   CSSProperties,
   FormEvent,
@@ -231,10 +232,36 @@ function JoinContent() {
     padding: isMobile ? 0 : '22px',
   }
 
+  const selectedPlanActionRowResponsive: CSSProperties = {
+    ...selectedPlanActionRowStyle,
+    ...(isMobile ? mobileSelectedPlanActionRowStyle : null),
+  }
+
+  const selectedPlanLinkResponsive: CSSProperties = isMobile
+    ? mobileSelectedPlanLinkStyle
+    : selectedPlanLinkStyle
+
+  const helperRowResponsive: CSSProperties = {
+    ...helperRow,
+    ...(isMobile ? mobileHelperRow : null),
+  }
+
   if (authLoading) {
     return (
       <section style={loadingShell}>
-        <div style={loadingCard}>Checking account status...</div>
+        <div style={loadingCard}>
+          <span style={authLoadingIconStyle}>
+            <Image
+              src="/tenaceiq/logos/tenaceiq-q-icon.svg"
+              alt=""
+              width={512}
+              height={512}
+              priority
+              style={authLoadingImageStyle}
+            />
+          </span>
+          Checking account status...
+        </div>
       </section>
     )
   }
@@ -264,11 +291,11 @@ function JoinContent() {
                 Account creation starts Free access first.
               </div>
             ) : null}
-            <div style={selectedPlanActionRowStyle}>
-              <Link href="/pricing" style={selectedPlanLinkStyle}>
+            <div style={selectedPlanActionRowResponsive}>
+              <Link href="/pricing" style={selectedPlanLinkResponsive}>
                 Compare tiers
               </Link>
-              <Link href={selectedNextRoute} style={selectedPlanLinkStyle}>
+              <Link href={selectedNextRoute} style={selectedPlanLinkResponsive}>
                 Preview next step
               </Link>
             </div>
@@ -401,9 +428,9 @@ function JoinContent() {
               {message ? <div role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
               {error ? <div id="join-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
-              <div style={helperRow}>
+              <div style={helperRowResponsive}>
                 <span style={helperText}>Already have an account?</span>
-                <Link href="/login" style={inlineLink}>
+                <Link href="/login" style={isMobile ? mobileSignInLink : inlineLink}>
                   Sign in
                 </Link>
               </div>
@@ -539,6 +566,13 @@ const selectedPlanActionRowStyle: CSSProperties = {
   marginTop: '2px',
 }
 
+const mobileSelectedPlanActionRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: '8px',
+  alignItems: 'stretch',
+}
+
 const selectedPlanLinkStyle: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
@@ -554,6 +588,15 @@ const selectedPlanLinkStyle: CSSProperties = {
   fontSize: '13px',
   fontWeight: 900,
   overflowWrap: 'anywhere',
+}
+
+const mobileSelectedPlanLinkStyle: CSSProperties = {
+  ...selectedPlanLinkStyle,
+  width: '100%',
+  minHeight: 42,
+  justifyContent: 'center',
+  borderRadius: 14,
+  textAlign: 'center',
 }
 
 const loginPanel: CSSProperties = {
@@ -751,10 +794,18 @@ const helperRow: CSSProperties = {
   alignItems: 'center',
 }
 
+const mobileHelperRow: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: '8px',
+  alignItems: 'stretch',
+}
+
 const helperText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const inlineLink: CSSProperties = {
@@ -762,6 +813,19 @@ const inlineLink: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   overflowWrap: 'anywhere',
+}
+
+const mobileSignInLink: CSSProperties = {
+  ...inlineLink,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 42,
+  width: '100%',
+  borderRadius: 14,
+  border: '1px solid rgba(96,165,250,0.24)',
+  background: 'rgba(96,165,250,0.10)',
+  textAlign: 'center',
 }
 
 const loadingShell: CSSProperties = {
@@ -782,4 +846,22 @@ const loadingCard: CSSProperties = {
   border: '1px solid rgba(125, 211, 252, 0.18)',
   fontSize: '15px',
   fontWeight: 700,
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+}
+
+const authLoadingIconStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  width: 32,
+  height: 32,
+  flexShrink: 0,
+}
+
+const authLoadingImageStyle: CSSProperties = {
+  display: 'block',
+  width: 32,
+  height: 32,
+  objectFit: 'contain',
 }

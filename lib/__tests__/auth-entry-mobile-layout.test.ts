@@ -148,6 +148,18 @@ describe('auth entry mobile layout guards', () => {
       "width: 'min(100%, 250px)'",
     )
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'selectedPlanCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'mobileSelectedPlanActionRowStyle')).toContain(
+      "gridTemplateColumns: 'minmax(0, 1fr)'",
+    )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'mobileSelectedPlanLinkStyle')).toContain(
+      'minHeight: 42',
+    )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'mobileSignInLink')).toContain(
+      'minHeight: 42',
+    )
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'authLoadingIconStyle')).toContain(
+      'width: 32',
+    )
 
     for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
       const source = sources.get(file)!
