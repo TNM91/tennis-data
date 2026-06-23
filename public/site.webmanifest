@@ -1,7 +1,7 @@
 {
   "name": "TenAceIQ",
   "short_name": "TenAceIQ",
-  "description": "More Tennis. Less Chaos. Explore tennis for free, then use Player, Captain, and TIQ League Coordinator tools.",
+  "description": "More Tennis. Less Chaos. Explore tennis for free, then unlock the right TenAceIQ tools for players, coaches, teams, leagues, and tournaments.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -70,14 +70,14 @@
       "icons": [{ "src": "/tenaceiq-icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Captain tools",
-      "short_name": "Captain",
-      "description": "Run the team week with lineup and readiness tools.",
+      "name": "Team Hub",
+      "short_name": "Team Hub",
+      "description": "Run the team week with lineup and readiness actions.",
       "url": "/captain",
       "icons": [{ "src": "/tenaceiq-icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "League Coordinator",
+      "name": "League Office",
       "short_name": "League",
       "description": "Open league setup, results, and season operations.",
       "url": "/league-coordinator",

@@ -9,6 +9,7 @@ export const metadata: Metadata = buildRouteMetadata({
   description:
     'Printable workbook paths, coach planner sheets, weekly goals, match evidence, and My Lab check-ins for competitive tennis player development.',
   path: '/player-development',
+  titleAbsolute: true,
 })
 
 export default function PlayerDevelopmentPage() {

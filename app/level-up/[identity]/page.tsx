@@ -28,6 +28,7 @@ export async function generateMetadata({ params }: IdentityLevelUpPageProps): Pr
     title: `${identity.title.replace(/^The /, '')} Level Up | TenAceIQ`,
     description: `Choose a ${identity.title.replace(/^The /, '')} focus, start a drill, use the timer, and save a quick Level Up check-in.`,
     path: `/level-up/${identity.slug}`,
+    titleAbsolute: true,
   })
 }
 

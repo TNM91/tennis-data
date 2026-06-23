@@ -21,6 +21,7 @@ export async function generateMetadata({ params }: IdentityCoachPlannerPageProps
     title: `${identity.title} Coach Planner | TenAceIQ Player Development`,
     description: `Printable TenAceIQ coach planner pages for ${identity.title}.`,
     path: `/player-development/${identity.slug}/coach-planner`,
+    titleAbsolute: true,
   })
 }
 

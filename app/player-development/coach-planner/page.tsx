@@ -9,6 +9,7 @@ export const metadata: Metadata = buildRouteMetadata({
   description:
     'Printable TenAceIQ coach planner pages for the Relentless Competitor tennis development path.',
   path: '/player-development/coach-planner',
+  titleAbsolute: true,
 })
 
 export default function CoachPlannerPage() {

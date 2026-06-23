@@ -21,6 +21,7 @@ export async function generateMetadata({ params }: IdentityPageProps): Promise<M
     title: `${identity.title} | TenAceIQ Player Development`,
     description: `${identity.ratingBand} workbook and coach planner for ${identity.title}.`,
     path: `/player-development/${identity.slug}`,
+    titleAbsolute: true,
   })
 }
 

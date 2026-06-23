@@ -3,7 +3,9 @@ import SiteShell from '@/app/components/site-shell'
 import TiqTacticalStudioGate from '@/components/tactical/TiqTacticalStudioGate'
 
 export const metadata: Metadata = {
-  title: 'TIQ Tactical Studio | TenAceIQ',
+  title: {
+    absolute: 'TIQ Tactical Studio | TenAceIQ',
+  },
   description: 'Build TenAceIQ tactical tennis scenarios with a locked branded court and reusable drill overlays.',
   robots: {
     index: false,

@@ -2,7 +2,9 @@ import LevelUpPageContent from './level-up-page-content'
 import { getPlayerDevelopmentIdentity } from '@/lib/player-development'
 
 export const metadata = {
-  title: 'Level Up | TenAceIQ',
+  title: {
+    absolute: 'Level Up | TenAceIQ',
+  },
   description: 'Choose what to improve today, start a tennis drill, use the timer, and save a quick Level Up check-in.',
 }
 

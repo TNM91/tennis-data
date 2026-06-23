@@ -30,13 +30,15 @@ export function buildRouteMetadata({
   title,
   description,
   path,
+  titleAbsolute = false,
 }: {
   title: string
   description: string
   path: string
+  titleAbsolute?: boolean
 }): Metadata {
   return {
-    title,
+    title: titleAbsolute ? { absolute: title } : title,
     description,
     alternates: {
       canonical: path,

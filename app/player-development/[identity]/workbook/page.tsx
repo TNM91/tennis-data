@@ -21,6 +21,7 @@ export async function generateMetadata({ params }: IdentityWorkbookPageProps): P
     title: `${identity.title} Workbook | TenAceIQ Player Development`,
     description: `Printable TenAceIQ workbook pages for ${identity.title}.`,
     path: `/player-development/${identity.slug}/workbook`,
+    titleAbsolute: true,
   })
 }
 

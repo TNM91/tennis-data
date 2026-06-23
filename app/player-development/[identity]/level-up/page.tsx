@@ -21,6 +21,7 @@ export async function generateMetadata({ params }: IdentityLevelUpPortalPageProp
     title: `${identity.title.replace(/^The /, '')} Level Up Portal | TenAceIQ`,
     description: `Coach-assigned, identity-recommended, and player-favorited Level Up tools for ${identity.title.replace(/^The /, '')}.`,
     path: `/player-development/${identity.slug}/level-up`,
+    titleAbsolute: true,
   })
 }
 

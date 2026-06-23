@@ -9,6 +9,7 @@ export const metadata: Metadata = buildRouteMetadata({
   description:
     'Printable TenAceIQ player workbook pages for the Relentless Competitor development identity.',
   path: '/player-development/workbook',
+  titleAbsolute: true,
 })
 
 export default function PlayerWorkbookPage() {
