@@ -95,7 +95,7 @@ const portalLanes: PortalLane[] = [
     route: '/coach',
     planRoute: '/coach',
     icon: 'scenarioBuilder',
-    paths: ['/coach', '/player-development', '/tactics'],
+    paths: ['/coach', '/coaches', '/player-development', '/tactics'],
     searchScope: 'players',
     tasks: [
       { title: 'Coach Hub', detail: 'Review students, assignments, due work, and coach feedback.', metric: 'Coach', href: '/coach', icon: 'scenarioBuilder', requiredRoute: '/coach' },
@@ -111,7 +111,7 @@ const portalLanes: PortalLane[] = [
     route: '/captain',
     planRoute: '/captain',
     icon: 'lineupBuilder',
-    paths: ['/captain', '/compete/teams'],
+    paths: ['/captain', '/manage', '/compete/teams'],
     searchScope: 'teams',
     tasks: [
       { title: 'Who can play', detail: 'Availability and readiness before lineup pressure.', metric: 'Captain', href: '/captain/availability', icon: 'reliabilityIndex', requiredRoute: '/captain' },
