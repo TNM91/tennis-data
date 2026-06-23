@@ -22,11 +22,12 @@ describe('Leagues and tournaments hub', () => {
     expect(hubSource).toContain("title: 'Leagues & Tournaments'")
     expect(hubSource).toContain('Run competition with less admin work.')
     expect(hubSource).toContain('Organizer quick path')
-    expect(hubSource).toContain('What organizer need moves first?')
+    expect(hubSource).toContain('What needs organizing first?')
     expect(hubSource).toContain(
-      'Pick the practical need, then open the organizer path that reduces schedule, player, score, or source chaos.',
+      'Pick the tennis need in front of you, then open the path for schedules, players, scores, events, or source review.',
     )
     expect(hubSource).not.toContain('What admin job needs to move first?')
+    expect(hubSource).not.toContain('What organizer need moves first?')
     expect(hubSource).not.toContain('Pick the practical job, then open the organizer path')
     expect(hubSource).not.toContain('open the workspace that reduces schedule, player, score, or source chaos')
     expect(hubSource).toContain('organizerQuickPaths.map((path)')

@@ -42,10 +42,10 @@ export default function LeaguesAndTournamentsPage() {
           <div style={organizerQuickPathHeaderStyle}>
             <p style={organizerQuickPathEyebrowStyle}>Organizer quick path</p>
             <h2 id="organizer-quick-path-title" style={organizerQuickPathTitleStyle}>
-              What organizer need moves first?
+              What needs organizing first?
             </h2>
             <p style={organizerQuickPathTextStyle}>
-              Pick the practical need, then open the organizer path that reduces schedule, player, score, or source chaos.
+              Pick the tennis need in front of you, then open the path for schedules, players, scores, events, or source review.
             </p>
           </div>
           <div style={organizerQuickPathGridStyle}>
