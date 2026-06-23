@@ -6,6 +6,7 @@ type BrandWordmarkProps = {
   compact?: boolean
   footer?: boolean
   onLight?: boolean
+  siteHeaderCompact?: boolean
   top?: boolean
 }
 
@@ -48,10 +49,11 @@ export default function BrandWordmark({
   compact = false,
   footer = false,
   onLight = false,
+  siteHeaderCompact = false,
   top = false,
 }: BrandWordmarkProps) {
   const asset = getBrandAsset({ compact, footer, onLight, top })
-  const height = compact ? (top ? 36 : 34) : footer ? 44 : top ? 52 : 48
+  const height = compact ? (top ? 38 : 34) : footer ? 44 : top ? (siteHeaderCompact ? 40 : 58) : 48
   const width = Math.round((asset.width / asset.height) * height)
 
   return (

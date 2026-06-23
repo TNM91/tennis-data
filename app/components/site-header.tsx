@@ -141,7 +141,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   const accessPending = authenticated && (authPending || entitlements === null)
   const resolvedRole = authResolved || !userId ? role : 'member'
   const useCompactHeader = shouldUseCompactSiteHeader({ role: resolvedRole, authenticated, screenWidth })
-  const useCompactBrand = useCompactHeader
+  const useCompactBrand = screenWidth < 360
   const access = buildProductAccessState(resolvedRole, entitlements)
   const roleLabel =
     accessPending
@@ -244,7 +244,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               textDecoration: 'none',
             }}
           >
-            <BrandWordmark top={!useCompactBrand} compact={useCompactBrand} />
+            <BrandWordmark top compact={useCompactBrand} siteHeaderCompact={useCompactHeader} />
           </Link>
 
           <div
