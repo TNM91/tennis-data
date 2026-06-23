@@ -23,14 +23,18 @@ export default function TiqLoader({
     lg: "border-[7px]",
   }[size];
 
-  const iconPixels = size === "sm" ? 42 : size === "lg" ? 96 : 72;
+  const iconPixels = size === "sm" ? 46 : size === "lg" ? 106 : 80;
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-10">
       <div className={`relative ${sizeClass}`} role="status" aria-label={label || "Loading"}>
         <div
-          className={`absolute inset-0 rounded-full ${ringClass}`}
-          style={{ borderColor: 'color-mix(in srgb, var(--foreground-strong) 28%, transparent 72%)' }}
+          className={`absolute inset-0 rounded-[28%] ${ringClass}`}
+          style={{
+            borderColor: 'color-mix(in srgb, var(--brand-green) 32%, rgba(255,255,255,0.2) 68%)',
+            background: 'color-mix(in srgb, var(--tenaceiq-navy) 72%, transparent 28%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+          }}
         />
 
         <Image
@@ -52,7 +56,7 @@ export default function TiqLoader({
       {label ? (
         <p
           className="text-center text-xs font-semibold uppercase"
-          style={{ color: 'var(--shell-copy-muted)', letterSpacing: '0.18em' }}
+          style={{ color: 'var(--shell-copy-muted)', letterSpacing: '0.12em' }}
         >
           {label}
         </p>

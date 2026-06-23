@@ -273,14 +273,14 @@ export default function PortalToolBar() {
             aria-hidden="true"
             style={{
               ...portalBrandRunwayStyle,
-              minHeight: isMobile ? 66 : 88,
+              minHeight: isMobile ? 152 : 198,
             }}
           >
             <span
               style={{
                 ...portalBrandRunwayMarkStyle,
-                width: isMobile ? 'min(88vw, 340px)' : 'min(46vw, 560px)',
-                opacity: isMobile ? 0.28 : 0.22,
+                width: isMobile ? 'min(84vw, 320px)' : 'min(38vw, 420px)',
+                opacity: isMobile ? 0.38 : 0.34,
               }}
             />
           </div>
@@ -550,7 +550,7 @@ const portalBrandRunwayStyle: CSSProperties = {
   zIndex: 1,
   display: 'grid',
   alignItems: 'center',
-  justifyItems: 'end',
+  justifyItems: 'center',
   minWidth: 0,
   overflow: 'hidden',
   borderTop: '1px solid rgba(116,190,255,0.08)',

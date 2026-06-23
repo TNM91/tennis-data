@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { CSSProperties, FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -290,7 +291,16 @@ function canUseBrowserStorage() {
     return (
       <section style={loadingShell}>
         <div style={loadingCard}>
-          <span style={spinnerStyle} />
+          <span style={authLoadingIconStyle}>
+            <Image
+              src="/tenaceiq/logos/tenaceiq-q-icon.svg"
+              alt=""
+              width={512}
+              height={512}
+              priority
+              style={authLoadingImageStyle}
+            />
+          </span>
           {submitting ? 'Signing you in...' : 'Opening your next tennis tool...'}
         </div>
       </section>
@@ -439,12 +449,12 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-90px, -7vw, -34px)',
-  bottom: 'clamp(-120px, -10vw, -46px)',
-  width: 'clamp(220px, 31vw, 430px)',
+  right: 'clamp(-42px, -4vw, -18px)',
+  bottom: 'clamp(-76px, -6vw, -30px)',
+  width: 'clamp(260px, 36vw, 500px)',
   aspectRatio: '1045 / 490',
   background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
-  opacity: 0.14,
+  opacity: 0.22,
   pointerEvents: 'none',
 }
 
@@ -720,13 +730,22 @@ const loadingCard: CSSProperties = {
   gap: '10px',
 }
 
-const spinnerStyle: CSSProperties = {
-  display: 'inline-block',
-  width: '18px',
-  height: '18px',
-  borderRadius: '50%',
-  border: '2px solid rgba(155,225,29,0.2)',
-  borderTopColor: '#9be11d',
-  animation: 'tenaceiq-spin 0.7s linear infinite',
+const authLoadingIconStyle: CSSProperties = {
+  position: 'relative',
+  display: 'inline-grid',
+  placeItems: 'center',
+  width: '30px',
+  height: '30px',
+  borderRadius: 9,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(13,27,42,0.72)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
   flexShrink: 0,
+}
+
+const authLoadingImageStyle: CSSProperties = {
+  display: 'block',
+  width: 24,
+  height: 24,
+  objectFit: 'contain',
 }
