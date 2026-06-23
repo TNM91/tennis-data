@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const coachSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
+const shellSource = readFileSync(join(process.cwd(), 'app/components/site-shell.tsx'), 'utf8')
 
 describe('coach mobile resilience', () => {
   it('keeps the phone coach page from stacking duplicate portal-like headers', () => {
@@ -25,6 +26,16 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('function normalizeContactPreference')
   })
 
+  it('restores the route position when a phone browser reloads or resumes the tab', () => {
+    expect(shellSource).toContain('tenaceiq.shell.scroll.${pathname}')
+    expect(shellSource).toContain("window.addEventListener('pagehide', persistScrollPosition)")
+    expect(shellSource).toContain("document.addEventListener('visibilitychange', handleVisibilityChange)")
+    expect(shellSource).toContain('window.sessionStorage.setItem')
+    expect(shellSource).toContain('window.sessionStorage.getItem')
+    expect(shellSource).toContain('window.location.hash')
+    expect(shellSource).toContain('window.scrollTo({ top: y')
+  })
+
   it('keeps the phone coach bench one tap away from player profile work', () => {
     const portalSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
 
@@ -32,6 +43,9 @@ describe('coach mobile resilience', () => {
     expect(portalSource).toContain("href: '/coach#coach-linked-dashboard'")
     expect(portalSource).toContain("if (title === 'Player bench') return 'Bench'")
     expect(coachSource).toContain('aria-label="Coach player bench"')
+    expect(coachSource).toContain('aria-label="Choose a player from your coach bench"')
+    expect(coachSource).toContain('aria-pressed={active}')
+    expect(coachSource).toContain('mobileBenchFeaturedCardStyle')
     expect(coachSource).toContain('Open player hub')
     expect(coachSource).toContain('Current work')
     expect(coachSource).toContain('getCoachPlayerProfileHref')

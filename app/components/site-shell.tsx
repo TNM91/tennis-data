@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import SiteHeader from '@/app/components/site-header'
 import SiteFooter from '@/app/components/site-footer'
@@ -25,6 +26,69 @@ export default function SiteShell({ children, active, showPortalToolBar = true }
 function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProps) {
   const pathname = usePathname() || '/'
   const atmosphereClassName = getBrandAtmosphereClassName(pathname)
+  const lastPathnameRef = useRef(pathname)
+
+  useEffect(() => {
+    const storageKey = `tenaceiq.shell.scroll.${pathname}`
+    let restored = false
+
+    function persistScrollPosition() {
+      try {
+        window.sessionStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            y: Math.max(0, Math.round(window.scrollY)),
+            savedAt: Date.now(),
+          }),
+        )
+      } catch {
+        // Session storage is best-effort; navigation should never depend on it.
+      }
+    }
+
+    function restoreScrollPosition() {
+      if (restored || window.location.hash) return
+      restored = true
+
+      try {
+        const raw = window.sessionStorage.getItem(storageKey)
+        if (!raw) return
+
+        const saved = JSON.parse(raw) as { y?: number; savedAt?: number }
+        const y = typeof saved.y === 'number' ? saved.y : 0
+        const savedAt = typeof saved.savedAt === 'number' ? saved.savedAt : 0
+        if (y <= 0 || Date.now() - savedAt > 1000 * 60 * 60 * 8) return
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: y, behavior: 'instant' })
+          })
+        })
+      } catch {
+        window.sessionStorage.removeItem(storageKey)
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'hidden') persistScrollPosition()
+    }
+
+    if (lastPathnameRef.current !== pathname) {
+      lastPathnameRef.current = pathname
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+
+    restoreScrollPosition()
+
+    window.addEventListener('pagehide', persistScrollPosition)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      persistScrollPosition()
+      window.removeEventListener('pagehide', persistScrollPosition)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [pathname])
 
   return (
       <main

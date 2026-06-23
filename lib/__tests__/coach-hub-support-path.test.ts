@@ -34,11 +34,12 @@ describe('Coach Hub support path', () => {
 
   it('keeps linked player cards readable without creating a long phone column', () => {
     expect(source).toContain('const { isMobile } = useViewportBreakpoints()')
-    expect(source).toContain('responsiveLinkedCardsGridStyle')
-    expect(source).toContain('mobileLinkedCardsGridStyle')
-    expect(source).toContain("overflowX: 'auto'")
-    expect(source).toContain("scrollSnapType: 'x mandatory'")
-    expect(source).toContain("flex: '0 0 min(86vw, 340px)'")
+    expect(source).toContain('activeMobileBenchStudentId')
+    expect(source).toContain('activeMobileBenchCard')
+    expect(source).toContain('mobileBenchPickerStyle')
+    expect(source).toContain('mobileBenchPlayerButtonStyle(active)')
+    expect(source).toContain('renderLinkedPlayerCard(activeMobileBenchCard, true)')
+    expect(source).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
     expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
   })
 
