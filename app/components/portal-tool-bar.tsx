@@ -221,6 +221,7 @@ export default function PortalToolBar() {
   const mobilePortalOpen = collapseMobilePortal && mobilePortalOpenPath === pathname
   const mobilePortalFixedTop = 'calc(max(0px, env(safe-area-inset-top)) + 74px)'
   const mobilePortalFlowHeight = publicVisitor ? (isSmallMobile ? 88 : 94) : isSmallMobile ? 138 : 148
+  const showExpandedPortalIntro = !collapseMobilePortal
   const portalMenuId = 'tenaceiq-mobile-portal-menu'
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -306,12 +307,14 @@ export default function PortalToolBar() {
             paddingRight: mobilePortalOpen ? 2 : undefined,
           }}
         >
-          <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 6, minWidth: 0 }}>
-            <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
-            <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
-              {authenticated ? 'What do we want to work on today?' : PLATFORM_POSITIONING}
-            </p>
-          </div>
+          {showExpandedPortalIntro ? (
+            <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 6, minWidth: 0 }}>
+              <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
+              <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
+                {authenticated ? 'What do we want to work on today?' : PLATFORM_POSITIONING}
+              </p>
+            </div>
+          ) : null}
 
           {showPortalBrandRunway ? (
             <div
