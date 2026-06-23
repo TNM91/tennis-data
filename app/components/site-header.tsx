@@ -212,7 +212,7 @@ export default function SiteHeader({ active }: { active?: string }) {
           width: '100%',
           maxWidth: '1280px',
           margin: '0 auto',
-          padding: isMobile ? '9px 2px' : isTablet ? '11px 4px' : '13px 8px',
+          padding: isMobile ? '5px 2px' : isTablet ? '11px 4px' : '13px 8px',
         }}
       >
         <div
@@ -222,8 +222,8 @@ export default function SiteHeader({ active }: { active?: string }) {
               ? 'minmax(0, 1fr) minmax(0, auto)'
               : 'minmax(0, auto) minmax(0, 1fr)',
             alignItems: 'center',
-            gap: isMobile ? '10px' : useCompactHeader ? '12px' : '16px',
-            padding: isMobile ? '7px 7px' : useCompactHeader ? '8px 9px' : '10px 12px',
+            gap: isMobile ? '8px' : useCompactHeader ? '12px' : '16px',
+            padding: isMobile ? '5px 6px' : useCompactHeader ? '8px 9px' : '10px 12px',
             minWidth: 0,
             overflowWrap: 'anywhere',
             borderRadius: isMobile ? 18 : 999,
@@ -592,12 +592,12 @@ const workspaceShortcutStyle = {
 } as const
 
 const menuButtonStyle = {
-  width: '40px',
-  height: '40px',
+  width: '36px',
+  height: '36px',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  borderRadius: '13px',
+  borderRadius: '12px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'color-mix(in srgb, var(--shell-chip-bg) 82%, transparent 18%)',
   color: 'var(--foreground-strong)',

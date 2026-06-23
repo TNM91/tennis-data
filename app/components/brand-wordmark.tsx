@@ -53,7 +53,7 @@ export default function BrandWordmark({
   top = false,
 }: BrandWordmarkProps) {
   const asset = getBrandAsset({ compact, footer, onLight, top })
-  const height = compact ? (top ? 40 : 34) : footer ? 42 : top ? (siteHeaderCompact ? 46 : 64) : 48
+  const height = compact ? (top ? 36 : 34) : footer ? 42 : top ? (siteHeaderCompact ? 42 : 64) : 48
   const width = Math.round((asset.width / asset.height) * height)
 
   return (

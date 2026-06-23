@@ -60,6 +60,16 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).not.toContain("background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',\n  color: 'var(--text-dark)'")
   })
 
+  it('keeps the compact phone header short enough for the sticky portal', () => {
+    expect(siteHeaderSource).toContain("padding: isMobile ? '5px 2px'")
+    expect(siteHeaderSource).toContain("padding: isMobile ? '5px 6px'")
+    expect(siteHeaderSource).toContain("width: '36px'")
+    expect(siteHeaderSource).toContain("height: '36px'")
+    expect(readFileSync(join(process.cwd(), 'app/components/brand-wordmark.tsx'), 'utf8')).toContain(
+      'top ? (siteHeaderCompact ? 42 : 64)',
+    )
+  })
+
   it('puts universal search in the header and compact menu', () => {
     expect(siteHeaderSource).toContain("import UniversalSearch from '@/app/components/universal-search'")
     expect(siteHeaderSource).toContain('aria-controls="site-header-search-panel"')

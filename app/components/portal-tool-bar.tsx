@@ -254,7 +254,7 @@ export default function PortalToolBar() {
         width: '100%',
         boxSizing: 'border-box',
         padding: collapseMobilePortal
-          ? '0 max(8px, env(safe-area-inset-right)) 8px max(8px, env(safe-area-inset-left))'
+          ? '0 max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left))'
           : publicVisitor
             ? isMobile
               ? '10px 8px 8px'
@@ -275,7 +275,7 @@ export default function PortalToolBar() {
           margin: '0 auto',
           display: 'grid',
           gap: publicVisitor ? 10 : isMobile ? 14 : 16,
-          padding: collapseMobilePortal ? '8px 0 0' : publicVisitor ? (isSmallMobile ? 12 : 14) : isSmallMobile ? 16 : isMobile ? 18 : 20,
+          padding: collapseMobilePortal ? '5px 0 0' : publicVisitor ? (isSmallMobile ? 12 : 14) : isSmallMobile ? 16 : isMobile ? 18 : 20,
           borderRadius: collapseMobilePortal ? 0 : publicVisitor ? (isSmallMobile ? 18 : 20) : isSmallMobile ? 24 : 28,
           border: collapseMobilePortal ? '0' : '1px solid rgba(116,190,255,0.15)',
           background: collapseMobilePortal ? 'transparent' : portalSurfaceBackground,
@@ -740,7 +740,7 @@ const mobilePortalPaletteStyle: CSSProperties = {
   zIndex: 1,
   display: 'grid',
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 7,
+  gap: 5,
   minWidth: 0,
 }
 
@@ -751,12 +751,12 @@ const mobilePortalActionPaletteStyle: CSSProperties = {
 
 const mobilePortalTileStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateRows: '28px minmax(0, auto)',
+  gridTemplateRows: '24px minmax(0, auto)',
   justifyItems: 'center',
   alignContent: 'center',
-  gap: 5,
-  minHeight: 60,
-  padding: '7px 6px',
+  gap: 3,
+  minHeight: 48,
+  padding: '5px 4px',
   borderRadius: 10,
   border: '1px solid rgba(116,190,255,0.15)',
   background: 'rgba(255,255,255,0.045)',
@@ -777,8 +777,8 @@ const mobilePortalHomeTileStyle: CSSProperties = {
 const mobilePortalTileIconStyle: CSSProperties = {
   display: 'grid',
   placeItems: 'center',
-  width: 28,
-  height: 28,
+  width: 24,
+  height: 24,
 }
 
 const mobilePortalTileLabelStyle: CSSProperties = {
@@ -787,7 +787,7 @@ const mobilePortalTileLabelStyle: CSSProperties = {
   justifyContent: 'center',
   gap: 3,
   color: 'var(--foreground-strong)',
-  fontSize: 10.5,
+  fontSize: 9.75,
   lineHeight: 1.1,
   fontWeight: 950,
   textAlign: 'center',
