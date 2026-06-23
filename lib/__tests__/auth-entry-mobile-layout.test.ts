@@ -183,6 +183,21 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'inlineLinkMuted')).toContain(
       "overflowWrap: 'anywhere'",
     )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobileHelperRow')).toContain(
+      "gridTemplateColumns: 'minmax(0, 1fr)'",
+    )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobilePrimaryAuthLink')).toContain(
+      "minHeight: 42",
+    )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobileSecondaryAuthLink')).toContain(
+      "minHeight: 42",
+    )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobileFooterPrompt')).toContain(
+      "justifyItems: 'center'",
+    )
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'authLoadingIconStyle')).not.toContain(
+      'boxShadow',
+    )
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
       "overflowWrap: 'anywhere'",
     )

@@ -287,6 +287,16 @@ function canUseBrowserStorage() {
     padding: isMobile ? 0 : '22px',
   }
 
+  const helperRowResponsive: CSSProperties = {
+    ...helperRow,
+    ...(isMobile ? mobileHelperRow : null),
+  }
+
+  const footerPromptResponsive: CSSProperties = {
+    ...footerPrompt,
+    ...(isMobile ? mobileFooterPrompt : null),
+  }
+
   if (!authResolved || role !== 'public' || redirecting) {
     return (
       <section style={loadingShell}>
@@ -399,22 +409,22 @@ function canUseBrowserStorage() {
               {error ? <div id="login-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
               {!error && authNote ? <div role="status" aria-live="polite" style={successBanner}>{authNote}</div> : null}
 
-              <div style={helperRow}>
+              <div style={helperRowResponsive}>
                 <Link
                   href={selectedPlanId === 'free' ? '/join' : `/join?plan=${selectedPlanId}`}
-                  style={inlineLink}
+                  style={isMobile ? mobilePrimaryAuthLink : inlineLink}
                 >
                   Create free account
                 </Link>
-                <Link href="/forget-password" style={inlineLinkMuted}>
+                <Link href="/forget-password" style={isMobile ? mobileSecondaryAuthLink : inlineLinkMuted}>
                   Forgot password?
                 </Link>
               </div>
             </form>
 
-            <div style={footerPrompt}>
+            <div style={footerPromptResponsive}>
               Need the public experience first?{' '}
-              <Link href="/explore" style={inlineLink}>
+              <Link href="/explore" style={isMobile ? mobileInlineExploreLink : inlineLink}>
                 Explore TenAceIQ
               </Link>
             </div>
@@ -687,12 +697,29 @@ const helperRow: CSSProperties = {
   marginTop: '4px',
 }
 
+const mobileHelperRow: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: '9px',
+  alignItems: 'stretch',
+  marginTop: '2px',
+}
+
 const footerPrompt: CSSProperties = {
   marginTop: '16px',
   textAlign: 'center',
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
+}
+
+const mobileFooterPrompt: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  justifyItems: 'center',
+  marginTop: '14px',
+  padding: '0 4px 8px',
+  lineHeight: 1.35,
 }
 
 const inlineLink: CSSProperties = {
@@ -707,6 +734,41 @@ const inlineLinkMuted: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 700,
   overflowWrap: 'anywhere',
+}
+
+const mobilePrimaryAuthLink: CSSProperties = {
+  ...inlineLink,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 42,
+  width: '100%',
+  borderRadius: 14,
+  border: '1px solid rgba(96,165,250,0.24)',
+  background: 'rgba(96,165,250,0.10)',
+  textAlign: 'center',
+}
+
+const mobileSecondaryAuthLink: CSSProperties = {
+  ...inlineLinkMuted,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 42,
+  width: '100%',
+  borderRadius: 14,
+  border: '1px solid rgba(224,236,249,0.12)',
+  background: 'rgba(255,255,255,0.045)',
+  textAlign: 'center',
+}
+
+const mobileInlineExploreLink: CSSProperties = {
+  ...inlineLink,
+  display: 'inline-flex',
+  minHeight: 32,
+  alignItems: 'center',
+  justifyContent: 'center',
+  textAlign: 'center',
 }
 
 const loadingShell: CSSProperties = {
@@ -734,18 +796,14 @@ const authLoadingIconStyle: CSSProperties = {
   position: 'relative',
   display: 'inline-grid',
   placeItems: 'center',
-  width: '30px',
-  height: '30px',
-  borderRadius: 9,
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(13,27,42,0.72)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+  width: '32px',
+  height: '32px',
   flexShrink: 0,
 }
 
 const authLoadingImageStyle: CSSProperties = {
   display: 'block',
-  width: 24,
-  height: 24,
+  width: 32,
+  height: 32,
   objectFit: 'contain',
 }
