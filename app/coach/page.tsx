@@ -12,6 +12,7 @@ import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
 import { COACH_ASSIGNMENT_TEMPLATES, getCoachAssignmentTemplate } from '@/lib/coach-assignment-templates'
 import type { CoachStudentInvite } from '@/lib/coach-invites'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
   assignmentNeedsCoachReview,
   getCoachAssignmentDueState,
@@ -197,6 +198,7 @@ export default function CoachPage() {
 function CoachContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { isMobile } = useViewportBreakpoints()
   const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
@@ -994,6 +996,21 @@ function CoachContent() {
       href: '#coach-student-board',
     },
   ]
+  const responsiveLinkedDashboardHeaderStyle = isMobile
+    ? mobileLinkedDashboardHeaderStyle
+    : linkedDashboardHeaderStyle
+  const responsiveLinkedMetricGridStyle = isMobile
+    ? mobileLinkedMetricGridStyle
+    : linkedMetricGridStyle
+  const responsiveLinkedCardsGridStyle = isMobile
+    ? mobileLinkedCardsGridStyle
+    : linkedCardsGridStyle
+  const responsiveLinkedPlayerCardStyle = isMobile
+    ? mobileLinkedPlayerCardStyle
+    : linkedPlayerCardStyle
+  const responsiveLinkedCardTopStyle = isMobile
+    ? mobileLinkedCardTopStyle
+    : linkedCardTopStyle
 
   function loadLevelUpHandoffPack(pack: CoachLevelUpHandoffPack) {
     const primaryCard = LEVEL_UP_CARDS.find((card) => card.id === pack.cardIds[0])
@@ -1210,7 +1227,7 @@ function CoachContent() {
       ) : null}
 
       <section id="coach-linked-dashboard" style={linkedDashboardStyle} aria-label="Linked players dashboard">
-        <div style={linkedDashboardHeaderStyle}>
+        <div style={responsiveLinkedDashboardHeaderStyle}>
           <div>
             <div style={eyebrowStyle}>Linked players</div>
             <h2 style={sectionTitleStyle}>Know who needs the next coaching move.</h2>
@@ -1218,7 +1235,7 @@ function CoachContent() {
               Track setup status, coach-linked access, assignment pressure, proof to review, and the next focus before the next lesson.
             </p>
           </div>
-          <div style={linkedMetricGridStyle}>
+          <div style={responsiveLinkedMetricGridStyle}>
             <DashboardMetric label="Linked" value={linkedPlayersCount} />
             <DashboardMetric label="Pending" value={pendingInviteCount} />
             <DashboardMetric label="Review" value={assignmentsNeedingReview.length} />
@@ -1241,10 +1258,10 @@ function CoachContent() {
             ))}
           </div>
         </div>
-        <div style={linkedCardsGridStyle}>
+        <div style={responsiveLinkedCardsGridStyle}>
           {linkedPlayerCards.length ? linkedPlayerCards.map((card) => (
-            <article key={card.student.id} style={linkedPlayerCardStyle}>
-              <div style={linkedCardTopStyle}>
+            <article key={card.student.id} style={responsiveLinkedPlayerCardStyle}>
+              <div style={responsiveLinkedCardTopStyle}>
                 <div>
                   <strong>{card.student.playerName}</strong>
                   <span>{getIdentityTitle(card.student.identitySlug)} / {card.student.levelLabel || 'Development path'}</span>
@@ -3195,6 +3212,17 @@ const linkedMetricGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const mobileLinkedDashboardHeaderStyle: CSSProperties = {
+  ...linkedDashboardHeaderStyle,
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 12,
+}
+
+const mobileLinkedMetricGridStyle: CSSProperties = {
+  ...linkedMetricGridStyle,
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+}
+
 const linkedMetricStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
@@ -3306,6 +3334,31 @@ const linkedCardTopStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 14,
   fontWeight: 950,
+}
+
+const mobileLinkedCardsGridStyle: CSSProperties = {
+  ...linkedCardsGridStyle,
+  display: 'flex',
+  gap: 10,
+  overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  scrollSnapType: 'x mandatory',
+  scrollPaddingLeft: 0,
+  paddingBottom: 6,
+  paddingRight: 6,
+  marginRight: -6,
+}
+
+const mobileLinkedPlayerCardStyle: CSSProperties = {
+  ...linkedPlayerCardStyle,
+  flex: '0 0 min(86vw, 340px)',
+  scrollSnapAlign: 'start',
+}
+
+const mobileLinkedCardTopStyle: CSSProperties = {
+  ...linkedCardTopStyle,
+  display: 'grid',
+  gap: 8,
 }
 
 const linkedBadgeRowStyle: CSSProperties = {

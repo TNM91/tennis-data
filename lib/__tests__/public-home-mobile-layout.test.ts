@@ -91,4 +91,17 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(portalToolbarSource, 'compactMobileLaneCardStyle')).toContain("width: '100%'")
     expect(styleBlock(portalToolbarSource, 'compactMobileLaneCardStyle')).toContain("boxSizing: 'border-box'")
   })
+
+  it('collapses the persistent portal into a quick switcher on private mobile pages', () => {
+    expect(portalToolbarSource).toContain("const [mobilePortalOpenPath, setMobilePortalOpenPath] = useState('')")
+    expect(portalToolbarSource).toContain('const collapseMobilePortal = isMobile && !showPortalBrandRunway')
+    expect(portalToolbarSource).toContain('const mobilePortalOpen = collapseMobilePortal && mobilePortalOpenPath === pathname')
+    expect(portalToolbarSource).toContain("const portalMenuId = 'tenaceiq-mobile-portal-menu'")
+    expect(portalToolbarSource).toContain('aria-expanded={mobilePortalOpen}')
+    expect(portalToolbarSource).toContain("setMobilePortalOpenPath((openPath) => (openPath === pathname ? '' : pathname))")
+    expect(portalToolbarSource).toContain("display: collapseMobilePortal && !mobilePortalOpen ? 'none' : 'grid'")
+    expect(portalToolbarSource).toContain('mobilePortalQuickActionsStyle')
+    expect(styleBlock(portalToolbarSource, 'mobilePortalSummaryStyle')).toContain("gridTemplateColumns: '38px minmax(0, 1fr) auto'")
+    expect(styleBlock(portalToolbarSource, 'mobilePortalQuickActionsStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+  })
 })

@@ -28,4 +28,14 @@ describe('Coach Hub support path', () => {
     expect(source).toContain('aria-label={`${path.cta}: ${path.question}`}')
     expect(source).toContain('id="coach-linked-dashboard"')
   })
+
+  it('keeps linked player cards readable without creating a long phone column', () => {
+    expect(source).toContain('const { isMobile } = useViewportBreakpoints()')
+    expect(source).toContain('responsiveLinkedCardsGridStyle')
+    expect(source).toContain('mobileLinkedCardsGridStyle')
+    expect(source).toContain("overflowX: 'auto'")
+    expect(source).toContain("scrollSnapType: 'x mandatory'")
+    expect(source).toContain("flex: '0 0 min(86vw, 340px)'")
+    expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+  })
 })
