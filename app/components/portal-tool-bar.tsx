@@ -142,6 +142,8 @@ const portalLanes: PortalLane[] = [
 const hiddenPrefixes = ['/login', '/join', '/legal', '/reset-password', '/forget-password']
 const portalSurfaceBackground = 'var(--portal-surface-bg)'
 const portalActiveCardBackground = 'var(--portal-active-card-bg)'
+const mobilePortalDockBackground =
+  'linear-gradient(180deg, rgba(7, 13, 27, 0.94) 0%, rgba(8, 18, 34, 0.96) 100%)'
 
 function getActiveLane(pathname: string) {
   const matches = portalLanes.flatMap((lane) =>
@@ -219,8 +221,7 @@ export default function PortalToolBar() {
   const showPortalBrandRunway = publicVisitor && pathname === '/'
   const collapseMobilePortal = isMobile && !showPortalBrandRunway
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
-  const mobilePortalFixedTop = 'calc(max(0px, env(safe-area-inset-top)) + 74px)'
-  const mobilePortalFlowHeight = mobilePortalLane ? (isSmallMobile ? 180 : 188) : isSmallMobile ? 92 : 98
+  const mobilePortalStickyTop = 'var(--header-height)'
   const showExpandedPortalIntro = !collapseMobilePortal
   const portalMenuId = 'tenaceiq-mobile-portal-menu'
 
@@ -243,15 +244,24 @@ export default function PortalToolBar() {
     <section
       aria-label="TenAceIQ platform navigation"
       style={{
-        position: collapseMobilePortal ? 'fixed' : 'relative',
-        top: collapseMobilePortal ? mobilePortalFixedTop : undefined,
-        left: collapseMobilePortal ? 0 : undefined,
-        right: collapseMobilePortal ? 0 : undefined,
-        zIndex: collapseMobilePortal ? 35 : 25,
+        position: collapseMobilePortal ? 'sticky' : 'relative',
+        top: collapseMobilePortal ? mobilePortalStickyTop : undefined,
+        zIndex: collapseMobilePortal ? 32 : 25,
         width: '100%',
         boxSizing: 'border-box',
-        padding: publicVisitor ? (isMobile ? '10px 8px 8px' : '10px 16px 8px') : isMobile ? '14px 8px 10px' : '18px 16px 12px',
+        padding: collapseMobilePortal
+          ? '0 max(8px, env(safe-area-inset-right)) 8px max(8px, env(safe-area-inset-left))'
+          : publicVisitor
+            ? isMobile
+              ? '10px 8px 8px'
+              : '10px 16px 8px'
+            : isMobile
+              ? '14px 8px 10px'
+              : '18px 16px 12px',
         overflow: 'clip',
+        background: collapseMobilePortal ? mobilePortalDockBackground : undefined,
+        borderBottom: collapseMobilePortal ? '1px solid rgba(116,190,255,0.12)' : undefined,
+        boxShadow: collapseMobilePortal ? '0 10px 22px rgba(2,10,24,0.14)' : undefined,
       }}
     >
       <div
@@ -261,12 +271,12 @@ export default function PortalToolBar() {
           margin: '0 auto',
           display: 'grid',
           gap: publicVisitor ? 10 : isMobile ? 14 : 16,
-          padding: publicVisitor ? (isSmallMobile ? 12 : 14) : isSmallMobile ? 16 : isMobile ? 18 : 20,
-          borderRadius: publicVisitor ? (isSmallMobile ? 18 : 20) : isSmallMobile ? 24 : 28,
-          border: '1px solid rgba(116,190,255,0.15)',
-          background: portalSurfaceBackground,
+          padding: collapseMobilePortal ? '8px 0 0' : publicVisitor ? (isSmallMobile ? 12 : 14) : isSmallMobile ? 16 : isMobile ? 18 : 20,
+          borderRadius: collapseMobilePortal ? 0 : publicVisitor ? (isSmallMobile ? 18 : 20) : isSmallMobile ? 24 : 28,
+          border: collapseMobilePortal ? '0' : '1px solid rgba(116,190,255,0.15)',
+          background: collapseMobilePortal ? 'transparent' : portalSurfaceBackground,
           color: 'var(--foreground)',
-          boxShadow: '0 28px 80px rgba(2, 10, 24, 0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
+          boxShadow: collapseMobilePortal ? 'none' : '0 28px 80px rgba(2, 10, 24, 0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
           minWidth: 0,
           boxSizing: 'border-box',
           overflow: 'hidden',
@@ -454,7 +464,6 @@ export default function PortalToolBar() {
         )}
       </div>
     </section>
-    {collapseMobilePortal ? <div aria-hidden="true" style={{ height: mobilePortalFlowHeight }} /> : null}
     </>
   )
 }
@@ -710,26 +719,25 @@ const mobilePortalPaletteStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
-  gap: 5,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
   minWidth: 0,
 }
 
 const mobilePortalActionPaletteStyle: CSSProperties = {
   ...mobilePortalPaletteStyle,
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 8,
 }
 
 const mobilePortalTileStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateRows: '26px minmax(0, auto)',
+  gridTemplateRows: '28px minmax(0, auto)',
   justifyItems: 'center',
   alignContent: 'center',
-  gap: 4,
-  minHeight: 62,
-  padding: '8px 5px',
-  borderRadius: 12,
+  gap: 5,
+  minHeight: 60,
+  padding: '7px 6px',
+  borderRadius: 10,
   border: '1px solid rgba(116,190,255,0.15)',
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
@@ -749,8 +757,8 @@ const mobilePortalHomeTileStyle: CSSProperties = {
 const mobilePortalTileIconStyle: CSSProperties = {
   display: 'grid',
   placeItems: 'center',
-  width: 26,
-  height: 26,
+  width: 28,
+  height: 28,
 }
 
 const mobilePortalTileLabelStyle: CSSProperties = {
@@ -759,11 +767,11 @@ const mobilePortalTileLabelStyle: CSSProperties = {
   justifyContent: 'center',
   gap: 3,
   color: 'var(--foreground-strong)',
-  fontSize: 8.8,
-  lineHeight: 1.05,
+  fontSize: 10.5,
+  lineHeight: 1.1,
   fontWeight: 950,
   textAlign: 'center',
-  overflowWrap: 'anywhere',
+  overflowWrap: 'break-word',
   minWidth: 0,
 }
 
