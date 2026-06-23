@@ -222,9 +222,9 @@ const watermarkStyle: CSSProperties = {
   right: -80,
   bottom: -120,
   width: 320,
-  height: 320,
-  borderRadius: '50%',
-  border: '34px solid rgba(155,225,29,0.08)',
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  opacity: 0.14,
   pointerEvents: 'none',
 }
 

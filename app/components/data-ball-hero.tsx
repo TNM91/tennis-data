@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type Particle = {
@@ -15,10 +15,6 @@ type Particle = {
 }
 
 export default function DataBallHero() {
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const ballRef = useRef<HTMLDivElement>(null)
-
-  const [pointer, setPointer] = useState({ x: 0, y: 0, active: false })
   const { isMobile } = useViewportBreakpoints()
 
   const particles = useMemo<Particle[]>(
@@ -35,65 +31,6 @@ export default function DataBallHero() {
     ],
     [],
   )
-
-  useEffect(() => {
-    let frame = 0
-
-    const animate = () => {
-      const wrap = wrapRef.current
-      const ball = ballRef.current
-
-      if (wrap && ball) {
-        const t = Date.now() * 0.001
-
-        const idleRotate = Math.sin(t * 0.5) * 4
-        const idleFloat = Math.sin(t * 1.15) * 8
-        const idleScale = 1 + Math.sin(t * 0.9) * 0.008
-
-        const tiltX = pointer.active ? pointer.y * -10 : Math.sin(t * 0.7) * 2.5
-        const tiltY = pointer.active ? pointer.x * 14 : Math.cos(t * 0.55) * 3
-
-        ball.style.transform = `
-          translateY(${idleFloat}px)
-          perspective(1200px)
-          rotateX(${tiltX}deg)
-          rotateY(${tiltY}deg)
-          rotateZ(${idleRotate}deg)
-          scale(${idleScale})
-        `
-
-        ball.style.filter = `
-          drop-shadow(0 26px 60px rgba(8, 17, 32, 0.48))
-          drop-shadow(0 0 28px rgba(74, 163, 255, 0.16))
-          drop-shadow(0 0 48px rgba(155, 225, 29, 0.14))
-        `
-
-        wrap.style.transform = `translateZ(0)`
-      }
-
-      frame = requestAnimationFrame(animate)
-    }
-
-    frame = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(frame)
-  }, [pointer])
-
-  function handlePointerMove(e: React.MouseEvent<HTMLDivElement>) {
-    if (!wrapRef.current || isMobile) return
-
-    const rect = wrapRef.current.getBoundingClientRect()
-    const px = (e.clientX - rect.left) / rect.width
-    const py = (e.clientY - rect.top) / rect.height
-
-    const x = (px - 0.5) * 2
-    const y = (py - 0.5) * 2
-
-    setPointer({ x, y, active: true })
-  }
-
-  function handlePointerLeave() {
-    setPointer({ x: 0, y: 0, active: false })
-  }
 
   const heroSize = isMobile ? 200 : 260
   const ballSize = isMobile ? 150 : 200
@@ -112,9 +49,6 @@ export default function DataBallHero() {
       }}
     >
       <div
-        ref={wrapRef}
-        onMouseMove={handlePointerMove}
-        onMouseLeave={handlePointerLeave}
         style={{
           position: 'relative',
           width: `${shellSize}px`,
@@ -124,7 +58,6 @@ export default function DataBallHero() {
           alignItems: 'center',
           borderRadius: '50%',
           transformStyle: 'preserve-3d',
-          willChange: 'transform',
         }}
       >
         <div
@@ -250,7 +183,6 @@ export default function DataBallHero() {
         />
 
         <div
-          ref={ballRef}
           style={{
             position: 'relative',
             width: `${heroSize}px`,
@@ -259,7 +191,6 @@ export default function DataBallHero() {
             alignItems: 'center',
             justifyContent: 'center',
             transformStyle: 'preserve-3d',
-            willChange: 'transform, filter',
           }}
         >
           <div
@@ -276,14 +207,14 @@ export default function DataBallHero() {
           />
 
           <Image
-            src="/logo-icon.png"
-            alt="TenAceIQ Data Ball"
-            width={ballSize}
-            height={ballSize}
+            src="/tenaceiq/logos/tenaceiq-symbol-reverse.svg"
+            alt="TenAceIQ"
+            width={1045}
+            height={490}
             priority
             style={{
               width: `${ballSize}px`,
-              height: `${ballSize}px`,
+              height: 'auto',
               objectFit: 'contain',
               display: 'block',
               position: 'relative',

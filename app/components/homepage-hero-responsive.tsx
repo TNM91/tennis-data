@@ -427,13 +427,11 @@ export default function HomePageHeroResponsive() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                filter:
-                  'drop-shadow(0 36px 80px rgba(8,17,32,0.48)) drop-shadow(0 0 34px rgba(74,163,255,0.14)) drop-shadow(0 0 44px rgba(155,225,29,0.12))',
               }}
             >
               <Image
-                src="/logo-icon.png"
-                alt="TenAceIQ Data Ball"
+                src="/tenaceiq/logos/tenaceiq-symbol-reverse.svg"
+                alt="TenAceIQ"
                 fill
                 priority
                 sizes="(max-width: 820px) 240px, (max-width: 1100px) 340px, 470px"

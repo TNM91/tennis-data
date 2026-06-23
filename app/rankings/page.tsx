@@ -2900,10 +2900,8 @@ const watermarkStyle: CSSProperties = {
   right: '-86px',
   top: '-108px',
   width: '340px',
-  aspectRatio: '1',
-  borderRadius: '50%',
-  border: '34px solid rgba(155,225,29,0.07)',
-  boxShadow: 'inset 0 0 0 2px rgba(125,211,252,0.05), 0 0 76px rgba(125,211,252,0.08)',
-  opacity: 0.72,
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  opacity: 0.14,
   pointerEvents: 'none',
 }

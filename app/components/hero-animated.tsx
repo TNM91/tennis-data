@@ -21,9 +21,6 @@ export default function HeroAnimated() {
   const springX = useSpring(mouseX, { stiffness: 80, damping: 18, mass: 0.6 })
   const springY = useSpring(mouseY, { stiffness: 80, damping: 18, mass: 0.6 })
 
-  const ballX = useTransform(springX, [-0.5, 0.5], [-18, 18])
-  const ballY = useTransform(springY, [-0.5, 0.5], [-14, 14])
-
   const glowX = useTransform(springX, [-0.5, 0.5], [-30, 30])
   const glowY = useTransform(springY, [-0.5, 0.5], [-24, 24])
 
@@ -153,41 +150,18 @@ export default function HeroAnimated() {
             }}
           />
 
-          <motion.div
+          <div
             className="hero-insane__ball-wrap"
-            style={{ x: ballX, y: ballY }}
-            animate={{
-              rotate: [0, 2.2, -2.2, 0],
-              y: [0, -10, 0],
-            }}
-            transition={{
-              duration: 7,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
           >
-            <motion.div
-              className="hero-insane__ball-shadow"
-              animate={{
-                scaleX: [1, 1.08, 1],
-                opacity: [0.22, 0.32, 0.22],
-              }}
-              transition={{
-                duration: 7,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
-
             <Image
-              src="/logo-icon.png"
-              alt="TenAceIQ data tennis ball"
-              width={560}
-              height={560}
+              src="/tenaceiq/logos/tenaceiq-symbol-reverse.svg"
+              alt="TenAceIQ"
+              width={1045}
+              height={490}
               priority
               className="hero-insane__ball"
             />
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

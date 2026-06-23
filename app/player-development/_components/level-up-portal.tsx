@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
@@ -123,6 +123,22 @@ type CoachUpdateDigest = {
   coachAsk: string
   firstRep: string
   shareText: string
+}
+
+type CourtWakeLockSentinel = {
+  release: () => Promise<void>
+  addEventListener: (type: 'release', listener: () => void) => void
+  removeEventListener: (type: 'release', listener: () => void) => void
+}
+
+type CourtWakeLockNavigator = Navigator & {
+  wakeLock?: {
+    request: (type: 'screen') => Promise<CourtWakeLockSentinel>
+  }
+}
+
+type CourtVibrationNavigator = Navigator & {
+  vibrate?: (pattern: number | number[]) => boolean
 }
 
 type TodayPlanItem = {
@@ -310,6 +326,14 @@ type CoachAssignmentBuilderPayload = {
   proofRequired: string
 }
 
+type DirectCoachStart = {
+  assignmentId: string
+  studentLinkId: string
+  assignmentTitle: string
+  assignmentFocus: string
+  coachMode: boolean
+}
+
 type CoachAssignmentTemplate = {
   id: string
   title: string
@@ -321,6 +345,12 @@ type CoachAssignmentTemplate = {
 type CompletionSyncState = {
   status: 'idle' | 'loading' | 'syncing' | 'synced' | 'local' | 'error'
   message: string
+}
+
+type PortalAssignmentSyncResult = {
+  updated?: boolean
+  complete?: boolean
+  progressLabel?: string
 }
 
 type RemoteLevelUpSession = {
@@ -360,7 +390,9 @@ const emptyFilters: FilterState = {
 const LEVEL_UP_COACH_SENT_STORAGE_KEY = 'tiq-level-up-coach-sent'
 const LEVEL_UP_COACH_SENT_AT_STORAGE_KEY = 'tiq-level-up-coach-sent-at'
 const LEVEL_UP_LOCAL_COACH_ASSIGNMENTS_KEY = 'tiq-level-up-local-coach-assignments'
+const LEVEL_UP_ACTIVE_COURT_STORAGE_KEY = 'tiq-level-up-active-court-card'
 const STORED_STATE_HYDRATION_DELAY_MS = 2000
+const ACTIVE_COURT_SESSION_TTL_MS = 6 * 60 * 60 * 1000
 
 const coachAssignmentTemplates: CoachAssignmentTemplate[] = [
   {
@@ -489,6 +521,20 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     () => (requestedStartCardId ? LEVEL_UP_CARDS.find((card) => card.id === requestedStartCardId) : undefined),
     [requestedStartCardId],
   )
+  const requestedAssignmentId = searchParams.get('assignmentId') || ''
+  const requestedStudentLinkId = searchParams.get('studentLinkId') || ''
+  const requestedAssignmentTitle = searchParams.get('assignmentTitle') || ''
+  const requestedAssignmentFocus = searchParams.get('assignmentFocus') || ''
+  const requestedCoachMode = searchParams.get('coach') === '1' || Boolean(requestedAssignmentId || requestedAssignmentTitle || requestedAssignmentFocus)
+  const directCoachStart = requestedStartCard
+    ? {
+        assignmentId: requestedAssignmentId,
+        studentLinkId: requestedStudentLinkId,
+        assignmentTitle: requestedAssignmentTitle,
+        assignmentFocus: requestedAssignmentFocus,
+        coachMode: requestedCoachMode,
+      }
+    : null
   const startListRef = useRef<HTMLElement>(null)
   const directStartHandledRef = useRef('')
   const [filters, setFilters] = useState<FilterState>(emptyFilters)
@@ -500,6 +546,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
   const [activeCardTitle, setActiveCardTitle] = useState<string | null>(requestedStartCard?.title ?? null)
   const [startRequest, setStartRequest] = useState<StartRequest>({ cardId: '', signal: 0 })
   const [activeLaneCardId, setActiveLaneCardId] = useState<string | null>(requestedStartCard?.id ?? null)
+  const [restoredCourtCardTitle, setRestoredCourtCardTitle] = useState<string | null>(null)
   const [favorites, toggleFavorite] = useLevelUpFavorites()
   const [coachChallenges, coachChallengeState] = usePlayerCoachChallenges(identitySlug)
   const [localCoachChallenges, addLocalCoachChallenge] = useLocalCoachAssignments(identitySlug)
@@ -630,7 +677,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     ? LEVEL_UP_CARDS.find((card) => card.id === activeLaneCardId)
     : undefined
   const activeLaneCoachAssignment = activeLaneCard
-    ? assignmentByCardId.get(activeLaneCard.id) ?? coachInboxAssignmentByCardId.get(activeLaneCard.id) ?? buildDirectStartAssignment(activeLaneCard, requestedStartCardId)
+    ? assignmentByCardId.get(activeLaneCard.id) ?? coachInboxAssignmentByCardId.get(activeLaneCard.id) ?? buildDirectStartAssignment(activeLaneCard, requestedStartCardId, directCoachStart)
     : undefined
 
   useEffect(() => {
@@ -646,28 +693,52 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
       setStartRequest((request) => ({ cardId: requestedCard.id, signal: request.signal + 1 }))
       setActiveLaneCardId(requestedCard.id)
       setActiveCardTitle(requestedCard.title)
+      setRestoredCourtCardTitle(null)
       setSelectedIntent('Coach link')
+      saveActiveCourtSession(identitySlug, requestedCard)
       scrollToActiveCard()
     })
 
     return () => {
       if (!frameRan) window.cancelAnimationFrame(frame)
     }
-  }, [requestedStartCardId])
+  }, [identitySlug, requestedStartCardId])
+
+  useEffect(() => {
+    if (requestedStartCardId || activeLaneCardId) return
+
+    const restoredCard = readActiveCourtSession(identitySlug)
+    if (!restoredCard) return
+
+    const frame = window.requestAnimationFrame(() => {
+      setStartRequest((request) => ({ cardId: restoredCard.id, signal: request.signal + 1 }))
+      setActiveLaneCardId(restoredCard.id)
+      setActiveCardTitle(restoredCard.title)
+      setRestoredCourtCardTitle(restoredCard.title)
+      setSelectedIntent('Resume court')
+      scrollToActiveCard()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [activeLaneCardId, identitySlug, requestedStartCardId])
 
   function handleActivityChange(cardTitle: string | null) {
     setActiveCardTitle(cardTitle)
     if (cardTitle === null) {
       setActiveLaneCardId(null)
+      setRestoredCourtCardTitle(null)
+      clearActiveCourtSession()
     }
   }
 
   function startCardFromPlan(cardId: string) {
     setStartRequest((request) => ({ cardId, signal: request.signal + 1 }))
     setActiveLaneCardId(cardId)
+    setRestoredCourtCardTitle(null)
     const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === cardId)
     if (card) {
       setActiveCardTitle(card.title)
+      saveActiveCourtSession(identitySlug, card)
     }
     scrollToActiveCard()
   }
@@ -683,9 +754,30 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           <span>On-court mode</span>
           <strong>{activeCardTitle}</strong>
           <small>Finish the rep, score proof, then choose the next card.</small>
+          <LevelUpCourtWakeLock />
+        </div>
+      ) : null}
+      {restoredCourtCardTitle ? (
+        <div className={styles.levelUpCourtResumeNotice} role="status" aria-live="polite">
+          <span>Resume saved</span>
+          <strong>{restoredCourtCardTitle}</strong>
+          <small>Restored from this phone. Score proof or finish to clear it.</small>
         </div>
       ) : null}
       <LevelUpSyncStatus state={completionSyncState} />
+      <LevelUpOnCourtCommand
+        activeCardTitle={activeCardTitle}
+        coachChallengeCard={coachChallengeCard}
+        nextBestRep={nextBestRep}
+        quickStartCard={quickStartCard}
+        recentProofRead={recentProofRead}
+        onStartCard={startCardFromPlan}
+      />
+      <LevelUpCoachArrivalCommand
+        card={requestedStartCard}
+        directCoachStart={directCoachStart}
+        onStartCard={startCardFromPlan}
+      />
       <LevelUpLocalSyncProof />
       <LevelUpHero identityTitle={identityTitle} recommendationCopy={profile.recommendationCopy} />
 
@@ -1011,6 +1103,235 @@ function LevelUpTodayDashboard({
           <small>{recentCard ? `Last card: ${recentCard.title}` : 'Log one score to create your trend.'}</small>
         </a>
       </div>
+    </section>
+  )
+}
+
+function LevelUpCourtWakeLock() {
+  const wakeLockRef = useRef<CourtWakeLockSentinel | null>(null)
+  const keepAwakeRef = useRef(false)
+  const [status, setStatus] = useState<'idle' | 'requesting' | 'active' | 'unsupported' | 'blocked'>('idle')
+
+  const releaseWakeLock = useCallback(async () => {
+    keepAwakeRef.current = false
+    const wakeLock = wakeLockRef.current
+    wakeLockRef.current = null
+    if (wakeLock) {
+      await wakeLock.release().catch(() => undefined)
+    }
+    setStatus('idle')
+  }, [])
+
+  const requestWakeLock = useCallback(async () => {
+    const wakeLock = (navigator as CourtWakeLockNavigator).wakeLock
+    if (!wakeLock) {
+      keepAwakeRef.current = false
+      setStatus('unsupported')
+      return
+    }
+
+    keepAwakeRef.current = true
+    if (wakeLockRef.current) {
+      setStatus('active')
+      return
+    }
+
+    setStatus('requesting')
+    try {
+      const sentinel = await wakeLock.request('screen')
+      const handleRelease = () => {
+        sentinel.removeEventListener('release', handleRelease)
+        if (wakeLockRef.current === sentinel) {
+          wakeLockRef.current = null
+        }
+        setStatus(keepAwakeRef.current ? 'idle' : 'idle')
+      }
+      sentinel.addEventListener('release', handleRelease)
+      wakeLockRef.current = sentinel
+      setStatus('active')
+    } catch {
+      keepAwakeRef.current = false
+      setStatus('blocked')
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && keepAwakeRef.current && !wakeLockRef.current) {
+        void requestWakeLock()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      void releaseWakeLock()
+    }
+  }, [releaseWakeLock, requestWakeLock])
+
+  const active = status === 'active'
+  const requesting = status === 'requesting'
+  const label = active ? 'Awake on' : requesting ? 'Starting' : 'Keep awake'
+  const detail = active
+    ? 'Screen stays on'
+    : status === 'unsupported'
+      ? 'Use phone settings'
+      : status === 'blocked'
+        ? 'Tap after unlock'
+        : 'Optional'
+
+  return (
+    <button
+      type="button"
+      className={styles.levelUpWakeLockButton}
+      data-wake-state={status}
+      aria-pressed={active}
+      onClick={() => {
+        if (active || requesting) {
+          void releaseWakeLock()
+          return
+        }
+        void requestWakeLock()
+      }}
+    >
+      <b>{label}</b>
+      <small>{detail}</small>
+    </button>
+  )
+}
+
+function pulseCourtHaptic(pattern: number | number[] = 12) {
+  if (typeof navigator === 'undefined') return
+  const courtNavigator = navigator as CourtVibrationNavigator
+  courtNavigator.vibrate?.(pattern)
+}
+
+function saveActiveCourtSession(identitySlug: string, card: LevelUpCard) {
+  try {
+    window.localStorage.setItem(LEVEL_UP_ACTIVE_COURT_STORAGE_KEY, JSON.stringify({
+      identitySlug,
+      cardId: card.id,
+      cardTitle: card.title,
+      savedAt: Date.now(),
+    }))
+  } catch {
+    // Ignore storage failures; active court mode still works without resume.
+  }
+}
+
+function readActiveCourtSession(identitySlug: string) {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(LEVEL_UP_ACTIVE_COURT_STORAGE_KEY) || '{}') as {
+      identitySlug?: string
+      cardId?: string
+      savedAt?: number
+    }
+    if (parsed.identitySlug !== identitySlug || !parsed.cardId || typeof parsed.savedAt !== 'number') return null
+    if (Date.now() - parsed.savedAt > ACTIVE_COURT_SESSION_TTL_MS) {
+      clearActiveCourtSession()
+      return null
+    }
+
+    return LEVEL_UP_CARDS.find((card) => card.id === parsed.cardId) ?? null
+  } catch {
+    return null
+  }
+}
+
+function clearActiveCourtSession() {
+  try {
+    window.localStorage.removeItem(LEVEL_UP_ACTIVE_COURT_STORAGE_KEY)
+  } catch {
+    // Ignore storage failures; clearing resume state is best effort.
+  }
+}
+
+function LevelUpOnCourtCommand({
+  activeCardTitle,
+  coachChallengeCard,
+  nextBestRep,
+  quickStartCard,
+  recentProofRead,
+  onStartCard,
+}: {
+  activeCardTitle: string | null
+  coachChallengeCard: LevelUpCard
+  nextBestRep: NextBestRep
+  quickStartCard: LevelUpCard
+  recentProofRead: string
+  onStartCard: (cardId: string) => void
+}) {
+  const primaryCard = activeCardTitle ? nextBestRep.card : coachChallengeCard
+  const primaryLabel = activeCardTitle ? 'Stay with it' : 'Coach work first'
+  const primaryTitle = activeCardTitle || primaryCard.title
+  const primaryDetail = activeCardTitle
+    ? 'Finish the active rep, save proof, then decide the next card.'
+    : `${coachChallengeCard.durationMinutes} min - ${coachChallengeCard.proof}`
+
+  return (
+    <section className={styles.levelUpOnCourtCommand} aria-label="On-court Level Up command">
+      <div className={styles.levelUpOnCourtCommandHeader}>
+        <span>On court</span>
+        <strong>{primaryTitle}</strong>
+        <small>{primaryDetail}</small>
+      </div>
+      <div className={styles.levelUpOnCourtCommandActions}>
+        <button type="button" onClick={() => onStartCard(primaryCard.id)}>
+          <b>{primaryLabel}</b>
+          <span>{activeCardTitle ? 'Open active rep' : 'Start assigned rep'}</span>
+        </button>
+        <button type="button" onClick={() => onStartCard(nextBestRep.card.id)}>
+          <b>Next best rep</b>
+          <span>{nextBestRep.card.title}</span>
+        </button>
+        <button type="button" onClick={() => onStartCard(quickStartCard.id)}>
+          <b>Fast start</b>
+          <span>{quickStartCard.durationMinutes} min - {recentProofRead}</span>
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function LevelUpCoachArrivalCommand({
+  card,
+  directCoachStart,
+  onStartCard,
+}: {
+  card?: LevelUpCard
+  directCoachStart: DirectCoachStart | null
+  onStartCard: (cardId: string) => void
+}) {
+  if (!card || !directCoachStart?.coachMode) return null
+
+  const assignmentTitle = directCoachStart.assignmentTitle || card.title
+  const assignmentFocus = directCoachStart.assignmentFocus || card.cue
+  const proof = card.proof
+
+  return (
+    <section className={styles.levelUpCoachArrivalCommand} aria-label="Coach assignment arrival">
+      <div>
+        <span>Coach handoff</span>
+        <strong>{assignmentTitle}</strong>
+        <small>{assignmentFocus}</small>
+      </div>
+      <ol>
+        <li>
+          <b>Start</b>
+          <span>{card.durationMinutes} min on this card</span>
+        </li>
+        <li>
+          <b>Score</b>
+          <span>{proof}</span>
+        </li>
+        <li>
+          <b>Send</b>
+          <span>{directCoachStart.assignmentId ? 'Proof stays tied to this assignment.' : 'Copy the recap back to coach.'}</span>
+        </li>
+      </ol>
+      <button type="button" onClick={() => onStartCard(card.id)}>
+        Start coach assignment
+      </button>
     </section>
   )
 }
@@ -1576,6 +1897,20 @@ function LevelUpCoachAssignmentBanner({
         <strong>{assignment.proofRequired ?? card.proof}</strong>
         <small>One assigned tool. One proof score. One update back to coach.</small>
       </div>
+      <ol className={styles.levelUpCoachAssignmentBridge} aria-label="Coach assignment on-court bridge">
+        <li>
+          <b>Start</b>
+          <span>{card.durationMinutes} min, one cue.</span>
+        </li>
+        <li>
+          <b>Score</b>
+          <span>{assignment.proofRequired ?? card.proof}</span>
+        </li>
+        <li>
+          <b>Send</b>
+          <span>Copy the coach update before browsing.</span>
+        </li>
+      </ol>
       {readyToSend ? (
         <a className="button-primary" href={primaryActionHref}>{primaryActionLabel}</a>
       ) : (
@@ -2536,6 +2871,14 @@ function LevelUpCardTile({
   const targetSeconds = Math.max(60, variantPlan.durationMinutes * 60)
   const timerProgress = Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100))
   const cleanRepTarget = getAdaptiveCleanRepTarget(card, activeVariant)
+  const courtStandardNow = getCourtStandardNow({
+    activeWatchCue,
+    cleanRepCount,
+    cleanRepTarget,
+    commonMiss,
+    missedRepCount,
+    proofAnchors,
+  })
   const roundTarget = getAdaptiveRoundTarget(card, cleanRepTarget, activeVariant)
   const cleanRepProgress = Math.min(100, Math.round((cleanRepCount / cleanRepTarget) * 100))
   const roundComplete = cleanRepCount >= cleanRepTarget
@@ -2599,6 +2942,12 @@ function LevelUpCardTile({
     { label: 'Proof', value: savedRating === null ? `${suggestedRating}/5 suggested` : `${savedRating}/5 saved`, done: savedRating !== null, active: loggerOpen },
     { label: 'Finish', value: savedRating === null ? 'Save proof first' : 'Share or pick next', done: savedRating !== null, active: savedRating !== null },
   ]
+  const activeCourtStats = [
+    { label: 'Timer', value: formatTimer(elapsedSeconds), detail: timerRunning ? 'Running' : elapsedSeconds > 0 ? 'Paused' : 'Ready' },
+    { label: 'Clean', value: `${cleanRepCount}/${cleanRepTarget}`, detail: `${totalCleanRepCount} total` },
+    { label: 'Missed', value: String(missedRepCount), detail: missedRepCount ? commonMiss.fix : 'Keep cue' },
+    { label: 'Proof', value: savedRating === null ? `${suggestedRating}/5` : `${savedRating}/5`, detail: savedRating === null ? 'Suggested' : 'Saved' },
+  ]
   const savedCoachUpdate = savedProofAction && savedRating !== null
     ? buildCoachUpdate({
       card,
@@ -2616,6 +2965,26 @@ function LevelUpCardTile({
     })
     : ''
   const coachAssignedLabel = coachAssignment ? getCoachAssignmentCardLabel(coachAssignment, card) : null
+  const courtSendBackReadiness = buildCourtSendBackReadiness({
+    card,
+    coachAssignment,
+    activeSessionGoal,
+    totalCleanRepCount,
+    missedRepCount,
+    elapsedSeconds,
+    suggestedRating,
+    savedRating,
+  })
+  const coachAssignmentReturnHref = buildCoachAssignmentReturnHref(coachAssignment)
+  const coachSendBackChecklist = savedRating !== null && coachAssignment
+    ? buildCoachSendBackChecklist({
+      card,
+      rating: savedRating,
+      savedProofAction,
+      savedNextCardPlan,
+      coachAssignmentReturnHref,
+    })
+    : []
   const questHref = buildCardQuestHref(startHref)
 
   useEffect(() => {
@@ -2641,6 +3010,7 @@ function LevelUpCardTile({
   }, [initialActivityOpen])
 
   function startActivity() {
+    pulseCourtHaptic(10)
     setActivityOpen(true)
     onActivityChange?.(card.title)
     setActiveVariant('base')
@@ -2654,6 +3024,7 @@ function LevelUpCardTile({
   }
 
   function openLogger() {
+    pulseCourtHaptic([10, 24, 10])
     setActivityOpen(true)
     onActivityChange?.(card.title)
     setLoggerOpen(true)
@@ -2664,6 +3035,7 @@ function LevelUpCardTile({
   }
 
   function completeCard() {
+    pulseCourtHaptic([14, 28, 14])
     const proofNote = note.trim() || activityProofNote
     onComplete(card.id, rating, proofNote, elapsedSeconds)
     setSavedRating(rating)
@@ -2672,7 +3044,13 @@ function LevelUpCardTile({
     setNote('')
   }
 
+  function chooseProofRating(value: number) {
+    pulseCourtHaptic(value >= 4 ? [8, 20, 8] : value <= 1 ? [14, 18, 14] : 8)
+    setRating(value)
+  }
+
   function repeatActivity() {
+    pulseCourtHaptic(10)
     const nextRepeatPlan = savedRating === null ? null : getAfterScoreRepeatPlan(card, savedRating)
     const nextVariant = savedRating === null ? 'base' : getVariantForRating(savedRating)
     setTimerRunning(false)
@@ -2697,6 +3075,7 @@ function LevelUpCardTile({
   }
 
   function repeatRound() {
+    pulseCourtHaptic(10)
     setBankedCleanRepCount((count) => count + cleanRepCount)
     setCompletedRoundCount((count) => count + 1)
     setCleanRepCount(0)
@@ -2712,6 +3091,7 @@ function LevelUpCardTile({
   }
 
   function resetDecisionRound() {
+    pulseCourtHaptic(8)
     setCleanRepCount(0)
     setMissedRepCount(0)
     setRoundNumber((round) => round + 1)
@@ -2727,6 +3107,7 @@ function LevelUpCardTile({
   function toggleActivityTimer(event?: MouseEvent<HTMLButtonElement>) {
     event?.preventDefault()
     event?.stopPropagation()
+    pulseCourtHaptic(8)
     setTimerRunning((running) => {
       const nextRunning = !running
       if (nextRunning) {
@@ -2741,11 +3122,13 @@ function LevelUpCardTile({
   function resetActivityTimer(event?: MouseEvent<HTMLButtonElement>) {
     event?.preventDefault()
     event?.stopPropagation()
+    pulseCourtHaptic(6)
     setTimerRunning(false)
     setElapsedSeconds(0)
   }
 
   function clearDecisionMiss() {
+    pulseCourtHaptic(6)
     setMissedRepCount((count) => Math.max(count - 1, 0))
     setRoundNotice({
       title: 'Miss cleared.',
@@ -2754,6 +3137,7 @@ function LevelUpCardTile({
   }
 
   function finishActivity() {
+    pulseCourtHaptic([12, 24, 12])
     setTimerRunning(false)
     setLoggerOpen(false)
     setActivityOpen(false)
@@ -2775,6 +3159,7 @@ function LevelUpCardTile({
   }
 
   function finishAndPickNext() {
+    pulseCourtHaptic([12, 24, 12])
     setTimerRunning(false)
     setLoggerOpen(false)
     setActivityOpen(false)
@@ -2801,6 +3186,7 @@ function LevelUpCardTile({
 
   function startPostProofNextCard() {
     if (!savedNextCardPlan) return
+    pulseCourtHaptic(10)
     if (savedNextCardPlan.card.id === card.id) {
       repeatActivity()
       return
@@ -2823,6 +3209,7 @@ function LevelUpCardTile({
 
     try {
       await window.navigator.clipboard?.writeText(savedCoachUpdate)
+      pulseCourtHaptic([8, 24, 8])
       setCoachUpdateCopyStatus('copied')
     } catch {
       setCoachUpdateCopyStatus('blocked')
@@ -2902,9 +3289,25 @@ function LevelUpCardTile({
               <button type="button" onClick={toggleActivityTimer}>
                 {timerRunning ? 'Pause' : elapsedSeconds > 0 ? 'Resume' : 'Start'}
               </button>
-              <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1</button>
+              <button type="button" onClick={() => {
+                pulseCourtHaptic(6)
+                setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))
+              }}>+1</button>
+              <button type="button" onClick={() => {
+                pulseCourtHaptic([12, 18, 12])
+                setMissedRepCount((count) => count + 1)
+              }}>Miss</button>
               <button type="button" onClick={openLogger}>{savedRating === null ? 'Score' : 'Review'}</button>
             </div>
+          </div>
+          <div className={styles.levelUpCourtScoreboard} aria-label={`On-court scoreboard for ${card.title}`}>
+            {activeCourtStats.map((item) => (
+              <span key={item.label}>
+                <b>{item.label}</b>
+                <strong>{item.value}</strong>
+                <small>{item.detail}</small>
+              </span>
+            ))}
           </div>
           <div className={styles.levelUpFinishLine} aria-label={`Session finish line for ${card.title}`}>
             {finishLineSteps.map((step) => (
@@ -2913,6 +3316,31 @@ function LevelUpCardTile({
                 {step.value}
               </span>
             ))}
+          </div>
+          <div
+            className={styles.levelUpCourtSendBackReadiness}
+            data-ready-state={courtSendBackReadiness.readyState}
+            aria-label={`Court send-back readiness for ${card.title}`}
+          >
+            <div>
+              <span>{coachAssignment ? 'Coach send-back' : 'Proof readiness'}</span>
+              <strong>{courtSendBackReadiness.title}</strong>
+              <small>{courtSendBackReadiness.detail}</small>
+            </div>
+            <div className={styles.levelUpCourtSendBackSteps}>
+              {courtSendBackReadiness.steps.map((step) => (
+                <span key={step.label} data-done={step.done ? 'true' : 'false'}>
+                  <b>{step.label}</b>
+                  {step.value}
+                </span>
+              ))}
+            </div>
+            <div className={styles.levelUpCourtSendBackActions}>
+              <button type="button" onClick={savedRating === null ? openLogger : copyCoachUpdate}>
+                {savedRating === null ? 'Score proof' : getCopyStatusLabel(coachUpdateCopyStatus, 'Copy update', 'Copied')}
+              </button>
+              {coachAssignment ? <a href={coachAssignmentReturnHref}>Open My Lab</a> : <a href={questHref}>Build habit</a>}
+            </div>
           </div>
           {activeVariant !== 'base' ? (
             <div className={styles.levelUpAdaptiveVariant} aria-label={`Adaptive drill adjustment for ${card.title}`}>
@@ -2942,6 +3370,21 @@ function LevelUpCardTile({
           <div className={styles.levelUpActiveWatchCue} aria-label={`Watch this rep for ${card.title}`}>
             <span>Watch this rep</span>
             <strong>{activeWatchCue}</strong>
+          </div>
+          <div className={styles.levelUpCourtStandardNow} aria-label={`Court standard now for ${card.title}`}>
+            <span>Court standard now</span>
+            <div>
+              <b>Count only</b>
+              <strong>{courtStandardNow.countOnly}</strong>
+            </div>
+            <div>
+              <b>If it leaks</b>
+              <strong>{courtStandardNow.fixNow}</strong>
+            </div>
+            <div>
+              <b>Score read</b>
+              <strong>{courtStandardNow.scoreRead}</strong>
+            </div>
           </div>
           <div className={styles.levelUpActivityCommand} aria-label={`Do this round for ${card.title}`}>
             <span>Do this round</span>
@@ -3028,13 +3471,26 @@ function LevelUpCardTile({
                 <i style={{ width: `${cleanRepProgress}%` }} />
               </div>
               <div className={styles.levelUpActivityRepActions}>
-                <button type="button" onClick={() => setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))}>+1 clean</button>
-                <button type="button" onClick={() => setMissedRepCount((count) => count + 1)}>Missed it</button>
-                <button type="button" onClick={() => setCleanRepCount((count) => Math.max(count - 1, 0))}>Undo clean</button>
+                <button type="button" onClick={() => {
+                  pulseCourtHaptic(6)
+                  setCleanRepCount((count) => Math.min(count + 1, cleanRepTarget))
+                }}>+1 clean</button>
+                <button type="button" onClick={() => {
+                  pulseCourtHaptic([12, 18, 12])
+                  setMissedRepCount((count) => count + 1)
+                }}>Missed it</button>
+                <button type="button" onClick={() => {
+                  pulseCourtHaptic(5)
+                  setCleanRepCount((count) => Math.max(count - 1, 0))
+                }}>Undo clean</button>
                 {missedRepCount > 0 ? (
-                  <button type="button" onClick={() => setMissedRepCount((count) => Math.max(count - 1, 0))}>Undo miss</button>
+                  <button type="button" onClick={() => {
+                    pulseCourtHaptic(5)
+                    setMissedRepCount((count) => Math.max(count - 1, 0))
+                  }}>Undo miss</button>
                 ) : null}
                 <button type="button" onClick={() => {
+                  pulseCourtHaptic([6, 18, 6])
                   setCleanRepCount(0)
                   setMissedRepCount(0)
                 }}>
@@ -3079,6 +3535,21 @@ function LevelUpCardTile({
             <button type="button" className={styles.scoreButton} onClick={openLogger}>Score now</button>
             <a className="button-secondary" href={startHref}>Open guided flow</a>
             <a className="button-secondary" href={questHref}>Turn into habit</a>
+          </div>
+          <div className={styles.levelUpCourtFinishDock} aria-label={`Finish dock for ${card.title}`}>
+            <div>
+              <span>{savedRating === null ? 'Proof needed' : 'Proof saved'}</span>
+              <strong>{savedRating === null ? `${suggestedRating}/5 suggested` : `${savedRating}/5 saved`}</strong>
+              <small>{savedRating === null ? 'Score before you leave the court.' : savedPrimaryPath?.title ?? 'Finish and choose next.'}</small>
+            </div>
+            <div>
+              <button type="button" onClick={savedRating === null ? openLogger : copyCoachUpdate}>
+                {savedRating === null ? 'Score proof' : getCopyStatusLabel(coachUpdateCopyStatus, 'Copy update', 'Copied')}
+              </button>
+              <button type="button" onClick={savedRating === null ? repeatRound : finishActivity}>
+                {savedRating === null ? 'Repeat round' : 'Finish'}
+              </button>
+            </div>
           </div>
           <details className={styles.levelUpActivityGuide}>
             <summary>Need the drill guide?</summary>
@@ -3364,7 +3835,17 @@ function LevelUpCardTile({
               </div>
               <div className={styles.levelUpScoreButtons} aria-label={`Proof rating buttons for ${card.title}`}>
                 {[0, 1, 2, 3, 4, 5].map((value) => (
-                  <button key={value} type="button" data-active={rating === value ? 'true' : 'false'} onClick={() => setRating(value)}>{value}</button>
+                  <button
+                    key={value}
+                    type="button"
+                    data-active={rating === value ? 'true' : 'false'}
+                    data-score-band={value <= 1 ? 'low' : value <= 3 ? 'mid' : 'high'}
+                    aria-pressed={rating === value}
+                    onClick={() => chooseProofRating(value)}
+                  >
+                    <b>{value}</b>
+                    <span>{getCourtProofTapLabel(value)}</span>
+                  </button>
                 ))}
               </div>
               <div className={styles.levelUpProofNextStep}>
@@ -3431,6 +3912,27 @@ function LevelUpCardTile({
               <b>Coach update</b>
               <span>{coachUpdateCopyStatus === 'copied' ? 'Copied and ready to send.' : coachUpdateCopyStatus === 'blocked' ? 'Manual copy ready below.' : 'Ready to copy when linked with coach.'}</span>
             </div>
+            {coachAssignment ? (
+              <div className={styles.levelUpCoachSendBack} aria-label={`Coach send-back for ${card.title}`}>
+                <span>Send back to coach</span>
+                <strong>{coachAssignedLabel?.status ?? 'Coach assigned proof'}</strong>
+                <small>{savedRating}/5 proof saved. {coachAssignedLabel?.proof ?? 'Copy the update before leaving court mode.'}</small>
+                <div className={styles.levelUpCoachSendBackChecklist} aria-label={`Coach send-back checklist for ${card.title}`}>
+                  {coachSendBackChecklist.map((item) => (
+                    <div key={item.label}>
+                      <b>{item.label}</b>
+                      <strong>{item.value}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.levelUpCoachSendBackActions}>
+                  <button type="button" data-primary="true" onClick={copyCoachUpdate}>
+                    {getCopyStatusLabel(coachUpdateCopyStatus, 'Copy update', 'Copied')}
+                  </button>
+                  <a href={coachAssignmentReturnHref}>Open My Lab</a>
+                </div>
+              </div>
+            ) : null}
             {savedPrimaryPath ? (
               <div className={styles.levelUpSavedPrimaryPath} aria-label={`Primary saved action for ${card.title}`}>
                 <span>Do next</span>
@@ -6605,15 +7107,21 @@ function buildCoachChallengeInboxNextStep(
   return `Scale ${challenge.card.title} down and make the cue show up before chasing score.`
 }
 
-function buildDirectStartAssignment(card: LevelUpCard, requestedStartCardId: string): LevelUpAssignment | undefined {
+function buildDirectStartAssignment(card: LevelUpCard, requestedStartCardId: string, directCoachStart: DirectCoachStart | null): LevelUpAssignment | undefined {
   if (requestedStartCardId !== card.id) return undefined
 
+  const assignmentTitle = directCoachStart?.assignmentTitle?.trim()
+  const assignmentFocus = directCoachStart?.assignmentFocus?.trim()
+  const coachNote = assignmentFocus
+    ? `Coach assigned ${assignmentTitle || card.title}. Focus: ${assignmentFocus}. Run the card, score the proof, and send the recap back.`
+    : 'Opened from a coach link. Run the card, score the proof, and share the recap if this is assigned work.'
+
   return {
-    id: `direct-coach-link-${card.id}`,
+    id: directCoachStart?.assignmentId || `direct-coach-link-${card.id}`,
     playerId: 'direct-link-player',
     cardId: card.id,
     assignedAt: new Date().toISOString(),
-    coachNote: 'Opened from a coach link. Run the card, score the proof, and share the recap if this is assigned work.',
+    coachNote,
     proofRequired: card.proof,
     status: 'assigned',
   }
@@ -6626,6 +7134,13 @@ function getCoachAssignmentCardLabel(assignment: LevelUpAssignment, card: LevelU
     proof: assignment.proofRequired ?? card.proof,
     due: directLink ? 'Share proof when this is assigned work.' : `Due ${formatAssignmentDueDate(assignment.dueAt)}`,
   }
+}
+
+function buildCoachAssignmentReturnHref(assignment?: LevelUpAssignment | null) {
+  const assignmentId = assignment?.id.trim()
+  if (!assignmentId || assignmentId.startsWith('direct-coach-link-')) return '/mylab#coach-assignments'
+
+  return `/mylab#coach-assignment-${encodeURIComponent(assignmentId)}`
 }
 
 function matchAssignmentCard(assignment: CoachAssignment) {
@@ -6736,6 +7251,15 @@ function getProofRatingGuidance(rating: number, card: LevelUpCard) {
     title: 'Progress the challenge.',
     detail: card.progression,
   }
+}
+
+function getCourtProofTapLabel(rating: number) {
+  if (rating === 0) return 'miss'
+  if (rating === 1) return 'stuck'
+  if (rating === 2) return 'some'
+  if (rating === 3) return 'close'
+  if (rating === 4) return 'clean'
+  return 'repeat'
 }
 
 function getProofNotePrompt(rating: number) {
@@ -7278,6 +7802,52 @@ function getAdaptiveRoundTarget(card: LevelUpCard, cleanRepTarget: number, varia
   }
 
   return baseTarget
+}
+
+function getCourtStandardNow({
+  activeWatchCue,
+  cleanRepCount,
+  cleanRepTarget,
+  commonMiss,
+  missedRepCount,
+  proofAnchors,
+}: {
+  activeWatchCue: string
+  cleanRepCount: number
+  cleanRepTarget: number
+  commonMiss: { miss: string; fix: string }
+  missedRepCount: number
+  proofAnchors: { low: string; mid: string; high: string }
+}) {
+  if (missedRepCount > cleanRepCount) {
+    return {
+      countOnly: activeWatchCue,
+      fixNow: commonMiss.fix,
+      scoreRead: proofAnchors.low,
+    }
+  }
+
+  if (cleanRepCount >= cleanRepTarget) {
+    return {
+      countOnly: activeWatchCue,
+      fixNow: 'Bank the proof before adding difficulty.',
+      scoreRead: proofAnchors.high,
+    }
+  }
+
+  if (cleanRepCount > 0) {
+    return {
+      countOnly: activeWatchCue,
+      fixNow: commonMiss.fix,
+      scoreRead: proofAnchors.mid,
+    }
+  }
+
+  return {
+    countOnly: activeWatchCue,
+    fixNow: 'Get one visible rep before changing the drill.',
+    scoreRead: 'Start with one honest rep signal before scoring.',
+  }
 }
 
 function getRoundCompletePrompt(card: LevelUpCard, cleanRepCount: number, cleanRepTarget: number) {
@@ -8707,7 +9277,12 @@ async function syncPortalCompletion({
     sharedWithCoach: true,
   })
   if (coachResult.ok) {
-    setSyncState({ status: 'synced', message: 'Synced. Your linked coach can use this for the next lesson.' })
+    setSyncState({
+      status: 'synced',
+      message: coachResult.assignmentSync?.updated
+        ? `Synced. Coach assignment progress updated for review${coachResult.assignmentSync.progressLabel ? `: ${coachResult.assignmentSync.progressLabel}.` : '.'}`
+        : 'Synced. Your linked coach can use this for the next lesson.',
+    })
     return
   }
 
@@ -8776,10 +9351,10 @@ async function postPortalCompletion({
         },
       }),
     })
-    const json = (await response.json()) as { ok?: boolean; message?: string }
-    return { ok: response.ok && json.ok, message: json.message }
+    const json = (await response.json()) as { ok?: boolean; message?: string; assignmentSync?: PortalAssignmentSyncResult | null }
+    return { ok: response.ok && json.ok, message: json.message, assignmentSync: json.assignmentSync ?? null }
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : 'Cloud sync is not available right now.' }
+    return { ok: false, message: error instanceof Error ? error.message : 'Cloud sync is not available right now.', assignmentSync: null }
   }
 }
 
@@ -9181,6 +9756,94 @@ function buildCoachUpdate({
   const currentRoundLine = completedRoundCount > 0 ? ` (${cleanRepCount}/${cleanRepTarget} current round)` : ''
   const missedLine = missedRepCount > 0 ? `, ${missedRepCount} missed` : ''
   return `${card.title}: goal ${sessionGoal}; proof ${rating}/5, ${totalCleanRepCount} total clean reps${missedLine}${roundLine}${currentRoundLine}, ${formatTimer(elapsedSeconds)}. Next: ${nextAction}.${nextRepLine}${noteLine}`
+}
+
+function buildCoachSendBackChecklist({
+  card,
+  rating,
+  savedProofAction,
+  savedNextCardPlan,
+  coachAssignmentReturnHref,
+}: {
+  card: LevelUpCard
+  rating: number
+  savedProofAction: ReturnType<typeof getSavedProofAction> | null
+  savedNextCardPlan: ReturnType<typeof getPostProofNextCardPlan> | null
+  coachAssignmentReturnHref: string
+}) {
+  return [
+    {
+      label: 'Coach sees',
+      value: `${rating}/5 ${card.proof.replace(' 0-5', '')}`,
+    },
+    {
+      label: 'Coach ask',
+      value: savedNextCardPlan?.firstRep ?? savedProofAction?.title ?? 'Choose repeat, scale, or add pressure.',
+    },
+    {
+      label: 'After copy',
+      value: coachAssignmentReturnHref.includes('#coach-assignment-') ? 'Open the assignment card in My Lab.' : 'Open My Lab and confirm the assignment.',
+    },
+  ]
+}
+
+function buildCourtSendBackReadiness({
+  card,
+  coachAssignment,
+  activeSessionGoal,
+  totalCleanRepCount,
+  missedRepCount,
+  elapsedSeconds,
+  suggestedRating,
+  savedRating,
+}: {
+  card: LevelUpCard
+  coachAssignment?: LevelUpAssignment
+  activeSessionGoal: string
+  totalCleanRepCount: number
+  missedRepCount: number
+  elapsedSeconds: number
+  suggestedRating: number
+  savedRating: number | null
+}) {
+  const hasSignal = totalCleanRepCount > 0 || missedRepCount > 0 || elapsedSeconds > 0
+  const proofName = card.proof.replace(' 0-5', '')
+  const readyState = savedRating !== null ? 'saved' : hasSignal ? 'ready' : 'empty'
+  const title = savedRating !== null
+    ? coachAssignment
+      ? 'Ready to send back to coach.'
+      : 'Proof saved. Keep the next step simple.'
+    : hasSignal
+      ? 'Enough signal. Score before leaving.'
+      : 'Get one visible rep signal.'
+  const detail = savedRating !== null
+    ? `${savedRating}/5 ${proofName}. ${coachAssignment ? 'Copy the update while the court work is fresh.' : 'Use the score to repeat, scale, or add pressure.'}`
+    : hasSignal
+      ? `${suggestedRating}/5 suggested from ${totalCleanRepCount} clean, ${missedRepCount} missed, ${formatTimer(elapsedSeconds)}.`
+      : `Start with: ${activeSessionGoal}`
+
+  return {
+    readyState,
+    title,
+    detail,
+    steps: [
+      {
+        label: 'Start',
+        value: hasSignal ? `${formatTimer(elapsedSeconds)} logged` : activeSessionGoal,
+        done: hasSignal,
+      },
+      {
+        label: 'Score',
+        value: savedRating === null ? `${suggestedRating}/5 suggested` : `${savedRating}/5 saved`,
+        done: savedRating !== null,
+      },
+      {
+        label: 'Send',
+        value: coachAssignment ? 'Coach update' : 'Habit note',
+        done: savedRating !== null,
+      },
+    ],
+  }
 }
 
 function scrollToStartList(startListRef: RefObject<HTMLElement | null>) {

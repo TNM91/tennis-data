@@ -275,8 +275,13 @@ export default function TiqTacticalStudio() {
     <div className={styles.studio}>
       <div className={styles.topbar}>
         <div className={styles.brand}>
-          <Image alt="" height={34} src="/tiq/logo/tiq-logo-small.png" width={34} />
-          <div className={styles.brandWord}>TenAce<span>IQ</span></div>
+          <Image
+            alt="TenAceIQ"
+            height={420}
+            src="/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg"
+            width={1600}
+            style={{ height: 34, width: 'auto', objectFit: 'contain' }}
+          />
         </div>
         <div className={styles.navPills}>
           <button className={`${styles.button} ${styles.active}`} type="button">Tactics</button>

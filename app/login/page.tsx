@@ -442,12 +442,9 @@ const watermarkStyle: CSSProperties = {
   right: 'clamp(-90px, -7vw, -34px)',
   bottom: 'clamp(-120px, -10vw, -46px)',
   width: 'clamp(220px, 31vw, 430px)',
-  aspectRatio: '1',
-  borderRadius: '50%',
-  border: '1px solid rgba(155,225,29,0.16)',
-  background:
-    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.16) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
-  opacity: 0.8,
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  opacity: 0.14,
   pointerEvents: 'none',
 }
 

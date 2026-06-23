@@ -52,7 +52,7 @@ import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { PLAYER_DEVELOPMENT_IDENTITIES } from '@/lib/player-development'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { buildLevelUpHabitPaths } from '@/lib/level-up/quest-builder'
-import type { LevelUpCompletion } from '@/lib/level-up/level-up-types'
+import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   getCoachAssignmentDueState,
@@ -60,6 +60,7 @@ import {
   getCoachAssignmentPackProgress,
   getCoachAssignmentReview,
   getCoachAssignmentSummary,
+  getPlayerAssignmentCheckIn,
   sortPlayerAssignmentsForAction,
   type CoachAssignment,
   type CoachAssignmentPackItemStatus,
@@ -2431,6 +2432,9 @@ function MyLabPageInner() {
   const isSelfRatedProfile = linkedPlayer?.rating_source === 'self'
   const isNewSelfRatedProfile = Boolean(isSelfRatedProfile && !personalMatches.length)
   const levelUpProofs = useMemo(() => buildMyLabLevelUpProofs(levelUpCompletions), [levelUpCompletions])
+  const latestLevelUpProof = levelUpProofs[0]
+  const fallbackLevelUpIdentitySlug = PLAYER_DEVELOPMENT_IDENTITIES[0]?.slug || 'relentless-competitor-4-0'
+  const courtModeHref = latestLevelUpProof?.nextHref || `/player-development/${fallbackLevelUpIdentitySlug}/level-up`
   const earnedAwardCards = useMemo(() => {
     const profileNames = new Set(
       [profileLink?.linked_player_name, linkedPlayer?.name]
@@ -2660,6 +2664,14 @@ function MyLabPageInner() {
       note: activeGoal.progressUpdate || focusSuggestion,
     },
     {
+      label: 'Court mode',
+      value: latestLevelUpProof ? 'Resume rep' : 'Start rep',
+      note: latestLevelUpProof
+        ? `${latestLevelUpProof.cardTitle}: ${latestLevelUpProof.proofLabel}`
+        : 'Open one short Level Up card before the phone goes courtside.',
+      href: courtModeHref,
+    },
+    {
       label: 'Next move',
       value: nextMoveCta,
       note: tiqRecommendation,
@@ -2669,10 +2681,12 @@ function MyLabPageInner() {
   const personalLabPathCards = [
     {
       question: 'What should I work on?',
-      title: 'Choose one focus',
-      body: activeGoal.goal.trim() || 'Pick one goal or Level Up path before the next practice block.',
-      href: '/player-development',
-      cta: 'Level Up My Game',
+      title: 'Start court mode',
+      body: latestLevelUpProof
+        ? `Resume ${latestLevelUpProof.cardTitle} and score the next cleaner rep.`
+        : activeGoal.goal.trim() || 'Pick one Level Up card before the next practice block.',
+      href: courtModeHref,
+      cta: latestLevelUpProof ? 'Resume Level Up' : 'Level Up My Game',
       job: 'choose_focus',
     },
     {
@@ -3170,6 +3184,7 @@ function MyLabPageInner() {
                       : 'Set your profile first, then My Lab can suggest the next card.'}
                 </p>
                 <div style={onboardingReadListStyle}>
+                  <Link href={courtModeHref} style={miniActionPillStyle}>Open court mode</Link>
                   <Link href={nextMoveHref} style={miniActionPillStyle}>{nextMoveCta}</Link>
                   <Link href={dataAssistMyLabHref} style={smallInlineLinkStyle}>Upload data</Link>
                   <Link href="/coaches" style={smallInlineLinkStyle}>Find a coach</Link>
@@ -4403,6 +4418,20 @@ function LevelUpReturnStatePanel({
       action: 'Score proof',
     },
   ]
+  const courtHandoffItems = [
+    {
+      label: 'Before court',
+      body: latestProof ? `Resume ${latestProof.cardTitle} or repeat it cleaner.` : 'Pick one Level Up card before you start browsing.',
+    },
+    {
+      label: 'On court',
+      body: 'Run the rep, count the clean reps, and save one honest 0-5 proof score.',
+    },
+    {
+      label: 'After court',
+      body: signedIn ? 'Sync history can support Player or coach-linked follow-up.' : 'Sign in before expecting proof to follow this phone.',
+    },
+  ]
   const refreshProofItems = [
     {
       label: 'Identity',
@@ -4437,13 +4466,22 @@ function LevelUpReturnStatePanel({
               {latestProof ? `${latestProof.cardTitle}: ${latestProof.proofLabel}` : 'No Level Up proof in this browser yet'}
             </h3>
             <p style={sectionTextStyle}>
-              My Lab pulls recent Level Up proof forward so the next practice does not disappear after refresh.
+              My Lab pulls recent Level Up proof forward so the next practice starts with one clear court action.
             </p>
           </div>
         </div>
         <Link href={latestProof?.nextHref || '/level-up'} style={quickStartButtonStyle}>
-          {latestProof ? 'Repeat in Level Up' : 'Open Level Up'}
+          {latestProof ? 'Resume court work' : 'Open court mode'}
         </Link>
+      </div>
+
+      <div style={myLabCourtHandoffStyle} aria-label="Level Up court handoff">
+        {courtHandoffItems.map((item) => (
+          <div key={item.label} style={myLabCourtHandoffItemStyle}>
+            <span style={myLabRefreshProofLabelStyle}>{item.label}</span>
+            <p style={myLabRefreshProofTextStyle}>{item.body}</p>
+          </div>
+        ))}
       </div>
 
       <div style={myLabLevelUpTodayCardStyle} aria-label="Today's Level Up card">
@@ -4958,6 +4996,21 @@ function PlayerCoachAssignmentsPanel({
   const nextAssignmentActionPlan = nextAssignment
     ? buildPlayerAssignmentActionPlan(nextAssignment, nextAssignmentSummary, nextDueState?.label ?? '')
     : []
+  const nextAssignmentCourtHandoff = nextAssignment
+    ? buildPlayerAssignmentCourtHandoff(nextAssignment, nextAssignmentSummary, nextDueState?.label ?? '')
+    : []
+  const nextAssignmentStatusPath = nextAssignment
+    ? buildPlayerAssignmentStatusPath(nextAssignment, nextPackProgress, nextCoachReview)
+    : []
+  const nextAssignmentStandard = nextAssignment
+    ? buildPlayerAssignmentProofStandard(nextAssignment, nextAssignmentSummary)
+    : null
+  const nextCoachReviewPlan = nextAssignment && nextCoachReview
+    ? buildPlayerCoachReviewNextPlan(nextAssignment, nextCoachReview, nextAssignmentStandard)
+    : null
+  const nextAssignmentLevelUpHref = nextAssignment
+    ? buildAssignmentLevelUpHref(nextAssignment, coachLinkMap.get(nextAssignment.studentLinkId))
+    : ''
   const [selectedCoachCalendarStudentId, setSelectedCoachCalendarStudentId] = useState('')
   const activeCoachLink = coachLinks.find((link) => link.id === selectedCoachCalendarStudentId) ?? coachLinks[0]
   const activeCoachCalendarUrl = activeCoachLink ? calendarLinksByStudentId[activeCoachLink.id] : ''
@@ -5194,6 +5247,65 @@ function PlayerCoachAssignmentsPanel({
             {nextCoachReview?.nextFocus ? (
               <em>Coach next focus: {nextCoachReview.nextFocus}</em>
             ) : null}
+            {nextCoachReviewPlan ? (
+              <div style={coachReviewNextPlanStyle} aria-label={`Coach review next rep for ${nextAssignment.title}`}>
+                <span>Coach review next rep</span>
+                <strong>{nextCoachReviewPlan.title}</strong>
+                <div style={coachReviewNextPlanGridStyle}>
+                  {nextCoachReviewPlan.items.map((item) => (
+                    <span key={item.label} style={coachReviewNextPlanItemStyle}>
+                      <b>{item.label}</b>
+                      <em>{item.value}</em>
+                    </span>
+                  ))}
+                </div>
+                <div style={coachReviewNextPlanActionsStyle}>
+                  <Link href={nextAssignmentLevelUpHref} style={miniActionPillStyle}>Run response on court</Link>
+                  <Link
+                    href={buildPlayerCoachMessageHref(
+                      coachLinkMap.get(nextAssignment.studentLinkId),
+                      `Coach review: ${nextAssignment.title}`,
+                      `I saw your review on ${nextAssignment.title}. I will run: ${nextCoachReviewPlan.nextRep}. Question: `,
+                      {
+                        assignmentId: nextAssignment.id,
+                        assignmentTitle: nextAssignment.title,
+                        assignmentFocus: nextAssignment.focus,
+                        assignmentCardId: getAssignmentLevelUpCardId(nextAssignment),
+                      },
+                    )}
+                    style={miniActionLinkStyle}
+                  >
+                    Ask coach
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+            {nextAssignment.status !== 'completed' && nextAssignmentCourtHandoff.length ? (
+              <div style={coachAssignmentCourtModeStyle} aria-label="Coach assignment court mode">
+                <div style={coachAssignmentCourtModeHeaderStyle}>
+                  <span>Coach court mode</span>
+                  <Link href={nextAssignmentLevelUpHref} style={miniActionPillStyle}>Open on court</Link>
+                </div>
+                <div style={coachAssignmentCourtModeGridStyle}>
+                  {nextAssignmentCourtHandoff.map((item) => (
+                    <span key={item.label} style={coachAssignmentCourtModeItemStyle}>
+                      <strong>{item.label}</strong>
+                      <em>{item.value}</em>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {nextAssignmentStatusPath.length ? (
+              <div style={coachAssignmentStatusPathStyle} aria-label="Coach assignment status path">
+                {nextAssignmentStatusPath.map((item) => (
+                  <span key={item.label} data-done={item.done ? 'true' : 'false'} style={coachAssignmentStatusStepStyle(item.done)}>
+                    <strong>{item.label}</strong>
+                    <em>{item.value}</em>
+                  </span>
+                ))}
+              </div>
+            ) : null}
             {nextPackProgress ? (
               <div style={coachAssignmentPackProgressStyle}>
                 <div style={coachAssignmentPackHeaderStyle}>
@@ -5215,11 +5327,30 @@ function PlayerCoachAssignmentsPanel({
                 ))}
               </div>
             ) : null}
+            {nextAssignmentStandard ? (
+              <div style={coachAssignmentProofStandardStyle} aria-label="Coach assignment proof standard">
+                <span>Proof standard</span>
+                <div style={coachAssignmentProofStandardGridStyle}>
+                  <span style={coachAssignmentProofStandardItemStyle}>
+                    <strong>Count only</strong>
+                    <em>{nextAssignmentStandard.countOnly}</em>
+                  </span>
+                  <span style={coachAssignmentProofStandardItemStyle}>
+                    <strong>Common leak</strong>
+                    <em>{nextAssignmentStandard.commonLeak}</em>
+                  </span>
+                  <span style={coachAssignmentProofStandardItemStyle}>
+                    <strong>Next clean rep</strong>
+                    <em>{nextAssignmentStandard.nextCleanRep}</em>
+                  </span>
+                </div>
+              </div>
+            ) : null}
           </div>
           <div style={coachHubNextActionsStyle}>
             {nextAssignment.status !== 'completed' ? (
               <Link
-                href={buildAssignmentLevelUpHref(nextAssignment, coachLinkMap.get(nextAssignment.studentLinkId))}
+                href={nextAssignmentLevelUpHref}
                 style={coachCheckInPrimaryLinkStyle}
               >
                 Start Level Up
@@ -5243,6 +5374,7 @@ function PlayerCoachAssignmentsPanel({
                   assignmentId: nextAssignment.id,
                   assignmentTitle: nextAssignment.title,
                   assignmentFocus: nextAssignment.focus,
+                  assignmentCardId: getAssignmentLevelUpCardId(nextAssignment),
                 },
               )}
               style={coachCheckInGhostLinkStyle}
@@ -5266,7 +5398,12 @@ function PlayerCoachAssignmentsPanel({
             const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
             const dueState = getCoachAssignmentDueState(assignment.dueDate)
             const assignmentActionPlan = buildPlayerAssignmentActionPlan(assignment, assignmentSummary, dueState.label)
+            const assignmentCourtHandoff = buildPlayerAssignmentCourtHandoff(assignment, assignmentSummary, dueState.label)
+            const assignmentStatusPath = buildPlayerAssignmentStatusPath(assignment, packProgress, coachReview)
+            const assignmentProofStandard = buildPlayerAssignmentProofStandard(assignment, assignmentSummary)
+            const coachReviewPlan = coachReview ? buildPlayerCoachReviewNextPlan(assignment, coachReview, assignmentProofStandard) : null
             const checkInDraft = buildPlayerAssignmentCheckInDraft(assignment, assignmentSummary, dueState.label)
+            const assignmentLevelUpHref = buildAssignmentLevelUpHref(assignment, link)
             return (
               <div key={assignment.id} id={`coach-assignment-${assignment.id}`} style={coachAssignmentCardStyle}>
                 <div style={metricLabelStyle}>{assignment.status === 'completed' ? 'Completed' : 'Assigned'}</div>
@@ -5280,7 +5417,7 @@ function PlayerCoachAssignmentsPanel({
                   <div style={developmentActionRowStyle}>
                     {assignment.status !== 'completed' ? (
                       <Link
-                        href={buildAssignmentLevelUpHref(assignment, link)}
+                        href={assignmentLevelUpHref}
                         style={miniActionLinkStyle}
                       >
                         Start Level Up
@@ -5295,6 +5432,7 @@ function PlayerCoachAssignmentsPanel({
                           assignmentId: assignment.id,
                           assignmentTitle: assignment.title,
                           assignmentFocus: assignment.focus,
+                          assignmentCardId: getAssignmentLevelUpCardId(assignment),
                         },
                       )}
                       style={miniActionLinkStyle}
@@ -5347,11 +5485,83 @@ function PlayerCoachAssignmentsPanel({
                     ))}
                   </div>
                 ) : null}
+                {assignment.status !== 'completed' && assignmentCourtHandoff.length ? (
+                  <div style={coachAssignmentCourtModeGridStyle} aria-label={`Court handoff for ${assignment.title}`}>
+                    {assignmentCourtHandoff.map((item) => (
+                      <span key={item.label} style={coachAssignmentCourtModeItemStyle}>
+                        <strong>{item.label}</strong>
+                        <em>{item.value}</em>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {assignmentProofStandard ? (
+                  <div style={coachAssignmentProofStandardStyle} aria-label={`Proof standard for ${assignment.title}`}>
+                    <span>Proof standard</span>
+                    <div style={coachAssignmentProofStandardGridStyle}>
+                      <span style={coachAssignmentProofStandardItemStyle}>
+                        <strong>Count only</strong>
+                        <em>{assignmentProofStandard.countOnly}</em>
+                      </span>
+                      <span style={coachAssignmentProofStandardItemStyle}>
+                        <strong>Common leak</strong>
+                        <em>{assignmentProofStandard.commonLeak}</em>
+                      </span>
+                      <span style={coachAssignmentProofStandardItemStyle}>
+                        <strong>Next clean rep</strong>
+                        <em>{assignmentProofStandard.nextCleanRep}</em>
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+                {assignmentStatusPath.length ? (
+                  <div style={coachAssignmentStatusPathStyle} aria-label={`Status path for ${assignment.title}`}>
+                    {assignmentStatusPath.map((item) => (
+                      <span key={item.label} data-done={item.done ? 'true' : 'false'} style={coachAssignmentStatusStepStyle(item.done)}>
+                        <strong>{item.label}</strong>
+                        <em>{item.value}</em>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 {coachReview ? (
                   <div style={coachFeedbackStyle}>
                     <strong>Coach feedback</strong>
                     {coachReview.note ? <span>{coachReview.note}</span> : null}
                     {coachReview.nextFocus ? <em>Next: {coachReview.nextFocus}</em> : null}
+                  </div>
+                ) : null}
+                {coachReviewPlan ? (
+                  <div style={coachReviewNextPlanStyle} aria-label={`Coach review next rep for ${assignment.title}`}>
+                    <span>Coach review next rep</span>
+                    <strong>{coachReviewPlan.title}</strong>
+                    <div style={coachReviewNextPlanGridStyle}>
+                      {coachReviewPlan.items.map((item) => (
+                        <span key={item.label} style={coachReviewNextPlanItemStyle}>
+                          <b>{item.label}</b>
+                          <em>{item.value}</em>
+                        </span>
+                      ))}
+                    </div>
+                    <div style={coachReviewNextPlanActionsStyle}>
+                      <Link href={assignmentLevelUpHref} style={miniActionPillStyle}>Run response on court</Link>
+                      <Link
+                        href={buildPlayerCoachMessageHref(
+                          link,
+                          `Coach review: ${assignment.title}`,
+                          `I saw your review on ${assignment.title}. I will run: ${coachReviewPlan.nextRep}. Question: `,
+                          {
+                            assignmentId: assignment.id,
+                            assignmentTitle: assignment.title,
+                            assignmentFocus: assignment.focus,
+                            assignmentCardId: getAssignmentLevelUpCardId(assignment),
+                          },
+                        )}
+                        style={miniActionLinkStyle}
+                      >
+                        Ask coach
+                      </Link>
+                    </div>
                   </div>
                 ) : null}
                 {assignment.status !== 'completed' ? (
@@ -5470,6 +5680,7 @@ function buildPlayerCoachMessageHref(
     assignmentId: string
     assignmentTitle: string
     assignmentFocus: string
+    assignmentCardId?: string
   },
 ) {
   if (!coachLink?.coachUserId) return '/messages'
@@ -5485,6 +5696,7 @@ function buildPlayerCoachMessageHref(
   if (assignmentContext?.assignmentId) params.set('assignmentId', assignmentContext.assignmentId)
   if (assignmentContext?.assignmentTitle) params.set('assignmentTitle', assignmentContext.assignmentTitle)
   if (assignmentContext?.assignmentFocus) params.set('assignmentFocus', assignmentContext.assignmentFocus)
+  if (assignmentContext?.assignmentCardId) params.set('assignmentCardId', assignmentContext.assignmentCardId)
   return `/messages?${params.toString()}`
 }
 
@@ -5504,7 +5716,7 @@ function buildAssignmentLevelUpHref(
   })
   if (assignment.focus) params.set('assignmentFocus', assignment.focus)
   if (cardId) params.set('card', cardId)
-  return `/level-up/${encodeURIComponent(identitySlug)}?${params.toString()}`
+  return `/player-development/${encodeURIComponent(identitySlug)}/level-up?${params.toString()}`
 }
 
 function buildPlayerCoachLessonEvents(
@@ -5592,6 +5804,66 @@ function getAssignmentLevelUpCardId(assignment: CoachAssignment) {
   return ''
 }
 
+function getAssignmentLevelUpCard(assignment: CoachAssignment) {
+  const cardId = getAssignmentLevelUpCardId(assignment)
+  return cardId ? LEVEL_UP_CARDS.find((card) => card.id === cardId) ?? null : null
+}
+
+function buildPlayerAssignmentProofStandard(
+  assignment: CoachAssignment,
+  summary: ReturnType<typeof getCoachAssignmentSummary> | null,
+) {
+  const card = getAssignmentLevelUpCard(assignment)
+  if (card) return buildLevelUpCardProofStandard(card)
+
+  const countOnly = summary?.tracker[0] || summary?.expectedEvidence || assignment.focus || 'Complete the assigned work with one visible proof signal.'
+  const commonLeak = summary?.tracker[1] || 'Doing the reps without knowing what changed.'
+  const nextCleanRep = summary?.prompt || summary?.tracker[2] || 'Send one recap with score, evidence, and the next focus.'
+
+  return {
+    countOnly,
+    commonLeak,
+    nextCleanRep,
+  }
+}
+
+function buildLevelUpCardProofStandard(card: LevelUpCard) {
+  return {
+    countOnly: card.qualityChecks?.[0] ?? card.proof,
+    commonLeak: card.commonMiss?.miss ?? 'The work gets logged, but the tennis habit is not visible yet.',
+    nextCleanRep: card.commonMiss?.fix ?? card.regression ?? card.cue,
+  }
+}
+
+function buildPlayerCoachReviewNextPlan(
+  assignment: CoachAssignment,
+  coachReview: NonNullable<ReturnType<typeof getCoachAssignmentReview>>,
+  proofStandard: ReturnType<typeof buildPlayerAssignmentProofStandard> | null,
+) {
+  const coachSaid = coachReview.note || coachReview.nextFocus || 'Coach reviewed the proof and left the next focus.'
+  const nextFocus = coachReview.nextFocus || assignment.focus || proofStandard?.countOnly || assignment.title
+  const nextRep = proofStandard?.nextCleanRep || assignment.focus || assignment.title
+
+  return {
+    title: nextFocus,
+    nextRep,
+    items: [
+      {
+        label: 'Coach said',
+        value: coachSaid,
+      },
+      {
+        label: 'Run next',
+        value: nextRep,
+      },
+      {
+        label: 'Check',
+        value: proofStandard?.countOnly || 'Save one visible proof signal before asking for the next layer.',
+      },
+    ],
+  }
+}
+
 function inferAssignmentLevelUpWorkType(
   assignment: CoachAssignment,
   summary: ReturnType<typeof getCoachAssignmentSummary>,
@@ -5656,6 +5928,56 @@ function buildPlayerAssignmentActionPlan(
     {
       label: 'Send back',
       value: dueLabel && dueLabel !== 'No due date' ? `${coachTarget} ${dueLabel}.` : coachTarget,
+    },
+  ]
+}
+
+function buildPlayerAssignmentCourtHandoff(
+  assignment: CoachAssignment,
+  summary: ReturnType<typeof getCoachAssignmentSummary> | null,
+  dueLabel: string,
+) {
+  return buildPlayerAssignmentActionPlan(assignment, summary, dueLabel).map((item) => ({
+    label: item.label === 'Do' ? 'Start' : item.label === 'Track' ? 'Score' : 'Send',
+    value: item.value,
+  }))
+}
+
+function buildPlayerAssignmentStatusPath(
+  assignment: CoachAssignment,
+  packProgress: ReturnType<typeof getCoachAssignmentPackProgress> | null,
+  coachReview: ReturnType<typeof getCoachAssignmentReview> | null,
+) {
+  const playerCheckIn = getPlayerAssignmentCheckIn(assignment.assignment)
+  const started = Boolean(playerCheckIn || packProgress?.started || assignment.status === 'completed')
+  const scored = Boolean(playerCheckIn?.evidence || playerCheckIn?.recap || packProgress?.completed || assignment.status === 'completed')
+  const sent = assignment.status === 'completed' || Boolean(playerCheckIn)
+  const reviewed = Boolean(coachReview?.note || coachReview?.nextFocus)
+
+  return [
+    {
+      label: 'Start',
+      value: started ? 'Court work opened' : 'Open on court',
+      done: started,
+    },
+    {
+      label: 'Score',
+      value: scored
+        ? packProgress
+          ? packProgress.label
+          : 'Proof attached'
+        : 'Save proof',
+      done: scored,
+    },
+    {
+      label: 'Send',
+      value: sent ? 'Recap sent' : 'Add recap',
+      done: sent,
+    },
+    {
+      label: 'Review',
+      value: reviewed ? 'Coach replied' : 'Waiting coach',
+      done: reviewed,
     },
   ]
 }
@@ -5960,6 +6282,26 @@ const myLabLevelUpTodayActionRowStyle: CSSProperties = {
   gap: 8,
   alignItems: 'center',
   minWidth: 0,
+}
+
+const myLabCourtHandoffStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const myLabCourtHandoffItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 92,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  alignContent: 'start',
+  overflowWrap: 'anywhere',
 }
 
 const myLabRefreshProofCueStyle: CSSProperties = {
@@ -6336,6 +6678,143 @@ const coachAssignmentActionItemStyle: CSSProperties = {
   lineHeight: 1.35,
 }
 
+const coachAssignmentProofStandardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: 10,
+  borderRadius: 15,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 8%, var(--shell-chip-bg) 92%)',
+  minWidth: 0,
+}
+
+const coachAssignmentProofStandardGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const coachAssignmentProofStandardItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(5,16,31,0.28)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '.78rem',
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const coachReviewNextPlanStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  padding: 11,
+  borderRadius: 15,
+  border: '1px solid color-mix(in srgb, var(--brand-blue) 24%, var(--shell-panel-border) 76%)',
+  background: 'linear-gradient(135deg, rgba(116,190,255,0.11), rgba(155,225,29,0.06))',
+  color: 'var(--shell-copy-muted)',
+  minWidth: 0,
+}
+
+const coachReviewNextPlanGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const coachReviewNextPlanItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(5,16,31,0.3)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '.78rem',
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const coachReviewNextPlanActionsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const coachAssignmentCourtModeStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.06))',
+  minWidth: 0,
+}
+
+const coachAssignmentCourtModeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  color: 'var(--foreground)',
+  fontSize: '.8rem',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const coachAssignmentCourtModeGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const coachAssignmentCourtModeItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 13,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(5,16,31,0.32)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '.78rem',
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const coachAssignmentStatusPathStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 112px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+function coachAssignmentStatusStepStyle(done: boolean): CSSProperties {
+  return {
+    display: 'grid',
+    gap: 3,
+    minWidth: 0,
+    padding: 8,
+    borderRadius: 12,
+    border: done
+      ? '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)'
+      : '1px solid rgba(116,190,255,0.12)',
+    background: done ? 'rgba(155,225,29,0.09)' : 'rgba(255,255,255,0.045)',
+    color: done ? 'var(--foreground)' : 'var(--shell-copy-muted)',
+    fontSize: '.74rem',
+    lineHeight: 1.3,
+    overflowWrap: 'anywhere',
+  }
+}
+
 const coachAssignmentCardStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -6647,12 +7126,9 @@ const watermarkStyle: CSSProperties = {
   right: 'clamp(-92px, -7vw, -34px)',
   top: 'clamp(-112px, -10vw, -52px)',
   width: 'clamp(230px, 30vw, 420px)',
-  aspectRatio: '1',
-  borderRadius: '50%',
-  border: '1px solid rgba(155,225,29,0.16)',
-  background:
-    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.15) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.09), rgba(125,211,252,0.04) 42%, transparent 68%)',
-  opacity: 0.74,
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  opacity: 0.14,
   pointerEvents: 'none',
 }
 

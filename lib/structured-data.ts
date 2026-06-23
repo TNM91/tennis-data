@@ -16,7 +16,7 @@ export function buildOrganizationJsonLd() {
     '@type': 'Organization',
     name: 'TenAceIQ',
     url: SITE_URL,
-    logo: `${SITE_URL}/icon-512.png`,
+    logo: `${SITE_URL}/tenaceiq-icon-512.png`,
     slogan: 'More Tennis. Less Chaos.',
     description:
       'TenAceIQ helps tennis players, coaches, captains, tournament directors, and league organizers find, prepare, improve, run events, and fix tennis data.',

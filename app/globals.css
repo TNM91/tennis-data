@@ -16,61 +16,6 @@
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.tiq-loader {
-  animation: tiq-loader-pulse 1.8s ease-in-out infinite;
-}
-
-.tiq-loader-dot {
-  animation: tiq-loader-orbit 1.6s linear infinite;
-  transform-origin: 50% 50%;
-}
-
-.tiq-tennis-ball {
-  background:
-    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 22%),
-    radial-gradient(circle at 56% 55%, #d9ff45 0%, #b7f12b 58%, #9be11d 100%);
-  box-shadow:
-    inset -1px -2px 3px rgba(31, 69, 12, 0.35),
-    0 0 10px rgba(155, 225, 29, 0.42);
-  overflow: hidden;
-}
-
-.tiq-tennis-ball::before,
-.tiq-tennis-ball::after {
-  content: "";
-  position: absolute;
-  inset: -18%;
-  border: 1.5px solid rgba(255, 255, 255, 0.9);
-  border-radius: 999px;
-  pointer-events: none;
-}
-
-.tiq-tennis-ball::before {
-  transform: translateX(-42%) rotate(18deg);
-}
-
-.tiq-tennis-ball::after {
-  transform: translateX(42%) rotate(18deg);
-}
-
-@keyframes tiq-loader-orbit {
-  from {
-    transform: translate(-50%, -50%) rotate(0deg) translateY(calc(-1 * var(--tiq-loader-orbit-radius, 44px))) rotate(0deg);
-  }
-  to {
-    transform: translate(-50%, -50%) rotate(360deg) translateY(calc(-1 * var(--tiq-loader-orbit-radius, 44px))) rotate(-360deg);
-  }
-}
-
-@keyframes tiq-loader-pulse {
-  0%, 100% {
-    filter: drop-shadow(0 0 0 rgba(155, 225, 29, 0));
-  }
-  50% {
-    filter: drop-shadow(0 0 14px rgba(155, 225, 29, 0.35));
-  }
-}
-
 :root {
   --background: #07111f;
   --foreground: #e5eefb;
@@ -106,6 +51,9 @@
   --brand-green-3: #c7f36b;
   --brand-green-rgb: 155, 225, 29;
   --brand-white: #ffffff;
+  --tenaceiq-navy: #0D1B2A;
+  --tenaceiq-lime: #9BE11D;
+  --tenaceiq-white: #FFFFFF;
 
   --shadow-soft: 0 16px 38px rgba(2, 10, 24, 0.18);
   --shadow-card: 0 26px 80px rgba(7, 18, 42, 0.24);
@@ -383,36 +331,26 @@ footer {
   aspect-ratio: 1;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.048;
-  background-image: url("/logo-ball.svg");
+  opacity: 0.09;
+  background-image: url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  filter:
-    drop-shadow(0 0 42px rgba(155, 225, 29, 0.28))
-    drop-shadow(0 0 78px rgba(116, 190, 255, 0.16));
-  transform: rotate(-8deg);
   mix-blend-mode: screen;
 }
 
 .brand-atmosphere-mark--hub {
-  opacity: 0.064;
+  opacity: 0.11;
   width: min(104vw, 1460px);
   right: max(-720px, -36vw);
   bottom: max(-820px, -46vw);
-  filter:
-    drop-shadow(0 0 48px rgba(155, 225, 29, 0.32))
-    drop-shadow(0 0 92px rgba(116, 190, 255, 0.18));
 }
 
 .brand-atmosphere-mark--quiet {
-  opacity: 0.03;
+  opacity: 0.065;
   width: min(82vw, 1120px);
   right: max(-600px, -34vw);
   bottom: max(-700px, -42vw);
-  filter:
-    drop-shadow(0 0 30px rgba(155, 225, 29, 0.18))
-    drop-shadow(0 0 58px rgba(116, 190, 255, 0.10));
 }
 
 .admin-shell {
@@ -1195,7 +1133,6 @@ hr {
   width: 100%;
   height: auto;
   display: block;
-  filter: drop-shadow(0 0 22px rgba(132, 204, 22, 0.18)) drop-shadow(0 0 48px rgba(34, 211, 238, 0.1));
 }
 
 .hero-insane__ball-shadow {
@@ -1332,22 +1269,21 @@ hr {
     right: -210px;
     bottom: -190px;
     width: 460px;
-    opacity: 0.044;
-    transform: rotate(-8deg);
+    opacity: 0.075;
   }
 
   .brand-atmosphere-mark--hub {
     width: 520px;
     right: -250px;
     bottom: -220px;
-    opacity: 0.052;
+    opacity: 0.09;
   }
 
   .brand-atmosphere-mark--quiet {
     width: 420px;
     right: -230px;
     bottom: -200px;
-    opacity: 0.028;
+    opacity: 0.055;
   }
 
   .hero-panel {

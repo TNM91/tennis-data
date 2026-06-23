@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 type TiqLoaderProps = {
   label?: string;
   size?: "sm" | "md" | "lg";
@@ -21,36 +23,29 @@ export default function TiqLoader({
     lg: "border-[7px]",
   }[size];
 
-  const dotClass = {
-    sm: "h-3 w-3",
-    md: "h-4 w-4",
-    lg: "h-5 w-5",
-  }[size];
+  const iconPixels = size === "sm" ? 42 : size === "lg" ? 96 : 72;
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-10">
-      <div className={`tiq-loader relative ${sizeClass}`}>
+      <div className={`relative ${sizeClass}`} role="status" aria-label={label || "Loading"}>
         <div
           className={`absolute inset-0 rounded-full ${ringClass}`}
           style={{ borderColor: 'color-mix(in srgb, var(--foreground-strong) 28%, transparent 72%)' }}
         />
 
-        <svg
-          viewBox="0 0 100 100"
-          className="absolute inset-0 h-full w-full"
-          aria-hidden="true"
-        >
-          <path
-            d="M8 52 C 24 25, 39 34, 52 50 S 76 76, 92 48"
-            fill="none"
-            stroke="#9BE11D"
-            strokeWidth="11"
-            strokeLinecap="round"
-          />
-        </svg>
-
-        <div
-          className={`tiq-loader-dot tiq-tennis-ball absolute left-1/2 top-1/2 ${dotClass} rounded-full`}
+        <Image
+          src="/tenaceiq/logos/tenaceiq-q-icon.svg"
+          alt=""
+          width={512}
+          height={512}
+          priority
+          className="absolute left-1/2 top-1/2"
+          style={{
+            width: iconPixels,
+            height: iconPixels,
+            objectFit: "contain",
+            transform: "translate(-50%, -50%)",
+          }}
         />
       </div>
 

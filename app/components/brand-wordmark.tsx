@@ -9,41 +9,78 @@ type BrandWordmarkProps = {
   top?: boolean
 }
 
+type BrandAsset = {
+  src: string
+  width: number
+  height: number
+}
+
+const BRAND_ASSETS = {
+  primary: {
+    src: '/tenaceiq/logos/tenaceiq-primary-horizontal.svg',
+    width: 1600,
+    height: 420,
+  },
+  primaryReverse: {
+    src: '/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg',
+    width: 1600,
+    height: 420,
+  },
+  symbol: {
+    src: '/tenaceiq/logos/tenaceiq-symbol.svg',
+    width: 1045,
+    height: 490,
+  },
+  symbolReverse: {
+    src: '/tenaceiq/logos/tenaceiq-symbol-reverse.svg',
+    width: 1045,
+    height: 490,
+  },
+} satisfies Record<string, BrandAsset>
+
+function getBrandAsset({ compact, footer, onLight }: BrandWordmarkProps) {
+  if (compact) return onLight ? BRAND_ASSETS.symbol : BRAND_ASSETS.symbolReverse
+  if (footer) return BRAND_ASSETS.primaryReverse
+  return onLight ? BRAND_ASSETS.primary : BRAND_ASSETS.primaryReverse
+}
+
 export default function BrandWordmark({
   compact = false,
   footer = false,
   onLight = false,
   top = false,
 }: BrandWordmarkProps) {
-  const width = compact ? 140 : top ? 174 : footer ? 174 : 156
-  const height = compact ? 45 : top ? 56 : footer ? 56 : 50
-  const logoSrc = onLight ? '/logo-header-light.svg' : '/logo-header-dark.svg'
+  const asset = getBrandAsset({ compact, footer, onLight, top })
+  const height = compact ? (top ? 36 : 34) : footer ? 44 : top ? 52 : 48
+  const width = Math.round((asset.width / asset.height) * height)
+
   return (
     <span
       style={{
         position: 'relative',
         display: 'inline-flex',
+        alignItems: 'center',
         width: `${width}px`,
         height: `${height}px`,
         flexShrink: 0,
         minWidth: 0,
+        aspectRatio: `${asset.width} / ${asset.height}`,
       }}
     >
       <Image
-        src={logoSrc}
+        src={asset.src}
         alt="TenAceIQ"
-        fill
+        width={asset.width}
+        height={asset.height}
         loading="eager"
         fetchPriority={footer ? undefined : 'high'}
         sizes={`${width}px`}
         style={{
+          display: 'block',
+          width: 'auto',
+          height: '100%',
           objectFit: 'contain',
           objectPosition: 'left center',
-          filter: onLight
-            ? 'drop-shadow(0 6px 12px rgba(7, 18, 38, 0.08))'
-            : footer
-            ? 'drop-shadow(0 8px 16px rgba(5, 14, 30, 0.10))'
-            : 'drop-shadow(0 8px 18px rgba(155, 225, 29, 0.10))',
         }}
       />
     </span>

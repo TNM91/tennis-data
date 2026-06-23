@@ -434,13 +434,10 @@ const watermarkStyle: CSSProperties = {
   right: '-110px',
   top: '-118px',
   width: 'clamp(220px, 24vw, 310px)',
-  aspectRatio: '1',
-  borderRadius: '50%',
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  opacity: 0.14,
   pointerEvents: 'none',
-  opacity: 0.16,
-  background:
-    'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.88) 0 7%, transparent 8%), radial-gradient(circle at 50% 50%, rgba(155,225,29,0.96) 0 48%, rgba(155,225,29,0.1) 49%, transparent 58%)',
-  boxShadow: '0 0 80px rgba(155,225,29,0.22)',
 }
 
 const eyebrow: CSSProperties = {

@@ -215,12 +215,10 @@ const watermarkStyle: CSSProperties = {
   right: '-110px',
   top: '-120px',
   width: 320,
-  height: 320,
-  borderRadius: '50%',
-  pointerEvents: 'none',
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
   opacity: 0.14,
-  background:
-    'radial-gradient(circle at 36% 34%, rgba(255,255,255,0.88) 0 7%, transparent 8%), radial-gradient(circle at 50% 50%, rgba(155,225,29,0.96) 0 48%, rgba(155,225,29,0.1) 49%, transparent 58%)',
+  pointerEvents: 'none',
 }
 
 const heroCopyStyle: CSSProperties = {

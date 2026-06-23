@@ -51,13 +51,14 @@ import {
   detectCalendarQuickAddCandidate,
   type CalendarQuickAddCandidate,
 } from '@/lib/message-calendar-quick-add'
+import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { CoachStudentLink } from '@/lib/coach-storage'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ComposeMode = 'support' | 'direct'
 type SupportFilter = 'all' | 'billing' | 'league' | 'result' | 'data' | 'account' | 'general'
-type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'calendar' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'
+type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'assignment' | 'calendar' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'
 type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'system'
 
 const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
@@ -75,6 +76,7 @@ type MessagePrefill = {
   assignmentId: string
   assignmentTitle: string
   assignmentFocus: string
+  assignmentCardId: string
   threadId: string
 }
 
@@ -207,6 +209,7 @@ function conversationMatchesInboxFilter(
   filter: InboxFilter,
 ) {
   if (filter === 'needs_reply') return conversationNeedsReply(conversation, identity)
+  if (filter === 'assignment') return isCoachAssignmentConversation(conversation)
   if (filter === 'calendar') return conversationHasCalendarOpportunity(conversation)
   if (filter === 'unread') return conversation.isUnread
   if (filter === 'support') return conversation.conversationType === 'support'
@@ -238,6 +241,7 @@ function conversationMatchesThreadSearch(
     conversation.metadata.leagueName,
     conversation.metadata.assignmentTitle,
     conversation.metadata.assignmentFocus,
+    isCoachAssignmentConversation(conversation) ? 'assignment coach player court proof' : '',
     conversationHasCalendarOpportunity(conversation) ? 'calendar date availability schedule' : '',
   ].join(' ').toLowerCase()
 
@@ -247,6 +251,7 @@ function conversationMatchesThreadSearch(
 function inboxFilterLabel(filter: InboxFilter) {
   if (filter === 'pinned') return 'Pinned'
   if (filter === 'needs_reply') return 'Needs reply'
+  if (filter === 'assignment') return 'Assignment'
   if (filter === 'calendar') return 'Calendar'
   if (filter === 'unread') return 'Unread'
   if (filter === 'support') return 'Support'
@@ -286,8 +291,30 @@ function quickAddRecurrenceLabel(value: CalendarQuickAddCandidate['recurrenceRul
   return ''
 }
 
-function getQuickReplyActions(conversation: InternalConversation | null, role: InternalIdentity['role']) {
+function getQuickReplyActions(
+  conversation: InternalConversation | null,
+  role: InternalIdentity['role'],
+  coachContacts: CoachMessageContact[],
+) {
   if (!conversation) return []
+  if (isCoachAssignmentConversation(conversation)) {
+    const assignmentTitle = conversation.metadata.assignmentTitle?.trim()
+    const assignmentLabel = assignmentTitle ? ` for ${assignmentTitle}` : ''
+    const relationship = getCoachAssignmentConversationRelationship(conversation, coachContacts)
+    if (relationship === 'student') {
+      return [
+        { label: 'Reviewing proof', body: `Reviewing your proof${assignmentLabel}. I will send the next focus here.` },
+        { label: 'Repeat cleaner', body: `Coach note${assignmentLabel}: repeat this once more at the same difficulty and make the cue cleaner before adding pressure.` },
+        { label: 'Add pressure', body: `Coach note${assignmentLabel}: this is ready for a small pressure bump. Keep the same cue and add one harder condition.` },
+      ]
+    }
+
+    return [
+      { label: 'Starting court', body: `Starting the court work${assignmentLabel} now. I will send proof after I score it.` },
+      { label: 'Proof update', body: `Proof update${assignmentLabel}: score __/5. What changed:` },
+      { label: 'Next focus', body: `Next focus question${assignmentLabel}: should I repeat this cleaner, make it easier, or add pressure?` },
+    ]
+  }
   if (conversation.conversationType === 'support') {
     return role === 'admin'
       ? [
@@ -322,6 +349,22 @@ function getQuickReplyActions(conversation: InternalConversation | null, role: I
   ]
 }
 
+function isCoachAssignmentConversation(conversation: InternalConversation) {
+  const entityType = conversation.metadata.entityType || conversation.relatedEntityType
+  return entityType === 'coach_player_link' && Boolean(conversation.metadata.assignmentId || conversation.metadata.assignmentTitle)
+}
+
+function getCoachAssignmentConversationRelationship(
+  conversation: InternalConversation,
+  coachContacts: CoachMessageContact[],
+) {
+  const entityType = conversation.metadata.entityType || conversation.relatedEntityType
+  const entityId = conversation.metadata.entityId || conversation.relatedEntityId
+  if (entityType !== 'coach_player_link' || !entityId) return null
+
+  return coachContacts.find((item) => item.linkId === entityId)?.relationship ?? null
+}
+
 const composeSearchParamKeys = [
   'compose',
   'recipient',
@@ -335,6 +378,7 @@ const composeSearchParamKeys = [
   'assignmentId',
   'assignmentTitle',
   'assignmentFocus',
+  'assignmentCardId',
 ] as const
 
 function replaceThreadUrl(conversationId: string) {
@@ -446,6 +490,99 @@ function buildConversationContextHref(conversation: InternalConversation | null,
   return ''
 }
 
+function buildConversationCourtHref(conversation: InternalConversation | null, coachContacts: CoachMessageContact[]) {
+  if (!conversation) return ''
+  const entityType = conversation.metadata.entityType || conversation.relatedEntityType
+  const entityId = conversation.metadata.entityId || conversation.relatedEntityId
+  if (entityType !== 'coach_player_link' || !entityId) return ''
+
+  const contact = coachContacts.find((item) => item.linkId === entityId)
+  const assignmentId = conversation.metadata.assignmentId
+  const cardId = getMessageAssignmentCardId(conversation)
+  if (!contact || contact.relationship === 'student' || !assignmentId || !cardId) return ''
+
+  const params = new URLSearchParams({
+    coach: '1',
+    assignmentId,
+    studentLinkId: contact.linkId,
+    card: cardId,
+  })
+  if (conversation.metadata.assignmentTitle) params.set('assignmentTitle', conversation.metadata.assignmentTitle)
+  if (conversation.metadata.assignmentFocus) params.set('assignmentFocus', conversation.metadata.assignmentFocus)
+
+  return `/player-development/${encodeURIComponent(contact.identitySlug || 'relentless-competitor-4-0')}/level-up?${params.toString()}`
+}
+
+function getMessageAssignmentCardId(conversation: InternalConversation) {
+  const explicitCardId = conversation.metadata.assignmentCardId?.trim()
+  if (explicitCardId) return explicitCardId
+
+  const searchText = [
+    conversation.metadata.assignmentTitle,
+    conversation.metadata.assignmentFocus,
+    conversation.subject,
+  ].filter(Boolean).join(' ')
+
+  const shortcutCardId = getMessageAssignmentShortcutCardId(searchText)
+  if (shortcutCardId && LEVEL_UP_CARDS.some((card) => card.id === shortcutCardId)) return shortcutCardId
+
+  return inferMessageAssignmentCardId(searchText)
+}
+
+function getMessageAssignmentShortcutCardId(text: string) {
+  const normalized = text.toLowerCase()
+  if (normalized.includes('return')) return 'return-shadow-split-read'
+  if (normalized.includes('serve target') || normalized.includes('serve routine') || normalized.includes('serve-target')) return 'serve-target-ladder'
+  if (normalized.includes('split') || normalized.includes('recover') || normalized.includes('movement')) return 'split-recover-loop'
+  if (normalized.includes('attack') || normalized.includes('decision')) return 'defense-neutral-attack-rally'
+  if (normalized.includes('doubles') || normalized.includes('partner') || normalized.includes('middle')) return 'serve-location-call'
+  if (normalized.includes('volley') || normalized.includes('net')) return 'first-volley-decision'
+  if (normalized.includes('backhand')) return 'basket-backhand-crosscourt'
+  if (normalized.includes('forehand')) return 'basket-forehand-crosscourt'
+  return ''
+}
+
+function inferMessageAssignmentCardId(text: string) {
+  const normalizedText = normalizeMessageAssignmentSearch(text)
+  if (!normalizedText) return ''
+
+  const words = new Set(normalizedText.split(' ').filter((word) => word.length >= 4))
+  const scoredCards = LEVEL_UP_CARDS
+    .filter((card) => card.assignable)
+    .map((card) => {
+      const cardText = normalizeMessageAssignmentSearch([
+        card.id.replace(/-/g, ' '),
+        card.title,
+        card.pack,
+        card.proof,
+        card.cue,
+        ...card.tags,
+      ].join(' '))
+      const cardWords = new Set(cardText.split(' ').filter((word) => word.length >= 4))
+      let score = 0
+
+      if (normalizedText.includes(normalizeMessageAssignmentSearch(card.title))) score += 12
+      if (normalizedText.includes(card.id.replace(/-/g, ' '))) score += 10
+      if (card.pack && normalizedText.includes(normalizeMessageAssignmentSearch(card.pack))) score += 4
+      for (const tag of card.tags) {
+        if (normalizedText.includes(normalizeMessageAssignmentSearch(tag))) score += 4
+      }
+      for (const word of words) {
+        if (cardWords.has(word)) score += 1
+      }
+
+      return { cardId: card.id, score }
+    })
+    .filter((item) => item.score >= 5)
+    .sort((first, second) => second.score - first.score)
+
+  return scoredCards[0]?.cardId ?? ''
+}
+
+function normalizeMessageAssignmentSearch(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
 function buildConversationContextPresentation(conversation: InternalConversation | null, coachContacts: CoachMessageContact[]) {
   if (!conversation) {
     return {
@@ -495,6 +632,64 @@ function buildConversationContextPresentation(conversation: InternalConversation
     text: 'Conversation context',
     cta: 'Open context',
   }
+}
+
+function buildConversationAssignmentHandoff(
+  conversation: InternalConversation | null,
+  coachContacts: CoachMessageContact[],
+) {
+  if (!conversation || !isCoachAssignmentConversation(conversation)) return null
+
+  const assignmentTitle = conversation.metadata.assignmentTitle?.trim() || conversation.subject
+  const assignmentFocus = conversation.metadata.assignmentFocus?.trim()
+  const relationship = getCoachAssignmentConversationRelationship(conversation, coachContacts)
+  const assignmentCard = getMessageAssignmentCard(conversation)
+  const assignmentStandard = assignmentCard ? buildMessageAssignmentStandard(assignmentCard) : null
+  if (relationship === 'student') {
+    return {
+      title: assignmentTitle || 'Coach assignment',
+      detail: assignmentFocus || 'Review proof, choose the next coach move, then send the note.',
+      steps: [
+        { label: 'Review', value: 'Read proof' },
+        { label: 'Decide', value: 'Repeat or add pressure' },
+        { label: 'Send', value: 'Coach note' },
+      ],
+      standard: assignmentStandard,
+    }
+  }
+
+  return {
+    title: assignmentTitle || 'Coach assignment',
+    detail: assignmentFocus || 'Open court mode, score proof, then send the recap.',
+    steps: [
+      { label: 'Start', value: 'Open on court' },
+      { label: 'Score', value: '0-5 proof' },
+      { label: 'Send', value: 'Reply with recap' },
+    ],
+    standard: assignmentStandard,
+  }
+}
+
+function getMessageAssignmentCard(conversation: InternalConversation) {
+  const cardId = getMessageAssignmentCardId(conversation)
+  return cardId ? LEVEL_UP_CARDS.find((card) => card.id === cardId) ?? null : null
+}
+
+function buildMessageAssignmentStandard(card: (typeof LEVEL_UP_CARDS)[number]) {
+  return [
+    {
+      label: 'Count only',
+      value: card.qualityChecks?.[0] ?? card.proof,
+    },
+    {
+      label: 'Common leak',
+      value: card.commonMiss?.miss ?? 'The work is done, but the proof behavior is hard to see.',
+    },
+    {
+      label: 'Next clean rep',
+      value: card.commonMiss?.fix ?? card.regression ?? card.cue,
+    },
+  ]
 }
 
 function normalizeCoachMessageContacts(items: CoachMessageContact[]) {
@@ -573,6 +768,7 @@ function MessagesPageContent() {
     assignmentId: searchParams.get('assignmentId') || '',
     assignmentTitle: searchParams.get('assignmentTitle') || '',
     assignmentFocus: searchParams.get('assignmentFocus') || '',
+    assignmentCardId: searchParams.get('assignmentCardId') || '',
     threadId: searchParams.get('thread') || '',
   }), [searchParams])
 
@@ -664,13 +860,21 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     () => buildConversationContextHref(selectedConversation, coachContacts),
     [coachContacts, selectedConversation],
   )
+  const selectedCourtHref = useMemo(
+    () => buildConversationCourtHref(selectedConversation, coachContacts),
+    [coachContacts, selectedConversation],
+  )
   const selectedContextPresentation = useMemo(
     () => buildConversationContextPresentation(selectedConversation, coachContacts),
     [coachContacts, selectedConversation],
   )
+  const selectedAssignmentHandoff = useMemo(
+    () => buildConversationAssignmentHandoff(selectedConversation, coachContacts),
+    [coachContacts, selectedConversation],
+  )
   const quickReplyActions = useMemo(
-    () => getQuickReplyActions(selectedConversation, identity?.role ?? 'public'),
-    [identity?.role, selectedConversation],
+    () => getQuickReplyActions(selectedConversation, identity?.role ?? 'public', coachContacts),
+    [coachContacts, identity?.role, selectedConversation],
   )
   const replyCalendarCandidate = useMemo(() => {
     const fallbackTitle = selectedConversation?.subject || 'Message calendar item'
@@ -706,7 +910,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   )
   const inboxFilters = useMemo(() => {
     if (!identity) return [] as Array<{ key: InboxFilter; label: string; count: number }>
-    return (['all', 'pinned', 'needs_reply', 'calendar', 'unread', 'support', 'direct', 'league', 'schedule'] as InboxFilter[]).map((filter) => ({
+    return (['all', 'pinned', 'needs_reply', 'assignment', 'calendar', 'unread', 'support', 'direct', 'league', 'schedule'] as InboxFilter[]).map((filter) => ({
       key: filter,
       label: inboxFilterLabel(filter),
       count: conversations.filter((conversation) =>
@@ -743,6 +947,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     () => identity ? conversations.filter((conversation) => conversationNeedsReply(conversation, identity)).length : 0,
     [conversations, identity],
   )
+  const assignmentThreadCount = useMemo(
+    () => conversations.filter((conversation) => isCoachAssignmentConversation(conversation)).length,
+    [conversations],
+  )
   const pinnedCount = pinnedThreadIds.size
   const hasActiveThreadFilters = Boolean(threadSearch.trim()) || inboxFilter !== 'all' || (identity?.role === 'admin' && supportFilter !== 'all')
   const emptyInboxCopy = identity?.role === 'admin'
@@ -753,7 +961,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const filteredEmptyCopy = conversations.length && hasActiveThreadFilters
     ? threadSearch.trim()
       ? 'Try a different search or clear filters to see the rest of your inbox.'
-      : 'Clear filters to see the rest of your inbox.'
+      : inboxFilter === 'assignment'
+        ? 'Assignment threads appear after a coach or player messages about assigned work. Open My Lab to start from the assignment card.'
+        : 'Clear filters to see the rest of your inbox.'
     : emptyInboxCopy
   const composeTargetLabel = composeMode === 'support'
     ? `${supportCategoryLabel(supportCategory)} support`
@@ -773,11 +983,17 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       : 'Select a recipient'
   const canSubmitNewConversation = Boolean(body.trim()) && (composeMode === 'support' || Boolean(recipient))
   const dataAssistMessagesHref = '/data-assist?intent=upload-source&context=Messages'
-  const emptyInboxActions = [
-    { title: 'Open My Lab', href: '/mylab' },
-    { title: 'Fix tennis info', href: dataAssistMessagesHref },
-    { title: 'Prep matchup', href: '/matchup' },
-  ] as const
+  const emptyInboxActions = inboxFilter === 'assignment'
+    ? [
+        { title: 'Open My Lab', href: '/mylab#coach-assignments' },
+        { title: 'Open Level Up', href: '/player-development' },
+        { title: 'All messages', href: '/messages' },
+      ]
+    : [
+        { title: 'Open My Lab', href: '/mylab' },
+        { title: 'Fix tennis info', href: dataAssistMessagesHref },
+        { title: 'Prep matchup', href: '/matchup' },
+      ]
 
   useEffect(() => {
     setComposeMode(prefill.mode)
@@ -1143,6 +1359,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             assignmentId: prefill.assignmentId,
             assignmentTitle: prefill.assignmentTitle,
             assignmentFocus: prefill.assignmentFocus,
+            assignmentCardId: prefill.assignmentCardId,
           },
         })
       }
@@ -1746,6 +1963,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           </div>
           <div style={triageSummaryStyle}>
             <span>{needsReplyCount ? `${needsReplyCount} need reply` : 'No replies waiting'}</span>
+            <span>{assignmentThreadCount ? `${assignmentThreadCount} assignments` : 'No assignment threads'}</span>
             <span>{unreadCount ? `${unreadCount} unread` : 'Inbox read'}</span>
             {pinnedCount ? <span>{pinnedCount} pinned</span> : null}
             {hasActiveThreadFilters ? <span>{filteredConversations.length} shown</span> : null}
@@ -1826,6 +2044,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                         : conversationTypeLabel(conversation.conversationType)}
                     </small>
                     {isScheduleConversation(conversation) ? <small style={threadTypePillStyle}>Schedule</small> : null}
+                    {isCoachAssignmentConversation(conversation) ? <small style={assignmentPillStyle}>Assignment</small> : null}
                     {latestCalendarCandidate?.availabilityStatus ? <small style={threadTypePillStyle}>Availability</small> : null}
                     <small style={statusPillStyle(conversation.status)}>{statusLabel(conversation.status)}</small>
                   </span>
@@ -1940,12 +2159,45 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               <div>
                 <div style={labelStyle}>{selectedContextPresentation.label}</div>
                 <p style={copyStyle}>{selectedContextPresentation.text}</p>
+                {selectedAssignmentHandoff ? (
+                  <div style={assignmentHandoffStyle} aria-label={`Assignment handoff for ${selectedAssignmentHandoff.title}`}>
+                    <div>
+                      <strong>{selectedAssignmentHandoff.title}</strong>
+                      <span>{selectedAssignmentHandoff.detail}</span>
+                    </div>
+                    <div style={assignmentHandoffStepGridStyle}>
+                      {selectedAssignmentHandoff.steps.map((step) => (
+                        <span key={step.label} style={assignmentHandoffStepStyle}>
+                          <b>{step.label}</b>
+                          {step.value}
+                        </span>
+                      ))}
+                    </div>
+                    {selectedAssignmentHandoff.standard ? (
+                      <div style={assignmentHandoffStandardGridStyle} aria-label={`Assignment proof standard for ${selectedAssignmentHandoff.title}`}>
+                        {selectedAssignmentHandoff.standard.map((item) => (
+                          <span key={item.label} style={assignmentHandoffStandardItemStyle}>
+                            <b>{item.label}</b>
+                            {item.value}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {selectedConversation.conversationType === 'support' ? (
                   <p style={supportStatusLineStyle}>{supportStatusCopy(selectedConversation, identity.role)}</p>
                 ) : null}
               </div>
-              {selectedContextHref ? (
-                <Link href={selectedContextHref} style={ghostButtonStyle}>{selectedContextPresentation.cta}</Link>
+              {selectedContextHref || selectedCourtHref ? (
+                <div style={contextActionRowStyle}>
+                  {selectedCourtHref ? (
+                    <Link href={selectedCourtHref} style={primaryMiniLinkStyle}>Open on court</Link>
+                  ) : null}
+                  {selectedContextHref ? (
+                    <Link href={selectedContextHref} style={ghostButtonStyle}>{selectedContextPresentation.cta}</Link>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -2600,12 +2852,9 @@ const watermarkStyle: CSSProperties = {
   right: '-92px',
   top: '-108px',
   width: 'clamp(230px, 28vw, 380px)',
-  aspectRatio: '1',
-  borderRadius: '50%',
-  border: '1px solid rgba(155,225,29,0.15)',
-  background:
-    'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.12) 0 7%, transparent 8%), radial-gradient(circle at 52% 52%, rgba(155,225,29,0.08), rgba(125,211,252,0.04) 42%, transparent 68%)',
-  opacity: 0.72,
+  aspectRatio: '1045 / 490',
+  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  opacity: 0.14,
   pointerEvents: 'none',
 }
 
@@ -2981,6 +3230,13 @@ const threadTypePillStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const assignmentPillStyle: CSSProperties = {
+  ...threadTypePillStyle,
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
+  color: 'var(--brand-green)',
+}
+
 const statusPillStyle = (status: InternalConversationStatus): CSSProperties => ({
   ...threadTypePillStyle,
   border: status === 'waiting_on_admin'
@@ -3062,6 +3318,65 @@ const contextPanelStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.18)',
   background: 'rgba(155,225,29,0.07)',
   minWidth: 0,
+}
+
+const contextActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  gap: 8,
+  minWidth: 0,
+}
+
+const assignmentHandoffStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginTop: 8,
+  minWidth: 0,
+}
+
+const assignmentHandoffStepGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const assignmentHandoffStepStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(5,16,28,0.32)',
+  color: 'var(--shell-copy-muted)',
+  padding: 8,
+  fontSize: 11,
+  fontWeight: 850,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const assignmentHandoffStandardGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 6,
+  minWidth: 0,
+}
+
+const assignmentHandoffStandardItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  padding: 8,
+  fontSize: 11,
+  fontWeight: 850,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
 }
 
 const threadHeaderActionStyle: CSSProperties = {
@@ -3564,6 +3879,14 @@ const ghostButtonStyle: CSSProperties = {
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   textAlign: 'center',
+}
+
+const primaryMiniLinkStyle: CSSProperties = {
+  ...ghostButtonStyle,
+  border: '1px solid rgba(155,225,29,0.44)',
+  background: 'rgba(155,225,29,0.14)',
+  color: 'var(--brand-green)',
+  textDecoration: 'none',
 }
 
 const dangerButtonStyle: CSSProperties = {

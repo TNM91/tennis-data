@@ -145,6 +145,26 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
       high: 'Wide ball, neutral shape, and recovery connected repeatedly.',
     },
   },
+  'short-ball-close-split': {
+    useWhen: 'Use this when short balls create a rushed swing, a late split, or a net approach that stops halfway.',
+    tennisGoal: 'Turn a short ball into a complete approach pattern: recognize, close, split, and choose the finish from balance.',
+    cue: 'Recognize early, close with purpose, split before the reply.',
+    routine: ['Start behind the baseline and call short before moving.', 'Close through the ball and shadow or hit a controlled approach.', 'Split inside the court before the imaginary reply.', 'Recover to the right finish spot and score approach plus split, not winner count.'],
+    reward: 'You practice the whole short-ball job instead of only the first swing.',
+    proof: 'Short-ball close and split timing 0-5',
+    qualityChecks: ['Short is called before the player starts forward.', 'The close continues through contact instead of stopping at the ball.', 'The split happens before the reply would arrive.'],
+    commonMiss: {
+      miss: 'The player attacks the short ball, then watches from no-man land.',
+      fix: 'Make the split inside the court the rep finish. The approach does not count without it.',
+    },
+    proofAnchors: {
+      low: 'Recognition was late, the approach stopped, or no split happened.',
+      mid: 'The player moved forward, but contact, split, or recovery timing leaked.',
+      high: 'Recognize, close, approach, split, and recover stayed connected across the block.',
+    },
+    progression: 'Add a live pass or lob feed only after the split shows up before the reply.',
+    regression: 'Remove the hit and rehearse call short, close, split, recover first.',
+  },
   'post-play-mobility-reset': {
     useWhen: 'Use this after practice, matches, or conditioning blocks.',
     tennisGoal: 'Bring the body back toward control so the next session starts cleaner.',
@@ -161,6 +181,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Stand in ready position with a line or cone as your base.', 'Call split as the imaginary opponent contacts.', 'Land quietly and take one first step left or right.', 'Reset to ready and repeat 3 rounds of 10 clean reps.'],
     reward: 'You start points with a cleaner first move because your feet are timed to contact.',
     proof: 'Split-step timing and first move 0-5',
+    qualityChecks: ['Split happens on contact rhythm, not after the ball would already be traveling.', 'Landing is quiet enough to move either direction.', 'The first step starts from balance instead of a reach.'],
+    commonMiss: {
+      miss: 'The player hops late and turns the split-step into decoration.',
+      fix: 'Call contact out loud and count only reps where the landing creates the first step.',
+    },
+    proofAnchors: {
+      low: 'Split was late, loud, or disconnected from the first move.',
+      mid: 'Timing showed up in stretches, but the first step still reached or guessed.',
+      high: 'Contact call, quiet landing, and balanced first step repeated without reminders.',
+    },
     progression: 'Add a partner point, ball toss, or random left-right call once landings stay quiet.',
     regression: 'Remove the direction change and rehearse quiet split-step landings only.',
   },
@@ -171,6 +201,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Place one cone at contact and two cones for your recovery gate.', 'Shadow a forehand or backhand from the outside cone.', 'Recover through the gate and split in a balanced ready position.', 'Do 3 sets of 8 reps per side and score recovery timing.'],
     reward: 'You train the exact movement that keeps you in rallies after being pulled wide.',
     proof: 'Baseline recovery timing 0-5',
+    qualityChecks: ['The recovery route starts immediately after the shadow contact.', 'The player crosses or shuffles through the gate without drifting upright.', 'Ready feet are set before the imaginary next ball arrives.'],
+    commonMiss: {
+      miss: 'The player recovers eventually, but watches the shot first.',
+      fix: 'Make the gate the score. The rep is not clean until ready feet are set inside it.',
+    },
+    proofAnchors: {
+      low: 'Recovery started late or finished out of balance.',
+      mid: 'The route was right, but ready feet or posture leaked late in the set.',
+      high: 'Contact, recovery route, and ready split connected on every rep.',
+    },
     progression: 'Add a fed ball or make the gate narrower only when the split stays balanced.',
     regression: 'Walk the route first and remove the swing until footwork is clean.',
   },
@@ -190,6 +230,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Mark a recovery line two steps behind your contact spot.', 'Hit one controlled wall ball.', 'Recover behind the line before the next swing.', 'Run 3 blocks of 90 seconds and count clean recoveries.'],
     reward: 'You turn wall reps into rally habits that transfer to the court.',
     proof: 'Wall recovery rule completed 0-5',
+    qualityChecks: ['Ball pace stays controlled enough to recover between touches.', 'Both feet clear the recovery line before the next swing starts.', 'The next contact is made from ready posture, not a last-second reach.'],
+    commonMiss: {
+      miss: 'Wall work turns into hand speed while the feet stay planted.',
+      fix: 'Slow the ball down and restart the count whenever the recovery line is skipped.',
+    },
+    proofAnchors: {
+      low: 'The wall rally continued, but the recovery rule disappeared.',
+      mid: 'Recovery happened on easier balls and leaked when pace increased.',
+      high: 'Controlled contact, recovery line, and ready posture repeated through the block.',
+    },
     progression: 'Alternate forehand and backhand only after recovery stays honest.',
     regression: 'Catch or trap the ball between reps so the recovery rule stays clean.',
   },
@@ -231,6 +281,26 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     proof: 'Ready before play 0-5',
     safetyNote: 'Dynamic warm-up belongs before play. Keep it smooth, not exhausting.',
   },
+  'five-minute-match-primer': {
+    useWhen: 'Use this at the court when match warm-up is short and you need a clear first-game plan.',
+    tennisGoal: 'Prepare the body, the first-point routine, and one simple pattern before the match starts.',
+    cue: 'Body ready, first target, first pattern.',
+    routine: ['Move through 60 seconds of light feet, shoulders, and hips.', 'Pick the first serve or return target you can trust.', 'Name one rally pattern you will use early.', 'Take one breath, rehearse the first point, and score readiness.'],
+    reward: 'You step into the match with a usable plan instead of a vague feeling of being ready.',
+    proof: 'First-game readiness plan 0-5',
+    qualityChecks: ['Warm-up includes feet, hips, shoulders, and one tennis-speed action.', 'The first target is simple enough to use under nerves.', 'The player names one early pattern before walking on court.'],
+    commonMiss: {
+      miss: 'The player warms up the body but never chooses the first playable target.',
+      fix: 'Finish the primer by naming the first serve or return job out loud.',
+    },
+    proofAnchors: {
+      low: 'Warm-up was random or no first-game plan was named.',
+      mid: 'The body felt ready, but the first target or pattern was vague.',
+      high: 'Body readiness, first target, and first pattern were clear before play.',
+    },
+    progression: 'Add a first-game review after the match to compare plan against actual choices.',
+    regression: 'Use only three prompts: body, target, pattern.',
+  },
   'dead-bug-serve-shadow': {
     useWhen: 'Use this when your serve loses posture, ribs flare, or the toss arm and core feel disconnected.',
     tennisGoal: 'Connect core control to a quieter serve setup before adding speed.',
@@ -260,6 +330,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Start every rep with one breath and a called target.', 'Hit or shadow 8 second serves with the same tempo.', 'After any miss, run the full routine before the next ball.', 'Play 3 rounds and score routine commitment, not just makes.'],
     reward: 'Second serves become a repeatable process instead of a panic swing.',
     proof: 'Second-serve routine commitment 0-5',
+    qualityChecks: ['Breath, target, and tempo happen before every serve or shadow serve.', 'A miss triggers the same routine instead of a rushed correction.', 'The player scores commitment to the process, not only whether the serve went in.'],
+    commonMiss: {
+      miss: 'The second serve becomes either a push or a rescue swing after the first miss.',
+      fix: 'Require the same breath, target, and shape call before the next ball can be struck.',
+    },
+    proofAnchors: {
+      low: 'Routine changed after misses or the player served before choosing a target.',
+      mid: 'The routine appeared on some reps, but pressure still changed tempo or shape.',
+      high: 'Breath, target, tempo, and committed shape stayed repeatable after makes and misses.',
+    },
     progression: 'Start each round at 30-40 once the routine stays stable.',
     regression: 'Shadow the serve path and target call before adding the ball.',
   },
@@ -270,8 +350,38 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Set a crosscourt target with margin inside the sideline.', 'Feed or self-drop 8 forehands with height over the net.', 'Recover to a ready cone after every shot.', 'Run 3 rounds and count only balls with shape plus recovery.'],
     reward: 'Your forehand practice starts producing rally patterns, not isolated swings.',
     proof: 'Forehand crosscourt shape and recovery 0-5',
+    qualityChecks: ['The target leaves margin inside the line and above the net.', 'The finish is balanced enough to recover through the lane.', 'Only balls with both shape and recovery count as quality reps.'],
+    commonMiss: {
+      miss: 'The player turns a basket into big forehands with no rally shape.',
+      fix: 'Count only balls that clear the height window and finish with recovery through the lane.',
+    },
+    proofAnchors: {
+      low: 'Contact was big or flat, and recovery disappeared after the swing.',
+      mid: 'Shape appeared in stretches, but balance or recovery leaked under speed.',
+      high: 'Margin, balanced finish, and recovery made the crosscourt pattern repeatable.',
+    },
     progression: 'Add a plus-one target after 6 quality crosscourt balls.',
     regression: 'Use slower self-feeds and make the target bigger until balance holds.',
+  },
+  'basket-backhand-crosscourt': {
+    useWhen: 'Use this when backhands get steered, late, or too line-focused during solo reps.',
+    tennisGoal: 'Build a dependable crosscourt backhand shape that buys time and protects court position.',
+    cue: 'Turn early, shape crosscourt, recover through center.',
+    routine: ['Set a crosscourt target with height and depth margin.', 'Feed 8 backhands at a pace that lets you turn early.', 'Recover through a center marker after every contact.', 'Run 3 rounds and count only balls with shape, balance, and recovery.'],
+    reward: 'Your backhand basket work becomes a rally-stability pattern instead of a survival swing.',
+    proof: 'Backhand crosscourt shape and recovery 0-5',
+    qualityChecks: ['Turn starts before the ball reaches the bounce zone.', 'The ball has safe crosscourt height or depth, not a guided line ball.', 'Recovery starts before judging whether the backhand was pretty.'],
+    commonMiss: {
+      miss: 'The player steers the backhand and freezes to see if it landed.',
+      fix: 'Make early turn plus recovery the score. The ball only counts if both happen.',
+    },
+    proofAnchors: {
+      low: 'Preparation was late, contact was guided, or recovery was missing.',
+      mid: 'The backhand shape appeared sometimes, but timing or recovery was uneven.',
+      high: 'Early turn, crosscourt shape, and recovery were visible across the block.',
+    },
+    progression: 'Add a neutral plus-one ball after 6 quality crosscourt backhands.',
+    regression: 'Use shadow swings or self-drops until early turn and recovery hold.',
   },
   'defense-neutral-attack-rally': {
     useWhen: 'Use this with a partner when you either defend forever or attack too early.',
@@ -280,6 +390,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Partner feeds one defensive ball to start the rally.', 'Player must hit one high neutral ball before attacking.', 'Only attack when balanced and inside the court.', 'Play to 7 points and score decision quality after each point.'],
     reward: 'You train shot selection instead of treating every ball like the same opportunity.',
     proof: 'Defense-neutral-attack decision quality 0-5',
+    qualityChecks: ['The defensive ball buys time with height or depth before any attack is allowed.', 'Neutral balls are built from balance, not from panic.', 'Attack happens only when contact, court position, and recovery are earned.'],
+    commonMiss: {
+      miss: 'The player escapes defense with a low-percentage attack or stays neutral when the ball invites pressure.',
+      fix: 'Name the state before the swing: defend, neutral, or attack. The decision must match balance first.',
+    },
+    proofAnchors: {
+      low: 'Ball state and shot choice did not match.',
+      mid: 'The right choice appeared, but emotion or court position still overruled some points.',
+      high: 'Defense, neutral, and attack choices were named early and matched by the shot.',
+    },
     progression: 'Add a smaller attack target when the neutral ball is reliable.',
     regression: 'Remove scoring and make the partner feed cooperative.',
   },
@@ -290,6 +410,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Call the serve location before the motion.', 'Partner returns cooperatively to the planned zone.', 'Hit the plus-one ball to the named target.', 'Rotate after 8 reps and score serve plus-one clarity.'],
     reward: 'The serve becomes the start of a pattern instead of a standalone shot.',
     proof: 'Serve plus-one clarity with partner 0-5',
+    qualityChecks: ['Serve location is called before the motion starts.', 'Recovery begins before watching the return quality.', 'The plus-one target is named before the first groundstroke.'],
+    commonMiss: {
+      miss: 'The serve goes in, but the player waits to see what happens instead of owning the next ball.',
+      fix: 'Call serve location and plus-one target as a pair before the rep begins.',
+    },
+    proofAnchors: {
+      low: 'Serve and plus-one felt like separate shots.',
+      mid: 'The pattern was clear on some reps, but recovery or first-ball target leaked.',
+      high: 'Serve location, recovery, and plus-one target connected before every rep.',
+    },
     progression: 'Make the return less cooperative after three clean patterns.',
     regression: 'Shadow serve plus-one without the ball until the pattern is clear.',
   },
@@ -320,6 +450,18 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Call the serve target.', 'Shadow the serve finish.', 'Shadow the expected plus-one ball.', 'Recover and rate whether the two actions matched.'],
     reward: 'You stop thinking of the serve as one isolated shot.',
     proof: 'Serve plus-one connection 0-5',
+    qualityChecks: ['Serve target is named before the shadow motion.', 'The expected plus-one ball is chosen before the serve finish.', 'Recovery points the body toward the plus-one target.'],
+    commonMiss: {
+      miss: 'The player shadows a serve but never chooses the first-ball job.',
+      fix: 'Say target and plus-one before the motion. If either is missing, restart the rep.',
+    },
+    proofAnchors: {
+      low: 'Serve target and first-ball idea were vague or disconnected.',
+      mid: 'The pair was named, but recovery did not set up the plus-one.',
+      high: 'Serve target, finish, recovery, and plus-one intention matched every rep.',
+    },
+    progression: 'Add a live feed for the plus-one once the shadow pattern is automatic.',
+    regression: 'Remove the full serve motion and rehearse target, finish, recover only.',
   },
   'return-step-in-game': {
     useWhen: 'Use this when return games start passive or unclear.',
@@ -328,6 +470,18 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Choose block, drive, or height.', 'Start with active feet before the toss.', 'Return with the chosen shape.', 'Recover and score whether the intent showed up.'],
     reward: 'You turn returns into planned starts instead of reactions.',
     proof: 'Return intent 0-5',
+    qualityChecks: ['Return job is chosen before the server starts the toss.', 'Feet stay active enough to step in or hold position on purpose.', 'The return shape matches the job instead of the score emotion.'],
+    commonMiss: {
+      miss: 'The returner says a plan, then reacts late and blocks without intention.',
+      fix: 'Choose block, drive, or height before the toss and score only returns that match that job.',
+    },
+    proofAnchors: {
+      low: 'Return position and job were late or emotional.',
+      mid: 'Intent showed up on some returns, but feet or shape changed under pressure.',
+      high: 'Position, job, contact shape, and recovery matched before the point started.',
+    },
+    progression: 'Add score pressure at 30-30 once the return job is clear early.',
+    regression: 'Use shadow returns from the chosen position before live serves.',
   },
   'return-shadow-split-read': {
     useWhen: 'Use this before return practice when the split, read, or first move feels late.',
@@ -356,6 +510,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Choose one return lane: crosscourt deep, middle deep, or high neutral.', 'Server or feeder gives 8 controlled serves or feeds.', 'Return to the named lane and recover to ready after contact.', 'Repeat 3 rounds and count only returns with lane plus recovery.'],
     reward: 'You get a return that starts the point instead of only surviving the serve.',
     proof: 'Return depth lane and recovery 0-5',
+    qualityChecks: ['Lane is chosen before the server starts the toss.', 'The return shape clears the service-line danger zone or buys time with height.', 'Recovery starts before watching whether the return bothered the server.'],
+    commonMiss: {
+      miss: 'The returner reacts late and celebrates making the ball back, even if it lands short.',
+      fix: 'Pre-call the lane and count only returns that land deep enough or high enough to start neutral.',
+    },
+    proofAnchors: {
+      low: 'Lane was late, return landed short, or recovery did not happen.',
+      mid: 'The lane was called, but depth or recovery faded when pace changed.',
+      high: 'Lane, depth shape, and recovery were clear enough to start the point neutral.',
+    },
     progression: 'Let the server vary location after the lane and recovery hold for two rounds.',
     regression: 'Use cooperative feeds and a bigger target until depth is repeatable.',
   },
@@ -408,6 +572,26 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     proof: 'Return intent at 30-30 0-5',
     progression: 'Start at 30-40 or break point after the return job stays clear.',
     regression: 'Play cooperative return points but keep the pressure score and job call.',
+  },
+  'recover-before-score': {
+    useWhen: 'Use this when the player watches the ball, checks the score, or reacts emotionally before recovering.',
+    tennisGoal: 'Make recovery the first response after contact so the next ball starts from ready position.',
+    cue: 'Recover first, score second.',
+    routine: ['Play or shadow one ball with a named target.', 'Recover to ready before looking up or talking about the result.', 'Say the score or next cue only after both feet are set.', 'Run 3 rounds of 8 reps and score recovery timing.'],
+    reward: 'You train the quiet habit that keeps one shot from stealing the next ball.',
+    proof: 'Recovered before score check 0-5',
+    qualityChecks: ['Recovery starts immediately after contact or shadow contact.', 'The player waits to react, speak, or check score until ready feet are set.', 'Both makes and misses get the same recovery rule.'],
+    commonMiss: {
+      miss: 'The player checks the result first and arrives late to the next ball.',
+      fix: 'Make ready feet the permission to look, talk, or score. No ready feet, no rep.',
+    },
+    proofAnchors: {
+      low: 'Result watching came before recovery on most reps.',
+      mid: 'Recovery happened sometimes, but score pressure or misses pulled attention away.',
+      high: 'Contact, recover, ready, then score happened in order after makes and misses.',
+    },
+    progression: 'Use the rule during live points and score whether it holds after errors.',
+    regression: 'Shadow the contact and recovery order before adding a live ball.',
   },
   'doubles-return-first-move': {
     useWhen: 'Use this in doubles when the returner and partner are not aligned before the serve.',
@@ -561,6 +745,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Start two steps inside the service line.', 'Shadow a close and split before the feeder toss.', 'Volley or shadow to the named target.', 'Run 3 rounds of 8 reps and count only split plus target.'],
     reward: 'You arrive at net ready to make a calm first volley instead of swinging late.',
     proof: 'Volley ready split 0-5',
+    qualityChecks: ['The split happens before the feed reaches the player.', 'Hands stay in front during the landing.', 'The first volley target is named before contact.'],
+    commonMiss: {
+      miss: 'The player closes well, then keeps running through the volley.',
+      fix: 'Freeze the split for one beat and call the target before the feed counts.',
+    },
+    proofAnchors: {
+      low: 'Arrival was late, hands dropped, or no target was named.',
+      mid: 'Close and split showed up, but target or hand position leaked under pace.',
+      high: 'Close, ready split, quiet hands, and target call happened before every first volley.',
+    },
     progression: 'Add a live feed to either side after the split and target stay clear.',
     regression: 'Remove the ball and rehearse close, split, target call only.',
   },
@@ -591,6 +785,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Feed or self-drop an approach ball to a safe target.', 'Close behind the approach and split before the feed.', 'Play one volley to the named target.', 'Stop after the volley and score whether the close and split happened.'],
     reward: 'You practice finishing forward, not just hitting an approach and watching.',
     proof: 'Approach-volley connection 0-5',
+    qualityChecks: ['The approach target is safe enough to keep closing.', 'The split happens before the volley feed or reply.', 'The first volley has a named job instead of just a reaction.'],
+    commonMiss: {
+      miss: 'The approach is hit, but the player stops halfway and volleys from balance trouble.',
+      fix: 'Score the close and split first. The volley only counts after the player earns ready feet.',
+    },
+    proofAnchors: {
+      low: 'Approach and volley felt like separate plays.',
+      mid: 'The player closed forward, but split timing or first-volley target was uneven.',
+      high: 'Approach, close, split, and useful first volley connected as one pattern.',
+    },
     progression: 'Play the point live after the first volley once the close and split are automatic.',
     regression: 'Shadow the approach and close before adding a live volley feed.',
   },
@@ -601,6 +805,16 @@ const cardContentEnhancements: Record<string, CardContentEnhancement> = {
     routine: ['Stand close enough that big swings are impossible.', 'Volley softly to the wall for 20-30 seconds.', 'Reset the hands in front after every touch.', 'Run 4 blocks and score compact hands plus balance.'],
     reward: 'You build net touch and readiness without needing a partner.',
     proof: 'Reaction volley hands 0-5',
+    qualityChecks: ['Contact stays short enough that the racquet face never wraps behind the body.', 'Hands reset in front before the next wall touch.', 'Feet and shoulders stay quiet while the hands work.'],
+    commonMiss: {
+      miss: 'The wall speed gets exciting and the volley becomes a swing.',
+      fix: 'Move closer, soften the feed, and count only blocks with hands reset in front.',
+    },
+    proofAnchors: {
+      low: 'Contact got long or balance changed to chase the wall rebound.',
+      mid: 'Hands reset on some touches, but speed made the stroke grow.',
+      high: 'Short block, hands reset, and quiet balance held through every block.',
+    },
     progression: 'Alternate forehand and backhand volleys when balance stays quiet.',
     regression: 'Catch the ball between touches and reset the hands before the next volley.',
   },
@@ -713,19 +927,19 @@ function makeCard(seed: CardSeed): LevelUpCard {
 }
 
 function buildUseWhen(seed: CardSeed) {
-  if (seed.tags.includes('match-day')) return 'Use this before or during match day when you need a simple routine you can trust.'
-  if (seed.tags.includes('recovery') || seed.category === 'recovery-reset') return 'Use this after play when your body and attention need to come back to neutral.'
-  if (seed.tags.includes('wall')) return 'Use this when you have a wall and want reps that include recovery, not just contact.'
+  if (seed.tags.includes('match-day')) return 'Use this at the court before, during, or after match play when you need one routine that survives pressure.'
+  if (seed.tags.includes('recovery') || seed.category === 'recovery-reset') return 'Use this after play when your body and attention need to reset before the next session.'
+  if (seed.tags.includes('wall')) return 'Use this when you have a wall and want contact, recovery, and ready feet in the same rep.'
   if (seed.tags.includes('jump-rope')) return 'Use this when you need light feet before tennis work or a short conditioning block.'
-  if (seed.tags.includes('attack')) return 'Use this when attacking gets rushed and you need balance before the finish.'
-  if (seed.tags.includes('defense')) return 'Use this when defense turns into panic and you need a calmer neutral ball.'
-  if (seed.tags.includes('consistency')) return 'Use this when you need rally discipline before changing direction or pace.'
-  if (seed.category === 'serve-return') return 'Use this when serve or return reps need a clearer job than just getting the ball in.'
-  if (seed.category === 'partner-drill') return 'Use this when you have a partner and want a constraint that makes the rally purposeful.'
-  if (seed.category === 'doubles-drill') return 'Use this when doubles communication or first movement needs to be clearer.'
+  if (seed.tags.includes('attack')) return 'Use this when attacking gets rushed and you need balance before choosing the finish.'
+  if (seed.tags.includes('defense')) return 'Use this when defense turns into panic and you need height, depth, and recovery first.'
+  if (seed.tags.includes('consistency')) return 'Use this when you need rally discipline before changing direction, pace, or target.'
+  if (seed.category === 'serve-return') return 'Use this when serve or return reps need a named job, a recovery cue, and proof beyond make or miss.'
+  if (seed.category === 'partner-drill') return 'Use this when you have a partner and want the rally to train one visible match habit.'
+  if (seed.category === 'doubles-drill') return 'Use this when doubles communication, first movement, or pressure alignment needs to be visible before the ball is live.'
   if (seed.category === 'conditioning') return 'Use this when you want conditioning that still connects to tennis posture and decisions.'
   if (seed.category === 'strength-stability') return 'Use this when off-court strength needs to support balance, posture, or repeatable movement.'
-  return 'Use this when the skill needs focused reps and a simple proof score.'
+  return 'Use this when the skill needs focused reps, a court-transfer cue, and an honest proof score.'
 }
 
 function buildTennisGoal(seed: CardSeed) {
@@ -756,16 +970,16 @@ function buildCue(seed: CardSeed) {
 
 function buildRoutine(seed: CardSeed) {
   if (seed.category === 'mental-routine') {
-    return ['Name the trigger.', 'Take one slow breath.', 'Say the cue phrase.', 'Choose the next target.']
+    return ['Name the trigger in one short phrase.', 'Take one slow breath before the next action.', 'Say the cue phrase you want to use on court.', 'Choose the next target or job before moving again.']
   }
   if (seed.category === 'mobility-stretch' || seed.category === 'recovery-reset') {
-    return ['Move slowly for 30 seconds each side.', 'Breathe through the tight spot.', 'Re-check posture or range.', 'Rate before and after.']
+    return ['Move slowly for 30 seconds each side.', 'Breathe through the tight spot without forcing range.', 'Re-check posture, range, or readiness.', 'Rate before and after so the reset has proof.']
   }
   if (seed.category === 'serve-return') {
-    return ['Call the target.', 'Run the routine.', 'Hit or shadow the rep.', 'Recover and score the proof.']
+    return ['Call the target, return job, or first recovery spot.', 'Run the same routine before every rep.', 'Hit or shadow the rep with the named job.', 'Recover before judging and score the proof.']
   }
   if (seed.category === 'movement-engine') {
-    return ['Set the cone, line, or shadow lane.', 'Do 6 clean reps with the cue.', 'Recover to a balanced ready position.', 'Rest briefly, repeat 3 rounds, then score the proof.']
+    return ['Set the cone, line, or shadow lane.', 'Do 6 clean reps with the court cue visible.', 'Recover to a balanced ready position before the next rep.', 'Rest briefly, repeat 3 rounds, then score the proof.']
   }
   if (seed.category === 'conditioning') {
     return ['Set a short work window.', 'Move with tennis posture, not max speed.', 'Rest before movement quality breaks.', 'Score whether decisions stayed clear under fatigue.']
@@ -774,10 +988,10 @@ function buildRoutine(seed: CardSeed) {
     return ['Choose the controlled version first.', 'Do 6-8 technique-first reps each side.', 'Reset posture and breathing between sets.', 'Score control, balance, and tennis posture.']
   }
   if (seed.category === 'solo-drill') {
-    return ['Pick the target or wall rule.', 'Hit a short block of clean reps.', 'Recover before watching the result.', 'Score whether the habit showed up.']
+    return ['Pick the target, lane, or wall rule before starting.', 'Hit a short block where only quality reps count.', 'Recover before watching the result.', 'Score whether the habit would transfer to a point.']
   }
   if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') {
-    return ['Set the constraint.', 'Play the rep.', 'Call the cue out loud.', 'Score the habit before changing drills.']
+    return ['Set the constraint and success signal before the ball is live.', 'Play the rep with the cue visible to both players.', 'Reset quickly after the rep ends.', 'Score the habit before changing drills.']
   }
   return ['Choose one tennis task.', 'Do 6-10 clean reps.', 'Reset posture and breathing.', 'Repeat for 3 rounds and score the proof.']
 }
@@ -837,15 +1051,15 @@ function buildProof(seed: CardSeed) {
 
 function buildProgression(seed: CardSeed, level: LevelUpLevel) {
   if (seed.category === 'serve-return' || seed.category === 'mental-routine') return 'Add score pressure only after the routine stays the same for three clean reps.'
-  if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') return 'Add a score target or narrower constraint when the communication stays clear.'
-  if (level === 'advanced') return 'Add score pressure or shorter rest while keeping the proof score honest.'
-  return 'Add one round or a target score when it feels clean.'
+  if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') return 'Add a score target, live decision, or narrower constraint when the habit stays visible.'
+  if (level === 'advanced') return 'Add score pressure, pace, or shorter rest while keeping the proof score honest.'
+  return 'Add one round, a smaller target, or a light score condition when the proof is clean.'
 }
 
 function buildRegression(seed: CardSeed) {
-  if (seed.category === 'serve-return') return 'Shadow the pattern first, then add the ball.'
-  if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') return 'Remove scoring and rehearse the cue with slower feeds.'
-  if (seed.category === 'conditioning' || seed.category === 'strength-stability') return 'Cut the work in half and keep posture clean.'
+  if (seed.category === 'serve-return') return 'Shadow the pattern first, then add the ball only when the target and recovery are clear.'
+  if (seed.category === 'partner-drill' || seed.category === 'doubles-drill') return 'Remove scoring and rehearse the cue with slower feeds until both players can see it.'
+  if (seed.category === 'conditioning' || seed.category === 'strength-stability') return 'Cut the work in half and keep posture, breathing, and balance clean.'
   if (seed.category === 'movement-engine') return 'Walk the pattern first, then add tennis speed only when balance stays clean.'
   if (seed.category === 'solo-drill') return 'Shorten the target area or slow the feed until contact and recovery both hold.'
   return 'Cut the reps in half and keep the tennis task clean.'
@@ -853,7 +1067,7 @@ function buildRegression(seed: CardSeed) {
 
 function buildQualityChecks(seed: CardSeed) {
   if (seed.category === 'serve-return') {
-    return ['Target or return job is named before contact.', 'Routine speed stays the same after misses.', 'Recovery happens before judging the ball.']
+    return ['Target, return job, or first recovery spot is named before contact.', 'Routine speed stays the same after misses.', 'Recovery happens before judging the ball.']
   }
   if (seed.category === 'movement-engine') {
     return ['Landings stay quiet enough to move again.', 'Eyes and chest stay organized through the recovery.', 'The rep ends in a ready position, not in a drift.']
@@ -868,7 +1082,7 @@ function buildQualityChecks(seed: CardSeed) {
     return ['Movement stays slow and controlled.', 'Range improves without forcing the position.', 'The final readiness score is honest.']
   }
   if (seed.category === 'solo-drill') {
-    return ['Target or wall rule is clear before the block starts.', 'Feet reset between contacts.', 'Only reps with the intended tennis habit count.']
+    return ['Target, lane, or wall rule is clear before the block starts.', 'Feet reset between contacts.', 'Only reps with the intended tennis habit count.']
   }
   if (seed.category === 'partner-drill') {
     return ['The constraint is clear to both players before the rep.', 'The habit is scored before changing feeds or targets.', 'The rally teaches the next point, not just volume.']

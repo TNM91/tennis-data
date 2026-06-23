@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import {
   buildPlayerAssignmentPackCardCompletion,
+  getCoachAssignmentPackProgress,
   mapCoachAssignmentRow,
   type CoachAssignmentRow,
 } from '@/lib/coach-storage'
@@ -29,6 +30,12 @@ type SaveLevelUpBody = {
 type CoachLinkRow = {
   id: string
   coach_user_id: string | null
+}
+
+type AssignmentSyncResult = {
+  updated: boolean
+  complete: boolean
+  progressLabel: string
 }
 
 export async function GET(request: Request) {
@@ -105,8 +112,8 @@ export async function POST(request: Request) {
 
   if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
 
-  if (accessMode === 'coach_invited' && payload.assignment_id && link) {
-    await completeLinkedAssignment(client, payload.assignment_id, link.id, {
+  const assignmentSync = accessMode === 'coach_invited' && payload.assignment_id && link
+    ? await completeLinkedAssignment(client, payload.assignment_id, link.id, {
       cardId: payload.focus_id,
       levelUpSessionId: payload.id,
       rating: payload.rating,
@@ -114,9 +121,9 @@ export async function POST(request: Request) {
       recap: `${payload.focus_title}: ${payload.drill_title} (${payload.rating}/5, ${payload.feeling}, ${formatClock(payload.elapsed_seconds)})${payload.note ? ` - ${payload.note}` : ''}`,
       evidence: 'Level Up training log',
     })
-  }
+    : null
 
-  return Response.json({ ok: true, session: mapLevelUpSessionRow(data as LevelUpSessionRow) })
+  return Response.json({ ok: true, session: mapLevelUpSessionRow(data as LevelUpSessionRow), assignmentSync })
 }
 
 async function resolveLevelUpLink(
@@ -176,7 +183,7 @@ async function completeLinkedAssignment(
   assignmentId: string,
   studentLinkId: string,
   input: { cardId: string; levelUpSessionId: string; rating: number; completedAt: string; recap: string; evidence: string },
-) {
+): Promise<AssignmentSyncResult | null> {
   const { data: existingData } = await client
     .from('coach_assignments')
     .select('id,student_link_id,title,focus,due_date,status,assignment_json,updated_at')
@@ -184,13 +191,14 @@ async function completeLinkedAssignment(
     .eq('student_link_id', studentLinkId)
     .maybeSingle()
 
-  if (!existingData) return
+  if (!existingData) return null
 
   const existing = mapCoachAssignmentRow(existingData as CoachAssignmentRow)
-  if (existing.status === 'archived') return
+  if (existing.status === 'archived') return null
 
   const packCompletion = buildPlayerAssignmentPackCardCompletion(existing.assignment, input)
-  if (!packCompletion.updatedCardId) return
+  if (!packCompletion.updatedCardId) return null
+  const nextProgress = getCoachAssignmentPackProgress(packCompletion.assignment)
 
   await client
     .from('coach_assignments')
@@ -201,6 +209,12 @@ async function completeLinkedAssignment(
     })
     .eq('id', assignmentId)
     .eq('student_link_id', studentLinkId)
+
+  return {
+    updated: true,
+    complete: packCompletion.complete,
+    progressLabel: nextProgress?.label ?? (packCompletion.complete ? 'Assignment complete' : 'Assignment progress updated'),
+  }
 }
 
 function getServiceClient() {

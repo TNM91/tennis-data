@@ -13,6 +13,7 @@ import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
   'TenAceIQ helps the tennis community improve, compete, and manage the game with less friction.'
+const socialBrandImage = '/tenaceiq/logos/tenaceiq-brand-preview.png'
 
 export const metadata: Metadata = {
   title: PRODUCT_MOTTO,
@@ -26,9 +27,9 @@ export const metadata: Metadata = {
     url: '/',
     images: [
       {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
+        url: socialBrandImage,
+        width: 1600,
+        height: 1000,
         alt: 'TenAceIQ: More Tennis. Less Chaos.',
       },
     ],
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description: homeDescription,
-    images: ['/og-image.png'],
+    images: [socialBrandImage],
   },
 }
 

@@ -7,6 +7,7 @@ import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-da
 import './globals.css'
 
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
+const SOCIAL_BRAND_IMAGE = '/tenaceiq/logos/tenaceiq-brand-preview.png'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -77,9 +78,9 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
+        url: SOCIAL_BRAND_IMAGE,
+        width: 1600,
+        height: 1000,
         alt: 'TenAceIQ tennis intelligence for players, captains, and league coordinators',
       },
     ],
@@ -88,17 +89,18 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description: SITE_DESCRIPTION,
-    images: ['/og-image.png'],
+    images: [SOCIAL_BRAND_IMAGE],
   },
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
-      { url: '/favicon.ico?v=20260524', sizes: 'any', type: 'image/x-icon' },
-      { url: '/favicon-32x32.png?v=20260524', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-16x16.png?v=20260524', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any', type: 'image/x-icon' },
+      { url: '/tenaceiq/logos/tenaceiq-app-icon.svg', sizes: '512x512', type: 'image/svg+xml' },
+      { url: '/tenaceiq-icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/tenaceiq-icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-    shortcut: '/favicon.ico?v=20260524',
-    apple: '/apple-touch-icon.png?v=20260524',
+    shortcut: '/favicon.ico',
+    apple: '/tenaceiq-icon-180.png',
   },
 }
 

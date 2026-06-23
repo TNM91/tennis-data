@@ -40,16 +40,14 @@
 .brand img {
   height: 34px;
   object-fit: contain;
-  width: 34px;
+  width: auto;
 }
 
-.brandWord,
 .scenarioTitle {
   font-weight: 950;
   letter-spacing: -0.03em;
 }
 
-.brandWord span,
 .green {
   color: #9be11d;
 }
