@@ -32,7 +32,7 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('href={dataAssistCaptainHref}')
     expect(source).toContain('Set in My Lab')
     expect(source).toContain('Refresh with Data Assist')
-    expect(source).toContain('See who is available, compare lineup options, choose pairings, and send the match-week plan.')
+    expect(source).toContain('Start with who can play, build the lineup, check the pairings, and send the match-week plan.')
     expect(source).toContain('Start with who can play, choose the lineup, check the pairings, and send the team plan from one lane.')
     expect(source).toContain('Open the weekly brief for lineup, notes, opponent context, and final captain actions.')
     expect(source).not.toContain('send the team plan from one place')

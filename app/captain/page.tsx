@@ -352,7 +352,7 @@ function CaptainLockedSurface({
             <h1 style={scopeTitleStyle}>Run match week with less chaos.</h1>
           </div>
           <p style={captainPreviewTextStyle}>
-            See who is available, compare lineup options, choose pairings, and send the match-week plan.
+            Start with who can play, build the lineup, check the pairings, and send the match-week plan.
           </p>
           <div style={captainPreviewGridStyle}>
             {CAPTAIN_STORY.workflow.map(([step, title, body]) => (
