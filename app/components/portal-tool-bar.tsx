@@ -219,6 +219,8 @@ export default function PortalToolBar() {
   const showPortalBrandRunway = publicVisitor && pathname === '/'
   const collapseMobilePortal = isMobile && !showPortalBrandRunway
   const mobilePortalOpen = collapseMobilePortal && mobilePortalOpenPath === pathname
+  const mobilePortalFixedTop = 'calc(max(0px, env(safe-area-inset-top)) + 74px)'
+  const mobilePortalFlowHeight = publicVisitor ? (isSmallMobile ? 88 : 94) : isSmallMobile ? 138 : 148
   const portalMenuId = 'tenaceiq-mobile-portal-menu'
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -236,11 +238,15 @@ export default function PortalToolBar() {
   const activeAccent = getLaneAccent(activeLane.id)
 
   return (
+    <>
     <section
       aria-label="TenAceIQ platform navigation"
       style={{
-        position: 'relative',
-        zIndex: 25,
+        position: collapseMobilePortal ? 'fixed' : 'relative',
+        top: collapseMobilePortal ? mobilePortalFixedTop : undefined,
+        left: collapseMobilePortal ? 0 : undefined,
+        right: collapseMobilePortal ? 0 : undefined,
+        zIndex: collapseMobilePortal ? 35 : 25,
         width: '100%',
         boxSizing: 'border-box',
         padding: publicVisitor ? (isMobile ? '10px 8px 8px' : '10px 16px 8px') : isMobile ? '14px 8px 10px' : '18px 16px 12px',
@@ -294,6 +300,10 @@ export default function PortalToolBar() {
             display: collapseMobilePortal && !mobilePortalOpen ? 'none' : 'grid',
             gap: publicVisitor ? 10 : isMobile ? 14 : 16,
             minWidth: 0,
+            maxHeight: mobilePortalOpen ? 'min(70vh, 560px)' : undefined,
+            overflowY: mobilePortalOpen ? 'auto' : undefined,
+            overscrollBehavior: mobilePortalOpen ? 'contain' : undefined,
+            paddingRight: mobilePortalOpen ? 2 : undefined,
           }}
         >
           <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 6, minWidth: 0 }}>
@@ -431,6 +441,8 @@ export default function PortalToolBar() {
         ) : null}
       </div>
     </section>
+    {collapseMobilePortal ? <div aria-hidden="true" style={{ height: mobilePortalFlowHeight }} /> : null}
+    </>
   )
 }
 
