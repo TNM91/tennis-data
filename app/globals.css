@@ -325,13 +325,13 @@ footer {
 
 .brand-atmosphere-mark {
   position: fixed;
-  right: max(-300px, -16vw);
-  bottom: max(-180px, -10vw);
-  width: min(86vw, 1180px);
+  right: clamp(24px, 4vw, 72px);
+  bottom: clamp(58px, 8vh, 120px);
+  width: min(76vw, 980px);
   aspect-ratio: 1045 / 490;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.12;
+  opacity: 0.17;
   background-image: url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg");
   background-repeat: no-repeat;
   background-position: center;
@@ -340,17 +340,17 @@ footer {
 }
 
 .brand-atmosphere-mark--hub {
-  opacity: 0.145;
-  width: min(92vw, 1320px);
-  right: max(-340px, -18vw);
-  bottom: max(-200px, -11vw);
+  opacity: 0.2;
+  width: min(80vw, 1060px);
+  right: clamp(20px, 3.6vw, 64px);
+  bottom: clamp(54px, 7vh, 112px);
 }
 
 .brand-atmosphere-mark--quiet {
-  opacity: 0.085;
-  width: min(78vw, 1040px);
-  right: max(-280px, -15vw);
-  bottom: max(-170px, -10vw);
+  opacity: 0.12;
+  width: min(68vw, 860px);
+  right: clamp(28px, 4.5vw, 76px);
+  bottom: clamp(64px, 9vh, 128px);
 }
 
 .admin-shell {
@@ -1269,21 +1269,21 @@ hr {
     right: 16px;
     bottom: 108px;
     width: min(88vw, 520px);
-    opacity: 0.15;
+    opacity: 0.17;
   }
 
   .brand-atmosphere-mark--hub {
     width: min(94vw, 560px);
     right: 10px;
     bottom: 102px;
-    opacity: 0.17;
+    opacity: 0.19;
   }
 
   .brand-atmosphere-mark--quiet {
     width: min(82vw, 480px);
     right: 18px;
     bottom: 112px;
-    opacity: 0.105;
+    opacity: 0.12;
   }
 
   .hero-panel {

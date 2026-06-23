@@ -54,6 +54,32 @@ describe('route loading shells', () => {
     expect(readAppFile('app/components/TiqLoader.tsx')).not.toContain('text-white/70')
   })
 
+  it('uses the supplied TenAceIQ Q and ball asset without an extra drawn loading badge', () => {
+    for (const file of ['components/TiqLoader.tsx', 'app/components/TiqLoader.tsx']) {
+      const source = readAppFile(file)
+      expect(source).toContain('src="/tenaceiq/logos/tenaceiq-q-icon.svg"')
+      expect(source).toContain('objectFit: "contain"')
+      expect(source).toContain('grid place-items-center')
+      expect(source).not.toContain('rounded-[28%]')
+      expect(source).not.toContain('border-[')
+      expect(source).not.toContain('boxShadow')
+    }
+  })
+
+  it('keeps the global desktop brand watermark fully on-screen and more readable', () => {
+    const source = readAppFile('app/globals.css')
+
+    expect(source).toContain('.brand-atmosphere-mark')
+    expect(source).toContain('right: clamp(24px, 4vw, 72px);')
+    expect(source).toContain('bottom: clamp(58px, 8vh, 120px);')
+    expect(source).toContain('width: min(76vw, 980px);')
+    expect(source).toContain('opacity: 0.17;')
+    expect(source).toContain('right: clamp(20px, 3.6vw, 64px);')
+    expect(source).toContain('opacity: 0.2;')
+    expect(source).not.toContain('right: max(-300px, -16vw)')
+    expect(source).not.toContain('bottom: max(-180px, -10vw)')
+  })
+
   it('announces route loading shells as polite busy status regions', () => {
     const source = readAppFile('app/components/route-loading-shell.tsx')
 
