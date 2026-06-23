@@ -69,10 +69,16 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(commandCenterSource, 'homePrimaryCtaStyle')).toContain("width: '100%'")
     expect(styleBlock(commandCenterSource, 'homePrimaryCtaStyle')).toContain("boxSizing: 'border-box'")
     expect(styleBlock(commandCenterSource, 'homeSecondaryCtaStyle')).toContain("alignItems: 'flex-start'")
+    expect(styleBlock(commandCenterSource, 'homeCtaHeadingStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(commandCenterSource, 'homeCtaTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(commandCenterSource, 'homeCtaHelperStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(commandCenterSource).toContain("helper: 'Search the tennis map.'")
-    expect(commandCenterSource).toContain("helper: 'Find drills and skills.'")
+    expect(styleBlock(commandCenterSource, 'homeCtaAudienceStyle')).toContain("textTransform: 'uppercase'")
+    expect(commandCenterSource).toContain('Choose your path')
+    expect(commandCenterSource).toContain('Start with the tennis need you have today.')
+    expect(commandCenterSource).toContain("audience: 'Players'")
+    expect(commandCenterSource).toContain("audience: 'Coaches'")
+    expect(commandCenterSource).toContain("helper: 'Search players, teams, leagues, and rankings.'")
+    expect(commandCenterSource).toContain("helper: 'Find drills, skills, and training paths.'")
   })
 
   it('keeps the persistent public portal toolbar from becoming a clipped mobile rail', () => {

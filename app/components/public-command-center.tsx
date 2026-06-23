@@ -297,27 +297,35 @@ export function CommandHero({
 
 export function HomeCtaGrid() {
   const ctas = [
-    { label: 'Start Exploring', href: '/explore', helper: 'Search the tennis map.' },
-    { label: 'Find Player Insights', href: '/explore/players', helper: 'See player context fast.' },
-    { label: 'Manage My Team', href: '/captain', helper: 'Cut down match-week admin.' },
-    { label: 'Level Up My Game', href: '/player-development', helper: 'Find drills and skills.' },
-    { label: 'Run a League or Tournament', href: '/leagues-and-tournaments', helper: 'Organize play with less work.' },
+    { audience: 'New here', label: 'Start Exploring', href: '/explore', helper: 'Search players, teams, leagues, and rankings.' },
+    { audience: 'Players', label: 'Find Player Insights', href: '/explore/players', helper: 'Open ratings, teams, and matchup context.' },
+    { audience: 'Improve', label: 'Level Up My Game', href: '/player-development', helper: 'Find drills, skills, and training paths.' },
+    { audience: 'Captains', label: 'Manage My Team', href: '/captain', helper: 'Check availability, lineups, and messages.' },
+    { audience: 'Coaches', label: 'Explore Coaches', href: '/coaches', helper: 'Support lessons, assignments, and development.' },
+    { audience: 'Organizers', label: 'Run a League or Tournament', href: '/leagues-and-tournaments', helper: 'Organize schedules, scores, standings, and events.' },
   ] as const
 
   return (
-    <section style={homeCtaGridStyle} aria-label="TenAceIQ quick starts">
-      {ctas.map((cta, index) => (
-        <TrackedProductLink
-          key={cta.href}
-          href={cta.href}
-          style={index === 0 ? homePrimaryCtaStyle : homeSecondaryCtaStyle}
-          ariaLabel={`${cta.label}: ${cta.helper}`}
-          event={getPublicLinkEvent(cta.label, cta.href, 'homepage-quick-start')}
-        >
-          <strong style={homeCtaTitleStyle}>{cta.label}</strong>
-          <span style={homeCtaHelperStyle}>{cta.helper}</span>
-        </TrackedProductLink>
-      ))}
+    <section style={homeCtaSectionStyle} aria-labelledby="home-quick-start-title">
+      <div style={homeCtaIntroStyle}>
+        <span style={panelKickerStyle}>Choose your path</span>
+        <h2 id="home-quick-start-title" style={homeCtaHeadingStyle}>Start with the tennis need you have today.</h2>
+      </div>
+      <div style={homeCtaGridStyle} aria-label="TenAceIQ quick starts">
+        {ctas.map((cta, index) => (
+          <TrackedProductLink
+            key={cta.href}
+            href={cta.href}
+            style={index === 0 ? homePrimaryCtaStyle : homeSecondaryCtaStyle}
+            ariaLabel={`${cta.audience}: ${cta.label}. ${cta.helper}`}
+            event={getPublicLinkEvent(cta.label, cta.href, 'homepage-quick-start')}
+          >
+            <span style={homeCtaAudienceStyle}>{cta.audience}</span>
+            <strong style={homeCtaTitleStyle}>{cta.label}</strong>
+            <span style={homeCtaHelperStyle}>{cta.helper}</span>
+          </TrackedProductLink>
+        ))}
+      </div>
     </section>
   )
 }
@@ -821,6 +829,28 @@ const cardGhostLinkStyle: CSSProperties = {
   fontSize: 12,
 }
 
+const homeCtaSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const homeCtaIntroStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const homeCtaHeadingStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.25rem, 2.2vw, 1.75rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
 const homeCtaGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
@@ -854,6 +884,23 @@ const homeSecondaryCtaStyle: CSSProperties = {
   gap: 4,
   padding: '10px 12px',
   textAlign: 'left',
+}
+
+const homeCtaAudienceStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  width: 'fit-content',
+  minHeight: 22,
+  padding: '0 7px',
+  borderRadius: 999,
+  border: '1px solid currentColor',
+  color: 'inherit',
+  opacity: 0.8,
+  fontSize: 10,
+  lineHeight: 1,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
 }
 
 const homeCtaTitleStyle: CSSProperties = {
