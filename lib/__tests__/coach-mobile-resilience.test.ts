@@ -112,4 +112,17 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('Current work')
     expect(coachSource).toContain('getCoachPlayerProfileHref')
   })
+
+  it('lets a coach jump from a player card into a Level Up assignment on phone', () => {
+    expect(coachSource).toContain('onClick={() => loadStudentLevelUpPack(card)}')
+    expect(coachSource).toContain('Level Up')
+    expect(coachSource).toContain('function scrollToCoachLessonFrame()')
+    expect(coachSource).toContain("document.getElementById('coach-lesson-frame')?.scrollIntoView")
+    expect(coachSource).toContain('function prepareStudentAssignment(card: LinkedPlayerCard)')
+    expect(coachSource).toContain('scrollToCoachLessonFrame()')
+    expect(coachSource).toContain('function loadStudentLevelUpPack(card: LinkedPlayerCard)')
+    expect(coachSource).toContain('const pack = COACH_LEVEL_UP_HANDOFF_PACKS[0]')
+    expect(coachSource).toContain('loadLevelUpHandoffPack(pack)')
+    expect(coachSource).toContain('Review the Level Up cards, then save a draft or create the assignment.')
+  })
 })

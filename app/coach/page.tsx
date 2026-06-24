@@ -1181,12 +1181,14 @@ function CoachContent() {
           </Link>
           <button
             type="button"
-            onClick={() => {
-              setAssignmentStudentId(card.student.id)
-              setAssignmentTitle('')
-              setAssignmentFocus('')
-              setWorkspaceMessage(`Assignment form is ready for ${card.student.playerName}.`)
-            }}
+            onClick={() => loadStudentLevelUpPack(card)}
+            style={inlineActionButtonStyle}
+          >
+            Level Up
+          </button>
+          <button
+            type="button"
+            onClick={() => prepareStudentAssignment(card)}
             style={inlineActionButtonStyle}
           >
             Assign work
@@ -1211,6 +1213,40 @@ function CoachContent() {
         </div>
       </article>
     )
+  }
+
+  function scrollToCoachLessonFrame() {
+    window.requestAnimationFrame(() => {
+      document.getElementById('coach-lesson-frame')?.scrollIntoView({
+        behavior: isMobile ? 'smooth' : 'auto',
+        block: 'start',
+      })
+    })
+  }
+
+  function prepareStudentAssignment(card: LinkedPlayerCard) {
+    setAssignmentStudentId(card.student.id)
+    setContactStudentId(card.student.id)
+    setAssignmentTitle('')
+    setAssignmentFocus('')
+    setAssignmentTemplateId(CUSTOM_ASSIGNMENT_TEMPLATE_ID)
+    setAssignmentPresetId('')
+    setAssignmentStarterId('')
+    setAssignmentLevelUpPackId('')
+    setAssignmentLevelUpCardId('')
+    setWorkspaceMessage(`Assignment form is ready for ${card.student.playerName}.`)
+    scrollToCoachLessonFrame()
+  }
+
+  function loadStudentLevelUpPack(card: LinkedPlayerCard) {
+    const pack = COACH_LEVEL_UP_HANDOFF_PACKS[0]
+    if (!pack) return
+
+    setAssignmentStudentId(card.student.id)
+    setContactStudentId(card.student.id)
+    loadLevelUpHandoffPack(pack)
+    setWorkspaceMessage(`${pack.title} loaded for ${card.student.playerName}. Review the Level Up cards, then save a draft or create the assignment.`)
+    scrollToCoachLessonFrame()
   }
 
   function loadLevelUpHandoffPack(pack: CoachLevelUpHandoffPack) {
