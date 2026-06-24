@@ -766,18 +766,24 @@ function CoachContent() {
   async function copyCoachAssignmentCourtLink(href: string, playerName: string) {
     if (!href) return
 
+    await copyCoachText(href, `Court link copied for ${playerName}.`, `Court link is ready for ${playerName}: ${href}`)
+  }
+
+  async function copyCoachText(text: string, copiedMessage: string, fallbackMessage: string) {
+    if (!text) return
+
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
-        await navigator.clipboard.writeText(href)
-        setWorkspaceMessage(`Court link copied for ${playerName}.`)
+        await navigator.clipboard.writeText(text)
+        setWorkspaceMessage(copiedMessage)
         return
       } catch {
-        setWorkspaceMessage(`Court link is ready for ${playerName}: ${href}`)
+        setWorkspaceMessage(fallbackMessage)
         return
       }
     }
 
-    setWorkspaceMessage(`Court link is ready for ${playerName}: ${href}`)
+    setWorkspaceMessage(fallbackMessage)
   }
 
   async function revokeStudentCalendarLink(student: CoachStudentLink | null) {
@@ -1578,7 +1584,7 @@ function CoachContent() {
                 {lastCreatedStudentSetup.invite && lastCreatedStudentSetup.student.playerPhone ? (
                   <SmsActionLink
                     phone={lastCreatedStudentSetup.student.playerPhone}
-                    body={`I created your TenAceIQ player setup link. Finish your account here: ${lastCreatedStudentSetup.invite.inviteHref}`}
+                    body={buildCoachSetupText(lastCreatedStudentSetup.invite.inviteHref)}
                     style={smallPrimaryLinkStyle}
                   >
                     Text setup now
@@ -1594,6 +1600,19 @@ function CoachContent() {
                 ) : (
                   <span style={disabledPillStyle}>Add cell for text</span>
                 )}
+                {lastCreatedStudentSetup.invite ? (
+                  <button
+                    type="button"
+                    onClick={() => void copyCoachText(
+                      buildCoachSetupText(lastCreatedStudentSetup.invite!.inviteHref),
+                      `Setup text copied for ${lastCreatedStudentSetup.student.playerName}.`,
+                      `Setup text for ${lastCreatedStudentSetup.student.playerName}: ${buildCoachSetupText(lastCreatedStudentSetup.invite!.inviteHref)}`,
+                    )}
+                    style={smallGhostButtonStyle}
+                  >
+                    Copy setup text
+                  </button>
+                ) : null}
                 <button type="button" onClick={() => setLastCreatedStudentSetup(null)} style={smallGhostButtonStyle}>
                   Dismiss
                 </button>
@@ -1625,10 +1644,21 @@ function CoachContent() {
                         <>
                           <a href={setupInvite.inviteHref} style={studentActionStyle}>Setup link</a>
                           {student.playerPhone ? (
-                            <SmsActionLink phone={student.playerPhone} body={`I created your TenAceIQ player setup link. Finish your account here: ${setupInvite.inviteHref}`} style={studentActionStyle}>
+                            <SmsActionLink phone={student.playerPhone} body={buildCoachSetupText(setupInvite.inviteHref)} style={studentActionStyle}>
                               Text setup
                             </SmsActionLink>
                           ) : null}
+                          <button
+                            type="button"
+                            onClick={() => void copyCoachText(
+                              buildCoachSetupText(setupInvite.inviteHref),
+                              `Setup text copied for ${student.playerName}.`,
+                              `Setup text for ${student.playerName}: ${buildCoachSetupText(setupInvite.inviteHref)}`,
+                            )}
+                            style={inlineActionButtonStyle}
+                          >
+                            Copy setup
+                          </button>
                         </>
                       ) : null}
                       {student.playerUserId ? (
@@ -1681,11 +1711,24 @@ function CoachContent() {
                     {inviteStudent?.playerPhone ? (
                       <SmsActionLink
                         phone={inviteStudent.playerPhone}
-                        body={`I created your TenAceIQ player setup link. Finish your account here: ${invite.inviteHref}`}
+                        body={buildCoachSetupText(invite.inviteHref)}
                         style={studentActionStyle}
                       >
                         Text setup link
                       </SmsActionLink>
+                    ) : null}
+                    {inviteStudent ? (
+                      <button
+                        type="button"
+                        onClick={() => void copyCoachText(
+                          buildCoachSetupText(invite.inviteHref),
+                          `Setup text copied for ${inviteStudent.playerName}.`,
+                          `Setup text for ${inviteStudent.playerName}: ${buildCoachSetupText(invite.inviteHref)}`,
+                        )}
+                        style={inlineActionButtonStyle}
+                      >
+                        Copy setup text
+                      </button>
                     ) : null}
                   </div>
                 </article>
@@ -3129,6 +3172,10 @@ function buildAssignmentNotifyMessage(
   const evidence = summary?.expectedEvidence ? ` Evidence: ${summary.expectedEvidence}.` : ''
   const courtLink = courtHref ? ` Open court mode: ${courtHref}` : ''
   return `New TenAceIQ assignment: ${assignment.title}. Focus: ${focus}.${due}${detail}${volume}${evidence}${courtLink}`
+}
+
+function buildCoachSetupText(inviteHref: string) {
+  return `I created your TenAceIQ player setup link. Finish your account here: ${inviteHref}`
 }
 
 function buildSmsHref(phone: string, body: string, bodySeparator: '?' | '&' = '?') {
