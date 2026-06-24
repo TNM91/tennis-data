@@ -260,12 +260,14 @@ function CoachContent() {
   const studentPhoneDigits = getPhoneDigits(studentPhone)
   const textContactNeedsPhone = (contactPreference === 'text' || contactPreference === 'both') && !studentPhoneDigits
   const studentPhoneLooksIncomplete = Boolean(studentPhone.trim()) && studentPhoneDigits.length < 7
-  const addStudentBlockedMessage = textContactNeedsPhone
+  const addStudentMissingNameMessage = !studentName.trim() ? 'Add a player name before saving.' : ''
+  const addStudentPhoneMessage = textContactNeedsPhone
     ? 'Add a cell number before using Text contact.'
     : studentPhoneLooksIncomplete
       ? 'Check the cell number before sending a text setup.'
       : ''
-  const addStudentDisabled = workspaceLoading || !studentName.trim() || Boolean(addStudentBlockedMessage)
+  const addStudentBlockedMessage = addStudentMissingNameMessage || addStudentPhoneMessage
+  const addStudentDisabled = workspaceLoading
   const addStudentButtonLabel = workspaceLoading
     ? 'Saving...'
     : studentPhoneDigits.length >= 7
@@ -451,7 +453,7 @@ function CoachContent() {
 
   async function handleAddStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!session?.access_token || !studentName.trim()) return
+    if (!session?.access_token) return
     if (addStudentBlockedMessage) {
       setWorkspaceMessage(addStudentBlockedMessage)
       return
@@ -1471,7 +1473,20 @@ function CoachContent() {
       <form onSubmit={handleAddStudent} style={formGridStyle}>
         <label style={fieldStyle}>
           Player name
-          <input className="tiq-focus-ring" value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Add a student" style={inputStyle} />
+          <input
+            className="tiq-focus-ring"
+            value={studentName}
+            onChange={(event) => setStudentName(event.target.value)}
+            placeholder="Add a student"
+            style={inputStyle}
+            aria-invalid={Boolean(addStudentMissingNameMessage)}
+            aria-describedby={addStudentMissingNameMessage ? 'coach-student-name-help' : undefined}
+          />
+          {addStudentMissingNameMessage ? (
+            <span id="coach-student-name-help" style={fieldErrorStyle}>
+              {addStudentMissingNameMessage}
+            </span>
+          ) : null}
         </label>
         <label style={fieldStyle}>
           Development path
@@ -1511,11 +1526,11 @@ function CoachContent() {
             onChange={(event) => setStudentPhone(event.target.value)}
             placeholder="Optional text setup"
             style={inputStyle}
-            aria-invalid={Boolean(addStudentBlockedMessage)}
+            aria-invalid={Boolean(addStudentPhoneMessage)}
             aria-describedby="coach-student-phone-help"
           />
-          <span id="coach-student-phone-help" style={addStudentBlockedMessage ? fieldErrorStyle : fieldHintStyle}>
-            {addStudentBlockedMessage || 'Needed for text setup links and lesson reminders.'}
+          <span id="coach-student-phone-help" style={addStudentPhoneMessage ? fieldErrorStyle : fieldHintStyle}>
+            {addStudentPhoneMessage || 'Needed for text setup links and lesson reminders.'}
           </span>
         </label>
         <label style={fieldStyle}>
@@ -1526,7 +1541,13 @@ function CoachContent() {
             <option value="both">IM + text</option>
           </select>
         </label>
-        <button type="submit" disabled={addStudentDisabled} style={primaryButtonStyle}>
+        <button
+          type="submit"
+          disabled={addStudentDisabled}
+          aria-disabled={Boolean(addStudentBlockedMessage) || addStudentDisabled}
+          title={addStudentBlockedMessage || undefined}
+          style={primaryButtonStyle}
+        >
           {addStudentButtonLabel}
         </button>
       </form>
