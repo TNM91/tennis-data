@@ -1772,6 +1772,47 @@ function CoachContent() {
     )
   }
 
+  function renderRecentSetupLinks() {
+    return (
+      <div style={assignmentListStyle}>
+        {invites.slice(0, 3).map((invite) => {
+          const inviteStudent = savedStudents.find((student) => student.id === invite.studentLinkId)
+          return (
+            <article key={invite.id} style={assignmentCardStyle}>
+              <strong>{invite.inviteEmail || inviteStudent?.playerName || 'Coach invite link'}</strong>
+              <span>{getInviteStatusLabel(invite.status)}</span>
+              <div style={studentActionRowStyle}>
+                <a href={invite.inviteHref} style={studentActionStyle}>Open setup link</a>
+                {inviteStudent?.playerPhone ? (
+                  <SmsActionLink
+                    phone={inviteStudent.playerPhone}
+                    body={buildCoachSetupText(invite.inviteHref)}
+                    style={studentActionStyle}
+                  >
+                    Text setup link
+                  </SmsActionLink>
+                ) : null}
+                {inviteStudent ? (
+                  <button
+                    type="button"
+                    onClick={() => void copyCoachText(
+                      buildCoachSetupText(invite.inviteHref),
+                      `Setup text copied for ${inviteStudent.playerName}.`,
+                      `Setup text for ${inviteStudent.playerName}: ${buildCoachSetupText(invite.inviteHref)}`,
+                    )}
+                    style={inlineActionButtonStyle}
+                  >
+                    Copy setup text
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    )
+  }
+
   function loadLevelUpHandoffPack(pack: CoachLevelUpHandoffPack) {
     const primaryCard = LEVEL_UP_CARDS.find((card) => card.id === pack.cardIds[0])
 
@@ -2126,42 +2167,19 @@ function CoachContent() {
               </div>
             </details>
           ) : renderStudentRecordList()}
-          <div style={assignmentListStyle}>
-            {invites.slice(0, 3).map((invite) => {
-              const inviteStudent = savedStudents.find((student) => student.id === invite.studentLinkId)
-              return (
-                <article key={invite.id} style={assignmentCardStyle}>
-                  <strong>{invite.inviteEmail || inviteStudent?.playerName || 'Coach invite link'}</strong>
-                  <span>{getInviteStatusLabel(invite.status)}</span>
-                  <div style={studentActionRowStyle}>
-                    <a href={invite.inviteHref} style={studentActionStyle}>Open setup link</a>
-                    {inviteStudent?.playerPhone ? (
-                      <SmsActionLink
-                        phone={inviteStudent.playerPhone}
-                        body={buildCoachSetupText(invite.inviteHref)}
-                        style={studentActionStyle}
-                      >
-                        Text setup link
-                      </SmsActionLink>
-                    ) : null}
-                    {inviteStudent ? (
-                      <button
-                        type="button"
-                        onClick={() => void copyCoachText(
-                          buildCoachSetupText(invite.inviteHref),
-                          `Setup text copied for ${inviteStudent.playerName}.`,
-                          `Setup text for ${inviteStudent.playerName}: ${buildCoachSetupText(invite.inviteHref)}`,
-                        )}
-                        style={inlineActionButtonStyle}
-                      >
-                        Copy setup text
-                      </button>
-                    ) : null}
-                  </div>
-                </article>
-              )
-            })}
-          </div>
+          {invites.length ? (
+            isMobile ? (
+              <details style={mobileStudentRecordsDisclosureStyle}>
+                <summary style={mobileStudentRecordsSummaryStyle}>
+                  <span>Recent setup links</span>
+                  <strong>{invites.length} saved</strong>
+                </summary>
+                <div style={mobileStudentRecordsBodyStyle}>
+                  {renderRecentSetupLinks()}
+                </div>
+              </details>
+            ) : renderRecentSetupLinks()
+          ) : null}
         </div>
 
         <div id="coach-lesson-frame" style={panelStyle}>

@@ -166,6 +166,7 @@ describe('coach mobile resilience', () => {
 
   it('collapses duplicate saved student records below the mobile bench', () => {
     expect(coachSource).toContain('function renderStudentRecordList()')
+    expect(coachSource).toContain('function renderRecentSetupLinks()')
     expect(coachSource).toContain('isMobile && savedStudents.length > 0')
     expect(coachSource).toContain('<details style={mobileStudentRecordsDisclosureStyle}>')
     expect(coachSource).toContain('<summary style={mobileStudentRecordsSummaryStyle}>')
@@ -173,6 +174,9 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('{savedStudents.length} total')
     expect(coachSource).toContain('mobileStudentRecordsBodyStyle')
     expect(coachSource).toContain('{renderStudentRecordList()}')
+    expect(coachSource).toContain('Recent setup links')
+    expect(coachSource).toContain('{invites.length} saved')
+    expect(coachSource).toContain('{renderRecentSetupLinks()}')
   })
 
   it('collapses the add-player form on mobile once the bench has players', () => {
