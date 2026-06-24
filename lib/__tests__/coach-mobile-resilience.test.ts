@@ -54,6 +54,16 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('function normalizeContactPreference')
   })
 
+  it('makes phone-only student setup immediately textable on mobile', () => {
+    expect(coachSource).toContain('const [lastCreatedStudentSetup, setLastCreatedStudentSetup] = useState')
+    expect(coachSource).toContain("'Add student + text setup'")
+    expect(coachSource).toContain('Student setup ready')
+    expect(coachSource).toContain('Text setup now')
+    expect(coachSource).toContain('function SmsActionLink')
+    expect(coachSource).toContain('window.location.href = buildSmsHref(phone, body, getSmsBodySeparator())')
+    expect(coachSource).toContain("return /iPad|iPhone|iPod/i.test(navigator.userAgent) ? '&' : '?'")
+  })
+
   it('restores the route position when a phone browser reloads or resumes the tab', () => {
     expect(shellSource).toContain('tenaceiq.shell.scroll.${pathname}')
     expect(shellSource).toContain("window.addEventListener('pagehide', persistScrollPosition)")

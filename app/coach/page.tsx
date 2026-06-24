@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
@@ -225,6 +225,10 @@ function CoachContent() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [studentPhone, setStudentPhone] = useState('')
   const [contactPreference, setContactPreference] = useState<CoachStudentLink['contactPreference']>('in_app')
+  const [lastCreatedStudentSetup, setLastCreatedStudentSetup] = useState<{
+    student: CoachStudentLink
+    invite: CoachStudentInvite | null
+  } | null>(null)
   const [studentDraftHydrated, setStudentDraftHydrated] = useState(false)
   const [invites, setInvites] = useState<CoachStudentInvite[]>([])
   const [assignmentStudentId, setAssignmentStudentId] = useState('')
@@ -310,6 +314,7 @@ function CoachContent() {
     if (!session?.access_token || !access.canUseCoachWorkflow) return
     setWorkspaceLoading(true)
     setWorkspaceMessage('')
+    setLastCreatedStudentSetup(null)
 
     try {
       const [studentsResponse, assignmentsResponse, invitesResponse, levelUpResponse] = await Promise.all([
@@ -451,20 +456,29 @@ function CoachContent() {
         throw new Error(json.message || 'Could not add student.')
       }
 
-      setSavedStudents((current) => [json.student as CoachStudentLink, ...current.filter((student) => student.id !== json.student?.id)])
-      setAssignmentStudentId(json.student.id)
-      setContactStudentId(json.student.id)
+      const savedStudent = json.student as CoachStudentLink
+      const shouldCreateInvite = Boolean(inviteEmail.trim() || studentPhone.trim())
+      const createdInvite = shouldCreateInvite
+        ? await createInvite(savedStudent.id, inviteEmail.trim())
+        : null
+
+      setSavedStudents((current) => [savedStudent, ...current.filter((student) => student.id !== savedStudent.id)])
+      setAssignmentStudentId(savedStudent.id)
+      setContactStudentId(savedStudent.id)
+      setLastCreatedStudentSetup({ student: savedStudent, invite: createdInvite })
       setStudentName('')
       setStudentLevel('')
       setStudentCustomIdentity('')
       setInviteEmail('')
       setStudentPhone('')
       setContactPreference('in_app')
-      setWorkspaceMessage('Student added. Create the first assignment while the lesson is fresh.')
-
-      if (inviteEmail.trim() || studentPhone.trim()) {
-        await createInvite(json.student.id, inviteEmail.trim())
-      }
+      setWorkspaceMessage(
+        createdInvite
+          ? savedStudent.playerPhone
+            ? 'Student added. Text the setup link now or create the first assignment.'
+            : 'Student added. Setup link is ready.'
+          : 'Student added. Create the first assignment while the lesson is fresh.',
+      )
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not add student.')
     } finally {
@@ -658,7 +672,7 @@ function CoachContent() {
   }
 
   async function createInvite(studentLinkId: string, email: string) {
-    if (!session?.access_token) return
+    if (!session?.access_token) return null
 
     const response = await fetch('/api/coach/invites', {
       method: 'POST',
@@ -681,7 +695,7 @@ function CoachContent() {
     }
 
     setInvites((current) => [json.invite as CoachStudentInvite, ...current.filter((invite) => invite.id !== json.invite?.id)])
-    setWorkspaceMessage('Student added and invite link created.')
+    return json.invite as CoachStudentInvite
   }
 
   async function createStudentCalendarLink(student: CoachStudentLink | null) {
@@ -1507,9 +1521,57 @@ function CoachContent() {
               </select>
             </label>
             <button type="submit" disabled={workspaceLoading || !studentName.trim()} style={primaryButtonStyle}>
-              {workspaceLoading ? 'Saving...' : 'Add student'}
+              {workspaceLoading
+                ? 'Saving...'
+                : studentPhone.trim()
+                  ? 'Add student + text setup'
+                  : inviteEmail.trim()
+                    ? 'Add student + setup link'
+                    : 'Add student'}
             </button>
           </form>
+          {lastCreatedStudentSetup ? (
+            <div style={assignmentSendPanelStyle}>
+              <div>
+                <div style={eyebrowStyle}>Student setup ready</div>
+                <h3 style={sessionPlannerTitleStyle}>{lastCreatedStudentSetup.student.playerName}</h3>
+                <p style={studentNextStyle}>
+                  {lastCreatedStudentSetup.invite
+                    ? 'Send the setup link now, then create the first measurable assignment.'
+                    : 'Student saved. Add a cell or email any time when you want to send the setup link.'}
+                </p>
+              </div>
+              <div style={sessionActionRowStyle}>
+                {lastCreatedStudentSetup.invite ? (
+                  <a href={lastCreatedStudentSetup.invite.inviteHref} style={smallGhostLinkStyle}>
+                    Open setup link
+                  </a>
+                ) : null}
+                {lastCreatedStudentSetup.invite && lastCreatedStudentSetup.student.playerPhone ? (
+                  <SmsActionLink
+                    phone={lastCreatedStudentSetup.student.playerPhone}
+                    body={`I created your TenAceIQ player setup link. Finish your account here: ${lastCreatedStudentSetup.invite.inviteHref}`}
+                    style={smallPrimaryLinkStyle}
+                  >
+                    Text setup now
+                  </SmsActionLink>
+                ) : lastCreatedStudentSetup.student.playerPhone ? (
+                  <SmsActionLink
+                    phone={lastCreatedStudentSetup.student.playerPhone}
+                    body={`Let's confirm your next lesson. Date/time:  Site:  Focus: `}
+                    style={smallGhostLinkStyle}
+                  >
+                    Text lesson
+                  </SmsActionLink>
+                ) : (
+                  <span style={disabledPillStyle}>Add cell for text</span>
+                )}
+                <button type="button" onClick={() => setLastCreatedStudentSetup(null)} style={smallGhostButtonStyle}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div style={studentListStyle}>
             {savedStudents.length > 0
               ? savedStudents.map((student) => {
@@ -1535,9 +1597,9 @@ function CoachContent() {
                         <>
                           <a href={setupInvite.inviteHref} style={studentActionStyle}>Setup link</a>
                           {student.playerPhone ? (
-                            <a href={buildSmsHref(student.playerPhone, `I created your TenAceIQ player setup link. Finish your account here: ${setupInvite.inviteHref}`)} style={studentActionStyle}>
+                            <SmsActionLink phone={student.playerPhone} body={`I created your TenAceIQ player setup link. Finish your account here: ${setupInvite.inviteHref}`} style={studentActionStyle}>
                               Text setup
-                            </a>
+                            </SmsActionLink>
                           ) : null}
                         </>
                       ) : null}
@@ -1559,9 +1621,9 @@ function CoachContent() {
                         </>
                       ) : null}
                       {student.playerPhone ? (
-                        <a href={buildSmsHref(student.playerPhone, `Let's confirm your next lesson. Date/time:  Site:  Focus: `)} style={studentActionStyle}>
+                        <SmsActionLink phone={student.playerPhone} body="Let's confirm your next lesson. Date/time:  Site:  Focus: " style={studentActionStyle}>
                           Text lesson
-                        </a>
+                        </SmsActionLink>
                       ) : null}
                     </div>
                   </article>
@@ -1589,12 +1651,13 @@ function CoachContent() {
                   <div style={studentActionRowStyle}>
                     <a href={invite.inviteHref} style={studentActionStyle}>Open setup link</a>
                     {inviteStudent?.playerPhone ? (
-                      <a
-                        href={buildSmsHref(inviteStudent.playerPhone, `I created your TenAceIQ player setup link. Finish your account here: ${invite.inviteHref}`)}
+                      <SmsActionLink
+                        phone={inviteStudent.playerPhone}
+                        body={`I created your TenAceIQ player setup link. Finish your account here: ${invite.inviteHref}`}
                         style={studentActionStyle}
                       >
                         Text setup link
-                      </a>
+                      </SmsActionLink>
                     ) : null}
                   </div>
                 </article>
@@ -1784,9 +1847,9 @@ function CoachContent() {
                   <span style={disabledPillStyle}>Link Player for IM</span>
                 )}
                 {lastCreatedAssignmentStudent.playerPhone ? (
-                  <a href={buildSmsHref(lastCreatedAssignmentStudent.playerPhone, lastAssignmentNotifyMessage)} style={smallGhostLinkStyle}>
+                  <SmsActionLink phone={lastCreatedAssignmentStudent.playerPhone} body={lastAssignmentNotifyMessage} style={smallGhostLinkStyle}>
                     Send text
-                  </a>
+                  </SmsActionLink>
                 ) : (
                   <span style={disabledPillStyle}>Add cell for text</span>
                 )}
@@ -1850,9 +1913,9 @@ function CoachContent() {
                 <span style={disabledPillStyle}>Link Player for IM</span>
               )}
               {selectedContactStudent?.playerPhone ? (
-                <a href={buildSmsHref(selectedContactStudent.playerPhone, lessonMessage)} style={smallGhostLinkStyle}>
+                <SmsActionLink phone={selectedContactStudent.playerPhone} body={lessonMessage} style={smallGhostLinkStyle}>
                   Send text
-                </a>
+                </SmsActionLink>
               ) : (
                 <span style={disabledPillStyle}>Add cell for text</span>
               )}
@@ -2042,9 +2105,9 @@ function CoachContent() {
                       </Link>
                     ) : null}
                     {student?.playerPhone ? (
-                      <a href={buildSmsHref(student.playerPhone, buildAssignmentNotifyMessage(assignment, assignmentSummary, assignmentShareHref))} style={studentActionStyle}>
+                      <SmsActionLink phone={student.playerPhone} body={buildAssignmentNotifyMessage(assignment, assignmentSummary, assignmentShareHref)} style={studentActionStyle}>
                         Text court link
-                      </a>
+                      </SmsActionLink>
                     ) : null}
                     {assignmentShareHref ? (
                       <button
@@ -2291,6 +2354,31 @@ function IntegrationPill({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  )
+}
+
+function SmsActionLink({
+  phone,
+  body,
+  style,
+  children,
+}: {
+  phone: string
+  body: string
+  style: CSSProperties
+  children: ReactNode
+}) {
+  return (
+    <a
+      href={buildSmsHref(phone, body)}
+      onClick={(event) => {
+        event.preventDefault()
+        window.location.href = buildSmsHref(phone, body, getSmsBodySeparator())
+      }}
+      style={style}
+    >
+      {children}
+    </a>
   )
 }
 
@@ -3015,9 +3103,15 @@ function buildAssignmentNotifyMessage(
   return `New TenAceIQ assignment: ${assignment.title}. Focus: ${focus}.${due}${detail}${volume}${evidence}${courtLink}`
 }
 
-function buildSmsHref(phone: string, body: string) {
+function buildSmsHref(phone: string, body: string, bodySeparator: '?' | '&' = '?') {
   const sanitizedPhone = phone.replace(/[^\d+]/g, '')
-  return `sms:${sanitizedPhone}?body=${encodeURIComponent(body)}`
+  return `sms:${sanitizedPhone}${bodySeparator}body=${encodeURIComponent(body)}`
+}
+
+function getSmsBodySeparator(): '?' | '&' {
+  if (typeof navigator === 'undefined') return '?'
+
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent) ? '&' : '?'
 }
 
 function buildCoachPlayerMessageHref(
