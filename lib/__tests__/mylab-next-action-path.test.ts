@@ -25,6 +25,17 @@ describe('My Lab next action path', () => {
     expect(source).toContain('aria-label={`${card.cta}: ${card.question}`}')
   })
 
+  it('connects Level Up proof back to the My Lab player ID', () => {
+    expect(source).toContain('const playerIdProofSignals = [')
+    expect(source).toContain("label: 'Player ID'")
+    expect(source).toContain("label: 'Latest proof signal'")
+    expect(source).toContain("label: 'Next use'")
+    expect(source).toContain('My Lab player ID proof trail')
+    expect(source).toContain('Set a profile so proof belongs to the right player.')
+    expect(source).toContain('feeds the next court decision.')
+    expect(source).toContain('Use this signal for My Lab progress, matchup prep, or coach follow-up.')
+  })
+
   it('keeps the personal path compact and mobile-safe', () => {
     expect(source).toContain('personalLabPathGridStyle(isTablet)')
     expect(styleBlock('personalLabPathStyle')).toContain('minWidth: 0')
@@ -33,5 +44,8 @@ describe('My Lab next action path', () => {
     expect(styleBlock('personalLabPathGridStyle')).toContain("'minmax(0, 1fr)'")
     expect(styleBlock('personalLabPathCardStyle')).toContain('minHeight: 166')
     expect(styleBlock('personalLabPathCardTextStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('myLabPlayerIdProofRailStyle')).toContain('minmax(min(100%, 170px), 1fr)')
+    expect(styleBlock('myLabPlayerIdProofCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('myLabPlayerIdProofValueStyle')).toContain("overflowWrap: 'anywhere'")
   })
 })

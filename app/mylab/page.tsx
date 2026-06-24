@@ -4454,6 +4454,23 @@ function LevelUpReturnStatePanel({
         : 'No Level Up proof is shown unless this browser has saved it.',
     },
   ]
+  const playerIdProofSignals = [
+    {
+      label: 'Player ID',
+      value: playerLabel || 'Set profile',
+      note: playerLabel ? 'My Lab is reading this player as the active identity.' : 'Set a profile so proof belongs to the right player.',
+    },
+    {
+      label: 'Latest proof signal',
+      value: latestProof?.proofLabel || 'No proof yet',
+      note: latestProof ? `${latestProof.cardTitle} feeds the next court decision.` : 'Run one Level Up card to start the proof trail.',
+    },
+    {
+      label: 'Next use',
+      value: latestProof ? nextMoveLabel || 'Next move' : 'Start Level Up',
+      note: latestProof ? 'Use this signal for My Lab progress, matchup prep, or coach follow-up.' : 'Score one honest 0-5 rep before adding more work.',
+    },
+  ]
 
   return (
     <section style={levelUpReturnPanelStyle}>
@@ -4498,6 +4515,15 @@ function LevelUpReturnStatePanel({
           <SummaryCard label="Active drill" value={todayHabitTitle} note={todayHabitProof} />
           <SummaryCard label="Last proof" value={latestProofScoreLabel} note={latestProof?.timeLabel || 'Score the first proof'} />
           <SummaryCard label="Streak" value={todayLevelUpStreakLabel} note="Consecutive Level Up proof days" />
+        </div>
+        <div style={myLabPlayerIdProofRailStyle} aria-label="My Lab player ID proof trail">
+          {playerIdProofSignals.map((signal) => (
+            <article key={signal.label} style={myLabPlayerIdProofCardStyle}>
+              <span style={myLabRefreshProofLabelStyle}>{signal.label}</span>
+              <strong style={myLabPlayerIdProofValueStyle}>{signal.value}</strong>
+              <p style={myLabRefreshProofTextStyle}>{signal.note}</p>
+            </article>
+          ))}
         </div>
         <div style={myLabLevelUpTodayActionRowStyle}>
           <Link href={todayHabitDrillHref} style={miniActionLinkStyle}>Resume drill</Link>
@@ -6274,6 +6300,34 @@ const myLabLevelUpTodayMetricGridStyle: CSSProperties = {
   ...levelUpReturnMetricGridStyle,
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   minWidth: 0,
+}
+
+const myLabPlayerIdProofRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const myLabPlayerIdProofCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  minHeight: 104,
+  alignContent: 'start',
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const myLabPlayerIdProofValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 950,
+  lineHeight: 1.22,
+  overflowWrap: 'anywhere',
 }
 
 const myLabLevelUpTodayActionRowStyle: CSSProperties = {
