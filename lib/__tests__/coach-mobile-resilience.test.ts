@@ -80,6 +80,14 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('const fieldErrorStyle')
   })
 
+  it('keeps assignment sends recoverable when mobile SMS handoff fails', () => {
+    expect(coachSource).toContain('Copy assignment text')
+    expect(coachSource).toContain('Assignment text copied for')
+    expect(coachSource).toContain('Assignment text for')
+    expect(coachSource).toContain('body={lastAssignmentNotifyMessage}')
+    expect(coachSource).toContain('body={buildAssignmentNotifyMessage(assignment, assignmentSummary, assignmentShareHref)}')
+  })
+
   it('restores the route position when a phone browser reloads or resumes the tab', () => {
     expect(shellSource).toContain('tenaceiq.shell.scroll.${pathname}')
     expect(shellSource).toContain("window.addEventListener('pagehide', persistScrollPosition)")

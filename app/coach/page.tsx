@@ -1924,6 +1924,19 @@ function CoachContent() {
                 ) : (
                   <span style={disabledPillStyle}>Add cell for text</span>
                 )}
+                {lastAssignmentNotifyMessage ? (
+                  <button
+                    type="button"
+                    onClick={() => void copyCoachText(
+                      lastAssignmentNotifyMessage,
+                      `Assignment text copied for ${lastCreatedAssignmentStudent.playerName}.`,
+                      `Assignment text for ${lastCreatedAssignmentStudent.playerName}: ${lastAssignmentNotifyMessage}`,
+                    )}
+                    style={smallGhostButtonStyle}
+                  >
+                    Copy assignment text
+                  </button>
+                ) : null}
                 {lastAssignmentCourtHref ? (
                   <button
                     type="button"
@@ -2179,6 +2192,19 @@ function CoachContent() {
                       <SmsActionLink phone={student.playerPhone} body={buildAssignmentNotifyMessage(assignment, assignmentSummary, assignmentShareHref)} style={studentActionStyle}>
                         Text court link
                       </SmsActionLink>
+                    ) : null}
+                    {student ? (
+                      <button
+                        type="button"
+                        onClick={() => void copyCoachText(
+                          buildAssignmentNotifyMessage(assignment, assignmentSummary, assignmentShareHref),
+                          `Assignment text copied for ${student.playerName}.`,
+                          `Assignment text for ${student.playerName}: ${buildAssignmentNotifyMessage(assignment, assignmentSummary, assignmentShareHref)}`,
+                        )}
+                        style={inlineActionButtonStyle}
+                      >
+                        Copy assignment text
+                      </button>
                     ) : null}
                     {assignmentShareHref ? (
                       <button
