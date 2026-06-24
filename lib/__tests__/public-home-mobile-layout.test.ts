@@ -100,7 +100,8 @@ describe('Public home mobile layout guards', () => {
   it('keeps the persistent mobile portal as a docked two-level icon palette', () => {
     expect(portalToolbarSource).toContain('const [mobilePortalLaneState, setMobilePortalLaneState] = useState<{ pathname: string; laneId: PortalLaneId | null }>')
     expect(portalToolbarSource).toContain('const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null')
-    expect(portalToolbarSource).toContain('const collapseMobilePortal = isMobile && !showPortalBrandRunway')
+    expect(portalToolbarSource).toContain("const showPortalBrandRunway = publicVisitor && pathname === '/' && !isMobile")
+    expect(portalToolbarSource).toContain('const collapseMobilePortal = isMobile')
     expect(portalToolbarSource).toContain('const mobilePortalLane = mobilePortalLaneId ? portalLanes.find')
     expect(portalToolbarSource).toContain("const mobilePortalStickyTop = 'var(--header-height)'")
     expect(portalToolbarSource).toContain('const showExpandedPortalIntro = !collapseMobilePortal')

@@ -221,8 +221,8 @@ export default function PortalToolBar() {
   const publicVisitor = !authenticated
   const showPublicTasks = !(publicVisitor && isMobile)
   const visibleTasks = publicVisitor ? (showPublicTasks ? activeLane.tasks.slice(0, 4) : []) : activeLane.tasks
-  const showPortalBrandRunway = publicVisitor && pathname === '/'
-  const collapseMobilePortal = isMobile && !showPortalBrandRunway
+  const showPortalBrandRunway = publicVisitor && pathname === '/' && !isMobile
+  const collapseMobilePortal = isMobile
   const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
   const mobilePortalStickyTop = 'var(--header-height)'
