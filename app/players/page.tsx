@@ -376,6 +376,29 @@ export default function PlayersPage() {
     [players],
   )
   const highRatedPlayers = useMemo(() => players.filter((player) => getRating(player, 'overall') >= 4).length, [players])
+  const linkedPlayer = useMemo(
+    () => players.find((player) => player.id === linkedPlayerId) || null,
+    [linkedPlayerId, players],
+  )
+  const playerIdLaunchpadSignals = [
+    {
+      label: 'Find the ID',
+      value: shouldShowPlayerResults ? `${visiblePlayers.length} shown` : 'Search first',
+      body: 'Search by name, city, team context, or level to open the right player record.',
+    },
+    {
+      label: 'Your anchor',
+      value: linkedPlayer?.name || (linkedPlayerId ? 'Linked profile' : 'Set profile'),
+      body: linkedPlayerId
+        ? 'Use your linked Player ID to compare, follow, and personalize the next tennis step.'
+        : 'Set your profile so player discovery can hand off to Matchup and My Lab with you preloaded.',
+    },
+    {
+      label: 'Next move',
+      value: 'Profile, Matchup, My Lab',
+      body: 'Open the record, compare the matchup, follow the player, or send missing context through Data Assist.',
+    },
+  ] as const
 
   const dynamicControlsShell: CSSProperties = {
     ...controlsShell,
@@ -670,6 +693,25 @@ export default function PlayersPage() {
             <h2 style={sectionTitle}>{shouldShowPlayerResults ? 'Open a player profile' : 'Choose a path.'}</h2>
           </div>
         </div>
+
+        <section style={playerIdLaunchpadStyle} aria-label="Player ID launchpad">
+          <div style={playerIdLaunchpadHeaderStyle}>
+            <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
+            <div style={playerIdLaunchpadCopyStyle}>
+              <span style={playerIdLaunchpadKickerStyle}>Player ID launchpad</span>
+              <h2 style={playerIdLaunchpadTitleStyle}>Turn search into a player record.</h2>
+            </div>
+          </div>
+          <div style={playerIdLaunchpadGridStyle}>
+            {playerIdLaunchpadSignals.map((signal) => (
+              <article key={signal.label} style={playerIdLaunchpadCardStyle}>
+                <span style={playerIdLaunchpadLabelStyle}>{signal.label}</span>
+                <strong style={playerIdLaunchpadValueStyle}>{signal.value}</strong>
+                <span style={playerIdLaunchpadTextStyle}>{signal.body}</span>
+              </article>
+            ))}
+          </div>
+        </section>
 
         {loading ? (
           <div style={loadingCard}>
@@ -1357,6 +1399,95 @@ const secondaryLink: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 900,
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+}
+
+const playerIdLaunchpadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  marginBottom: 16,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, rgba(8,16,34,0.78) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const playerIdLaunchpadHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+  flexWrap: 'wrap',
+}
+
+const playerIdLaunchpadCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdLaunchpadKickerStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdLaunchpadTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdLaunchpadGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const playerIdLaunchpadCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.68)',
+  overflowWrap: 'anywhere',
+}
+
+const playerIdLaunchpadLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const playerIdLaunchpadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdLaunchpadTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const loadingCard: CSSProperties = {
