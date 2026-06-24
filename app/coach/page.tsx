@@ -4339,12 +4339,10 @@ const mobileBenchPrimaryActionGridStyle: CSSProperties = {
 }
 
 const mobileBenchSecondaryActionRowStyle: CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: 8,
   minWidth: 0,
-  overflowX: 'auto',
-  overscrollBehaviorX: 'contain',
-  paddingBottom: 2,
 }
 
 const mobileStudentActionRowStyle: CSSProperties = {
@@ -4390,13 +4388,13 @@ const mobileBenchPrimaryActionStyle: CSSProperties = {
 
 const mobileBenchSecondaryActionStyle: CSSProperties = {
   ...mobileBenchActionStyle,
-  flex: '0 0 auto',
   minHeight: 36,
   borderRadius: 999,
   borderColor: 'rgba(255,255,255,0.12)',
   background: 'rgba(255,255,255,0.055)',
   color: 'var(--shell-copy)',
   padding: '8px 11px',
+  width: '100%',
 }
 
 const mobileBenchSecondaryActionButtonStyle: CSSProperties = {

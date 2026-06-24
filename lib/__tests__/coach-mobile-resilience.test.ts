@@ -161,6 +161,15 @@ describe('coach mobile resilience', () => {
   })
 
   it('keeps mobile player actions large, contextual, and recoverable', () => {
+    const secondaryActionRowSource = coachSource.slice(
+      coachSource.indexOf('const mobileBenchSecondaryActionRowStyle'),
+      coachSource.indexOf('const mobileStudentActionRowStyle'),
+    )
+    const secondaryActionSource = coachSource.slice(
+      coachSource.indexOf('const mobileBenchSecondaryActionStyle'),
+      coachSource.indexOf('const mobileBenchSecondaryActionButtonStyle'),
+    )
+
     expect(coachSource).toContain('onClick={() => chooseMobileBenchPlayer(card)}')
     expect(coachSource).toContain('function chooseMobileBenchPlayer(card: LinkedPlayerCard)')
     expect(coachSource).toContain('setAssignmentStudentId(card.student.id)')
@@ -179,6 +188,9 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('mobileBenchCommandCenterStyle')
     expect(coachSource).toContain('mobileBenchPrimaryActionGridStyle')
     expect(coachSource).toContain('mobileBenchSecondaryActionRowStyle')
+    expect(secondaryActionRowSource).not.toContain("overflowX: 'auto'")
+    expect(secondaryActionRowSource).not.toContain("overscrollBehaviorX: 'contain'")
+    expect(secondaryActionSource).toContain("width: '100%'")
     expect(coachSource).toContain('title={card.student.playerName}')
     expect(coachSource).toContain('mobileBenchPlayerNameStyle')
     expect(coachSource).toContain('mobileBenchPlayerMetaStyle')
