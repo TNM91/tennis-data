@@ -1305,6 +1305,91 @@ function CoachContent() {
     )
   }
 
+  function renderStudentRecordList() {
+    return (
+      <div style={studentListStyle}>
+        {savedStudents.length > 0
+          ? savedStudents.map((student) => {
+              const setupInvite = invites.find((invite) => invite.studentLinkId === student.id && invite.status === 'pending')
+              return (
+              <article key={student.id} style={studentCardStyle}>
+                <div style={studentTopStyle}>
+                  <strong>{student.playerName}</strong>
+                  <span>{getStudentStatusLabel(student.status)}</span>
+                </div>
+                <div style={studentMetaStyle}>{getIdentityTitle(student.identitySlug)} / {student.levelLabel || 'Development path'}</div>
+                {(student.playerEmail || student.playerPhone) ? (
+                  <div style={studentContactStyle}>
+                    {student.playerEmail ? <span>{student.playerEmail}</span> : null}
+                    {student.playerPhone ? <span>{student.playerPhone}</span> : null}
+                    <span>{getSetupStatusLabel(student)}</span>
+                  </div>
+                ) : null}
+                <p style={studentNextStyle}>{student.notes || 'Create one assignment from today\'s lesson and connect it to a measurable court behavior.'}</p>
+                <div style={studentActionRowStyle}>
+                  <Link href={getCoachPlannerHref(student.identitySlug)} style={studentActionStyle}>Open path</Link>
+                  {setupInvite ? (
+                    <>
+                      <a href={setupInvite.inviteHref} style={studentActionStyle}>Setup link</a>
+                      {student.playerPhone ? (
+                        <SmsActionLink phone={student.playerPhone} body={buildCoachSetupText(setupInvite.inviteHref)} style={studentActionStyle}>
+                          Text setup
+                        </SmsActionLink>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void copyCoachText(
+                          buildCoachSetupText(setupInvite.inviteHref),
+                          `Setup text copied for ${student.playerName}.`,
+                          `Setup text for ${student.playerName}: ${buildCoachSetupText(setupInvite.inviteHref)}`,
+                        )}
+                        style={inlineActionButtonStyle}
+                      >
+                        Copy setup
+                      </button>
+                    </>
+                  ) : null}
+                  {student.playerUserId ? (
+                    <>
+                      <Link href={buildCoachPlayerMessageHref(student, 'Coach check-in', `Quick coach note for ${student.playerName}: `)} style={studentActionStyle}>
+                        Message player
+                      </Link>
+                      <Link
+                        href={buildCoachPlayerMessageHref(
+                          student,
+                          'Next lesson schedule',
+                          `Let's confirm the next lesson for ${student.playerName}. Date/time:  Site:  Focus: `,
+                        )}
+                        style={studentActionStyle}
+                      >
+                        Schedule lesson
+                      </Link>
+                    </>
+                  ) : null}
+                  {student.playerPhone ? (
+                    <SmsActionLink phone={student.playerPhone} body="Let's confirm your next lesson. Date/time:  Site:  Focus: " style={studentActionStyle}>
+                      Text lesson
+                    </SmsActionLink>
+                  ) : null}
+                </div>
+              </article>
+              )
+            })
+          : studentSnapshots.map((student) => (
+              <article key={student.id} style={studentCardStyle}>
+                <div style={studentTopStyle}>
+                  <strong>{student.name}</strong>
+                  <span>{student.status}</span>
+                </div>
+                <div style={studentMetaStyle}>{student.identity} / {student.level}</div>
+                <p style={studentNextStyle}>{student.nextStep}</p>
+                <Link href={getCoachPlannerHref(student.identitySlug)} style={studentActionStyle}>Open path</Link>
+              </article>
+            ))}
+      </div>
+    )
+  }
+
   function loadLevelUpHandoffPack(pack: CoachLevelUpHandoffPack) {
     const primaryCard = LEVEL_UP_CARDS.find((card) => card.id === pack.cardIds[0])
 
@@ -1711,86 +1796,17 @@ function CoachContent() {
               </div>
             </div>
           ) : null}
-          <div style={studentListStyle}>
-            {savedStudents.length > 0
-              ? savedStudents.map((student) => {
-                  const setupInvite = invites.find((invite) => invite.studentLinkId === student.id && invite.status === 'pending')
-                  return (
-                  <article key={student.id} style={studentCardStyle}>
-                    <div style={studentTopStyle}>
-                      <strong>{student.playerName}</strong>
-                      <span>{getStudentStatusLabel(student.status)}</span>
-                    </div>
-                    <div style={studentMetaStyle}>{getIdentityTitle(student.identitySlug)} / {student.levelLabel || 'Development path'}</div>
-                    {(student.playerEmail || student.playerPhone) ? (
-                      <div style={studentContactStyle}>
-                        {student.playerEmail ? <span>{student.playerEmail}</span> : null}
-                        {student.playerPhone ? <span>{student.playerPhone}</span> : null}
-                        <span>{getSetupStatusLabel(student)}</span>
-                      </div>
-                    ) : null}
-                    <p style={studentNextStyle}>{student.notes || 'Create one assignment from today\'s lesson and connect it to a measurable court behavior.'}</p>
-                    <div style={studentActionRowStyle}>
-                      <Link href={getCoachPlannerHref(student.identitySlug)} style={studentActionStyle}>Open path</Link>
-                      {setupInvite ? (
-                        <>
-                          <a href={setupInvite.inviteHref} style={studentActionStyle}>Setup link</a>
-                          {student.playerPhone ? (
-                            <SmsActionLink phone={student.playerPhone} body={buildCoachSetupText(setupInvite.inviteHref)} style={studentActionStyle}>
-                              Text setup
-                            </SmsActionLink>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={() => void copyCoachText(
-                              buildCoachSetupText(setupInvite.inviteHref),
-                              `Setup text copied for ${student.playerName}.`,
-                              `Setup text for ${student.playerName}: ${buildCoachSetupText(setupInvite.inviteHref)}`,
-                            )}
-                            style={inlineActionButtonStyle}
-                          >
-                            Copy setup
-                          </button>
-                        </>
-                      ) : null}
-                      {student.playerUserId ? (
-                        <>
-                          <Link href={buildCoachPlayerMessageHref(student, 'Coach check-in', `Quick coach note for ${student.playerName}: `)} style={studentActionStyle}>
-                            Message player
-                          </Link>
-                          <Link
-                            href={buildCoachPlayerMessageHref(
-                              student,
-                              'Next lesson schedule',
-                              `Let's confirm the next lesson for ${student.playerName}. Date/time:  Site:  Focus: `,
-                            )}
-                            style={studentActionStyle}
-                          >
-                            Schedule lesson
-                          </Link>
-                        </>
-                      ) : null}
-                      {student.playerPhone ? (
-                        <SmsActionLink phone={student.playerPhone} body="Let's confirm your next lesson. Date/time:  Site:  Focus: " style={studentActionStyle}>
-                          Text lesson
-                        </SmsActionLink>
-                      ) : null}
-                    </div>
-                  </article>
-                  )
-                })
-              : studentSnapshots.map((student) => (
-                  <article key={student.id} style={studentCardStyle}>
-                    <div style={studentTopStyle}>
-                      <strong>{student.name}</strong>
-                      <span>{student.status}</span>
-                    </div>
-                    <div style={studentMetaStyle}>{student.identity} / {student.level}</div>
-                    <p style={studentNextStyle}>{student.nextStep}</p>
-                    <Link href={getCoachPlannerHref(student.identitySlug)} style={studentActionStyle}>Open path</Link>
-                  </article>
-                ))}
-          </div>
+          {isMobile && savedStudents.length > 0 ? (
+            <details style={mobileStudentRecordsDisclosureStyle}>
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>Saved student records</span>
+                <strong>{savedStudents.length} total</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderStudentRecordList()}
+              </div>
+            </details>
+          ) : renderStudentRecordList()}
           <div style={assignmentListStyle}>
             {invites.slice(0, 3).map((invite) => {
               const inviteStudent = savedStudents.find((student) => student.id === invite.studentLinkId)
@@ -4162,6 +4178,36 @@ const messageStyle: CSSProperties = {
 const studentListStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+}
+
+const mobileStudentRecordsDisclosureStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.04)',
+  padding: 12,
+}
+
+const mobileStudentRecordsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 950,
+}
+
+const mobileStudentRecordsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  paddingTop: 10,
 }
 
 const studentCardStyle: CSSProperties = {

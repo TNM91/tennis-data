@@ -142,4 +142,15 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
     expect(coachSource).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
   })
+
+  it('collapses duplicate saved student records below the mobile bench', () => {
+    expect(coachSource).toContain('function renderStudentRecordList()')
+    expect(coachSource).toContain('isMobile && savedStudents.length > 0')
+    expect(coachSource).toContain('<details style={mobileStudentRecordsDisclosureStyle}>')
+    expect(coachSource).toContain('<summary style={mobileStudentRecordsSummaryStyle}>')
+    expect(coachSource).toContain('Saved student records')
+    expect(coachSource).toContain('{savedStudents.length} total')
+    expect(coachSource).toContain('mobileStudentRecordsBodyStyle')
+    expect(coachSource).toContain('{renderStudentRecordList()}')
+  })
 })
