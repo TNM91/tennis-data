@@ -685,10 +685,30 @@ function ProfilePageInner() {
     { title: 'Find players', href: '/explore/players', icon: 'playerRatings' },
   ] as const
   const profileNextMoves = [
-    { title: 'Open My Lab', href: '/mylab', icon: 'myLab' },
-    { title: 'Fix tennis info', href: dataAssistProfileHref, icon: 'reports' },
+    { title: 'Start Level Up', href: '/level-up', icon: 'reliabilityIndex' },
+    { title: 'Open development path', href: '/player-development', icon: 'myLab' },
     { title: 'Prep matchup', href: profileMatchupHref, icon: 'matchPrep' },
-    { title: 'Review messages', href: '/messages', icon: 'messagingCenter' },
+    { title: 'Fix tennis info', href: dataAssistProfileHref, icon: 'reports' },
+  ] as const
+  const profilePlayerIdBenefits = [
+    {
+      label: 'Level Up',
+      title: 'Recommended Level Up cards start from this player ID.',
+      detail: 'Use it to connect proof scores, habits, and the next tennis action.',
+      icon: 'reliabilityIndex',
+    },
+    {
+      label: 'My Lab',
+      title: 'Notes and follows stay attached to the right player.',
+      detail: 'Your saved reads, opponent prep, and coach handoffs use this same identity.',
+      icon: 'myLab',
+    },
+    {
+      label: 'Public profile',
+      title: ratingSourceLabel === 'Self-rated S' ? 'Self-rated starts now; verified data can replace it later.' : 'Verified data can power public and private tools.',
+      detail: 'TenAceIQ keeps the player record clear before it feeds matchup, team, and league work.',
+      icon: 'playerRatings',
+    },
   ] as const
   const profileIdentityTitle = profileComplete ? profileDisplayName : 'Set your player identity'
   const profileSyncText = profileSource === 'cloud'
@@ -833,6 +853,28 @@ function ProfilePageInner() {
                     <strong>{tile.value}</strong>
                   </div>
                 ))}
+              </div>
+
+              <div style={playerIdPowersStyle}>
+                <div style={playerIdPowersHeaderStyle}>
+                  <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
+                  <div style={playerIdPowersHeaderCopyStyle}>
+                    <strong>Player ID powers</strong>
+                    <span>One tennis identity keeps Level Up, My Lab, matchup prep, and public records aligned.</span>
+                  </div>
+                </div>
+                <div style={playerIdPowersGridStyle}>
+                  {profilePlayerIdBenefits.map((benefit) => (
+                    <div key={benefit.label} style={playerIdPowerCardStyle}>
+                      <TiqFeatureIcon name={benefit.icon} size="sm" variant="ghost" />
+                      <div style={playerIdPowerTextStyle}>
+                        <span style={playerIdPowerLabelStyle}>{benefit.label}</span>
+                        <strong style={playerIdPowerTitleStyle}>{benefit.title}</strong>
+                        <em style={playerIdPowerDetailStyle}>{benefit.detail}</em>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {profileAwards.length ? (
@@ -1348,6 +1390,83 @@ const ratingTileStyle: CSSProperties = {
   gap: 8,
   minHeight: 86,
   minWidth: 0,
+}
+
+const playerIdPowersStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdPowersHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 10,
+  color: 'var(--foreground-strong)',
+  minWidth: 0,
+}
+
+const playerIdPowersHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  lineHeight: 1.35,
+}
+
+const playerIdPowersGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerIdPowerCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
+  alignItems: 'flex-start',
+  gap: 10,
+  padding: 12,
+  minHeight: 118,
+  borderRadius: 14,
+  border: '1px solid rgba(117,184,255,0.16)',
+  background: 'rgba(7,18,34,0.46)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 760,
+  lineHeight: 1.45,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdPowerTextStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const playerIdPowerLabelStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const playerIdPowerTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.25,
+}
+
+const playerIdPowerDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontStyle: 'normal',
 }
 
 const profileAwardStripStyle: CSSProperties = {
