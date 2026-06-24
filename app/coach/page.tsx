@@ -253,6 +253,7 @@ function CoachContent() {
   const [workspaceMessage, setWorkspaceMessage] = useState('')
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [lastCreatedAssignment, setLastCreatedAssignment] = useState<CoachAssignment | null>(null)
+  const [addStudentSubmitAttempted, setAddStudentSubmitAttempted] = useState(false)
   const [calendarLinkByStudentId, setCalendarLinkByStudentId] = useState<Record<string, string>>({})
   const [calendarFeedStatusByStudentId, setCalendarFeedStatusByStudentId] = useState<Record<string, CoachCalendarFeedStatus>>({})
   const [calendarLinkLoadingStudentId, setCalendarLinkLoadingStudentId] = useState('')
@@ -267,6 +268,7 @@ function CoachContent() {
       ? 'Check the cell number before sending a text setup.'
       : ''
   const addStudentBlockedMessage = addStudentMissingNameMessage || addStudentPhoneMessage
+  const showAddStudentNameError = addStudentSubmitAttempted && Boolean(addStudentMissingNameMessage)
   const addStudentDisabled = workspaceLoading
   const addStudentButtonLabel = workspaceLoading
     ? 'Saving...'
@@ -454,6 +456,7 @@ function CoachContent() {
   async function handleAddStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!session?.access_token) return
+    setAddStudentSubmitAttempted(true)
     if (addStudentBlockedMessage) {
       setWorkspaceMessage(addStudentBlockedMessage)
       return
@@ -507,6 +510,7 @@ function CoachContent() {
       setInviteEmail('')
       setStudentPhone('')
       setContactPreference('in_app')
+      setAddStudentSubmitAttempted(false)
       setWorkspaceMessage(
         createdInvite
           ? savedStudent.playerPhone
@@ -1496,10 +1500,10 @@ function CoachContent() {
             onChange={(event) => setStudentName(event.target.value)}
             placeholder="Add a student"
             style={inputStyle}
-            aria-invalid={Boolean(addStudentMissingNameMessage)}
-            aria-describedby={addStudentMissingNameMessage ? 'coach-student-name-help' : undefined}
+            aria-invalid={showAddStudentNameError}
+            aria-describedby={showAddStudentNameError ? 'coach-student-name-help' : undefined}
           />
-          {addStudentMissingNameMessage ? (
+          {showAddStudentNameError ? (
             <span id="coach-student-name-help" style={fieldErrorStyle}>
               {addStudentMissingNameMessage}
             </span>
