@@ -203,6 +203,7 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('function renderNextLessonBuilder()')
     expect(coachSource).toContain('function renderSharedLessonCalendar()')
     expect(coachSource).toContain('function renderLessonRhythmBlocks()')
+    expect(coachSource).toContain('function renderOptionalPlanningHelpers()')
     expect(coachSource).toContain('First assignment starters')
     expect(coachSource).toContain('{FIRST_ASSIGNMENT_STARTERS.length} options')
     expect(coachSource).toContain('{renderFirstAssignmentStarter()}')
@@ -215,6 +216,7 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('Lesson rhythm')
     expect(coachSource).toContain('{COACH_LESSON_BLOCKS.length} blocks')
     expect(coachSource).toContain('{renderLessonRhythmBlocks()}')
+    expect(coachSource.indexOf('style={isMobile ? mobileStudentRecordsDisclosureStyle : openAssignmentQueueDisclosureStyle}')).toBeLessThan(coachSource.lastIndexOf('{renderOptionalPlanningHelpers()}'))
   })
 
   it('keeps the assignment send panel before optional starters on phone', () => {

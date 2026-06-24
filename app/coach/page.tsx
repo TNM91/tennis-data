@@ -1985,6 +1985,35 @@ function CoachContent() {
     )
   }
 
+  function renderOptionalPlanningHelpers() {
+    return (
+      <>
+        {isMobile ? (
+          <details style={mobileStudentRecordsDisclosureStyle}>
+            <summary style={mobileStudentRecordsSummaryStyle}>
+              <span>Next lesson builder</span>
+              <strong>{selectedSessionPreset.title}</strong>
+            </summary>
+            <div style={mobileStudentRecordsBodyStyle}>
+              {renderNextLessonBuilder()}
+            </div>
+          </details>
+        ) : renderNextLessonBuilder()}
+        {isMobile ? (
+          <details style={mobileStudentRecordsDisclosureStyle}>
+            <summary style={mobileStudentRecordsSummaryStyle}>
+              <span>Lesson rhythm</span>
+              <strong>{COACH_LESSON_BLOCKS.length} blocks</strong>
+            </summary>
+            <div style={mobileStudentRecordsBodyStyle}>
+              {renderLessonRhythmBlocks()}
+            </div>
+          </details>
+        ) : renderLessonRhythmBlocks()}
+      </>
+    )
+  }
+
   function loadLevelUpHandoffPack(pack: CoachLevelUpHandoffPack) {
     const primaryCard = LEVEL_UP_CARDS.find((card) => card.id === pack.cardIds[0])
 
@@ -2524,28 +2553,6 @@ function CoachContent() {
             ) : renderSharedLessonCalendar()
           ) : null}
           {isMobile ? null : renderReviewQueueMetrics()}
-          {isMobile ? (
-            <details style={mobileStudentRecordsDisclosureStyle}>
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>Next lesson builder</span>
-                <strong>{selectedSessionPreset.title}</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderNextLessonBuilder()}
-              </div>
-            </details>
-          ) : renderNextLessonBuilder()}
-          {isMobile ? (
-            <details style={mobileStudentRecordsDisclosureStyle}>
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>Lesson rhythm</span>
-                <strong>{COACH_LESSON_BLOCKS.length} blocks</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderLessonRhythmBlocks()}
-              </div>
-            </details>
-          ) : renderLessonRhythmBlocks()}
           <details
             open={!isMobile || assignmentsNeedingReview.length > 0}
             style={isMobile ? mobileStudentRecordsDisclosureStyle : openAssignmentQueueDisclosureStyle}
@@ -2864,6 +2871,7 @@ function CoachContent() {
           </div>
             </div>
           </details>
+          {renderOptionalPlanningHelpers()}
         </div>
       </section>
 
