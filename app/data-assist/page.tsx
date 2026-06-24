@@ -61,6 +61,24 @@ const dataAssistTrustSignals = [
   { label: 'Status', value: 'Verified / needs review / imported / disputed' },
 ] as const
 
+const dataAssistPlayerIdSignalPath = [
+  {
+    label: 'Player ID',
+    title: 'Match the source to the right tennis identity.',
+    body: 'Scorecards and team summaries should strengthen the correct player profile, not create mystery records.',
+  },
+  {
+    label: 'Reviewed signal',
+    title: 'Keep unreviewed uploads out of ratings.',
+    body: 'A file can be saved immediately, but profiles, rankings, Matchup, My Lab, and Coach Hub wait for a clean review path.',
+  },
+  {
+    label: 'Next use',
+    title: 'Turn clean data into useful tennis actions.',
+    body: 'Once reviewed, the same signal can support profile confidence, Level Up context, matchup prep, and team decisions.',
+  },
+] as const
+
 const dataAssistReviewFlow = [
   {
     step: '1',
@@ -1099,6 +1117,15 @@ function DataAssistTrustEnginePanel() {
             <span>{signal.label}</span>
             <strong>{signal.value}</strong>
           </div>
+        ))}
+      </div>
+      <div style={playerIdSignalPathStyle} aria-label="Data Assist player ID signal path">
+        {dataAssistPlayerIdSignalPath.map((item) => (
+          <article key={item.label} style={playerIdSignalCardStyle}>
+            <span style={playerIdSignalLabelStyle}>{item.label}</span>
+            <strong style={playerIdSignalTitleStyle}>{item.title}</strong>
+            <p style={playerIdSignalTextStyle}>{item.body}</p>
+          </article>
         ))}
       </div>
       <div style={trustActionRowStyle} aria-label="Data quality actions">
@@ -3020,6 +3047,52 @@ const trustSignalCardStyle: CSSProperties = {
   lineHeight: 1.35,
   fontWeight: 850,
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSignalPathStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const playerIdSignalCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  minHeight: 132,
+  alignContent: 'start',
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSignalTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.22,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSignalTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 750,
   overflowWrap: 'anywhere',
 }
 

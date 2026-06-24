@@ -35,6 +35,19 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('id="history"')
   })
 
+  it('shows how reviewed uploads become player ID signals', () => {
+    expect(source).toContain('const dataAssistPlayerIdSignalPath')
+    expect(source).toContain('Data Assist player ID signal path')
+    expect(source).toContain("label: 'Player ID'")
+    expect(source).toContain('Match the source to the right tennis identity.')
+    expect(source).toContain('Scorecards and team summaries should strengthen the correct player profile, not create mystery records.')
+    expect(source).toContain("label: 'Reviewed signal'")
+    expect(source).toContain('Keep unreviewed uploads out of ratings.')
+    expect(source).toContain('profiles, rankings, Matchup, My Lab, and Coach Hub wait for a clean review path.')
+    expect(source).toContain("label: 'Next use'")
+    expect(source).toContain('profile confidence, Level Up context, matchup prep, and team decisions.')
+  })
+
   it('explains the review-first upload flow before users choose a file', () => {
     expect(source).toContain('const dataAssistReviewFlow')
     expect(source).toContain('const dataAssistUploadStateProof')
@@ -84,8 +97,11 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('const sourcePathPanelStyle: CSSProperties')
     expect(source).toContain('const sourcePathGridStyle: CSSProperties')
     expect(source).toContain('const sourcePathCardBaseStyle: CSSProperties')
+    expect(source).toContain('const playerIdSignalPathStyle: CSSProperties')
+    expect(source).toContain('const playerIdSignalCardStyle: CSSProperties')
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
     expect(source).toContain('minHeight: 152')
+    expect(source).toContain('minHeight: 132')
     expect(source).toContain("overflowWrap: 'anywhere'")
   })
 

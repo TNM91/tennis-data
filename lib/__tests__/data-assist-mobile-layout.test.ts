@@ -40,6 +40,8 @@ describe('Data Assist mobile layout guards', () => {
       'uploadStateProofHeaderStyle',
       'uploadStateProofGridStyle',
       'uploadStateProofCardStyle',
+      'playerIdSignalPathStyle',
+      'playerIdSignalCardStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -52,6 +54,8 @@ describe('Data Assist mobile layout guards', () => {
     expect(styleBlock('fileInputStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('primaryButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('smallButtonStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('playerIdSignalTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('playerIdSignalTextStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps saved upload cards, history filters, and badge panels mobile-safe', () => {
