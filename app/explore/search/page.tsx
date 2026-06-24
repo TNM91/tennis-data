@@ -318,6 +318,30 @@ function ExploreSearchContent() {
     (showPlayerResults ? filteredPlayers.length + matchupSuggestions.length : 0) +
     (showTeamResults ? teams.length : 0) +
     (showLeagueResults ? filteredLeagues.length : 0)
+  const topPlayerResult = showPlayerResults ? filteredPlayers[0] : null
+  const playerIdSearchTrailSignals = [
+    {
+      label: 'Search job',
+      value: hasQuery ? selectedScopeLabel : selectedScopeGuide.eyebrow,
+      body: hasQuery
+        ? 'Use search to find the public record before deciding what to compare, follow, or fix.'
+        : 'Start with the tennis clue you have: player, team, league, flight, or area.',
+    },
+    {
+      label: 'Player ID handoff',
+      value: topPlayerResult?.name || 'Open the record',
+      body: topPlayerResult
+        ? 'Open this Player ID, then move into Matchup, My Lab, or Level Up with context.'
+        : 'Player records become the anchor for ratings, matchup prep, follows, and Level Up work.',
+    },
+    {
+      label: 'Next action',
+      value: matchupSuggestions.length ? 'Matchup / My Lab' : 'Profile or Data Assist',
+      body: matchupSuggestions.length
+        ? 'Use the matched players to prep a comparison or save the tennis takeaway.'
+        : 'Open a profile when the record exists, or send missing context through Data Assist review.',
+    },
+  ] as const
 
   return (
     <div
@@ -460,6 +484,25 @@ function ExploreSearchContent() {
             <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700, overflowWrap: 'anywhere' }}>
               {hasQuery ? `${totalResults} results for "${query.trim()}"` : 'Ready to search'}
             </span>
+          </div>
+        </section>
+
+        <section style={playerIdSearchTrailStyle} aria-label="Search Player ID trail">
+          <div style={playerIdSearchTrailHeaderStyle}>
+            <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
+            <div style={playerIdSearchTrailCopyStyle}>
+              <span style={playerIdSearchTrailKickerStyle}>Player ID search trail</span>
+              <h2 style={playerIdSearchTrailTitleStyle}>Turn a search into the next tennis action.</h2>
+            </div>
+          </div>
+          <div style={playerIdSearchTrailGridStyle}>
+            {playerIdSearchTrailSignals.map((signal) => (
+              <article key={signal.label} style={playerIdSearchTrailCardStyle}>
+                <span style={playerIdSearchTrailLabelStyle}>{signal.label}</span>
+                <strong style={playerIdSearchTrailValueStyle}>{signal.value}</strong>
+                <span style={playerIdSearchTrailTextStyle}>{signal.body}</span>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -1144,6 +1187,94 @@ const exampleSearchButtonStyle: CSSProperties = {
   paddingInline: 14,
   overflowWrap: 'anywhere',
   cursor: 'pointer',
+}
+
+const playerIdSearchTrailStyle: CSSProperties = {
+  ...portalInsetCardStyle,
+  display: 'grid',
+  gap: 12,
+  padding: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, rgba(8,16,34,0.78) 93%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSearchTrailHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+  flexWrap: 'wrap',
+}
+
+const playerIdSearchTrailCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSearchTrailKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSearchTrailTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSearchTrailGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const playerIdSearchTrailCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.68)',
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSearchTrailLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSearchTrailValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSearchTrailTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const resultGroupStyle: CSSProperties = {
