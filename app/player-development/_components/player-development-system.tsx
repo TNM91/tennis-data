@@ -87,6 +87,8 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
 
             <PlayerQuestionStrip identity={identity} />
 
+            <PlayerIdentitySnapshot identity={identity} />
+
             <IdentitySelector activeSlug={identity.slug} />
 
             <section className={styles.structurePanel} aria-labelledby="structure-title">
@@ -243,6 +245,53 @@ function getPlayerQuestionCards(identity: PlayerDevelopmentIdentity) {
     href: string
     cta: string
   }>
+}
+
+function PlayerIdentitySnapshot({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const profile = getLevelUpProfileForIdentity(identity.slug)
+  const starterCards = LEVEL_UP_CARDS.filter((card) => profile.starterCardIds.includes(card.id)).slice(0, 2)
+  const rows = [
+    ['Profile ID', identity.title.replace(/^The /, '')],
+    ['Primary weapon', identity.identityProfile.primaryWeapons[0] ?? identity.traits[0] ?? identity.mantra],
+    ['Style leak', identity.identityProfile.styleLeaks[0] ?? 'The pattern that disappears first under pressure.'],
+    ['Match trigger', identity.identityProfile.matchTriggers[0] ?? 'The moment this identity has to show up.'],
+    ['Coach check', identity.identityProfile.coachQuestions[0] ?? 'What proof showed up in the match?'],
+  ] as const
+
+  return (
+    <section className={styles.playerIdSnapshot} aria-labelledby="player-id-snapshot-title">
+      <div className={styles.playerIdSnapshotHeader}>
+        <p className={styles.kicker}>Player ID snapshot</p>
+        <h2 id="player-id-snapshot-title">Know the player profile before choosing the work.</h2>
+        <p>
+          Use this quick read before Level Up, lessons, or match prep so the identity becomes a practical tennis decision instead of a label.
+        </p>
+      </div>
+      <div className={styles.playerIdSnapshotGrid}>
+        {rows.map(([label, value]) => (
+          <article key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </article>
+        ))}
+      </div>
+      <div className={styles.playerIdLevelUpBridge}>
+        <div>
+          <span>First Level Up move</span>
+          <strong>{profile.recommendationCopy}</strong>
+        </div>
+        <div>
+          {starterCards.map((card) => (
+            <Link href={`/player-development/${identity.slug}/level-up?card=${card.id}`} key={card.id}>
+              <span>{card.pack}</span>
+              <strong>{card.title}</strong>
+              <small>{card.proof}</small>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }
 
 function PlanCard({ icon, title, items }: { icon: TiqFeatureIconName; title: string; items: string[] }) {

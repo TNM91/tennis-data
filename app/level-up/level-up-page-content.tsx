@@ -21,6 +21,12 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   const favoritePreview = recommendedCards.slice(0, 3)
   const libraryPacks = [...new Set(LEVEL_UP_CARDS.map((card) => card.pack))].slice(0, 8)
   const quickStartCards = recommendedCards.slice(0, 5)
+  const playerIdRows = [
+    ['Profile ID', identity.title.replace(/^The /, '')],
+    ['Weapon', identity.identityProfile.primaryWeapons[0] ?? identity.mantra],
+    ['Leak to watch', identity.identityProfile.styleLeaks[0] ?? 'The habit that breaks under score pressure.'],
+    ['Match trigger', identity.identityProfile.matchTriggers[0] ?? 'The moment this identity has to show up.'],
+  ] as const
   const questBuilder = buildLevelUpQuestBuilderPlan(identity.slug)
   const habitPaths = buildLevelUpHabitPaths(identity.slug)
   const playerTier = MEMBERSHIP_TIERS.player_plus
@@ -182,6 +188,39 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                 {item.title.replace(/^The /, '')}
               </Link>
             ))}
+          </div>
+        </section>
+
+        <section className={styles.playerIdSnapshot} aria-labelledby="level-up-player-id-title">
+          <div className={styles.playerIdSnapshotHeader}>
+            <span className={styles.kicker}>Level Up player ID</span>
+            <h2 id="level-up-player-id-title">Pick the drill that matches the player profile.</h2>
+            <p>
+              Start from the identity read, then choose the card that trains the highest-value tennis behavior for the next match.
+            </p>
+          </div>
+          <div className={styles.playerIdSnapshotGrid}>
+            {playerIdRows.map(([label, value]) => (
+              <article key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </article>
+            ))}
+          </div>
+          <div className={styles.playerIdLevelUpBridge}>
+            <div>
+              <span>Recommended first</span>
+              <strong>{recommendedCards[0]?.tennisGoal ?? identity.promise}</strong>
+            </div>
+            <div>
+              {recommendedCards.slice(0, 2).map((card) => (
+                <a href="#level-up-flow" key={card.id}>
+                  <span>{card.pack}</span>
+                  <strong>{card.title}</strong>
+                  <small>{card.proof}</small>
+                </a>
+              ))}
+            </div>
           </div>
         </section>
 

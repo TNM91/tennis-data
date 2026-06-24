@@ -267,6 +267,122 @@
   font-weight: 950;
 }
 
+.playerIdSnapshot {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.11), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025)),
+    var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(18px, 3vw, 26px);
+}
+
+.playerIdSnapshotHeader {
+  display: grid;
+  gap: 6px;
+  max-width: 880px;
+  min-width: 0;
+}
+
+.playerIdSnapshotHeader h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.45rem, 3vw, 2.25rem);
+  font-weight: 950;
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.playerIdSnapshotHeader p,
+.playerIdSnapshotGrid strong,
+.playerIdLevelUpBridge strong,
+.playerIdLevelUpBridge small {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.42;
+}
+
+.playerIdSnapshotGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.playerIdSnapshotGrid article,
+.playerIdLevelUpBridge,
+.playerIdLevelUpBridge a {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.15);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.playerIdSnapshotGrid article {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 13px;
+}
+
+.playerIdSnapshotGrid span,
+.playerIdLevelUpBridge span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playerIdSnapshotGrid strong {
+  color: var(--foreground-strong);
+  font-size: 0.92rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.playerIdLevelUpBridge {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+}
+
+.playerIdLevelUpBridge > div {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.playerIdLevelUpBridge > div:last-child {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.playerIdLevelUpBridge a {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  color: var(--foreground);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.playerIdLevelUpBridge a:hover {
+  border-color: rgba(155, 225, 29, 0.38);
+  background: rgba(155, 225, 29, 0.08);
+}
+
+.playerIdLevelUpBridge a strong {
+  color: var(--foreground-strong);
+  font-weight: 950;
+}
+
 .levelUpRouteHeader,
 .levelUpIdentityStrip {
   display: grid;
@@ -13978,6 +14094,14 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .playerIdSnapshotGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .playerIdLevelUpBridge {
+    grid-template-columns: 1fr;
+  }
+
   .levelUpCoachInboxHeader,
   .levelUpCoachInboxGrid article {
     grid-template-columns: 1fr;
@@ -14016,6 +14140,7 @@
 
   .planGrid,
   .playerQuestionGrid,
+  .playerIdLevelUpBridge > div:last-child,
   .auditGrid,
   .identitySelectorGrid,
   .sessionFields,
@@ -15384,6 +15509,8 @@
 
 @media (max-width: 620px) {
   .identityGrid,
+  .playerIdSnapshotGrid,
+  .playerIdLevelUpBridge > div:last-child,
   .liveFocusRail,
   .liveContextGrid,
   .liveFeelingGrid,
