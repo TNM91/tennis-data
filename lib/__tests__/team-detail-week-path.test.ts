@@ -33,4 +33,24 @@ describe('team detail week path', () => {
     expect(styleBlock('teamWeekActionCardStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('teamWeekActionTextStyle')).toContain("overflowWrap: 'anywhere'")
   })
+
+  it('connects roster review to player ID actions', () => {
+    expect(source).toContain('rosterPlayerIdSignals')
+    expect(source).toContain('Roster Player ID trail')
+    expect(source).toContain('Roster IDs')
+    expect(source).toContain('Compare next')
+    expect(source).toContain('Captain handoff')
+    expect(source).toContain('Open each player record before turning team context into lineup or matchup decisions.')
+    expect(source).toContain('Select two roster players to prep a singles matchup')
+    expect(source).toContain('Use the same player IDs for availability, lineup building, pairing choices, and Data Assist review.')
+  })
+
+  it('keeps the roster player ID trail readable on phone widths', () => {
+    expect(styleBlock('rosterPlayerIdTrailStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(styleBlock('rosterPlayerIdTrailStyle')).toContain('minWidth: 0')
+    expect(styleBlock('rosterPlayerIdSignalStyle')).toContain('minWidth: 0')
+    expect(styleBlock('rosterPlayerIdSignalStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('rosterPlayerIdSignalValueStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('rosterPlayerIdSignalTextStyle')).toContain("overflowWrap: 'anywhere'")
+  })
 })

@@ -965,6 +965,28 @@ function TeamPageContent() {
     ? `/matchup?type=singles&playerA=${encodeURIComponent(selectedRosterPlayerIds[0])}&playerB=${encodeURIComponent(selectedRosterPlayerIds[1])}`
     : '/matchup'
 
+  const rosterPlayerIdSignals = [
+    {
+      label: 'Roster IDs',
+      value: roster.length ? `${roster.length} players` : 'Roster pending',
+      body: roster.length
+        ? 'Open each player record before turning team context into lineup or matchup decisions.'
+        : 'Import roster or scorecard context so players can become searchable TenAceIQ records.',
+    },
+    {
+      label: 'Compare next',
+      value: selectedRosterPlayers.length === 2
+        ? selectedRosterPlayers.map((player) => player.name).join(' vs ')
+        : 'Select two players',
+      body: 'Select two roster players to prep a singles matchup, or open a profile to review their player history first.',
+    },
+    {
+      label: 'Captain handoff',
+      value: 'Availability / Lineup',
+      body: 'Use the same player IDs for availability, lineup building, pairing choices, and Data Assist review.',
+    },
+  ] as const
+
   function handleRosterCompareToggle(playerId: string) {
     if (playerId.startsWith('summary:')) return
 
@@ -1879,6 +1901,16 @@ function TeamPageContent() {
                       : rosterFilter === 'doubles'
                         ? 'Roster sorted by doubles strength.'
                         : 'Full roster from team summary and match history.'}
+              </div>
+
+              <div style={rosterPlayerIdTrailStyle} aria-label="Roster Player ID trail">
+                {rosterPlayerIdSignals.map((signal) => (
+                  <article key={signal.label} style={rosterPlayerIdSignalStyle}>
+                    <span style={rosterPlayerIdSignalLabelStyle}>{signal.label}</span>
+                    <strong style={rosterPlayerIdSignalValueStyle}>{signal.value}</strong>
+                    <span style={rosterPlayerIdSignalTextStyle}>{signal.body}</span>
+                  </article>
+                ))}
               </div>
 
               <div style={rosterCompareTray}>
@@ -2855,6 +2887,49 @@ const rosterFilterHint: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const rosterPlayerIdTrailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  margin: '0 0 14px',
+  minWidth: 0,
+}
+
+const rosterPlayerIdSignalStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: '7px',
+  minWidth: 0,
+  padding: '13px',
+  borderRadius: '16px',
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(15, 23, 42, 0.58)',
+  overflowWrap: 'anywhere',
+}
+
+const rosterPlayerIdSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '10px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
+}
+
+const rosterPlayerIdSignalValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const rosterPlayerIdSignalTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.5,
   overflowWrap: 'anywhere',
 }
 
