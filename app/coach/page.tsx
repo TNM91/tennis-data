@@ -1320,6 +1320,38 @@ function CoachContent() {
     )
   }
 
+  function renderBenchMetrics() {
+    return (
+      <div style={responsiveLinkedMetricGridStyle}>
+        <DashboardMetric label="Linked" value={linkedPlayersCount} />
+        <DashboardMetric label="Pending" value={pendingInviteCount} />
+        <DashboardMetric label="Review" value={assignmentsNeedingReview.length} />
+        <DashboardMetric label="Due now" value={overduePlayersCount} />
+        <DashboardMetric label="Level Up" value={levelUpSessions.length} />
+      </div>
+    )
+  }
+
+  function renderCoachQueue() {
+    return (
+      <div style={coachQueueStyle} aria-label="Coach priority queue">
+        <div style={coachQueueIntroStyle}>
+          <div style={eyebrowStyle}>Today&apos;s coach queue</div>
+          <strong>Start with the player who needs action first.</strong>
+        </div>
+        <div style={coachQueueGridStyle}>
+          {coachQueueActions.map((action) => (
+            <a key={action.title} href={action.href} style={coachQueueCardStyle(action.tone)}>
+              <span style={coachQueueToneStyle(action.tone)}>{action.label}</span>
+              <strong>{action.title}</strong>
+              <em>{action.detail}</em>
+            </a>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   function prepareStudentAssignment(card: LinkedPlayerCard) {
     setActiveMobileBenchStudentId(card.student.id)
     setAssignmentStudentId(card.student.id)
@@ -1922,28 +1954,7 @@ function CoachContent() {
               Your bench keeps each player profile, development path, active assignment, setup link, and coach contact path in one place.
             </p>
           </div>
-          <div style={responsiveLinkedMetricGridStyle}>
-            <DashboardMetric label="Linked" value={linkedPlayersCount} />
-            <DashboardMetric label="Pending" value={pendingInviteCount} />
-            <DashboardMetric label="Review" value={assignmentsNeedingReview.length} />
-            <DashboardMetric label="Due now" value={overduePlayersCount} />
-            <DashboardMetric label="Level Up" value={levelUpSessions.length} />
-          </div>
-        </div>
-        <div style={coachQueueStyle} aria-label="Coach priority queue">
-          <div style={coachQueueIntroStyle}>
-            <div style={eyebrowStyle}>Today&apos;s coach queue</div>
-            <strong>Start with the player who needs action first.</strong>
-          </div>
-          <div style={coachQueueGridStyle}>
-            {coachQueueActions.map((action) => (
-              <a key={action.title} href={action.href} style={coachQueueCardStyle(action.tone)}>
-                <span style={coachQueueToneStyle(action.tone)}>{action.label}</span>
-                <strong>{action.title}</strong>
-                <em>{action.detail}</em>
-              </a>
-            ))}
-          </div>
+          {isMobile ? null : renderBenchMetrics()}
         </div>
         {isMobile && linkedPlayerCards.length ? (
           <div style={mobileBenchShellStyle}>
@@ -1976,6 +1987,28 @@ function CoachContent() {
             )}
           </div>
         )}
+        {isMobile ? (
+          <>
+            <details style={mobileStudentRecordsDisclosureStyle}>
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>Bench snapshot</span>
+                <strong>{linkedPlayersCount} linked</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderBenchMetrics()}
+              </div>
+            </details>
+            <details style={mobileStudentRecordsDisclosureStyle}>
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>Today&apos;s coach queue</span>
+                <strong>{assignmentsNeedingReview.length + overduePlayersCount} priority</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderCoachQueue()}
+              </div>
+            </details>
+          </>
+        ) : renderCoachQueue()}
       </section>
 
       <section style={workspaceGridStyle}>
