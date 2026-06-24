@@ -9331,6 +9331,14 @@
   gap: 10px;
 }
 
+.liveSavedIdentitySignals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+  min-width: 0;
+}
+
 .liveProgressPanel {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -9363,6 +9371,7 @@
 
 .liveCoachLoop article,
 .liveProgressPanel article,
+.liveSavedIdentitySignals article,
 .liveStepPanel,
 .liveCurrentGoal,
 .liveActionCard,
@@ -9389,6 +9398,7 @@
 .liveAccessPanel,
 .liveAssignmentBanner,
 .liveSavedBanner,
+.liveSavedIdentitySignals article,
 .liveSyncProofPanel,
 .liveCoachChallengeEntry,
 .liveUnlockPanel,
@@ -9423,6 +9433,7 @@
 .liveCoachLoop span,
 .liveProgressPanel span,
 .liveSavedBanner span,
+.liveSavedIdentitySignals span,
 .liveSyncProofPanel span,
 .liveSyncProofGrid span,
 .liveUnlockPanel span,
@@ -9451,6 +9462,7 @@
 .liveCoachLoop strong,
 .liveProgressPanel strong,
 .liveSavedBanner strong,
+.liveSavedIdentitySignals strong,
 .liveSyncProofPanel strong,
 .liveUnlockPanel strong,
 .liveRecentList strong {
@@ -15199,6 +15211,7 @@
   .liveAssignmentStatusRail,
   .liveAssignmentBanner,
   .liveSavedBanner,
+  .liveSavedIdentitySignals,
   .liveSyncProofPanel,
   .liveUnlockPanel,
   .liveModeStrip {

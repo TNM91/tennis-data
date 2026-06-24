@@ -252,6 +252,13 @@ export default function PlayerLiveWorkbench({
   const suggestedNextDrill = lastSavedSession ? getNextDrillAfterSession(lastSavedSession, visibleDrills) : null
   const smartNextAction = lastSavedSession ? getSmartNextAction(lastSavedSession, suggestedNextDrill, readiness) : null
   const finishStats = finishSummary ? getFinishSummaryStats(finishSummary) : null
+  const savedIdentitySignals = lastSavedSession
+    ? [
+        { label: 'Identity', value: identityTitle.replace(/^The /, '') },
+        { label: 'Player ID signal', value: `${lastSavedSession.rating}/5 ${lastSavedSession.focusTitle}` },
+        { label: 'Next use', value: lastSavedSession.sharedWithCoach ? 'Coach-ready proof' : 'My Lab proof trail' },
+      ]
+    : []
 
   const handleTimerSnapshotChange = useCallback((snapshot: DrillTimerSnapshot) => {
     setActiveTimerSnapshot((current) => {
@@ -1101,6 +1108,14 @@ export default function PlayerLiveWorkbench({
                     : 'Kept as a local preview for now.')}
                 {questCreditMessage ? ` ${questCreditMessage}` : ''}
               </p>
+              <div className={styles.liveSavedIdentitySignals} aria-label="Saved proof identity signals">
+                {savedIdentitySignals.map((signal) => (
+                  <article key={signal.label}>
+                    <span>{signal.label}</span>
+                    <strong>{signal.value}</strong>
+                  </article>
+                ))}
+              </div>
             </div>
             <div className={styles.liveSavedActions}>
               <button type="button" className="button-primary" onClick={repeatActivity}>
