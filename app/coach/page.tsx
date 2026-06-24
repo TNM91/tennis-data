@@ -1813,6 +1813,103 @@ function CoachContent() {
     )
   }
 
+  function renderAssignmentOptions() {
+    return (
+      <>
+        <label style={fieldStyle}>
+          Template
+          <select className="tiq-focus-ring" value={assignmentTemplateId} onChange={(event) => handleAssignmentTemplateChange(event.target.value)} style={inputStyle}>
+            <option value={CUSTOM_ASSIGNMENT_TEMPLATE_ID}>Custom assignment</option>
+            {COACH_ASSIGNMENT_TEMPLATES.map((template) => (
+              <option key={template.id} value={template.id}>{template.title}</option>
+            ))}
+          </select>
+        </label>
+        <label style={fieldStyle}>
+          Lesson date / time
+          <input className="tiq-focus-ring" type="datetime-local" value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} style={inputStyle} />
+        </label>
+        <label style={fieldStyle}>
+          Lesson focus note
+          <input className="tiq-focus-ring" value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
+        </label>
+        <label style={fieldStyle}>
+          Lesson location
+          <input className="tiq-focus-ring" value={lessonLocation} onChange={(event) => setLessonLocation(event.target.value)} placeholder="Court or facility" style={inputStyle} />
+        </label>
+        <div style={levelUpAssignmentPickerStyle}>
+          <label style={fieldStyle}>
+            Assign exact Level Up card
+            <select
+              className="tiq-focus-ring"
+              value={assignmentLevelUpCardId}
+              onChange={(event) => setAssignmentLevelUpCardId(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Auto-match best card</option>
+              {LEVEL_UP_CARDS.filter((card) => card.assignable).map((card) => (
+                <option key={card.id} value={card.id}>
+                  {card.title} - {card.durationMinutes} min
+                </option>
+              ))}
+            </select>
+          </label>
+          <div style={levelUpAssignmentSuggestionGridStyle}>
+            {suggestedLevelUpAssignmentCards.slice(0, 4).map((card) => (
+              <button
+                key={card.id}
+                type="button"
+                onClick={() => setAssignmentLevelUpCardId(card.id)}
+                style={levelUpAssignmentCardButtonStyle(selectedLevelUpAssignmentCard?.id === card.id)}
+              >
+                <strong>{card.title}</strong>
+                <span>{card.pack} / {card.durationMinutes} min</span>
+                <em>{card.proof}</em>
+              </button>
+            ))}
+          </div>
+          {selectedLevelUpAssignmentCard ? (
+            <div style={levelUpAssignmentPreviewStyle}>
+              <strong>{selectedLevelUpAssignmentCard.title}</strong>
+              <span>
+                Portal match: {selectedLevelUpAssignmentModule?.title ?? 'Single card'} / Proof: {selectedLevelUpAssignmentCard.proof}
+              </span>
+              {selectedLevelUpAssignmentStandard ? (
+                <div style={levelUpAssignmentStandardStyle} aria-label="Coach assignment standard">
+                  <span>Coach assignment standard</span>
+                  <div style={levelUpAssignmentStandardGridStyle}>
+                    <span style={levelUpAssignmentStandardItemStyle}>
+                      <b style={levelUpAssignmentStandardLabelStyle}>Player sees</b>
+                      {selectedLevelUpAssignmentStandard.playerSees}
+                    </span>
+                    <span style={levelUpAssignmentStandardItemStyle}>
+                      <b style={levelUpAssignmentStandardLabelStyle}>Coach watches</b>
+                      {selectedLevelUpAssignmentStandard.coachWatches}
+                    </span>
+                    <span style={levelUpAssignmentStandardItemStyle}>
+                      <b style={levelUpAssignmentStandardLabelStyle}>Common leak</b>
+                      {selectedLevelUpAssignmentStandard.commonLeak}
+                    </span>
+                    <span style={levelUpAssignmentStandardItemStyle}>
+                      <b style={levelUpAssignmentStandardLabelStyle}>Next rep</b>
+                      {selectedLevelUpAssignmentStandard.nextRep}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {selectedLevelUpAssignmentPack ? (
+            <div style={levelUpAssignmentPreviewStyle}>
+              <strong>Coach assigned pack: {selectedLevelUpAssignmentPack.title}</strong>
+              <span>{selectedLevelUpAssignmentPack.cardIds.length} linked cards will appear as one My Lab assignment queue.</span>
+            </div>
+          ) : null}
+        </div>
+      </>
+    )
+  }
+
   function loadLevelUpHandoffPack(pack: CoachLevelUpHandoffPack) {
     const primaryCard = LEVEL_UP_CARDS.find((card) => card.id === pack.cardIds[0])
 
@@ -2196,15 +2293,6 @@ function CoachContent() {
               </select>
             </label>
             <label style={fieldStyle}>
-              Template
-              <select className="tiq-focus-ring" value={assignmentTemplateId} onChange={(event) => handleAssignmentTemplateChange(event.target.value)} style={inputStyle}>
-                <option value={CUSTOM_ASSIGNMENT_TEMPLATE_ID}>Custom assignment</option>
-                {COACH_ASSIGNMENT_TEMPLATES.map((template) => (
-                  <option key={template.id} value={template.id}>{template.title}</option>
-                ))}
-              </select>
-            </label>
-            <label style={fieldStyle}>
               Assignment
               <input className="tiq-focus-ring" value={assignmentTitle} onChange={(event) => setAssignmentTitle(event.target.value)} placeholder="Example: 60 serve targets" style={inputStyle} />
             </label>
@@ -2216,87 +2304,20 @@ function CoachContent() {
               Due date
               <input className="tiq-focus-ring" type="date" value={assignmentDueDate} onChange={(event) => setAssignmentDueDate(event.target.value)} style={inputStyle} />
             </label>
-            <label style={fieldStyle}>
-              Lesson date / time
-              <input className="tiq-focus-ring" type="datetime-local" value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} style={inputStyle} />
-            </label>
-            <label style={fieldStyle}>
-              Lesson focus note
-              <input className="tiq-focus-ring" value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
-            </label>
-            <label style={fieldStyle}>
-              Lesson location
-              <input className="tiq-focus-ring" value={lessonLocation} onChange={(event) => setLessonLocation(event.target.value)} placeholder="Court or facility" style={inputStyle} />
-            </label>
-            <div style={levelUpAssignmentPickerStyle}>
-              <label style={fieldStyle}>
-                Assign exact Level Up card
-                <select
-                  className="tiq-focus-ring"
-                  value={assignmentLevelUpCardId}
-                  onChange={(event) => setAssignmentLevelUpCardId(event.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="">Auto-match best card</option>
-                  {LEVEL_UP_CARDS.filter((card) => card.assignable).map((card) => (
-                    <option key={card.id} value={card.id}>
-                      {card.title} - {card.durationMinutes} min
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div style={levelUpAssignmentSuggestionGridStyle}>
-                {suggestedLevelUpAssignmentCards.slice(0, 4).map((card) => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    onClick={() => setAssignmentLevelUpCardId(card.id)}
-                    style={levelUpAssignmentCardButtonStyle(selectedLevelUpAssignmentCard?.id === card.id)}
-                  >
-                    <strong>{card.title}</strong>
-                    <span>{card.pack} / {card.durationMinutes} min</span>
-                    <em>{card.proof}</em>
-                  </button>
-                ))}
-              </div>
-              {selectedLevelUpAssignmentCard ? (
-                <div style={levelUpAssignmentPreviewStyle}>
-                  <strong>{selectedLevelUpAssignmentCard.title}</strong>
-                  <span>
-                    Portal match: {selectedLevelUpAssignmentModule?.title ?? 'Single card'} / Proof: {selectedLevelUpAssignmentCard.proof}
-                  </span>
-                  {selectedLevelUpAssignmentStandard ? (
-                    <div style={levelUpAssignmentStandardStyle} aria-label="Coach assignment standard">
-                      <span>Coach assignment standard</span>
-                      <div style={levelUpAssignmentStandardGridStyle}>
-                        <span style={levelUpAssignmentStandardItemStyle}>
-                          <b style={levelUpAssignmentStandardLabelStyle}>Player sees</b>
-                          {selectedLevelUpAssignmentStandard.playerSees}
-                        </span>
-                        <span style={levelUpAssignmentStandardItemStyle}>
-                          <b style={levelUpAssignmentStandardLabelStyle}>Coach watches</b>
-                          {selectedLevelUpAssignmentStandard.coachWatches}
-                        </span>
-                        <span style={levelUpAssignmentStandardItemStyle}>
-                          <b style={levelUpAssignmentStandardLabelStyle}>Common leak</b>
-                          {selectedLevelUpAssignmentStandard.commonLeak}
-                        </span>
-                        <span style={levelUpAssignmentStandardItemStyle}>
-                          <b style={levelUpAssignmentStandardLabelStyle}>Next rep</b>
-                          {selectedLevelUpAssignmentStandard.nextRep}
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
+            {isMobile ? (
+              <details
+                {...(assignmentTemplateId !== CUSTOM_ASSIGNMENT_TEMPLATE_ID || assignmentLevelUpCardId || assignmentLevelUpPackId || lessonDateTime || lessonLocation ? { open: true } : {})}
+                style={mobileStudentRecordsDisclosureStyle}
+              >
+                <summary style={mobileStudentRecordsSummaryStyle}>
+                  <span>Assignment options</span>
+                  <strong>{selectedLevelUpAssignmentCard ? 'Level Up set' : 'Optional'}</strong>
+                </summary>
+                <div style={mobileStudentRecordsBodyStyle}>
+                  {renderAssignmentOptions()}
                 </div>
-              ) : null}
-              {selectedLevelUpAssignmentPack ? (
-                <div style={levelUpAssignmentPreviewStyle}>
-                  <strong>Coach assigned pack: {selectedLevelUpAssignmentPack.title}</strong>
-                  <span>{selectedLevelUpAssignmentPack.cardIds.length} linked cards will appear as one My Lab assignment queue.</span>
-                </div>
-              ) : null}
-            </div>
+              </details>
+            ) : renderAssignmentOptions()}
             <button type="submit" disabled={workspaceLoading || !assignmentStudentId || !assignmentTitle.trim()} style={primaryButtonStyle}>
               {workspaceLoading ? 'Saving...' : assignmentEditId ? 'Update assignment' : 'Create assignment'}
             </button>

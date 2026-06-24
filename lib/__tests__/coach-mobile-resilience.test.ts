@@ -191,6 +191,10 @@ describe('coach mobile resilience', () => {
 
   it('collapses optional coach helper blocks on phone', () => {
     expect(coachSource).toContain('function renderFirstAssignmentStarter()')
+    expect(coachSource).toContain('function renderAssignmentOptions()')
+    expect(coachSource).toContain('Assignment options')
+    expect(coachSource).toContain("selectedLevelUpAssignmentCard ? 'Level Up set' : 'Optional'")
+    expect(coachSource).toContain('{renderAssignmentOptions()}')
     expect(coachSource).toContain('function renderNextLessonBuilder()')
     expect(coachSource).toContain('function renderSharedLessonCalendar()')
     expect(coachSource).toContain('function renderLessonRhythmBlocks()')
