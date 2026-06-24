@@ -1966,6 +1966,25 @@ function CoachContent() {
     )
   }
 
+  function renderReviewQueueMetrics() {
+    return (
+      <div style={reviewQueueStyle}>
+        <div style={reviewQueueMetricStyle}>
+          <span>Needs review</span>
+          <strong>{assignmentsNeedingReview.length}</strong>
+        </div>
+        <div style={reviewQueueMetricStyle}>
+          <span>Active</span>
+          <strong>{activeAssignmentsCount}</strong>
+        </div>
+        <div style={reviewQueueMetricStyle}>
+          <span>Reviewed</span>
+          <strong>{reviewedAssignmentsCount}</strong>
+        </div>
+      </div>
+    )
+  }
+
   function loadLevelUpHandoffPack(pack: CoachLevelUpHandoffPack) {
     const primaryCard = LEVEL_UP_CARDS.find((card) => card.id === pack.cardIds[0])
 
@@ -2504,20 +2523,7 @@ function CoachContent() {
               </details>
             ) : renderSharedLessonCalendar()
           ) : null}
-          <div style={reviewQueueStyle}>
-            <div style={reviewQueueMetricStyle}>
-              <span>Needs review</span>
-              <strong>{assignmentsNeedingReview.length}</strong>
-            </div>
-            <div style={reviewQueueMetricStyle}>
-              <span>Active</span>
-              <strong>{activeAssignmentsCount}</strong>
-            </div>
-            <div style={reviewQueueMetricStyle}>
-              <span>Reviewed</span>
-              <strong>{reviewedAssignmentsCount}</strong>
-            </div>
-          </div>
+          {isMobile ? null : renderReviewQueueMetrics()}
           {isMobile ? (
             <details style={mobileStudentRecordsDisclosureStyle}>
               <summary style={mobileStudentRecordsSummaryStyle}>
@@ -2555,6 +2561,7 @@ function CoachContent() {
               </strong>
             </summary>
             <div style={isMobile ? mobileStudentRecordsBodyStyle : openAssignmentQueueBodyStyle}>
+              {isMobile ? renderReviewQueueMetrics() : null}
           <div style={assignmentListStyle}>
             {recentLevelUpSessions.length ? (
               <article style={assignmentCardStyle}>
