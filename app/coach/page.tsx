@@ -1442,6 +1442,22 @@ function CoachContent() {
     )
   }
 
+  function renderLessonRhythmBlocks() {
+    return (
+      <div style={lessonListStyle}>
+        {COACH_LESSON_BLOCKS.map((block) => (
+          <div key={block.minutes} style={lessonBlockStyle}>
+            <span style={lessonTimeStyle}>{block.minutes}</span>
+            <span style={lessonCopyStyle}>
+              <strong>{block.title}</strong>
+              <span>{block.detail}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   function renderStudentRecordList() {
     return (
       <div style={studentListStyle}>
@@ -2273,17 +2289,17 @@ function CoachContent() {
               </div>
             </details>
           ) : renderNextLessonBuilder()}
-          <div style={lessonListStyle}>
-            {COACH_LESSON_BLOCKS.map((block) => (
-              <div key={block.minutes} style={lessonBlockStyle}>
-                <span style={lessonTimeStyle}>{block.minutes}</span>
-                <span style={lessonCopyStyle}>
-                  <strong>{block.title}</strong>
-                  <span>{block.detail}</span>
-                </span>
+          {isMobile ? (
+            <details style={mobileStudentRecordsDisclosureStyle}>
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>Lesson rhythm</span>
+                <strong>{COACH_LESSON_BLOCKS.length} blocks</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderLessonRhythmBlocks()}
               </div>
-            ))}
-          </div>
+            </details>
+          ) : renderLessonRhythmBlocks()}
           <div style={assignmentListStyle}>
             {recentLevelUpSessions.length ? (
               <article style={assignmentCardStyle}>
