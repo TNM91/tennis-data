@@ -2322,17 +2322,6 @@ function CoachContent() {
               {workspaceLoading ? 'Saving...' : assignmentEditId ? 'Update assignment' : 'Create assignment'}
             </button>
           </form>
-          {isMobile ? (
-            <details style={mobileStudentRecordsDisclosureStyle}>
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>First assignment starters</span>
-                <strong>{FIRST_ASSIGNMENT_STARTERS.length} options</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderFirstAssignmentStarter()}
-              </div>
-            </details>
-          ) : renderFirstAssignmentStarter()}
           {workspaceMessage ? <div style={messageStyle}>{workspaceMessage}</div> : null}
           {lastCreatedAssignment && lastCreatedAssignmentStudent ? (
             <div style={assignmentSendPanelStyle}>
@@ -2412,6 +2401,17 @@ function CoachContent() {
               </div>
             </div>
           ) : null}
+          {isMobile ? (
+            <details style={mobileStudentRecordsDisclosureStyle}>
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>First assignment starters</span>
+                <strong>{FIRST_ASSIGNMENT_STARTERS.length} options</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderFirstAssignmentStarter()}
+              </div>
+            </details>
+          ) : renderFirstAssignmentStarter()}
           <div id="coach-contact-panel" style={contactPanelStyle}>
             <div style={sessionPlannerHeaderStyle}>
               <div>

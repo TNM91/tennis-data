@@ -212,6 +212,12 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('{renderLessonRhythmBlocks()}')
   })
 
+  it('keeps the assignment send panel before optional starters on phone', () => {
+    expect(coachSource.indexOf('Assignment ready')).toBeGreaterThan(-1)
+    expect(coachSource.indexOf('First assignment starters')).toBeGreaterThan(-1)
+    expect(coachSource.indexOf('Assignment ready')).toBeLessThan(coachSource.indexOf('First assignment starters'))
+  })
+
   it('keeps the assignment review queue compact on phone unless review is pending', () => {
     expect(coachSource).toContain('open={!isMobile || assignmentsNeedingReview.length > 0}')
     expect(coachSource).toContain('openAssignmentQueueDisclosureStyle')
