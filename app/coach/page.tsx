@@ -1381,6 +1381,67 @@ function CoachContent() {
     )
   }
 
+  function renderFirstAssignmentStarter() {
+    return (
+      <div style={firstAssignmentStarterStyle}>
+        <div>
+          <div style={eyebrowStyle}>First assignment starter</div>
+          <h3 style={sessionPlannerTitleStyle}>Answer the “what should I work on first?” message.</h3>
+          <p style={studentNextStyle}>
+            Load a practical first Level Up assignment, then create it and send it from the ready panel.
+          </p>
+        </div>
+        <div style={firstAssignmentStarterGridStyle}>
+          {FIRST_ASSIGNMENT_STARTERS.map((starter) => (
+            <button
+              key={starter.id}
+              type="button"
+              onClick={() => loadFirstAssignmentStarter(starter)}
+              style={starterButtonStyle}
+            >
+              <strong>{starter.title}</strong>
+              <span>{starter.cue}</span>
+              <em>Evidence: {starter.evidence}</em>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  function renderNextLessonBuilder() {
+    return (
+      <div style={sessionPlannerStyle}>
+        <div style={sessionPlannerHeaderStyle}>
+          <div>
+            <div style={eyebrowStyle}>Next lesson builder</div>
+            <h3 style={sessionPlannerTitleStyle}>{selectedSessionPreset.title}</h3>
+          </div>
+          <select value={sessionPresetId} onChange={(event) => setSessionPresetId(event.target.value)} style={compactSelectStyle}>
+            {COACH_SESSION_PRESETS.map((preset) => (
+              <option key={preset.id} value={preset.id}>{preset.title}</option>
+            ))}
+          </select>
+        </div>
+        <p style={sessionBestForStyle}>{selectedSessionPreset.bestFor}</p>
+        <div style={sessionStepGridStyle}>
+          <SessionStep label="Objective" value={selectedSessionPreset.objective} />
+          <SessionStep label="Drill" value={selectedSessionPreset.drill} />
+          <SessionStep label="Pressure game" value={selectedSessionPreset.pressureGame} />
+          <SessionStep label="Player prompt" value={selectedSessionPreset.playerPlusPrompt} />
+        </div>
+        <div style={sessionActionRowStyle}>
+          <button type="button" onClick={useSessionPresetForAssignment} style={smallPrimaryButtonStyle}>
+            Use as assignment
+          </button>
+          <Link href="/tactics" style={smallGhostLinkStyle}>
+            Build court board
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   function renderStudentRecordList() {
     return (
       <div style={studentListStyle}>
@@ -1992,29 +2053,17 @@ function CoachContent() {
               {workspaceLoading ? 'Saving...' : assignmentEditId ? 'Update assignment' : 'Create assignment'}
             </button>
           </form>
-          <div style={firstAssignmentStarterStyle}>
-            <div>
-              <div style={eyebrowStyle}>First assignment starter</div>
-              <h3 style={sessionPlannerTitleStyle}>Answer the “what should I work on first?” message.</h3>
-              <p style={studentNextStyle}>
-                Load a practical first Level Up assignment, then create it and send it from the ready panel.
-              </p>
-            </div>
-            <div style={firstAssignmentStarterGridStyle}>
-              {FIRST_ASSIGNMENT_STARTERS.map((starter) => (
-                <button
-                  key={starter.id}
-                  type="button"
-                  onClick={() => loadFirstAssignmentStarter(starter)}
-                  style={starterButtonStyle}
-                >
-                  <strong>{starter.title}</strong>
-                  <span>{starter.cue}</span>
-                  <em>Evidence: {starter.evidence}</em>
-                </button>
-              ))}
-            </div>
-          </div>
+          {isMobile ? (
+            <details style={mobileStudentRecordsDisclosureStyle}>
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>First assignment starters</span>
+                <strong>{FIRST_ASSIGNMENT_STARTERS.length} options</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderFirstAssignmentStarter()}
+              </div>
+            </details>
+          ) : renderFirstAssignmentStarter()}
           {workspaceMessage ? <div style={messageStyle}>{workspaceMessage}</div> : null}
           {lastCreatedAssignment && lastCreatedAssignmentStudent ? (
             <div style={assignmentSendPanelStyle}>
@@ -2213,34 +2262,17 @@ function CoachContent() {
               <strong>{reviewedAssignmentsCount}</strong>
             </div>
           </div>
-          <div style={sessionPlannerStyle}>
-            <div style={sessionPlannerHeaderStyle}>
-              <div>
-                <div style={eyebrowStyle}>Next lesson builder</div>
-                <h3 style={sessionPlannerTitleStyle}>{selectedSessionPreset.title}</h3>
+          {isMobile ? (
+            <details style={mobileStudentRecordsDisclosureStyle}>
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>Next lesson builder</span>
+                <strong>{selectedSessionPreset.title}</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderNextLessonBuilder()}
               </div>
-              <select value={sessionPresetId} onChange={(event) => setSessionPresetId(event.target.value)} style={compactSelectStyle}>
-                {COACH_SESSION_PRESETS.map((preset) => (
-                  <option key={preset.id} value={preset.id}>{preset.title}</option>
-                ))}
-              </select>
-            </div>
-            <p style={sessionBestForStyle}>{selectedSessionPreset.bestFor}</p>
-            <div style={sessionStepGridStyle}>
-              <SessionStep label="Objective" value={selectedSessionPreset.objective} />
-              <SessionStep label="Drill" value={selectedSessionPreset.drill} />
-              <SessionStep label="Pressure game" value={selectedSessionPreset.pressureGame} />
-              <SessionStep label="Player prompt" value={selectedSessionPreset.playerPlusPrompt} />
-            </div>
-            <div style={sessionActionRowStyle}>
-              <button type="button" onClick={useSessionPresetForAssignment} style={smallPrimaryButtonStyle}>
-                Use as assignment
-              </button>
-              <Link href="/tactics" style={smallGhostLinkStyle}>
-                Build court board
-              </Link>
-            </div>
-          </div>
+            </details>
+          ) : renderNextLessonBuilder()}
           <div style={lessonListStyle}>
             {COACH_LESSON_BLOCKS.map((block) => (
               <div key={block.minutes} style={lessonBlockStyle}>

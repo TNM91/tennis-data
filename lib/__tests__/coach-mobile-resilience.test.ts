@@ -163,4 +163,15 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain("{hasStudentFormDraft ? 'Draft open' : 'Open'}")
     expect(coachSource).toContain('{renderAddStudentForm()}')
   })
+
+  it('collapses optional coach helper blocks on phone', () => {
+    expect(coachSource).toContain('function renderFirstAssignmentStarter()')
+    expect(coachSource).toContain('function renderNextLessonBuilder()')
+    expect(coachSource).toContain('First assignment starters')
+    expect(coachSource).toContain('{FIRST_ASSIGNMENT_STARTERS.length} options')
+    expect(coachSource).toContain('{renderFirstAssignmentStarter()}')
+    expect(coachSource).toContain('Next lesson builder')
+    expect(coachSource).toContain('{selectedSessionPreset.title}')
+    expect(coachSource).toContain('{renderNextLessonBuilder()}')
+  })
 })
