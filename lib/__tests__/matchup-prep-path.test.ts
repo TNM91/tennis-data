@@ -23,6 +23,18 @@ describe('matchup prep path', () => {
     expect(source).toContain('data-matchup-prep-job={item.job}')
   })
 
+  it('connects Matchup to the player ID trail', () => {
+    expect(source).toContain('matchupPlayerIdSignals')
+    expect(source).toContain('Matchup player ID trail')
+    expect(source).toContain('Make the read part of the player record.')
+    expect(source).toContain('Player ID')
+    expect(source).toContain('Opponent slot')
+    expect(source).toContain('Next use')
+    expect(source).toContain('Save the takeaway')
+    expect(source).toContain('Use the matchup edge in My Lab, Level Up work, captain prep, or team decisions.')
+    expect(source).toContain('<TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />')
+  })
+
   it('keeps the prep path compact and mobile-safe', () => {
     expect(source).toContain('matchupPrepGridStyle(isSmallMobile)')
     expect(styleBlock('matchupPrepPathStyle')).toContain('minWidth: 0')
@@ -31,5 +43,10 @@ describe('matchup prep path', () => {
     expect(styleBlock('matchupPrepCardStyle')).toContain('minHeight: 124')
     expect(styleBlock('matchupPrepCardStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('matchupPrepCardTextStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('matchupPlayerIdTrailStyle')).toContain('minWidth: 0')
+    expect(styleBlock('matchupPlayerIdTrailStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('matchupPlayerIdTrailGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(styleBlock('matchupPlayerIdSignalStyle')).toContain('minWidth: 0')
+    expect(styleBlock('matchupPlayerIdSignalBodyStyle')).toContain("overflowWrap: 'anywhere'")
   })
 })

@@ -63,6 +63,9 @@ describe('matchup mobile layout guards', () => {
       'handoffSidesGridStyle',
       'handoffCardStyle',
       'handoffSideCardStyle',
+      'matchupPlayerIdTrailStyle',
+      'matchupPlayerIdTrailGridStyle',
+      'matchupPlayerIdSignalStyle',
       'doublesQuickStartStyle',
       'doublesQuickStartTextStyle',
       'doublesPreviewGridStyle',
@@ -94,6 +97,13 @@ describe('matchup mobile layout guards', () => {
       'handoffSideLabelStyle',
       'handoffSideNameStyle',
       'handoffSideMetaStyle',
+      'matchupPlayerIdTrailCopyStyle',
+      'matchupPlayerIdTrailKickerStyle',
+      'matchupPlayerIdTrailTitleStyle',
+      'matchupPlayerIdSignalStyle',
+      'matchupPlayerIdSignalLabelStyle',
+      'matchupPlayerIdSignalValueStyle',
+      'matchupPlayerIdSignalBodyStyle',
       'doublesQuickStartStyle',
       'doublesQuickStartTextStyle',
       'doublesPreviewCardStyle',
@@ -158,6 +168,8 @@ describe('matchup mobile layout guards', () => {
     expect(styleBlock('headToHeadQualityPillStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('toolHeaderTitleClusterStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('handoffTitleClusterStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('matchupPlayerIdTrailHeaderStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('matchupPlayerIdTrailGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
     expect(styleBlock('inlineAdWrapStyle')).toContain("maxWidth: '100%'")
     expect(matchupSource).toContain('<div style={headToHeadHistoryStackStyle}>')
     expect(matchupSource).toContain('<div style={inlineAdWrapStyle}>')

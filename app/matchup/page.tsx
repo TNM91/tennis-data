@@ -1009,6 +1009,29 @@ export default function MatchupPage() {
     matchType === 'singles'
       ? 'Pick two players. Get the edge, the why, and the watch item.'
       : 'Build both sides. The read updates once all four spots are set.'
+  const matchupPlayerIdSignals = [
+    {
+      label: 'Player ID',
+      value: profilePlayer?.name || profileLink?.linked_player_name || 'Set profile',
+      body: profilePlayer || profileLink?.linked_player_name
+        ? 'Matchup starts from your linked player identity and keeps the read tied to your game.'
+        : 'Set your profile so Matchup can start with you instead of a blank player slot.',
+    },
+    {
+      label: 'Opponent slot',
+      value: matchType === 'singles'
+        ? playerB?.name || 'Choose Player B'
+        : [teamB1, teamB2].filter(Boolean).map((player) => player?.name).join(' / ') || 'Choose other side',
+      body: matchType === 'singles'
+        ? 'Pick the player across the net to turn ratings into a court-specific read.'
+        : 'Build the other side so doubles prep can show the edge, pressure point, and next move.',
+    },
+    {
+      label: 'Next use',
+      value: hasSinglesSelection || hasDoublesSelection ? 'Save the takeaway' : 'Build the read',
+      body: 'Use the matchup edge in My Lab, Level Up work, captain prep, or team decisions.',
+    },
+  ] as const
   const profileAlreadyInDoubles =
     Boolean(profilePlayer) &&
     [teamA1Id, teamA2Id, teamB1Id, teamB2Id].includes(profilePlayer?.id || '')
@@ -1498,6 +1521,25 @@ export default function MatchupPage() {
                   <span style={matchupPrepQuestionStyle}>{item.question}</span>
                   <strong style={matchupPrepCardTitleStyle}>{item.title}</strong>
                   <span style={matchupPrepCardTextStyle}>{item.body}</span>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section style={matchupPlayerIdTrailStyle} aria-label="Matchup player ID trail">
+            <div style={matchupPlayerIdTrailHeaderStyle}>
+              <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
+              <div style={matchupPlayerIdTrailCopyStyle}>
+                <span style={matchupPlayerIdTrailKickerStyle}>Player ID matchup trail</span>
+                <h2 style={matchupPlayerIdTrailTitleStyle}>Make the read part of the player record.</h2>
+              </div>
+            </div>
+            <div style={matchupPlayerIdTrailGridStyle}>
+              {matchupPlayerIdSignals.map((signal) => (
+                <article key={signal.label} style={matchupPlayerIdSignalStyle}>
+                  <span style={matchupPlayerIdSignalLabelStyle}>{signal.label}</span>
+                  <strong style={matchupPlayerIdSignalValueStyle}>{signal.value}</strong>
+                  <span style={matchupPlayerIdSignalBodyStyle}>{signal.body}</span>
                 </article>
               ))}
             </div>
@@ -2988,6 +3030,95 @@ const matchupPrepCardTitleStyle: CSSProperties = {
 }
 
 const matchupPrepCardTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdTrailStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  marginBottom: 18,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'rgba(5, 10, 22, 0.52)',
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdTrailHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+  flexWrap: 'wrap',
+}
+
+const matchupPlayerIdTrailCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdTrailKickerStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdTrailTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdTrailGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const matchupPlayerIdSignalStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(125, 211, 252, 0.13)',
+  background: 'rgba(10, 18, 34, 0.7)',
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdSignalValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdSignalBodyStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.45,
