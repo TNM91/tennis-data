@@ -884,7 +884,7 @@ function PlayerProfileContent() {
     {
       question: 'What should I work on?',
       label: 'Level Up My Game',
-      body: 'Pick one focus, run a training card, and leave with one clear next rep.',
+      body: 'Use this player ID to pick one focus, run a training card, and leave with one clear next rep.',
       href: '/level-up',
       job: 'level_up_game',
     },
@@ -918,6 +918,11 @@ function PlayerProfileContent() {
       href: '/level-up',
       job: 'level_up_faster',
     },
+  ] as const
+  const playerPathIdentitySignals = [
+    { label: 'Player ID', value: playerId },
+    { label: 'Profile source', value: isSelfRatedProfile ? 'Self-rated S' : 'Verified record' },
+    { label: 'Level Up input', value: totalMatches > 0 ? `${totalMatches} matches` : 'Start with profile' },
   ] as const
   const primaryUstaMembership = ustaTeamMemberships[0] ?? null
   const primaryTeamHref = primaryUstaMembership
@@ -1430,11 +1435,19 @@ function PlayerProfileContent() {
             <p style={scorecardRailTextStyle}>
               {PRODUCT_MOTTO}{' '}
               {isOwnProfile
-                ? 'Use this profile to decide what to work on, how progress is moving, which matchup to prep, and what drill or resource should come next.'
+                ? 'Use this player ID to decide what to work on, how progress is moving, which matchup to prep, and what drill or resource should come next.'
                 : linkedPlayerId
-                  ? 'Your profile is loaded, so this player page can become a direct comparison, a My Lab follow, or a training cue.'
-                  : 'Start with this player, then choose whether you want a matchup read, My Lab context, or a simple resource.'}
+                  ? 'Your profile is loaded, so this player ID can become a direct comparison, a My Lab follow, or a training cue.'
+                  : 'Start with this player ID, then choose whether you want a matchup read, My Lab context, or a simple resource.'}
             </p>
+            <div style={playerPathIdentityGridStyle} aria-label="Player identity signals">
+              {playerPathIdentitySignals.map((signal) => (
+                <div key={signal.label} style={playerPathIdentityChipStyle}>
+                  <span>{signal.label}</span>
+                  <strong>{signal.value}</strong>
+                </div>
+              ))}
+            </div>
             <div style={playerPathListStyle} aria-label="Player path actions">
               {playerPathActions.map((action) => (
                 <Link
@@ -3989,6 +4002,28 @@ const scorecardRailTextStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 650,
+  overflowWrap: 'anywhere',
+}
+
+const playerPathIdentityGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerPathIdentityChipStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  minHeight: 54,
+  padding: '9px 10px',
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'rgba(7,18,34,0.42)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
   overflowWrap: 'anywhere',
 }
 

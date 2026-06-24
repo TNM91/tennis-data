@@ -14,9 +14,13 @@ function styleBlock(styleName: string) {
 describe('player profile player path', () => {
   it('turns the scorecard rail into clear player next actions', () => {
     expect(source).toContain('playerPathActions')
+    expect(source).toContain('playerPathIdentitySignals')
     expect(source).toContain('Player path')
     expect(source).toContain('Find the next useful move.')
     expect(source).toContain('{PRODUCT_MOTTO}')
+    expect(source).toContain('Use this player ID to decide what to work on')
+    expect(source).toContain('Player ID')
+    expect(source).toContain('Level Up input')
     expect(source).toContain('What should I work on?')
     expect(source).toContain('Level Up My Game')
     expect(source).toContain('How am I improving?')
@@ -37,6 +41,9 @@ describe('player profile player path', () => {
 
   it('keeps player path rows mobile-safe in the dark shell', () => {
     expect(styleBlock('playerPathListStyle')).toContain('minWidth: 0')
+    expect(styleBlock('playerPathIdentityGridStyle')).toContain('minmax(min(100%, 128px), 1fr)')
+    expect(styleBlock('playerPathIdentityChipStyle')).toContain('minWidth: 0')
+    expect(styleBlock('playerPathIdentityChipStyle')).toContain("overflowWrap: 'anywhere'")
 
     for (const styleName of [
       'playerPathActionStyle',

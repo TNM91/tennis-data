@@ -9,12 +9,14 @@ describe('player profile next actions', () => {
     expect(source).toContain("import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'")
     expect(source).toContain('Find the next useful move.')
     expect(source).toContain('{PRODUCT_MOTTO}{\' \'}')
+    expect(source).toContain('Use this player ID to decide what to work on')
     expect(source).toContain('what drill or resource should come next')
   })
 
   it('answers player questions with practical CTAs', () => {
     expect(source).toContain("question: 'What should I work on?'")
     expect(source).toContain("label: 'Level Up My Game'")
+    expect(source).toContain('Use this player ID to pick one focus')
     expect(source).toContain("question: 'How am I improving?'")
     expect(source).toContain("label: 'Open My Lab'")
     expect(source).toContain("question: 'What matchup matters next?'")
@@ -23,6 +25,16 @@ describe('player profile next actions', () => {
     expect(source).toContain("question: 'How do I level up faster?'")
     expect(source).toContain("label: 'Open Level Up'")
     expect(source).toContain('Turn the next weakness into a focused card')
+  })
+
+  it('surfaces player ID signals before the action list', () => {
+    expect(source).toContain('const playerPathIdentitySignals = [')
+    expect(source).toContain("label: 'Player ID'")
+    expect(source).toContain("value: playerId")
+    expect(source).toContain("label: 'Profile source'")
+    expect(source).toContain("label: 'Level Up input'")
+    expect(source).toContain('aria-label="Player identity signals"')
+    expect(source.indexOf('aria-label="Player identity signals"')).toBeLessThan(source.indexOf('aria-label="Player path actions"'))
   })
 
   it('adds job hooks without changing the existing link surface', () => {
