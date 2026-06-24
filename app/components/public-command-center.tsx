@@ -569,13 +569,14 @@ const heroSingleColumnStyle: CSSProperties = {
 
 const heroCopyStyle: CSSProperties = {
   position: 'relative',
+  containerType: 'inline-size',
   display: 'grid',
   alignContent: 'center',
-  gap: 16,
+  gap: 14,
   minWidth: 0,
   maxWidth: '100%',
   boxSizing: 'border-box',
-  padding: 24,
+  padding: 'clamp(16px, 3vw, 24px)',
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.18)',
   background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(7,20,40,0.90))',
@@ -600,7 +601,7 @@ const heroCopyContentStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gap: 16,
+  gap: 14,
   minWidth: 0,
 }
 
@@ -680,7 +681,7 @@ const eyebrowStyle: CSSProperties = {
 const heroTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2.1rem, 10vw, 5.7rem)',
+  fontSize: 'clamp(2.45rem, 10cqw, 4rem)',
   lineHeight: 0.95,
   fontWeight: 950,
   letterSpacing: 0,
@@ -691,7 +692,7 @@ const heroBodyStyle: CSSProperties = {
   margin: 0,
   maxWidth: 820,
   color: 'var(--shell-copy-muted)',
-  fontSize: 'clamp(1rem, 1.4vw, 1.2rem)',
+  fontSize: 'clamp(0.98rem, 2.4cqw, 1.12rem)',
   lineHeight: 1.7,
   fontWeight: 700,
 }

@@ -6,6 +6,7 @@ const previewSource = readFileSync(join(process.cwd(), 'app/components/preview-h
 const heroSource = readFileSync(join(process.cwd(), 'app/components/homepage-hero-responsive.tsx'), 'utf8')
 const commandCenterSource = readFileSync(join(process.cwd(), 'app/components/public-command-center.tsx'), 'utf8')
 const portalToolbarSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
+const universalSearchSource = readFileSync(join(process.cwd(), 'app/components/universal-search.tsx'), 'utf8')
 
 function styleBlock(source: string, name: string) {
   const pattern = new RegExp(`const ${name}: CSSProperties = \\{([\\s\\S]*?)\\n\\}`)
@@ -62,6 +63,10 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(commandCenterSource, 'heroStyle')).toContain(
       "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))'",
     )
+    expect(commandCenterSource).not.toContain('10vw')
+    expect(styleBlock(commandCenterSource, 'heroCopyStyle')).toContain("containerType: 'inline-size'")
+    expect(styleBlock(commandCenterSource, 'heroTitleStyle')).toContain("fontSize: 'clamp(2.45rem, 10cqw, 4rem)'")
+    expect(styleBlock(commandCenterSource, 'heroBodyStyle')).toContain("fontSize: 'clamp(0.98rem, 2.4cqw, 1.12rem)'")
     expect(styleBlock(commandCenterSource, 'heroCopyStyle')).toContain("boxSizing: 'border-box'")
     expect(styleBlock(commandCenterSource, 'heroPanelStyle')).toContain("boxSizing: 'border-box'")
     expect(styleBlock(commandCenterSource, 'heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
@@ -133,5 +138,12 @@ describe('Public home mobile layout guards', () => {
     expect(portalToolbarSource).toContain("paths: ['/captain', '/manage', '/compete/teams']")
     expect(portalToolbarSource).toContain("'/player-development', '/resources', '/tactics'")
     expect(portalToolbarSource).toContain("paths: ['/leagues-and-tournaments', '/league-coordinator', '/tournaments'")
+  })
+
+  it('keeps mobile universal search actionable in one compact row', () => {
+    expect(universalSearchSource).toContain("'minmax(0, 1fr) minmax(84px, auto)'")
+    expect(universalSearchSource).toContain('gap: isMobile ? 8 : 10')
+    expect(universalSearchSource).toContain('aria-label="Search TenAceIQ"')
+    expect(universalSearchSource).toContain("{isMobile ? 'Search' : 'Search Tennis'}")
   })
 })

@@ -343,6 +343,7 @@ export default function UniversalSearch({
         />
         <button
           type="submit"
+          aria-label="Search TenAceIQ"
           onBlur={() => setFocusedControl(null)}
           onFocus={() => setFocusedControl('submit')}
           style={{
@@ -351,7 +352,7 @@ export default function UniversalSearch({
             ...(focusedControl === 'submit' ? buttonFocusStyle : null),
           }}
         >
-          Search Tennis
+          {isMobile ? 'Search' : 'Search Tennis'}
         </button>
       </form>
       {showResults && !compact ? (
@@ -474,8 +475,8 @@ const searchShellStyle: CSSProperties = {
 
 const formStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(120px, auto)',
-  gap: 10,
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr) minmax(84px, auto)' : 'minmax(0, 1fr) minmax(120px, auto)',
+  gap: isMobile ? 8 : 10,
   minWidth: 0,
 })
 

@@ -43,7 +43,7 @@ export default function CoachesPage() {
           body={`${PRODUCT_MOTTO} for coaching means goals, drills, lesson notes, progress, and follow-through stay connected so development does not disappear between sessions.`}
           primary={{ href: '/resources?q=find%20a%20coach', label: 'Find a Coach' }}
           secondary={{ href: '/coach', label: 'Open Coach Hub' }}
-          searchPlaceholder="Search coaches, player goals, serve practice, lesson notes, or development paths"
+          searchPlaceholder="Search coaches, drills, goals, or lesson notes"
         />
         <section style={coachQuickPathStyle} aria-labelledby="coach-quick-path-title">
           <div style={coachQuickPathHeaderStyle}>
