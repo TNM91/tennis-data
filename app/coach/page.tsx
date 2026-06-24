@@ -499,6 +499,7 @@ function CoachContent() {
       setSavedStudents((current) => [savedStudent, ...current.filter((student) => student.id !== savedStudent.id)])
       setAssignmentStudentId(savedStudent.id)
       setContactStudentId(savedStudent.id)
+      setActiveMobileBenchStudentId(savedStudent.id)
       setLastCreatedStudentSetup({ student: savedStudent, invite: createdInvite })
       setStudentName('')
       setStudentLevel('')
@@ -1257,6 +1258,9 @@ function CoachContent() {
     const profileHref = getCoachPlayerProfileHref(card.student)
     const assignmentCourtHref = card.latestAssignment ? buildCoachAssignmentCourtHref(card.latestAssignment, card.student) : ''
     const playerTextBody = `Let's confirm your next lesson. Date/time:  Site:  Focus: `
+    const setupTextBody = card.pendingInvite ? buildCoachSetupText(card.pendingInvite.inviteHref) : ''
+    const mobileTextBody = setupTextBody || playerTextBody
+    const mobileTextLabel = card.pendingInvite ? 'Text setup' : 'Text'
 
     return (
       <div style={mobileBenchCommandCenterStyle} aria-label={`Active player workspace for ${card.student.playerName}`}>
@@ -1287,8 +1291,8 @@ function CoachContent() {
             Assign
           </button>
           {card.student.playerPhone ? (
-            <SmsActionLink phone={card.student.playerPhone} body={playerTextBody} style={mobileBenchActionStyle}>
-              Text
+            <SmsActionLink phone={card.student.playerPhone} body={mobileTextBody} style={mobileBenchActionStyle}>
+              {mobileTextLabel}
             </SmsActionLink>
           ) : (
             <button type="button" onClick={() => prepareStudentContact(card)} style={mobileBenchActionButtonStyle}>
@@ -1314,6 +1318,19 @@ function CoachContent() {
             </Link>
           ) : card.pendingInvite ? (
             <a href={card.pendingInvite.inviteHref} style={mobileBenchSecondaryActionStyle}>Setup link</a>
+          ) : null}
+          {card.pendingInvite ? (
+            <button
+              type="button"
+              onClick={() => void copyCoachText(
+                buildCoachSetupText(card.pendingInvite!.inviteHref),
+                `Setup text copied for ${card.student.playerName}.`,
+                `Setup text for ${card.student.playerName}: ${buildCoachSetupText(card.pendingInvite!.inviteHref)}`,
+              )}
+              style={mobileBenchSecondaryActionButtonStyle}
+            >
+              Copy setup
+            </button>
           ) : null}
           <button type="button" onClick={scrollToCoachBench} style={mobileBenchSecondaryActionButtonStyle}>
             Bench top
