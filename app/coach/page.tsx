@@ -2285,9 +2285,12 @@ function CoachContent() {
                     onClick={() => chooseMobileBenchPlayer(card)}
                     aria-pressed={active}
                     style={mobileBenchPlayerButtonStyle(active)}
+                    title={card.student.playerName}
                   >
-                    <strong>{card.student.playerName}</strong>
-                    <span>{card.needsReview ? 'Review' : card.activeAssignments ? `${card.activeAssignments} active` : card.connectionLabel}</span>
+                    <strong style={mobileBenchPlayerNameStyle}>{card.student.playerName}</strong>
+                    <span style={mobileBenchPlayerMetaStyle}>
+                      {card.needsReview ? 'Review' : card.activeAssignments ? `${card.activeAssignments} active` : card.connectionLabel}
+                    </span>
                   </button>
                 )
               })}
@@ -4248,6 +4251,25 @@ function mobileBenchPlayerButtonStyle(active: boolean): CSSProperties {
     boxShadow: active ? '0 0 0 1px rgba(155,225,29,0.14)' : 'none',
     overflow: 'hidden',
   }
+}
+
+const mobileBenchPlayerNameStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const mobileBenchPlayerMetaStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
 }
 
 const mobileBenchFeaturedCardStyle: CSSProperties = {
