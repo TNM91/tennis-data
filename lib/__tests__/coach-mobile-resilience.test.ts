@@ -64,6 +64,17 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain("return /iPad|iPhone|iPod/i.test(navigator.userAgent) ? '&' : '?'")
   })
 
+  it('prevents text contact from submitting without a usable cell number', () => {
+    expect(coachSource).toContain('const textContactNeedsPhone = (contactPreference === \'text\' || contactPreference === \'both\') && !studentPhoneDigits')
+    expect(coachSource).toContain("const studentPhoneLooksIncomplete = Boolean(studentPhone.trim()) && studentPhoneDigits.length < 7")
+    expect(coachSource).toContain("'Add a cell number before using Text contact.'")
+    expect(coachSource).toContain("'Check the cell number before sending a text setup.'")
+    expect(coachSource).toContain('if (addStudentBlockedMessage) {')
+    expect(coachSource).toContain('disabled={addStudentDisabled}')
+    expect(coachSource).toContain('aria-describedby="coach-student-phone-help"')
+    expect(coachSource).toContain('const fieldErrorStyle')
+  })
+
   it('restores the route position when a phone browser reloads or resumes the tab', () => {
     expect(shellSource).toContain('tenaceiq.shell.scroll.${pathname}')
     expect(shellSource).toContain("window.addEventListener('pagehide', persistScrollPosition)")

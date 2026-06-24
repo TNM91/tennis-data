@@ -256,6 +256,24 @@ function CoachContent() {
   const [calendarFeedStatusByStudentId, setCalendarFeedStatusByStudentId] = useState<Record<string, CoachCalendarFeedStatus>>({})
   const [calendarLinkLoadingStudentId, setCalendarLinkLoadingStudentId] = useState('')
   const [shareOrigin, setShareOrigin] = useState('')
+  const studentPhoneDigits = getPhoneDigits(studentPhone)
+  const textContactNeedsPhone = (contactPreference === 'text' || contactPreference === 'both') && !studentPhoneDigits
+  const studentPhoneLooksIncomplete = Boolean(studentPhone.trim()) && studentPhoneDigits.length < 7
+  const addStudentBlockedMessage = textContactNeedsPhone
+    ? 'Add a cell number before using Text contact.'
+    : studentPhoneLooksIncomplete
+      ? 'Check the cell number before sending a text setup.'
+      : ''
+  const addStudentDisabled = workspaceLoading || !studentName.trim() || Boolean(addStudentBlockedMessage)
+  const addStudentButtonLabel = workspaceLoading
+    ? 'Saving...'
+    : studentPhoneDigits.length >= 7
+      ? 'Add student + text setup'
+      : inviteEmail.trim()
+        ? 'Add student + setup link'
+        : contactPreference === 'text' || contactPreference === 'both'
+          ? 'Add cell to text setup'
+          : 'Add student'
 
   useEffect(() => {
     setShareOrigin(window.location.origin)
@@ -424,6 +442,10 @@ function CoachContent() {
   async function handleAddStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!session?.access_token || !studentName.trim()) return
+    if (addStudentBlockedMessage) {
+      setWorkspaceMessage(addStudentBlockedMessage)
+      return
+    }
 
     setWorkspaceLoading(true)
     setWorkspaceMessage('')
@@ -1510,7 +1532,19 @@ function CoachContent() {
             </label>
             <label style={fieldStyle}>
               Cell phone
-              <input className="tiq-focus-ring" inputMode="tel" value={studentPhone} onChange={(event) => setStudentPhone(event.target.value)} placeholder="Optional text setup" style={inputStyle} />
+              <input
+                className="tiq-focus-ring"
+                inputMode="tel"
+                value={studentPhone}
+                onChange={(event) => setStudentPhone(event.target.value)}
+                placeholder="Optional text setup"
+                style={inputStyle}
+                aria-invalid={Boolean(addStudentBlockedMessage)}
+                aria-describedby="coach-student-phone-help"
+              />
+              <span id="coach-student-phone-help" style={addStudentBlockedMessage ? fieldErrorStyle : fieldHintStyle}>
+                {addStudentBlockedMessage || 'Needed for text setup links and lesson reminders.'}
+              </span>
             </label>
             <label style={fieldStyle}>
               Contact
@@ -1520,14 +1554,8 @@ function CoachContent() {
                 <option value="both">IM + text</option>
               </select>
             </label>
-            <button type="submit" disabled={workspaceLoading || !studentName.trim()} style={primaryButtonStyle}>
-              {workspaceLoading
-                ? 'Saving...'
-                : studentPhone.trim()
-                  ? 'Add student + text setup'
-                  : inviteEmail.trim()
-                    ? 'Add student + setup link'
-                    : 'Add student'}
+            <button type="submit" disabled={addStudentDisabled} style={primaryButtonStyle}>
+              {addStudentButtonLabel}
             </button>
           </form>
           {lastCreatedStudentSetup ? (
@@ -3108,6 +3136,10 @@ function buildSmsHref(phone: string, body: string, bodySeparator: '?' | '&' = '?
   return `sms:${sanitizedPhone}${bodySeparator}body=${encodeURIComponent(body)}`
 }
 
+function getPhoneDigits(phone: string) {
+  return phone.replace(/\D/g, '')
+}
+
 function getSmsBodySeparator(): '?' | '&' {
   if (typeof navigator === 'undefined') return '?'
 
@@ -3766,6 +3798,20 @@ const fieldStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+}
+
+const fieldHintStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  letterSpacing: 0,
+  lineHeight: 1.35,
+  textTransform: 'none',
+}
+
+const fieldErrorStyle: CSSProperties = {
+  ...fieldHintStyle,
+  color: '#ffcf7a',
 }
 
 const inputStyle: CSSProperties = {
