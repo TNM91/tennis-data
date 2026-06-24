@@ -2021,6 +2021,7 @@ function importScenarioToLineup() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Need one place to send the team plan?"
         body="Unlock Captain to keep availability, lineup context, reminders, and match-day messaging in one place instead of piecing it together manually."

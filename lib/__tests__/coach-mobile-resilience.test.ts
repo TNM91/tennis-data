@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 const coachSource = readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8')
 const shellSource = readFileSync(join(process.cwd(), 'app/components/site-shell.tsx'), 'utf8')
+const lockedPlanSource = readFileSync(join(process.cwd(), 'app/components/locked-plan-page.tsx'), 'utf8')
 
 describe('coach mobile resilience', () => {
   it('keeps the phone coach page from stacking duplicate portal-like headers', () => {
@@ -13,6 +14,33 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('<section style={heroStyle}>')
     expect(coachSource).toContain('<section style={coachSupportPathStyle}')
     expect(coachSource).toContain('<section style={commandGridStyle}')
+  })
+
+  it('renders locked Coach and Captain previews inside the existing mobile shell', () => {
+    const captainLockedPages = [
+      'app/captain/practice/page.tsx',
+      'app/captain/availability/page.tsx',
+      'app/captain/analytics/page.tsx',
+      'app/captain/lineup-projection/page.tsx',
+      'app/captain/messaging/page.tsx',
+      'app/captain/lineup-availability/page.tsx',
+      'app/captain/lineup-builder/page.tsx',
+      'app/captain/team-brief/page.tsx',
+      'app/captain/scenario-builder/page.tsx',
+      'app/captain/weekly-brief/page.tsx',
+    ]
+
+    expect(lockedPlanSource).toContain('withinShell?: boolean')
+    expect(lockedPlanSource).toContain('withinShell = false')
+    expect(lockedPlanSource).toContain('if (withinShell) return content')
+    expect(lockedPlanSource).toContain('return <SiteShell active={active}>{content}</SiteShell>')
+    expect(coachSource).toContain('<LockedPlanPage')
+    expect(coachSource).toContain('withinShell')
+
+    for (const page of captainLockedPages) {
+      const source = readFileSync(join(process.cwd(), page), 'utf8')
+      expect(source, `${page} should reuse its surrounding SiteShell`).toContain('withinShell')
+    }
   })
 
   it('preserves in-progress student contact fields when the phone browser reloads', () => {

@@ -898,6 +898,7 @@ function LineupAvailabilityContent() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Want availability to carry into lineup decisions?"
         body="Unlock Captain to save match-date availability, carry it into the builder, and stop guessing who is actually usable before you set the lineup."

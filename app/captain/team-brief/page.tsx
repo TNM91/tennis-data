@@ -367,6 +367,7 @@ function CaptainTeamBriefContent() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Need one place to prep your team for the week?"
         body="Unlock Captain to connect team brief context, availability, lineup planning, and match-day communication instead of managing each step separately."

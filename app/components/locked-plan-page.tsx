@@ -8,6 +8,7 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 
 type LockedPlanPageProps = {
   active?: string
+  withinShell?: boolean
   planId: PricingPlanId
   headline: string
   body: string
@@ -19,6 +20,7 @@ type LockedPlanPageProps = {
 
 export default function LockedPlanPage({
   active,
+  withinShell = false,
   planId,
   headline,
   body,
@@ -29,42 +31,44 @@ export default function LockedPlanPage({
 }: LockedPlanPageProps) {
   const preview = getLockedPreview(planId)
 
-  return (
-    <SiteShell active={active}>
-      <div style={pageWrapStyle}>
-        <section style={previewShellStyle}>
-          <div style={previewHeroStyle}>
-            <div style={previewEyebrowStyle}>{preview.eyebrow}</div>
-            <h1 style={previewTitleStyle}>{preview.title}</h1>
-            <p style={previewBodyStyle}>{preview.body}</p>
-          </div>
+  const content = (
+    <div style={pageWrapStyle}>
+      <section style={previewShellStyle}>
+        <div style={previewHeroStyle}>
+          <div style={previewEyebrowStyle}>{preview.eyebrow}</div>
+          <h1 style={previewTitleStyle}>{preview.title}</h1>
+          <p style={previewBodyStyle}>{preview.body}</p>
+        </div>
 
-          <div style={previewGridStyle}>
-            {preview.cards.map((card) => (
-              <div key={card.title} style={previewCardStyle}>
-                <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
-                <div style={previewCardCopyStyle}>
-                  <span style={previewCardLabelStyle}>{card.label}</span>
-                  <strong style={previewCardTitleStyle}>{card.title}</strong>
-                  <span style={previewCardTextStyle}>{card.text}</span>
-                </div>
+        <div style={previewGridStyle}>
+          {preview.cards.map((card) => (
+            <div key={card.title} style={previewCardStyle}>
+              <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
+              <div style={previewCardCopyStyle}>
+                <span style={previewCardLabelStyle}>{card.label}</span>
+                <strong style={previewCardTitleStyle}>{card.title}</strong>
+                <span style={previewCardTextStyle}>{card.text}</span>
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
+          ))}
+        </div>
+      </section>
 
-        <UpgradePrompt
-          planId={planId}
-          headline={headline}
-          body={body}
-          result={result}
-          ctaLabel={ctaLabel}
-          secondaryLabel={secondaryLabel}
-          secondaryHref={secondaryHref}
-        />
-      </div>
-    </SiteShell>
+      <UpgradePrompt
+        planId={planId}
+        headline={headline}
+        body={body}
+        result={result}
+        ctaLabel={ctaLabel}
+        secondaryLabel={secondaryLabel}
+        secondaryHref={secondaryHref}
+      />
+    </div>
   )
+
+  if (withinShell) return content
+
+  return <SiteShell active={active}>{content}</SiteShell>
 }
 
 function getLockedPreview(planId: PricingPlanId): {

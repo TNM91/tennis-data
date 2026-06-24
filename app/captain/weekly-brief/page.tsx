@@ -440,6 +440,7 @@ function CaptainWeeklyBriefContent() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Still piecing together your week from scattered notes?"
         body="Unlock Captain to connect availability, lineups, scenarios, and team communication in one weekly flow."

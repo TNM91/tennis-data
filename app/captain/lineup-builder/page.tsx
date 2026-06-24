@@ -2065,6 +2065,7 @@ function sendCurrentScenarioToMessaging() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Still building lineups manually?"
         body="Captain unlocks saved scenarios, smarter lineup iterations, and prediction tracking so you can move from availability chaos to a clearer match-day plan."

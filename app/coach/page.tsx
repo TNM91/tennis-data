@@ -1220,6 +1220,7 @@ function CoachContent() {
     return (
       <LockedPlanPage
         active="/coach"
+        withinShell
         planId="coach"
         headline="Unlock Coach to keep player development moving."
         body="Coach Hub keeps lesson plans, Tactical Studio boards, drill assignments, player development tracking, reviews, and scheduling tied to the lesson loop."

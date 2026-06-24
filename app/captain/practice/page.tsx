@@ -45,6 +45,7 @@ function CaptainPracticeContent() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Unlock practice coordination with Captain"
         body="Captain lets you schedule practices, invite the team, collect RSVPs, and keep practice messages with the rest of the team week."

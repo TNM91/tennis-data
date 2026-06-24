@@ -584,6 +584,7 @@ function ScenarioComparisonContent() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Need to compare lineup versions before match day?"
         body="Unlock Captain to compare saved builds, spot swing courts, and keep the lineup version you trust."

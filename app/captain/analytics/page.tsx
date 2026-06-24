@@ -949,6 +949,7 @@ function CaptainAnalyticsContent() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Still guessing which lineup gives you the best chance?"
         body="Unlock Captain to compare scenarios faster, spot stronger combinations, and save the versions you actually want to use on match day."

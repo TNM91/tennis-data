@@ -511,6 +511,7 @@ function CaptainAvailabilityContent() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Still chasing availability one player at a time?"
         body="Unlock Captain to keep roster status, reminders, lineup prep, and match-week communication in one workflow instead of rebuilding the process every week."

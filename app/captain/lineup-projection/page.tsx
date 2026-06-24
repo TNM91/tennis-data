@@ -791,6 +791,7 @@ function LineupProjectionContent() {
     return (
       <LockedPlanPage
         active="/captain"
+        withinShell
         planId="captain"
         headline="Need schedule context to become lineup prep?"
         body="Unlock Captain to turn match context, team scope, and player availability into a lineup projection you can take straight into the builder."
