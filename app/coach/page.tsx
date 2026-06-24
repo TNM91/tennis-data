@@ -518,6 +518,7 @@ function CoachContent() {
             : 'Student added. Setup link is ready.'
           : 'Student added. Create the first assignment while the lesson is fresh.',
       )
+      if (isMobile) scrollToCoachBench()
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not add student.')
     } finally {
