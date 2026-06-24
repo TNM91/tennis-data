@@ -27,6 +27,24 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
     ['Leak to watch', identity.identityProfile.styleLeaks[0] ?? 'The habit that breaks under score pressure.'],
     ['Match trigger', identity.identityProfile.matchTriggers[0] ?? 'The moment this identity has to show up.'],
   ] as const
+  const firstRecommendedCard = recommendedCards[0]
+  const playerIdProofTrail = [
+    {
+      label: 'Profile signal',
+      title: identity.title.replace(/^The /, ''),
+      body: 'Start from the player profile so the work matches the way this player wins and leaks points.',
+    },
+    {
+      label: 'Drill proof',
+      title: firstRecommendedCard?.title ?? 'Recommended Level Up card',
+      body: firstRecommendedCard?.proof ?? 'Run the rep, rate the proof, and keep the next tennis cue visible.',
+    },
+    {
+      label: 'Saved return path',
+      title: 'My Lab and coach review',
+      body: 'Save the session so the Player ID can carry proof into My Lab, coach assignments, and the next matchup.',
+    },
+  ] as const
   const questBuilder = buildLevelUpQuestBuilderPlan(identity.slug)
   const habitPaths = buildLevelUpHabitPaths(identity.slug)
   const playerTier = MEMBERSHIP_TIERS.player_plus
@@ -221,6 +239,15 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                 </a>
               ))}
             </div>
+          </div>
+          <div className={styles.playerIdProofTrail} aria-label="Level Up Player ID proof trail">
+            {playerIdProofTrail.map((item) => (
+              <article key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.title}</strong>
+                <p>{item.body}</p>
+              </article>
+            ))}
           </div>
         </section>
 
