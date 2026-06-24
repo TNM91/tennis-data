@@ -1138,6 +1138,8 @@ function CoachContent() {
   function renderLinkedPlayerCard(card: LinkedPlayerCard, featured = false) {
     const profileHref = getCoachPlayerProfileHref(card.student)
     const assignmentCourtHref = card.latestAssignment ? buildCoachAssignmentCourtHref(card.latestAssignment, card.student) : ''
+    const actionLinkStyle = isMobile ? mobileBenchActionStyle : studentActionStyle
+    const actionButtonStyle = isMobile ? mobileBenchActionButtonStyle : inlineActionButtonStyle
 
     return (
       <article
@@ -1172,59 +1174,75 @@ function CoachContent() {
         </p>
         <div style={isMobile ? mobileStudentActionRowStyle : studentActionRowStyle}>
           {assignmentCourtHref ? (
-            <Link href={assignmentCourtHref} style={studentActionStyle}>
+            <Link href={assignmentCourtHref} style={actionLinkStyle}>
               Current work
             </Link>
           ) : null}
-          <Link href={getCoachPlannerHref(card.student.identitySlug)} style={studentActionStyle}>
+          <Link href={getCoachPlannerHref(card.student.identitySlug)} style={actionLinkStyle}>
             Development path
           </Link>
           <button
             type="button"
             onClick={() => loadStudentLevelUpPack(card)}
-            style={inlineActionButtonStyle}
+            style={actionButtonStyle}
           >
             Level Up
           </button>
           <button
             type="button"
             onClick={() => prepareStudentAssignment(card)}
-            style={inlineActionButtonStyle}
+            style={actionButtonStyle}
           >
             Assign work
           </button>
           <button
             type="button"
-            onClick={() => {
-              setContactStudentId(card.student.id)
-              setWorkspaceMessage(`Quick contact is ready for ${card.student.playerName}.`)
-            }}
-            style={inlineActionButtonStyle}
+            onClick={() => prepareStudentContact(card)}
+            style={actionButtonStyle}
           >
             Contact
           </button>
           {card.student.playerUserId ? (
-            <Link href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)} style={studentActionStyle}>
+            <Link href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)} style={actionLinkStyle}>
               Message
             </Link>
           ) : card.pendingInvite ? (
-            <a href={card.pendingInvite.inviteHref} style={studentActionStyle}>Setup link</a>
+            <a href={card.pendingInvite.inviteHref} style={actionLinkStyle}>Setup link</a>
           ) : null}
         </div>
       </article>
     )
   }
 
-  function scrollToCoachLessonFrame() {
+  function scrollToCoachSection(sectionId: string) {
     window.requestAnimationFrame(() => {
-      document.getElementById('coach-lesson-frame')?.scrollIntoView({
+      document.getElementById(sectionId)?.scrollIntoView({
         behavior: isMobile ? 'smooth' : 'auto',
         block: 'start',
       })
     })
   }
 
+  function scrollToCoachLessonFrame() {
+    scrollToCoachSection('coach-lesson-frame')
+  }
+
+  function scrollToCoachContactPanel() {
+    scrollToCoachSection('coach-contact-panel')
+  }
+
+  function scrollToCoachBench() {
+    scrollToCoachSection('coach-linked-dashboard')
+  }
+
+  function chooseMobileBenchPlayer(card: LinkedPlayerCard) {
+    setActiveMobileBenchStudentId(card.student.id)
+    setAssignmentStudentId(card.student.id)
+    setContactStudentId(card.student.id)
+  }
+
   function prepareStudentAssignment(card: LinkedPlayerCard) {
+    setActiveMobileBenchStudentId(card.student.id)
     setAssignmentStudentId(card.student.id)
     setContactStudentId(card.student.id)
     setAssignmentTitle('')
@@ -1238,15 +1256,53 @@ function CoachContent() {
     scrollToCoachLessonFrame()
   }
 
+  function prepareStudentContact(card: LinkedPlayerCard) {
+    setActiveMobileBenchStudentId(card.student.id)
+    setContactStudentId(card.student.id)
+    setWorkspaceMessage(`Quick contact is ready for ${card.student.playerName}.`)
+    scrollToCoachContactPanel()
+  }
+
   function loadStudentLevelUpPack(card: LinkedPlayerCard) {
     const pack = COACH_LEVEL_UP_HANDOFF_PACKS[0]
     if (!pack) return
 
+    setActiveMobileBenchStudentId(card.student.id)
     setAssignmentStudentId(card.student.id)
     setContactStudentId(card.student.id)
     loadLevelUpHandoffPack(pack)
     setWorkspaceMessage(`${pack.title} loaded for ${card.student.playerName}. Review the Level Up cards, then save a draft or create the assignment.`)
     scrollToCoachLessonFrame()
+  }
+
+  function renderMobilePlayerWorkspaceRail(surface: 'lesson' | 'contact') {
+    if (!isMobile || !activeMobileBenchCard) return null
+
+    return (
+      <div style={mobilePlayerWorkspaceRailStyle} aria-label={`Current coach action for ${activeMobileBenchCard.student.playerName}`}>
+        <div style={mobilePlayerWorkspaceSummaryStyle}>
+          <span>Working on</span>
+          <strong>{activeMobileBenchCard.student.playerName}</strong>
+        </div>
+        <div style={mobilePlayerWorkspaceActionGridStyle}>
+          <button type="button" onClick={scrollToCoachBench} style={mobileBenchActionButtonStyle}>
+            Bench
+          </button>
+          <button type="button" onClick={() => loadStudentLevelUpPack(activeMobileBenchCard)} style={mobileBenchActionButtonStyle}>
+            Level Up
+          </button>
+          {surface === 'lesson' ? (
+            <button type="button" onClick={() => prepareStudentContact(activeMobileBenchCard)} style={mobileBenchActionButtonStyle}>
+              Contact
+            </button>
+          ) : (
+            <button type="button" onClick={() => prepareStudentAssignment(activeMobileBenchCard)} style={mobileBenchActionButtonStyle}>
+              Assign
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   function loadLevelUpHandoffPack(pack: CoachLevelUpHandoffPack) {
@@ -1511,7 +1567,7 @@ function CoachContent() {
                   <button
                     key={card.student.id}
                     type="button"
-                    onClick={() => setActiveMobileBenchStudentId(card.student.id)}
+                    onClick={() => chooseMobileBenchPlayer(card)}
                     aria-pressed={active}
                     style={mobileBenchPlayerButtonStyle(active)}
                   >
@@ -1775,6 +1831,7 @@ function CoachContent() {
 
         <div id="coach-lesson-frame" style={panelStyle}>
           <PanelHeader eyebrow="Lesson frame" title="Plan the session, then assign the follow-through." />
+          {renderMobilePlayerWorkspaceRail('lesson')}
           <form onSubmit={handleCreateAssignment} style={formGridStyle}>
             <label style={fieldStyle}>
               Student
@@ -1993,7 +2050,7 @@ function CoachContent() {
               </div>
             </div>
           ) : null}
-          <div style={contactPanelStyle}>
+          <div id="coach-contact-panel" style={contactPanelStyle}>
             <div style={sessionPlannerHeaderStyle}>
               <div>
                 <div style={eyebrowStyle}>Quick contact</div>
@@ -2006,6 +2063,7 @@ function CoachContent() {
                 ))}
               </select>
             </div>
+            {renderMobilePlayerWorkspaceRail('contact')}
             <div style={sessionStepGridStyle}>
               <label style={fieldStyle}>
                 Date / time
@@ -3794,11 +3852,66 @@ const mobileBenchFeaturedCardStyle: CSSProperties = {
 }
 
 const mobileStudentActionRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: 9,
+  width: '100%',
   minWidth: 0,
   alignItems: 'stretch',
+}
+
+const mobileBenchActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  minHeight: 44,
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.085)',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  textAlign: 'center',
+  textDecoration: 'none',
+  padding: '10px 8px',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const mobileBenchActionButtonStyle: CSSProperties = {
+  ...mobileBenchActionStyle,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+}
+
+const mobilePlayerWorkspaceRailStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.055)), rgba(5,11,22,0.34)',
+  minWidth: 0,
+}
+
+const mobilePlayerWorkspaceSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+}
+
+const mobilePlayerWorkspaceActionGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
 }
 
 const linkedBadgeRowStyle: CSSProperties = {
