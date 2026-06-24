@@ -167,6 +167,7 @@ describe('coach mobile resilience', () => {
   it('collapses optional coach helper blocks on phone', () => {
     expect(coachSource).toContain('function renderFirstAssignmentStarter()')
     expect(coachSource).toContain('function renderNextLessonBuilder()')
+    expect(coachSource).toContain('function renderSharedLessonCalendar()')
     expect(coachSource).toContain('function renderLessonRhythmBlocks()')
     expect(coachSource).toContain('First assignment starters')
     expect(coachSource).toContain('{FIRST_ASSIGNMENT_STARTERS.length} options')
@@ -174,6 +175,9 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('Next lesson builder')
     expect(coachSource).toContain('{selectedSessionPreset.title}')
     expect(coachSource).toContain('{renderNextLessonBuilder()}')
+    expect(coachSource).toContain('{...(selectedCalendarSubscribed ? { open: true } : {})}')
+    expect(coachSource).toContain("{sharedLessonCalendarEvents.length ? `${sharedLessonCalendarEvents.length} events` : selectedCalendarStatusLabel}")
+    expect(coachSource).toContain('{renderSharedLessonCalendar()}')
     expect(coachSource).toContain('Lesson rhythm')
     expect(coachSource).toContain('{COACH_LESSON_BLOCKS.length} blocks')
     expect(coachSource).toContain('{renderLessonRhythmBlocks()}')

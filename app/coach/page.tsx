@@ -1442,6 +1442,65 @@ function CoachContent() {
     )
   }
 
+  function renderSharedLessonCalendar() {
+    return (
+      <div style={sharedLessonCalendarStyle}>
+        <div style={sessionPlannerHeaderStyle}>
+          <div>
+            <div style={eyebrowStyle}>Shared calendar</div>
+            <h3 style={sessionPlannerTitleStyle}>Coach + student lessons.</h3>
+            <p style={studentNextStyle}>{selectedContactStudent ? `${selectedContactStudent.playerName}: ${selectedCalendarStatusLabel}` : 'Choose a student to manage a calendar feed.'}</p>
+          </div>
+          <div style={sessionActionRowStyle}>
+            {selectedContactStudent ? (
+              <button
+                type="button"
+                onClick={() => void createStudentCalendarLink(selectedContactStudent)}
+                disabled={calendarLinkLoadingStudentId === selectedContactStudent.id}
+                style={smallPrimaryButtonStyle}
+              >
+                {calendarLinkLoadingStudentId === selectedContactStudent.id ? 'Creating...' : selectedCalendarSubscribed ? 'Replace link' : 'Create subscribe link'}
+              </button>
+            ) : null}
+            {selectedContactStudent && selectedCalendarUrl ? (
+              <a href={selectedCalendarUrl} style={smallGhostLinkStyle}>
+                Open feed
+              </a>
+            ) : null}
+            {selectedContactStudent && selectedCalendarUrl ? (
+              <a href={toWebcalUrl(selectedCalendarUrl)} style={smallGhostLinkStyle}>
+                Add to calendar
+              </a>
+            ) : null}
+            {selectedContactStudent && selectedCalendarSubscribed ? (
+              <button
+                type="button"
+                onClick={() => void revokeStudentCalendarLink(selectedContactStudent)}
+                disabled={calendarLinkLoadingStudentId === selectedContactStudent.id}
+                style={smallGhostButtonStyle}
+              >
+                Revoke feed
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {sharedLessonCalendarEvents.length ? (
+          <div style={sharedLessonCalendarGridStyle}>
+            {sharedLessonCalendarEvents.map((event) => (
+              <div key={event.id} style={sharedLessonCalendarItemStyle}>
+                <strong>{event.title}</strong>
+                <span>{formatSharedCalendarEventDate(event)}</span>
+                <em>{getSharedCalendarEventDetail(event)}</em>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={studentNextStyle}>Add a lesson date to an assignment, then create a private subscribe link for the coach and student calendar.</p>
+        )}
+      </div>
+    )
+  }
+
   function renderLessonRhythmBlocks() {
     return (
       <div style={lessonListStyle}>
@@ -2209,60 +2268,20 @@ function CoachContent() {
             </div>
           </div>
           {savedStudents.length ? (
-            <div style={sharedLessonCalendarStyle}>
-              <div style={sessionPlannerHeaderStyle}>
-                <div>
-                  <div style={eyebrowStyle}>Shared calendar</div>
-                  <h3 style={sessionPlannerTitleStyle}>Coach + student lessons.</h3>
-                  <p style={studentNextStyle}>{selectedContactStudent ? `${selectedContactStudent.playerName}: ${selectedCalendarStatusLabel}` : 'Choose a student to manage a calendar feed.'}</p>
+            isMobile ? (
+              <details
+                {...(selectedCalendarSubscribed ? { open: true } : {})}
+                style={mobileStudentRecordsDisclosureStyle}
+              >
+                <summary style={mobileStudentRecordsSummaryStyle}>
+                  <span>Shared calendar</span>
+                  <strong>{sharedLessonCalendarEvents.length ? `${sharedLessonCalendarEvents.length} events` : selectedCalendarStatusLabel}</strong>
+                </summary>
+                <div style={mobileStudentRecordsBodyStyle}>
+                  {renderSharedLessonCalendar()}
                 </div>
-                <div style={sessionActionRowStyle}>
-                  {selectedContactStudent ? (
-                    <button
-                      type="button"
-                      onClick={() => void createStudentCalendarLink(selectedContactStudent)}
-                      disabled={calendarLinkLoadingStudentId === selectedContactStudent.id}
-                      style={smallPrimaryButtonStyle}
-                    >
-                      {calendarLinkLoadingStudentId === selectedContactStudent.id ? 'Creating...' : selectedCalendarSubscribed ? 'Replace link' : 'Create subscribe link'}
-                    </button>
-                  ) : null}
-                  {selectedContactStudent && selectedCalendarUrl ? (
-                    <a href={selectedCalendarUrl} style={smallGhostLinkStyle}>
-                      Open feed
-                    </a>
-                  ) : null}
-                  {selectedContactStudent && selectedCalendarUrl ? (
-                    <a href={toWebcalUrl(selectedCalendarUrl)} style={smallGhostLinkStyle}>
-                      Add to calendar
-                    </a>
-                  ) : null}
-                  {selectedContactStudent && selectedCalendarSubscribed ? (
-                    <button
-                      type="button"
-                      onClick={() => void revokeStudentCalendarLink(selectedContactStudent)}
-                      disabled={calendarLinkLoadingStudentId === selectedContactStudent.id}
-                      style={smallGhostButtonStyle}
-                    >
-                      Revoke feed
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              {sharedLessonCalendarEvents.length ? (
-                <div style={sharedLessonCalendarGridStyle}>
-                  {sharedLessonCalendarEvents.map((event) => (
-                    <div key={event.id} style={sharedLessonCalendarItemStyle}>
-                      <strong>{event.title}</strong>
-                      <span>{formatSharedCalendarEventDate(event)}</span>
-                      <em>{getSharedCalendarEventDetail(event)}</em>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={studentNextStyle}>Add a lesson date to an assignment, then create a private subscribe link for the coach and student calendar.</p>
-              )}
-            </div>
+              </details>
+            ) : renderSharedLessonCalendar()
           ) : null}
           <div style={reviewQueueStyle}>
             <div style={reviewQueueMetricStyle}>
