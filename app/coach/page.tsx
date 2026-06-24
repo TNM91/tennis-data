@@ -242,6 +242,7 @@ function CoachContent() {
   const [assignmentLevelUpPackId, setAssignmentLevelUpPackId] = useState('')
   const [assignmentEditId, setAssignmentEditId] = useState('')
   const [contactStudentId, setContactStudentId] = useState('')
+  const [mobileContactPanelOpen, setMobileContactPanelOpen] = useState(false)
   const [lessonDateTime, setLessonDateTime] = useState('')
   const [lessonFocus, setLessonFocus] = useState('')
   const [lessonLocation, setLessonLocation] = useState('')
@@ -1418,6 +1419,7 @@ function CoachContent() {
   function prepareStudentContact(card: LinkedPlayerCard) {
     setActiveMobileBenchStudentId(card.student.id)
     setContactStudentId(card.student.id)
+    setMobileContactPanelOpen(true)
     setWorkspaceMessage(`Quick contact is ready for ${card.student.playerName}.`)
     scrollToCoachContactPanel()
   }
@@ -1907,6 +1909,60 @@ function CoachContent() {
           ) : null}
         </div>
       </>
+    )
+  }
+
+  function renderQuickContactPanel() {
+    return (
+      <div style={contactPanelStyle}>
+        <div style={sessionPlannerHeaderStyle}>
+          <div>
+            <div style={eyebrowStyle}>Quick contact</div>
+            <h3 style={sessionPlannerTitleStyle}>Confirm the next lesson.</h3>
+          </div>
+          <select value={contactStudentId} onChange={(event) => setContactStudentId(event.target.value)} style={compactSelectStyle}>
+            <option value="">Choose student</option>
+            {savedStudents.map((student) => (
+              <option key={student.id} value={student.id}>{student.playerName}</option>
+            ))}
+          </select>
+        </div>
+        {renderMobilePlayerWorkspaceRail('contact')}
+        <div style={sessionStepGridStyle}>
+          <label style={fieldStyle}>
+            Date / time
+            <input className="tiq-focus-ring" type="datetime-local" value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} style={inputStyle} />
+          </label>
+          <label style={fieldStyle}>
+            Lesson focus
+            <input className="tiq-focus-ring" value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
+          </label>
+          <label style={fieldStyle}>
+            Location
+            <input className="tiq-focus-ring" value={lessonLocation} onChange={(event) => setLessonLocation(event.target.value)} placeholder="Court or facility" style={inputStyle} />
+          </label>
+        </div>
+        <p style={studentNextStyle}>{lessonMessage}</p>
+        <div style={sessionActionRowStyle}>
+          {selectedContactStudent?.playerUserId ? (
+            <Link
+              href={buildCoachPlayerMessageHref(selectedContactStudent, 'Next lesson schedule', lessonMessage)}
+              style={smallPrimaryLinkStyle}
+            >
+              Send IM
+            </Link>
+          ) : (
+            <span style={disabledPillStyle}>Link Player for IM</span>
+          )}
+          {selectedContactStudent?.playerPhone ? (
+            <SmsActionLink phone={selectedContactStudent.playerPhone} body={lessonMessage} style={smallGhostLinkStyle}>
+              Send text
+            </SmsActionLink>
+          ) : (
+            <span style={disabledPillStyle}>Add cell for text</span>
+          )}
+        </div>
+      </div>
     )
   }
 
@@ -2412,55 +2468,26 @@ function CoachContent() {
               </div>
             </details>
           ) : renderFirstAssignmentStarter()}
-          <div id="coach-contact-panel" style={contactPanelStyle}>
-            <div style={sessionPlannerHeaderStyle}>
-              <div>
-                <div style={eyebrowStyle}>Quick contact</div>
-                <h3 style={sessionPlannerTitleStyle}>Confirm the next lesson.</h3>
+          {isMobile ? (
+            <details
+              id="coach-contact-panel"
+              open={mobileContactPanelOpen}
+              onToggle={(event) => setMobileContactPanelOpen(event.currentTarget.open)}
+              style={mobileStudentRecordsDisclosureStyle}
+            >
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>Quick contact</span>
+                <strong>{selectedContactStudent?.playerName ?? 'Open'}</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderQuickContactPanel()}
               </div>
-              <select value={contactStudentId} onChange={(event) => setContactStudentId(event.target.value)} style={compactSelectStyle}>
-                <option value="">Choose student</option>
-                {savedStudents.map((student) => (
-                  <option key={student.id} value={student.id}>{student.playerName}</option>
-                ))}
-              </select>
+            </details>
+          ) : (
+            <div id="coach-contact-panel">
+              {renderQuickContactPanel()}
             </div>
-            {renderMobilePlayerWorkspaceRail('contact')}
-            <div style={sessionStepGridStyle}>
-              <label style={fieldStyle}>
-                Date / time
-                <input className="tiq-focus-ring" type="datetime-local" value={lessonDateTime} onChange={(event) => setLessonDateTime(event.target.value)} style={inputStyle} />
-              </label>
-              <label style={fieldStyle}>
-                Lesson focus
-                <input className="tiq-focus-ring" value={lessonFocus} onChange={(event) => setLessonFocus(event.target.value)} placeholder="Serve + first ball" style={inputStyle} />
-              </label>
-              <label style={fieldStyle}>
-                Location
-                <input className="tiq-focus-ring" value={lessonLocation} onChange={(event) => setLessonLocation(event.target.value)} placeholder="Court or facility" style={inputStyle} />
-              </label>
-            </div>
-            <p style={studentNextStyle}>{lessonMessage}</p>
-            <div style={sessionActionRowStyle}>
-              {selectedContactStudent?.playerUserId ? (
-                <Link
-                  href={buildCoachPlayerMessageHref(selectedContactStudent, 'Next lesson schedule', lessonMessage)}
-                  style={smallPrimaryLinkStyle}
-                >
-                  Send IM
-                </Link>
-              ) : (
-                <span style={disabledPillStyle}>Link Player for IM</span>
-              )}
-              {selectedContactStudent?.playerPhone ? (
-                <SmsActionLink phone={selectedContactStudent.playerPhone} body={lessonMessage} style={smallGhostLinkStyle}>
-                  Send text
-                </SmsActionLink>
-              ) : (
-                <span style={disabledPillStyle}>Add cell for text</span>
-              )}
-            </div>
-          </div>
+          )}
           {savedStudents.length ? (
             isMobile ? (
               <details
