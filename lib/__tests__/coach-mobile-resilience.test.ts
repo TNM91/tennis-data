@@ -169,6 +169,14 @@ describe('coach mobile resilience', () => {
       coachSource.indexOf('const mobileBenchSecondaryActionStyle'),
       coachSource.indexOf('const mobileBenchSecondaryActionButtonStyle'),
     )
+    const workspaceRailSource = coachSource.slice(
+      coachSource.indexOf("function renderMobilePlayerWorkspaceRail(surface: 'lesson' | 'contact')"),
+      coachSource.indexOf('function renderAddStudentForm()'),
+    )
+    const workspaceRailStyleSource = coachSource.slice(
+      coachSource.indexOf('const mobilePlayerWorkspaceActionGridStyle'),
+      coachSource.indexOf('const linkedBadgeRowStyle'),
+    )
 
     expect(coachSource).toContain('onClick={() => chooseMobileBenchPlayer(card)}')
     expect(coachSource).toContain('function chooseMobileBenchPlayer(card: LinkedPlayerCard)')
@@ -184,6 +192,11 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain("function renderMobilePlayerWorkspaceRail(surface: 'lesson' | 'contact')")
     expect(coachSource).toContain("renderMobilePlayerWorkspaceRail('lesson')")
     expect(coachSource).toContain("renderMobilePlayerWorkspaceRail('contact')")
+    expect(workspaceRailSource).toContain('const profileHref = getCoachPlayerProfileHref(activeMobileBenchCard.student)')
+    expect(workspaceRailSource).toContain('<Link href={profileHref} style={mobileBenchActionStyle}')
+    expect(workspaceRailSource).toContain('Hub')
+    expect(workspaceRailStyleSource).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+    expect(workspaceRailStyleSource).not.toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(coachSource).toContain('scrollToCoachBench')
     expect(coachSource).toContain('mobileBenchCommandCenterStyle')
     expect(coachSource).toContain('mobileBenchPrimaryActionGridStyle')
@@ -200,7 +213,6 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('mobileBenchActionStyle')
     expect(coachSource).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
     expect(coachSource).not.toContain("gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'")
-    expect(coachSource).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
   })
 
   it('collapses duplicate saved student records below the mobile bench', () => {

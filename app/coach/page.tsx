@@ -1466,6 +1466,7 @@ function CoachContent() {
 
   function renderMobilePlayerWorkspaceRail(surface: 'lesson' | 'contact') {
     if (!isMobile || !activeMobileBenchCard) return null
+    const profileHref = getCoachPlayerProfileHref(activeMobileBenchCard.student)
 
     return (
       <div style={mobilePlayerWorkspaceRailStyle} aria-label={`Current coach action for ${activeMobileBenchCard.student.playerName}`}>
@@ -1477,6 +1478,9 @@ function CoachContent() {
           <button type="button" onClick={scrollToCoachBench} style={mobileBenchActionButtonStyle}>
             Bench
           </button>
+          <Link href={profileHref} style={mobileBenchActionStyle} aria-label={`Open ${activeMobileBenchCard.student.playerName} player hub`}>
+            Hub
+          </Link>
           <button type="button" onClick={() => loadStudentLevelUpPack(activeMobileBenchCard)} style={mobileBenchActionButtonStyle}>
             Level Up
           </button>
@@ -4427,7 +4431,7 @@ const mobilePlayerWorkspaceSummaryStyle: CSSProperties = {
 
 const mobilePlayerWorkspaceActionGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: 8,
   minWidth: 0,
 }
