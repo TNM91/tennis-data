@@ -1353,6 +1353,25 @@ function RankingNextActionRail({
     : hasRankedPlayers
       ? 'Use the board'
       : 'Start with a search'
+  const playerIdSignals = [
+    {
+      label: 'Ranking signal',
+      value: topPlayer ? `#1 ${topPlayer.name}` : boardCue,
+      body: topPlayer
+        ? 'Open the player record before turning a rank, rating gap, or momentum signal into a tennis decision.'
+        : 'Search or widen the board to find the player record behind the ranking signal.',
+    },
+    {
+      label: 'Compare next',
+      value: topPlayer && topRival ? `${topPlayer.name} vs ${topRival.name}` : 'Matchup read',
+      body: 'Use Matchup to translate the board into edge, confidence, and a watch item.',
+    },
+    {
+      label: 'Train or fix',
+      value: 'My Lab / Data Assist',
+      body: 'Save the takeaway to your tennis work, or route missing scorecards and profile context through review.',
+    },
+  ] as const
 
   const actions = [
     {
@@ -1389,6 +1408,15 @@ function RankingNextActionRail({
           <h2 style={rankingNextActionTitle}>Use rankings to decide what to check next.</h2>
         </div>
         <span style={panelChip}>{boardCue}</span>
+      </div>
+      <div style={rankingPlayerIdTrailStyle} aria-label="Ranking Player ID trail">
+        {playerIdSignals.map((signal) => (
+          <div key={signal.label} style={rankingPlayerIdSignalStyle}>
+            <span style={rankingPlayerIdSignalLabelStyle}>{signal.label}</span>
+            <strong style={rankingPlayerIdSignalValueStyle}>{signal.value}</strong>
+            <span style={rankingPlayerIdSignalTextStyle}>{signal.body}</span>
+          </div>
+        ))}
       </div>
       <div style={rankingNextActionGrid}>
         {actions.map((action) => (
@@ -2424,6 +2452,54 @@ const rankingNextActionTitle: CSSProperties = {
   lineHeight: 1.08,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdTrailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+  padding: '14px',
+  borderRadius: '20px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
+  overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdSignalStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  minWidth: 0,
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.68)',
+  overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdSignalValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdSignalTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  fontWeight: 700,
   overflowWrap: 'anywhere',
 }
 
