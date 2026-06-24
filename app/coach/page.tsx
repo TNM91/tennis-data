@@ -2319,6 +2319,21 @@ function CoachContent() {
               </div>
             </details>
           ) : renderLessonRhythmBlocks()}
+          <details
+            open={!isMobile || assignmentsNeedingReview.length > 0}
+            style={isMobile ? mobileStudentRecordsDisclosureStyle : openAssignmentQueueDisclosureStyle}
+          >
+            <summary style={isMobile ? mobileStudentRecordsSummaryStyle : hiddenSummaryStyle}>
+              <span>Assignment review queue</span>
+              <strong>
+                {assignmentsNeedingReview.length
+                  ? `${assignmentsNeedingReview.length} review`
+                  : sortedAssignments.length
+                    ? `${sortedAssignments.length} saved`
+                    : 'Empty'}
+              </strong>
+            </summary>
+            <div style={isMobile ? mobileStudentRecordsBodyStyle : openAssignmentQueueBodyStyle}>
           <div style={assignmentListStyle}>
             {recentLevelUpSessions.length ? (
               <article style={assignmentCardStyle}>
@@ -2619,6 +2634,8 @@ function CoachContent() {
               </article>
             )}
           </div>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -4303,6 +4320,18 @@ const mobileStudentRecordsBodyStyle: CSSProperties = {
   gap: 10,
   minWidth: 0,
   paddingTop: 10,
+}
+
+const openAssignmentQueueDisclosureStyle: CSSProperties = {
+  display: 'contents',
+}
+
+const hiddenSummaryStyle: CSSProperties = {
+  display: 'none',
+}
+
+const openAssignmentQueueBodyStyle: CSSProperties = {
+  display: 'contents',
 }
 
 const studentCardStyle: CSSProperties = {

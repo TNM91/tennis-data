@@ -182,4 +182,14 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('{COACH_LESSON_BLOCKS.length} blocks')
     expect(coachSource).toContain('{renderLessonRhythmBlocks()}')
   })
+
+  it('keeps the assignment review queue compact on phone unless review is pending', () => {
+    expect(coachSource).toContain('open={!isMobile || assignmentsNeedingReview.length > 0}')
+    expect(coachSource).toContain('openAssignmentQueueDisclosureStyle')
+    expect(coachSource).toContain('hiddenSummaryStyle')
+    expect(coachSource).toContain('openAssignmentQueueBodyStyle')
+    expect(coachSource).toContain('Assignment review queue')
+    expect(coachSource).toContain('`${assignmentsNeedingReview.length} review`')
+    expect(coachSource).toContain('`${sortedAssignments.length} saved`')
+  })
 })
