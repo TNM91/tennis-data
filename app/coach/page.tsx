@@ -1253,6 +1253,10 @@ function CoachContent() {
     scrollToCoachSection('coach-linked-dashboard')
   }
 
+  function scrollToCoachStudentBoard() {
+    scrollToCoachSection('coach-student-board')
+  }
+
   function chooseMobileBenchPlayer(card: LinkedPlayerCard) {
     setActiveMobileBenchStudentId(card.student.id)
     setAssignmentStudentId(card.student.id)
@@ -2303,6 +2307,11 @@ function CoachContent() {
             <article style={linkedEmptyStyle}>
               <strong>No linked players yet.</strong>
               <span>Add a student below, then send a setup link when you want the Player layer connected.</span>
+              {isMobile ? (
+                <button type="button" onClick={scrollToCoachStudentBoard} style={smallPrimaryButtonStyle}>
+                  Add first player
+                </button>
+              ) : null}
             </article>
             )}
           </div>
