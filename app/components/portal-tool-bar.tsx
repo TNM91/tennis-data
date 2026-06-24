@@ -24,7 +24,7 @@ type PortalLane = {
   cue: string
   route: string
   icon: TiqFeatureIconName
-  planRoute: '/explore' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
+  planRoute: '/explore' | '/player-development' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
   paths: string[]
   searchScope: 'players' | 'teams' | 'leagues'
   tasks: Array<{
@@ -58,8 +58,8 @@ const portalLanes: PortalLane[] = [
     id: 'you',
     label: 'Improve',
     cue: 'Drills, skills, My Lab',
-    route: '/mylab',
-    planRoute: '/mylab',
+    route: '/player-development',
+    planRoute: '/player-development',
     icon: 'myLab',
     paths: ['/mylab', '/profile', '/messages', '/data-assist', '/matchup', '/level-up', '/player-development', '/resources', '/tactics'],
     searchScope: 'players',
@@ -306,7 +306,16 @@ export default function PortalToolBar() {
                   </span>
                   <span style={mobilePortalTileLabelStyle}>Main</span>
                 </button>
-                {mobilePortalLane.tasks.slice(0, 5).map((task) => (
+                <MobilePortalHubTile
+                  lane={mobilePortalLane}
+                  access={access}
+                  authenticated={authenticated}
+                  accessPending={accessPending}
+                  active={pathname === mobilePortalLane.route}
+                  profileLinked={profileLinked}
+                  accent={getLaneAccent(mobilePortalLane.id)}
+                />
+                {mobilePortalLane.tasks.slice(0, 4).map((task) => (
                   <MobilePortalTaskTile
                     key={task.title}
                     task={task}
@@ -636,6 +645,55 @@ function MobilePortalTaskTile({
   )
 }
 
+function MobilePortalHubTile({
+  lane,
+  access,
+  authenticated,
+  accessPending,
+  active,
+  profileLinked,
+  accent,
+}: {
+  lane: PortalLane
+  access: ProductAccessState
+  authenticated: boolean
+  accessPending: boolean
+  active: boolean
+  profileLinked: boolean
+  accent: string
+}) {
+  const target = getPortalLaneTarget({
+    laneId: lane.id,
+    fallbackHref: lane.route,
+    planRoute: lane.planRoute,
+    access,
+    authenticated,
+    accessPending,
+    profileLinked,
+  })
+
+  return (
+    <Link
+      href={target.href}
+      aria-current={active ? 'page' : undefined}
+      aria-label={`${getMobileLaneLabel(lane.id)} hub${target.locked ? ' locked' : ''}: ${lane.cue}`}
+      title={`${getMobileLaneLabel(lane.id)} hub`}
+      style={{
+        ...mobilePortalTileStyle,
+        ...(active ? getActiveTaskCardStyle(accent) : null),
+      }}
+    >
+      <span style={mobilePortalTileIconStyle}>
+        <TiqFeatureIcon name={lane.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
+      </span>
+      <span style={mobilePortalTileLabelStyle}>
+        {getMobileHubLabel(lane.id)}
+        {target.locked ? <NavLockIcon size={10} /> : null}
+      </span>
+    </Link>
+  )
+}
+
 function getLaneAccent(laneId: PortalLaneId) {
   if (laneId === 'find') return '#9be11d'
   if (laneId === 'you') return '#4aa3ff'
@@ -652,6 +710,15 @@ function getMobileLaneLabel(laneId: PortalLaneId) {
   if (laneId === 'coach') return 'Coaches'
   if (laneId === 'team') return 'Manage'
   return 'Leagues'
+}
+
+function getMobileHubLabel(laneId: PortalLaneId) {
+  if (laneId === 'find') return 'Explore Hub'
+  if (laneId === 'you') return 'Improve Hub'
+  if (laneId === 'compete') return 'Compete Hub'
+  if (laneId === 'coach') return 'Coach Hub'
+  if (laneId === 'team') return 'Team Hub'
+  return 'League Hub'
 }
 
 function getMobileTaskLabel(title: string) {

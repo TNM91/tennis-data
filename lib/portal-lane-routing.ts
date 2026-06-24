@@ -5,7 +5,7 @@ import { getPlanUnlockHref } from './plan-intent'
 type PortalLaneRoutingInput = {
   laneId: 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league'
   fallbackHref: string
-  planRoute: '/explore' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
+  planRoute: '/explore' | '/player-development' | '/mylab' | '/compete' | '/coach' | '/captain' | '/league-coordinator'
   access: ProductAccessState
   authenticated: boolean
   accessPending: boolean

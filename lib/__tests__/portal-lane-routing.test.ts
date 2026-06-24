@@ -95,8 +95,9 @@ describe('portal lane routing', () => {
     })).toEqual({ href: '/coach', locked: false, requiredPlan: 'coach' })
   })
 
-  it('routes paid You lane users directly to My Lab', () => {
-    const access = buildProductAccessState('member', {
+  it('routes the You lane to the Improve hub before paid My Lab actions', () => {
+    const freeAccess = buildProductAccessState('member', inactiveEntitlements)
+    const playerAccess = buildProductAccessState('member', {
       ...inactiveEntitlements,
       playerPlusSubscriptionActive: true,
       playerPlusSubscriptionStatus: 'active',
@@ -104,23 +105,23 @@ describe('portal lane routing', () => {
 
     expect(getPortalLaneTarget({
       laneId: 'you',
-      fallbackHref: '/mylab',
-      planRoute: '/mylab',
-      access,
+      fallbackHref: '/player-development',
+      planRoute: '/player-development',
+      access: freeAccess,
       authenticated: true,
       accessPending: false,
       profileLinked: false,
-    })).toEqual({ href: '/mylab', locked: false, requiredPlan: 'player_plus' })
+    })).toEqual({ href: '/player-development', locked: false, requiredPlan: null })
 
     expect(getPortalLaneTarget({
       laneId: 'you',
-      fallbackHref: '/mylab',
-      planRoute: '/mylab',
-      access,
+      fallbackHref: '/player-development',
+      planRoute: '/player-development',
+      access: playerAccess,
       authenticated: true,
       accessPending: false,
       profileLinked: true,
-    })).toEqual({ href: '/mylab', locked: false, requiredPlan: 'player_plus' })
+    })).toEqual({ href: '/player-development', locked: false, requiredPlan: null })
   })
 
   it('keeps the Compete lane public and unlocked', () => {
