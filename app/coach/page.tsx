@@ -1517,6 +1517,26 @@ function CoachContent() {
     )
   }
 
+  function renderCoachIntegrationContent() {
+    return (
+      <>
+        <div>
+          <div style={eyebrowStyle}>How this fits TenAceIQ</div>
+          <h2 style={sectionTitleStyle}>Coach sets the next step. Player carries it between lessons.</h2>
+          <p style={bodyStyle}>
+            The printed workbook should stand alone, but the best version links the athlete back into TenAceIQ:
+            QR check-ins, assigned drills, lesson notes, tactical boards, and weekly recaps.
+          </p>
+        </div>
+        <div style={integrationGridStyle}>
+          {COACH_INTEGRATION_STEPS.map((step) => (
+            <IntegrationPill key={step.label} label={step.label} value={step.value} />
+          ))}
+        </div>
+      </>
+    )
+  }
+
   function renderStudentRecordList() {
     return (
       <div style={studentListStyle}>
@@ -2640,19 +2660,17 @@ function CoachContent() {
       </section>
 
       <section style={integrationStyle}>
-        <div>
-          <div style={eyebrowStyle}>How this fits TenAceIQ</div>
-          <h2 style={sectionTitleStyle}>Coach sets the next step. Player carries it between lessons.</h2>
-          <p style={bodyStyle}>
-            The printed workbook should stand alone, but the best version links the athlete back into TenAceIQ:
-            QR check-ins, assigned drills, lesson notes, tactical boards, and weekly recaps.
-          </p>
-        </div>
-        <div style={integrationGridStyle}>
-          {COACH_INTEGRATION_STEPS.map((step) => (
-            <IntegrationPill key={step.label} label={step.label} value={step.value} />
-          ))}
-        </div>
+        {isMobile ? (
+          <details style={mobileStudentRecordsDisclosureStyle}>
+            <summary style={mobileStudentRecordsSummaryStyle}>
+              <span>How this fits TenAceIQ</span>
+              <strong>Coach + Player</strong>
+            </summary>
+            <div style={mobileStudentRecordsBodyStyle}>
+              {renderCoachIntegrationContent()}
+            </div>
+          </details>
+        ) : renderCoachIntegrationContent()}
       </section>
     </main>
   )

@@ -192,4 +192,11 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('`${assignmentsNeedingReview.length} review`')
     expect(coachSource).toContain('`${sortedAssignments.length} saved`')
   })
+
+  it('keeps the TenAceIQ integration explainer out of the primary phone workspace', () => {
+    expect(coachSource).toContain('function renderCoachIntegrationContent()')
+    expect(coachSource).toContain('How this fits TenAceIQ')
+    expect(coachSource).toContain('Coach + Player')
+    expect(coachSource).toContain('{renderCoachIntegrationContent()}')
+  })
 })
