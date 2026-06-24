@@ -4333,8 +4333,8 @@ const mobileBenchCommandCopyStyle: CSSProperties = {
 
 const mobileBenchPrimaryActionGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: 8,
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 9,
   minWidth: 0,
 }
 

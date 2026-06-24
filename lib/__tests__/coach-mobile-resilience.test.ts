@@ -187,7 +187,7 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('Bench top')
     expect(coachSource).toContain('mobileBenchActionStyle')
     expect(coachSource).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
-    expect(coachSource).toContain("gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'")
+    expect(coachSource).not.toContain("gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'")
     expect(coachSource).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
   })
 
