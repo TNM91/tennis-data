@@ -1352,6 +1352,54 @@ function CoachContent() {
     )
   }
 
+  function renderLevelUpHandoffGrid(pack: (typeof COACH_LEVEL_UP_HANDOFF_PACKS)[number]) {
+    return (
+      <div style={levelUpCoachHandoffGridStyle}>
+        {pack.cardIds.map((cardId) => {
+          const card = LEVEL_UP_CARDS.find((item) => item.id === cardId)
+          if (!card) return null
+
+          return (
+            <article key={card.id} style={levelUpCoachHandoffCardStyle}>
+              <strong>{card.title}</strong>
+              <span>{card.pack} / {card.durationMinutes} min</span>
+              <em>{card.proof}</em>
+            </article>
+          )
+        })}
+      </div>
+    )
+  }
+
+  function renderDraftAssignmentGrid() {
+    return (
+      <div style={levelUpCoachHandoffGridStyle}>
+        {draftAssignments.map((assignment) => {
+          const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
+          const student = savedStudents.find((candidate) => candidate.id === assignment.studentLinkId)
+          return (
+            <article key={assignment.id} style={levelUpCoachHandoffCardStyle}>
+              <strong>{assignment.title}</strong>
+              <span>{student?.playerName ?? 'Student'} / {assignment.focus || 'Coach assignment'}</span>
+              {packProgress ? <em>{packProgress.pack.title}: {packProgress.total} linked cards</em> : null}
+              <div style={studentActionRowStyle}>
+                <button type="button" onClick={() => loadDraftAssignment(assignment)} style={smallGhostButtonStyle}>
+                  Load draft
+                </button>
+                <button type="button" onClick={() => void updateAssignmentStatus(assignment, 'assigned')} disabled={workspaceLoading} style={smallPrimaryButtonStyle}>
+                  Assign now
+                </button>
+                <button type="button" onClick={() => void updateAssignmentStatus(assignment, 'archived')} disabled={workspaceLoading} style={smallGhostButtonStyle}>
+                  Archive
+                </button>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    )
+  }
+
   function prepareStudentAssignment(card: LinkedPlayerCard) {
     setActiveMobileBenchStudentId(card.student.id)
     setAssignmentStudentId(card.student.id)
@@ -1877,20 +1925,17 @@ function CoachContent() {
             </div>
             <span style={reviewBadgeStyle}>Coach assignment bridge</span>
           </div>
-          <div style={levelUpCoachHandoffGridStyle}>
-            {levelUpHandoffPack.cardIds.map((cardId) => {
-              const card = LEVEL_UP_CARDS.find((item) => item.id === cardId)
-              if (!card) return null
-
-              return (
-                <article key={card.id} style={levelUpCoachHandoffCardStyle}>
-                  <strong>{card.title}</strong>
-                  <span>{card.pack} / {card.durationMinutes} min</span>
-                  <em>{card.proof}</em>
-                </article>
-              )
-            })}
-          </div>
+          {isMobile ? (
+            <details style={mobileStudentRecordsDisclosureStyle}>
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>Level Up cards</span>
+                <strong>{levelUpHandoffPack.cardIds.length} cards</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderLevelUpHandoffGrid(levelUpHandoffPack)}
+              </div>
+            </details>
+          ) : renderLevelUpHandoffGrid(levelUpHandoffPack)}
           <div style={studentActionRowStyle}>
             <button type="button" onClick={() => loadLevelUpHandoffPack(levelUpHandoffPack)} style={smallPrimaryButtonStyle}>
               Load into assignment form
@@ -1918,30 +1963,17 @@ function CoachContent() {
             </div>
             <span style={reviewBadgeStyle}>{draftAssignments.length} draft{draftAssignments.length === 1 ? '' : 's'}</span>
           </div>
-          <div style={levelUpCoachHandoffGridStyle}>
-            {draftAssignments.map((assignment) => {
-              const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
-              const student = savedStudents.find((candidate) => candidate.id === assignment.studentLinkId)
-              return (
-                <article key={assignment.id} style={levelUpCoachHandoffCardStyle}>
-                  <strong>{assignment.title}</strong>
-                  <span>{student?.playerName ?? 'Student'} / {assignment.focus || 'Coach assignment'}</span>
-                  {packProgress ? <em>{packProgress.pack.title}: {packProgress.total} linked cards</em> : null}
-                  <div style={studentActionRowStyle}>
-                    <button type="button" onClick={() => loadDraftAssignment(assignment)} style={smallGhostButtonStyle}>
-                      Load draft
-                    </button>
-                    <button type="button" onClick={() => void updateAssignmentStatus(assignment, 'assigned')} disabled={workspaceLoading} style={smallPrimaryButtonStyle}>
-                      Assign now
-                    </button>
-                    <button type="button" onClick={() => void updateAssignmentStatus(assignment, 'archived')} disabled={workspaceLoading} style={smallGhostButtonStyle}>
-                      Archive
-                    </button>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
+          {isMobile ? (
+            <details style={mobileStudentRecordsDisclosureStyle}>
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>Saved drafts</span>
+                <strong>{draftAssignments.length} saved</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderDraftAssignmentGrid()}
+              </div>
+            </details>
+          ) : renderDraftAssignmentGrid()}
         </section>
       ) : null}
 

@@ -134,6 +134,13 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('const pack = COACH_LEVEL_UP_HANDOFF_PACKS[0]')
     expect(coachSource).toContain('loadLevelUpHandoffPack(pack)')
     expect(coachSource).toContain('Review the Level Up cards, then save a draft or create the assignment.')
+    expect(coachSource).toContain('function renderLevelUpHandoffGrid(pack: (typeof COACH_LEVEL_UP_HANDOFF_PACKS)[number])')
+    expect(coachSource).toContain('Level Up cards')
+    expect(coachSource).toContain('{levelUpHandoffPack.cardIds.length} cards')
+    expect(coachSource).toContain('{renderLevelUpHandoffGrid(levelUpHandoffPack)}')
+    expect(coachSource).toContain('function renderDraftAssignmentGrid()')
+    expect(coachSource).toContain('Saved drafts')
+    expect(coachSource).toContain('{renderDraftAssignmentGrid()}')
   })
 
   it('keeps mobile player actions large, contextual, and recoverable', () => {
