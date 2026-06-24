@@ -153,4 +153,14 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('mobileStudentRecordsBodyStyle')
     expect(coachSource).toContain('{renderStudentRecordList()}')
   })
+
+  it('collapses the add-player form on mobile once the bench has players', () => {
+    expect(coachSource).toContain('const hasStudentFormDraft = Boolean(')
+    expect(coachSource).toContain('function renderAddStudentForm()')
+    expect(coachSource).toContain('isMobile && savedStudents.length > 0')
+    expect(coachSource).toContain('{...(hasStudentFormDraft ? { open: true } : {})}')
+    expect(coachSource).toContain('Add or invite player')
+    expect(coachSource).toContain("{hasStudentFormDraft ? 'Draft open' : 'Open'}")
+    expect(coachSource).toContain('{renderAddStudentForm()}')
+  })
 })

@@ -274,6 +274,15 @@ function CoachContent() {
         : contactPreference === 'text' || contactPreference === 'both'
           ? 'Add cell to text setup'
           : 'Add student'
+  const hasStudentFormDraft = Boolean(
+    studentName.trim() ||
+    studentLevel.trim() ||
+    studentCustomIdentity.trim() ||
+    inviteEmail.trim() ||
+    studentPhone.trim() ||
+    studentIdentity !== DEFAULT_STUDENT_IDENTITY_ID ||
+    contactPreference !== 'in_app',
+  )
 
   useEffect(() => {
     setShareOrigin(window.location.origin)
@@ -1305,6 +1314,73 @@ function CoachContent() {
     )
   }
 
+  function renderAddStudentForm() {
+    return (
+      <form onSubmit={handleAddStudent} style={formGridStyle}>
+        <label style={fieldStyle}>
+          Player name
+          <input className="tiq-focus-ring" value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Add a student" style={inputStyle} />
+        </label>
+        <label style={fieldStyle}>
+          Development path
+          <select className="tiq-focus-ring" value={studentIdentity} onChange={(event) => setStudentIdentity(event.target.value)} style={inputStyle}>
+            {PLAYER_DEVELOPMENT_IDENTITIES.map((identity) => (
+              <option key={identity.slug} value={identity.slug}>{identity.title.replace(/^The /, '')}</option>
+            ))}
+            <option value={CUSTOM_STUDENT_IDENTITY_ID}>Custom path</option>
+          </select>
+        </label>
+        {studentIdentity === CUSTOM_STUDENT_IDENTITY_ID ? (
+          <label style={fieldStyle}>
+            Custom path name
+            <input
+              className="tiq-focus-ring"
+              value={studentCustomIdentity}
+              onChange={(event) => setStudentCustomIdentity(event.target.value)}
+              placeholder="Example: lefty doubles returner"
+              style={inputStyle}
+            />
+          </label>
+        ) : null}
+        <label style={fieldStyle}>
+          Level / group
+          <input className="tiq-focus-ring" value={studentLevel} onChange={(event) => setStudentLevel(event.target.value)} placeholder="4.0, varsity, clinic..." style={inputStyle} />
+        </label>
+        <label style={fieldStyle}>
+          Player email
+          <input className="tiq-focus-ring" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="Optional account email" style={inputStyle} />
+        </label>
+        <label style={fieldStyle}>
+          Cell phone
+          <input
+            className="tiq-focus-ring"
+            inputMode="tel"
+            value={studentPhone}
+            onChange={(event) => setStudentPhone(event.target.value)}
+            placeholder="Optional text setup"
+            style={inputStyle}
+            aria-invalid={Boolean(addStudentBlockedMessage)}
+            aria-describedby="coach-student-phone-help"
+          />
+          <span id="coach-student-phone-help" style={addStudentBlockedMessage ? fieldErrorStyle : fieldHintStyle}>
+            {addStudentBlockedMessage || 'Needed for text setup links and lesson reminders.'}
+          </span>
+        </label>
+        <label style={fieldStyle}>
+          Contact
+          <select className="tiq-focus-ring" value={contactPreference} onChange={(event) => setContactPreference(event.target.value as CoachStudentLink['contactPreference'])} style={inputStyle}>
+            <option value="in_app">TenAceIQ IM</option>
+            <option value="text">Text</option>
+            <option value="both">IM + text</option>
+          </select>
+        </label>
+        <button type="submit" disabled={addStudentDisabled} style={primaryButtonStyle}>
+          {addStudentButtonLabel}
+        </button>
+      </form>
+    )
+  }
+
   function renderStudentRecordList() {
     return (
       <div style={studentListStyle}>
@@ -1679,68 +1755,20 @@ function CoachContent() {
       <section style={workspaceGridStyle}>
         <div id="coach-student-board" style={panelStyle}>
           <PanelHeader eyebrow="Student board" title="Give each player a clear next action." />
-          <form onSubmit={handleAddStudent} style={formGridStyle}>
-            <label style={fieldStyle}>
-              Player name
-              <input className="tiq-focus-ring" value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Add a student" style={inputStyle} />
-            </label>
-            <label style={fieldStyle}>
-              Development path
-              <select className="tiq-focus-ring" value={studentIdentity} onChange={(event) => setStudentIdentity(event.target.value)} style={inputStyle}>
-                {PLAYER_DEVELOPMENT_IDENTITIES.map((identity) => (
-                  <option key={identity.slug} value={identity.slug}>{identity.title.replace(/^The /, '')}</option>
-                ))}
-                <option value={CUSTOM_STUDENT_IDENTITY_ID}>Custom path</option>
-              </select>
-            </label>
-            {studentIdentity === CUSTOM_STUDENT_IDENTITY_ID ? (
-              <label style={fieldStyle}>
-                Custom path name
-                <input
-                  className="tiq-focus-ring"
-                  value={studentCustomIdentity}
-                  onChange={(event) => setStudentCustomIdentity(event.target.value)}
-                  placeholder="Example: lefty doubles returner"
-                  style={inputStyle}
-                />
-              </label>
-            ) : null}
-            <label style={fieldStyle}>
-              Level / group
-              <input className="tiq-focus-ring" value={studentLevel} onChange={(event) => setStudentLevel(event.target.value)} placeholder="4.0, varsity, clinic..." style={inputStyle} />
-            </label>
-            <label style={fieldStyle}>
-              Player email
-              <input className="tiq-focus-ring" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="Optional account email" style={inputStyle} />
-            </label>
-            <label style={fieldStyle}>
-              Cell phone
-              <input
-                className="tiq-focus-ring"
-                inputMode="tel"
-                value={studentPhone}
-                onChange={(event) => setStudentPhone(event.target.value)}
-                placeholder="Optional text setup"
-                style={inputStyle}
-                aria-invalid={Boolean(addStudentBlockedMessage)}
-                aria-describedby="coach-student-phone-help"
-              />
-              <span id="coach-student-phone-help" style={addStudentBlockedMessage ? fieldErrorStyle : fieldHintStyle}>
-                {addStudentBlockedMessage || 'Needed for text setup links and lesson reminders.'}
-              </span>
-            </label>
-            <label style={fieldStyle}>
-              Contact
-              <select className="tiq-focus-ring" value={contactPreference} onChange={(event) => setContactPreference(event.target.value as CoachStudentLink['contactPreference'])} style={inputStyle}>
-                <option value="in_app">TenAceIQ IM</option>
-                <option value="text">Text</option>
-                <option value="both">IM + text</option>
-              </select>
-            </label>
-            <button type="submit" disabled={addStudentDisabled} style={primaryButtonStyle}>
-              {addStudentButtonLabel}
-            </button>
-          </form>
+          {isMobile && savedStudents.length > 0 ? (
+            <details
+              {...(hasStudentFormDraft ? { open: true } : {})}
+              style={mobileStudentRecordsDisclosureStyle}
+            >
+              <summary style={mobileStudentRecordsSummaryStyle}>
+                <span>Add or invite player</span>
+                <strong>{hasStudentFormDraft ? 'Draft open' : 'Open'}</strong>
+              </summary>
+              <div style={mobileStudentRecordsBodyStyle}>
+                {renderAddStudentForm()}
+              </div>
+            </details>
+          ) : renderAddStudentForm()}
           {lastCreatedStudentSetup ? (
             <div style={assignmentSendPanelStyle}>
               <div>
