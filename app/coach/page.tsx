@@ -1250,6 +1250,76 @@ function CoachContent() {
     setContactStudentId(card.student.id)
   }
 
+  function renderMobileBenchCommandCenter(card: LinkedPlayerCard) {
+    const profileHref = getCoachPlayerProfileHref(card.student)
+    const assignmentCourtHref = card.latestAssignment ? buildCoachAssignmentCourtHref(card.latestAssignment, card.student) : ''
+    const playerTextBody = `Let's confirm your next lesson. Date/time:  Site:  Focus: `
+
+    return (
+      <div style={mobileBenchCommandCenterStyle} aria-label={`Active player workspace for ${card.student.playerName}`}>
+        <div style={mobileBenchCommandHeaderStyle}>
+          <div style={mobileBenchCommandTitleStyle}>
+            <span>Active player</span>
+            <strong>{card.student.playerName}</strong>
+          </div>
+          <span style={connectionBadgeStyle(card.connection)}>{card.connectionLabel}</span>
+        </div>
+        <div style={mobileBenchCommandMetaStyle}>
+          <span style={pressureBadgeStyle(card.dueTone)}>{card.dueLabel}</span>
+          <span style={miniBadgeStyle}>{card.activeAssignments} active</span>
+          {card.needsReview ? <span style={reviewBadgeStyle}>Needs review</span> : null}
+        </div>
+        <p style={mobileBenchCommandCopyStyle}>
+          {card.latestAssignment
+            ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
+            : card.pendingInvite
+              ? 'Setup is pending. Send the link, then load the first Level Up assignment.'
+              : 'Choose the next measurable action before the player leaves the court.'}
+        </p>
+        <div style={mobileBenchPrimaryActionGridStyle}>
+          <button type="button" onClick={() => loadStudentLevelUpPack(card)} style={mobileBenchPrimaryActionStyle}>
+            Level Up
+          </button>
+          <button type="button" onClick={() => prepareStudentAssignment(card)} style={mobileBenchActionButtonStyle}>
+            Assign
+          </button>
+          {card.student.playerPhone ? (
+            <SmsActionLink phone={card.student.playerPhone} body={playerTextBody} style={mobileBenchActionStyle}>
+              Text
+            </SmsActionLink>
+          ) : (
+            <button type="button" onClick={() => prepareStudentContact(card)} style={mobileBenchActionButtonStyle}>
+              Contact
+            </button>
+          )}
+          <Link href={profileHref} style={mobileBenchActionStyle} aria-label={`Open ${card.student.playerName} player hub`}>
+            Hub
+          </Link>
+        </div>
+        <div style={mobileBenchSecondaryActionRowStyle}>
+          {assignmentCourtHref ? (
+            <Link href={assignmentCourtHref} style={mobileBenchSecondaryActionStyle}>
+              Current work
+            </Link>
+          ) : null}
+          <Link href={getCoachPlannerHref(card.student.identitySlug)} style={mobileBenchSecondaryActionStyle}>
+            Development path
+          </Link>
+          {card.student.playerUserId ? (
+            <Link href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)} style={mobileBenchSecondaryActionStyle}>
+              Message
+            </Link>
+          ) : card.pendingInvite ? (
+            <a href={card.pendingInvite.inviteHref} style={mobileBenchSecondaryActionStyle}>Setup link</a>
+          ) : null}
+          <button type="button" onClick={scrollToCoachBench} style={mobileBenchSecondaryActionButtonStyle}>
+            Bench top
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   function prepareStudentAssignment(card: LinkedPlayerCard) {
     setActiveMobileBenchStudentId(card.student.id)
     setAssignmentStudentId(card.student.id)
@@ -1894,7 +1964,7 @@ function CoachContent() {
                 )
               })}
             </div>
-            {activeMobileBenchCard ? renderLinkedPlayerCard(activeMobileBenchCard, true) : null}
+            {activeMobileBenchCard ? renderMobileBenchCommandCenter(activeMobileBenchCard) : null}
           </div>
         ) : (
           <div style={responsiveLinkedCardsGridStyle}>
@@ -3997,6 +4067,66 @@ const mobileBenchFeaturedCardStyle: CSSProperties = {
   scrollSnapAlign: undefined,
 }
 
+const mobileBenchCommandCenterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.06)), rgba(7,17,32,0.82)',
+  boxShadow: '0 18px 38px rgba(0,0,0,0.24)',
+}
+
+const mobileBenchCommandHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileBenchCommandTitleStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+}
+
+const mobileBenchCommandMetaStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 7,
+  minWidth: 0,
+}
+
+const mobileBenchCommandCopyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 750,
+}
+
+const mobileBenchPrimaryActionGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileBenchSecondaryActionRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  minWidth: 0,
+  overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  paddingBottom: 2,
+}
+
 const mobileStudentActionRowStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
@@ -4027,6 +4157,30 @@ const mobileBenchActionStyle: CSSProperties = {
 
 const mobileBenchActionButtonStyle: CSSProperties = {
   ...mobileBenchActionStyle,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+}
+
+const mobileBenchPrimaryActionStyle: CSSProperties = {
+  ...mobileBenchActionButtonStyle,
+  borderColor: 'rgba(155,225,29,0.56)',
+  background: 'rgba(155,225,29,0.18)',
+  color: 'var(--foreground-strong)',
+}
+
+const mobileBenchSecondaryActionStyle: CSSProperties = {
+  ...mobileBenchActionStyle,
+  flex: '0 0 auto',
+  minHeight: 36,
+  borderRadius: 999,
+  borderColor: 'rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--shell-copy)',
+  padding: '8px 11px',
+}
+
+const mobileBenchSecondaryActionButtonStyle: CSSProperties = {
+  ...mobileBenchSecondaryActionStyle,
   cursor: 'pointer',
   fontFamily: 'inherit',
 }
