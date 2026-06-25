@@ -57,6 +57,11 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
       body: 'The identity is not complete until it shows up in the score moment where the player usually leaks.',
     },
   ] as const
+  const nextBestRepSignals = [
+    ['Rep', firstRecommendedCard?.title ?? actionRead.trainingPriority],
+    ['Proof', firstRecommendedCard?.proof ?? actionRead.proofTarget],
+    ['Save to', 'My Lab proof trail'],
+  ] as const
   const questBuilder = buildLevelUpQuestBuilderPlan(identity.slug)
   const habitPaths = buildLevelUpHabitPaths(identity.slug)
   const playerTier = MEMBERSHIP_TIERS.player_plus
@@ -218,6 +223,31 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
                 {item.title.replace(/^The /, '')}
               </Link>
             ))}
+          </div>
+        </section>
+
+        <section className={styles.levelUpNextRepCommand} aria-label="Level Up next best rep command">
+          <div className={styles.levelUpNextRepCommandCopy}>
+            <span>Next best rep</span>
+            <h2>Start with one card, one proof score, one next cue.</h2>
+            <p>{actionRead.levelUpNudge}</p>
+          </div>
+          <div className={styles.levelUpNextRepCommandCard}>
+            <span>{firstRecommendedCard?.pack ?? 'Player ID card'}</span>
+            <strong>{firstRecommendedCard?.title ?? actionRead.trainingPriority}</strong>
+            <small>{firstRecommendedCard?.useWhen ?? actionRead.matchTrigger}</small>
+          </div>
+          <div className={styles.levelUpNextRepCommandSignals} aria-label="Level Up next best rep proof signals">
+            {nextBestRepSignals.map(([label, value]) => (
+              <article key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </article>
+            ))}
+          </div>
+          <div className={styles.levelUpNextRepCommandActions}>
+            <Link className="button-primary" href="#level-up-flow">Start rep</Link>
+            <Link className="button-secondary" href="/mylab#level-up-proof">View proof</Link>
           </div>
         </section>
 

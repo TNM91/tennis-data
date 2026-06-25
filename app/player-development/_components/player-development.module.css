@@ -525,6 +525,95 @@
   color: var(--foreground-strong);
 }
 
+.levelUpNextRepCommand {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(210px, 0.76fr) minmax(260px, 0.9fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), transparent 36%),
+    rgba(5, 15, 30, 0.8);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(14px, 2.4vw, 20px);
+  overflow: hidden;
+}
+
+.levelUpNextRepCommandCopy,
+.levelUpNextRepCommandCard,
+.levelUpNextRepCommandSignals article {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.levelUpNextRepCommandCopy span,
+.levelUpNextRepCommandCard span,
+.levelUpNextRepCommandSignals span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpNextRepCommandCopy h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  font-size: clamp(1.25rem, 2.4vw, 2rem);
+  font-weight: 950;
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.levelUpNextRepCommandCopy p,
+.levelUpNextRepCommandCard small {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.42;
+}
+
+.levelUpNextRepCommandCard,
+.levelUpNextRepCommandSignals article {
+  border: 1px solid rgba(116, 190, 255, 0.15);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+
+.levelUpNextRepCommandCard strong,
+.levelUpNextRepCommandSignals strong {
+  color: var(--foreground-strong);
+  font-size: 0.95rem;
+  line-height: 1.18;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.levelUpNextRepCommandSignals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.levelUpNextRepCommandActions {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.levelUpNextRepCommandActions :global(.button-primary),
+.levelUpNextRepCommandActions :global(.button-secondary) {
+  min-width: 0;
+  justify-content: center;
+  white-space: normal;
+}
+
 .levelUpIphoneCommandCenter,
 .levelUpIphoneDock {
   display: none;
@@ -14071,6 +14160,7 @@
   .levelUpCoachAssignmentBridge,
   .levelUpCloseLoop,
   .levelUpCloseLoopGrid,
+  .levelUpNextRepCommand,
   .levelUpNextBestRep,
   .levelUpTrainingPulse,
   .levelUpCoachUpdate,
@@ -14257,6 +14347,12 @@
   .moduleStandards,
   .moduleEvidenceGrid,
   .doublesTracker {
+    grid-template-columns: 1fr;
+  }
+
+  .levelUpNextRepCommand,
+  .levelUpNextRepCommandSignals,
+  .levelUpNextRepCommandActions {
     grid-template-columns: 1fr;
   }
 
