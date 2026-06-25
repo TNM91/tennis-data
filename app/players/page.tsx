@@ -20,6 +20,7 @@ import { loadUserProfileLink } from '@/lib/user-profile'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated' | 'trending-up' | 'at-risk'
@@ -79,6 +80,11 @@ type PlayerCard = PlayerRow & {
   overallDiff: number
   awards: TiqAwardRecord[]
 }
+
+const DIRECTORY_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const DIRECTORY_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(DIRECTORY_PLAYER_IDENTITY)
+const DIRECTORY_LEVEL_UP_HREF = `/level-up/${DIRECTORY_PLAYER_IDENTITY.slug}`
+const DIRECTORY_PLAYER_DEVELOPMENT_HREF = `/player-development/${DIRECTORY_PLAYER_IDENTITY.slug}`
 
 const PLAYERS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLINE || null
 const PLAYER_DIRECTORY_SELECT_BASE = `
@@ -398,6 +404,16 @@ export default function PlayersPage() {
       value: 'Profile, Matchup, My Lab',
       body: 'Open the record, compare the matchup, follow the player, or send missing context through Data Assist.',
     },
+    {
+      label: 'Starter read',
+      value: DIRECTORY_PLAYER_IDENTITY_READ.label,
+      body: 'No match history yet? Start with a Level Up identity, then let the profile record sharpen the next cue.',
+    },
+  ] as const
+  const playerIdStarterRead = [
+    { label: 'Train first', value: DIRECTORY_PLAYER_IDENTITY_READ.trainingPriority },
+    { label: 'Proof target', value: DIRECTORY_PLAYER_IDENTITY_READ.proofTarget },
+    { label: 'Match test', value: DIRECTORY_PLAYER_IDENTITY_READ.matchTrigger },
   ] as const
 
   const dynamicControlsShell: CSSProperties = {
@@ -710,6 +726,29 @@ export default function PlayersPage() {
                 <span style={playerIdLaunchpadTextStyle}>{signal.body}</span>
               </article>
             ))}
+          </div>
+          <div style={playerIdStarterReadStyle}>
+            <div style={playerIdStarterReadCopyStyle}>
+              <span style={playerIdLaunchpadLabelStyle}>Player ID starter path</span>
+              <strong style={playerIdLaunchpadValueStyle}>{DIRECTORY_PLAYER_IDENTITY_READ.title}</strong>
+              <span style={playerIdLaunchpadTextStyle}>{DIRECTORY_PLAYER_IDENTITY_READ.levelUpNudge}</span>
+            </div>
+            <div style={playerIdStarterReadGridStyle} aria-label="Player ID starter read">
+              {playerIdStarterRead.map((item) => (
+                <span key={item.label} style={playerIdStarterReadItemStyle}>
+                  <em>{item.label}</em>
+                  <b>{item.value}</b>
+                </span>
+              ))}
+            </div>
+            <div style={playerIdStarterActionRowStyle}>
+              <Link href={DIRECTORY_LEVEL_UP_HREF} style={playerIdStarterPrimaryLinkStyle}>
+                Start Level Up
+              </Link>
+              <Link href={DIRECTORY_PLAYER_DEVELOPMENT_HREF} style={playerIdStarterSecondaryLinkStyle}>
+                Read Player ID
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -1488,6 +1527,66 @@ const playerIdLaunchpadTextStyle: CSSProperties = {
   lineHeight: 1.45,
   fontWeight: 700,
   overflowWrap: 'anywhere',
+}
+
+const playerIdStarterReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'rgba(7,17,33,0.52)',
+  overflowWrap: 'anywhere',
+}
+
+const playerIdStarterReadCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdStarterReadGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerIdStarterReadItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdStarterActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerIdStarterPrimaryLinkStyle: CSSProperties = {
+  ...secondaryLink,
+  minHeight: 40,
+  padding: '0 14px',
+  fontSize: 12,
+}
+
+const playerIdStarterSecondaryLinkStyle: CSSProperties = {
+  ...playerIdStarterPrimaryLinkStyle,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.04)',
 }
 
 const loadingCard: CSSProperties = {
