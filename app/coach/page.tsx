@@ -276,6 +276,7 @@ function CoachContent() {
   const [assignmentDraftHydrated, setAssignmentDraftHydrated] = useState(false)
   const [contactStudentId, setContactStudentId] = useState('')
   const [mobileContactPanelOpen, setMobileContactPanelOpen] = useState(false)
+  const [mobileReviewQueueOpen, setMobileReviewQueueOpen] = useState(false)
   const [activeMobileBenchStudentId, setActiveMobileBenchStudentId] = useState('')
   const [mobileCoachContextHydrated, setMobileCoachContextHydrated] = useState(false)
   const [lessonDateTime, setLessonDateTime] = useState('')
@@ -1282,6 +1283,8 @@ function CoachContent() {
   const linkedPlayersCount = linkedPlayerCards.filter((card) => card.connection === 'linked').length
   const pendingInviteCount = linkedPlayerCards.filter((card) => card.connection === 'pending').length
   const overduePlayersCount = linkedPlayerCards.filter((card) => card.dueTone === 'overdue' || card.dueTone === 'today').length
+  const assignmentReviewQueueHasPriority = assignmentsNeedingReview.length > 0
+  const assignmentReviewQueueOpen = !isMobile || assignmentReviewQueueHasPriority || mobileReviewQueueOpen
   const coachQueueActions = useMemo(
     () => buildCoachQueueActions(linkedPlayerCards, assignmentsNeedingReview, savedStudents.length),
     [assignmentsNeedingReview, linkedPlayerCards, savedStudents.length],
@@ -2756,7 +2759,12 @@ function CoachContent() {
           ) : null}
           {isMobile ? null : renderReviewQueueMetrics()}
           <details
-            open={!isMobile || assignmentsNeedingReview.length > 0}
+            open={assignmentReviewQueueOpen}
+            onToggle={(event) => {
+              if (isMobile && !assignmentReviewQueueHasPriority) {
+                setMobileReviewQueueOpen(event.currentTarget.open)
+              }
+            }}
             style={isMobile ? mobileStudentRecordsDisclosureStyle : openAssignmentQueueDisclosureStyle}
           >
             <summary style={isMobile ? mobileStudentRecordsSummaryStyle : hiddenSummaryStyle}>
@@ -2770,6 +2778,8 @@ function CoachContent() {
               </strong>
             </summary>
             <div style={isMobile ? mobileStudentRecordsBodyStyle : openAssignmentQueueBodyStyle}>
+              {assignmentReviewQueueOpen ? (
+                <>
               {isMobile ? renderReviewQueueMetrics() : null}
           <div style={assignmentListStyle}>
             {recentLevelUpSessions.length ? (
@@ -3071,6 +3081,8 @@ function CoachContent() {
               </article>
             )}
           </div>
+                </>
+              ) : null}
             </div>
           </details>
           {renderOptionalPlanningHelpers()}

@@ -324,7 +324,12 @@ describe('coach mobile resilience', () => {
   })
 
   it('keeps the assignment review queue compact on phone unless review is pending', () => {
-    expect(coachSource).toContain('open={!isMobile || assignmentsNeedingReview.length > 0}')
+    expect(coachSource).toContain('const [mobileReviewQueueOpen, setMobileReviewQueueOpen] = useState(false)')
+    expect(coachSource).toContain('const assignmentReviewQueueHasPriority = assignmentsNeedingReview.length > 0')
+    expect(coachSource).toContain('const assignmentReviewQueueOpen = !isMobile || assignmentReviewQueueHasPriority || mobileReviewQueueOpen')
+    expect(coachSource).toContain('open={assignmentReviewQueueOpen}')
+    expect(coachSource).toContain('setMobileReviewQueueOpen(event.currentTarget.open)')
+    expect(coachSource).toContain('{assignmentReviewQueueOpen ? (')
     expect(coachSource).toContain('function renderReviewQueueMetrics()')
     expect(coachSource).toContain('{isMobile ? null : renderReviewQueueMetrics()}')
     expect(coachSource).toContain('{isMobile ? renderReviewQueueMetrics() : null}')
