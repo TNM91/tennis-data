@@ -38,6 +38,7 @@ import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildSupportMessageHref } from '@/lib/message-links'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
 const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
@@ -115,6 +116,16 @@ const dataAssistUploadStateProof = [
     label: 'Trust boundary',
     body: 'Unreviewed uploads do not change players, teams, leagues, rankings, Matchup, My Lab, or Coach Hub.',
   },
+] as const
+
+const DATA_ASSIST_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const DATA_ASSIST_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(DATA_ASSIST_PLAYER_IDENTITY)
+const DATA_ASSIST_LEVEL_UP_HREF = `/level-up/${DATA_ASSIST_PLAYER_IDENTITY.slug}`
+const DATA_ASSIST_PLAYER_DEVELOPMENT_HREF = `/player-development/${DATA_ASSIST_PLAYER_IDENTITY.slug}`
+const dataAssistPlayerIdStarterRead = [
+  { label: 'Train first', value: DATA_ASSIST_PLAYER_IDENTITY_READ.trainingPriority },
+  { label: 'Proof target', value: DATA_ASSIST_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Match test', value: DATA_ASSIST_PLAYER_IDENTITY_READ.matchTrigger },
 ] as const
 
 const dataAssistSourcePathJobs = [
@@ -1127,6 +1138,57 @@ function DataAssistTrustEnginePanel() {
             <p style={playerIdSignalTextStyle}>{item.body}</p>
           </article>
         ))}
+      </div>
+      <div style={dataAssistPlayerIdStarterStyle} aria-label="Data Assist Player ID starter">
+        <div style={dataAssistPlayerIdStarterHeaderStyle}>
+          <span style={playerIdSignalLabelStyle}>Player ID starter</span>
+          <strong style={playerIdSignalTitleStyle}>{DATA_ASSIST_PLAYER_IDENTITY_READ.label}</strong>
+          <p style={playerIdSignalTextStyle}>{DATA_ASSIST_PLAYER_IDENTITY_READ.levelUpNudge}</p>
+        </div>
+        <div style={dataAssistPlayerIdStarterGridStyle} aria-label="Data Assist Player ID starter read">
+          {dataAssistPlayerIdStarterRead.map((item) => (
+            <article key={item.label} style={dataAssistPlayerIdStarterCardStyle}>
+              <span style={dataAssistPlayerIdStarterLabelStyle}>{item.label}</span>
+              <strong style={dataAssistPlayerIdStarterValueStyle}>{item.value}</strong>
+            </article>
+          ))}
+        </div>
+        <div style={dataAssistPlayerIdStarterActionRowStyle}>
+          <Link
+            href={DATA_ASSIST_LEVEL_UP_HREF}
+            style={secondaryButtonStyle}
+            onClick={() => {
+              void trackProductUsageEvent({
+                eventName: 'data_assist_opened',
+                surface: 'data_assist',
+                metadata: {
+                  location: 'data_assist_player_id_starter',
+                  action: 'start_level_up',
+                  identity: DATA_ASSIST_PLAYER_IDENTITY.slug,
+                },
+              })
+            }}
+          >
+            Start Level Up
+          </Link>
+          <Link
+            href={DATA_ASSIST_PLAYER_DEVELOPMENT_HREF}
+            style={secondaryButtonStyle}
+            onClick={() => {
+              void trackProductUsageEvent({
+                eventName: 'data_assist_opened',
+                surface: 'data_assist',
+                metadata: {
+                  location: 'data_assist_player_id_starter',
+                  action: 'read_player_id',
+                  identity: DATA_ASSIST_PLAYER_IDENTITY.slug,
+                },
+              })
+            }}
+          >
+            Read Player ID
+          </Link>
+        </div>
       </div>
       <div style={trustActionRowStyle} aria-label="Data quality actions">
         <a href="#upload" style={primaryButtonStyle}>
@@ -3094,6 +3156,65 @@ const playerIdSignalTextStyle: CSSProperties = {
   lineHeight: 1.45,
   fontWeight: 750,
   overflowWrap: 'anywhere',
+}
+
+const dataAssistPlayerIdStarterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistPlayerIdStarterHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const dataAssistPlayerIdStarterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 168px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const dataAssistPlayerIdStarterCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-panel-border) 84%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistPlayerIdStarterLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistPlayerIdStarterValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistPlayerIdStarterActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const trustActionRowStyle: CSSProperties = {

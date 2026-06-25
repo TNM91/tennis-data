@@ -48,6 +48,20 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('profile confidence, Level Up context, matchup prep, and team decisions.')
   })
 
+  it('turns reviewed data context into a Player ID starter path', () => {
+    expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
+    expect(source).toContain('const DATA_ASSIST_LEVEL_UP_HREF = `/level-up/${DATA_ASSIST_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const DATA_ASSIST_PLAYER_DEVELOPMENT_HREF = `/player-development/${DATA_ASSIST_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('Data Assist Player ID starter')
+    expect(source).toContain('Data Assist Player ID starter read')
+    expect(source).toContain('dataAssistPlayerIdStarterRead.map((item)')
+    expect(source).toContain('Start Level Up')
+    expect(source).toContain('Read Player ID')
+    expect(source).toContain("location: 'data_assist_player_id_starter'")
+    expect(source).toContain("action: 'start_level_up'")
+    expect(source).toContain("action: 'read_player_id'")
+  })
+
   it('explains the review-first upload flow before users choose a file', () => {
     expect(source).toContain('const dataAssistReviewFlow')
     expect(source).toContain('const dataAssistUploadStateProof')
@@ -99,9 +113,14 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('const sourcePathCardBaseStyle: CSSProperties')
     expect(source).toContain('const playerIdSignalPathStyle: CSSProperties')
     expect(source).toContain('const playerIdSignalCardStyle: CSSProperties')
+    expect(source).toContain('const dataAssistPlayerIdStarterStyle: CSSProperties')
+    expect(source).toContain('const dataAssistPlayerIdStarterGridStyle: CSSProperties')
+    expect(source).toContain('const dataAssistPlayerIdStarterActionRowStyle: CSSProperties')
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 168px), 1fr))'")
     expect(source).toContain('minHeight: 152')
     expect(source).toContain('minHeight: 132')
+    expect(source).toContain("flexWrap: 'wrap'")
     expect(source).toContain("overflowWrap: 'anywhere'")
   })
 
