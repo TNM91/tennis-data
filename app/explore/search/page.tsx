@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-formatters'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
 
@@ -124,6 +125,11 @@ const scopeCommandCards: Array<{
   { scope: 'flight', label: 'Flight', title: 'Rating-level lane', icon: 'matchupAnalysis' },
   { scope: 'area', label: 'Area', title: 'Local league map', icon: 'opponentScouting' },
 ]
+
+const SEARCH_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const SEARCH_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(SEARCH_PLAYER_IDENTITY)
+const SEARCH_LEVEL_UP_HREF = `/level-up/${SEARCH_PLAYER_IDENTITY.slug}`
+const SEARCH_PLAYER_DEVELOPMENT_HREF = `/player-development/${SEARCH_PLAYER_IDENTITY.slug}`
 
 function formatCompactDate(value: string | null | undefined) {
   if (!value) return 'No recent match date'
@@ -319,6 +325,11 @@ function ExploreSearchContent() {
     (showTeamResults ? teams.length : 0) +
     (showLeagueResults ? filteredLeagues.length : 0)
   const topPlayerResult = showPlayerResults ? filteredPlayers[0] : null
+  const searchStarterRead = [
+    { label: 'Train first', value: SEARCH_PLAYER_IDENTITY_READ.trainingPriority },
+    { label: 'Proof target', value: SEARCH_PLAYER_IDENTITY_READ.proofTarget },
+    { label: 'Match test', value: SEARCH_PLAYER_IDENTITY_READ.matchTrigger },
+  ] as const
   const playerIdSearchTrailSignals = [
     {
       label: 'Search job',
@@ -335,11 +346,9 @@ function ExploreSearchContent() {
         : 'Player records become the anchor for ratings, matchup prep, follows, and Level Up work.',
     },
     {
-      label: 'Next action',
-      value: matchupSuggestions.length ? 'Matchup / My Lab' : 'Profile or Data Assist',
-      body: matchupSuggestions.length
-        ? 'Use the matched players to prep a comparison or save the tennis takeaway.'
-        : 'Open a profile when the record exists, or send missing context through Data Assist review.',
+      label: 'Starter read',
+      value: SEARCH_PLAYER_IDENTITY_READ.label,
+      body: SEARCH_PLAYER_IDENTITY_READ.levelUpNudge,
     },
   ] as const
 
@@ -503,6 +512,27 @@ function ExploreSearchContent() {
                 <span style={playerIdSearchTrailTextStyle}>{signal.body}</span>
               </article>
             ))}
+          </div>
+          <div style={playerIdStarterReadGridStyle} aria-label="Search Player ID starter read">
+            {searchStarterRead.map((item) => (
+              <article key={item.label} style={playerIdStarterReadCardStyle}>
+                <span style={playerIdSearchTrailLabelStyle}>{item.label}</span>
+                <strong style={playerIdSearchTrailTextStyle}>{item.value}</strong>
+              </article>
+            ))}
+          </div>
+          <div style={playerIdSearchTrailActionRowStyle}>
+            {topPlayerResult ? (
+              <Link href={`/players/${encodeURIComponent(topPlayerResult.id)}`} style={playerIdSearchTrailActionStyle}>
+                Open Player ID
+              </Link>
+            ) : null}
+            <Link href={SEARCH_LEVEL_UP_HREF} style={playerIdSearchTrailActionStyle}>
+              Start Level Up
+            </Link>
+            <Link href={SEARCH_PLAYER_DEVELOPMENT_HREF} style={playerIdSearchTrailActionStyle}>
+              Read Player ID
+            </Link>
           </div>
         </section>
 
@@ -1241,6 +1271,13 @@ const playerIdSearchTrailGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const playerIdStarterReadGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 168px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
 const playerIdSearchTrailCardStyle: CSSProperties = {
   display: 'grid',
   gap: 5,
@@ -1250,6 +1287,33 @@ const playerIdSearchTrailCardStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(7,17,33,0.68)',
   overflowWrap: 'anywhere',
+}
+
+const playerIdStarterReadCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, rgba(116,190,255,0.13) 82%)',
+  background: 'rgba(7,17,33,0.52)',
+  overflowWrap: 'anywhere',
+}
+
+const playerIdSearchTrailActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const playerIdSearchTrailActionStyle: CSSProperties = {
+  ...buttonGhost,
+  minHeight: 40,
+  maxWidth: '100%',
+  paddingInline: 14,
+  overflowWrap: 'anywhere',
+  whiteSpace: 'normal',
 }
 
 const playerIdSearchTrailLabelStyle: CSSProperties = {
