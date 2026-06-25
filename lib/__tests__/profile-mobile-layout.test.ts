@@ -53,6 +53,11 @@ describe('Profile mobile layout guards', () => {
       'newPlayerPathHeaderStyle',
       'newPlayerActionGridStyle',
       'newPlayerActionCardStyle',
+      'profilePlayerIdStarterStyle',
+      'profilePlayerIdStarterCopyStyle',
+      'profilePlayerIdStarterGridStyle',
+      'profilePlayerIdStarterItemStyle',
+      'profilePlayerIdStarterActionRowStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -78,6 +83,9 @@ describe('Profile mobile layout guards', () => {
       'newPlayerPathStyle',
       'newPlayerPathHeaderStyle',
       'newPlayerActionCardStyle',
+      'profilePlayerIdStarterStyle',
+      'profilePlayerIdStarterCopyStyle',
+      'profilePlayerIdStarterItemStyle',
     ]) {
       expect(styleBlock(styleName)).toContain("overflowWrap: 'anywhere'")
     }
@@ -90,6 +98,8 @@ describe('Profile mobile layout guards', () => {
     expect(styleBlock('autoContextStripStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
     expect(styleBlock('ratingTileGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
     expect(styleBlock('newPlayerActionGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
+    expect(styleBlock('profilePlayerIdStarterGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 150px), 1fr))")
+    expect(styleBlock('profilePlayerIdStarterActionRowStyle')).toContain("flexWrap: 'wrap'")
     for (const styleName of ['newPlayerPathHeaderStyle', 'newPlayerActionCardStyle']) {
       expect(styleBlock(styleName)).toContain("'minmax(0, auto) minmax(0, 1fr)'")
     }

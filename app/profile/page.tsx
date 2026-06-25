@@ -21,6 +21,7 @@ import {
 } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadTiqAwardsForPlayer, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -81,6 +82,11 @@ const DEFAULT_PREFS: ProfilePrefs = {
   preferredRole: 'both',
   availabilityDefault: 'ask-weekly',
 }
+
+const PROFILE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const PROFILE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(PROFILE_PLAYER_IDENTITY)
+const PROFILE_LEVEL_UP_HREF = `/level-up/${PROFILE_PLAYER_IDENTITY.slug}`
+const PROFILE_PLAYER_DEVELOPMENT_HREF = `/player-development/${PROFILE_PLAYER_IDENTITY.slug}`
 
 const PROFILE_PLAYER_SELECT_BASE = `
   id,
@@ -685,8 +691,8 @@ function ProfilePageInner() {
     { title: 'Find players', href: '/explore/players', icon: 'playerRatings' },
   ] as const
   const profileNextMoves = [
-    { title: 'Start Level Up', href: '/level-up', icon: 'reliabilityIndex' },
-    { title: 'Open development path', href: '/player-development', icon: 'myLab' },
+    { title: 'Start Level Up', href: PROFILE_LEVEL_UP_HREF, icon: 'reliabilityIndex' },
+    { title: 'Open development path', href: PROFILE_PLAYER_DEVELOPMENT_HREF, icon: 'myLab' },
     { title: 'Prep matchup', href: profileMatchupHref, icon: 'matchPrep' },
     { title: 'Fix tennis info', href: dataAssistProfileHref, icon: 'reports' },
   ] as const
@@ -709,6 +715,11 @@ function ProfilePageInner() {
       detail: 'TenAceIQ keeps the player record clear before it feeds matchup, team, and league work.',
       icon: 'playerRatings',
     },
+  ] as const
+  const profilePlayerIdStarterRead = [
+    { label: 'Train first', value: PROFILE_PLAYER_IDENTITY_READ.trainingPriority },
+    { label: 'Proof target', value: PROFILE_PLAYER_IDENTITY_READ.proofTarget },
+    { label: 'Match test', value: PROFILE_PLAYER_IDENTITY_READ.matchTrigger },
   ] as const
   const profileIdentityTitle = profileComplete ? profileDisplayName : 'Set your player identity'
   const profileSyncText = profileSource === 'cloud'
@@ -874,6 +885,29 @@ function ProfilePageInner() {
                       </div>
                     </div>
                   ))}
+                </div>
+                <div style={profilePlayerIdStarterStyle}>
+                  <div style={profilePlayerIdStarterCopyStyle}>
+                    <span style={playerIdPowerLabelStyle}>Player ID starter path</span>
+                    <strong style={playerIdPowerTitleStyle}>{PROFILE_PLAYER_IDENTITY_READ.label}</strong>
+                    <em style={playerIdPowerDetailStyle}>{PROFILE_PLAYER_IDENTITY_READ.levelUpNudge}</em>
+                  </div>
+                  <div style={profilePlayerIdStarterGridStyle} aria-label="Profile Player ID starter read">
+                    {profilePlayerIdStarterRead.map((item) => (
+                      <span key={item.label} style={profilePlayerIdStarterItemStyle}>
+                        <em>{item.label}</em>
+                        <b>{item.value}</b>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={profilePlayerIdStarterActionRowStyle}>
+                    <Link href={PROFILE_LEVEL_UP_HREF} style={profilePlayerIdStarterLinkStyle}>
+                      Start Level Up
+                    </Link>
+                    <Link href={PROFILE_PLAYER_DEVELOPMENT_HREF} style={profilePlayerIdStarterSecondaryLinkStyle}>
+                      Read Player ID
+                    </Link>
+                  </div>
                 </div>
               </div>
 
@@ -1467,6 +1501,66 @@ const playerIdPowerTitleStyle: CSSProperties = {
 const playerIdPowerDetailStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontStyle: 'normal',
+}
+
+const profilePlayerIdStarterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(7,18,34,0.42)',
+  overflowWrap: 'anywhere',
+}
+
+const profilePlayerIdStarterCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const profilePlayerIdStarterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const profilePlayerIdStarterItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 760,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const profilePlayerIdStarterActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const profilePlayerIdStarterLinkStyle: CSSProperties = {
+  ...secondaryButtonStyle,
+  minHeight: 40,
+  padding: '0 14px',
+  fontSize: 12,
+}
+
+const profilePlayerIdStarterSecondaryLinkStyle: CSSProperties = {
+  ...profilePlayerIdStarterLinkStyle,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.04)',
 }
 
 const profileAwardStripStyle: CSSProperties = {
