@@ -50,6 +50,7 @@ const CUSTOM_ASSIGNMENT_TEMPLATE_ID = 'custom-assignment'
 const DEFAULT_STUDENT_IDENTITY_ID = 'relentless-competitor-4-0'
 const COACH_STUDENT_DRAFT_KEY = 'tenaceiq.coach.studentDraft.v1'
 const COACH_MOBILE_CONTEXT_KEY = 'tenaceiq.coach.mobileContext.v1'
+const COACH_ASSIGNMENT_DRAFT_KEY = 'tenaceiq.coach.assignmentDraft.v1'
 
 type CoachCalendarFeedStatus = {
   active: boolean
@@ -69,6 +70,23 @@ type CoachStudentDraft = {
 type CoachMobileContext = {
   activeMobileBenchStudentId: string
   contactPanelOpen: boolean
+}
+
+type CoachAssignmentDraft = {
+  assignmentStudentId: string
+  assignmentTitle: string
+  assignmentFocus: string
+  assignmentDueDate: string
+  assignmentTemplateId: string
+  assignmentPresetId: string
+  assignmentStarterId: string
+  assignmentLevelUpCardId: string
+  assignmentLevelUpPackId: string
+  assignmentEditId: string
+  lessonDateTime: string
+  lessonFocus: string
+  lessonLocation: string
+  sessionPresetId: string
 }
 
 const FIRST_ASSIGNMENT_STARTERS = [
@@ -245,6 +263,7 @@ function CoachContent() {
   const [assignmentLevelUpCardId, setAssignmentLevelUpCardId] = useState('')
   const [assignmentLevelUpPackId, setAssignmentLevelUpPackId] = useState('')
   const [assignmentEditId, setAssignmentEditId] = useState('')
+  const [assignmentDraftHydrated, setAssignmentDraftHydrated] = useState(false)
   const [contactStudentId, setContactStudentId] = useState('')
   const [mobileContactPanelOpen, setMobileContactPanelOpen] = useState(false)
   const [activeMobileBenchStudentId, setActiveMobileBenchStudentId] = useState('')
@@ -373,6 +392,93 @@ function CoachContent() {
 
     window.localStorage.setItem(COACH_MOBILE_CONTEXT_KEY, JSON.stringify(context))
   }, [activeMobileBenchStudentId, mobileCoachContextHydrated, mobileContactPanelOpen])
+
+  useEffect(() => {
+    try {
+      const rawDraft = window.localStorage.getItem(COACH_ASSIGNMENT_DRAFT_KEY)
+      if (rawDraft) {
+        const draft = JSON.parse(rawDraft) as Partial<CoachAssignmentDraft>
+        setAssignmentStudentId(cleanText(draft.assignmentStudentId))
+        setAssignmentTitle(cleanText(draft.assignmentTitle))
+        setAssignmentFocus(cleanText(draft.assignmentFocus))
+        setAssignmentDueDate(cleanText(draft.assignmentDueDate))
+        setAssignmentTemplateId(cleanText(draft.assignmentTemplateId) || COACH_ASSIGNMENT_TEMPLATES[0]?.id || '')
+        setAssignmentPresetId(cleanText(draft.assignmentPresetId))
+        setAssignmentStarterId(cleanText(draft.assignmentStarterId))
+        setAssignmentLevelUpCardId(cleanText(draft.assignmentLevelUpCardId))
+        setAssignmentLevelUpPackId(cleanText(draft.assignmentLevelUpPackId))
+        setAssignmentEditId(cleanText(draft.assignmentEditId))
+        setLessonDateTime(cleanText(draft.lessonDateTime))
+        setLessonFocus(cleanText(draft.lessonFocus))
+        setLessonLocation(cleanText(draft.lessonLocation))
+        setSessionPresetId(cleanText(draft.sessionPresetId) || COACH_SESSION_PRESETS[0]?.id || '')
+      }
+    } catch {
+      window.localStorage.removeItem(COACH_ASSIGNMENT_DRAFT_KEY)
+    } finally {
+      setAssignmentDraftHydrated(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!assignmentDraftHydrated) return
+
+    const draft: CoachAssignmentDraft = {
+      assignmentStudentId,
+      assignmentTitle,
+      assignmentFocus,
+      assignmentDueDate,
+      assignmentTemplateId,
+      assignmentPresetId,
+      assignmentStarterId,
+      assignmentLevelUpCardId,
+      assignmentLevelUpPackId,
+      assignmentEditId,
+      lessonDateTime,
+      lessonFocus,
+      lessonLocation,
+      sessionPresetId,
+    }
+
+    const hasDraft =
+      assignmentStudentId ||
+      assignmentTitle.trim() ||
+      assignmentFocus.trim() ||
+      assignmentDueDate ||
+      assignmentTemplateId !== (COACH_ASSIGNMENT_TEMPLATES[0]?.id ?? '') ||
+      assignmentPresetId ||
+      assignmentStarterId ||
+      assignmentLevelUpCardId ||
+      assignmentLevelUpPackId ||
+      assignmentEditId ||
+      lessonDateTime ||
+      lessonFocus.trim() ||
+      lessonLocation.trim() ||
+      sessionPresetId !== (COACH_SESSION_PRESETS[0]?.id ?? '')
+
+    if (!hasDraft) {
+      window.localStorage.removeItem(COACH_ASSIGNMENT_DRAFT_KEY)
+      return
+    }
+
+    window.localStorage.setItem(COACH_ASSIGNMENT_DRAFT_KEY, JSON.stringify(draft))
+  }, [
+    assignmentDraftHydrated,
+    assignmentDueDate,
+    assignmentEditId,
+    assignmentFocus,
+    assignmentLevelUpCardId,
+    assignmentLevelUpPackId,
+    assignmentPresetId,
+    assignmentStarterId,
+    assignmentStudentId,
+    assignmentTemplateId,
+    assignmentTitle,
+    lessonDateTime,
+    lessonFocus,
+    lessonLocation,
+    sessionPresetId,
+  ])
 
   const loadCoachWorkspace = useCallback(async () => {
     if (!session?.access_token || !access.canUseCoachWorkflow) return
@@ -724,6 +830,8 @@ function CoachContent() {
       setAssignmentLevelUpCardId('')
       setAssignmentLevelUpPackId('')
       setAssignmentEditId('')
+      setLessonDateTime('')
+      setLessonFocus('')
       setLessonLocation('')
       setWorkspaceMessage(
         status === 'draft'
@@ -1219,6 +1327,13 @@ function CoachContent() {
       setActiveMobileBenchStudentId(linkedPlayerCards[0].student.id)
     }
   }, [activeMobileBenchStudentId, linkedPlayerCards, mobileCoachContextHydrated])
+
+  useEffect(() => {
+    if (!assignmentDraftHydrated || !savedStudents.length || !assignmentStudentId) return
+    if (savedStudents.some((student) => student.id === assignmentStudentId)) return
+
+    setAssignmentStudentId(savedStudents[0].id)
+  }, [assignmentDraftHydrated, assignmentStudentId, savedStudents])
 
   function renderLinkedPlayerCard(card: LinkedPlayerCard, featured = false) {
     const profileHref = getCoachPlayerProfileHref(card.student)

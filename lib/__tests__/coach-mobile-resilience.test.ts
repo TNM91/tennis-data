@@ -66,6 +66,23 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('if (!mobileCoachContextHydrated) return')
   })
 
+  it('preserves in-progress coach assignment drafts when the phone browser reloads', () => {
+    expect(coachSource).toContain("const COACH_ASSIGNMENT_DRAFT_KEY = 'tenaceiq.coach.assignmentDraft.v1'")
+    expect(coachSource).toContain('type CoachAssignmentDraft = {')
+    expect(coachSource).toContain('const [assignmentDraftHydrated, setAssignmentDraftHydrated] = useState(false)')
+    expect(coachSource).toContain('window.localStorage.getItem(COACH_ASSIGNMENT_DRAFT_KEY)')
+    expect(coachSource).toContain('setAssignmentStudentId(cleanText(draft.assignmentStudentId))')
+    expect(coachSource).toContain('setAssignmentTitle(cleanText(draft.assignmentTitle))')
+    expect(coachSource).toContain('setAssignmentFocus(cleanText(draft.assignmentFocus))')
+    expect(coachSource).toContain('setAssignmentLevelUpPackId(cleanText(draft.assignmentLevelUpPackId))')
+    expect(coachSource).toContain('setLessonDateTime(cleanText(draft.lessonDateTime))')
+    expect(coachSource).toContain('window.localStorage.setItem(COACH_ASSIGNMENT_DRAFT_KEY, JSON.stringify(draft))')
+    expect(coachSource).toContain('window.localStorage.removeItem(COACH_ASSIGNMENT_DRAFT_KEY)')
+    expect(coachSource).toContain('if (!assignmentDraftHydrated || !savedStudents.length || !assignmentStudentId) return')
+    expect(coachSource).toContain('setLessonDateTime(\'\')')
+    expect(coachSource).toContain('setLessonFocus(\'\')')
+  })
+
   it('makes phone-only student setup immediately textable on mobile', () => {
     expect(coachSource).toContain('const [lastCreatedStudentSetup, setLastCreatedStudentSetup] = useState')
     expect(coachSource).toContain('const canCreateStudentSetupLink = studentPhoneDigits.length >= 7')
