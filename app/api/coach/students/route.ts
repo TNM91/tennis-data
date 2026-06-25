@@ -55,10 +55,21 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return Response.json({ ok: false, message: buildCoachStudentSaveErrorMessage(error.message) }, { status: 500 })
   }
 
   return Response.json({ ok: true, student: mapCoachStudentLinkRow(data as CoachStudentLinkRow) })
+}
+
+function buildCoachStudentSaveErrorMessage(message: string) {
+  const lower = message.toLowerCase()
+  if (lower.includes('pattern') || lower.includes('phone')) {
+    return 'Student record failed: the saved phone format was rejected. Try a 10-digit US cell number like 6365778790, or +16365778790.'
+  }
+  if (lower.includes('uuid')) {
+    return 'Student record failed: the saved identifier format was rejected. Refresh Coach Hub and try Save again.'
+  }
+  return `Student record failed: ${message}`
 }
 
 export async function DELETE(request: Request) {

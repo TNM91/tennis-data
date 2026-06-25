@@ -50,10 +50,18 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return Response.json({ ok: false, message: buildCoachInviteSaveErrorMessage(error.message) }, { status: 500 })
   }
 
   return Response.json({ ok: true, invite: mapCoachInviteRow(data as CoachStudentInviteRow, new URL(request.url).origin) })
+}
+
+function buildCoachInviteSaveErrorMessage(message: string) {
+  const lower = message.toLowerCase()
+  if (lower.includes('pattern') || lower.includes('uuid')) {
+    return 'Setup link failed: the saved invite identifier was rejected. Refresh Coach Hub and try Save again.'
+  }
+  return `Setup link failed: ${message}`
 }
 
 export async function DELETE(request: Request) {

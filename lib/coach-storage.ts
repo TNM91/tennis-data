@@ -555,7 +555,13 @@ function normalizeEmail(value: unknown) {
 }
 
 function normalizePhone(value: unknown) {
-  return stringOrEmpty(value).replace(/[^\d+]/g, '').slice(0, 24)
+  const text = stringOrEmpty(value).trim()
+  const digits = text.replace(/\D/g, '')
+  if (!digits) return ''
+  if (digits.length === 10) return `+1${digits}`
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`
+  if (text.startsWith('+') && digits.length >= 8 && digits.length <= 15) return `+${digits}`
+  return digits.slice(0, 15)
 }
 
 function nullableDate(value: unknown) {

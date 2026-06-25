@@ -69,10 +69,11 @@ describe('coach storage helpers', () => {
   it('builds coach-owned student payloads', () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValueOnce('student-random')
 
-    expect(buildCoachStudentLinkPayload({ playerName: ' Taylor ', status: 'paused' }, 'coach-1')).toMatchObject({
+    expect(buildCoachStudentLinkPayload({ playerName: ' Taylor ', status: 'paused', playerPhone: '1 (636) 577-8790' }, 'coach-1')).toMatchObject({
       id: 'student-random',
       coach_user_id: 'coach-1',
       player_name: 'Taylor',
+      player_phone: '+16365778790',
       status: 'paused',
       identity_slug: 'relentless-competitor-4-0',
     })
