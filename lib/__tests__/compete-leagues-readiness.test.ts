@@ -61,6 +61,36 @@ describe('compete leagues readiness', () => {
     expect(source).not.toContain("const secondaryActionHref")
   })
 
+  it('connects individual league context back into Player ID and Level Up prep', () => {
+    expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
+    expect(source).toContain("const LEAGUE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
+    expect(source).toContain('const LEAGUE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(LEAGUE_PLAYER_IDENTITY)')
+    expect(source).toContain('const LEAGUE_LEVEL_UP_HREF = `/level-up/${LEAGUE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const LEAGUE_PLAYER_DEVELOPMENT_HREF = `/player-development/${LEAGUE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('aria-label="Leagues Player ID individual prep"')
+    expect(source).toContain('aria-label="Leagues Player ID starter read"')
+    expect(source).toContain('Individual league to Player ID')
+    expect(source).toContain('When the league question becomes personal, pick one cue.')
+    expect(source).toContain('Keep League Office as the season layer, then use Player ID to turn standings, results, and prompts into one prep action.')
+    expect(source).toContain('Start Level Up')
+    expect(source).toContain('Read Player ID')
+    expect(source).toContain('Open results')
+    expect(source.indexOf('<LeaguePlayerIdPrepPanel />')).toBeGreaterThan(source.indexOf('<LeaguePathPanel />'))
+    expect(source.indexOf('<LeaguePlayerIdPrepPanel />')).toBeLessThan(source.indexOf('<CompeteGrid>'))
+  })
+
+  it('keeps the Leagues Player ID bridge compact on phones', () => {
+    expect(styleBlock('leaguePlayerIdPrepStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
+    expect(styleBlock('leaguePlayerIdPrepStyle')).toContain('minWidth: 0')
+    expect(styleBlock('leaguePlayerIdPrepStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('leaguePlayerIdPrepGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(styleBlock('leaguePlayerIdPrepCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('leaguePlayerIdActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('leaguePlayerIdActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('leaguePlayerIdActionStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('leaguePlayerIdActionStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
   it('keeps empty league sections actionable without duplicating row actions', () => {
     expect(source).toContain('function EmptyLeagueSection')
     expect(source).toContain('Team seasons start in League Office.')

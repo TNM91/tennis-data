@@ -23,6 +23,7 @@ import {
   getTiqIndividualCompetitionFormatNextAction,
   getTiqIndividualCompetitionFormatPreview,
 } from '@/lib/tiq-individual-format'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY, MY_LAB_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
@@ -60,6 +61,21 @@ const leaguePathActions = [
     body: 'Turn league context into availability, lineups, scenarios, and team messages.',
     cta: 'Open week',
   },
+] as const
+
+const LEAGUE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const LEAGUE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(LEAGUE_PLAYER_IDENTITY)
+const LEAGUE_LEVEL_UP_HREF = `/level-up/${LEAGUE_PLAYER_IDENTITY.slug}`
+const LEAGUE_PLAYER_DEVELOPMENT_HREF = `/player-development/${LEAGUE_PLAYER_IDENTITY.slug}`
+const leaguePlayerIdPrepItems = [
+  { label: 'League read', value: LEAGUE_PLAYER_IDENTITY_READ.matchTrigger },
+  { label: 'Result proof', value: LEAGUE_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Next cue', value: LEAGUE_PLAYER_IDENTITY_READ.nextCue },
+] as const
+const leaguePlayerIdActions = [
+  { href: LEAGUE_LEVEL_UP_HREF, label: 'Start Level Up' },
+  { href: LEAGUE_PLAYER_DEVELOPMENT_HREF, label: 'Read Player ID' },
+  { href: '/compete/results', label: 'Open results' },
 ] as const
 
 export default function CompeteLeaguesPage() {
@@ -106,6 +122,7 @@ export default function CompeteLeaguesPage() {
       description="Saved TIQ leagues, public league pages, data refreshes, and team-week handoffs stay under the League Office lane."
     >
       <LeaguePathPanel />
+      <LeaguePlayerIdPrepPanel />
 
       <CompeteGrid>
         <CompeteCard
@@ -250,6 +267,39 @@ function LeaguePathPanel() {
             <strong style={leaguePathCardTitleStyle}>{action.title}</strong>
             <span>{action.body}</span>
             <span style={leaguePathCtaStyle}>{action.cta}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function LeaguePlayerIdPrepPanel() {
+  return (
+    <section style={leaguePlayerIdPrepStyle} aria-label="Leagues Player ID individual prep">
+      <div style={leaguePlayerIdPrepCopyStyle}>
+        <span style={leaguePlayerIdPrepEyebrowStyle}>Individual league to Player ID</span>
+        <h2 style={leaguePlayerIdPrepTitleStyle}>When the league question becomes personal, pick one cue.</h2>
+        <p style={leaguePlayerIdPrepTextStyle}>
+          {LEAGUE_PLAYER_IDENTITY_READ.levelUpNudge} Keep League Office as the season layer, then use Player ID to turn standings, results, and prompts into one prep action.
+        </p>
+      </div>
+      <div style={leaguePlayerIdPrepGridStyle} aria-label="Leagues Player ID starter read">
+        {leaguePlayerIdPrepItems.map((item) => (
+          <div key={item.label} style={leaguePlayerIdPrepCardStyle}>
+            <span style={leaguePlayerIdPrepLabelStyle}>{item.label}</span>
+            <strong style={leaguePlayerIdPrepValueStyle}>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+      <div style={leaguePlayerIdActionRowStyle}>
+        {leaguePlayerIdActions.map((action, index) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            style={index === 0 ? { ...leaguePlayerIdActionStyle, ...leaguePlayerIdPrimaryActionStyle } : leaguePlayerIdActionStyle}
+          >
+            {action.label}
           </Link>
         ))}
       </div>
@@ -542,6 +592,128 @@ const leaguePathCtaStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const leaguePlayerIdPrepStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: '14px',
+  alignItems: 'center',
+  marginTop: '14px',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(8,16,34,0.72)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.20), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePlayerIdPrepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  minWidth: 0,
+}
+
+const leaguePlayerIdPrepEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePlayerIdPrepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(20px, 5vw, 28px)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePlayerIdPrepTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.55,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePlayerIdPrepGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const leaguePlayerIdPrepCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  minWidth: 0,
+  minHeight: 78,
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePlayerIdPrepLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePlayerIdPrepValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  lineHeight: 1.35,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePlayerIdActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-start',
+  gap: '9px',
+  minWidth: 0,
+}
+
+const leaguePlayerIdActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  minHeight: 38,
+  minWidth: 0,
+  padding: '9px 12px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'rgba(7,17,33,0.74)',
+  color: '#eef5ff',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 950,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePlayerIdPrimaryActionStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.36)',
+  background: 'rgba(155,225,29,0.13)',
+  color: '#f5ffe2',
 }
 
 const upgradeWrapStyle = {
