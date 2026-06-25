@@ -35,6 +35,7 @@ import { formatDate } from '@/lib/captain-formatters'
 import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   loadTiqAwardsForPlayer,
   readTiqAwardsForPlayerId,
@@ -752,6 +753,25 @@ function PlayerProfileContent() {
     return { w, l, total: w + l }
   }, [matches])
 
+  const playerPathIdentitySlug = useMemo(() => {
+    if (doublesRecord.total >= Math.max(3, singlesRecord.total + 2)) return 'doubles-commander-4-0'
+    if (winStreak.type === 'W' && winStreak.count >= 3) return 'pressure-closer-4-0'
+    if (trendDirection === 'up' || (formScore ?? 0) > 0.05) return 'smart-attacker-4-0-to-4-5'
+    if (singlesRecord.total >= Math.max(3, doublesRecord.total + 2)) return 'singles-point-builder-4-0'
+    return 'relentless-competitor-4-0'
+  }, [doublesRecord.total, formScore, singlesRecord.total, trendDirection, winStreak.count, winStreak.type])
+
+  const playerPathIdentity = useMemo(
+    () => getPlayerDevelopmentIdentity(playerPathIdentitySlug),
+    [playerPathIdentitySlug],
+  )
+  const playerPathIdentityRead = useMemo(
+    () => getPlayerDevelopmentIdentityActionRead(playerPathIdentity),
+    [playerPathIdentity],
+  )
+  const playerPathLevelUpHref = `/level-up/${playerPathIdentity.slug}`
+  const playerPathDevelopmentHref = `/player-development/${playerPathIdentity.slug}`
+
   // How many consecutive matches the current USTA status has held, reading snapshots newest to oldest.
   const statusStreakMatches = useMemo(() => {
     const relevant = snapshots
@@ -884,14 +904,14 @@ function PlayerProfileContent() {
     {
       question: 'What should I work on?',
       label: 'Level Up My Game',
-      body: 'Use this player ID to pick one focus, run a training card, and leave with one clear next rep.',
-      href: '/level-up',
+      body: `Train first: ${playerPathIdentityRead.trainingPriority}`,
+      href: playerPathLevelUpHref,
       job: 'level_up_game',
     },
     {
       question: 'How am I improving?',
       label: 'Open My Lab',
-      body: 'Track goals, follows, recent matches, and progress around your player record.',
+      body: `Proof target: ${playerPathIdentityRead.proofTarget}`,
       href: '/mylab',
       job: 'track_progress',
     },
@@ -914,8 +934,8 @@ function PlayerProfileContent() {
     {
       question: 'How do I level up faster?',
       label: 'Open Level Up',
-      body: 'Turn the next weakness into a focused card, a short practice rep, and a proof point you can repeat.',
-      href: '/level-up',
+      body: playerPathIdentityRead.levelUpNudge,
+      href: playerPathLevelUpHref,
       job: 'level_up_faster',
     },
   ] as const
@@ -923,6 +943,12 @@ function PlayerProfileContent() {
     { label: 'Player ID', value: playerId },
     { label: 'Profile source', value: isSelfRatedProfile ? 'Self-rated S' : 'Verified record' },
     { label: 'Level Up input', value: totalMatches > 0 ? `${totalMatches} matches` : 'Start with profile' },
+    { label: 'First read', value: playerPathIdentityRead.label },
+  ] as const
+  const playerPathReadItems = [
+    { label: 'Train first', value: playerPathIdentityRead.trainingPriority },
+    { label: 'Proof target', value: playerPathIdentityRead.proofTarget },
+    { label: 'Match test', value: playerPathIdentityRead.matchTrigger },
   ] as const
   const primaryUstaMembership = ustaTeamMemberships[0] ?? null
   const primaryTeamHref = primaryUstaMembership
@@ -1448,6 +1474,23 @@ function PlayerProfileContent() {
                 </div>
               ))}
             </div>
+            <Link
+              href={playerPathDevelopmentHref}
+              style={playerPathReadStyle}
+              aria-label={`Open ${playerPathIdentityRead.label} development read`}
+            >
+              <span style={playerPathQuestionStyle}>Player ID first read</span>
+              <strong style={playerPathLabelStyle}>{playerPathIdentityRead.label}</strong>
+              <span style={playerPathBodyStyle}>{playerPathIdentityRead.title}</span>
+              <span style={playerPathReadGridStyle}>
+                {playerPathReadItems.map((item) => (
+                  <span key={item.label} style={playerPathReadItemStyle}>
+                    <em>{item.label}</em>
+                    <b>{item.value}</b>
+                  </span>
+                ))}
+              </span>
+            </Link>
             <div style={playerPathListStyle} aria-label="Player path actions">
               {playerPathActions.map((action) => (
                 <Link
@@ -4031,6 +4074,40 @@ const playerPathListStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   minWidth: 0,
+}
+
+const playerPathReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: '12px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg) 91%)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const playerPathReadGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerPathReadItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  background: 'rgba(7,18,34,0.36)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const playerPathActionStyle: CSSProperties = {
