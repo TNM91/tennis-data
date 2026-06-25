@@ -2403,15 +2403,11 @@ function CoachContent() {
             <span style={reviewBadgeStyle}>Coach assignment bridge</span>
           </div>
           {isMobile ? (
-            <details style={mobileStudentRecordsDisclosureStyle}>
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>Level Up cards</span>
-                <strong>{levelUpHandoffPack.cardIds.length} cards</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderLevelUpHandoffGrid(levelUpHandoffPack)}
-              </div>
-            </details>
+            <MobileLazyDetails
+              label="Level Up cards"
+              value={`${levelUpHandoffPack.cardIds.length} cards`}
+              renderContent={() => renderLevelUpHandoffGrid(levelUpHandoffPack)}
+            />
           ) : renderLevelUpHandoffGrid(levelUpHandoffPack)}
           <div style={studentActionRowStyle}>
             <button type="button" onClick={() => loadLevelUpHandoffPack(levelUpHandoffPack)} style={smallPrimaryButtonStyle}>
@@ -2441,15 +2437,11 @@ function CoachContent() {
             <span style={reviewBadgeStyle}>{draftAssignments.length} draft{draftAssignments.length === 1 ? '' : 's'}</span>
           </div>
           {isMobile ? (
-            <details style={mobileStudentRecordsDisclosureStyle}>
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>Saved drafts</span>
-                <strong>{draftAssignments.length} saved</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderDraftAssignmentGrid()}
-              </div>
-            </details>
+            <MobileLazyDetails
+              label="Saved drafts"
+              value={`${draftAssignments.length} saved`}
+              renderContent={renderDraftAssignmentGrid}
+            />
           ) : renderDraftAssignmentGrid()}
         </section>
       ) : null}
@@ -2506,24 +2498,16 @@ function CoachContent() {
         )}
         {isMobile ? (
           <>
-            <details style={mobileStudentRecordsDisclosureStyle}>
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>Bench snapshot</span>
-                <strong>{linkedPlayersCount} linked</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderBenchMetrics()}
-              </div>
-            </details>
-            <details style={mobileStudentRecordsDisclosureStyle}>
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>Today&apos;s coach queue</span>
-                <strong>{assignmentsNeedingReview.length + overduePlayersCount} priority</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderCoachQueue()}
-              </div>
-            </details>
+            <MobileLazyDetails
+              label="Bench snapshot"
+              value={`${linkedPlayersCount} linked`}
+              renderContent={renderBenchMetrics}
+            />
+            <MobileLazyDetails
+              label="Today's coach queue"
+              value={`${assignmentsNeedingReview.length + overduePlayersCount} priority`}
+              renderContent={renderCoachQueue}
+            />
           </>
         ) : renderCoachQueue()}
       </section>
@@ -2532,18 +2516,12 @@ function CoachContent() {
         <div id="coach-student-board" style={panelStyle}>
           <PanelHeader eyebrow="Student board" title="Give each player a clear next action." />
           {isMobile && savedStudents.length > 0 ? (
-            <details
-              {...(hasStudentFormDraft ? { open: true } : {})}
-              style={mobileStudentRecordsDisclosureStyle}
-            >
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>Add or invite player</span>
-                <strong>{hasStudentFormDraft ? 'Draft open' : 'Open'}</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderAddStudentForm()}
-              </div>
-            </details>
+            <MobileLazyDetails
+              label="Add or invite player"
+              value={hasStudentFormDraft ? 'Draft open' : 'Open'}
+              defaultOpen={hasStudentFormDraft}
+              renderContent={renderAddStudentForm}
+            />
           ) : renderAddStudentForm()}
           {workspaceMessage ? (
             <div style={formStatusStyle} role="status" aria-live="polite">
@@ -2606,27 +2584,19 @@ function CoachContent() {
             </div>
           ) : null}
           {isMobile && savedStudents.length > 0 ? (
-            <details style={mobileStudentRecordsDisclosureStyle}>
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>Saved student records</span>
-                <strong>{savedStudents.length} total</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderStudentRecordList()}
-              </div>
-            </details>
+            <MobileLazyDetails
+              label="Saved student records"
+              value={`${savedStudents.length} total`}
+              renderContent={renderStudentRecordList}
+            />
           ) : renderStudentRecordList()}
           {invites.length ? (
             isMobile ? (
-              <details style={mobileStudentRecordsDisclosureStyle}>
-                <summary style={mobileStudentRecordsSummaryStyle}>
-                  <span>Recent setup links</span>
-                  <strong>{invites.length} saved</strong>
-                </summary>
-                <div style={mobileStudentRecordsBodyStyle}>
-                  {renderRecentSetupLinks()}
-                </div>
-              </details>
+              <MobileLazyDetails
+                label="Recent setup links"
+                value={`${invites.length} saved`}
+                renderContent={renderRecentSetupLinks}
+              />
             ) : renderRecentSetupLinks()
           ) : null}
         </div>
@@ -2657,18 +2627,18 @@ function CoachContent() {
               <input className="tiq-focus-ring" type="date" value={assignmentDueDate} onChange={(event) => setAssignmentDueDate(event.target.value)} style={inputStyle} />
             </label>
             {isMobile ? (
-              <details
-                {...(assignmentTemplateId !== CUSTOM_ASSIGNMENT_TEMPLATE_ID || assignmentLevelUpCardId || assignmentLevelUpPackId || lessonDateTime || lessonLocation ? { open: true } : {})}
-                style={mobileStudentRecordsDisclosureStyle}
-              >
-                <summary style={mobileStudentRecordsSummaryStyle}>
-                  <span>Assignment options</span>
-                  <strong>{selectedLevelUpAssignmentCard ? 'Level Up set' : 'Optional'}</strong>
-                </summary>
-                <div style={mobileStudentRecordsBodyStyle}>
-                  {renderAssignmentOptions()}
-                </div>
-              </details>
+              <MobileLazyDetails
+                label="Assignment options"
+                value={selectedLevelUpAssignmentCard ? 'Level Up set' : 'Optional'}
+                defaultOpen={Boolean(
+                  assignmentTemplateId !== CUSTOM_ASSIGNMENT_TEMPLATE_ID ||
+                  assignmentLevelUpCardId ||
+                  assignmentLevelUpPackId ||
+                  lessonDateTime ||
+                  lessonLocation,
+                )}
+                renderContent={renderAssignmentOptions}
+              />
             ) : renderAssignmentOptions()}
             <button type="submit" disabled={workspaceLoading || !assignmentStudentId || !assignmentTitle.trim()} style={primaryButtonStyle}>
               {workspaceLoading ? 'Saving...' : assignmentEditId ? 'Update assignment' : 'Create assignment'}
@@ -2754,31 +2724,21 @@ function CoachContent() {
             </div>
           ) : null}
           {isMobile ? (
-            <details style={mobileStudentRecordsDisclosureStyle}>
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>First assignment starters</span>
-                <strong>{FIRST_ASSIGNMENT_STARTERS.length} options</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderFirstAssignmentStarter()}
-              </div>
-            </details>
+            <MobileLazyDetails
+              label="First assignment starters"
+              value={`${FIRST_ASSIGNMENT_STARTERS.length} options`}
+              renderContent={renderFirstAssignmentStarter}
+            />
           ) : renderFirstAssignmentStarter()}
           {isMobile ? (
-            <details
+            <MobileLazyDetails
               id="coach-contact-panel"
               open={mobileContactPanelOpen}
-              onToggle={(event) => setMobileContactPanelOpen(event.currentTarget.open)}
-              style={mobileStudentRecordsDisclosureStyle}
-            >
-              <summary style={mobileStudentRecordsSummaryStyle}>
-                <span>Quick contact</span>
-                <strong>{selectedContactStudent?.playerName ?? 'Open'}</strong>
-              </summary>
-              <div style={mobileStudentRecordsBodyStyle}>
-                {renderQuickContactPanel()}
-              </div>
-            </details>
+              onOpenChange={setMobileContactPanelOpen}
+              label="Quick contact"
+              value={selectedContactStudent?.playerName ?? 'Open'}
+              renderContent={renderQuickContactPanel}
+            />
           ) : (
             <div id="coach-contact-panel">
               {renderQuickContactPanel()}
@@ -2786,18 +2746,12 @@ function CoachContent() {
           )}
           {savedStudents.length ? (
             isMobile ? (
-              <details
-                {...(selectedCalendarSubscribed ? { open: true } : {})}
-                style={mobileStudentRecordsDisclosureStyle}
-              >
-                <summary style={mobileStudentRecordsSummaryStyle}>
-                  <span>Shared calendar</span>
-                  <strong>{sharedLessonCalendarEvents.length ? `${sharedLessonCalendarEvents.length} events` : selectedCalendarStatusLabel}</strong>
-                </summary>
-                <div style={mobileStudentRecordsBodyStyle}>
-                  {renderSharedLessonCalendar()}
-                </div>
-              </details>
+              <MobileLazyDetails
+                label="Shared calendar"
+                value={sharedLessonCalendarEvents.length ? `${sharedLessonCalendarEvents.length} events` : selectedCalendarStatusLabel}
+                defaultOpen={selectedCalendarSubscribed}
+                renderContent={renderSharedLessonCalendar}
+              />
             ) : renderSharedLessonCalendar()
           ) : null}
           {isMobile ? null : renderReviewQueueMetrics()}
@@ -3125,15 +3079,11 @@ function CoachContent() {
 
       <section style={integrationStyle}>
         {isMobile ? (
-          <details style={mobileStudentRecordsDisclosureStyle}>
-            <summary style={mobileStudentRecordsSummaryStyle}>
-              <span>How this fits TenAceIQ</span>
-              <strong>Coach + Player</strong>
-            </summary>
-            <div style={mobileStudentRecordsBodyStyle}>
-              {renderCoachIntegrationContent()}
-            </div>
-          </details>
+          <MobileLazyDetails
+            label="How this fits TenAceIQ"
+            value="Coach + Player"
+            renderContent={renderCoachIntegrationContent}
+          />
         ) : renderCoachIntegrationContent()}
       </section>
     </main>
@@ -3160,7 +3110,7 @@ function MobileLazyDetails({
 }: MobileLazyDetailsProps) {
   const isControlled = typeof open === 'boolean'
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen)
-  const currentOpen = isControlled ? Boolean(open) : uncontrolledOpen
+  const currentOpen = Boolean(open) || uncontrolledOpen || defaultOpen
   const [hasOpened, setHasOpened] = useState(defaultOpen || Boolean(open))
   const shouldRenderContent = currentOpen || hasOpened
 
