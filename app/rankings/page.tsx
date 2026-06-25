@@ -22,6 +22,7 @@ import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type TrendDirection = 'up' | 'down' | 'flat'
@@ -77,6 +78,10 @@ type RankedPlayer = Player & {
 }
 
 const RANKINGS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RANKINGS_INLINE || null
+const RANKINGS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const RANKINGS_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(RANKINGS_PLAYER_IDENTITY)
+const RANKINGS_LEVEL_UP_HREF = `/level-up/${RANKINGS_PLAYER_IDENTITY.slug}`
+const RANKINGS_PLAYER_DEVELOPMENT_HREF = `/player-development/${RANKINGS_PLAYER_IDENTITY.slug}`
 const RANKING_PLAYER_SELECT_BASE = `
   id,
   name,
@@ -1372,6 +1377,11 @@ function RankingNextActionRail({
       body: 'Save the takeaway to your tennis work, or route missing scorecards and profile context through review.',
     },
   ] as const
+  const rankingPlayerIdStarterRead = [
+    { label: 'Train first', value: RANKINGS_PLAYER_IDENTITY_READ.trainingPriority },
+    { label: 'Proof target', value: RANKINGS_PLAYER_IDENTITY_READ.proofTarget },
+    { label: 'Match test', value: RANKINGS_PLAYER_IDENTITY_READ.matchTrigger },
+  ] as const
 
   const actions = [
     {
@@ -1417,6 +1427,29 @@ function RankingNextActionRail({
             <span style={rankingPlayerIdSignalTextStyle}>{signal.body}</span>
           </div>
         ))}
+      </div>
+      <div style={rankingPlayerIdStarterStyle}>
+        <div style={rankingPlayerIdStarterCopyStyle}>
+          <span style={rankingPlayerIdSignalLabelStyle}>Ranking Player ID starter</span>
+          <strong style={rankingPlayerIdSignalValueStyle}>{RANKINGS_PLAYER_IDENTITY_READ.label}</strong>
+          <span style={rankingPlayerIdSignalTextStyle}>{RANKINGS_PLAYER_IDENTITY_READ.levelUpNudge}</span>
+        </div>
+        <div style={rankingPlayerIdStarterGridStyle} aria-label="Ranking Player ID starter read">
+          {rankingPlayerIdStarterRead.map((item) => (
+            <span key={item.label} style={rankingPlayerIdStarterItemStyle}>
+              <em>{item.label}</em>
+              <b>{item.value}</b>
+            </span>
+          ))}
+        </div>
+        <div style={rankingPlayerIdStarterActionRowStyle}>
+          <Link href={RANKINGS_LEVEL_UP_HREF} style={rankingPlayerIdStarterLinkStyle}>
+            Start Level Up
+          </Link>
+          <Link href={RANKINGS_PLAYER_DEVELOPMENT_HREF} style={rankingPlayerIdStarterSecondaryLinkStyle}>
+            Read Player ID
+          </Link>
+        </div>
       </div>
       <div style={rankingNextActionGrid}>
         {actions.map((action) => (
@@ -2501,6 +2534,79 @@ const rankingPlayerIdSignalTextStyle: CSSProperties = {
   lineHeight: 1.45,
   fontWeight: 700,
   overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdStarterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: '20px',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'rgba(7,17,33,0.62)',
+  overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdStarterCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdStarterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const rankingPlayerIdStarterItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 760,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdStarterActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const rankingPlayerIdStarterLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 15%, var(--shell-chip-bg) 85%)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  minWidth: 0,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const rankingPlayerIdStarterSecondaryLinkStyle: CSSProperties = {
+  ...rankingPlayerIdStarterLinkStyle,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
 }
 
 const rankingNextActionGrid: CSSProperties = {
