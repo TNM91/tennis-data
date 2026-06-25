@@ -2,6 +2,12 @@ function normalizePath(value: string) {
   return value.split('?')[0].split('#')[0] || '/'
 }
 
+function getHash(value: string) {
+  const hashIndex = value.indexOf('#')
+  if (hashIndex === -1) return ''
+  return value.slice(hashIndex).split('?')[0]
+}
+
 const taskAliases: Record<string, string[]> = {
   '/data-assist': ['/admin/data-assist'],
   '/messages': ['/messages'],
@@ -17,6 +23,9 @@ const taskAliases: Record<string, string[]> = {
 export function isPortalTaskActive(pathname: string, taskHref: string) {
   const current = normalizePath(pathname)
   const target = normalizePath(taskHref)
+  const targetHash = getHash(taskHref)
+
+  if (targetHash) return current === target && getHash(pathname) === targetHash
 
   if (current === target || current.startsWith(`${target}/`)) return true
   if (target === '/compete/schedule' && current.startsWith('/league-coordinator/tournaments')) return false

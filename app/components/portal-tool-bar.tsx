@@ -185,6 +185,7 @@ export default function PortalToolBar() {
     pathname: '',
     laneId: null,
   })
+  const [currentHash, setCurrentHash] = useState('')
 
   const authenticated = Boolean(userId) || role !== 'public'
   const accessPending = authenticated && (!authResolved || entitlements === null)
@@ -217,6 +218,16 @@ export default function PortalToolBar() {
     }
   }, [authResolved, userId])
 
+  useEffect(() => {
+    function syncCurrentHash() {
+      setCurrentHash(window.location.hash || '')
+    }
+
+    syncCurrentHash()
+    window.addEventListener('hashchange', syncCurrentHash)
+    return () => window.removeEventListener('hashchange', syncCurrentHash)
+  }, [pathname])
+
   if (isPortalHidden(pathname)) return null
   const publicVisitor = !authenticated
   const showPublicTasks = !(publicVisitor && isMobile)
@@ -225,6 +236,7 @@ export default function PortalToolBar() {
   const collapseMobilePortal = isMobile
   const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
+  const currentPortalPath = `${pathname}${currentHash}`
   const mobilePortalStickyTop = 'var(--header-height)'
   const showExpandedPortalIntro = !collapseMobilePortal
   const portalMenuId = 'tenaceiq-mobile-portal-menu'
@@ -311,7 +323,7 @@ export default function PortalToolBar() {
                   access={access}
                   authenticated={authenticated}
                   accessPending={accessPending}
-                  active={pathname === mobilePortalLane.route}
+                  active={pathname === mobilePortalLane.route && !currentHash}
                   profileLinked={profileLinked}
                   accent={getLaneAccent(mobilePortalLane.id)}
                 />
@@ -322,7 +334,7 @@ export default function PortalToolBar() {
                     access={access}
                     authenticated={authenticated}
                     accessPending={accessPending}
-                    active={isPortalTaskActive(pathname, task.href)}
+                    active={isPortalTaskActive(currentPortalPath, task.href)}
                     profileLinked={profileLinked}
                     accent={getLaneAccent(mobilePortalLane.id)}
                   />
@@ -466,7 +478,7 @@ export default function PortalToolBar() {
                   authenticated={authenticated}
                   accessPending={accessPending}
                   accent={activeAccent}
-                  active={isPortalTaskActive(pathname, task.href)}
+                  active={isPortalTaskActive(currentPortalPath, task.href)}
                   profileLinked={profileLinked}
                   compact={publicVisitor}
                 />
@@ -837,8 +849,8 @@ const mobilePortalTileStyle: CSSProperties = {
 
 const mobilePortalHomeTileStyle: CSSProperties = {
   ...mobilePortalTileStyle,
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(155,225,29,0.12)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.055)',
 }
 
 const mobilePortalTileIconStyle: CSSProperties = {

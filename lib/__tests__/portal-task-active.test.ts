@@ -15,6 +15,12 @@ describe('portal task active routing', () => {
     expect(isPortalTaskActive('/matchup?playerA=1', '/matchup')).toBe(true)
   })
 
+  it('requires hash tasks to match the current hash exactly', () => {
+    expect(isPortalTaskActive('/coach', '/coach#coach-linked-dashboard')).toBe(false)
+    expect(isPortalTaskActive('/coach#coach-linked-dashboard', '/coach#coach-linked-dashboard')).toBe(true)
+    expect(isPortalTaskActive('/coach#other-section', '/coach#coach-linked-dashboard')).toBe(false)
+  })
+
   it('groups captain sub-tools under the selected Team submenu icon', () => {
     expect(isPortalTaskActive('/captain/practice', '/captain/practice')).toBe(true)
     expect(isPortalTaskActive('/captain/lineup-projection', '/captain/lineup-builder')).toBe(true)
