@@ -54,6 +54,18 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('function normalizeContactPreference')
   })
 
+  it('restores the selected mobile bench player after the phone browser reloads', () => {
+    expect(coachSource).toContain("const COACH_MOBILE_CONTEXT_KEY = 'tenaceiq.coach.mobileContext.v1'")
+    expect(coachSource).toContain('type CoachMobileContext = {')
+    expect(coachSource).toContain('const [mobileCoachContextHydrated, setMobileCoachContextHydrated] = useState(false)')
+    expect(coachSource).toContain('window.localStorage.getItem(COACH_MOBILE_CONTEXT_KEY)')
+    expect(coachSource).toContain('setActiveMobileBenchStudentId(cleanText(context.activeMobileBenchStudentId))')
+    expect(coachSource).toContain('setMobileContactPanelOpen(Boolean(context.contactPanelOpen))')
+    expect(coachSource).toContain('window.localStorage.setItem(COACH_MOBILE_CONTEXT_KEY, JSON.stringify(context))')
+    expect(coachSource).toContain('window.localStorage.removeItem(COACH_MOBILE_CONTEXT_KEY)')
+    expect(coachSource).toContain('if (!mobileCoachContextHydrated) return')
+  })
+
   it('makes phone-only student setup immediately textable on mobile', () => {
     expect(coachSource).toContain('const [lastCreatedStudentSetup, setLastCreatedStudentSetup] = useState')
     expect(coachSource).toContain('const canCreateStudentSetupLink = studentPhoneDigits.length >= 7')

@@ -49,6 +49,7 @@ const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
 const CUSTOM_ASSIGNMENT_TEMPLATE_ID = 'custom-assignment'
 const DEFAULT_STUDENT_IDENTITY_ID = 'relentless-competitor-4-0'
 const COACH_STUDENT_DRAFT_KEY = 'tenaceiq.coach.studentDraft.v1'
+const COACH_MOBILE_CONTEXT_KEY = 'tenaceiq.coach.mobileContext.v1'
 
 type CoachCalendarFeedStatus = {
   active: boolean
@@ -63,6 +64,11 @@ type CoachStudentDraft = {
   studentCustomIdentity: string
   studentPhone: string
   contactPreference: CoachStudentLink['contactPreference']
+}
+
+type CoachMobileContext = {
+  activeMobileBenchStudentId: string
+  contactPanelOpen: boolean
 }
 
 const FIRST_ASSIGNMENT_STARTERS = [
@@ -241,6 +247,8 @@ function CoachContent() {
   const [assignmentEditId, setAssignmentEditId] = useState('')
   const [contactStudentId, setContactStudentId] = useState('')
   const [mobileContactPanelOpen, setMobileContactPanelOpen] = useState(false)
+  const [activeMobileBenchStudentId, setActiveMobileBenchStudentId] = useState('')
+  const [mobileCoachContextHydrated, setMobileCoachContextHydrated] = useState(false)
   const [lessonDateTime, setLessonDateTime] = useState('')
   const [lessonFocus, setLessonFocus] = useState('')
   const [lessonLocation, setLessonLocation] = useState('')
@@ -334,6 +342,37 @@ function CoachContent() {
 
     window.localStorage.setItem(COACH_STUDENT_DRAFT_KEY, JSON.stringify(draft))
   }, [contactPreference, studentCustomIdentity, studentDraftHydrated, studentIdentity, studentLevel, studentName, studentPhone])
+
+  useEffect(() => {
+    try {
+      const rawContext = window.localStorage.getItem(COACH_MOBILE_CONTEXT_KEY)
+      if (rawContext) {
+        const context = JSON.parse(rawContext) as Partial<CoachMobileContext>
+        setActiveMobileBenchStudentId(cleanText(context.activeMobileBenchStudentId))
+        setMobileContactPanelOpen(Boolean(context.contactPanelOpen))
+      }
+    } catch {
+      window.localStorage.removeItem(COACH_MOBILE_CONTEXT_KEY)
+    } finally {
+      setMobileCoachContextHydrated(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!mobileCoachContextHydrated) return
+
+    const context: CoachMobileContext = {
+      activeMobileBenchStudentId,
+      contactPanelOpen: mobileContactPanelOpen,
+    }
+
+    if (!activeMobileBenchStudentId && !mobileContactPanelOpen) {
+      window.localStorage.removeItem(COACH_MOBILE_CONTEXT_KEY)
+      return
+    }
+
+    window.localStorage.setItem(COACH_MOBILE_CONTEXT_KEY, JSON.stringify(context))
+  }, [activeMobileBenchStudentId, mobileCoachContextHydrated, mobileContactPanelOpen])
 
   const loadCoachWorkspace = useCallback(async () => {
     if (!session?.access_token || !access.canUseCoachWorkflow) return
@@ -993,7 +1032,6 @@ function CoachContent() {
     () => buildLinkedPlayerCards(savedStudents, assignments, invites),
     [assignments, invites, savedStudents],
   )
-  const [activeMobileBenchStudentId, setActiveMobileBenchStudentId] = useState('')
   const activeMobileBenchCard = useMemo(
     () =>
       linkedPlayerCards.find((card) => card.student.id === activeMobileBenchStudentId) ??
@@ -1170,6 +1208,8 @@ function CoachContent() {
     : linkedCardTopStyle
 
   useEffect(() => {
+    if (!mobileCoachContextHydrated) return
+
     if (!linkedPlayerCards.length) {
       if (activeMobileBenchStudentId) setActiveMobileBenchStudentId('')
       return
@@ -1178,7 +1218,7 @@ function CoachContent() {
     if (!linkedPlayerCards.some((card) => card.student.id === activeMobileBenchStudentId)) {
       setActiveMobileBenchStudentId(linkedPlayerCards[0].student.id)
     }
-  }, [activeMobileBenchStudentId, linkedPlayerCards])
+  }, [activeMobileBenchStudentId, linkedPlayerCards, mobileCoachContextHydrated])
 
   function renderLinkedPlayerCard(card: LinkedPlayerCard, featured = false) {
     const profileHref = getCoachPlayerProfileHref(card.student)
