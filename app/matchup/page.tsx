@@ -22,6 +22,7 @@ import { getMatchupStaleSelectionNotice, normalizeMatchupPlayerOptions } from '@
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 const dataAssistMatchupHref = '/data-assist?intent=request-review&context=Matchup'
 
@@ -154,6 +155,10 @@ type AccuracyState = {
 
 const RATING_DIVISOR = 0.45
 const MATCHUP_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE || null
+const MATCHUP_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const MATCHUP_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(MATCHUP_PLAYER_IDENTITY)
+const MATCHUP_LEVEL_UP_HREF = `/level-up/${MATCHUP_PLAYER_IDENTITY.slug}`
+const MATCHUP_PLAYER_DEVELOPMENT_HREF = `/player-development/${MATCHUP_PLAYER_IDENTITY.slug}`
 const MATCHUP_PLAYER_SELECT_BASE = `
   id,
   name,
@@ -1032,6 +1037,11 @@ export default function MatchupPage() {
       body: 'Use the matchup edge in My Lab, Level Up work, captain prep, or team decisions.',
     },
   ] as const
+  const matchupPlayerIdStarterRead = [
+    { label: 'Train first', value: MATCHUP_PLAYER_IDENTITY_READ.trainingPriority },
+    { label: 'Proof target', value: MATCHUP_PLAYER_IDENTITY_READ.proofTarget },
+    { label: 'Match test', value: MATCHUP_PLAYER_IDENTITY_READ.matchTrigger },
+  ] as const
   const profileAlreadyInDoubles =
     Boolean(profilePlayer) &&
     [teamA1Id, teamA2Id, teamB1Id, teamB2Id].includes(profilePlayer?.id || '')
@@ -1542,6 +1552,29 @@ export default function MatchupPage() {
                   <span style={matchupPlayerIdSignalBodyStyle}>{signal.body}</span>
                 </article>
               ))}
+            </div>
+            <div style={matchupPlayerIdStarterStyle}>
+              <div style={matchupPlayerIdStarterCopyStyle}>
+                <span style={matchupPlayerIdSignalLabelStyle}>Player ID matchup starter</span>
+                <strong style={matchupPlayerIdSignalValueStyle}>{MATCHUP_PLAYER_IDENTITY_READ.label}</strong>
+                <span style={matchupPlayerIdSignalBodyStyle}>{MATCHUP_PLAYER_IDENTITY_READ.levelUpNudge}</span>
+              </div>
+              <div style={matchupPlayerIdStarterGridStyle} aria-label="Matchup Player ID starter read">
+                {matchupPlayerIdStarterRead.map((item) => (
+                  <span key={item.label} style={matchupPlayerIdStarterItemStyle}>
+                    <em>{item.label}</em>
+                    <b>{item.value}</b>
+                  </span>
+                ))}
+              </div>
+              <div style={matchupPlayerIdStarterActionRowStyle}>
+                <Link href={MATCHUP_LEVEL_UP_HREF} style={matchupPlayerIdStarterLinkStyle}>
+                  Start Level Up
+                </Link>
+                <Link href={MATCHUP_PLAYER_DEVELOPMENT_HREF} style={matchupPlayerIdStarterSecondaryLinkStyle}>
+                  Read Player ID
+                </Link>
+              </div>
             </div>
           </section>
 
@@ -3124,6 +3157,79 @@ const matchupPlayerIdSignalBodyStyle: CSSProperties = {
   lineHeight: 1.45,
   fontWeight: 700,
   overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdStarterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'rgba(10, 18, 34, 0.62)',
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdStarterCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdStarterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const matchupPlayerIdStarterItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  border: '1px solid rgba(125, 211, 252, 0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 760,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdStarterActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const matchupPlayerIdStarterLinkStyle: CSSProperties = {
+  whiteSpace: 'normal',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '13px',
+  maxWidth: '100%',
+  minWidth: 0,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const matchupPlayerIdStarterSecondaryLinkStyle: CSSProperties = {
+  ...matchupPlayerIdStarterLinkStyle,
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(255,255,255,0.04)',
 }
 
 const identitySetupStripStyle: CSSProperties = {
