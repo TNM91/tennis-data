@@ -56,6 +56,36 @@ describe('compete teams readiness', () => {
     expect(source).not.toContain('title="Lineup Builder"')
   })
 
+  it('connects team context back into Player ID and Level Up prep', () => {
+    expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
+    expect(source).toContain("const TEAM_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('doubles-commander-4-0')")
+    expect(source).toContain('const TEAM_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TEAM_PLAYER_IDENTITY)')
+    expect(source).toContain('const TEAM_LEVEL_UP_HREF = `/level-up/${TEAM_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const TEAM_PLAYER_DEVELOPMENT_HREF = `/player-development/${TEAM_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('aria-label="Teams Player ID team prep"')
+    expect(source).toContain('aria-label="Teams Player ID starter read"')
+    expect(source).toContain('Team read to Player ID')
+    expect(source).toContain('Pick the player cue before the lineup.')
+    expect(source).toContain('Use the same Player ID read to turn team context into one Level Up rep, one roster proof point, and one captain move.')
+    expect(source).toContain('Start Level Up')
+    expect(source).toContain('Read Player ID')
+    expect(source).toContain('Open Team Hub')
+    expect(source.indexOf('<TeamPlayerIdPrepPanel />')).toBeGreaterThan(source.indexOf('<TeamPathPanel />'))
+    expect(source.indexOf('<TeamPlayerIdPrepPanel />')).toBeLessThan(source.indexOf('<CompeteGrid>'))
+  })
+
+  it('keeps the Teams Player ID prep bridge mobile-safe', () => {
+    expect(styleBlock('teamPlayerIdPrepStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
+    expect(styleBlock('teamPlayerIdPrepStyle')).toContain('minWidth: 0')
+    expect(styleBlock('teamPlayerIdPrepStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('teamPlayerIdPrepGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(styleBlock('teamPlayerIdPrepCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('teamPlayerIdActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('teamPlayerIdActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('teamPlayerIdActionStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('teamPlayerIdActionStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
   it('turns TIQ team rows into readiness-driven workflow objects', () => {
     expect(source).toContain('teamReadinessItems')
     expect(source).toContain("label: 'Leagues'")

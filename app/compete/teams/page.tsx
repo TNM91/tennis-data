@@ -10,6 +10,7 @@ import CompetePageFrame, {
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
 import {
   listTiqTeamParticipations,
@@ -22,6 +23,21 @@ const emptyTeamActions = [
   { href: '/league-coordinator', label: 'Create team league' },
   { href: dataAssistTeamsHref, label: 'Refresh team data' },
   { href: '/teams', label: 'Browse teams' },
+] as const
+
+const TEAM_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('doubles-commander-4-0')
+const TEAM_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TEAM_PLAYER_IDENTITY)
+const TEAM_LEVEL_UP_HREF = `/level-up/${TEAM_PLAYER_IDENTITY.slug}`
+const TEAM_PLAYER_DEVELOPMENT_HREF = `/player-development/${TEAM_PLAYER_IDENTITY.slug}`
+const teamPlayerIdPrepItems = [
+  { label: 'Team read', value: TEAM_PLAYER_IDENTITY_READ.matchTrigger },
+  { label: 'Roster proof', value: TEAM_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Captain cue', value: TEAM_PLAYER_IDENTITY_READ.coachPrompt },
+] as const
+const teamPlayerIdActions = [
+  { href: TEAM_LEVEL_UP_HREF, label: 'Start Level Up' },
+  { href: TEAM_PLAYER_DEVELOPMENT_HREF, label: 'Read Player ID' },
+  { href: '/captain', label: 'Open Team Hub' },
 ] as const
 
 const teamPathActions = [
@@ -144,6 +160,7 @@ function CompeteTeamsContent() {
   return (
     <>
       <TeamPathPanel />
+      <TeamPlayerIdPrepPanel />
 
       <CompeteGrid>
         <CompeteCard
@@ -321,6 +338,39 @@ function TeamPathPanel() {
   )
 }
 
+function TeamPlayerIdPrepPanel() {
+  return (
+    <section style={teamPlayerIdPrepStyle} aria-label="Teams Player ID team prep">
+      <div style={teamPlayerIdPrepCopyStyle}>
+        <span style={teamPlayerIdPrepEyebrowStyle}>Team read to Player ID</span>
+        <h2 style={teamPlayerIdPrepTitleStyle}>Pick the player cue before the lineup.</h2>
+        <p style={teamPlayerIdPrepTextStyle}>
+          {TEAM_PLAYER_IDENTITY_READ.levelUpNudge} Use the same Player ID read to turn team context into one Level Up rep, one roster proof point, and one captain move.
+        </p>
+      </div>
+      <div style={teamPlayerIdPrepGridStyle} aria-label="Teams Player ID starter read">
+        {teamPlayerIdPrepItems.map((item) => (
+          <div key={item.label} style={teamPlayerIdPrepCardStyle}>
+            <span style={teamPlayerIdPrepLabelStyle}>{item.label}</span>
+            <strong style={teamPlayerIdPrepValueStyle}>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+      <div style={teamPlayerIdActionRowStyle}>
+        {teamPlayerIdActions.map((action, index) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            style={index === 0 ? { ...teamPlayerIdActionStyle, ...teamPlayerIdPrimaryActionStyle } : teamPlayerIdActionStyle}
+          >
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function EmptyTeamsState() {
   return (
     <div style={emptyTeamsStyle}>
@@ -450,6 +500,128 @@ const teamPathCtaStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const teamPlayerIdPrepStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: '14px',
+  alignItems: 'center',
+  marginTop: '14px',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(8,16,34,0.72)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.20), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const teamPlayerIdPrepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  minWidth: 0,
+}
+
+const teamPlayerIdPrepEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const teamPlayerIdPrepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(20px, 5vw, 28px)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamPlayerIdPrepTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.55,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const teamPlayerIdPrepGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const teamPlayerIdPrepCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  minWidth: 0,
+  minHeight: 78,
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
+}
+
+const teamPlayerIdPrepLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamPlayerIdPrepValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  lineHeight: 1.35,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const teamPlayerIdActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-start',
+  gap: '9px',
+  minWidth: 0,
+}
+
+const teamPlayerIdActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  minHeight: 38,
+  minWidth: 0,
+  padding: '9px 12px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'rgba(7,17,33,0.74)',
+  color: '#eef5ff',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 950,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const teamPlayerIdPrimaryActionStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.36)',
+  background: 'rgba(155,225,29,0.13)',
+  color: '#f5ffe2',
 }
 
 const upgradeGridStyle = {
