@@ -125,6 +125,27 @@ describe('upgrade and compete mobile layout guards', () => {
     expect(styleBlock(competeFrameSource, 'captainBridgeActionStyle')).toContain("whiteSpace: 'normal'")
   })
 
+  it('shows a shrink-safe Player ID match prep cue on Compete surfaces', () => {
+    expect(competeFrameSource).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
+    expect(competeFrameSource).toContain("const COMPETE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
+    expect(competeFrameSource).toContain('const COMPETE_LEVEL_UP_HREF = `/level-up/${COMPETE_PLAYER_IDENTITY.slug}`')
+    expect(competeFrameSource).toContain('const COMPETE_PLAYER_DEVELOPMENT_HREF = `/player-development/${COMPETE_PLAYER_IDENTITY.slug}`')
+    expect(competeFrameSource).toContain('aria-label="Compete Player ID match prep"')
+    expect(competeFrameSource).toContain('aria-label="Compete Player ID starter read"')
+    expect(competeFrameSource).toContain('Compete from a clear player read.')
+    expect(competeFrameSource).toContain('Start Level Up')
+    expect(competeFrameSource).toContain('Read Player ID')
+    expect(competeFrameSource.indexOf('Compete Player ID match prep')).toBeLessThan(
+      competeFrameSource.indexOf('Captain match-week bridge cue'),
+    )
+    expect(styleBlock(competeFrameSource, 'competePlayerIdStyle')).toContain('minWidth: 0')
+    expect(styleBlock(competeFrameSource, 'competePlayerIdReadStyle')).toContain('repeat(3, minmax(0, 1fr))')
+    expect(styleBlock(competeFrameSource, 'competePlayerIdReadCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock(competeFrameSource, 'competePlayerIdActionsStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(competeFrameSource, 'competePlayerIdActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock(competeFrameSource, 'competePlayerIdActionStyle')).toContain("whiteSpace: 'normal'")
+  })
+
   it('keeps compete action rows and links shrink-safe', () => {
     for (const source of [competeLeaguesSource, competeResultsSource]) {
       expect(styleBlock(source, 'rowActionStackStyle')).toContain('minWidth: 0')

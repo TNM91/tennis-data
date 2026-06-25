@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type FrameProps = {
@@ -43,6 +44,21 @@ const CAPTAIN_HANDOFF_ACTIONS = [
   { href: '/captain', label: 'Open Team Hub' },
   { href: '/captain/lineup-builder', label: 'Build lineup' },
   { href: '/captain/team-brief', label: 'Team brief' },
+]
+
+const COMPETE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const COMPETE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(COMPETE_PLAYER_IDENTITY)
+const COMPETE_LEVEL_UP_HREF = `/level-up/${COMPETE_PLAYER_IDENTITY.slug}`
+const COMPETE_PLAYER_DEVELOPMENT_HREF = `/player-development/${COMPETE_PLAYER_IDENTITY.slug}`
+const COMPETE_PLAYER_ID_ACTIONS = [
+  { href: COMPETE_LEVEL_UP_HREF, label: 'Start Level Up' },
+  { href: COMPETE_PLAYER_DEVELOPMENT_HREF, label: 'Read Player ID' },
+  { href: '/matchup', label: 'Prep matchup' },
+]
+const COMPETE_PLAYER_ID_READ = [
+  { label: 'Match priority', value: COMPETE_PLAYER_IDENTITY_READ.trainingPriority },
+  { label: 'Proof target', value: COMPETE_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Pressure trigger', value: COMPETE_PLAYER_IDENTITY_READ.matchTrigger },
 ]
 
 export default function CompetePageFrame({
@@ -158,6 +174,50 @@ export default function CompetePageFrame({
           </div>
 
           {children}
+
+          <section
+            aria-label="Compete Player ID match prep"
+            style={{
+              ...competePlayerIdStyle,
+              gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : competePlayerIdStyle.gridTemplateColumns,
+            }}
+          >
+            <div style={competePlayerIdCopyStyle}>
+              <div style={competePlayerIdEyebrowStyle}>Player ID match prep</div>
+              <h2 style={competePlayerIdTitleStyle}>Compete from a clear player read.</h2>
+              <p style={competePlayerIdTextStyle}>
+                {COMPETE_PLAYER_IDENTITY_READ.levelUpNudge} Use that read before matchup prep, scouting, or captain handoff.
+              </p>
+            </div>
+            <div
+              aria-label="Compete Player ID starter read"
+              style={{
+                ...competePlayerIdReadStyle,
+                gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : competePlayerIdReadStyle.gridTemplateColumns,
+              }}
+            >
+              {COMPETE_PLAYER_ID_READ.map((item) => (
+                <div key={item.label} style={competePlayerIdReadCardStyle}>
+                  <span style={competePlayerIdReadLabelStyle}>{item.label}</span>
+                  <strong style={competePlayerIdReadValueStyle}>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+            <div style={competePlayerIdActionsStyle}>
+              {COMPETE_PLAYER_ID_ACTIONS.map((action, index) => (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  style={{
+                    ...competePlayerIdActionStyle,
+                    ...(index === 0 ? competePlayerIdPrimaryActionStyle : {}),
+                  }}
+                >
+                  {action.label}
+                </Link>
+              ))}
+            </div>
+          </section>
 
           <section
             aria-label="Captain match-week bridge cue"
@@ -439,6 +499,126 @@ const captainBridgeStyle: CSSProperties = {
   background: 'linear-gradient(135deg, rgba(12, 29, 34, 0.82), rgba(8, 16, 34, 0.76))',
   boxShadow: '0 18px 48px rgba(2, 10, 24, 0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
+}
+
+const competePlayerIdStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, auto)',
+  gap: '14px',
+  alignItems: 'stretch',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(135deg, rgba(8, 16, 34, 0.82), rgba(10, 28, 36, 0.74))',
+  boxShadow: '0 18px 48px rgba(2, 10, 24, 0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+}
+
+const competePlayerIdCopyStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: '6px',
+  minWidth: 0,
+}
+
+const competePlayerIdEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const competePlayerIdTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '22px',
+  lineHeight: 1.12,
+  fontWeight: 900,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const competePlayerIdTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.58,
+  fontWeight: 650,
+  overflowWrap: 'anywhere',
+}
+
+const competePlayerIdReadStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const competePlayerIdReadCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: '5px',
+  minWidth: 0,
+  minHeight: 98,
+  padding: '11px',
+  borderRadius: '15px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(4, 10, 24, 0.42)',
+}
+
+const competePlayerIdReadLabelStyle: CSSProperties = {
+  color: 'var(--muted)',
+  fontSize: '10px',
+  fontWeight: 900,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const competePlayerIdReadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const competePlayerIdActionsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  alignContent: 'center',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const competePlayerIdActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  minHeight: 36,
+  padding: '8px 11px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.2)',
+  background: 'rgba(255,255,255,0.05)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 900,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const competePlayerIdPrimaryActionStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.32)',
+  background: 'rgba(155,225,29,0.12)',
+  color: '#f5ffe2',
 }
 
 const captainBridgeCopyStyle: CSSProperties = {
