@@ -35,6 +35,7 @@ import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 type TeamMatch = {
   id: string
@@ -112,6 +113,11 @@ type RosterPlayer = Player & {
   wins: number
   losses: number
 }
+
+const ROSTER_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const ROSTER_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(ROSTER_PLAYER_IDENTITY)
+const ROSTER_LEVEL_UP_HREF = `/level-up/${ROSTER_PLAYER_IDENTITY.slug}`
+const ROSTER_PLAYER_DEVELOPMENT_HREF = `/player-development/${ROSTER_PLAYER_IDENTITY.slug}`
 
 type PairingCard = {
   key: string
@@ -985,6 +991,11 @@ function TeamPageContent() {
       value: 'Availability / Lineup',
       body: 'Use the same player IDs for availability, lineup building, pairing choices, and Data Assist review.',
     },
+  ] as const
+  const rosterPlayerIdStarterRead = [
+    { label: 'Train first', value: ROSTER_PLAYER_IDENTITY_READ.trainingPriority },
+    { label: 'Proof target', value: ROSTER_PLAYER_IDENTITY_READ.proofTarget },
+    { label: 'Match test', value: ROSTER_PLAYER_IDENTITY_READ.matchTrigger },
   ] as const
 
   function handleRosterCompareToggle(playerId: string) {
@@ -1911,6 +1922,29 @@ function TeamPageContent() {
                     <span style={rosterPlayerIdSignalTextStyle}>{signal.body}</span>
                   </article>
                 ))}
+              </div>
+              <div style={rosterPlayerIdStarterStyle}>
+                <div style={rosterPlayerIdStarterCopyStyle}>
+                  <span style={rosterPlayerIdSignalLabelStyle}>Roster Player ID starter</span>
+                  <strong style={rosterPlayerIdSignalValueStyle}>{ROSTER_PLAYER_IDENTITY_READ.label}</strong>
+                  <span style={rosterPlayerIdSignalTextStyle}>{ROSTER_PLAYER_IDENTITY_READ.levelUpNudge}</span>
+                </div>
+                <div style={rosterPlayerIdStarterGridStyle} aria-label="Roster Player ID starter read">
+                  {rosterPlayerIdStarterRead.map((item) => (
+                    <span key={item.label} style={rosterPlayerIdStarterItemStyle}>
+                      <em>{item.label}</em>
+                      <b>{item.value}</b>
+                    </span>
+                  ))}
+                </div>
+                <div style={rosterPlayerIdStarterActionRowStyle}>
+                  <Link href={ROSTER_LEVEL_UP_HREF} style={rosterPlayerIdStarterLinkStyle}>
+                    Start Level Up
+                  </Link>
+                  <Link href={ROSTER_PLAYER_DEVELOPMENT_HREF} style={rosterPlayerIdStarterSecondaryLinkStyle}>
+                    Read Player ID
+                  </Link>
+                </div>
               </div>
 
               <div style={rosterCompareTray}>
@@ -2931,6 +2965,80 @@ const rosterPlayerIdSignalTextStyle: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.5,
   overflowWrap: 'anywhere',
+}
+
+const rosterPlayerIdStarterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  margin: '0 0 14px',
+  padding: 14,
+  borderRadius: '18px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'rgba(15, 23, 42, 0.58)',
+  overflowWrap: 'anywhere',
+}
+
+const rosterPlayerIdStarterCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const rosterPlayerIdStarterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const rosterPlayerIdStarterItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  border: '1px solid rgba(125, 211, 252, 0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 760,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const rosterPlayerIdStarterActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const rosterPlayerIdStarterLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 15%, var(--shell-chip-bg) 85%)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  minWidth: 0,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const rosterPlayerIdStarterSecondaryLinkStyle: CSSProperties = {
+  ...rosterPlayerIdStarterLinkStyle,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(7,17,33,0.72)',
 }
 
 const rosterCompareTray: CSSProperties = {
