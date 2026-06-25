@@ -4,9 +4,20 @@ import Link from 'next/link'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import TiqTacticalStudio from './TiqTacticalStudio'
 import styles from './TiqTacticalStudio.module.css'
+
+const TACTICS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('smart-attacker-4-0-to-4-5')
+const TACTICS_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TACTICS_PLAYER_IDENTITY)
+const TACTICS_LEVEL_UP_HREF = `/level-up/${TACTICS_PLAYER_IDENTITY.slug}`
+const TACTICS_PLAYER_DEVELOPMENT_HREF = `/player-development/${TACTICS_PLAYER_IDENTITY.slug}`
+const tacticsPlayerIdStarterRead = [
+  { label: 'Court pattern', value: TACTICS_PLAYER_IDENTITY_READ.trainingPriority },
+  { label: 'Proof target', value: TACTICS_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Match week test', value: TACTICS_PLAYER_IDENTITY_READ.matchTrigger },
+] as const
 
 export default function TiqTacticalStudioGate() {
   const { role, userId, entitlements, authResolved } = useAuth()
@@ -55,6 +66,38 @@ export default function TiqTacticalStudioGate() {
           <PreviewCard title="Court boards" text="Use the locked TIQ court, tokens, paths, zones, and labels." icon="scenarioBuilder" />
           <PreviewCard title="Coach briefs" text="Turn diagrams into captain, coach, or player instructions." icon="reports" />
           <PreviewCard title="Saved scenarios" text="Save locally or to your account when signed in." icon="accountSecurity" />
+        </div>
+      </section>
+
+      <section className={styles.tacticsPlayerIdTrail} aria-label="Tactics Player ID starter path">
+        <div className={styles.tacticsPlayerIdHeader}>
+          <div>
+            <div className={styles.tacticsPlayerIdEyebrow}>Player ID to tactics</div>
+            <h2>Start with the player read, then build the board.</h2>
+          </div>
+          <p>
+            {TACTICS_PLAYER_IDENTITY_READ.levelUpNudge} Tactical Studio turns that read into the court shape,
+            assignment, and proof the next session needs.
+          </p>
+        </div>
+        <div className={styles.tacticsPlayerIdGrid} aria-label="Tactics Player ID starter read">
+          {tacticsPlayerIdStarterRead.map((item) => (
+            <div className={styles.tacticsPlayerIdCard} key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+        <div className={styles.tacticsPlayerIdActions}>
+          <Link className={`${styles.button} ${styles.primary}`} href={TACTICS_LEVEL_UP_HREF}>
+            Start Level Up
+          </Link>
+          <Link className={styles.button} href={TACTICS_PLAYER_DEVELOPMENT_HREF}>
+            Read Player ID
+          </Link>
+          <Link className={styles.button} href="/mylab">
+            Open My Lab
+          </Link>
         </div>
       </section>
 

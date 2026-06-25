@@ -131,6 +131,83 @@
   min-width: 0;
 }
 
+.tacticsPlayerIdTrail {
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), transparent 32%),
+    rgba(255, 255, 255, 0.04);
+  border-radius: 22px;
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 18px;
+}
+
+.tacticsPlayerIdHeader {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 0.82fr) minmax(280px, 0.58fr);
+}
+
+.tacticsPlayerIdHeader h2 {
+  font-size: clamp(1.8rem, 3.6vw, 3.4rem);
+  letter-spacing: -0.04em;
+  line-height: 0.96;
+  margin: 6px 0 0;
+  max-width: 760px;
+}
+
+.tacticsPlayerIdHeader p {
+  color: rgba(248, 251, 255, 0.7);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.tacticsPlayerIdEyebrow {
+  color: #9be11d;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tacticsPlayerIdGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tacticsPlayerIdCard {
+  background: rgba(2, 8, 18, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  display: grid;
+  gap: 6px;
+  min-height: 116px;
+  padding: 13px;
+}
+
+.tacticsPlayerIdCard span {
+  color: rgba(223, 248, 194, 0.72);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.tacticsPlayerIdCard strong {
+  color: #f8fbff;
+  font-size: 0.94rem;
+  line-height: 1.35;
+}
+
+.tacticsPlayerIdActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .eyebrow,
 .panelTitle,
 .statLabel,
@@ -698,6 +775,26 @@
   }
 
   .gateStats {
+    grid-template-columns: 1fr;
+  }
+
+  .tacticsPlayerIdHeader,
+  .tacticsPlayerIdGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tacticsPlayerIdTrail {
+    border-radius: 18px;
+    padding: 14px;
+  }
+
+  .tacticsPlayerIdCard {
+    min-height: 0;
+  }
+
+  .tacticsPlayerIdActions {
+    align-items: stretch;
+    display: grid;
     grid-template-columns: 1fr;
   }
 
