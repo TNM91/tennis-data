@@ -49,7 +49,11 @@ import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } fr
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
-import { PLAYER_DEVELOPMENT_IDENTITIES } from '@/lib/player-development'
+import {
+  PLAYER_DEVELOPMENT_IDENTITIES,
+  getPlayerDevelopmentIdentity,
+  getPlayerDevelopmentIdentityActionRead,
+} from '@/lib/player-development'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { buildLevelUpHabitPaths } from '@/lib/level-up/quest-builder'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
@@ -4382,6 +4386,8 @@ function LevelUpReturnStatePanel({
     ? LEVEL_UP_CARDS.find((card) => card.id === latestProof.cardId)
     : LEVEL_UP_CARDS.find((card) => card.identitySlugs?.includes(fallbackIdentitySlug)) ?? LEVEL_UP_CARDS[0]
   const todayHabitIdentitySlug = todayHabitCard?.identitySlugs?.[0] || fallbackIdentitySlug
+  const todayHabitIdentity = getPlayerDevelopmentIdentity(todayHabitIdentitySlug)
+  const todayIdentityRead = getPlayerDevelopmentIdentityActionRead(todayHabitIdentity)
   const habitPaths = buildLevelUpHabitPaths(todayHabitIdentitySlug)
   const activeHabitPath = habitPaths.find((path) => path.linkedCards.some((card) => card.id === todayHabitCard?.id)) ?? habitPaths[0]
   const todayHabitQuestHref = latestProof?.questHref
@@ -4457,18 +4463,25 @@ function LevelUpReturnStatePanel({
   const playerIdProofSignals = [
     {
       label: 'Player ID',
-      value: playerLabel || 'Set profile',
-      note: playerLabel ? 'My Lab is reading this player as the active identity.' : 'Set a profile so proof belongs to the right player.',
+      value: playerLabel || todayIdentityRead.label,
+      note: playerLabel
+        ? `${todayIdentityRead.label}: My Lab is reading this player as the active identity.`
+        : 'Set a profile so proof belongs to the right player.',
     },
     {
-      label: 'Latest proof signal',
-      value: latestProof?.proofLabel || 'No proof yet',
-      note: latestProof ? `${latestProof.cardTitle} feeds the next court decision.` : 'Run one Level Up card to start the proof trail.',
+      label: 'Train first',
+      value: todayIdentityRead.title,
+      note: todayIdentityRead.trainingPriority,
     },
     {
-      label: 'Next use',
-      value: latestProof ? nextMoveLabel || 'Next move' : 'Start Level Up',
-      note: latestProof ? 'Use this signal for My Lab progress, matchup prep, or coach follow-up.' : 'Score one honest 0-5 rep before adding more work.',
+      label: 'Proof target',
+      value: latestProof?.proofLabel || todayIdentityRead.proofTarget,
+      note: latestProof ? `${latestProof.cardTitle} feeds the next court decision.` : todayIdentityRead.levelUpNudge,
+    },
+    {
+      label: 'Match test',
+      value: latestProof ? nextMoveLabel || 'Next move' : todayIdentityRead.matchTrigger,
+      note: latestProof ? 'Use this signal for My Lab progress, matchup prep, or coach follow-up.' : todayIdentityRead.coachPrompt,
     },
   ]
 

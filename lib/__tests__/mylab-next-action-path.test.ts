@@ -28,8 +28,10 @@ describe('My Lab next action path', () => {
   it('connects Level Up proof back to the My Lab player ID', () => {
     expect(source).toContain('const playerIdProofSignals = [')
     expect(source).toContain("label: 'Player ID'")
-    expect(source).toContain("label: 'Latest proof signal'")
-    expect(source).toContain("label: 'Next use'")
+    expect(source).toContain("label: 'Train first'")
+    expect(source).toContain("label: 'Proof target'")
+    expect(source).toContain("label: 'Match test'")
+    expect(source).toContain('getPlayerDevelopmentIdentityActionRead')
     expect(source).toContain('My Lab player ID proof trail')
     expect(source).toContain('Set a profile so proof belongs to the right player.')
     expect(source).toContain('feeds the next court decision.')

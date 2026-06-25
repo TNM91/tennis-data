@@ -171,6 +171,8 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('function renderCoachQueue()')
     expect(coachSource).toContain('Active player')
     expect(coachSource).toContain('Active player workspace for')
+    expect(coachSource).toContain('Mobile Player ID action read for')
+    expect(coachSource).toContain('mobileBenchIdentityReadStyle')
     expect(coachSource).toContain('Bench snapshot')
     expect(coachSource).toContain('Today&apos;s coach queue')
     expect(coachSource).toContain('{isMobile ? null : renderBenchMetrics()}')

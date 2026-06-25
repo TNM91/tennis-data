@@ -42,7 +42,11 @@ import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { getLevelUpProfileForIdentity } from '@/lib/level-up/recommendations'
 import type { LevelUpCard, LevelUpModule } from '@/lib/level-up/level-up-types'
-import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentity } from '@/lib/player-development'
+import {
+  PLAYER_DEVELOPMENT_IDENTITIES,
+  getPlayerDevelopmentIdentity,
+  getPlayerDevelopmentIdentityActionRead,
+} from '@/lib/player-development'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 const CUSTOM_STUDENT_IDENTITY_ID = 'custom-development-path'
@@ -1353,6 +1357,7 @@ function CoachContent() {
     const assignmentCourtHref = card.latestAssignment ? buildCoachAssignmentCourtHref(card.latestAssignment, card.student) : ''
     const actionLinkStyle = isMobile ? mobileBenchActionStyle : studentActionStyle
     const actionButtonStyle = isMobile ? mobileBenchActionButtonStyle : inlineActionButtonStyle
+    const identityRead = getCoachStudentIdentityRead(card.student.identitySlug)
 
     return (
       <article
@@ -1385,6 +1390,11 @@ function CoachContent() {
               ? 'Waiting on player. Send the setup text, then create the first Level Up assignment.'
               : 'Create a measurable next action from the last lesson.'}
         </p>
+        <div style={coachBenchIdentityReadStyle} aria-label={`Player ID action read for ${card.student.playerName}`}>
+          <span style={coachBenchIdentityLabelStyle}>Train first</span>
+          <strong style={coachBenchIdentityValueStyle}>{identityRead.title}</strong>
+          <small style={coachBenchIdentityNoteStyle}>{identityRead.trainingPriority}</small>
+        </div>
         <div style={isMobile ? mobileStudentActionRowStyle : studentActionRowStyle}>
           {assignmentCourtHref ? (
             <Link href={assignmentCourtHref} style={actionLinkStyle}>
@@ -1465,6 +1475,7 @@ function CoachContent() {
   function renderMobileBenchCommandCenter(card: LinkedPlayerCard) {
     const profileHref = getCoachPlayerProfileHref(card.student)
     const assignmentCourtHref = card.latestAssignment ? buildCoachAssignmentCourtHref(card.latestAssignment, card.student) : ''
+    const identityRead = getCoachStudentIdentityRead(card.student.identitySlug)
     const playerTextBody = `Let's confirm your next lesson. Date/time:  Site:  Focus: `
     const setupTextBody = card.pendingInvite ? buildCoachSetupText(card.pendingInvite.inviteHref) : ''
     const mobileTextBody = setupTextBody || playerTextBody
@@ -1491,6 +1502,11 @@ function CoachContent() {
               ? 'Waiting on player. Text the setup link, then load the first Level Up assignment.'
               : 'Choose the next measurable action before the player leaves the court.'}
         </p>
+        <div style={mobileBenchIdentityReadStyle} aria-label={`Mobile Player ID action read for ${card.student.playerName}`}>
+          <span style={coachBenchIdentityLabelStyle}>Train first</span>
+          <strong style={coachBenchIdentityValueStyle}>{identityRead.title}</strong>
+          <small style={coachBenchIdentityNoteStyle}>{identityRead.trainingPriority}</small>
+        </div>
         <div style={mobileBenchPrimaryActionGridStyle}>
           <button type="button" onClick={() => loadStudentLevelUpPack(card)} style={mobileBenchPrimaryActionStyle}>
             Level Up
@@ -3212,6 +3228,17 @@ function getIdentityTitle(identitySlug: string) {
   return getPlayerDevelopmentIdentity(identitySlug).title
 }
 
+function getCoachStudentIdentityRead(identitySlug: string) {
+  if (identitySlug === CUSTOM_STUDENT_IDENTITY_ID) {
+    return {
+      title: 'Custom path',
+      trainingPriority: 'Use the lesson focus to choose one measurable behavior before assigning more work.',
+    }
+  }
+
+  return getPlayerDevelopmentIdentityActionRead(getPlayerDevelopmentIdentity(identitySlug))
+}
+
 function getStudentStatusLabel(status: CoachStudentLink['status']) {
   if (status === 'needs_assignment') return 'Needs assignment'
   if (status === 'review_notes') return 'Review notes'
@@ -4530,6 +4557,18 @@ const mobileBenchCommandCopyStyle: CSSProperties = {
   fontWeight: 750,
 }
 
+const mobileBenchIdentityReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: '10px 11px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'rgba(5,15,30,0.34)',
+  color: 'var(--shell-copy-muted)',
+  overflowWrap: 'anywhere',
+}
+
 const mobileBenchPrimaryActionGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
@@ -4968,6 +5007,42 @@ const studentNextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 760,
+}
+
+const coachBenchIdentityReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: '10px 11px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  overflowWrap: 'anywhere',
+}
+
+const coachBenchIdentityLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
+const coachBenchIdentityValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const coachBenchIdentityNoteStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
 }
 
 const studentActionStyle: CSSProperties = {
