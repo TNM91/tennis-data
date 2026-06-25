@@ -89,6 +89,16 @@ type CoachAssignmentDraft = {
   sessionPresetId: string
 }
 
+type MobileLazyDetailsProps = {
+  id?: string
+  label: string
+  value: ReactNode
+  defaultOpen?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  renderContent: () => ReactNode
+}
+
 const FIRST_ASSIGNMENT_STARTERS = [
   {
     id: 'movement',
@@ -2222,26 +2232,18 @@ function CoachContent() {
     return (
       <>
         {isMobile ? (
-          <details style={mobileStudentRecordsDisclosureStyle}>
-            <summary style={mobileStudentRecordsSummaryStyle}>
-              <span>Next lesson builder</span>
-              <strong>{selectedSessionPreset.title}</strong>
-            </summary>
-            <div style={mobileStudentRecordsBodyStyle}>
-              {renderNextLessonBuilder()}
-            </div>
-          </details>
+          <MobileLazyDetails
+            label="Next lesson builder"
+            value={selectedSessionPreset.title}
+            renderContent={renderNextLessonBuilder}
+          />
         ) : renderNextLessonBuilder()}
         {isMobile ? (
-          <details style={mobileStudentRecordsDisclosureStyle}>
-            <summary style={mobileStudentRecordsSummaryStyle}>
-              <span>Lesson rhythm</span>
-              <strong>{COACH_LESSON_BLOCKS.length} blocks</strong>
-            </summary>
-            <div style={mobileStudentRecordsBodyStyle}>
-              {renderLessonRhythmBlocks()}
-            </div>
-          </details>
+          <MobileLazyDetails
+            label="Lesson rhythm"
+            value={`${COACH_LESSON_BLOCKS.length} blocks`}
+            renderContent={renderLessonRhythmBlocks}
+          />
         ) : renderLessonRhythmBlocks()}
       </>
     )
@@ -3144,6 +3146,50 @@ function PanelHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
       <div style={eyebrowStyle}>{eyebrow}</div>
       <h2 style={panelTitleStyle}>{title}</h2>
     </div>
+  )
+}
+
+function MobileLazyDetails({
+  id,
+  label,
+  value,
+  defaultOpen = false,
+  open,
+  onOpenChange,
+  renderContent,
+}: MobileLazyDetailsProps) {
+  const isControlled = typeof open === 'boolean'
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen)
+  const currentOpen = isControlled ? Boolean(open) : uncontrolledOpen
+  const [hasOpened, setHasOpened] = useState(defaultOpen || Boolean(open))
+  const shouldRenderContent = currentOpen || hasOpened
+
+  return (
+    <details
+      id={id}
+      open={currentOpen}
+      onToggle={(event) => {
+        const nextOpen = event.currentTarget.open
+        if (nextOpen) {
+          setHasOpened(true)
+        }
+        if (!isControlled) {
+          setUncontrolledOpen(nextOpen)
+        }
+        onOpenChange?.(nextOpen)
+      }}
+      style={mobileStudentRecordsDisclosureStyle}
+    >
+      <summary style={mobileStudentRecordsSummaryStyle}>
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </summary>
+      {shouldRenderContent ? (
+        <div style={mobileStudentRecordsBodyStyle}>
+          {renderContent()}
+        </div>
+      ) : null}
+    </details>
   )
 }
 
