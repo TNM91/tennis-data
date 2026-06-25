@@ -61,7 +61,6 @@ type CoachStudentDraft = {
   studentLevel: string
   studentIdentity: string
   studentCustomIdentity: string
-  inviteEmail: string
   studentPhone: string
   contactPreference: CoachStudentLink['contactPreference']
 }
@@ -222,7 +221,6 @@ function CoachContent() {
   const [studentLevel, setStudentLevel] = useState('')
   const [studentIdentity, setStudentIdentity] = useState(DEFAULT_STUDENT_IDENTITY_ID)
   const [studentCustomIdentity, setStudentCustomIdentity] = useState('')
-  const [inviteEmail, setInviteEmail] = useState('')
   const [studentPhone, setStudentPhone] = useState('')
   const [contactPreference, setContactPreference] = useState<CoachStudentLink['contactPreference']>('in_app')
   const [lastCreatedStudentSetup, setLastCreatedStudentSetup] = useState<{
@@ -274,16 +272,14 @@ function CoachContent() {
     ? 'Saving...'
     : studentPhoneDigits.length >= 7
       ? 'Add student + text setup'
-      : inviteEmail.trim()
-        ? 'Add student + setup link'
-        : contactPreference === 'text' || contactPreference === 'both'
-          ? 'Add cell to text setup'
-          : 'Add student'
+      : contactPreference === 'text' || contactPreference === 'both'
+        ? 'Add cell to text setup'
+        : 'Add student'
+  const canCreateStudentSetupLink = studentPhoneDigits.length >= 7
   const hasStudentFormDraft = Boolean(
     studentName.trim() ||
     studentLevel.trim() ||
     studentCustomIdentity.trim() ||
-    inviteEmail.trim() ||
     studentPhone.trim() ||
     studentIdentity !== DEFAULT_STUDENT_IDENTITY_ID ||
     contactPreference !== 'in_app',
@@ -302,7 +298,6 @@ function CoachContent() {
         setStudentLevel(cleanText(draft.studentLevel))
         setStudentIdentity(cleanText(draft.studentIdentity) || DEFAULT_STUDENT_IDENTITY_ID)
         setStudentCustomIdentity(cleanText(draft.studentCustomIdentity))
-        setInviteEmail(cleanText(draft.inviteEmail))
         setStudentPhone(cleanText(draft.studentPhone))
         setContactPreference(normalizeContactPreference(draft.contactPreference))
       }
@@ -321,7 +316,6 @@ function CoachContent() {
       studentLevel,
       studentIdentity,
       studentCustomIdentity,
-      inviteEmail,
       studentPhone,
       contactPreference,
     }
@@ -329,7 +323,6 @@ function CoachContent() {
       studentName.trim() ||
       studentLevel.trim() ||
       studentCustomIdentity.trim() ||
-      inviteEmail.trim() ||
       studentPhone.trim() ||
       studentIdentity !== DEFAULT_STUDENT_IDENTITY_ID ||
       contactPreference !== 'in_app'
@@ -340,7 +333,7 @@ function CoachContent() {
     }
 
     window.localStorage.setItem(COACH_STUDENT_DRAFT_KEY, JSON.stringify(draft))
-  }, [contactPreference, inviteEmail, studentCustomIdentity, studentDraftHydrated, studentIdentity, studentLevel, studentName, studentPhone])
+  }, [contactPreference, studentCustomIdentity, studentDraftHydrated, studentIdentity, studentLevel, studentName, studentPhone])
 
   const loadCoachWorkspace = useCallback(async () => {
     if (!session?.access_token || !access.canUseCoachWorkflow) return
@@ -455,8 +448,23 @@ function CoachContent() {
 
   async function handleAddStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!session?.access_token) return
     setAddStudentSubmitAttempted(true)
+
+    if (!authResolved) {
+      setWorkspaceMessage('Still connecting your account. Try Save again in a moment.')
+      return
+    }
+
+    if (!session?.access_token) {
+      setWorkspaceMessage('Sign in again to save this student. Your draft is still here.')
+      return
+    }
+
+    if (!access.canUseCoachWorkflow) {
+      setWorkspaceMessage('Coach access is required to save students.')
+      return
+    }
+
     if (addStudentBlockedMessage) {
       setWorkspaceMessage(addStudentBlockedMessage)
       return
@@ -479,10 +487,10 @@ function CoachContent() {
             levelLabel: studentIdentity === CUSTOM_STUDENT_IDENTITY_ID
               ? studentLevel || studentCustomIdentity.trim() || 'Custom path'
               : studentLevel,
-            playerEmail: inviteEmail,
+            playerEmail: '',
             playerPhone: studentPhone,
             contactPreference,
-            setupStatus: inviteEmail.trim() || studentPhone.trim() ? 'invited' : 'manual',
+            setupStatus: studentPhone.trim() ? 'invited' : 'manual',
             status: 'needs_assignment',
           },
         }),
@@ -494,10 +502,16 @@ function CoachContent() {
       }
 
       const savedStudent = json.student as CoachStudentLink
-      const shouldCreateInvite = Boolean(inviteEmail.trim() || studentPhone.trim())
-      const createdInvite = shouldCreateInvite
-        ? await createInvite(savedStudent.id, inviteEmail.trim())
-        : null
+      let createdInvite: CoachStudentInvite | null = null
+      let setupLinkError = ''
+
+      if (canCreateStudentSetupLink) {
+        try {
+          createdInvite = await createInvite(savedStudent.id, '')
+        } catch (inviteError) {
+          setupLinkError = inviteError instanceof Error ? inviteError.message : 'Could not create coach invite.'
+        }
+      }
 
       setSavedStudents((current) => [savedStudent, ...current.filter((student) => student.id !== savedStudent.id)])
       setAssignmentStudentId(savedStudent.id)
@@ -507,18 +521,19 @@ function CoachContent() {
       setStudentName('')
       setStudentLevel('')
       setStudentCustomIdentity('')
-      setInviteEmail('')
       setStudentPhone('')
       setContactPreference('in_app')
       setAddStudentSubmitAttempted(false)
       setWorkspaceMessage(
-        createdInvite
+        setupLinkError
+          ? `Student added, but the setup link needs a retry: ${setupLinkError}`
+          : createdInvite
           ? savedStudent.playerPhone
             ? 'Student added. Text the setup link now or create the first assignment.'
             : 'Student added. Setup link is ready.'
           : 'Student added. Create the first assignment while the lesson is fresh.',
       )
-      if (isMobile) scrollToCoachBench()
+      if (isMobile) scrollToStudentSetupReady()
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not add student.')
     } finally {
@@ -1257,6 +1272,10 @@ function CoachContent() {
     scrollToCoachSection('coach-student-board')
   }
 
+  function scrollToStudentSetupReady() {
+    scrollToCoachSection('coach-student-setup-ready')
+  }
+
   function chooseMobileBenchPlayer(card: LinkedPlayerCard) {
     setActiveMobileBenchStudentId(card.student.id)
     setAssignmentStudentId(card.student.id)
@@ -1544,10 +1563,6 @@ function CoachContent() {
           <input className="tiq-focus-ring" value={studentLevel} onChange={(event) => setStudentLevel(event.target.value)} placeholder="4.0, varsity, clinic..." style={inputStyle} />
         </label>
         <label style={fieldStyle}>
-          Player email
-          <input className="tiq-focus-ring" type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="Optional account email" style={inputStyle} />
-        </label>
-        <label style={fieldStyle}>
           Cell phone
           <input
             className="tiq-focus-ring"
@@ -1560,7 +1575,7 @@ function CoachContent() {
             aria-describedby="coach-student-phone-help"
           />
           <span id="coach-student-phone-help" style={addStudentPhoneMessage ? fieldErrorStyle : fieldHintStyle}>
-            {addStudentPhoneMessage || 'Needed for text setup links and lesson reminders.'}
+            {addStudentPhoneMessage || 'The player enters their own email after opening the text setup link.'}
           </span>
         </label>
         <label style={fieldStyle}>
@@ -2361,8 +2376,13 @@ function CoachContent() {
               </div>
             </details>
           ) : renderAddStudentForm()}
+          {workspaceMessage ? (
+            <div style={formStatusStyle} role="status" aria-live="polite">
+              {workspaceMessage}
+            </div>
+          ) : null}
           {lastCreatedStudentSetup ? (
-            <div style={assignmentSendPanelStyle}>
+            <div id="coach-student-setup-ready" style={assignmentSendPanelStyle}>
               <div>
                 <div style={eyebrowStyle}>Student setup ready</div>
                 <h3 style={sessionPlannerTitleStyle}>{lastCreatedStudentSetup.student.playerName}</h3>
@@ -3716,7 +3736,7 @@ function buildAssignmentNotifyMessage(
 }
 
 function buildCoachSetupText(inviteHref: string) {
-  return `I created your TenAceIQ player setup link. Finish your account here: ${inviteHref}`
+  return `I created your TenAceIQ player setup link. Open this, sign in or create your account, enter the email you want tied to your player profile, then finish connecting to me as your coach: ${inviteHref}`
 }
 
 function buildSmsHref(phone: string, body: string, bodySeparator: '?' | '&' = '?') {
@@ -4679,6 +4699,11 @@ const messageStyle: CSSProperties = {
   fontWeight: 850,
   lineHeight: 1.45,
   padding: 12,
+}
+
+const formStatusStyle: CSSProperties = {
+  ...messageStyle,
+  marginTop: 12,
 }
 
 const studentListStyle: CSSProperties = {
