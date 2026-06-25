@@ -5,9 +5,20 @@ import { useParams } from 'next/navigation'
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { loadTiqTournamentRecord, type TiqTournamentRecord } from '@/lib/tiq-tournament-registry'
 
 export const dynamic = 'force-dynamic'
+
+const TOURNAMENT_ALERT_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('pressure-closer-4-0')
+const TOURNAMENT_ALERT_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TOURNAMENT_ALERT_PLAYER_IDENTITY)
+const TOURNAMENT_ALERT_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_ALERT_PLAYER_IDENTITY.slug}`
+const TOURNAMENT_ALERT_PLAYER_DEVELOPMENT_HREF = `/player-development/${TOURNAMENT_ALERT_PLAYER_IDENTITY.slug}`
+const tournamentAlertPlayerIdActions = [
+  { href: TOURNAMENT_ALERT_LEVEL_UP_HREF, label: 'Start Level Up' },
+  { href: TOURNAMENT_ALERT_PLAYER_DEVELOPMENT_HREF, label: 'Read Player ID' },
+  { href: '/matchup', label: 'Prep matchup' },
+] as const
 
 export default function TournamentPreferencesPage() {
   return (
@@ -124,6 +135,37 @@ function TournamentPreferencesInner() {
             </div>
           ))}
         </div>
+
+        <section style={alertPlayerIdStyle} aria-label="Tournament alerts Player ID follow-through">
+          <div style={alertPlayerIdCopyStyle}>
+            <span style={alertPlayerIdEyebrowStyle}>Alerts to Player ID</span>
+            <strong style={alertPlayerIdTitleStyle}>Texts tell you what changed. Player ID tells you what to train next.</strong>
+            <span style={alertPlayerIdTextStyle}>
+              {TOURNAMENT_ALERT_PLAYER_IDENTITY_READ.levelUpNudge} After court alerts or results land, keep one pressure cue ready.
+            </span>
+          </div>
+          <div style={alertPlayerIdSignalGridStyle} aria-label="Tournament alerts Player ID starter read">
+            <span style={alertPlayerIdSignalStyle}>
+              <em>Read</em>
+              <strong>{TOURNAMENT_ALERT_PLAYER_IDENTITY_READ.matchTrigger}</strong>
+            </span>
+            <span style={alertPlayerIdSignalStyle}>
+              <em>Proof</em>
+              <strong>{TOURNAMENT_ALERT_PLAYER_IDENTITY_READ.proofTarget}</strong>
+            </span>
+          </div>
+          <div style={alertPlayerIdActionRowStyle}>
+            {tournamentAlertPlayerIdActions.map((action, index) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                style={index === 0 ? { ...alertPlayerIdActionStyle, ...alertPlayerIdPrimaryActionStyle } : alertPlayerIdActionStyle}
+              >
+                {action.label}
+              </Link>
+            ))}
+          </div>
+        </section>
 
         <form style={formStyle} onSubmit={submitPreference}>
           <label style={fieldStyle}>
@@ -287,6 +329,108 @@ const consentStepStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   overflowWrap: 'anywhere',
+}
+
+const alertPlayerIdStyle: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const alertPlayerIdCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const alertPlayerIdEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const alertPlayerIdTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.3,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const alertPlayerIdTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const alertPlayerIdSignalGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const alertPlayerIdSignalStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  minHeight: 62,
+  padding: 9,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(15,23,42,0.42)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const alertPlayerIdActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-start',
+  gap: 8,
+  minWidth: 0,
+}
+
+const alertPlayerIdActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  minHeight: 36,
+  minWidth: 0,
+  padding: '8px 11px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'rgba(7,17,33,0.72)',
+  color: '#eef5ff',
+  textDecoration: 'none',
+  fontSize: 12,
+  fontWeight: 950,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const alertPlayerIdPrimaryActionStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.36)',
+  background: 'rgba(155,225,29,0.14)',
+  color: '#f5ffe2',
 }
 
 const readinessDotReadyStyle: CSSProperties = {

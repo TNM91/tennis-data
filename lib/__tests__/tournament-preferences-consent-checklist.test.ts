@@ -34,4 +34,49 @@ describe('tournament preferences consent checklist', () => {
     expect(styleBlock(source, 'inputStyle')).toContain('outlineOffset: 2')
     expect(styleBlock(source, 'inputStyle')).not.toContain("outline: 'none'")
   })
+
+  it('bridges tournament text alerts into Player ID follow-through before the form', () => {
+    const source = readFileSync(join(process.cwd(), 'app/tournaments/[id]/preferences/page.tsx'), 'utf8')
+
+    expect(source).toContain("getPlayerDevelopmentIdentity('pressure-closer-4-0')")
+    expect(source).toContain('TOURNAMENT_ALERT_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TOURNAMENT_ALERT_PLAYER_IDENTITY)')
+    expect(source).toContain('TOURNAMENT_ALERT_LEVEL_UP_HREF')
+    expect(source).toContain('TOURNAMENT_ALERT_PLAYER_DEVELOPMENT_HREF')
+    expect(source).toContain('aria-label="Tournament alerts Player ID follow-through"')
+    expect(source).toContain('aria-label="Tournament alerts Player ID starter read"')
+    expect(source).toContain('Alerts to Player ID')
+    expect(source).toContain('Texts tell you what changed. Player ID tells you what to train next.')
+    expect(source).toContain('After court alerts or results land, keep one pressure cue ready.')
+    expect(source).toContain('Start Level Up')
+    expect(source).toContain('Read Player ID')
+    expect(source).toContain('Prep matchup')
+
+    const checklistIndex = source.indexOf('aria-label="Text alert consent checklist"')
+    const bridgeIndex = source.indexOf('aria-label="Tournament alerts Player ID follow-through"')
+    const formIndex = source.indexOf('<form style={formStyle}')
+    expect(checklistIndex).toBeGreaterThanOrEqual(0)
+    expect(bridgeIndex).toBeGreaterThan(checklistIndex)
+    expect(formIndex).toBeGreaterThan(bridgeIndex)
+  })
+
+  it('keeps the Player ID alert bridge from squeezing on phone screens', () => {
+    const source = readFileSync(join(process.cwd(), 'app/tournaments/[id]/preferences/page.tsx'), 'utf8')
+
+    const bridgeStyle = styleBlock(source, 'alertPlayerIdStyle')
+    expect(bridgeStyle).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
+    expect(bridgeStyle).toContain('minWidth: 0')
+    expect(bridgeStyle).toContain("overflowWrap: 'anywhere'")
+
+    const signalGridStyle = styleBlock(source, 'alertPlayerIdSignalGridStyle')
+    expect(signalGridStyle).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))'")
+    expect(signalGridStyle).toContain('minWidth: 0')
+
+    const actionRowStyle = styleBlock(source, 'alertPlayerIdActionRowStyle')
+    expect(actionRowStyle).toContain("flexWrap: 'wrap'")
+
+    const actionStyle = styleBlock(source, 'alertPlayerIdActionStyle')
+    expect(actionStyle).toContain("maxWidth: '100%'")
+    expect(actionStyle).toContain("whiteSpace: 'normal'")
+    expect(actionStyle).toContain("overflowWrap: 'anywhere'")
+  })
 })
