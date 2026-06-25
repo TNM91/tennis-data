@@ -3,7 +3,7 @@ import { LEVEL_UP_CARDS } from '../level-up/level-up-cards'
 import { IDENTITY_LEVEL_UP_PROFILES } from '../level-up/identity-recommendations'
 import { LEVEL_UP_MODULES } from '../level-up/level-up-modules'
 import { getRecommendedCardsForIdentity, getRecommendedModulesForIdentity } from '../level-up/recommendations'
-import { PLAYER_DEVELOPMENT_IDENTITIES } from '../player-development'
+import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentityActionRead } from '../player-development'
 import { MEMBERSHIP_TIERS } from '../product-story'
 
 const EMPTY_COPY_PATTERNS = [
@@ -170,6 +170,33 @@ describe('Level Up content quality', () => {
       for (const cardId of profile.starterCardIds) {
         expect(cardIds.has(cardId), `${identity.slug} references missing card ${cardId}`).toBe(true)
       }
+    }
+  })
+
+  it('turns every player identity into a practical Player ID action read', () => {
+    for (const identity of PLAYER_DEVELOPMENT_IDENTITIES) {
+      const actionRead = getPlayerDevelopmentIdentityActionRead(identity)
+      const actionCopy = [
+        actionRead.label,
+        actionRead.title,
+        actionRead.trainingPriority,
+        actionRead.proofTarget,
+        actionRead.leakWatch,
+        actionRead.matchTrigger,
+        actionRead.coachPrompt,
+        actionRead.nextCue,
+        actionRead.levelUpNudge,
+      ].join(' ')
+
+      expect(actionRead.label, identity.slug).toContain('Player ID')
+      expect(actionRead.trainingPriority.trim(), identity.slug).not.toHaveLength(0)
+      expect(actionRead.proofTarget.trim(), identity.slug).not.toHaveLength(0)
+      expect(actionRead.coachPrompt.trim(), identity.slug).not.toHaveLength(0)
+      expect(actionRead.levelUpNudge, identity.slug).toContain('score the proof')
+      expect(
+        TENNIS_TRANSFER_WORDS.some((word) => actionCopy.toLowerCase().includes(word)),
+        `${identity.slug} action read should stay tennis-specific`
+      ).toBe(true)
     }
   })
 

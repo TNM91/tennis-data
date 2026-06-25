@@ -18,10 +18,14 @@ describe('Level Up Player ID proof trail', () => {
     expect(source).toContain('Level Up Player ID proof trail')
     expect(source).toContain('Profile signal')
     expect(source).toContain('Drill proof')
-    expect(source).toContain('Saved return path')
-    expect(source).toContain('Start from the player profile so the work matches the way this player wins and leaks points.')
+    expect(source).toContain('Coach read')
+    expect(source).toContain('Match test')
+    expect(source).toContain('Train first')
+    expect(source).toContain('Proof target')
+    expect(source).toContain('actionRead.levelUpNudge')
     expect(source).toContain('Run the rep, rate the proof, and keep the next tennis cue visible.')
     expect(source).toContain('Save the session so the Player ID can carry proof into My Lab, coach assignments, and the next matchup.')
+    expect(source).toContain('The identity is not complete until it shows up in the score moment where the player usually leaks.')
   })
 
   it('keeps the proof trail compact and mobile-safe', () => {

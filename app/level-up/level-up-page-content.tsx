@@ -7,7 +7,11 @@ import styles from '@/app/player-development/_components/player-development.modu
 import { LEVEL_UP_CARDS, LEVEL_UP_MODULES, getRecommendedLevelUpCards } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard } from '@/lib/level-up/level-up-types'
 import { buildLevelUpHabitPaths, buildLevelUpQuestBuilderPlan, formatHabitCategory } from '@/lib/level-up/quest-builder'
-import { PLAYER_DEVELOPMENT_IDENTITIES, type PlayerDevelopmentIdentity } from '@/lib/player-development'
+import {
+  PLAYER_DEVELOPMENT_IDENTITIES,
+  getPlayerDevelopmentIdentityActionRead,
+  type PlayerDevelopmentIdentity,
+} from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import HabitPathWizardClient from './habit-path-wizard-client'
@@ -21,18 +25,21 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   const favoritePreview = recommendedCards.slice(0, 3)
   const libraryPacks = [...new Set(LEVEL_UP_CARDS.map((card) => card.pack))].slice(0, 8)
   const quickStartCards = recommendedCards.slice(0, 5)
+  const actionRead = getPlayerDevelopmentIdentityActionRead(identity)
   const playerIdRows = [
     ['Profile ID', identity.title.replace(/^The /, '')],
-    ['Weapon', identity.identityProfile.primaryWeapons[0] ?? identity.mantra],
-    ['Leak to watch', identity.identityProfile.styleLeaks[0] ?? 'The habit that breaks under score pressure.'],
-    ['Match trigger', identity.identityProfile.matchTriggers[0] ?? 'The moment this identity has to show up.'],
+    ['Weapon', actionRead.title],
+    ['Train first', actionRead.trainingPriority],
+    ['Proof target', actionRead.proofTarget],
+    ['Leak to watch', actionRead.leakWatch],
+    ['Match trigger', actionRead.matchTrigger],
   ] as const
   const firstRecommendedCard = recommendedCards[0]
   const playerIdProofTrail = [
     {
       label: 'Profile signal',
       title: identity.title.replace(/^The /, ''),
-      body: 'Start from the player profile so the work matches the way this player wins and leaks points.',
+      body: actionRead.levelUpNudge,
     },
     {
       label: 'Drill proof',
@@ -40,9 +47,14 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
       body: firstRecommendedCard?.proof ?? 'Run the rep, rate the proof, and keep the next tennis cue visible.',
     },
     {
-      label: 'Saved return path',
-      title: 'My Lab and coach review',
+      label: 'Coach read',
+      title: actionRead.coachPrompt,
       body: 'Save the session so the Player ID can carry proof into My Lab, coach assignments, and the next matchup.',
+    },
+    {
+      label: 'Match test',
+      title: actionRead.matchTrigger,
+      body: 'The identity is not complete until it shows up in the score moment where the player usually leaks.',
     },
   ] as const
   const questBuilder = buildLevelUpQuestBuilderPlan(identity.slug)

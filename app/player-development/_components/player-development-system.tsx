@@ -13,6 +13,7 @@ import { getLevelUpProfileForIdentity } from '@/lib/level-up/recommendations'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
   PLAYER_DEVELOPMENT_DIAGRAMS,
+  getPlayerDevelopmentIdentityActionRead,
   getPlayerDevelopmentIdentity,
   type CoachLessonPlan,
   type PlayerDevelopmentDiagram,
@@ -248,14 +249,16 @@ function getPlayerQuestionCards(identity: PlayerDevelopmentIdentity) {
 }
 
 function PlayerIdentitySnapshot({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const actionRead = getPlayerDevelopmentIdentityActionRead(identity)
   const profile = getLevelUpProfileForIdentity(identity.slug)
   const starterCards = LEVEL_UP_CARDS.filter((card) => profile.starterCardIds.includes(card.id)).slice(0, 2)
   const rows = [
     ['Profile ID', identity.title.replace(/^The /, '')],
-    ['Primary weapon', identity.identityProfile.primaryWeapons[0] ?? identity.traits[0] ?? identity.mantra],
-    ['Style leak', identity.identityProfile.styleLeaks[0] ?? 'The pattern that disappears first under pressure.'],
-    ['Match trigger', identity.identityProfile.matchTriggers[0] ?? 'The moment this identity has to show up.'],
-    ['Coach check', identity.identityProfile.coachQuestions[0] ?? 'What proof showed up in the match?'],
+    ['Primary weapon', actionRead.title],
+    ['Training priority', actionRead.trainingPriority],
+    ['Proof target', actionRead.proofTarget],
+    ['Style leak', actionRead.leakWatch],
+    ['Match trigger', actionRead.matchTrigger],
   ] as const
 
   return (
@@ -278,7 +281,8 @@ function PlayerIdentitySnapshot({ identity }: { identity: PlayerDevelopmentIdent
       <div className={styles.playerIdLevelUpBridge}>
         <div>
           <span>First Level Up move</span>
-          <strong>{profile.recommendationCopy}</strong>
+          <strong>{actionRead.levelUpNudge}</strong>
+          <small>{profile.recommendationCopy}</small>
         </div>
         <div>
           {starterCards.map((card) => (
@@ -289,6 +293,23 @@ function PlayerIdentitySnapshot({ identity }: { identity: PlayerDevelopmentIdent
             </Link>
           ))}
         </div>
+      </div>
+      <div className={styles.playerIdProofTrail} aria-label="Player ID action read">
+        <article>
+          <span>Coach read</span>
+          <strong>{actionRead.coachPrompt}</strong>
+          <p>Use this question before assigning more work so the next lesson starts from evidence.</p>
+        </article>
+        <article>
+          <span>Next cue</span>
+          <strong>{actionRead.nextCue}</strong>
+          <p>Make the cue visible before practice, then score whether it stayed alive under pressure.</p>
+        </article>
+        <article>
+          <span>Match test</span>
+          <strong>{actionRead.matchTrigger}</strong>
+          <p>Do not wait for a perfect drill block. Test the identity when the match asks for it.</p>
+        </article>
       </div>
     </section>
   )

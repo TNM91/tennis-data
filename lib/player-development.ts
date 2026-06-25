@@ -91,6 +91,18 @@ export type PlayerDevelopmentIdentityProfile = {
   coachQuestions: string[]
 }
 
+export type PlayerDevelopmentIdentityActionRead = {
+  label: string
+  title: string
+  trainingPriority: string
+  proofTarget: string
+  leakWatch: string
+  matchTrigger: string
+  coachPrompt: string
+  nextCue: string
+  levelUpNudge: string
+}
+
 export type PlayerDevelopmentIdentity = {
   slug: string
   title: string
@@ -4310,5 +4322,32 @@ export const PLAYER_DEVELOPMENT_IDENTITIES = [
 
 export function getPlayerDevelopmentIdentity(slug = RELENTLESS_COMPETITOR_IDENTITY.slug) {
   return PLAYER_DEVELOPMENT_IDENTITIES.find((identity) => identity.slug === slug) ?? RELENTLESS_COMPETITOR_IDENTITY
+}
+
+export function getPlayerDevelopmentIdentityActionRead(
+  identity: PlayerDevelopmentIdentity
+): PlayerDevelopmentIdentityActionRead {
+  const identityName = identity.title.replace(/^The /, '')
+  const primaryWeapon = identity.identityProfile.primaryWeapons[0] ?? identity.traits[0] ?? identity.mantra
+  const styleLeak = identity.identityProfile.styleLeaks[0] ?? 'The habit that breaks first under score pressure.'
+  const matchTrigger = identity.identityProfile.matchTriggers[0] ?? 'The next point where this identity has to show up.'
+  const coachPrompt = identity.identityProfile.coachQuestions[0] ?? 'What proof showed up when pressure changed?'
+  const firstSection = identity.sections[0]
+  const firstMetric = identity.metrics[0]
+  const firstWeek = identity.weeks[0]
+
+  return {
+    label: `${identityName} Player ID`,
+    title: primaryWeapon,
+    trainingPriority: firstSection?.cue ?? `Make ${primaryWeapon} visible in one repeatable tennis habit.`,
+    proofTarget: firstMetric
+      ? `${firstMetric.skill}: ${firstMetric.evidence}`
+      : firstWeek?.accountability ?? 'Rate one proof score and name the next action.',
+    leakWatch: styleLeak,
+    matchTrigger,
+    coachPrompt,
+    nextCue: firstWeek?.coachCue ?? identity.mantra,
+    levelUpNudge: `Start with one ${identityName} card, score the proof, then decide whether to repeat, progress, or test it in a match.`,
+  }
 }
 
