@@ -267,6 +267,98 @@
   font-weight: 950;
 }
 
+.playerIdActionPlan {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(260px, 0.95fr) minmax(210px, 0.7fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), transparent 38%),
+    rgba(5, 15, 30, 0.78);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(14px, 2.4vw, 20px);
+  overflow: hidden;
+}
+
+.playerIdActionPlanCopy {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+.playerIdActionPlanCopy > div,
+.playerIdActionPlanCard,
+.playerIdActionPlanGrid article {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.playerIdActionPlanCopy span,
+.playerIdActionPlanCard span,
+.playerIdActionPlanGrid span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playerIdActionPlanCopy strong,
+.playerIdActionPlanCard strong,
+.playerIdActionPlanGrid strong {
+  color: var(--foreground-strong);
+  font-size: 0.96rem;
+  line-height: 1.18;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.playerIdActionPlanCopy p,
+.playerIdActionPlanCard small {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.playerIdActionPlanGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.playerIdActionPlanCard,
+.playerIdActionPlanGrid article {
+  border: 1px solid rgba(116, 190, 255, 0.15);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+
+.playerIdActionPlanActions {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.playerIdActionPlanActions :global(.button-primary),
+.playerIdActionPlanActions :global(.button-secondary) {
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+}
+
 .playerIdSnapshot {
   display: grid;
   gap: 14px;
@@ -14112,6 +14204,7 @@
   .moduleTestGrid,
   .moduleStandards,
   .moduleEvidenceGrid,
+  .playerIdActionPlan,
   .doublesTracker {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -14346,6 +14439,9 @@
   .moduleTestGrid,
   .moduleStandards,
   .moduleEvidenceGrid,
+  .playerIdActionPlan,
+  .playerIdActionPlanGrid,
+  .playerIdActionPlanActions,
   .doublesTracker {
     grid-template-columns: 1fr;
   }

@@ -80,6 +80,8 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
               </div>
             </section>
 
+            <PlayerIdActionPlan identity={identity} />
+
             <PlayerSuitePanel
               active="development"
               playerLabel={`${playerTier.name} development path`}
@@ -142,6 +144,51 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
     <SiteShell active="you">
       {content}
     </SiteShell>
+  )
+}
+
+function PlayerIdActionPlan({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const actionRead = getPlayerDevelopmentIdentityActionRead(identity)
+  const profile = getLevelUpProfileForIdentity(identity.slug)
+  const firstCard = LEVEL_UP_CARDS.find((card) => profile.starterCardIds.includes(card.id))
+  const actionRows = [
+    ['Train', actionRead.trainingPriority],
+    ['Prove', firstCard?.proof ?? actionRead.proofTarget],
+    ['Use it', actionRead.nextCue],
+  ] as const
+
+  return (
+    <section className={styles.playerIdActionPlan} aria-label="Player ID action plan">
+      <div className={styles.playerIdActionPlanCopy}>
+        <TiqFeatureIcon name="matchPrep" size="sm" variant="ghost" />
+        <div>
+          <span>Player ID action plan</span>
+          <strong>Train the identity before the next score moment.</strong>
+          <p>{actionRead.levelUpNudge}</p>
+        </div>
+      </div>
+      <div className={styles.playerIdActionPlanGrid} aria-label="Player ID train prove use loop">
+        {actionRows.map(([label, value]) => (
+          <article key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </article>
+        ))}
+      </div>
+      <div className={styles.playerIdActionPlanCard}>
+        <span>{firstCard?.pack ?? 'Level Up starter'}</span>
+        <strong>{firstCard?.title ?? actionRead.title}</strong>
+        <small>{firstCard?.useWhen ?? actionRead.matchTrigger}</small>
+      </div>
+      <div className={styles.playerIdActionPlanActions}>
+        <Link className="button-primary" href={`/player-development/${identity.slug}/level-up${firstCard ? `?card=${firstCard.id}` : ''}`}>
+          Start Level Up
+        </Link>
+        <Link className="button-secondary" href={`/level-up/${identity.slug}`}>
+          Open drill mode
+        </Link>
+      </div>
+    </section>
   )
 }
 
