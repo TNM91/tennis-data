@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type MouseEvent } from 'react'
 import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -237,6 +237,9 @@ export default function PortalToolBar() {
   const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
   const currentPortalPath = `${pathname}${currentHash}`
+  const mobilePortalHasActiveTask = mobilePortalLane
+    ? mobilePortalLane.tasks.some((task) => isPortalTaskActive(currentPortalPath, task.href))
+    : false
   const mobilePortalStickyTop = 'var(--header-height)'
   const showExpandedPortalIntro = !collapseMobilePortal
   const portalMenuId = 'tenaceiq-mobile-portal-menu'
@@ -246,6 +249,27 @@ export default function PortalToolBar() {
     const params = new URLSearchParams({ scope: activeLane.searchScope })
     if (query.trim()) params.set('q', query.trim())
     router.push(`/explore/search?${params.toString()}`)
+  }
+
+  function handleMobilePortalLaneSelect(event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) {
+    event.currentTarget.blur()
+    setMobilePortalLaneState({ pathname, laneId })
+  }
+
+  function handleMobilePortalMainSelect(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur()
+    setMobilePortalLaneState({ pathname, laneId: null })
+  }
+
+  function handleMobilePortalNavigation(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    event.currentTarget.blur()
+
+    try {
+      const target = new URL(href, window.location.origin)
+      if (target.pathname === pathname) setCurrentHash(target.hash || '')
+    } catch {
+      // Relative URLs should always parse, but navigation should not fail if one does not.
+    }
   }
 
   const headline = authenticated
@@ -309,8 +333,8 @@ export default function PortalToolBar() {
               <>
                 <button
                   type="button"
-                  onClick={() => setMobilePortalLaneState({ pathname, laneId: null })}
-                  style={mobilePortalHomeTileStyle}
+                  onClick={handleMobilePortalMainSelect}
+                  style={mobilePortalBackTileStyle}
                   aria-label="Show main TenAceIQ menu"
                 >
                   <span style={mobilePortalTileIconStyle}>
@@ -323,9 +347,10 @@ export default function PortalToolBar() {
                   access={access}
                   authenticated={authenticated}
                   accessPending={accessPending}
-                  active={pathname === mobilePortalLane.route && !currentHash}
+                  active={!mobilePortalHasActiveTask && pathname === mobilePortalLane.route && !currentHash}
                   profileLinked={profileLinked}
                   accent={getLaneAccent(mobilePortalLane.id)}
+                  onActivate={handleMobilePortalNavigation}
                 />
                 {mobilePortalLane.tasks.slice(0, 4).map((task) => (
                   <MobilePortalTaskTile
@@ -337,6 +362,7 @@ export default function PortalToolBar() {
                     active={isPortalTaskActive(currentPortalPath, task.href)}
                     profileLinked={profileLinked}
                     accent={getLaneAccent(mobilePortalLane.id)}
+                    onActivate={handleMobilePortalNavigation}
                   />
                 ))}
               </>
@@ -344,7 +370,7 @@ export default function PortalToolBar() {
               <button
                 key={lane.id}
                 type="button"
-                onClick={() => setMobilePortalLaneState({ pathname, laneId: lane.id })}
+                onClick={(event) => handleMobilePortalLaneSelect(event, lane.id)}
                 style={{
                   ...mobilePortalTileStyle,
                   borderColor: lane.id === activeLane.id ? getLaneAccent(lane.id) : 'rgba(116,190,255,0.15)',
@@ -616,6 +642,7 @@ function MobilePortalTaskTile({
   active,
   profileLinked,
   accent,
+  onActivate,
 }: {
   task: PortalLane['tasks'][number]
   access: ProductAccessState
@@ -624,6 +651,7 @@ function MobilePortalTaskTile({
   active: boolean
   profileLinked: boolean
   accent: string
+  onActivate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void
 }) {
   const target = getPortalTaskTarget({
     href: task.href,
@@ -638,6 +666,7 @@ function MobilePortalTaskTile({
   return (
     <Link
       href={target.href}
+      onClick={(event) => onActivate(event, target.href)}
       aria-current={active ? 'page' : undefined}
       aria-label={`${target.title}${target.locked ? ' locked' : ''}: ${task.detail}`}
       title={task.detail}
@@ -665,6 +694,7 @@ function MobilePortalHubTile({
   active,
   profileLinked,
   accent,
+  onActivate,
 }: {
   lane: PortalLane
   access: ProductAccessState
@@ -673,6 +703,7 @@ function MobilePortalHubTile({
   active: boolean
   profileLinked: boolean
   accent: string
+  onActivate: (event: MouseEvent<HTMLAnchorElement>, href: string) => void
 }) {
   const target = getPortalLaneTarget({
     laneId: lane.id,
@@ -687,6 +718,7 @@ function MobilePortalHubTile({
   return (
     <Link
       href={target.href}
+      onClick={(event) => onActivate(event, target.href)}
       aria-current={active ? 'page' : undefined}
       aria-label={`${getMobileLaneLabel(lane.id)} hub${target.locked ? ' locked' : ''}: ${lane.cue}`}
       title={`${getMobileLaneLabel(lane.id)} hub`}
@@ -845,12 +877,17 @@ const mobilePortalTileStyle: CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
   cursor: 'pointer',
+  touchAction: 'manipulation',
+  userSelect: 'none',
+  WebkitTapHighlightColor: 'transparent',
+  transition: 'border-color 120ms ease, background 120ms ease, box-shadow 120ms ease',
 }
 
-const mobilePortalHomeTileStyle: CSSProperties = {
+const mobilePortalBackTileStyle: CSSProperties = {
   ...mobilePortalTileStyle,
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(255,255,255,0.055)',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.03)',
+  color: 'var(--shell-copy-muted)',
 }
 
 const mobilePortalTileIconStyle: CSSProperties = {
