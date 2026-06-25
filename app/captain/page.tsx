@@ -57,8 +57,18 @@ import {
 } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
+const CAPTAIN_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const CAPTAIN_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(CAPTAIN_PLAYER_IDENTITY)
+const CAPTAIN_LEVEL_UP_HREF = `/level-up/${CAPTAIN_PLAYER_IDENTITY.slug}`
+const CAPTAIN_PLAYER_DEVELOPMENT_HREF = `/player-development/${CAPTAIN_PLAYER_IDENTITY.slug}`
+const captainPlayerIdStarterRead = [
+  { label: 'Train first', value: CAPTAIN_PLAYER_IDENTITY_READ.trainingPriority },
+  { label: 'Proof target', value: CAPTAIN_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Match test', value: CAPTAIN_PLAYER_IDENTITY_READ.matchTrigger },
+] as const
 
 type TeamMatch = {
   id: string
@@ -281,7 +291,7 @@ const CAPTAIN_LEVEL_UP_CHALLENGES: CaptainLevelUpChallenge[] = [
 ]
 
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
-  'Set your player identity in My Lab so Captain can find your profile team.',
+  'Set your Player ID so Team Hub can find your profile team.',
   'Upload a reviewed team summary or schedule through Data Assist when roster or match history is missing.',
   'Refresh Captain after the upload review connects teams, schedules, and scorecards.',
 ] as const
@@ -1902,7 +1912,7 @@ function CaptainHubContent() {
 
             {!loadingOptions && !filteredTeamOptions.length ? (
               <div style={captainDataAssistCueStyle}>
-                <div>
+                <div style={captainPlayerIdStarterCopyStyle}>
                   <strong>Need a team to manage here?</strong>
                   <span>Connect a profile team or upload reviewed roster and schedule data so Captain can answer availability, lineup, pairing, and message questions.</span>
                   <ul style={captainEmptyActionListStyle}>
@@ -1910,10 +1920,31 @@ function CaptainHubContent() {
                       <li key={action}>{action}</li>
                     ))}
                   </ul>
+                  <div style={captainPlayerIdStarterStyle} aria-label="Captain Player ID starter">
+                    <div style={captainPlayerIdStarterHeaderStyle}>
+                      <span style={captainPlayerIdStarterEyebrowStyle}>Team Hub Player ID starter</span>
+                      <strong style={captainPlayerIdStarterTitleStyle}>{CAPTAIN_PLAYER_IDENTITY_READ.label}</strong>
+                      <span>{CAPTAIN_PLAYER_IDENTITY_READ.levelUpNudge}</span>
+                    </div>
+                    <div style={captainPlayerIdStarterGridStyle} aria-label="Captain Player ID starter read">
+                      {captainPlayerIdStarterRead.map((item) => (
+                        <article key={item.label} style={captainPlayerIdStarterCardStyle}>
+                          <span style={captainPlayerIdStarterLabelStyle}>{item.label}</span>
+                          <strong style={captainPlayerIdStarterValueStyle}>{item.value}</strong>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div style={captainEmptyActionRowStyle}>
                   <Link href="/mylab#player-workshop" style={captainDataAssistLinkStyle}>
-                    Set in My Lab
+                    Set profile
+                  </Link>
+                  <Link href={CAPTAIN_LEVEL_UP_HREF} style={captainDataAssistLinkStyle}>
+                    Start Level Up
+                  </Link>
+                  <Link href={CAPTAIN_PLAYER_DEVELOPMENT_HREF} style={captainDataAssistLinkStyle}>
+                    Read Player ID
                   </Link>
                   <Link href={dataAssistCaptainHref} style={captainDataAssistLinkStyle}>
                     {DATA_ASSIST_STORY.cta}
@@ -3816,6 +3847,84 @@ const captainDataAssistLinkStyle: CSSProperties = {
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
+}
+
+const captainPlayerIdStarterCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  flex: '1 1 420px',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerIdStarterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  marginTop: 4,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 7%, var(--shell-chip-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerIdStarterHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const captainPlayerIdStarterEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerIdStarterTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerIdStarterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 158px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const captainPlayerIdStarterCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-panel-border) 86%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-panel-bg) 94%)',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerIdStarterLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const captainPlayerIdStarterValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
 }
 
 const captainEmptyActionListStyle: CSSProperties = {
