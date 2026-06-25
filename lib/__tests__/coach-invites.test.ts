@@ -28,7 +28,7 @@ describe('coach invites', () => {
         'coach-1',
       ),
     ).toMatchObject({
-      id: 'coach-invite-invite-id',
+      id: 'invite-id',
       coach_user_id: 'coach-1',
       student_link_id: 'student-1',
       invite_email: 'player@example.com',

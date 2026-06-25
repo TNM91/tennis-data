@@ -65,7 +65,7 @@ export function mapCoachInviteRow(row: CoachStudentInviteRow, origin = ''): Coac
 }
 
 export function buildCoachInvitePayload(input: CoachStudentInviteInput, coachUserId: string) {
-  const id = stringOrEmpty(input.id).trim() || `coach-invite-${crypto.randomUUID()}`
+  const id = stringOrEmpty(input.id).trim() || crypto.randomUUID()
   const inviteToken = crypto.randomUUID()
 
   return {

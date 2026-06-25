@@ -70,7 +70,7 @@ describe('coach storage helpers', () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValueOnce('student-random')
 
     expect(buildCoachStudentLinkPayload({ playerName: ' Taylor ', status: 'paused' }, 'coach-1')).toMatchObject({
-      id: 'coach-student-student-random',
+      id: 'student-random',
       coach_user_id: 'coach-1',
       player_name: 'Taylor',
       status: 'paused',
@@ -93,7 +93,7 @@ describe('coach storage helpers', () => {
         'coach-1',
       ),
     ).toMatchObject({
-      id: 'coach-assignment-assignment-random',
+      id: 'assignment-random',
       coach_user_id: 'coach-1',
       student_link_id: 'student-1',
       title: 'Serve targets',

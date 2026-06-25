@@ -219,7 +219,7 @@ export function buildCoachStudentLinkPayload(input: CoachStudentLinkInput, coach
   const playerName = stringOrEmpty(input.playerName).trim()
   if (!playerName) return null
 
-  const id = stringOrEmpty(input.id).trim() || `coach-student-${crypto.randomUUID()}`
+  const id = stringOrEmpty(input.id).trim() || crypto.randomUUID()
 
   return {
     id,
@@ -244,7 +244,7 @@ export function buildCoachAssignmentPayload(input: CoachAssignmentInput, coachUs
   const title = stringOrEmpty(input.title).trim()
   if (!studentLinkId || !title) return null
 
-  const id = stringOrEmpty(input.id).trim() || `coach-assignment-${crypto.randomUUID()}`
+  const id = stringOrEmpty(input.id).trim() || crypto.randomUUID()
 
   return {
     id,
