@@ -68,6 +68,31 @@ describe('compete results follow-through', () => {
     expect(source).toContain('Create both player profiles so this result can feed TIQ history and awards.')
   })
 
+  it('connects results back into the Player ID and Level Up proof loop', () => {
+    expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
+    expect(source).toContain("const RESULTS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
+    expect(source).toContain('const RESULTS_LEVEL_UP_HREF = `/level-up/${RESULTS_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const RESULTS_PLAYER_DEVELOPMENT_HREF = `/player-development/${RESULTS_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('function ResultPlayerIdProofPanel')
+    expect(source).toContain('aria-label="Results Player ID proof loop"')
+    expect(source).toContain('aria-label="Results Player ID starter read"')
+    expect(source).toContain('Use the score as proof, not just history.')
+    expect(source).toContain('After the result lands, turn the pattern into one Level Up rep and one My Lab cue.')
+    expect(source).toContain('Start Level Up')
+    expect(source).toContain('Read Player ID')
+    expect(source.indexOf('<ResultPlayerIdProofPanel />')).toBeGreaterThan(source.indexOf('<ResultsPathPanel />'))
+    expect(source.indexOf('<ResultPlayerIdProofPanel />')).toBeLessThan(source.indexOf('<CompeteGrid>'))
+  })
+
+  it('keeps the Results Player ID proof loop mobile-safe', () => {
+    expect(styleBlock('resultPlayerIdProofStyle')).toContain('minWidth: 0')
+    expect(styleBlock('resultPlayerIdProofStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
+    expect(styleBlock('resultPlayerIdProofGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(styleBlock('resultPlayerIdProofActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('resultPlayerIdProofActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('resultPlayerIdProofActionStyle')).toContain("whiteSpace: 'normal'")
+  })
+
   it('keeps the empty Results state actionable and mobile-safe', () => {
     expect(source).toContain('function EmptyResultsState')
     expect(source).toContain('Results start with one finished match.')

@@ -11,6 +11,7 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import { DATA_ASSIST_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   listTiqIndividualLeagueResults,
   type TiqIndividualLeagueResultRecord,
@@ -22,6 +23,21 @@ const emptyResultActions = [
   { href: '/league-coordinator/individual-results', label: 'Log player result' },
   { href: '/league-coordinator/results', label: 'Open team book' },
   { href: DATA_ASSIST_STORY.href, label: 'Fix tennis info' },
+] as const
+
+const RESULTS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const RESULTS_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(RESULTS_PLAYER_IDENTITY)
+const RESULTS_LEVEL_UP_HREF = `/level-up/${RESULTS_PLAYER_IDENTITY.slug}`
+const RESULTS_PLAYER_DEVELOPMENT_HREF = `/player-development/${RESULTS_PLAYER_IDENTITY.slug}`
+const resultPlayerIdProofItems = [
+  { label: 'Result read', value: RESULTS_PLAYER_IDENTITY_READ.matchTrigger },
+  { label: 'Training proof', value: RESULTS_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Next cue', value: RESULTS_PLAYER_IDENTITY_READ.nextCue },
+] as const
+const resultPlayerIdActions = [
+  { href: RESULTS_LEVEL_UP_HREF, label: 'Start Level Up' },
+  { href: RESULTS_PLAYER_DEVELOPMENT_HREF, label: 'Read Player ID' },
+  { href: '/mylab#player-workshop', label: 'Open My Lab' },
 ] as const
 
 const resultsPathActions = [
@@ -135,6 +151,7 @@ function CompeteResultsContent() {
   return (
     <>
       <ResultsPathPanel />
+      <ResultPlayerIdProofPanel />
 
       <CompeteGrid>
         <CompeteCard
@@ -232,6 +249,42 @@ function CompeteResultsContent() {
 
       {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
     </>
+  )
+}
+
+function ResultPlayerIdProofPanel() {
+  return (
+    <section style={resultPlayerIdProofStyle} aria-label="Results Player ID proof loop">
+      <div style={resultPlayerIdProofCopyStyle}>
+        <span style={resultPlayerIdProofEyebrowStyle}>Result to Player ID</span>
+        <h2 style={resultPlayerIdProofTitleStyle}>Use the score as proof, not just history.</h2>
+        <p style={resultPlayerIdProofTextStyle}>
+          {RESULTS_PLAYER_IDENTITY_READ.levelUpNudge} After the result lands, turn the pattern into one Level Up rep and one My Lab cue.
+        </p>
+      </div>
+      <div style={resultPlayerIdProofGridStyle} aria-label="Results Player ID starter read">
+        {resultPlayerIdProofItems.map((item) => (
+          <div key={item.label} style={resultPlayerIdProofCardStyle}>
+            <span style={resultPlayerIdProofLabelStyle}>{item.label}</span>
+            <strong style={resultPlayerIdProofValueStyle}>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+      <div style={resultPlayerIdProofActionRowStyle}>
+        {resultPlayerIdActions.map((action, index) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            style={{
+              ...resultPlayerIdProofActionStyle,
+              ...(index === 0 ? resultPlayerIdProofPrimaryActionStyle : {}),
+            }}
+          >
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -504,6 +557,129 @@ const resultsPathCtaStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const resultPlayerIdProofStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: '12px',
+  alignItems: 'stretch',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(135deg, rgba(8,16,34,0.78), rgba(12,29,34,0.74))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.20), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const resultPlayerIdProofCopyStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: '6px',
+  minWidth: 0,
+}
+
+const resultPlayerIdProofEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const resultPlayerIdProofTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(20px, 4vw, 28px)',
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const resultPlayerIdProofTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.58,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const resultPlayerIdProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const resultPlayerIdProofCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: '5px',
+  minWidth: 0,
+  minHeight: 92,
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(2,8,23,0.34)',
+  overflowWrap: 'anywhere',
+}
+
+const resultPlayerIdProofLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '10px',
+  lineHeight: 1.3,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const resultPlayerIdProofValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  lineHeight: 1.42,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const resultPlayerIdProofActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  alignContent: 'center',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const resultPlayerIdProofActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 36,
+  maxWidth: '100%',
+  padding: '8px 11px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
+}
+
+const resultPlayerIdProofPrimaryActionStyle: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
+  color: 'var(--brand-green)',
 }
 
 const upgradeWrapStyle = {
