@@ -7,7 +7,7 @@ import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-da
 import './globals.css'
 
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
-const SOCIAL_BRAND_IMAGE = '/tenaceiq/logos/tenaceiq-brand-preview.png'
+const SOCIAL_BRAND_IMAGE = '/tenaceiq/logos/tenaceiq-social-preview.png'
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -79,9 +79,9 @@ export const metadata: Metadata = {
     images: [
       {
         url: SOCIAL_BRAND_IMAGE,
-        width: 1600,
-        height: 1000,
-        alt: 'TenAceIQ tennis intelligence for players, captains, and league coordinators',
+        width: 1731,
+        height: 909,
+        alt: 'TenAceIQ: More Tennis. Less Chaos.',
       },
     ],
   },

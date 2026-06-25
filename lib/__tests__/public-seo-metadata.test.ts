@@ -35,11 +35,19 @@ describe('public SEO metadata', () => {
       title: 'Coaches',
       description: 'Find tennis coaching support and see how Coach Hub helps players and coaches keep development moving between lessons.',
       url: '/coaches',
+      images: [
+        {
+          url: '/tenaceiq/logos/tenaceiq-social-preview.png',
+          width: 1731,
+          height: 909,
+        },
+      ],
     })
     expect(metadata.twitter).toMatchObject({
       card: 'summary_large_image',
       title: 'Coaches',
       description: 'Find tennis coaching support and see how Coach Hub helps players and coaches keep development moving between lessons.',
+      images: ['/tenaceiq/logos/tenaceiq-social-preview.png'],
     })
   })
 

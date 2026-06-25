@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
-const DEFAULT_IMAGE = '/tenaceiq/logos/tenaceiq-brand-preview.png'
+const DEFAULT_IMAGE = '/tenaceiq/logos/tenaceiq-social-preview.png'
 let metadataSupabase: ReturnType<typeof createClient> | null = null
 
 function getMetadataSupabase() {
@@ -53,8 +53,8 @@ export function buildRouteMetadata({
       images: [
         {
           url: DEFAULT_IMAGE,
-          width: 1600,
-          height: 1000,
+          width: 1731,
+          height: 909,
           alt: title,
         },
       ],
