@@ -11,6 +11,7 @@ import {
 } from '@/app/components/public-command-center'
 import { TiqActionCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
@@ -20,6 +21,16 @@ export const metadata: Metadata = buildRouteMetadata({
     'Manage team tennis, league seasons, tournament desks, schedules, availability, scores, rosters, and communication with less chaos.',
   path: '/manage',
 })
+
+const MANAGE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const MANAGE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(MANAGE_PLAYER_IDENTITY)
+const MANAGE_LEVEL_UP_HREF = `/level-up/${MANAGE_PLAYER_IDENTITY.slug}`
+const MANAGE_PLAYER_DEVELOPMENT_HREF = `/player-development/${MANAGE_PLAYER_IDENTITY.slug}`
+const managePlayerIdStarterRead = [
+  { label: 'Team signal', value: MANAGE_PLAYER_IDENTITY_READ.trainingPriority },
+  { label: 'Proof target', value: MANAGE_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Match week test', value: MANAGE_PLAYER_IDENTITY_READ.matchTrigger },
+] as const
 
 export default function ManagePage() {
   return (
@@ -58,6 +69,35 @@ export default function ManagePage() {
                 <span style={quickPathCtaStyle}>{path.cta}</span>
               </Link>
             ))}
+          </div>
+        </section>
+
+        <section style={managePlayerIdTrailStyle} aria-label="Manage Player ID starter path">
+          <div style={managePlayerIdHeaderStyle}>
+            <p style={managePlayerIdEyebrowStyle}>Player ID to operations</p>
+            <h2 style={managePlayerIdTitleStyle}>Use player proof before team, league, or event decisions get messy.</h2>
+            <p style={managePlayerIdTextStyle}>
+              {MANAGE_PLAYER_IDENTITY_READ.levelUpNudge}
+            </p>
+          </div>
+          <div style={managePlayerIdGridStyle} aria-label="Manage Player ID starter read">
+            {managePlayerIdStarterRead.map((item) => (
+              <article key={item.label} style={managePlayerIdCardStyle}>
+                <span style={managePlayerIdLabelStyle}>{item.label}</span>
+                <strong style={managePlayerIdValueStyle}>{item.value}</strong>
+              </article>
+            ))}
+          </div>
+          <div style={managePlayerIdActionRowStyle}>
+            <Link href={MANAGE_LEVEL_UP_HREF} style={managePlayerIdActionStyle}>
+              Start Level Up
+            </Link>
+            <Link href={MANAGE_PLAYER_DEVELOPMENT_HREF} style={managePlayerIdActionStyle}>
+              Read Player ID
+            </Link>
+            <Link href="/captain" style={managePlayerIdActionStyle}>
+              Open Team Hub
+            </Link>
           </div>
         </section>
 
@@ -405,6 +445,111 @@ const quickPathCtaStyle: CSSProperties = {
   color: 'var(--brand-blue)',
   fontSize: 12,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const managePlayerIdTrailStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  borderRadius: 14,
+  padding: 'clamp(14px, 3vw, 20px)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const managePlayerIdHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+}
+
+const managePlayerIdEyebrowStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const managePlayerIdTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(20px, 2.6vw, 28px)',
+  lineHeight: 1.08,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const managePlayerIdTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  maxWidth: 820,
+  overflowWrap: 'anywhere',
+}
+
+const managePlayerIdGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const managePlayerIdCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-blue) 16%, var(--shell-panel-border) 84%)',
+  background: 'color-mix(in srgb, var(--brand-blue) 7%, var(--shell-chip-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const managePlayerIdLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const managePlayerIdValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const managePlayerIdActionRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const managePlayerIdActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 40,
+  maxWidth: '100%',
+  padding: '0 14px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  textDecoration: 'none',
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
