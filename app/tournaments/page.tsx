@@ -10,6 +10,7 @@ import {
   pageWrapStyle,
 } from '@/app/components/public-command-center'
 import { TiqActionCard, TiqTournamentDrawCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
@@ -21,6 +22,20 @@ export const metadata: Metadata = buildRouteMetadata({
 })
 
 const tournamentDeskHref = '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments'
+const TOURNAMENT_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('pressure-closer-4-0')
+const TOURNAMENT_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TOURNAMENT_PLAYER_IDENTITY)
+const TOURNAMENT_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_PLAYER_IDENTITY.slug}`
+const TOURNAMENT_PLAYER_DEVELOPMENT_HREF = `/player-development/${TOURNAMENT_PLAYER_IDENTITY.slug}`
+const tournamentPlayerIdPrepItems = [
+  { label: 'Draw read', value: TOURNAMENT_PLAYER_IDENTITY_READ.matchTrigger },
+  { label: 'Pressure proof', value: TOURNAMENT_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Next cue', value: TOURNAMENT_PLAYER_IDENTITY_READ.nextCue },
+] as const
+const tournamentPlayerIdActions = [
+  { href: TOURNAMENT_LEVEL_UP_HREF, label: 'Start Level Up' },
+  { href: TOURNAMENT_PLAYER_DEVELOPMENT_HREF, label: 'Read Player ID' },
+  { href: '/matchup', label: 'Prep matchup' },
+] as const
 
 export default function TournamentsPage() {
   return (
@@ -55,6 +70,34 @@ export default function TournamentsPage() {
                 event={action.event}
                 trust={[...action.trust]}
               />
+            ))}
+          </div>
+        </section>
+        <section style={tournamentPlayerIdPrepStyle} aria-label="Tournament Player ID prep bridge">
+          <div style={tournamentPlayerIdPrepCopyStyle}>
+            <span style={tournamentPlayerIdPrepEyebrowStyle}>Tournament to Player ID</span>
+            <h2 style={tournamentPlayerIdPrepTitleStyle}>Turn the draw into one pressure cue.</h2>
+            <p style={tournamentPlayerIdPrepTextStyle}>
+              {TOURNAMENT_PLAYER_IDENTITY_READ.levelUpNudge} Use Player ID when the event question shifts from where to play into how to handle the next score moment.
+            </p>
+          </div>
+          <div style={tournamentPlayerIdPrepGridStyle} aria-label="Tournament Player ID starter read">
+            {tournamentPlayerIdPrepItems.map((item) => (
+              <div key={item.label} style={tournamentPlayerIdPrepCardStyle}>
+                <span style={tournamentPlayerIdPrepLabelStyle}>{item.label}</span>
+                <strong style={tournamentPlayerIdPrepValueStyle}>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+          <div style={tournamentPlayerIdActionRowStyle}>
+            {tournamentPlayerIdActions.map((action, index) => (
+              <a
+                key={action.href}
+                href={action.href}
+                style={index === 0 ? { ...tournamentPlayerIdActionStyle, ...tournamentPlayerIdPrimaryActionStyle } : tournamentPlayerIdActionStyle}
+              >
+                {action.label}
+              </a>
             ))}
           </div>
         </section>
@@ -411,6 +454,125 @@ const nextActionGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const tournamentPlayerIdPrepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: 14,
+  alignItems: 'center',
+  padding: 16,
+  borderRadius: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPlayerIdPrepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+}
+
+const tournamentPlayerIdPrepEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPlayerIdPrepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(20px, 5vw, 28px)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPlayerIdPrepTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPlayerIdPrepGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const tournamentPlayerIdPrepCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 78,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 74%, transparent 26%)',
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPlayerIdPrepLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPlayerIdPrepValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPlayerIdActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-start',
+  gap: 9,
+  minWidth: 0,
+}
+
+const tournamentPlayerIdActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  maxWidth: '100%',
+  minHeight: 38,
+  minWidth: 0,
+  padding: '9px 12px',
+  borderRadius: 8,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 76%, transparent 24%)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 12,
+  fontWeight: 950,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPlayerIdPrimaryActionStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
 }
 
 const discoveryGridStyle: CSSProperties = {
