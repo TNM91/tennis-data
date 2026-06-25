@@ -114,7 +114,7 @@ describe('Messages mobile layout guards', () => {
     expect(source).toContain('Support requests, user replies, league rooms, and scheduling alerts will land here.')
     expect(source).toContain('Lineup notes, player replies, league messages, and schedule alerts will land here.')
     expect(source).toContain('Coach notes, support replies, schedule updates, and player messages will land here.')
-    expect(source).toContain("type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'calendar' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'")
+    expect(source).toContain("type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'assignment' | 'calendar' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'")
     expect(source).toContain("type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'system'")
     expect(source).toContain("if (filter === 'pinned') return 'Pinned'")
     expect(source).toContain("if (filter === 'calendar') return 'Calendar'")
@@ -230,6 +230,36 @@ describe('Messages mobile layout guards', () => {
     expect(functionBlock('messageBubbleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('primaryButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('ghostButtonStyle')).toContain("whiteSpace: 'normal'")
+  })
+
+  it('keeps the Messages Player ID follow-through compact and action-oriented', () => {
+    expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
+    expect(source).toContain("const MESSAGES_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
+    expect(source).toContain('const MESSAGES_LEVEL_UP_HREF = `/level-up/${MESSAGES_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const MESSAGES_PLAYER_DEVELOPMENT_HREF = `/player-development/${MESSAGES_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('aria-label="Messages Player ID follow-through"')
+    expect(source).toContain('aria-label="Messages Player ID starter read"')
+    expect(source).toContain('Turn the thread into the next court action.')
+    expect(source).toContain('Use the same read when a coach, player, captain, or schedule reply needs a clear next step.')
+    expect(source).toContain('Start Level Up')
+    expect(source).toContain('Read Player ID')
+    expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : messagesPlayerIdTrailStyle.gridTemplateColumns")
+    expect(source.indexOf('Messages Player ID follow-through')).toBeLessThan(source.indexOf('Coach-player links'))
+
+    for (const styleName of [
+      'messagesPlayerIdTrailStyle',
+      'messagesPlayerIdCopyStyle',
+      'messagesPlayerIdReadStyle',
+      'messagesPlayerIdReadCardStyle',
+      'messagesPlayerIdActionRowStyle',
+    ]) {
+      expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
+    }
+
+    expect(styleBlock('messagesPlayerIdReadStyle')).toContain('repeat(auto-fit, minmax(min(100%, 150px), 1fr))')
+    expect(styleBlock('messagesPlayerIdActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('messagesPlayerIdActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('messagesPlayerIdActionStyle')).toContain("whiteSpace: 'normal'")
   })
 
   it('keeps scheduling and recipient controls mobile-safe', () => {

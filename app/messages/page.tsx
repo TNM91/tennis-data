@@ -53,6 +53,7 @@ import {
 } from '@/lib/message-calendar-quick-add'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { CoachStudentLink } from '@/lib/coach-storage'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -62,6 +63,20 @@ type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'assignment' | 'calendar' 
 type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'system'
 
 const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
+const MESSAGES_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const MESSAGES_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(MESSAGES_PLAYER_IDENTITY)
+const MESSAGES_LEVEL_UP_HREF = `/level-up/${MESSAGES_PLAYER_IDENTITY.slug}`
+const MESSAGES_PLAYER_DEVELOPMENT_HREF = `/player-development/${MESSAGES_PLAYER_IDENTITY.slug}`
+const MESSAGES_PLAYER_ID_READ = [
+  { label: 'Thread focus', value: MESSAGES_PLAYER_IDENTITY_READ.trainingPriority },
+  { label: 'Proof to ask for', value: MESSAGES_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Next reply cue', value: MESSAGES_PLAYER_IDENTITY_READ.coachPrompt },
+] as const
+const MESSAGES_PLAYER_ID_ACTIONS = [
+  { title: 'Start Level Up', href: MESSAGES_LEVEL_UP_HREF },
+  { title: 'Read Player ID', href: MESSAGES_PLAYER_DEVELOPMENT_HREF },
+  { title: 'Open My Lab', href: '/mylab#player-workshop' },
+] as const
 
 type MessagePrefill = {
   mode: ComposeMode
@@ -1922,6 +1937,45 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           </Link>
         </div>
       ) : null}
+      {identity.role !== 'admin' ? (
+        <section
+          style={{
+            ...messagesPlayerIdTrailStyle,
+            gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : messagesPlayerIdTrailStyle.gridTemplateColumns,
+          }}
+          aria-label="Messages Player ID follow-through"
+        >
+          <div style={messagesPlayerIdCopyStyle}>
+            <div className="section-kicker">Player ID follow-through</div>
+            <h2 style={messagesPlayerIdTitleStyle}>Turn the thread into the next court action.</h2>
+            <p style={messagesPlayerIdTextStyle}>
+              {MESSAGES_PLAYER_IDENTITY_READ.levelUpNudge} Use the same read when a coach, player, captain, or schedule reply needs a clear next step.
+            </p>
+          </div>
+          <div style={messagesPlayerIdReadStyle} aria-label="Messages Player ID starter read">
+            {MESSAGES_PLAYER_ID_READ.map((item) => (
+              <div key={item.label} style={messagesPlayerIdReadCardStyle}>
+                <span style={messagesPlayerIdReadLabelStyle}>{item.label}</span>
+                <strong style={messagesPlayerIdReadValueStyle}>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+          <div style={messagesPlayerIdActionRowStyle}>
+            {MESSAGES_PLAYER_ID_ACTIONS.map((action, index) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                style={{
+                  ...messagesPlayerIdActionStyle,
+                  ...(index === 0 ? messagesPlayerIdPrimaryActionStyle : {}),
+                }}
+              >
+                {action.title}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {coachContacts.length ? (
         <section style={coachContactsPanelStyle}>
           <div>
@@ -3069,6 +3123,116 @@ const triageSummaryStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const messagesPlayerIdTrailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, auto)',
+  gap: 12,
+  alignItems: 'stretch',
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(8,16,34,0.72))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+}
+
+const messagesPlayerIdCopyStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: 6,
+  minWidth: 0,
+}
+
+const messagesPlayerIdTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const messagesPlayerIdTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const messagesPlayerIdReadStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const messagesPlayerIdReadCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 5,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(125,211,252,0.13)',
+  background: 'rgba(2,8,23,0.35)',
+  overflowWrap: 'anywhere',
+}
+
+const messagesPlayerIdReadLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const messagesPlayerIdReadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.42,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const messagesPlayerIdActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  alignContent: 'center',
+  gap: 8,
+  minWidth: 0,
+}
+
+const messagesPlayerIdActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 34,
+  maxWidth: '100%',
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'rgba(7,18,34,0.52)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  textDecoration: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
+}
+
+const messagesPlayerIdPrimaryActionStyle: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
+  color: 'var(--brand-green)',
 }
 
 const threadButtonStyle = (active: boolean, unread = false): CSSProperties => ({
