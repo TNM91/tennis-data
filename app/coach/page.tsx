@@ -529,10 +529,17 @@ function CoachContent() {
           ? `Student added, but the setup link needs a retry: ${setupLinkError}`
           : createdInvite
           ? savedStudent.playerPhone
-            ? 'Student added. Text the setup link now or create the first assignment.'
+            ? isMobile
+              ? 'Student added. Opening a text draft with the setup link now. If it stays here, tap Text setup now.'
+              : 'Student added. Text the setup link now or create the first assignment.'
             : 'Student added. Setup link is ready.'
           : 'Student added. Create the first assignment while the lesson is fresh.',
       )
+      if (createdInvite && savedStudent.playerPhone && isMobile) {
+        window.setTimeout(() => {
+          openSmsDraft(savedStudent.playerPhone, buildCoachSetupText(createdInvite!.inviteHref))
+        }, 120)
+      }
       if (isMobile) scrollToStudentSetupReady()
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not add student.')
@@ -817,6 +824,11 @@ function CoachContent() {
     }
 
     setWorkspaceMessage(fallbackMessage)
+  }
+
+  function openSmsDraft(phone: string, body: string) {
+    if (!phone || !body) return
+    window.location.href = buildSmsHref(phone, body, getSmsBodySeparator())
   }
 
   async function revokeStudentCalendarLink(student: CoachStudentLink | null) {
@@ -1202,7 +1214,7 @@ function CoachContent() {
           {card.latestAssignment
             ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
             : card.pendingInvite
-              ? 'Invite pending. Send setup link, then create the first Level Up assignment.'
+              ? 'Waiting on player. Send the setup text, then create the first Level Up assignment.'
               : 'Create a measurable next action from the last lesson.'}
         </p>
         <div style={isMobile ? mobileStudentActionRowStyle : studentActionRowStyle}>
@@ -1308,7 +1320,7 @@ function CoachContent() {
           {card.latestAssignment
             ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
             : card.pendingInvite
-              ? 'Setup is pending. Send the link, then load the first Level Up assignment.'
+              ? 'Waiting on player. Text the setup link, then load the first Level Up assignment.'
               : 'Choose the next measurable action before the player leaves the court.'}
         </p>
         <div style={mobileBenchPrimaryActionGridStyle}>
@@ -1372,7 +1384,7 @@ function CoachContent() {
     return (
       <div style={responsiveLinkedMetricGridStyle}>
         <DashboardMetric label="Linked" value={linkedPlayersCount} />
-        <DashboardMetric label="Pending" value={pendingInviteCount} />
+        <DashboardMetric label="Waiting" value={pendingInviteCount} />
         <DashboardMetric label="Review" value={assignmentsNeedingReview.length} />
         <DashboardMetric label="Due now" value={overduePlayersCount} />
         <DashboardMetric label="Level Up" value={levelUpSessions.length} />
@@ -2388,16 +2400,11 @@ function CoachContent() {
                 <h3 style={sessionPlannerTitleStyle}>{lastCreatedStudentSetup.student.playerName}</h3>
                 <p style={studentNextStyle}>
                   {lastCreatedStudentSetup.invite
-                    ? 'Send the setup link now, then create the first measurable assignment.'
+                    ? 'Text the setup link now. The player opens it, adds their own email, and connects this coach relationship.'
                     : 'Student saved. Add a cell or email any time when you want to send the setup link.'}
                 </p>
               </div>
               <div style={sessionActionRowStyle}>
-                {lastCreatedStudentSetup.invite ? (
-                  <a href={lastCreatedStudentSetup.invite.inviteHref} style={smallGhostLinkStyle}>
-                    Open setup link
-                  </a>
-                ) : null}
                 {lastCreatedStudentSetup.invite && lastCreatedStudentSetup.student.playerPhone ? (
                   <SmsActionLink
                     phone={lastCreatedStudentSetup.student.playerPhone}
@@ -2417,6 +2424,11 @@ function CoachContent() {
                 ) : (
                   <span style={disabledPillStyle}>Add cell for text</span>
                 )}
+                {lastCreatedStudentSetup.invite ? (
+                  <a href={lastCreatedStudentSetup.invite.inviteHref} style={smallGhostLinkStyle}>
+                    Preview setup page
+                  </a>
+                ) : null}
                 {lastCreatedStudentSetup.invite ? (
                   <button
                     type="button"
@@ -3055,7 +3067,7 @@ function getInviteStatusLabel(status: CoachStudentInvite['status']) {
   if (status === 'accepted') return 'Accepted'
   if (status === 'revoked') return 'Revoked'
   if (status === 'expired') return 'Expired'
-  return 'Pending invite'
+  return 'Waiting on player'
 }
 
 type LinkedPlayerCard = {
@@ -3528,7 +3540,7 @@ function buildLinkedPlayerCards(
     return {
       student,
       connection,
-      connectionLabel: connection === 'linked' ? 'Linked' : connection === 'pending' ? 'Invite pending' : 'Manual',
+      connectionLabel: connection === 'linked' ? 'Linked' : connection === 'pending' ? 'Waiting on player' : 'Manual',
       pendingInvite,
       activeAssignments,
       needsReview,

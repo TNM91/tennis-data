@@ -28,27 +28,28 @@ const pageStyles = {
   shell: {
     minHeight: '100vh',
     background:
-      'radial-gradient(circle at 12% 0%, rgba(164, 255, 46, 0.14), transparent 32%), linear-gradient(135deg, #f7fbff 0%, #eef5ec 100%)',
-    color: '#0b1730',
-    padding: 'clamp(24px, 5vw, 56px)',
+      'radial-gradient(circle at 8% 0%, rgba(155, 225, 29, 0.16), transparent 30%), linear-gradient(180deg, #071226 0%, #0b1728 52%, #050b16 100%)',
+    color: '#f7fbff',
+    padding: 'clamp(14px, 4vw, 42px)',
   },
   panel: {
-    maxWidth: 1040,
+    maxWidth: 1080,
     margin: '0 auto',
-    border: '1px solid rgba(121, 184, 47, 0.24)',
-    borderRadius: 28,
+    border: '1px solid rgba(155, 225, 29, 0.18)',
+    borderRadius: 24,
     overflow: 'hidden',
-    background: '#ffffff',
-    boxShadow: '0 28px 80px rgba(5, 18, 40, 0.16)',
+    background: 'rgba(7, 18, 38, 0.88)',
+    boxShadow: '0 28px 90px rgba(0, 0, 0, 0.34)',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 18,
-    padding: '20px clamp(22px, 4vw, 40px)',
-    background: 'linear-gradient(110deg, #071226 0%, #102a21 100%)',
+    padding: '18px clamp(18px, 4vw, 34px)',
+    background: 'rgba(5, 11, 22, 0.82)',
     color: '#fff',
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
   },
   brand: {
     display: 'flex',
@@ -60,19 +61,24 @@ const pageStyles = {
   },
   body: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1.15fr) minmax(280px, .85fr)',
+    gridTemplateColumns: 'minmax(0, 1.08fr) minmax(280px, .92fr)',
     gap: 0,
   },
   main: {
-    padding: 'clamp(28px, 5vw, 54px)',
+    padding: 'clamp(24px, 5vw, 50px)',
+    minWidth: 0,
   },
   rail: {
-    padding: 'clamp(24px, 4vw, 42px)',
-    background: 'linear-gradient(180deg, #f5faed 0%, #ffffff 100%)',
-    borderLeft: '1px solid rgba(121, 184, 47, 0.22)',
+    display: 'grid',
+    alignContent: 'start',
+    gap: 14,
+    padding: 'clamp(20px, 4vw, 38px)',
+    background: 'rgba(255,255,255,0.045)',
+    borderLeft: '1px solid rgba(255,255,255,0.09)',
+    minWidth: 0,
   },
   eyebrow: {
-    color: '#5d8f12',
+    color: '#9be11d',
     fontSize: 12,
     fontWeight: 900,
     letterSpacing: '.12em',
@@ -80,16 +86,19 @@ const pageStyles = {
   },
   title: {
     margin: '12px 0 14px',
-    fontSize: 'clamp(34px, 6vw, 64px)',
-    lineHeight: .94,
+    color: '#ffffff',
+    fontSize: 'clamp(32px, 6vw, 58px)',
+    lineHeight: .96,
     fontWeight: 950,
     letterSpacing: 0,
+    maxWidth: 720,
   },
   copy: {
     margin: 0,
-    color: '#435775',
-    fontSize: 17,
-    lineHeight: 1.7,
+    color: '#b8c8dc',
+    fontSize: 16,
+    lineHeight: 1.62,
+    fontWeight: 720,
   },
   actions: {
     display: 'flex',
@@ -100,30 +109,31 @@ const pageStyles = {
   primaryButton: {
     border: 0,
     borderRadius: 999,
-    background: '#a6ff2e',
+    background: 'linear-gradient(180deg, #eaff9e 0%, #9be11d 100%)',
     color: '#071226',
-    padding: '13px 20px',
-    fontWeight: 900,
+    padding: '13px 18px',
+    fontWeight: 950,
     boxShadow: '0 14px 26px rgba(121, 184, 47, 0.28)',
     cursor: 'pointer',
     textDecoration: 'none',
   },
   secondaryButton: {
-    border: '1px solid rgba(15, 37, 67, 0.18)',
+    border: '1px solid rgba(255,255,255,0.16)',
     borderRadius: 999,
-    background: '#fff',
-    color: '#0b1730',
+    background: 'rgba(255,255,255,0.06)',
+    color: '#ffffff',
     padding: '12px 18px',
     fontWeight: 900,
     cursor: 'pointer',
     textDecoration: 'none',
   },
   card: {
-    border: '1px solid rgba(15, 37, 67, 0.12)',
-    borderRadius: 20,
-    background: '#fff',
-    padding: 18,
-    boxShadow: '0 18px 40px rgba(5, 18, 40, 0.08)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 18,
+    background: 'rgba(5,11,22,0.38)',
+    padding: 16,
+    boxShadow: 'none',
+    minWidth: 0,
   },
   stat: {
     display: 'grid',
@@ -132,21 +142,23 @@ const pageStyles = {
     borderBottom: '1px solid rgba(15, 37, 67, 0.1)',
   },
   label: {
-    color: '#71809b',
+    color: '#9be11d',
     fontSize: 11,
     fontWeight: 900,
     letterSpacing: '.12em',
     textTransform: 'uppercase',
   },
   value: {
-    color: '#0b1730',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: 900,
+    overflowWrap: 'anywhere',
   },
   note: {
-    marginTop: 18,
+    marginTop: 16,
     borderRadius: 18,
-    background: '#071226',
+    border: '1px solid rgba(155,225,29,0.2)',
+    background: 'rgba(155,225,29,0.08)',
     color: '#dce8f9',
     padding: 18,
     fontSize: 14,
@@ -161,17 +173,18 @@ const pageStyles = {
   pathCard: {
     display: 'grid',
     gap: 8,
-    border: '1px solid rgba(15, 37, 67, 0.12)',
+    border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: 18,
-    background: 'linear-gradient(180deg, #ffffff 0%, #f7fbff 100%)',
+    background: 'rgba(255,255,255,0.055)',
     padding: 14,
-    color: '#435775',
+    color: '#b8c8dc',
     fontSize: 13,
     lineHeight: 1.45,
     fontWeight: 760,
+    minWidth: 0,
   },
   pathLabel: {
-    color: '#5d8f12',
+    color: '#9be11d',
     fontSize: 11,
     fontWeight: 950,
     letterSpacing: '.1em',
@@ -220,6 +233,14 @@ function getInviteAccountMatch(inviteEmail: string, signedInEmail: string, signe
   if (signedInEmail && signedInEmail.trim().toLowerCase() === inviteEmail.trim().toLowerCase()) return 'Email matches invite'
   if (signedIn) return 'Signed-in email must match invite before accepting'
   return 'Sign in with invited email'
+}
+
+function getInviteStatusLabel(status: CoachStudentInvite['status'] | undefined) {
+  if (status === 'accepted') return 'Accepted'
+  if (status === 'revoked') return 'Revoked'
+  if (status === 'expired') return 'Expired'
+  if (status === 'pending') return 'Waiting on player'
+  return 'Loading'
 }
 
 export default function CoachInvitePage() {
@@ -307,17 +328,17 @@ function CoachInviteContent() {
   }
 
   const studentName = student?.playerName || 'Player'
-  const statusLabel = invite?.status ? invite.status.replace('-', ' ') : 'loading'
+  const statusLabel = getInviteStatusLabel(invite?.status)
 
   return (
-    <main style={pageStyles.shell}>
+    <main style={pageStyles.shell} className="coach-invite-shell">
       <section style={pageStyles.panel}>
-        <div style={pageStyles.header}>
+        <div style={pageStyles.header} className="coach-invite-header">
           <div style={pageStyles.brand}>
             <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
             <span>TenAceIQ Coach Connect</span>
           </div>
-          <span style={{ color: '#a6ff2e', fontSize: 12, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>
+          <span style={{ color: '#9be11d', fontSize: 12, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>
             Coach-linked workflow
           </span>
         </div>
@@ -327,14 +348,14 @@ function CoachInviteContent() {
             <span style={pageStyles.eyebrow}>Coach invite</span>
             <h1 style={pageStyles.title}>Finish the player setup your coach started.</h1>
             <p style={pageStyles.copy}>
-              Create or sign into your account, accept the coach link, and your development work can move from the
-              printed guide into TenAceIQ assignments, recaps, match reflections, and accountability tracking.
+              Open this link, create or sign into your player account, add the email you want tied to your profile,
+              then accept the coach connection so assignments and recaps land in the right place.
             </p>
             <div style={pageStyles.pathGrid} aria-label="Coach invite path">
               {invitePathSteps.map((step) => (
                 <div key={step.label} style={pageStyles.pathCard}>
                   <span style={pageStyles.pathLabel}>{step.label}</span>
-                  <strong style={{ color: '#0b1730' }}>{step.title}</strong>
+                  <strong style={{ color: '#ffffff' }}>{step.title}</strong>
                   <span>{step.copy}</span>
                 </div>
               ))}
@@ -346,7 +367,7 @@ function CoachInviteContent() {
               </p>
             ) : null}
 
-            <div style={pageStyles.actions}>
+            <div style={pageStyles.actions} className="coach-invite-actions">
               {!authResolved || loading ? (
                 <span style={pageStyles.secondaryButton}>Loading invite</span>
               ) : !userId ? (
@@ -415,7 +436,7 @@ function CoachInviteContent() {
 
             {invite?.message ? (
               <div style={pageStyles.note}>
-                <strong style={{ color: '#a6ff2e' }}>Coach note</strong>
+                <strong style={{ color: '#9be11d' }}>Coach note</strong>
                 <br />
                 {invite.message}
               </div>
@@ -423,10 +444,10 @@ function CoachInviteContent() {
 
             <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach link proof">
               <span style={pageStyles.eyebrow}>Linking proof</span>
-              <h2 style={{ margin: '8px 0 10px', color: '#0b1730', fontSize: 22, lineHeight: 1.12 }}>
+              <h2 style={{ margin: '8px 0 10px', color: '#ffffff', fontSize: 22, lineHeight: 1.12 }}>
                 Know what your coach can see.
               </h2>
-              <ul style={{ margin: 0, paddingLeft: 18, color: '#435775', fontSize: 14, lineHeight: 1.65, fontWeight: 760 }}>
+              <ul style={{ margin: 0, paddingLeft: 18, color: '#b8c8dc', fontSize: 14, lineHeight: 1.65, fontWeight: 760 }}>
                 {inviteTrustChecks.map((check) => (
                   <li key={check}>{check}</li>
                 ))}
@@ -435,10 +456,10 @@ function CoachInviteContent() {
 
             <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach invite acceptance proof">
               <span style={pageStyles.eyebrow}>Acceptance proof</span>
-              <h2 style={{ margin: '8px 0 10px', color: '#0b1730', fontSize: 22, lineHeight: 1.12 }}>
+              <h2 style={{ margin: '8px 0 10px', color: '#ffffff', fontSize: 22, lineHeight: 1.12 }}>
                 Confirm the link before testing assignments.
               </h2>
-              <ul style={{ margin: 0, paddingLeft: 18, color: '#435775', fontSize: 14, lineHeight: 1.65, fontWeight: 760 }}>
+              <ul style={{ margin: 0, paddingLeft: 18, color: '#b8c8dc', fontSize: 14, lineHeight: 1.65, fontWeight: 760 }}>
                 {inviteAcceptanceProofChecks.map((check) => (
                   <li key={check}>{check}</li>
                 ))}
@@ -447,21 +468,21 @@ function CoachInviteContent() {
 
             <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach invite account proof cue">
               <span style={pageStyles.eyebrow}>Account proof cue</span>
-              <h2 style={{ margin: '8px 0 10px', color: '#0b1730', fontSize: 22, lineHeight: 1.12 }}>
+              <h2 style={{ margin: '8px 0 10px', color: '#ffffff', fontSize: 22, lineHeight: 1.12 }}>
                 Confirm the account before accepting.
               </h2>
-              <div style={{ display: 'grid', gap: 10, color: '#435775', fontSize: 14, lineHeight: 1.45, fontWeight: 760 }}>
+              <div style={{ display: 'grid', gap: 10, color: '#b8c8dc', fontSize: 14, lineHeight: 1.45, fontWeight: 760 }}>
                 <div>
-                  <strong style={{ color: '#0b1730' }}>Invite:</strong> {statusLabel} for {studentName}
+                  <strong style={{ color: '#ffffff' }}>Invite:</strong> {statusLabel} for {studentName}
                 </div>
                 <div>
-                  <strong style={{ color: '#0b1730' }}>Invited email:</strong> {invitedEmailLabel}
+                  <strong style={{ color: '#ffffff' }}>Invited email:</strong> {invitedEmailLabel}
                 </div>
                 <div>
-                  <strong style={{ color: '#0b1730' }}>Signed-in account:</strong> {signedInAccountLabel}
+                  <strong style={{ color: '#ffffff' }}>Signed-in account:</strong> {signedInAccountLabel}
                 </div>
                 <div>
-                  <strong style={{ color: '#0b1730' }}>Acceptance check:</strong> {inviteAccountMatch}
+                  <strong style={{ color: '#ffffff' }}>Acceptance check:</strong> {inviteAccountMatch}
                 </div>
               </div>
             </div>
@@ -476,8 +497,30 @@ function CoachInviteContent() {
 
       <style jsx>{`
         @media (max-width: 820px) {
+          .coach-invite-shell {
+            padding: 10px !important;
+          }
+          .coach-invite-header {
+            align-items: flex-start !important;
+            flex-direction: column !important;
+          }
           .coach-invite-grid {
             grid-template-columns: 1fr !important;
+          }
+          .coach-invite-grid > aside {
+            border-left: 0 !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.09) !important;
+          }
+          .coach-invite-actions {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+          }
+          .coach-invite-actions a,
+          .coach-invite-actions button,
+          .coach-invite-actions span {
+            width: 100% !important;
+            text-align: center !important;
+            box-sizing: border-box !important;
           }
         }
       `}</style>
