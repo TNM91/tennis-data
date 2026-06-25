@@ -65,6 +65,20 @@ describe('Resources hub actions', () => {
     expect(source).not.toContain("{ label: 'Workspace', value: 'Team Hub' }")
   })
 
+  it('adds a Player ID starter path before the resource cards', () => {
+    expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
+    expect(source).toContain('const RESOURCE_LEVEL_UP_HREF = `/level-up/${RESOURCE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const RESOURCE_PLAYER_DEVELOPMENT_HREF = `/player-development/${RESOURCE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('Player ID starter path')
+    expect(source).toContain('Start with one tennis identity, then choose the resource.')
+    expect(source).toContain('aria-label="Resources Player ID starter read"')
+    expect(source).toContain('resourcePlayerIdStarterRead.map((item)')
+    expect(source).toContain('Start Level Up')
+    expect(source).toContain('Read Player ID')
+    expect(source).toContain("location: 'resources_player_id_starter'")
+    expect(source.indexOf('Resources Player ID starter path')).toBeLessThan(source.indexOf('Quick starts'))
+  })
+
   it('tracks resource clicks by tennis need and destination', () => {
     expect(source).toContain('TrackedProductLink')
     expect(source).toContain("location: 'resources_need_path'")
@@ -110,6 +124,19 @@ describe('Resources hub actions', () => {
     expect(source).toContain('const needPathQuestionStyle')
     expect(source).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain('ariaLabel={`${path.question}: ${path.cta}`}')
+  })
+
+  it('keeps the Resources Player ID starter compact and mobile-safe', () => {
+    expect(source).toContain('const resourcePlayerIdStarterStyle')
+    expect(source).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain('const resourcePlayerIdReadGridStyle')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 178px), 1fr))'")
+    expect(source).toContain('const resourcePlayerIdReadCardStyle')
+    expect(source).toContain('minWidth: 0')
+    expect(source).toContain('const resourcePlayerIdActionRowStyle')
+    expect(source).toContain("flexWrap: 'wrap'")
+    expect(source).toContain('const resourcePlayerIdActionStyle')
+    expect(source).toContain("whiteSpace: 'normal'")
   })
 
   it('uses q search params to prioritize matching resource paths', () => {

@@ -11,6 +11,7 @@ import {
 import { TiqActionCard, TiqResourceCard } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import type { ProductUsageEventName, ProductUsageEventSurface } from '@/lib/product-usage-events'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildFaqJsonLd, buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
@@ -116,6 +117,16 @@ const resourceFaqItems = [
   },
 ] as const
 
+const RESOURCE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
+const RESOURCE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(RESOURCE_PLAYER_IDENTITY)
+const RESOURCE_LEVEL_UP_HREF = `/level-up/${RESOURCE_PLAYER_IDENTITY.slug}`
+const RESOURCE_PLAYER_DEVELOPMENT_HREF = `/player-development/${RESOURCE_PLAYER_IDENTITY.slug}`
+const resourcePlayerIdStarterRead = [
+  { label: 'Train first', value: RESOURCE_PLAYER_IDENTITY_READ.trainingPriority },
+  { label: 'Proof target', value: RESOURCE_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Match test', value: RESOURCE_PLAYER_IDENTITY_READ.matchTrigger },
+] as const
+
 type ResourcesPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
@@ -171,6 +182,55 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
                 <span style={needPathCtaStyle}>{path.cta}</span>
               </TrackedProductLink>
             ))}
+          </div>
+        </section>
+        <section style={resourcePlayerIdStarterStyle} aria-label="Resources Player ID starter path">
+          <div style={resourcePlayerIdHeaderStyle}>
+            <p style={resourcePlayerIdEyebrowStyle}>Player ID starter path</p>
+            <h2 style={resourcePlayerIdTitleStyle}>Start with one tennis identity, then choose the resource.</h2>
+            <p style={resourcePlayerIdTextStyle}>
+              {RESOURCE_PLAYER_IDENTITY_READ.levelUpNudge}
+            </p>
+          </div>
+          <div style={resourcePlayerIdReadGridStyle} aria-label="Resources Player ID starter read">
+            {resourcePlayerIdStarterRead.map((item) => (
+              <article key={item.label} style={resourcePlayerIdReadCardStyle}>
+                <span style={resourcePlayerIdLabelStyle}>{item.label}</span>
+                <strong style={resourcePlayerIdValueStyle}>{item.value}</strong>
+              </article>
+            ))}
+          </div>
+          <div style={resourcePlayerIdActionRowStyle}>
+            <TrackedProductLink
+              href={RESOURCE_LEVEL_UP_HREF}
+              style={resourcePlayerIdActionStyle}
+              event={{
+                eventName: 'search_result_clicked',
+                surface: 'public_site',
+                metadata: {
+                  location: 'resources_player_id_starter',
+                  job: 'start_level_up',
+                  identity: RESOURCE_PLAYER_IDENTITY.slug,
+                },
+              }}
+            >
+              Start Level Up
+            </TrackedProductLink>
+            <TrackedProductLink
+              href={RESOURCE_PLAYER_DEVELOPMENT_HREF}
+              style={resourcePlayerIdActionStyle}
+              event={{
+                eventName: 'search_result_clicked',
+                surface: 'public_site',
+                metadata: {
+                  location: 'resources_player_id_starter',
+                  job: 'read_player_id',
+                  identity: RESOURCE_PLAYER_IDENTITY.slug,
+                },
+              }}
+            >
+              Read Player ID
+            </TrackedProductLink>
           </div>
         </section>
         {resourceQuery ? (
@@ -752,6 +812,110 @@ const needPathCtaStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.25,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const resourcePlayerIdStarterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  borderRadius: 8,
+  padding: 'clamp(14px, 3vw, 20px)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const resourcePlayerIdHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+}
+
+const resourcePlayerIdEyebrowStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const resourcePlayerIdTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(20px, 2.6vw, 28px)',
+  lineHeight: 1.1,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const resourcePlayerIdTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const resourcePlayerIdReadGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 178px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const resourcePlayerIdReadCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-panel-border) 84%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 80%, var(--brand-blue-2) 20%)',
+  overflowWrap: 'anywhere',
+}
+
+const resourcePlayerIdLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const resourcePlayerIdValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const resourcePlayerIdActionRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const resourcePlayerIdActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 40,
+  maxWidth: '100%',
+  padding: '0 14px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  textDecoration: 'none',
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
