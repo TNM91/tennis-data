@@ -53,6 +53,8 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('buildMyLabLevelUpProofs')
     expect(source).toContain('getMyLabLevelUpStreak')
     expect(source).toContain('LevelUpReturnStatePanel')
+    expect(source).toContain('id="level-up-proof"')
+    expect(source).toContain('aria-label="My Lab Level Up proof return state"')
     expect(source).toContain("questHref: `/level-up/${primaryIdentitySlug}?questCard=${encodeURIComponent(completion.cardId)}#quest-builder`")
     expect(source).toContain('Level Up return state')
     expect(source).toContain("Today's Level Up card")
@@ -227,6 +229,8 @@ describe('My Lab premium surface', () => {
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
+
+    expect(styleBlock('levelUpReturnPanelStyle')).toContain('scrollMarginTop: 96')
 
     for (const styleName of [
       'matchupQueueNameStyle',

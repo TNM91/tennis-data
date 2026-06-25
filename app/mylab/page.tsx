@@ -4486,7 +4486,7 @@ function LevelUpReturnStatePanel({
   ]
 
   return (
-    <section style={levelUpReturnPanelStyle}>
+    <section id="level-up-proof" style={levelUpReturnPanelStyle} aria-label="My Lab Level Up proof return state">
       <div style={developmentPathHeaderStyle}>
         <div style={sectionTitleClusterStyle}>
           <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
@@ -4501,7 +4501,7 @@ function LevelUpReturnStatePanel({
           </div>
         </div>
         <Link href={latestProof?.nextHref || '/level-up'} style={quickStartButtonStyle}>
-          {latestProof ? 'Resume court work' : 'Open court mode'}
+          {latestProof ? 'Repeat in Level Up' : 'Open court mode'}
         </Link>
       </div>
 
@@ -6168,6 +6168,7 @@ const levelUpReturnPanelStyle: CSSProperties = {
   background:
     'radial-gradient(circle at 88% 10%, rgba(116,190,255,0.16), transparent 32%), linear-gradient(180deg, rgba(14,31,60,0.82) 0%, rgba(8,19,38,0.96) 100%)',
   minWidth: 0,
+  scrollMarginTop: 96,
 }
 
 const levelUpReturnGridStyle: CSSProperties = {
