@@ -92,6 +92,31 @@ describe('compete schedule scheduler status', () => {
     expect(source).not.toContain('Build Smarter Lineups')
   })
 
+  it('connects schedule dates back into Player ID and Level Up prep', () => {
+    expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
+    expect(source).toContain("const SCHEDULE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('smart-attacker-4-0-to-4-5')")
+    expect(source).toContain('const SCHEDULE_LEVEL_UP_HREF = `/level-up/${SCHEDULE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const SCHEDULE_PLAYER_DEVELOPMENT_HREF = `/player-development/${SCHEDULE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('function SchedulePlayerIdPrepPanel')
+    expect(source).toContain('aria-label="Schedule Player ID match prep"')
+    expect(source).toContain('aria-label="Schedule Player ID starter read"')
+    expect(source).toContain('Turn the date into one prep cue.')
+    expect(source).toContain('Once the match is on the calendar, use the same Player ID read to pick the next rep.')
+    expect(source).toContain('Start Level Up')
+    expect(source).toContain('Read Player ID')
+    expect(source.indexOf('<SchedulePlayerIdPrepPanel />')).toBeGreaterThan(source.indexOf('<SchedulePathPanel />'))
+    expect(source.indexOf('<SchedulePlayerIdPrepPanel />')).toBeLessThan(source.indexOf('<CompeteGrid>'))
+  })
+
+  it('keeps the Schedule Player ID prep loop mobile-safe', () => {
+    expect(styleBlock('schedulePlayerIdPrepStyle')).toContain('minWidth: 0')
+    expect(styleBlock('schedulePlayerIdPrepStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
+    expect(styleBlock('schedulePlayerIdPrepGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(styleBlock('schedulePlayerIdActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('schedulePlayerIdActionStyle')).toContain("maxWidth: '100%'")
+    expect(styleBlock('schedulePlayerIdActionStyle')).toContain("whiteSpace: 'normal'")
+  })
+
   it('keeps the empty scheduler action panel mobile-safe', () => {
     expect(source).toContain('emptyScheduleActions')
     expect(styleBlock('emptySchedulerStyle')).toContain("overflowWrap: 'anywhere'")

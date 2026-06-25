@@ -14,6 +14,7 @@ import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { cleanText, formatWeekdayDate } from '@/lib/captain-formatters'
 import { supabase } from '@/lib/supabase'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 
 type ScheduleMatch = {
   id: string
@@ -33,6 +34,21 @@ const emptyScheduleActions = [
   { href: dataAssistScheduleHref, label: 'Upload schedule' },
   { href: '/messages', label: 'Coordinate dates' },
   { href: '/league-coordinator/results', label: 'Team results' },
+] as const
+
+const SCHEDULE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('smart-attacker-4-0-to-4-5')
+const SCHEDULE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(SCHEDULE_PLAYER_IDENTITY)
+const SCHEDULE_LEVEL_UP_HREF = `/level-up/${SCHEDULE_PLAYER_IDENTITY.slug}`
+const SCHEDULE_PLAYER_DEVELOPMENT_HREF = `/player-development/${SCHEDULE_PLAYER_IDENTITY.slug}`
+const schedulePlayerIdPrepItems = [
+  { label: 'Match prep read', value: SCHEDULE_PLAYER_IDENTITY_READ.matchTrigger },
+  { label: 'Training proof', value: SCHEDULE_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Coach prompt', value: SCHEDULE_PLAYER_IDENTITY_READ.coachPrompt },
+] as const
+const schedulePlayerIdActions = [
+  { href: SCHEDULE_LEVEL_UP_HREF, label: 'Start Level Up' },
+  { href: SCHEDULE_PLAYER_DEVELOPMENT_HREF, label: 'Read Player ID' },
+  { href: '/matchup', label: 'Prep matchup' },
 ] as const
 
 const schedulePathActions = [
@@ -201,6 +217,7 @@ function CompeteScheduleContent() {
   return (
     <>
       <SchedulePathPanel />
+      <SchedulePlayerIdPrepPanel />
 
       <CompeteGrid>
         <CompeteCard
@@ -302,6 +319,42 @@ function CompeteScheduleContent() {
         )}
       </section>
     </>
+  )
+}
+
+function SchedulePlayerIdPrepPanel() {
+  return (
+    <section style={schedulePlayerIdPrepStyle} aria-label="Schedule Player ID match prep">
+      <div style={schedulePlayerIdPrepCopyStyle}>
+        <span style={schedulePlayerIdPrepEyebrowStyle}>Match date to Player ID</span>
+        <h2 style={schedulePlayerIdPrepTitleStyle}>Turn the date into one prep cue.</h2>
+        <p style={schedulePlayerIdPrepTextStyle}>
+          {SCHEDULE_PLAYER_IDENTITY_READ.levelUpNudge} Once the match is on the calendar, use the same Player ID read to pick the next rep.
+        </p>
+      </div>
+      <div style={schedulePlayerIdPrepGridStyle} aria-label="Schedule Player ID starter read">
+        {schedulePlayerIdPrepItems.map((item) => (
+          <div key={item.label} style={schedulePlayerIdPrepCardStyle}>
+            <span style={schedulePlayerIdPrepLabelStyle}>{item.label}</span>
+            <strong style={schedulePlayerIdPrepValueStyle}>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+      <div style={schedulePlayerIdActionRowStyle}>
+        {schedulePlayerIdActions.map((action, index) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            style={{
+              ...schedulePlayerIdActionStyle,
+              ...(index === 0 ? schedulePlayerIdPrimaryActionStyle : {}),
+            }}
+          >
+            {action.label}
+          </Link>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -595,6 +648,129 @@ const schedulePathCtaStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const schedulePlayerIdPrepStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: '12px',
+  alignItems: 'stretch',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(135deg, rgba(8,16,34,0.78), rgba(12,29,34,0.74))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.20), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const schedulePlayerIdPrepCopyStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: '6px',
+  minWidth: 0,
+}
+
+const schedulePlayerIdPrepEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const schedulePlayerIdPrepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(20px, 4vw, 28px)',
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const schedulePlayerIdPrepTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.58,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const schedulePlayerIdPrepGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const schedulePlayerIdPrepCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: '5px',
+  minWidth: 0,
+  minHeight: 92,
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(2,8,23,0.34)',
+  overflowWrap: 'anywhere',
+}
+
+const schedulePlayerIdPrepLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '10px',
+  lineHeight: 1.3,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const schedulePlayerIdPrepValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  lineHeight: 1.42,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const schedulePlayerIdActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  alignContent: 'center',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const schedulePlayerIdActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 36,
+  maxWidth: '100%',
+  padding: '8px 11px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
+}
+
+const schedulePlayerIdPrimaryActionStyle: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
+  color: 'var(--brand-green)',
 }
 
 const sectionEyebrowStyle = {
