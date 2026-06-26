@@ -262,6 +262,7 @@ export default function PlayerLiveWorkbench({
   const savedDeliverySteps = lastSavedSession
     ? getSavedDeliverySteps(lastSavedSession, syncState, undoSession?.id === lastSavedSession.id)
     : []
+  const hasActiveSaveReceipt = Boolean(lastSavedSession)
 
   const handleTimerSnapshotChange = useCallback((snapshot: DrillTimerSnapshot) => {
     setActiveTimerSnapshot((current) => {
@@ -429,7 +430,7 @@ export default function PlayerLiveWorkbench({
   }
 
   function saveSessionWithRating(rating: number) {
-    if (!activeFocus || !activeDrill) return
+    if (!activeFocus || !activeDrill || hasActiveSaveReceipt) return
 
     const nextDraft = { ...draft, rating }
     const savedSourceCard = activeDrill.sourceCard
@@ -993,6 +994,7 @@ export default function PlayerLiveWorkbench({
                   type="button"
                   key={value}
                   className={value === 5 ? 'button-primary' : 'button-secondary'}
+                  disabled={hasActiveSaveReceipt}
                   onClick={() => saveSessionWithRating(value)}
                 >
                   {value}/5
@@ -1047,10 +1049,10 @@ export default function PlayerLiveWorkbench({
               />
               <span>{accessMode === 'coach_invited' ? 'Share this recap with my coach when linked' : 'Coach sharing unlocks when invited by a coach'}</span>
             </label>
-            <button type="button" className="button-primary" disabled={draft.rating === null} onClick={saveSession}>
-              {syncState.status === 'syncing' ? 'Saving...' : draft.rating === null ? 'Pick rating' : `Save ${draft.rating}/5`}
+            <button type="button" className="button-primary" disabled={draft.rating === null || hasActiveSaveReceipt} onClick={saveSession}>
+              {hasActiveSaveReceipt ? 'Saved' : syncState.status === 'syncing' ? 'Saving...' : draft.rating === null ? 'Pick rating' : `Save ${draft.rating}/5`}
             </button>
-            <small>{draft.rating === null ? 'Pick a 0-5 rating before saving.' : 'It saves locally first, then syncs when your access path is connected.'}</small>
+            <small>{hasActiveSaveReceipt ? 'Use Repeat or New focus before logging another proof.' : draft.rating === null ? 'Pick a 0-5 rating before saving.' : 'It saves locally first, then syncs when your access path is connected.'}</small>
           </aside>
         </div>
       </div>
