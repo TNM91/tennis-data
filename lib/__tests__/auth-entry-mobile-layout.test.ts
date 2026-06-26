@@ -95,8 +95,10 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('const searchParams = useSearchParams()')
     expect(source).toContain("const emailPrefill = searchParams.get('email')?.trim() ?? ''")
     expect(source).toContain("const switchingAccount = searchParams.get('switchAccount') === '1'")
+    expect(source).toContain("const coachSetupEmailLabel = emailPrefill || 'the invited email'")
     expect(source).toContain('setEmail((current) => current || emailPrefill)')
-    expect(source).toContain('Sign in with the invited email to switch this coach setup to the right player account.')
+    expect(source).toContain('finish this coach text setup')
+    expect(source).toContain('this coach setup lands on the right player profile')
   })
 
   it('preserves invited emails from account creation into sign in', () => {

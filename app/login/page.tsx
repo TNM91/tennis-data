@@ -145,6 +145,10 @@ function LoginContent() {
   const selectedIntent = LOGIN_INTENT_COPY[selectedPlanId]
   const emailPrefill = searchParams.get('email')?.trim() ?? ''
   const switchingAccount = searchParams.get('switchAccount') === '1'
+  const coachSetupEmailLabel = emailPrefill || 'the invited email'
+  const coachSetupNote = role !== 'public'
+    ? `You are signed in to another TenAceIQ account. Use ${coachSetupEmailLabel} here so this coach setup lands on the right player profile.`
+    : `Use ${coachSetupEmailLabel} here to finish this coach text setup. The setup link opens after sign in.`
 
   useEffect(() => {
     router.prefetch(DEFAULT_POST_LOGIN_ROUTE)
@@ -348,9 +352,9 @@ function canUseBrowserStorage() {
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
               <div style={formLabel}>More Tennis. Less Chaos.</div>
               <h2 style={isMobile ? formTitleMobile : formTitle}>Sign in</h2>
-              {switchingAccount && role !== 'public' ? (
+              {switchingAccount ? (
                 <div role="status" aria-live="polite" style={successBanner}>
-                  Sign in with the invited email to switch this coach setup to the right player account.
+                  {coachSetupNote}
                 </div>
               ) : null}
 
