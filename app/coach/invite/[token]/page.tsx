@@ -216,6 +216,34 @@ const pageStyles = {
     letterSpacing: '.1em',
     textTransform: 'uppercase',
   },
+  setupCheckCard: {
+    display: 'grid',
+    gap: 10,
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 18,
+    border: '1px solid rgba(255,255,255,0.12)',
+    background: 'rgba(5,11,22,0.44)',
+    minWidth: 0,
+  },
+  setupCheckGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+    gap: 10,
+    minWidth: 0,
+  },
+  setupCheckItem: {
+    display: 'grid',
+    gap: 5,
+    minWidth: 0,
+  },
+  setupCheckValue: {
+    color: '#ffffff',
+    fontSize: 14,
+    lineHeight: 1.35,
+    fontWeight: 900,
+    overflowWrap: 'anywhere',
+  },
 } satisfies Record<string, CSSProperties>
 
 const invitePathSteps = [
@@ -485,6 +513,30 @@ function CoachInviteContent() {
               <p style={{ ...pageStyles.note, background: '#2a1710', borderColor: 'rgba(255,185,125,0.32)' }}>
                 {acceptBlockedMessage}
               </p>
+            ) : null}
+
+            {authResolved && !loading ? (
+              <div style={pageStyles.setupCheckCard} aria-label="Coach invite mobile setup check">
+                <span style={pageStyles.eyebrow}>Setup check</span>
+                <div style={pageStyles.setupCheckGrid}>
+                  <div style={pageStyles.setupCheckItem}>
+                    <span style={pageStyles.label}>Player</span>
+                    <span style={pageStyles.setupCheckValue}>{studentName}</span>
+                  </div>
+                  <div style={pageStyles.setupCheckItem}>
+                    <span style={pageStyles.label}>Invited email</span>
+                    <span style={pageStyles.setupCheckValue}>{invitedEmailLabel}</span>
+                  </div>
+                  <div style={pageStyles.setupCheckItem}>
+                    <span style={pageStyles.label}>Signed-in account</span>
+                    <span style={pageStyles.setupCheckValue}>{signedInAccountLabel}</span>
+                  </div>
+                  <div style={pageStyles.setupCheckItem}>
+                    <span style={pageStyles.label}>Acceptance check</span>
+                    <span style={pageStyles.setupCheckValue}>{inviteAccountMatch}</span>
+                  </div>
+                </div>
+              </div>
             ) : null}
 
             <div style={pageStyles.actions} className="coach-invite-actions">
