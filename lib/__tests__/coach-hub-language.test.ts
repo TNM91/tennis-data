@@ -65,6 +65,10 @@ describe('Coach Hub naming', () => {
     expect(coachInvite).toContain('Setup check')
     expect(coachInvite).toContain('setupCheckGrid')
     expect(coachInvite).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
+    expect(coachInvite).toContain('Coach invite accepted handoff')
+    expect(coachInvite).toContain('Ask for the first assignment if My Lab is empty.')
+    expect(coachInvite).toContain('request-first-assignment prompt')
+    expect(coachInvite).toContain('Open My Lab assignments')
     expect(coachInvite).toContain('Coach invite next step')
     expect(coachInvite).toContain('Sign in or create your player account')
     expect(coachInvite).toContain('Your coach does not need your email before sending this setup link.')
@@ -91,7 +95,7 @@ describe('Coach Hub naming', () => {
     expect(coachInvite).toContain('Signed-in account:')
     expect(coachInvite).toContain('Acceptance check:')
     expect(coachInvite).toContain("label: 'Player'")
-    expect(coachInvite).toContain('Player unlocks full self-guided history and trends.')
+    expect(coachInvite).toContain('request your first assignment from your coach')
     expect(coachInvite).toContain('Upgrade to Player')
 
     for (const text of [coachPage, messagesPage, loginPage, portal, coachInvite]) {

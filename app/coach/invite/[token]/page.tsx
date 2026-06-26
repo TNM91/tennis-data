@@ -331,7 +331,7 @@ function getInviteNextStep({
   if (status === 'accepted') {
     return {
       title: 'Coach connection is active',
-      copy: 'Open My Lab to see coach-assigned work, or continue into development paths for self-guided Level Up reps.',
+      copy: 'Open My Lab assignments next. If no work is waiting yet, use the request-first-assignment prompt so your coach knows what to send.',
     }
   }
 
@@ -451,7 +451,7 @@ function CoachInviteContent() {
         throw new Error(json.message || 'This coach invite could not be accepted.')
       }
       setInvite((current) => (current ? { ...current, status: 'accepted' } : current))
-      setMessage('Coach connected. Your coach-assigned Level Up work is linked; Player unlocks full self-guided history and trends.')
+      setMessage('Coach connected. Open My Lab assignments next; if the list is empty, request your first assignment from your coach.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'This coach invite could not be accepted.')
     } finally {
@@ -539,6 +539,17 @@ function CoachInviteContent() {
               </div>
             ) : null}
 
+            {invite?.status === 'accepted' ? (
+              <div style={pageStyles.setupCheckCard} aria-label="Coach invite accepted handoff">
+                <span style={pageStyles.eyebrow}>Coach connected</span>
+                <h2 style={pageStyles.nextStepTitle}>Ask for the first assignment if My Lab is empty.</h2>
+                <p style={pageStyles.nextStepCopy}>
+                  My Lab now knows this coach-player connection. Open assignments, then use the request-first-assignment
+                  prompt if your coach has not sent work yet.
+                </p>
+              </div>
+            ) : null}
+
             <div style={pageStyles.actions} className="coach-invite-actions">
               {!authResolved || loading ? (
                 <span style={pageStyles.secondaryButton}>Loading invite</span>
@@ -555,7 +566,7 @@ function CoachInviteContent() {
                 access.canUseAdvancedPlayerInsights ? (
                   <>
                     <Link href="/mylab#coach-assignments" style={pageStyles.primaryButton}>
-                      Open My Lab
+                      Open My Lab assignments
                     </Link>
                     <Link href="/player-development" style={pageStyles.secondaryButton}>
                       Open development paths
@@ -564,7 +575,7 @@ function CoachInviteContent() {
                 ) : (
                   <>
                     <Link href="/mylab#coach-assignments" style={pageStyles.primaryButton}>
-                      Open My Lab
+                      Open My Lab assignments
                     </Link>
                     <Link href={playerHref} style={pageStyles.secondaryButton}>
                       Unlock Player
