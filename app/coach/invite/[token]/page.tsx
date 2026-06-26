@@ -341,6 +341,15 @@ function CoachInviteContent() {
   const invitedEmailLabel = invite?.inviteEmail || 'Open invite'
   const signedInAccountLabel = getSignedInAccountLabel(signedInEmail, userId)
   const inviteAccountMatch = getInviteAccountMatch(invite?.inviteEmail ?? '', signedInEmail, Boolean(userId))
+  const inviteEmailMismatch = Boolean(
+    invite?.inviteEmail &&
+    userId &&
+    signedInEmail.trim().toLowerCase() !== invite.inviteEmail.trim().toLowerCase(),
+  )
+  const acceptBlockedMessage = inviteEmailMismatch
+    ? `This setup link is for ${invite?.inviteEmail}. Sign in with that email to accept the coach connection.`
+    : ''
+  const acceptButtonDisabled = accepting || Boolean(acceptBlockedMessage)
 
   const loadInvite = useCallback(async () => {
     if (!token) return
@@ -368,6 +377,11 @@ function CoachInviteContent() {
   const acceptInvite = async () => {
     if (!session?.access_token || !token) {
       setMessage('Sign in to accept this coach invite.')
+      return
+    }
+
+    if (acceptBlockedMessage) {
+      setMessage(acceptBlockedMessage)
       return
     }
 
@@ -441,6 +455,11 @@ function CoachInviteContent() {
                 {message}
               </p>
             ) : null}
+            {acceptBlockedMessage ? (
+              <p style={{ ...pageStyles.note, background: '#2a1710', borderColor: 'rgba(255,185,125,0.32)' }}>
+                {acceptBlockedMessage}
+              </p>
+            ) : null}
 
             <div style={pageStyles.actions} className="coach-invite-actions">
               {!authResolved || loading ? (
@@ -476,9 +495,24 @@ function CoachInviteContent() {
                 )
               ) : (
                 <>
-                  <button type="button" onClick={acceptInvite} disabled={accepting} style={pageStyles.primaryButton}>
+                  <button
+                    type="button"
+                    onClick={acceptInvite}
+                    disabled={acceptButtonDisabled}
+                    title={acceptBlockedMessage || undefined}
+                    style={{
+                      ...pageStyles.primaryButton,
+                      opacity: acceptButtonDisabled ? 0.62 : 1,
+                      cursor: acceptButtonDisabled ? 'not-allowed' : 'pointer',
+                    }}
+                  >
                     {accepting ? 'Connecting' : 'Accept coach invite'}
                   </button>
+                  {acceptBlockedMessage ? (
+                    <Link href={loginHref} style={pageStyles.secondaryButton}>
+                      Sign in with invited email
+                    </Link>
+                  ) : null}
                   {!access.canUseAdvancedPlayerInsights ? (
                     <Link href={playerHref} style={pageStyles.secondaryButton}>
                       Upgrade to Player
