@@ -183,6 +183,7 @@ export default function PlayerLiveWorkbench({
   const savedRef = useRef<HTMLDivElement | null>(null)
   const finishRef = useRef<HTMLDivElement | null>(null)
   const didMobileAutoScrollRef = useRef(false)
+  const saveReceiptLockRef = useRef(false)
   const queuedSyncTimersRef = useRef<Map<string, number>>(new Map())
   const assignmentId = searchParams.get('assignmentId')?.trim() ?? ''
   const studentLinkId = searchParams.get('studentLinkId')?.trim() ?? ''
@@ -429,8 +430,13 @@ export default function PlayerLiveWorkbench({
     saveSessionWithRating(draft.rating)
   }
 
+  function unlockProofSave() {
+    saveReceiptLockRef.current = false
+  }
+
   function saveSessionWithRating(rating: number) {
-    if (!activeFocus || !activeDrill || hasActiveSaveReceipt) return
+    if (!activeFocus || !activeDrill || hasActiveSaveReceipt || saveReceiptLockRef.current) return
+    saveReceiptLockRef.current = true
 
     const nextDraft = { ...draft, rating }
     const savedSourceCard = activeDrill.sourceCard
@@ -514,6 +520,7 @@ export default function PlayerLiveWorkbench({
   }
 
   function repeatActivity() {
+    unlockProofSave()
     setLastSavedSession(null)
     setDraft(emptyDraft)
     setScoringDrillId('')
@@ -523,6 +530,7 @@ export default function PlayerLiveWorkbench({
   }
 
   function pickNewFocus() {
+    unlockProofSave()
     setLastSavedSession(null)
     setDraft(emptyDraft)
     setActiveDrillId('')
@@ -537,12 +545,14 @@ export default function PlayerLiveWorkbench({
 
   function moveToSuggestedDrill() {
     if (!suggestedNextDrill) return
+    unlockProofSave()
     setLastSavedSession(null)
     setFinishSummary(null)
     chooseDrillOption(suggestedNextDrill.id)
   }
 
   function finishToday() {
+    unlockProofSave()
     setFinishSummary(sessions.filter(isSessionFromToday).slice(0, 6))
     setLastSavedSession(null)
     setQuestCreditMessage('')
@@ -553,6 +563,7 @@ export default function PlayerLiveWorkbench({
 
   function undoLastSave() {
     if (!undoSession) return
+    unlockProofSave()
 
     const sessionId = undoSession.id
     const queuedTimerId = queuedSyncTimersRef.current.get(sessionId)
