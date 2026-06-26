@@ -200,6 +200,9 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('Active player workspace for')
     expect(coachSource).toContain('Mobile Player ID action read for')
     expect(coachSource).toContain('mobileBenchIdentityReadStyle')
+    expect(coachSource).toContain('Mobile coach Player ID handoff for')
+    expect(coachSource).toContain('mobileBenchHandoffStyle')
+    expect(coachSource).toContain('Message Player ID plan')
     expect(coachSource).toContain('Bench snapshot')
     expect(coachSource).toContain('Today&apos;s coach queue')
     expect(coachSource).toContain('{isMobile ? null : renderBenchMetrics()}')
@@ -210,6 +213,8 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('Open player hub')
     expect(coachSource).toContain('Current work')
     expect(coachSource).toContain('getCoachPlayerProfileHref')
+    expect(coachSource).toContain('getCoachStudentIdentityHandoff')
+    expect(coachSource).toContain('buildCoachPlayerIdentityMessageHref')
   })
 
   it('lets a coach jump from a player card into a Level Up assignment on phone', () => {

@@ -1372,6 +1372,8 @@ function CoachContent() {
     const actionLinkStyle = isMobile ? mobileBenchActionStyle : studentActionStyle
     const actionButtonStyle = isMobile ? mobileBenchActionButtonStyle : inlineActionButtonStyle
     const identityRead = getCoachStudentIdentityRead(card.student.identitySlug)
+    const identityHandoff = getCoachStudentIdentityHandoff(identityRead)
+    const identityMessageHref = buildCoachPlayerIdentityMessageHref(card.student, identityRead)
 
     return (
       <article
@@ -1408,6 +1410,21 @@ function CoachContent() {
           <span style={coachBenchIdentityLabelStyle}>Train first</span>
           <strong style={coachBenchIdentityValueStyle}>{identityRead.title}</strong>
           <small style={coachBenchIdentityNoteStyle}>{identityRead.trainingPriority}</small>
+        </div>
+        <div style={coachBenchHandoffStyle} aria-label={`Coach Player ID handoff for ${card.student.playerName}`}>
+          <div style={coachBenchHandoffGridStyle}>
+            {identityHandoff.map((item) => (
+              <span key={item.label} style={coachBenchHandoffItemStyle}>
+                <em>{item.label}</em>
+                <b>{item.value}</b>
+              </span>
+            ))}
+          </div>
+          {card.student.playerUserId ? (
+            <Link href={identityMessageHref} style={coachBenchHandoffMessageStyle}>
+              Message Player ID plan
+            </Link>
+          ) : null}
         </div>
         <div style={isMobile ? mobileStudentActionRowStyle : studentActionRowStyle}>
           {assignmentCourtHref ? (
@@ -1503,6 +1520,8 @@ function CoachContent() {
     const setupTextBody = card.pendingInvite ? buildCoachSetupText(card.pendingInvite.inviteHref) : ''
     const mobileTextBody = setupTextBody || playerTextBody
     const mobileTextLabel = card.pendingInvite ? 'Text setup link' : 'Text'
+    const identityHandoff = getCoachStudentIdentityHandoff(identityRead)
+    const identityMessageHref = buildCoachPlayerIdentityMessageHref(card.student, identityRead)
 
     return (
       <div style={mobileBenchCommandCenterStyle} aria-label={`Active player workspace for ${card.student.playerName}`}>
@@ -1535,6 +1554,21 @@ function CoachContent() {
           <span style={coachBenchIdentityLabelStyle}>Train first</span>
           <strong style={coachBenchIdentityValueStyle}>{identityRead.title}</strong>
           <small style={coachBenchIdentityNoteStyle}>{identityRead.trainingPriority}</small>
+        </div>
+        <div style={mobileBenchHandoffStyle} aria-label={`Mobile coach Player ID handoff for ${card.student.playerName}`}>
+          <div style={coachBenchHandoffGridStyle}>
+            {identityHandoff.map((item) => (
+              <span key={item.label} style={coachBenchHandoffItemStyle}>
+                <em>{item.label}</em>
+                <b>{item.value}</b>
+              </span>
+            ))}
+          </div>
+          {card.student.playerUserId ? (
+            <Link href={identityMessageHref} style={coachBenchHandoffMessageStyle}>
+              Message Player ID plan
+            </Link>
+          ) : null}
         </div>
         <div style={mobileBenchPrimaryActionGridStyle}>
           <button type="button" onClick={() => loadStudentLevelUpPack(card)} style={mobileBenchPrimaryActionStyle}>
@@ -3303,10 +3337,21 @@ function getCoachStudentIdentityRead(identitySlug: string) {
     return {
       title: 'Custom path',
       trainingPriority: 'Use the lesson focus to choose one measurable behavior before assigning more work.',
+      proofTarget: 'Score one visible behavior 0-5 and write the next clean rep.',
+      coachPrompt: 'What proof should this player show before the next lesson?',
+      nextCue: 'Repeat the assignment once, then add pressure only if the proof is clean.',
     }
   }
 
   return getPlayerDevelopmentIdentityActionRead(getPlayerDevelopmentIdentity(identitySlug))
+}
+
+function getCoachStudentIdentityHandoff(identityRead: ReturnType<typeof getCoachStudentIdentityRead>) {
+  return [
+    { label: 'Log', value: identityRead.proofTarget },
+    { label: 'Ask', value: identityRead.coachPrompt },
+    { label: 'Try next', value: identityRead.nextCue },
+  ] as const
 }
 
 function getStudentStatusLabel(status: CoachStudentLink['status']) {
@@ -4096,6 +4141,17 @@ function buildCoachPlayerMessageHref(
   if (assignmentContext?.assignmentFocus) params.set('assignmentFocus', assignmentContext.assignmentFocus)
   if (assignmentContext?.assignmentCardId) params.set('assignmentCardId', assignmentContext.assignmentCardId)
   return `/messages?${params.toString()}`
+}
+
+function buildCoachPlayerIdentityMessageHref(
+  student: CoachStudentLink,
+  identityRead: ReturnType<typeof getCoachStudentIdentityRead>,
+) {
+  return buildCoachPlayerMessageHref(
+    student,
+    `Player ID follow-up: ${student.playerName}`,
+    `Player ID read: ${identityRead.title}. Train first: ${identityRead.trainingPriority}. Proof target: ${identityRead.proofTarget}. Coach question: ${identityRead.coachPrompt}`,
+  )
 }
 
 const pageStyle: CSSProperties = {
@@ -5172,6 +5228,65 @@ const coachBenchIdentityNoteStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.35,
   fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const coachBenchHandoffStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: '10px 11px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.045)',
+  overflowWrap: 'anywhere',
+}
+
+const mobileBenchHandoffStyle: CSSProperties = {
+  ...coachBenchHandoffStyle,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.065)',
+}
+
+const coachBenchHandoffGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const coachBenchHandoffItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '7px 8px',
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(5,15,30,0.38)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.34,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
+}
+
+const coachBenchHandoffMessageStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 'fit-content',
+  maxWidth: '100%',
+  minHeight: 34,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  textAlign: 'center',
+  textDecoration: 'none',
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
