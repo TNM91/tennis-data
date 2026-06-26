@@ -9744,6 +9744,14 @@
   min-width: 0;
 }
 
+.liveSavedNextSteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
 .liveProgressPanel {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -9778,6 +9786,7 @@
 .liveProgressPanel article,
 .liveSavedIdentitySignals article,
 .liveSavedDeliveryRail article,
+.liveSavedNextSteps article,
 .liveStepPanel,
 .liveCurrentGoal,
 .liveActionCard,
@@ -9806,6 +9815,7 @@
 .liveSavedBanner,
 .liveSavedIdentitySignals article,
 .liveSavedDeliveryRail article,
+.liveSavedNextSteps article,
 .liveSyncProofPanel,
 .liveCoachChallengeEntry,
 .liveUnlockPanel,
@@ -9842,6 +9852,7 @@
 .liveSavedBanner span,
 .liveSavedIdentitySignals span,
 .liveSavedDeliveryRail span,
+.liveSavedNextSteps span,
 .liveSyncProofPanel span,
 .liveSyncProofGrid span,
 .liveUnlockPanel span,
@@ -9872,6 +9883,7 @@
 .liveSavedBanner strong,
 .liveSavedIdentitySignals strong,
 .liveSavedDeliveryRail strong,
+.liveSavedNextSteps strong,
 .liveSyncProofPanel strong,
 .liveUnlockPanel strong,
 .liveRecentList strong {
@@ -9910,6 +9922,27 @@
   min-width: 0;
   border-color: rgba(155, 225, 29, 0.2);
   background: rgba(6, 20, 20, 0.5);
+  overflow-wrap: anywhere;
+}
+
+.liveSavedNextSteps article {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 13px;
+  background: rgba(5, 16, 31, 0.34);
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+
+.liveSavedNextSteps a {
+  width: fit-content;
+  max-width: 100%;
+  color: var(--brand-green-3);
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-decoration: none;
   overflow-wrap: anywhere;
 }
 
@@ -14429,6 +14462,7 @@
   .liveAssignmentPlayerIdRead,
   .liveAssignmentBanner,
   .liveSavedBanner,
+  .liveSavedNextSteps,
   .liveUnlockPanel,
   .levelUpRouteHeader,
   .levelUpIdentityStrip,
@@ -15665,6 +15699,7 @@
   .liveSavedBanner,
   .liveSavedIdentitySignals,
   .liveSavedDeliveryRail,
+  .liveSavedNextSteps,
   .liveSyncProofPanel,
   .liveUnlockPanel,
   .liveModeStrip {

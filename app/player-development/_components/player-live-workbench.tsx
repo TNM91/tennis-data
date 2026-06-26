@@ -263,6 +263,9 @@ export default function PlayerLiveWorkbench({
   const savedDeliverySteps = lastSavedSession
     ? getSavedDeliverySteps(lastSavedSession, syncState, undoSession?.id === lastSavedSession.id)
     : []
+  const savedNextSteps = lastSavedSession
+    ? getSavedNextSteps(lastSavedSession, smartNextAction)
+    : []
   const hasActiveSaveReceipt = Boolean(lastSavedSession)
 
   const handleTimerSnapshotChange = useCallback((snapshot: DrillTimerSnapshot) => {
@@ -1174,6 +1177,15 @@ export default function PlayerLiveWorkbench({
                   </article>
                 ))}
               </div>
+              <div className={styles.liveSavedNextSteps} aria-label="Saved proof next steps">
+                {savedNextSteps.map((step) => (
+                  <article key={step.label}>
+                    <span>{step.label}</span>
+                    <strong>{step.value}</strong>
+                    <a href={step.href}>{step.cta}</a>
+                  </article>
+                ))}
+              </div>
             </div>
             <div className={styles.liveSavedActions}>
               <button type="button" className="button-primary" onClick={repeatActivity}>
@@ -1815,6 +1827,49 @@ function getSavedDeliverySteps(session: SavedSession, syncState: SyncState, inUn
     { label: 'Destination', value: destination, state: session.sharedWithCoach ? 'coach' : 'local' },
     { label: 'Delivery', value: delivery, state: syncState.status },
   ]
+}
+
+function getSavedNextSteps(session: SavedSession, smartNextAction: ReturnType<typeof getSmartNextAction> | null) {
+  const coachLinked = Boolean(session.assignmentId || (session.accessMode === 'coach_invited' && session.sharedWithCoach))
+  return [
+    {
+      label: 'Proof meaning',
+      value: `${session.rating}/5 proof now belongs to ${session.focusTitle}.`,
+      href: '/mylab#level-up-proof',
+      cta: 'Open My Lab',
+    },
+    {
+      label: coachLinked ? 'Coach note' : 'Player ID note',
+      value: coachLinked
+        ? 'Send what changed and ask for the next assigned rep.'
+        : 'Keep the proof attached to your next Player ID read.',
+      href: coachLinked ? buildSavedCoachFollowUpHref(session) : '/player-development',
+      cta: coachLinked ? 'Message coach' : 'Read Player ID',
+    },
+    {
+      label: 'Next rep',
+      value: smartNextAction?.title ?? 'Repeat once or finish with a clean proof trail.',
+      href: '#level-up-flow',
+      cta: 'Back to drill',
+    },
+  ]
+}
+
+function buildSavedCoachFollowUpHref(session: SavedSession) {
+  const params = new URLSearchParams({
+    compose: 'direct',
+    recipient: 'Coach',
+    subject: `Player ID follow-up: ${session.assignmentTitle || session.drillTitle}`,
+    body: `Player ID read: ${session.focusTitle}. Train first: ${session.drillTitle}. Proof target: ${session.rating}/5${session.note ? ` - ${session.note}` : ''}. Coach question: What should I run next?`,
+  })
+  if (session.studentLinkId) {
+    params.set('entityType', 'coach_player_link')
+    params.set('entityId', session.studentLinkId)
+  }
+  if (session.assignmentId) params.set('assignmentId', session.assignmentId)
+  if (session.assignmentTitle) params.set('assignmentTitle', session.assignmentTitle)
+  params.set('assignmentFocus', session.focusTitle)
+  return `/messages?${params.toString()}`
 }
 
 function getFinishSummaryStats(sessions: SavedSession[]) {
