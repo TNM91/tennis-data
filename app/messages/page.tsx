@@ -996,6 +996,18 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         ? 'Ready to send'
         : 'Add the message'
       : 'Select a recipient'
+  const isCoachLinkCompose = composeMode === 'direct' && composeContext.entityType === 'coach_player_link'
+  const isFirstAssignmentRequest = isCoachLinkCompose && subject.toLowerCase().includes('first level up assignment')
+  const composeThreadLabel = composeMode === 'support'
+    ? 'Support'
+    : isCoachLinkCompose
+      ? 'Coach handoff'
+      : 'Player message'
+  const composeSubmitLabel = composeMode === 'support'
+    ? 'Open support thread'
+    : isFirstAssignmentRequest
+      ? 'Send assignment request'
+      : 'Send message'
   const canSubmitNewConversation = Boolean(body.trim()) && (composeMode === 'support' || Boolean(recipient))
   const dataAssistMessagesHref = '/data-assist?intent=upload-source&context=Messages'
   const emptyInboxActions = inboxFilter === 'assignment'
@@ -2715,6 +2727,19 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             </button>
           </div>
 
+          {isCoachLinkCompose ? (
+            <div style={composeReviewStyle} aria-label="Coach message compose handoff">
+              <div style={composeReviewItemStyle}>
+                <span>From</span>
+                <strong>{isFirstAssignmentRequest ? 'My Lab first assignment request' : 'My Lab coach follow-up'}</strong>
+              </div>
+              <div style={composeReviewItemStyle}>
+                <span>Why it matters</span>
+                <strong>This thread stays tied to the coach-player connection.</strong>
+              </div>
+            </div>
+          ) : null}
+
           {composeMode === 'direct' ? (
             <label style={fieldStyle}>
               <span style={labelStyle}>Recipient</span>
@@ -2844,7 +2869,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           <div style={composeReviewStyle}>
             <div style={composeReviewItemStyle}>
               <span>Thread</span>
-              <strong>{composeMode === 'support' ? 'Support' : 'Player message'}</strong>
+              <strong>{composeThreadLabel}</strong>
             </div>
             <div style={composeReviewItemStyle}>
               <span>Send to</span>
@@ -2862,7 +2887,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             disabled={saving || !canSubmitNewConversation}
             style={saving || !canSubmitNewConversation ? disabledPrimaryButtonStyle : primaryButtonStyle}
           >
-            {saving ? 'Sending...' : composeMode === 'support' ? 'Open support thread' : 'Send message'}
+            {saving ? 'Sending...' : composeSubmitLabel}
           </button>
 
           {message ? <div style={successStyle}>{message}</div> : null}
