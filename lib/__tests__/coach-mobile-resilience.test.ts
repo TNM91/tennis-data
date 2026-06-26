@@ -54,6 +54,24 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain('function normalizeContactPreference')
   })
 
+  it('restores the last pending setup link after a mobile browser handoff reloads the coach page', () => {
+    expect(coachSource).toContain("const COACH_LAST_STUDENT_SETUP_KEY = 'tenaceiq.coach.lastStudentSetup.v1'")
+    expect(coachSource).toContain('type CoachLastStudentSetup = {')
+    expect(coachSource).toContain('function persistLastStudentSetup(studentId: string)')
+    expect(coachSource).toContain('function clearLastStudentSetup()')
+    expect(coachSource).toContain('function restoreLastStudentSetup(')
+    expect(coachSource).toContain('window.localStorage.getItem(COACH_LAST_STUDENT_SETUP_KEY)')
+    expect(coachSource).toContain('window.localStorage.setItem(COACH_LAST_STUDENT_SETUP_KEY, JSON.stringify(payload))')
+    expect(coachSource).toContain('window.localStorage.removeItem(COACH_LAST_STUDENT_SETUP_KEY)')
+    expect(coachSource).toContain('restoreLastStudentSetup(nextStudents, nextInvites, setLastCreatedStudentSetup)')
+    expect(coachSource).toContain('const pendingInvite = invites.find((invite) => invite.studentLinkId === studentId && invite.status === \'pending\') ?? null')
+    expect(coachSource).toContain('setLastCreatedStudentSetup({ student, invite: pendingInvite })')
+    expect(coachSource).toContain('if (createdInvite) {')
+    expect(coachSource).toContain('persistLastStudentSetup(savedStudent.id)')
+    expect(coachSource).toContain('clearLastStudentSetup()')
+    expect(coachSource).toContain('setLastCreatedStudentSetup(null)')
+  })
+
   it('restores the selected mobile bench player after the phone browser reloads', () => {
     expect(coachSource).toContain("const COACH_MOBILE_CONTEXT_KEY = 'tenaceiq.coach.mobileContext.v1'")
     expect(coachSource).toContain('type CoachMobileContext = {')

@@ -55,6 +55,7 @@ const DEFAULT_STUDENT_IDENTITY_ID = 'relentless-competitor-4-0'
 const COACH_STUDENT_DRAFT_KEY = 'tenaceiq.coach.studentDraft.v1'
 const COACH_MOBILE_CONTEXT_KEY = 'tenaceiq.coach.mobileContext.v1'
 const COACH_ASSIGNMENT_DRAFT_KEY = 'tenaceiq.coach.assignmentDraft.v1'
+const COACH_LAST_STUDENT_SETUP_KEY = 'tenaceiq.coach.lastStudentSetup.v1'
 
 type CoachCalendarFeedStatus = {
   active: boolean
@@ -74,6 +75,10 @@ type CoachStudentDraft = {
 type CoachMobileContext = {
   activeMobileBenchStudentId: string
   contactPanelOpen: boolean
+}
+
+type CoachLastStudentSetup = {
+  studentId: string
 }
 
 type CoachAssignmentDraft = {
@@ -499,7 +504,6 @@ function CoachContent() {
     if (!session?.access_token || !access.canUseCoachWorkflow) return
     setWorkspaceLoading(true)
     setWorkspaceMessage('')
-    setLastCreatedStudentSetup(null)
 
     try {
       const [studentsResponse, assignmentsResponse, invitesResponse, levelUpResponse] = await Promise.all([
@@ -534,12 +538,17 @@ function CoachContent() {
         throw new Error(invitesJson.message || 'Could not load coach invites.')
       }
 
-      setSavedStudents(studentsJson.students ?? [])
-      setAssignments(assignmentsJson.assignments ?? [])
-      setInvites(invitesJson.invites ?? [])
+      const nextStudents = studentsJson.students ?? []
+      const nextAssignments = assignmentsJson.assignments ?? []
+      const nextInvites = invitesJson.invites ?? []
+
+      setSavedStudents(nextStudents)
+      setAssignments(nextAssignments)
+      setInvites(nextInvites)
       setLevelUpSessions(levelUpResponse.ok && levelUpJson.ok ? levelUpJson.sessions ?? [] : [])
-      setAssignmentStudentId((current) => current || studentsJson.students?.[0]?.id || '')
-      setContactStudentId((current) => current || studentsJson.students?.[0]?.id || '')
+      setAssignmentStudentId((current) => current || nextStudents[0]?.id || '')
+      setContactStudentId((current) => current || nextStudents[0]?.id || '')
+      restoreLastStudentSetup(nextStudents, nextInvites, setLastCreatedStudentSetup)
     } catch (error) {
       setWorkspaceMessage(error instanceof Error ? error.message : 'Could not load Coach Hub.')
     } finally {
@@ -684,6 +693,11 @@ function CoachContent() {
       setStudentPhone('')
       setContactPreference('in_app')
       setAddStudentSubmitAttempted(false)
+      if (createdInvite) {
+        persistLastStudentSetup(savedStudent.id)
+      } else {
+        clearLastStudentSetup()
+      }
       setWorkspaceMessage(
         setupLinkError
           ? `Student added, but the setup link needs a retry: ${setupLinkError}`
@@ -2596,7 +2610,14 @@ function CoachContent() {
                     Copy setup text
                   </button>
                 ) : null}
-                <button type="button" onClick={() => setLastCreatedStudentSetup(null)} style={smallGhostButtonStyle}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearLastStudentSetup()
+                    setLastCreatedStudentSetup(null)
+                  }}
+                  style={smallGhostButtonStyle}
+                >
                   Dismiss
                 </button>
               </div>
@@ -3795,6 +3816,51 @@ function cleanText(value: unknown) {
 
 function normalizeContactPreference(value: unknown): CoachStudentLink['contactPreference'] {
   return value === 'text' || value === 'both' || value === 'in_app' ? value : 'in_app'
+}
+
+function persistLastStudentSetup(studentId: string) {
+  if (typeof window === 'undefined') return
+
+  const payload: CoachLastStudentSetup = { studentId }
+  window.localStorage.setItem(COACH_LAST_STUDENT_SETUP_KEY, JSON.stringify(payload))
+}
+
+function clearLastStudentSetup() {
+  if (typeof window === 'undefined') return
+
+  window.localStorage.removeItem(COACH_LAST_STUDENT_SETUP_KEY)
+}
+
+function restoreLastStudentSetup(
+  students: CoachStudentLink[],
+  invites: CoachStudentInvite[],
+  setLastCreatedStudentSetup: (setup: { student: CoachStudentLink; invite: CoachStudentInvite | null } | null) => void,
+) {
+  if (typeof window === 'undefined') return
+
+  try {
+    const rawSetup = window.localStorage.getItem(COACH_LAST_STUDENT_SETUP_KEY)
+    if (!rawSetup) {
+      setLastCreatedStudentSetup(null)
+      return
+    }
+
+    const setup = JSON.parse(rawSetup) as Partial<CoachLastStudentSetup>
+    const studentId = cleanText(setup.studentId)
+    const student = students.find((candidate) => candidate.id === studentId)
+    const pendingInvite = invites.find((invite) => invite.studentLinkId === studentId && invite.status === 'pending') ?? null
+
+    if (!student || !pendingInvite) {
+      clearLastStudentSetup()
+      setLastCreatedStudentSetup(null)
+      return
+    }
+
+    setLastCreatedStudentSetup({ student, invite: pendingInvite })
+  } catch {
+    clearLastStudentSetup()
+    setLastCreatedStudentSetup(null)
+  }
 }
 
 function formatSharedCalendarEventDate(event: { date: string; time?: string }) {
