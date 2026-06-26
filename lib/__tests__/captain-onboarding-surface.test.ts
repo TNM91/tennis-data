@@ -24,7 +24,7 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('Compare plans')
     expect(source).toContain("if (!authResolved || role === 'public' || isMember(role))")
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
-    expect(source).toContain('const CAPTAIN_LEVEL_UP_HREF = `/level-up/${CAPTAIN_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const CAPTAIN_LEVEL_UP_HREF = `/level-up/${CAPTAIN_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const CAPTAIN_PLAYER_DEVELOPMENT_HREF = `/player-development/${CAPTAIN_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('Set your Player ID so Team Hub can find your profile team.')
     expect(source).toContain('Team Hub Player ID starter')

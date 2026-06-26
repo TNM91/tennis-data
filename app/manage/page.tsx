@@ -24,7 +24,7 @@ export const metadata: Metadata = buildRouteMetadata({
 
 const MANAGE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const MANAGE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(MANAGE_PLAYER_IDENTITY)
-const MANAGE_LEVEL_UP_HREF = `/level-up/${MANAGE_PLAYER_IDENTITY.slug}`
+const MANAGE_LEVEL_UP_HREF = `/level-up/${MANAGE_PLAYER_IDENTITY.slug}#level-up-flow`
 const MANAGE_PLAYER_DEVELOPMENT_HREF = `/player-development/${MANAGE_PLAYER_IDENTITY.slug}`
 const managePlayerIdStarterRead = [
   { label: 'Team signal', value: MANAGE_PLAYER_IDENTITY_READ.trainingPriority },

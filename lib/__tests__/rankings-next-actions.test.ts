@@ -34,7 +34,7 @@ describe('rankings next actions', () => {
     expect(source).toContain('Save the takeaway to your tennis work, or route missing scorecards and profile context through review.')
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const RANKINGS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
-    expect(source).toContain('const RANKINGS_LEVEL_UP_HREF = `/level-up/${RANKINGS_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const RANKINGS_LEVEL_UP_HREF = `/level-up/${RANKINGS_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const RANKINGS_PLAYER_DEVELOPMENT_HREF = `/player-development/${RANKINGS_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('Ranking Player ID starter')
     expect(source).toContain('aria-label="Ranking Player ID starter read"')

@@ -28,7 +28,7 @@ describe('public tournament match-day actions', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const TOURNAMENT_DETAIL_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('pressure-closer-4-0')")
     expect(source).toContain('const TOURNAMENT_DETAIL_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TOURNAMENT_DETAIL_PLAYER_IDENTITY)')
-    expect(source).toContain('const TOURNAMENT_DETAIL_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_DETAIL_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const TOURNAMENT_DETAIL_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_DETAIL_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const TOURNAMENT_DETAIL_PLAYER_DEVELOPMENT_HREF = `/player-development/${TOURNAMENT_DETAIL_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('aria-label="Tournament detail Player ID match-day read"')
     expect(source).toContain('aria-label="Tournament detail Player ID starter read"')

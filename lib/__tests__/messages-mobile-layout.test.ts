@@ -235,7 +235,7 @@ describe('Messages mobile layout guards', () => {
   it('keeps the Messages Player ID follow-through compact and action-oriented', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const MESSAGES_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
-    expect(source).toContain('const MESSAGES_LEVEL_UP_HREF = `/level-up/${MESSAGES_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const MESSAGES_LEVEL_UP_HREF = `/level-up/${MESSAGES_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const MESSAGES_PLAYER_DEVELOPMENT_HREF = `/player-development/${MESSAGES_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('aria-label="Messages Player ID follow-through"')
     expect(source).toContain('aria-label="Messages Player ID starter read"')

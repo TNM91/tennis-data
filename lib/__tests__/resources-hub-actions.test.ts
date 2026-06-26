@@ -67,7 +67,7 @@ describe('Resources hub actions', () => {
 
   it('adds a Player ID starter path before the resource cards', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
-    expect(source).toContain('const RESOURCE_LEVEL_UP_HREF = `/level-up/${RESOURCE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const RESOURCE_LEVEL_UP_HREF = `/level-up/${RESOURCE_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const RESOURCE_PLAYER_DEVELOPMENT_HREF = `/player-development/${RESOURCE_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('Player ID starter path')
     expect(source).toContain('Start with one tennis identity, then choose the resource.')

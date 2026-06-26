@@ -36,7 +36,7 @@ describe('Manage hub actions', () => {
 
   it('connects Manage operations to a Player ID starter path', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
-    expect(source).toContain('const MANAGE_LEVEL_UP_HREF = `/level-up/${MANAGE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const MANAGE_LEVEL_UP_HREF = `/level-up/${MANAGE_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const MANAGE_PLAYER_DEVELOPMENT_HREF = `/player-development/${MANAGE_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('Manage Player ID starter path')
     expect(source).toContain('Player ID to operations')

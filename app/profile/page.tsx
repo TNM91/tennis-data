@@ -85,7 +85,7 @@ const DEFAULT_PREFS: ProfilePrefs = {
 
 const PROFILE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const PROFILE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(PROFILE_PLAYER_IDENTITY)
-const PROFILE_LEVEL_UP_HREF = `/level-up/${PROFILE_PLAYER_IDENTITY.slug}`
+const PROFILE_LEVEL_UP_HREF = `/level-up/${PROFILE_PLAYER_IDENTITY.slug}#level-up-flow`
 const PROFILE_PLAYER_DEVELOPMENT_HREF = `/player-development/${PROFILE_PLAYER_IDENTITY.slug}`
 
 const PROFILE_PLAYER_SELECT_BASE = `

@@ -49,7 +49,7 @@ describe('profile identity first actions', () => {
     expect(source).toContain('Self-rated starts now; verified data can replace it later.')
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const PROFILE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
-    expect(source).toContain('const PROFILE_LEVEL_UP_HREF = `/level-up/${PROFILE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const PROFILE_LEVEL_UP_HREF = `/level-up/${PROFILE_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const PROFILE_PLAYER_DEVELOPMENT_HREF = `/player-development/${PROFILE_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('Player ID starter path')
     expect(source).toContain('aria-label="Profile Player ID starter read"')

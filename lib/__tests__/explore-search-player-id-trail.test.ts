@@ -21,6 +21,7 @@ describe('Explore Search Player ID trail', () => {
     expect(source).toContain('Player ID handoff')
     expect(source).toContain('Starter read')
     expect(source).toContain('SEARCH_PLAYER_IDENTITY_READ')
+    expect(source).toContain('const SEARCH_LEVEL_UP_HREF = `/level-up/${SEARCH_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('Search Player ID starter read')
     expect(source).toContain('Start Level Up')
     expect(source).toContain('Read Player ID')

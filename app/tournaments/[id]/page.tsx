@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic'
 
 const TOURNAMENT_DETAIL_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('pressure-closer-4-0')
 const TOURNAMENT_DETAIL_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TOURNAMENT_DETAIL_PLAYER_IDENTITY)
-const TOURNAMENT_DETAIL_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_DETAIL_PLAYER_IDENTITY.slug}`
+const TOURNAMENT_DETAIL_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_DETAIL_PLAYER_IDENTITY.slug}#level-up-flow`
 const TOURNAMENT_DETAIL_PLAYER_DEVELOPMENT_HREF = `/player-development/${TOURNAMENT_DETAIL_PLAYER_IDENTITY.slug}`
 const tournamentDetailPlayerIdItems = [
   { label: 'Match-day read', value: TOURNAMENT_DETAIL_PLAYER_IDENTITY_READ.matchTrigger },

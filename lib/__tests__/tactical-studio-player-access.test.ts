@@ -24,7 +24,7 @@ describe('Tactical Studio player access', () => {
   it('connects Tactical Studio to a Player ID starter path before the unlock prompt', () => {
     expect(gateSource).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(gateSource).toContain("const TACTICS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('smart-attacker-4-0-to-4-5')")
-    expect(gateSource).toContain('const TACTICS_LEVEL_UP_HREF = `/level-up/${TACTICS_PLAYER_IDENTITY.slug}`')
+    expect(gateSource).toContain('const TACTICS_LEVEL_UP_HREF = `/level-up/${TACTICS_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(gateSource).toContain('const TACTICS_PLAYER_DEVELOPMENT_HREF = `/player-development/${TACTICS_PLAYER_IDENTITY.slug}`')
     expect(gateSource).toContain('Tactics Player ID starter path')
     expect(gateSource).toContain('Tactics Player ID starter read')

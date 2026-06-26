@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 
 const TOURNAMENT_ALERT_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('pressure-closer-4-0')
 const TOURNAMENT_ALERT_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TOURNAMENT_ALERT_PLAYER_IDENTITY)
-const TOURNAMENT_ALERT_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_ALERT_PLAYER_IDENTITY.slug}`
+const TOURNAMENT_ALERT_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_ALERT_PLAYER_IDENTITY.slug}#level-up-flow`
 const TOURNAMENT_ALERT_PLAYER_DEVELOPMENT_HREF = `/player-development/${TOURNAMENT_ALERT_PLAYER_IDENTITY.slug}`
 const tournamentAlertPlayerIdActions = [
   { href: TOURNAMENT_ALERT_LEVEL_UP_HREF, label: 'Start Level Up' },

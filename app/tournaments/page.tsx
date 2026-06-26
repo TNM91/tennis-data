@@ -24,7 +24,7 @@ export const metadata: Metadata = buildRouteMetadata({
 const tournamentDeskHref = '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments'
 const TOURNAMENT_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('pressure-closer-4-0')
 const TOURNAMENT_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TOURNAMENT_PLAYER_IDENTITY)
-const TOURNAMENT_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_PLAYER_IDENTITY.slug}`
+const TOURNAMENT_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_PLAYER_IDENTITY.slug}#level-up-flow`
 const TOURNAMENT_PLAYER_DEVELOPMENT_HREF = `/player-development/${TOURNAMENT_PLAYER_IDENTITY.slug}`
 const tournamentPlayerIdPrepItems = [
   { label: 'Draw read', value: TOURNAMENT_PLAYER_IDENTITY_READ.matchTrigger },

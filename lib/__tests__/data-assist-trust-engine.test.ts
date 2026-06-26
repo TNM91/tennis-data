@@ -50,7 +50,7 @@ describe('Data Assist trust engine', () => {
 
   it('turns reviewed data context into a Player ID starter path', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
-    expect(source).toContain('const DATA_ASSIST_LEVEL_UP_HREF = `/level-up/${DATA_ASSIST_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const DATA_ASSIST_LEVEL_UP_HREF = `/level-up/${DATA_ASSIST_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const DATA_ASSIST_PLAYER_DEVELOPMENT_HREF = `/player-development/${DATA_ASSIST_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('Data Assist Player ID starter')
     expect(source).toContain('Data Assist Player ID starter read')

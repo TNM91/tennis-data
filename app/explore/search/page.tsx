@@ -128,7 +128,7 @@ const scopeCommandCards: Array<{
 
 const SEARCH_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const SEARCH_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(SEARCH_PLAYER_IDENTITY)
-const SEARCH_LEVEL_UP_HREF = `/level-up/${SEARCH_PLAYER_IDENTITY.slug}`
+const SEARCH_LEVEL_UP_HREF = `/level-up/${SEARCH_PLAYER_IDENTITY.slug}#level-up-flow`
 const SEARCH_PLAYER_DEVELOPMENT_HREF = `/player-development/${SEARCH_PLAYER_IDENTITY.slug}`
 
 function formatCompactDate(value: string | null | undefined) {

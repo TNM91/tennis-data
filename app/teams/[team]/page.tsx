@@ -116,7 +116,7 @@ type RosterPlayer = Player & {
 
 const ROSTER_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const ROSTER_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(ROSTER_PLAYER_IDENTITY)
-const ROSTER_LEVEL_UP_HREF = `/level-up/${ROSTER_PLAYER_IDENTITY.slug}`
+const ROSTER_LEVEL_UP_HREF = `/level-up/${ROSTER_PLAYER_IDENTITY.slug}#level-up-flow`
 const ROSTER_PLAYER_DEVELOPMENT_HREF = `/player-development/${ROSTER_PLAYER_IDENTITY.slug}`
 
 type PairingCard = {

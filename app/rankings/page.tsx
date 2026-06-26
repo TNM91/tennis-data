@@ -80,7 +80,7 @@ type RankedPlayer = Player & {
 const RANKINGS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RANKINGS_INLINE || null
 const RANKINGS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const RANKINGS_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(RANKINGS_PLAYER_IDENTITY)
-const RANKINGS_LEVEL_UP_HREF = `/level-up/${RANKINGS_PLAYER_IDENTITY.slug}`
+const RANKINGS_LEVEL_UP_HREF = `/level-up/${RANKINGS_PLAYER_IDENTITY.slug}#level-up-flow`
 const RANKINGS_PLAYER_DEVELOPMENT_HREF = `/player-development/${RANKINGS_PLAYER_IDENTITY.slug}`
 const RANKING_PLAYER_SELECT_BASE = `
   id,

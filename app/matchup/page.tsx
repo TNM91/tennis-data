@@ -157,7 +157,7 @@ const RATING_DIVISOR = 0.45
 const MATCHUP_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE || null
 const MATCHUP_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const MATCHUP_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(MATCHUP_PLAYER_IDENTITY)
-const MATCHUP_LEVEL_UP_HREF = `/level-up/${MATCHUP_PLAYER_IDENTITY.slug}`
+const MATCHUP_LEVEL_UP_HREF = `/level-up/${MATCHUP_PLAYER_IDENTITY.slug}#level-up-flow`
 const MATCHUP_PLAYER_DEVELOPMENT_HREF = `/player-development/${MATCHUP_PLAYER_IDENTITY.slug}`
 const MATCHUP_PLAYER_SELECT_BASE = `
   id,

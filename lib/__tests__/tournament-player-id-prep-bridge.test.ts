@@ -16,7 +16,7 @@ describe('Tournament Player ID prep bridge', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const TOURNAMENT_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('pressure-closer-4-0')")
     expect(source).toContain('const TOURNAMENT_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TOURNAMENT_PLAYER_IDENTITY)')
-    expect(source).toContain('const TOURNAMENT_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const TOURNAMENT_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const TOURNAMENT_PLAYER_DEVELOPMENT_HREF = `/player-development/${TOURNAMENT_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('aria-label="Tournament Player ID prep bridge"')
     expect(source).toContain('aria-label="Tournament Player ID starter read"')

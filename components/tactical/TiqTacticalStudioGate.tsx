@@ -11,7 +11,7 @@ import styles from './TiqTacticalStudio.module.css'
 
 const TACTICS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('smart-attacker-4-0-to-4-5')
 const TACTICS_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TACTICS_PLAYER_IDENTITY)
-const TACTICS_LEVEL_UP_HREF = `/level-up/${TACTICS_PLAYER_IDENTITY.slug}`
+const TACTICS_LEVEL_UP_HREF = `/level-up/${TACTICS_PLAYER_IDENTITY.slug}#level-up-flow`
 const TACTICS_PLAYER_DEVELOPMENT_HREF = `/player-development/${TACTICS_PLAYER_IDENTITY.slug}`
 const tacticsPlayerIdStarterRead = [
   { label: 'Court pattern', value: TACTICS_PLAYER_IDENTITY_READ.trainingPriority },

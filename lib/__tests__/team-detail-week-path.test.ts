@@ -45,7 +45,7 @@ describe('team detail week path', () => {
     expect(source).toContain('Use the same player IDs for availability, lineup building, pairing choices, and Data Assist review.')
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const ROSTER_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
-    expect(source).toContain('const ROSTER_LEVEL_UP_HREF = `/level-up/${ROSTER_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const ROSTER_LEVEL_UP_HREF = `/level-up/${ROSTER_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const ROSTER_PLAYER_DEVELOPMENT_HREF = `/player-development/${ROSTER_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('Roster Player ID starter')
     expect(source).toContain('aria-label="Roster Player ID starter read"')

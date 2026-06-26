@@ -119,7 +119,7 @@ const resourceFaqItems = [
 
 const RESOURCE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const RESOURCE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(RESOURCE_PLAYER_IDENTITY)
-const RESOURCE_LEVEL_UP_HREF = `/level-up/${RESOURCE_PLAYER_IDENTITY.slug}`
+const RESOURCE_LEVEL_UP_HREF = `/level-up/${RESOURCE_PLAYER_IDENTITY.slug}#level-up-flow`
 const RESOURCE_PLAYER_DEVELOPMENT_HREF = `/player-development/${RESOURCE_PLAYER_IDENTITY.slug}`
 const resourcePlayerIdStarterRead = [
   { label: 'Train first', value: RESOURCE_PLAYER_IDENTITY_READ.trainingPriority },

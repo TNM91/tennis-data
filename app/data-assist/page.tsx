@@ -120,7 +120,7 @@ const dataAssistUploadStateProof = [
 
 const DATA_ASSIST_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const DATA_ASSIST_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(DATA_ASSIST_PLAYER_IDENTITY)
-const DATA_ASSIST_LEVEL_UP_HREF = `/level-up/${DATA_ASSIST_PLAYER_IDENTITY.slug}`
+const DATA_ASSIST_LEVEL_UP_HREF = `/level-up/${DATA_ASSIST_PLAYER_IDENTITY.slug}#level-up-flow`
 const DATA_ASSIST_PLAYER_DEVELOPMENT_HREF = `/player-development/${DATA_ASSIST_PLAYER_IDENTITY.slug}`
 const dataAssistPlayerIdStarterRead = [
   { label: 'Train first', value: DATA_ASSIST_PLAYER_IDENTITY_READ.trainingPriority },

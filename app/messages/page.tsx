@@ -65,7 +65,7 @@ type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'syst
 const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
 const MESSAGES_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const MESSAGES_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(MESSAGES_PLAYER_IDENTITY)
-const MESSAGES_LEVEL_UP_HREF = `/level-up/${MESSAGES_PLAYER_IDENTITY.slug}`
+const MESSAGES_LEVEL_UP_HREF = `/level-up/${MESSAGES_PLAYER_IDENTITY.slug}#level-up-flow`
 const MESSAGES_PLAYER_DEVELOPMENT_HREF = `/player-development/${MESSAGES_PLAYER_IDENTITY.slug}`
 const MESSAGES_PLAYER_ID_READ = [
   { label: 'Thread focus', value: MESSAGES_PLAYER_IDENTITY_READ.trainingPriority },

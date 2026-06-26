@@ -83,7 +83,7 @@ type PlayerCard = PlayerRow & {
 
 const DIRECTORY_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const DIRECTORY_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(DIRECTORY_PLAYER_IDENTITY)
-const DIRECTORY_LEVEL_UP_HREF = `/level-up/${DIRECTORY_PLAYER_IDENTITY.slug}`
+const DIRECTORY_LEVEL_UP_HREF = `/level-up/${DIRECTORY_PLAYER_IDENTITY.slug}#level-up-flow`
 const DIRECTORY_PLAYER_DEVELOPMENT_HREF = `/player-development/${DIRECTORY_PLAYER_IDENTITY.slug}`
 
 const PLAYERS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLINE || null

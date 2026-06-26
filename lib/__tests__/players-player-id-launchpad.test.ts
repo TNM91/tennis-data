@@ -31,7 +31,7 @@ describe('Players Player ID launchpad', () => {
   it('adds a direct Level Up starter path before search results', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const DIRECTORY_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
-    expect(source).toContain('const DIRECTORY_LEVEL_UP_HREF = `/level-up/${DIRECTORY_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const DIRECTORY_LEVEL_UP_HREF = `/level-up/${DIRECTORY_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const DIRECTORY_PLAYER_DEVELOPMENT_HREF = `/player-development/${DIRECTORY_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('Player ID starter path')
     expect(source).toContain('aria-label="Player ID starter read"')

@@ -41,6 +41,7 @@ describe('tournament preferences consent checklist', () => {
     expect(source).toContain("getPlayerDevelopmentIdentity('pressure-closer-4-0')")
     expect(source).toContain('TOURNAMENT_ALERT_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TOURNAMENT_ALERT_PLAYER_IDENTITY)')
     expect(source).toContain('TOURNAMENT_ALERT_LEVEL_UP_HREF')
+    expect(source).toContain('const TOURNAMENT_ALERT_LEVEL_UP_HREF = `/level-up/${TOURNAMENT_ALERT_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('TOURNAMENT_ALERT_PLAYER_DEVELOPMENT_HREF')
     expect(source).toContain('aria-label="Tournament alerts Player ID follow-through"')
     expect(source).toContain('aria-label="Tournament alerts Player ID starter read"')

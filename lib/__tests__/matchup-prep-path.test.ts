@@ -34,7 +34,7 @@ describe('matchup prep path', () => {
     expect(source).toContain('Use the matchup edge in My Lab, Level Up work, captain prep, or team decisions.')
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const MATCHUP_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
-    expect(source).toContain('const MATCHUP_LEVEL_UP_HREF = `/level-up/${MATCHUP_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const MATCHUP_LEVEL_UP_HREF = `/level-up/${MATCHUP_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const MATCHUP_PLAYER_DEVELOPMENT_HREF = `/player-development/${MATCHUP_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('Player ID matchup starter')
     expect(source).toContain('aria-label="Matchup Player ID starter read"')

@@ -62,7 +62,7 @@ import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
 const CAPTAIN_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const CAPTAIN_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(CAPTAIN_PLAYER_IDENTITY)
-const CAPTAIN_LEVEL_UP_HREF = `/level-up/${CAPTAIN_PLAYER_IDENTITY.slug}`
+const CAPTAIN_LEVEL_UP_HREF = `/level-up/${CAPTAIN_PLAYER_IDENTITY.slug}#level-up-flow`
 const CAPTAIN_PLAYER_DEVELOPMENT_HREF = `/player-development/${CAPTAIN_PLAYER_IDENTITY.slug}`
 const captainPlayerIdStarterRead = [
   { label: 'Train first', value: CAPTAIN_PLAYER_IDENTITY_READ.trainingPriority },
