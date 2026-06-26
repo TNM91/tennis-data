@@ -1453,7 +1453,7 @@ function CoachContent() {
               Message
             </Link>
           ) : card.pendingInvite ? (
-            <a href={card.pendingInvite.inviteHref} style={actionLinkStyle}>Setup link</a>
+            <a href={card.pendingInvite.inviteHref} style={actionLinkStyle}>Preview setup page</a>
           ) : null}
         </div>
       </article>
@@ -1570,7 +1570,7 @@ function CoachContent() {
               Message
             </Link>
           ) : card.pendingInvite ? (
-            <a href={card.pendingInvite.inviteHref} style={mobileBenchSecondaryActionStyle}>Setup link</a>
+            <a href={card.pendingInvite.inviteHref} style={mobileBenchSecondaryActionStyle}>Preview setup</a>
           ) : null}
           {card.pendingInvite ? (
             <button
@@ -2005,12 +2005,12 @@ function CoachContent() {
                   <Link href={getCoachPlannerHref(student.identitySlug)} style={studentActionStyle}>Open path</Link>
                   {setupInvite ? (
                     <>
-                      <a href={setupInvite.inviteHref} style={studentActionStyle}>Setup link</a>
                       {student.playerPhone ? (
                         <SmsActionLink phone={student.playerPhone} body={buildCoachSetupText(setupInvite.inviteHref)} style={studentActionStyle}>
-                          Text setup
+                          Text setup link
                         </SmsActionLink>
                       ) : null}
+                      <a href={setupInvite.inviteHref} style={studentActionStyle}>Preview setup page</a>
                       <button
                         type="button"
                         onClick={() => void copyCoachText(
@@ -2075,7 +2075,6 @@ function CoachContent() {
               <strong>{invite.inviteEmail || inviteStudent?.playerName || 'Coach invite link'}</strong>
               <span>{getInviteStatusLabel(invite.status)}</span>
               <div style={studentActionRowStyle}>
-                <a href={invite.inviteHref} style={studentActionStyle}>Open setup link</a>
                 {inviteStudent?.playerPhone ? (
                   <SmsActionLink
                     phone={inviteStudent.playerPhone}
@@ -2085,6 +2084,7 @@ function CoachContent() {
                     Text setup link
                   </SmsActionLink>
                 ) : null}
+                <a href={invite.inviteHref} style={studentActionStyle}>Preview setup page</a>
                 {inviteStudent ? (
                   <button
                     type="button"
