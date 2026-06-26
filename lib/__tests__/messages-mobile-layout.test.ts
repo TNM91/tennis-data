@@ -209,6 +209,8 @@ describe('Messages mobile layout guards', () => {
     expect(source).toContain('My Lab first assignment request')
     expect(source).toContain('This thread stays tied to the coach-player connection.')
     expect(source).toContain('Send assignment request')
+    expect(source).toContain('Assignment request sent. Your coach can reply in this coach-player thread.')
+    expect(source).toContain('Coach handoff sent. This thread stays tied to the coach-player connection.')
     expect(source).toContain('canSubmitNewConversation')
     expect(source).toContain('Find player')
     expect(source).toContain('No TenAceIQ users matched that name or ID.')

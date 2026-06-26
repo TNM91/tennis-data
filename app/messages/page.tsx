@@ -1391,6 +1391,14 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         })
       }
 
+      const sentMessage = composeMode === 'support'
+        ? 'Support thread opened.'
+        : isFirstAssignmentRequest
+          ? 'Assignment request sent. Your coach can reply in this coach-player thread.'
+          : isCoachLinkCompose
+            ? 'Coach handoff sent. This thread stays tied to the coach-player connection.'
+            : 'Conversation started.'
+
       setBody('')
       setSubject(composeMode === 'support' ? 'Support request' : '')
       setRecipient(null)
@@ -1400,7 +1408,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       selectConversation(conversationId)
       await loadInbox()
       selectConversation(conversationId)
-      setMessage(composeMode === 'support' ? 'Support thread opened.' : 'Conversation started.')
+      setMessage(sentMessage)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Message could not be sent.')
     } finally {
