@@ -99,10 +99,11 @@ describe('auth entry mobile layout guards', () => {
     const source = sources.get('app/join/page.tsx')!
 
     expect(source).toContain("const requestedEmail = searchParams.get('email')?.trim() ?? ''")
-    expect(source).toContain('const loginParams = new URLSearchParams({')
-    expect(source).toContain("if (requestedEmail) loginParams.set('email', requestedEmail)")
-    expect(source).toContain('const signInHref = `/login?${loginParams.toString()}`')
-    expect(source).toContain('router.push(signInHref)')
+    expect(source).toContain('function buildJoinLoginHref(planId: MembershipTierId, nextHref: string, email = \'\')')
+    expect(source).toContain('const cleanEmail = email.trim()')
+    expect(source).toContain("if (cleanEmail) loginParams.set('email', cleanEmail)")
+    expect(source).toContain('const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)')
+    expect(source).toContain('router.push(buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail))')
     expect(source).toContain('href={signInHref}')
   })
 

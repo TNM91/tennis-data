@@ -112,6 +112,16 @@ function getDefaultSignedInRoute(
   return '/mylab'
 }
 
+function buildJoinLoginHref(planId: MembershipTierId, nextHref: string, email = '') {
+  const loginParams = new URLSearchParams({
+    plan: planId,
+    next: nextHref,
+  })
+  const cleanEmail = email.trim()
+  if (cleanEmail) loginParams.set('email', cleanEmail)
+  return `/login?${loginParams.toString()}`
+}
+
 export default function JoinPage() {
   return (
     <SiteShell active="/join">
@@ -143,12 +153,7 @@ function JoinContent() {
   const selectedIntent = JOIN_INTENT_COPY[selectedPlanId]
   const selectedTier = getMembershipTier(selectedPlanId)
   const selectedNextRoute = isSafeLocalNextHref(searchParams.get('next'), getJoinNextRoute(selectedPlanId))
-  const loginParams = new URLSearchParams({
-    plan: selectedPlanId,
-    next: selectedNextRoute,
-  })
-  if (requestedEmail) loginParams.set('email', requestedEmail)
-  const signInHref = `/login?${loginParams.toString()}`
+  const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
   const authLoading = !authResolved
 
   useEffect(() => {
@@ -204,7 +209,7 @@ function JoinContent() {
 
       setMessage(selectedIntent.success)
       setTimeout(() => {
-        router.push(signInHref)
+        router.push(buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail))
       }, 1000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
