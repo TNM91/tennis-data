@@ -4438,6 +4438,33 @@ function LevelUpReturnStatePanel({
       body: signedIn ? 'Sync history can support Player or coach-linked follow-up.' : 'Sign in before expecting proof to follow this phone.',
     },
   ]
+  const proofHandoffItems = [
+    {
+      label: 'Repeat',
+      title: latestProof ? latestProof.nextAction : 'Start the first proof',
+      body: latestProof ? `Use ${latestProof.cardTitle} again before changing the plan.` : 'Run one card, score it, and let My Lab remember the cue.',
+      href: todayHabitDrillHref,
+      action: latestProof ? 'Repeat card' : 'Start card',
+    },
+    {
+      label: 'Habit',
+      title: 'Make it weekly',
+      body: activeHabitPath
+        ? `${activeHabitPath.weeklyTarget} keeps this from becoming a one-off rep.`
+        : 'Turn the rep into a small weekly quest with proof.',
+      href: todayHabitQuestHref,
+      action: 'Build habit',
+    },
+    {
+      label: 'Coach',
+      title: signedIn ? 'Share the useful signal' : 'Sign in before handoff',
+      body: signedIn
+        ? 'Coach-linked proof can support assignment recaps and the next lesson ask.'
+        : 'Local proof stays on this device until Player or coach invite sync is available.',
+      href: signedIn ? '/mylab#coach-assignments' : '/login',
+      action: signedIn ? 'Coach work' : 'Sign in',
+    },
+  ]
   const refreshProofItems = [
     {
       label: 'Identity',
@@ -4512,6 +4539,23 @@ function LevelUpReturnStatePanel({
             <p style={myLabRefreshProofTextStyle}>{item.body}</p>
           </div>
         ))}
+      </div>
+
+      <div style={myLabProofHandoffStyle} aria-label="My Lab Level Up proof handoff">
+        <div style={myLabTodayFeedHeaderStyle}>
+          <span style={metricLabelStyle}>Proof handoff</span>
+          <strong style={levelUpReturnStorageNoteStrongStyle}>Decide where the saved work goes next.</strong>
+        </div>
+        <div style={myLabProofHandoffGridStyle}>
+          {proofHandoffItems.map((item) => (
+            <Link key={item.label} href={item.href} style={myLabProofHandoffCardStyle}>
+              <span style={myLabRefreshProofLabelStyle}>{item.label}</span>
+              <strong style={levelUpReturnPrimaryTitleStyle}>{item.title}</strong>
+              <p style={myLabRefreshProofTextStyle}>{item.body}</p>
+              <small style={myLabTodayFeedActionStyle}>{item.action}</small>
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div style={myLabLevelUpTodayCardStyle} aria-label="Today's Level Up card">
@@ -6319,6 +6363,25 @@ const myLabTodayFeedActionStyle: CSSProperties = {
   lineHeight: 1.1,
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const myLabProofHandoffStyle: CSSProperties = {
+  ...myLabTodayFeedStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 26%, var(--shell-panel-border) 74%)',
+  background: 'linear-gradient(135deg, rgba(116,190,255,0.11), rgba(155,225,29,0.07))',
+}
+
+const myLabProofHandoffGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const myLabProofHandoffCardStyle: CSSProperties = {
+  ...myLabTodayFeedCardStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-panel-bg) 91%)',
 }
 
 const myLabLevelUpTodayCardStyle: CSSProperties = {
