@@ -438,6 +438,47 @@
   overflow-wrap: anywhere;
 }
 
+.playerIdOnCourtBrief {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.playerIdOnCourtBrief article {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: 14px;
+  background: rgba(155, 225, 29, 0.07);
+  padding: 13px;
+  overflow-wrap: anywhere;
+}
+
+.playerIdOnCourtBrief span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playerIdOnCourtBrief strong {
+  color: var(--foreground-strong);
+  font-size: 0.92rem;
+  line-height: 1.16;
+  font-weight: 950;
+}
+
+.playerIdOnCourtBrief p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.8rem;
+  line-height: 1.42;
+}
+
 .playerIdLevelUpBridge {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
@@ -14364,6 +14405,10 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .playerIdOnCourtBrief {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .playerIdLevelUpBridge {
     grid-template-columns: 1fr;
   }
@@ -14479,6 +14524,10 @@
   .levelUpNextRepCommand,
   .levelUpNextRepCommandSignals,
   .levelUpNextRepCommandActions {
+    grid-template-columns: 1fr;
+  }
+
+  .playerIdOnCourtBrief {
     grid-template-columns: 1fr;
   }
 

@@ -28,6 +28,19 @@ describe('Level Up Player ID proof trail', () => {
     expect(source).toContain('The identity is not complete until it shows up in the score moment where the player usually leaks.')
   })
 
+  it('adds an on-court brief that turns Player ID into next actions', () => {
+    expect(source).toContain('playerIdOnCourtBrief')
+    expect(source).toContain('Level Up Player ID on-court brief')
+    expect(source).toContain('Before practice')
+    expect(source).toContain('During the rep')
+    expect(source).toContain('After the score')
+    expect(source).toContain('Coach handoff')
+    expect(source).toContain('Use ${primaryWeapon} as the intention')
+    expect(source).toContain('Score the proof target in plain tennis language')
+    expect(source).toContain('Carry the cue into My Lab, matchup prep, or the next practice note')
+    expect(source).toContain('Give the coach one saved proof point instead of a generic lesson recap.')
+  })
+
   it('keeps the proof trail compact and mobile-safe', () => {
     expect(styles).toContain('.playerIdProofTrail')
     expect(cssBlock('.playerIdProofTrail')).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr))')
@@ -35,5 +48,14 @@ describe('Level Up Player ID proof trail', () => {
     expect(cssBlock('.playerIdProofTrail article')).toContain('min-width: 0')
     expect(cssBlock('.playerIdProofTrail article')).toContain('overflow-wrap: anywhere')
     expect(cssBlock('.playerIdProofTrail p')).toContain('line-height: 1.42')
+  })
+
+  it('keeps the on-court brief compact and phone-safe', () => {
+    expect(styles).toContain('.playerIdOnCourtBrief')
+    expect(cssBlock('.playerIdOnCourtBrief')).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))')
+    expect(cssBlock('.playerIdOnCourtBrief')).toContain('min-width: 0')
+    expect(cssBlock('.playerIdOnCourtBrief article')).toContain('overflow-wrap: anywhere')
+    expect(styles).toContain('.playerIdOnCourtBrief {\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
+    expect(styles).toContain('.playerIdOnCourtBrief {\n    grid-template-columns: 1fr;')
   })
 })

@@ -62,6 +62,30 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
     ['Proof', firstRecommendedCard?.proof ?? actionRead.proofTarget],
     ['Save to', 'My Lab proof trail'],
   ] as const
+  const primaryWeapon = identity.identityProfile.primaryWeapons[0] ?? actionRead.title
+  const primaryLeak = identity.identityProfile.styleLeaks[0] ?? actionRead.leakWatch
+  const playerIdOnCourtBrief = [
+    {
+      label: 'Before practice',
+      title: actionRead.trainingPriority,
+      body: `Use ${primaryWeapon} as the intention, then name the leak before the rep starts: ${primaryLeak}`,
+    },
+    {
+      label: 'During the rep',
+      title: firstRecommendedCard?.title ?? actionRead.title,
+      body: `Score the proof target in plain tennis language: ${firstRecommendedCard?.proof ?? actionRead.proofTarget}`,
+    },
+    {
+      label: 'After the score',
+      title: actionRead.nextCue,
+      body: `Carry the cue into My Lab, matchup prep, or the next practice note so the Player ID stays useful.`,
+    },
+    {
+      label: 'Coach handoff',
+      title: actionRead.coachPrompt,
+      body: 'Give the coach one saved proof point instead of a generic lesson recap.',
+    },
+  ] as const
   const questBuilder = buildLevelUpQuestBuilderPlan(identity.slug)
   const habitPaths = buildLevelUpHabitPaths(identity.slug)
   const playerTier = MEMBERSHIP_TIERS.player_plus
@@ -264,6 +288,15 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
               <article key={label}>
                 <span>{label}</span>
                 <strong>{value}</strong>
+              </article>
+            ))}
+          </div>
+          <div className={styles.playerIdOnCourtBrief} aria-label="Level Up Player ID on-court brief">
+            {playerIdOnCourtBrief.map((item) => (
+              <article key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.title}</strong>
+                <p>{item.body}</p>
               </article>
             ))}
           </div>
