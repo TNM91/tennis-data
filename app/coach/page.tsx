@@ -1493,7 +1493,7 @@ function CoachContent() {
     const playerTextBody = `Let's confirm your next lesson. Date/time:  Site:  Focus: `
     const setupTextBody = card.pendingInvite ? buildCoachSetupText(card.pendingInvite.inviteHref) : ''
     const mobileTextBody = setupTextBody || playerTextBody
-    const mobileTextLabel = card.pendingInvite ? 'Text setup' : 'Text'
+    const mobileTextLabel = card.pendingInvite ? 'Text setup link' : 'Text'
 
     return (
       <div style={mobileBenchCommandCenterStyle} aria-label={`Active player workspace for ${card.student.playerName}`}>
@@ -1516,6 +1516,12 @@ function CoachContent() {
               ? 'Waiting on player. Text the setup link, then load the first Level Up assignment.'
               : 'Choose the next measurable action before the player leaves the court.'}
         </p>
+        {card.pendingInvite ? (
+          <div style={mobileBenchSetupCueStyle} aria-label={`Setup next steps for ${card.student.playerName}`}>
+            <strong>Setup waiting</strong>
+            <span>Use Text setup link below. The player opens it, adds their email, and connects this coach relationship.</span>
+          </div>
+        ) : null}
         <div style={mobileBenchIdentityReadStyle} aria-label={`Mobile Player ID action read for ${card.student.playerName}`}>
           <span style={coachBenchIdentityLabelStyle}>Train first</span>
           <strong style={coachBenchIdentityValueStyle}>{identityRead.title}</strong>
@@ -4621,6 +4627,21 @@ const mobileBenchCommandCopyStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.35,
   fontWeight: 750,
+}
+
+const mobileBenchSetupCueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: '10px 11px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--shell-copy)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
 }
 
 const mobileBenchIdentityReadStyle: CSSProperties = {
