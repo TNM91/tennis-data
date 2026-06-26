@@ -58,4 +58,13 @@ describe('Level Up Player ID proof trail', () => {
     expect(styles).toContain('.playerIdOnCourtBrief {\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
     expect(styles).toContain('.playerIdOnCourtBrief {\n    grid-template-columns: 1fr;')
   })
+
+  it('keeps the coach assignment Player ID read compact and phone-safe', () => {
+    expect(styles).toContain('.liveAssignmentPlayerIdRead')
+    expect(cssBlock('.liveAssignmentPlayerIdRead')).toContain('grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr)')
+    expect(cssBlock('.liveAssignmentPlayerIdRead')).toContain('min-width: 0')
+    expect(cssBlock('.liveAssignmentPlayerIdRead article')).toContain('overflow-wrap: anywhere')
+    expect(styles).toContain('.liveAssignmentPlayerIdRead,')
+    expect(styles).toContain('.liveAssignmentPlayerIdGrid,')
+  })
 })

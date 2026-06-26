@@ -9547,6 +9547,64 @@
   white-space: nowrap;
 }
 
+.liveAssignmentPlayerIdRead {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  gap: 12px;
+  align-items: stretch;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 94% 10%, rgba(155, 225, 29, 0.12), transparent 34%),
+    rgba(255, 255, 255, 0.045);
+  padding: 14px;
+  min-width: 0;
+}
+
+.liveAssignmentPlayerIdGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.liveAssignmentPlayerIdRead article {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 13px;
+  background: rgba(5, 16, 31, 0.32);
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+
+.liveAssignmentPlayerIdRead span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 7px 10px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.liveAssignmentPlayerIdRead strong {
+  display: block;
+  margin: 8px 0 0;
+  color: var(--foreground-strong);
+  line-height: 1.18;
+}
+
+.liveAssignmentPlayerIdRead p {
+  margin: 7px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.87rem;
+  line-height: 1.45;
+}
+
 .liveWorkbenchHero h2 {
   margin: 8px 0 0;
   color: var(--foreground-strong);
@@ -14368,6 +14426,7 @@
   .liveCoachLoop,
   .liveProgressPanel,
   .liveAccessPanel,
+  .liveAssignmentPlayerIdRead,
   .liveAssignmentBanner,
   .liveSavedBanner,
   .liveUnlockPanel,
@@ -15599,6 +15658,8 @@
   .levelUpCoachAssignmentBridge,
   .liveAccessPanel,
   .liveAccessGrid,
+  .liveAssignmentPlayerIdRead,
+  .liveAssignmentPlayerIdGrid,
   .liveAssignmentStatusRail,
   .liveAssignmentBanner,
   .liveSavedBanner,

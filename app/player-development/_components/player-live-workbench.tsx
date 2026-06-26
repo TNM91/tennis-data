@@ -655,6 +655,22 @@ export default function PlayerLiveWorkbench({
         },
       ]
     : []
+  const assignmentPlayerIdRead = hasCoachAssignment
+    ? [
+        {
+          label: 'Train first',
+          detail: assignmentFocus || activeDrill.summary || activeFocus.cue,
+        },
+        {
+          label: 'Proof target',
+          detail: activeDrill.proof || 'Rate the rep 0-5 and save the one visible tennis signal.',
+        },
+        {
+          label: 'Coach follow-up',
+          detail: 'Send what changed, what leaked, and the next rep you want assigned.',
+        },
+      ]
+    : []
 
   return (
     <section className={styles.liveWorkbench} data-assignment={hasCoachAssignment ? 'true' : 'false'} aria-labelledby="live-workbench-title">
@@ -795,6 +811,24 @@ export default function PlayerLiveWorkbench({
             <p>{workTypeLabels[workType]} is ready. Do the work, rate it 0-5, add one tiny note if it helps, and save. When linked, this marks the assignment complete for your coach.</p>
           </div>
           <a className="button-secondary" href="/mylab#coach-assignments">Back to My Lab</a>
+        </div>
+      ) : null}
+
+      {assignmentPlayerIdRead.length ? (
+        <div className={styles.liveAssignmentPlayerIdRead} aria-label="Level Up coach assignment Player ID read">
+          <div>
+            <span>Player ID assignment read</span>
+            <strong>Turn the coach link into one train / proof / ask loop.</strong>
+            <p>Stay on the assigned rep, save the proof, then give the coach a clear next action.</p>
+          </div>
+          <div className={styles.liveAssignmentPlayerIdGrid}>
+            {assignmentPlayerIdRead.map((item) => (
+              <article key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.detail}</strong>
+              </article>
+            ))}
+          </div>
         </div>
       ) : null}
 
