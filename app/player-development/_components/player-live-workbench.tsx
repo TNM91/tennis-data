@@ -259,6 +259,9 @@ export default function PlayerLiveWorkbench({
         { label: 'Next use', value: lastSavedSession.sharedWithCoach ? 'Coach-ready proof' : 'My Lab proof trail' },
       ]
     : []
+  const savedDeliverySteps = lastSavedSession
+    ? getSavedDeliverySteps(lastSavedSession, syncState, undoSession?.id === lastSavedSession.id)
+    : []
 
   const handleTimerSnapshotChange = useCallback((snapshot: DrillTimerSnapshot) => {
     setActiveTimerSnapshot((current) => {
@@ -1116,6 +1119,14 @@ export default function PlayerLiveWorkbench({
                   </article>
                 ))}
               </div>
+              <div className={styles.liveSavedDeliveryRail} aria-label="Saved proof delivery status">
+                {savedDeliverySteps.map((step) => (
+                  <article key={step.label} data-state={step.state}>
+                    <span>{step.label}</span>
+                    <strong>{step.value}</strong>
+                  </article>
+                ))}
+              </div>
             </div>
             <div className={styles.liveSavedActions}>
               <button type="button" className="button-primary" onClick={repeatActivity}>
@@ -1727,6 +1738,36 @@ function getSmartNextAction(session: SavedSession, suggestedNextDrill: DrillOpti
       ? 'Good work logged. Move to the paired drill or repeat this one if you want a cleaner score.'
       : 'Good work logged. Repeat once or finish today with a clean proof trail.',
   }
+}
+
+function getSavedDeliverySteps(session: SavedSession, syncState: SyncState, inUndoWindow: boolean) {
+  const destination = session.assignmentId
+    ? 'Coach assignment'
+    : session.accessMode === 'coach_invited' && session.sharedWithCoach
+      ? 'Coach review'
+      : session.accessMode === 'player_plus'
+        ? 'My Lab history'
+        : session.accessMode === 'coach_invited'
+          ? 'Private log'
+          : 'Local preview'
+  const delivery =
+    syncState.status === 'synced'
+      ? 'Delivered'
+      : syncState.status === 'syncing'
+        ? 'Syncing now'
+        : syncState.status === 'error'
+          ? 'Needs retry'
+          : inUndoWindow
+            ? 'Undo window'
+            : session.accessMode === 'free_preview'
+              ? 'Local only'
+              : 'Queued'
+
+  return [
+    { label: 'Saved first', value: 'This device', state: 'saved' },
+    { label: 'Destination', value: destination, state: session.sharedWithCoach ? 'coach' : 'local' },
+    { label: 'Delivery', value: delivery, state: syncState.status },
+  ]
 }
 
 function getFinishSummaryStats(sessions: SavedSession[]) {

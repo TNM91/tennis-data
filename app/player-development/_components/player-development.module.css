@@ -9561,6 +9561,14 @@
   min-width: 0;
 }
 
+.liveSavedDeliveryRail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
 .liveProgressPanel {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -9594,6 +9602,7 @@
 .liveCoachLoop article,
 .liveProgressPanel article,
 .liveSavedIdentitySignals article,
+.liveSavedDeliveryRail article,
 .liveStepPanel,
 .liveCurrentGoal,
 .liveActionCard,
@@ -9621,6 +9630,7 @@
 .liveAssignmentBanner,
 .liveSavedBanner,
 .liveSavedIdentitySignals article,
+.liveSavedDeliveryRail article,
 .liveSyncProofPanel,
 .liveCoachChallengeEntry,
 .liveUnlockPanel,
@@ -9656,6 +9666,7 @@
 .liveProgressPanel span,
 .liveSavedBanner span,
 .liveSavedIdentitySignals span,
+.liveSavedDeliveryRail span,
 .liveSyncProofPanel span,
 .liveSyncProofGrid span,
 .liveUnlockPanel span,
@@ -9685,6 +9696,7 @@
 .liveProgressPanel strong,
 .liveSavedBanner strong,
 .liveSavedIdentitySignals strong,
+.liveSavedDeliveryRail strong,
 .liveSyncProofPanel strong,
 .liveUnlockPanel strong,
 .liveRecentList strong {
@@ -9717,6 +9729,24 @@
   color: var(--muted-strong);
   font-size: 0.87rem;
   line-height: 1.45;
+}
+
+.liveSavedDeliveryRail article {
+  min-width: 0;
+  border-color: rgba(155, 225, 29, 0.2);
+  background: rgba(6, 20, 20, 0.5);
+  overflow-wrap: anywhere;
+}
+
+.liveSavedDeliveryRail article[data-state='synced'],
+.liveSavedDeliveryRail article[data-state='coach'] {
+  border-color: rgba(155, 225, 29, 0.34);
+  background: rgba(155, 225, 29, 0.1);
+}
+
+.liveSavedDeliveryRail article[data-state='error'] {
+  border-color: rgba(255, 139, 139, 0.38);
+  background: rgba(255, 139, 139, 0.1);
 }
 
 .liveLaneTabs {
@@ -15445,6 +15475,7 @@
   .liveAssignmentBanner,
   .liveSavedBanner,
   .liveSavedIdentitySignals,
+  .liveSavedDeliveryRail,
   .liveSyncProofPanel,
   .liveUnlockPanel,
   .liveModeStrip {
