@@ -151,6 +151,8 @@ function PlayerIdActionPlan({ identity }: { identity: PlayerDevelopmentIdentity 
   const actionRead = getPlayerDevelopmentIdentityActionRead(identity)
   const profile = getLevelUpProfileForIdentity(identity.slug)
   const firstCard = LEVEL_UP_CARDS.find((card) => profile.starterCardIds.includes(card.id))
+  const playerDevelopmentLevelUpHref = `/player-development/${identity.slug}/level-up${firstCard ? `?card=${firstCard.id}` : ''}`
+  const drillModeHref = `/level-up/${identity.slug}${firstCard ? `?card=${firstCard.id}#level-up-flow` : '#level-up-flow'}`
   const actionRows = [
     ['Train', actionRead.trainingPriority],
     ['Prove', firstCard?.proof ?? actionRead.proofTarget],
@@ -181,10 +183,10 @@ function PlayerIdActionPlan({ identity }: { identity: PlayerDevelopmentIdentity 
         <small>{firstCard?.useWhen ?? actionRead.matchTrigger}</small>
       </div>
       <div className={styles.playerIdActionPlanActions}>
-        <Link className="button-primary" href={`/player-development/${identity.slug}/level-up${firstCard ? `?card=${firstCard.id}` : ''}`}>
+        <Link className="button-primary" href={playerDevelopmentLevelUpHref}>
           Start Level Up
         </Link>
-        <Link className="button-secondary" href={`/level-up/${identity.slug}`}>
+        <Link className="button-secondary" href={drillModeHref}>
           Open drill mode
         </Link>
       </div>
