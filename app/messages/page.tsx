@@ -498,7 +498,7 @@ function buildConversationContextHref(conversation: InternalConversation | null,
     const contact = coachContacts.find((item) => item.linkId === entityId)
     const assignmentId = conversation.metadata.assignmentId
     const assignmentAnchor = assignmentId ? `#coach-assignment-${encodeURIComponent(assignmentId)}` : ''
-    if (contact?.relationship === 'student') return `/coach${assignmentAnchor}`
+    if (contact?.relationship === 'student') return assignmentAnchor ? `/coach${assignmentAnchor}` : '/coach#coach-linked-dashboard'
     return assignmentAnchor ? `/mylab${assignmentAnchor}` : '/mylab#player-workshop'
   }
   if (entityType === 'billing') return '/profile'
