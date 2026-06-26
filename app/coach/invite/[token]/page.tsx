@@ -269,6 +269,12 @@ function getInviteStatusLabel(status: CoachStudentInvite['status'] | undefined) 
   return 'Loading'
 }
 
+function getInviteStatusBlockMessage(status: CoachStudentInvite['status'] | undefined) {
+  if (status === 'expired') return 'This setup link expired. Ask your coach to send a fresh setup link.'
+  if (status === 'revoked') return 'This setup link is no longer active. Ask your coach to send a new setup link.'
+  return ''
+}
+
 function getInviteNextStep({
   authResolved,
   loading,
@@ -298,6 +304,20 @@ function getInviteNextStep({
     return {
       title: 'Coach connection is active',
       copy: 'Open My Lab to see coach-assigned work, or continue into development paths for self-guided Level Up reps.',
+    }
+  }
+
+  if (status === 'expired') {
+    return {
+      title: 'This setup link expired',
+      copy: 'Ask your coach to text a fresh TenAceIQ setup link from Coach Hub.',
+    }
+  }
+
+  if (status === 'revoked') {
+    return {
+      title: 'This setup link is no longer active',
+      copy: 'Ask your coach to send a new setup link if they still want this player account connected.',
     }
   }
 
@@ -341,14 +361,17 @@ function CoachInviteContent() {
   const invitedEmailLabel = invite?.inviteEmail || 'Open invite'
   const signedInAccountLabel = getSignedInAccountLabel(signedInEmail, userId)
   const inviteAccountMatch = getInviteAccountMatch(invite?.inviteEmail ?? '', signedInEmail, Boolean(userId))
+  const inviteNotPending = Boolean(invite?.status && invite.status !== 'pending' && invite.status !== 'accepted')
   const inviteEmailMismatch = Boolean(
     invite?.inviteEmail &&
     userId &&
     signedInEmail.trim().toLowerCase() !== invite.inviteEmail.trim().toLowerCase(),
   )
-  const acceptBlockedMessage = inviteEmailMismatch
-    ? `This setup link is for ${invite?.inviteEmail}. Sign in with that email to accept the coach connection.`
-    : ''
+  const acceptBlockedMessage = inviteNotPending
+    ? getInviteStatusBlockMessage(invite?.status)
+    : inviteEmailMismatch
+      ? `This setup link is for ${invite?.inviteEmail}. Sign in with that email to accept the coach connection.`
+      : ''
   const acceptButtonDisabled = accepting || Boolean(acceptBlockedMessage)
 
   const loadInvite = useCallback(async () => {
@@ -493,6 +516,15 @@ function CoachInviteContent() {
                     </Link>
                   </>
                 )
+              ) : inviteNotPending ? (
+                <>
+                  <Link href="/player-development" style={pageStyles.primaryButton}>
+                    Open development paths
+                  </Link>
+                  <Link href="/contact" style={pageStyles.secondaryButton}>
+                    Contact TenAceIQ
+                  </Link>
+                </>
               ) : (
                 <>
                   <button
