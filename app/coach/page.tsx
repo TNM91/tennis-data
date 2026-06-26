@@ -1295,6 +1295,25 @@ function CoachContent() {
     () => buildAssignmentProofListMap(levelUpSessions),
     [levelUpSessions],
   )
+  const firstProofReviewCommand = useMemo(
+    () => {
+      for (const assignment of sortedAssignments) {
+        const proof = assignmentProofById.get(assignment.id)
+        if (!proof) continue
+        const student = savedStudents.find((candidate) => candidate.id === assignment.studentLinkId)
+        const draft = buildLevelUpProofReviewDraft(proof, assignment)
+        return {
+          assignment,
+          proof,
+          student,
+          draft,
+          href: `#coach-assignment-${assignment.id}`,
+        }
+      }
+      return null
+    },
+    [assignmentProofById, savedStudents, sortedAssignments],
+  )
   const activeAssignmentsCount = assignments.filter((assignment) => assignment.status === 'assigned').length
   const reviewedAssignmentsCount = assignments.filter((assignment) => Boolean(getCoachAssignmentReview(assignment.assignment))).length
   const recentLevelUpSessions = useMemo(() => levelUpSessions.slice(0, 3), [levelUpSessions])
@@ -2310,6 +2329,50 @@ function CoachContent() {
     )
   }
 
+  function renderProofReviewCommand() {
+    if (!firstProofReviewCommand) return null
+
+    const { assignment, proof, student, draft, href } = firstProofReviewCommand
+    return (
+      <article style={proofReviewCommandStyle} aria-label="Coach proof review command">
+        <div style={proofReviewCommandHeaderStyle}>
+          <div>
+            <span style={eyebrowStyle}>Proof to review first</span>
+            <strong>{student?.playerName || 'Linked player'}: {assignment.title}</strong>
+            <p style={bodyStyle}>
+              {proof.drillTitle} came back {proof.rating}/5. Use the proof note, choose the response, then assign the next clean rep.
+            </p>
+          </div>
+          <span style={proofScoreBadgeStyle(proof.rating)}>{proof.rating}/5</span>
+        </div>
+        <div style={proofReviewCommandGridStyle}>
+          <span style={proofReviewCommandItemStyle}>
+            <strong>Player proof</strong>
+            <em>{proof.note || `${proof.focusTitle} / ${formatClock(proof.elapsedSeconds)} / ${proof.feeling}`}</em>
+          </span>
+          <span style={proofReviewCommandItemStyle}>
+            <strong>Coach response</strong>
+            <em>{draft.note}</em>
+          </span>
+          <span style={proofReviewCommandItemStyle}>
+            <strong>Next assignment</strong>
+            <em>{draft.nextMove.title}</em>
+          </span>
+        </div>
+        <div style={proofNextMoveActionRowStyle}>
+          <a href={href} style={smallPrimaryLinkStyle}>Review proof</a>
+          <button
+            type="button"
+            onClick={() => loadNextAssignmentFromProof(assignment, proof, draft)}
+            style={smallGhostButtonStyle}
+          >
+            Load next assignment
+          </button>
+        </div>
+      </article>
+    )
+  }
+
   function renderOptionalPlanningHelpers() {
     return (
       <>
@@ -2867,6 +2930,7 @@ function CoachContent() {
               {assignmentReviewQueueOpen ? (
                 <>
               {isMobile ? renderReviewQueueMetrics() : null}
+              {renderProofReviewCommand()}
           <div style={assignmentListStyle}>
             {recentLevelUpSessions.length ? (
               <article style={assignmentCardStyle}>
@@ -5790,6 +5854,49 @@ const proofReplyPlanItemStyle: CSSProperties = {
   borderRadius: 12,
   border: '1px solid rgba(255,255,255,0.1)',
   background: 'rgba(5,11,22,0.3)',
+  color: 'var(--shell-copy)',
+  fontSize: 12,
+  fontWeight: 750,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const proofReviewCommandStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.26)',
+  background:
+    'radial-gradient(circle at 96% 10%, rgba(155,225,29,0.16), transparent 34%), linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.06))',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const proofReviewCommandHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const proofReviewCommandGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  minWidth: 0,
+}
+
+const proofReviewCommandItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 13,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(5,11,22,0.32)',
   color: 'var(--shell-copy)',
   fontSize: 12,
   fontWeight: 750,

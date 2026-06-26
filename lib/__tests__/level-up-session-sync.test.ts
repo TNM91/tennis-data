@@ -91,6 +91,14 @@ describe('Level Up session sync', () => {
     expect(coachPageSource).toContain('proofReplyPlanGridStyle')
     expect(coachPageSource).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
     expect(coachPageSource).toContain('proofReplyPlanItemStyle')
+    expect(coachPageSource).toContain('firstProofReviewCommand')
+    expect(coachPageSource).toContain('Coach proof review command')
+    expect(coachPageSource).toContain('Proof to review first')
+    expect(coachPageSource).toContain('Use the proof note, choose the response, then assign the next clean rep.')
+    expect(coachPageSource).toContain('proofReviewCommandStyle')
+    expect(coachPageSource).toContain('proofReviewCommandGridStyle')
+    expect(coachPageSource).toContain('proofReviewCommandItemStyle')
+    expect(coachPageSource).toContain('Review proof')
   })
 
   it('recommends and preloads the next coach assignment from Level Up proof', () => {
