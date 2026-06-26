@@ -309,6 +309,12 @@ function PlayerIdentitySnapshot({ identity }: { identity: PlayerDevelopmentIdent
     ['Style leak', actionRead.leakWatch],
     ['Match trigger', actionRead.matchTrigger],
   ] as const
+  const firstStarterCard = starterCards[0]
+  const handoffRows = [
+    ['Log', firstStarterCard?.proof ?? actionRead.proofTarget],
+    ['Ask', actionRead.coachPrompt],
+    ['Try next', actionRead.nextCue],
+  ] as const
 
   return (
     <section className={styles.playerIdSnapshot} aria-labelledby="player-id-snapshot-title">
@@ -359,6 +365,29 @@ function PlayerIdentitySnapshot({ identity }: { identity: PlayerDevelopmentIdent
           <strong>{actionRead.matchTrigger}</strong>
           <p>Do not wait for a perfect drill block. Test the identity when the match asks for it.</p>
         </article>
+      </div>
+      <div className={styles.playerIdHandoffBoard} aria-label="Player ID handoff board">
+        <div>
+          <span>Profile ID handoff</span>
+          <strong>Make the next touchpoint easier.</strong>
+          <p>Use the same three signals when you log Level Up work, message a coach, or prep the next match.</p>
+        </div>
+        <div className={styles.playerIdHandoffGrid}>
+          {handoffRows.map(([label, value]) => (
+            <article key={label}>
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </article>
+          ))}
+        </div>
+        <div className={styles.playerIdHandoffActions}>
+          <Link className="button-primary" href={`/player-development/${identity.slug}/level-up${firstStarterCard ? `?card=${firstStarterCard.id}` : ''}`}>
+            Log this proof
+          </Link>
+          <Link className="button-secondary" href="/mylab#coach-assignments">
+            Open coach work
+          </Link>
+        </div>
       </div>
     </section>
   )

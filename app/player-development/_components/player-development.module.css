@@ -557,6 +557,82 @@
   line-height: 1.42;
 }
 
+.playerIdHandoffBoard {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.2fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 16px;
+  background: rgba(155, 225, 29, 0.07);
+  padding: 14px;
+  overflow-wrap: anywhere;
+}
+
+.playerIdHandoffBoard > div {
+  min-width: 0;
+}
+
+.playerIdHandoffBoard > div:first-child,
+.playerIdHandoffGrid article {
+  display: grid;
+  gap: 6px;
+}
+
+.playerIdHandoffBoard span,
+.playerIdHandoffGrid span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.playerIdHandoffBoard strong,
+.playerIdHandoffGrid strong {
+  color: var(--foreground-strong);
+  font-size: 0.94rem;
+  line-height: 1.18;
+  font-weight: 950;
+}
+
+.playerIdHandoffBoard p {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.42;
+}
+
+.playerIdHandoffGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.playerIdHandoffGrid article {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.15);
+  border-radius: 13px;
+  background: rgba(5, 15, 30, 0.38);
+  padding: 11px;
+}
+
+.playerIdHandoffActions {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.playerIdHandoffActions :global(.button-primary),
+.playerIdHandoffActions :global(.button-secondary) {
+  min-width: 0;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+}
+
 .levelUpRouteHeader,
 .levelUpIdentityStrip {
   display: grid;
@@ -14276,6 +14352,7 @@
   .moduleStandards,
   .moduleEvidenceGrid,
   .playerIdActionPlan,
+  .playerIdHandoffBoard,
   .doublesTracker {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -14517,6 +14594,8 @@
   .playerIdActionPlan,
   .playerIdActionPlanGrid,
   .playerIdActionPlanActions,
+  .playerIdHandoffBoard,
+  .playerIdHandoffActions,
   .doublesTracker {
     grid-template-columns: 1fr;
   }
