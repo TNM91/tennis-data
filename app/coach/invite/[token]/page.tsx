@@ -164,6 +164,32 @@ const pageStyles = {
     fontSize: 14,
     lineHeight: 1.55,
   },
+  nextStepCard: {
+    display: 'grid',
+    gap: 7,
+    marginTop: 22,
+    padding: 16,
+    borderRadius: 18,
+    border: '1px solid rgba(155,225,29,0.28)',
+    background: 'rgba(155,225,29,0.09)',
+    color: '#dce8f9',
+    minWidth: 0,
+  },
+  nextStepTitle: {
+    margin: 0,
+    color: '#ffffff',
+    fontSize: 20,
+    lineHeight: 1.15,
+    fontWeight: 950,
+  },
+  nextStepCopy: {
+    margin: 0,
+    color: '#b8c8dc',
+    fontSize: 14,
+    lineHeight: 1.5,
+    fontWeight: 760,
+    overflowWrap: 'anywhere',
+  },
   pathGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
@@ -241,6 +267,44 @@ function getInviteStatusLabel(status: CoachStudentInvite['status'] | undefined) 
   if (status === 'expired') return 'Expired'
   if (status === 'pending') return 'Waiting on player'
   return 'Loading'
+}
+
+function getInviteNextStep({
+  authResolved,
+  loading,
+  status,
+  userId,
+}: {
+  authResolved: boolean
+  loading: boolean
+  status: CoachStudentInvite['status'] | undefined
+  userId: string | null
+}) {
+  if (!authResolved || loading) {
+    return {
+      title: 'Checking your setup link',
+      copy: 'TenAceIQ is loading the coach connection before you choose the account to use.',
+    }
+  }
+
+  if (!userId) {
+    return {
+      title: 'Sign in or create your player account',
+      copy: 'Use the email you want tied to your player profile. Your coach does not need your email before sending this setup link.',
+    }
+  }
+
+  if (status === 'accepted') {
+    return {
+      title: 'Coach connection is active',
+      copy: 'Open My Lab to see coach-assigned work, or continue into development paths for self-guided Level Up reps.',
+    }
+  }
+
+  return {
+    title: 'Accept the coach connection',
+    copy: 'Confirm the signed-in account below, then accept so Coach Hub can send assignments, recaps, and review notes to the right player profile.',
+  }
 }
 
 export default function CoachInvitePage() {
@@ -329,6 +393,12 @@ function CoachInviteContent() {
 
   const studentName = student?.playerName || 'Player'
   const statusLabel = getInviteStatusLabel(invite?.status)
+  const nextStep = getInviteNextStep({
+    authResolved,
+    loading,
+    status: invite?.status,
+    userId,
+  })
 
   return (
     <main style={pageStyles.shell} className="coach-invite-shell">
@@ -351,6 +421,11 @@ function CoachInviteContent() {
               Open this link, create or sign into your player account, add the email you want tied to your profile,
               then accept the coach connection so assignments and recaps land in the right place.
             </p>
+            <div style={pageStyles.nextStepCard} aria-label="Coach invite next step">
+              <span style={pageStyles.eyebrow}>Next step</span>
+              <h2 style={pageStyles.nextStepTitle}>{nextStep.title}</h2>
+              <p style={pageStyles.nextStepCopy}>{nextStep.copy}</p>
+            </div>
             <div style={pageStyles.pathGrid} aria-label="Coach invite path">
               {invitePathSteps.map((step) => (
                 <div key={step.label} style={pageStyles.pathCard}>
