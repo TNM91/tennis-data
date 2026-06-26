@@ -2867,6 +2867,23 @@ function CoachContent() {
                 const proofReviewDraft = levelUpProof ? buildLevelUpProofReviewDraft(levelUpProof, assignment) : null
                 const proofReviewDecisions = levelUpProof ? buildLevelUpProofReviewDecisions(levelUpProof, assignment) : []
                 const proofReviewStandard = levelUpProof ? buildCoachProofReviewStandard(assignment, levelUpProof) : null
+                const proofReplyPlan = proofReviewDraft && levelUpProof ? [
+                  {
+                    label: 'Acknowledge',
+                    title: `${levelUpProof.drillTitle} came back ${levelUpProof.rating}/5`,
+                    detail: proofReviewDraft.note,
+                  },
+                  {
+                    label: 'Next focus',
+                    title: proofReviewDraft.nextFocus,
+                    detail: proofReviewDraft.nextMove.reason,
+                  },
+                  {
+                    label: 'Assign next',
+                    title: proofReviewDraft.nextMove.title,
+                    detail: `Due in ${proofReviewDraft.nextMove.dueDays} days when it fits the player.`,
+                  },
+                ] : []
                 const lessonDateTime = getAssignmentLessonDateTime(assignment.assignment)
                 const assignmentCourtHref = student ? buildCoachAssignmentCourtHref(assignment, student) : ''
                 const assignmentShareHref = toAbsoluteAppHref(assignmentCourtHref, shareOrigin)
@@ -3011,6 +3028,23 @@ function CoachContent() {
                           </div>
                         ) : null}
                         {proofReviewDraft ? <small>Suggested coach response: {proofReviewDraft.note}</small> : null}
+                        {proofReplyPlan.length ? (
+                          <div style={proofReplyPlanStyle} aria-label="Coach proof reply plan">
+                            <div style={proofDecisionHeaderStyle}>
+                              <span>Coach proof reply plan</span>
+                              <strong>Turn the saved proof into one clear player message.</strong>
+                            </div>
+                            <div style={proofReplyPlanGridStyle}>
+                              {proofReplyPlan.map((item) => (
+                                <article key={item.label} style={proofReplyPlanItemStyle}>
+                                  <span>{item.label}</span>
+                                  <strong>{item.title}</strong>
+                                  <small>{item.detail}</small>
+                                </article>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
                         {proofReviewDecisions.length ? (
                           <div style={proofDecisionPanelStyle} aria-label="Coach proof decision panel">
                             <div style={proofDecisionHeaderStyle}>
@@ -5611,6 +5645,41 @@ const proofDecisionGridStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+}
+
+const proofReplyPlanStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  marginTop: 6,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.055))',
+  minWidth: 0,
+}
+
+const proofReplyPlanGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  minWidth: 0,
+}
+
+const proofReplyPlanItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 112,
+  alignContent: 'start',
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(5,11,22,0.3)',
+  color: 'var(--shell-copy)',
+  fontSize: 12,
+  fontWeight: 750,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 function proofDecisionButtonStyle(recommended: boolean): CSSProperties {
