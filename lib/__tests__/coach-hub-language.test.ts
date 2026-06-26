@@ -78,6 +78,7 @@ describe('Coach Hub naming', () => {
     expect(coachInvite).toContain('Sign in with that email to accept the coach connection.')
     expect(coachInvite).toContain('const loginParams = new URLSearchParams({ next: nextHref })')
     expect(coachInvite).toContain("if (invite?.inviteEmail) loginParams.set('email', invite.inviteEmail)")
+    expect(coachInvite).toContain("if (invite?.inviteEmail) loginParams.set('switchAccount', '1')")
     expect(coachInvite).toContain('const loginHref = `/login?${loginParams.toString()}`')
     expect(coachInvite).toContain('const acceptButtonDisabled = accepting || Boolean(acceptBlockedMessage)')
     expect(coachInvite).toContain('disabled={acceptButtonDisabled}')

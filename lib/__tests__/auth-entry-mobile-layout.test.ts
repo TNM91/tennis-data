@@ -48,7 +48,9 @@ describe('auth entry mobile layout guards', () => {
     const source = sources.get('app/login/page.tsx')!
     expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(source).toContain('const { role, userId, entitlements, authResolved, refreshAuth } = useAuth()')
-    expect(source).toContain("if (!authResolved || role !== 'public' || redirecting)")
+    expect(source).toContain("const switchingAccount = searchParams.get('switchAccount') === '1'")
+    expect(source).toContain("if (role !== 'public' && !switchingAccount)")
+    expect(source).toContain("if (!authResolved || (!switchingAccount && role !== 'public') || redirecting)")
     expect(source).toContain('refreshAuth()')
     expect(source).toContain("destination: 'My Lab'")
     expect(source).toContain('return getDefaultProductHomeRoute(role, entitlements)')
@@ -92,7 +94,9 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain("import { useRouter, useSearchParams } from 'next/navigation'")
     expect(source).toContain('const searchParams = useSearchParams()')
     expect(source).toContain("const emailPrefill = searchParams.get('email')?.trim() ?? ''")
+    expect(source).toContain("const switchingAccount = searchParams.get('switchAccount') === '1'")
     expect(source).toContain('setEmail((current) => current || emailPrefill)')
+    expect(source).toContain('Sign in with the invited email to switch this coach setup to the right player account.')
   })
 
   it('preserves invited emails from account creation into sign in', () => {

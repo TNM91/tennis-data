@@ -144,6 +144,7 @@ function LoginContent() {
   const selectedPlanId = getLoginPlanIntent()
   const selectedIntent = LOGIN_INTENT_COPY[selectedPlanId]
   const emailPrefill = searchParams.get('email')?.trim() ?? ''
+  const switchingAccount = searchParams.get('switchAccount') === '1'
 
   useEffect(() => {
     router.prefetch(DEFAULT_POST_LOGIN_ROUTE)
@@ -173,18 +174,19 @@ function LoginContent() {
 
     if (!authResolved) {
       if (userId) {
+        if (switchingAccount) return
         void redirectAuthenticatedUser(role === 'public' ? 'member' : role, entitlements, userId)
       }
       return
     }
-    if (role !== 'public') {
+    if (role !== 'public' && !switchingAccount) {
       void redirectAuthenticatedUser(role, entitlements, userId)
       return
     }
 
     hasRedirectedRef.current = false
     setRedirecting(false)
-  }, [authResolved, entitlements, getPostLoginRoute, role, router, userId])
+  }, [authResolved, entitlements, getPostLoginRoute, role, router, switchingAccount, userId])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -305,7 +307,7 @@ function canUseBrowserStorage() {
     ...(isMobile ? mobileFooterPrompt : null),
   }
 
-  if (!authResolved || role !== 'public' || redirecting) {
+  if (!authResolved || (!switchingAccount && role !== 'public') || redirecting) {
     return (
       <section style={loadingShell}>
         <div style={loadingCard}>
@@ -346,6 +348,11 @@ function canUseBrowserStorage() {
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
               <div style={formLabel}>More Tennis. Less Chaos.</div>
               <h2 style={isMobile ? formTitleMobile : formTitle}>Sign in</h2>
+              {switchingAccount && role !== 'public' ? (
+                <div role="status" aria-live="polite" style={successBanner}>
+                  Sign in with the invited email to switch this coach setup to the right player account.
+                </div>
+              ) : null}
 
               <label htmlFor="email" style={inputLabel}>
                 Email
