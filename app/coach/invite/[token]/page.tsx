@@ -356,7 +356,9 @@ function CoachInviteContent() {
   })
   if (invite?.inviteEmail) signupParams.set('email', invite.inviteEmail)
   const playerHref = `/join?${signupParams.toString()}`
-  const loginHref = `/login?next=${encodeURIComponent(nextHref)}`
+  const loginParams = new URLSearchParams({ next: nextHref })
+  if (invite?.inviteEmail) loginParams.set('email', invite.inviteEmail)
+  const loginHref = `/login?${loginParams.toString()}`
   const signedInEmail = session?.user?.email ?? ''
   const invitedEmailLabel = invite?.inviteEmail || 'Open invite'
   const signedInAccountLabel = getSignedInAccountLabel(signedInEmail, userId)

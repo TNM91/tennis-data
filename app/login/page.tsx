@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { CSSProperties, FormEvent, useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { type ProductEntitlementSnapshot } from '@/lib/access-model'
@@ -110,6 +110,7 @@ export default function LoginPage() {
 
 function LoginContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { role, userId, entitlements, authResolved, refreshAuth } = useAuth()
   const [redirecting, setRedirecting] = useState(false)
 
@@ -142,6 +143,7 @@ function LoginContent() {
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const selectedPlanId = getLoginPlanIntent()
   const selectedIntent = LOGIN_INTENT_COPY[selectedPlanId]
+  const emailPrefill = searchParams.get('email')?.trim() ?? ''
 
   useEffect(() => {
     router.prefetch(DEFAULT_POST_LOGIN_ROUTE)
@@ -149,6 +151,12 @@ function LoginContent() {
     router.prefetch('/captain')
     router.prefetch('/league-coordinator')
   }, [router, getPostLoginRoute])
+
+  useEffect(() => {
+    if (!emailPrefill) return
+
+    setEmail((current) => current || emailPrefill)
+  }, [emailPrefill])
 
   useEffect(() => {
     const redirectAuthenticatedUser = async (

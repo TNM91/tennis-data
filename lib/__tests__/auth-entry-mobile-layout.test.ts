@@ -86,6 +86,15 @@ describe('auth entry mobile layout guards', () => {
     expect(source).not.toContain('Next: {selectedIntent.destination}')
   })
 
+  it('prefills invited login emails without overwriting typed input', () => {
+    const source = sources.get('app/login/page.tsx')!
+
+    expect(source).toContain("import { useRouter, useSearchParams } from 'next/navigation'")
+    expect(source).toContain('const searchParams = useSearchParams()')
+    expect(source).toContain("const emailPrefill = searchParams.get('email')?.trim() ?? ''")
+    expect(source).toContain('setEmail((current) => current || emailPrefill)')
+  })
+
   it('keeps password recovery copy tied to returning to tennis work', () => {
     const forgotPassword = sources.get('app/forget-password/page.tsx')!
     const resetPassword = sources.get('app/reset-password/page.tsx')!
