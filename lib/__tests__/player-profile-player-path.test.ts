@@ -26,6 +26,11 @@ describe('player profile player path', () => {
     expect(source).toContain('Train first')
     expect(source).toContain('Proof target')
     expect(source).toContain('Match test')
+    expect(source).toContain('Player profile Player ID handoff')
+    expect(source).toContain('Profile ID handoff')
+    expect(source).toContain('Log proof')
+    expect(source).toContain('Save in My Lab')
+    expect(source).toContain('Message coach')
     expect(source).toContain('What should I work on?')
     expect(source).toContain('Level Up My Game')
     expect(source).toContain('How am I improving?')
@@ -54,6 +59,13 @@ describe('player profile player path', () => {
     expect(styleBlock('playerPathReadStyle')).toContain('minWidth: 0')
     expect(styleBlock('playerPathReadItemStyle')).toContain('minWidth: 0')
     expect(styleBlock('playerPathReadItemStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('playerPathHandoffGridStyle')).toContain('minmax(min(100%, 118px), 1fr)')
+    expect(styleBlock('playerPathHandoffActionsStyle')).toContain('minmax(min(100%, 112px), 1fr)')
+    expect(styleBlock('playerPathHandoffStyle')).toContain('minWidth: 0')
+    expect(styleBlock('playerPathHandoffItemStyle')).toContain('minWidth: 0')
+    expect(styleBlock('playerPathHandoffItemStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('playerPathHandoffActionStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock('playerPathHandoffActionStyle')).toContain("overflowWrap: 'anywhere'")
 
     for (const styleName of [
       'playerPathActionStyle',

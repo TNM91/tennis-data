@@ -950,6 +950,18 @@ function PlayerProfileContent() {
     { label: 'Proof target', value: playerPathIdentityRead.proofTarget },
     { label: 'Match test', value: playerPathIdentityRead.matchTrigger },
   ] as const
+  const playerPathMessageName = player?.name ?? 'Player'
+  const playerPathMessageHref = `/messages?compose=direct&subject=${encodeURIComponent(`Player ID follow-up: ${playerPathMessageName}`)}&body=${encodeURIComponent(`Player ID read: ${playerPathIdentityRead.label}. Train first: ${playerPathIdentityRead.trainingPriority}. Proof target: ${playerPathIdentityRead.proofTarget}. Coach question: ${playerPathIdentityRead.coachPrompt}`)}`
+  const playerPathHandoffItems = [
+    { label: 'Log', value: playerPathIdentityRead.proofTarget },
+    { label: 'Ask', value: playerPathIdentityRead.coachPrompt },
+    { label: 'Try next', value: playerPathIdentityRead.nextCue },
+  ] as const
+  const playerPathHandoffActions = [
+    { label: 'Log proof', href: playerPathLevelUpHref },
+    { label: 'Save in My Lab', href: '/mylab' },
+    { label: 'Message coach', href: playerPathMessageHref },
+  ] as const
   const primaryUstaMembership = ustaTeamMemberships[0] ?? null
   const primaryTeamHref = primaryUstaMembership
     ? `/teams/${encodeURIComponent(primaryUstaMembership.teamName)}?layer=usta${primaryUstaMembership.leagueName ? `&league=${encodeURIComponent(primaryUstaMembership.leagueName)}` : ''}${primaryUstaMembership.flight ? `&flight=${encodeURIComponent(primaryUstaMembership.flight)}` : ''}`
@@ -1491,6 +1503,28 @@ function PlayerProfileContent() {
                 ))}
               </span>
             </Link>
+            <div style={playerPathHandoffStyle} aria-label="Player profile Player ID handoff">
+              <div>
+                <span style={playerPathQuestionStyle}>Profile ID handoff</span>
+                <strong style={playerPathLabelStyle}>Turn this read into the next rep.</strong>
+                <span style={playerPathBodyStyle}>Use the same proof target across Level Up, My Lab, and a coach message.</span>
+              </div>
+              <div style={playerPathHandoffGridStyle} aria-label="Player profile Player ID handoff read">
+                {playerPathHandoffItems.map((item) => (
+                  <span key={item.label} style={playerPathHandoffItemStyle}>
+                    <em>{item.label}</em>
+                    <b>{item.value}</b>
+                  </span>
+                ))}
+              </div>
+              <div style={playerPathHandoffActionsStyle}>
+                {playerPathHandoffActions.map((action) => (
+                  <Link key={action.label} href={action.href} style={playerPathHandoffActionStyle}>
+                    {action.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
             <div style={playerPathListStyle} aria-label="Player path actions">
               {playerPathActions.map((action) => (
                 <Link
@@ -4107,6 +4141,66 @@ const playerPathReadItemStyle: CSSProperties = {
   fontSize: 11,
   lineHeight: 1.35,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const playerPathHandoffStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: '12px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const playerPathHandoffGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerPathHandoffItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '8px 9px',
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-panel-border) 86%)',
+  background: 'rgba(7,18,34,0.38)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const playerPathHandoffActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 112px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerPathHandoffActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 36,
+  minWidth: 0,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  textAlign: 'center',
+  textDecoration: 'none',
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 

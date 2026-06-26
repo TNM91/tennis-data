@@ -29,6 +29,23 @@ describe('player profile next actions', () => {
     expect(source).toContain('href: playerPathLevelUpHref')
   })
 
+  it('turns the Player ID read into a profile handoff board', () => {
+    expect(source).toContain('const playerPathMessageHref =')
+    expect(source).toContain('Player ID follow-up:')
+    expect(source).toContain('Coach question: ${playerPathIdentityRead.coachPrompt}')
+    expect(source).toContain('const playerPathHandoffItems = [')
+    expect(source).toContain("label: 'Log'")
+    expect(source).toContain("label: 'Ask'")
+    expect(source).toContain("label: 'Try next'")
+    expect(source).toContain('const playerPathHandoffActions = [')
+    expect(source).toContain("label: 'Log proof'")
+    expect(source).toContain("label: 'Save in My Lab'")
+    expect(source).toContain("label: 'Message coach'")
+    expect(source).toContain('aria-label="Player profile Player ID handoff"')
+    expect(source).toContain('Turn this read into the next rep.')
+    expect(source).toContain('Use the same proof target across Level Up, My Lab, and a coach message.')
+  })
+
   it('surfaces player ID signals before the action list', () => {
     expect(source).toContain('const playerPathIdentitySignals = [')
     expect(source).toContain("label: 'Player ID'")
