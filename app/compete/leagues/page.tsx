@@ -65,7 +65,7 @@ const leaguePathActions = [
 
 const LEAGUE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const LEAGUE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(LEAGUE_PLAYER_IDENTITY)
-const LEAGUE_LEVEL_UP_HREF = `/level-up/${LEAGUE_PLAYER_IDENTITY.slug}`
+const LEAGUE_LEVEL_UP_HREF = `/level-up/${LEAGUE_PLAYER_IDENTITY.slug}#level-up-flow`
 const LEAGUE_PLAYER_DEVELOPMENT_HREF = `/player-development/${LEAGUE_PLAYER_IDENTITY.slug}`
 const leaguePlayerIdPrepItems = [
   { label: 'League read', value: LEAGUE_PLAYER_IDENTITY_READ.matchTrigger },

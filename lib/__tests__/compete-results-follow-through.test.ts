@@ -71,7 +71,7 @@ describe('compete results follow-through', () => {
   it('connects results back into the Player ID and Level Up proof loop', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const RESULTS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
-    expect(source).toContain('const RESULTS_LEVEL_UP_HREF = `/level-up/${RESULTS_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const RESULTS_LEVEL_UP_HREF = `/level-up/${RESULTS_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const RESULTS_PLAYER_DEVELOPMENT_HREF = `/player-development/${RESULTS_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('function ResultPlayerIdProofPanel')
     expect(source).toContain('aria-label="Results Player ID proof loop"')

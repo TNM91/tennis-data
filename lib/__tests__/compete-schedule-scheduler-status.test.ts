@@ -95,7 +95,7 @@ describe('compete schedule scheduler status', () => {
   it('connects schedule dates back into Player ID and Level Up prep', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const SCHEDULE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('smart-attacker-4-0-to-4-5')")
-    expect(source).toContain('const SCHEDULE_LEVEL_UP_HREF = `/level-up/${SCHEDULE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const SCHEDULE_LEVEL_UP_HREF = `/level-up/${SCHEDULE_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const SCHEDULE_PLAYER_DEVELOPMENT_HREF = `/player-development/${SCHEDULE_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('function SchedulePlayerIdPrepPanel')
     expect(source).toContain('aria-label="Schedule Player ID match prep"')

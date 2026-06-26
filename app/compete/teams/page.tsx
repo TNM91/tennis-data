@@ -27,7 +27,7 @@ const emptyTeamActions = [
 
 const TEAM_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('doubles-commander-4-0')
 const TEAM_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TEAM_PLAYER_IDENTITY)
-const TEAM_LEVEL_UP_HREF = `/level-up/${TEAM_PLAYER_IDENTITY.slug}`
+const TEAM_LEVEL_UP_HREF = `/level-up/${TEAM_PLAYER_IDENTITY.slug}#level-up-flow`
 const TEAM_PLAYER_DEVELOPMENT_HREF = `/player-development/${TEAM_PLAYER_IDENTITY.slug}`
 const teamPlayerIdPrepItems = [
   { label: 'Team read', value: TEAM_PLAYER_IDENTITY_READ.matchTrigger },

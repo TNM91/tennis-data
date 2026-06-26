@@ -60,7 +60,7 @@ describe('compete teams readiness', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const TEAM_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('doubles-commander-4-0')")
     expect(source).toContain('const TEAM_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TEAM_PLAYER_IDENTITY)')
-    expect(source).toContain('const TEAM_LEVEL_UP_HREF = `/level-up/${TEAM_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const TEAM_LEVEL_UP_HREF = `/level-up/${TEAM_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const TEAM_PLAYER_DEVELOPMENT_HREF = `/player-development/${TEAM_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('aria-label="Teams Player ID team prep"')
     expect(source).toContain('aria-label="Teams Player ID starter read"')

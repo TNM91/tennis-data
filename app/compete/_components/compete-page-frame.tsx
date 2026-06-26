@@ -48,7 +48,7 @@ const CAPTAIN_HANDOFF_ACTIONS = [
 
 const COMPETE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const COMPETE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(COMPETE_PLAYER_IDENTITY)
-const COMPETE_LEVEL_UP_HREF = `/level-up/${COMPETE_PLAYER_IDENTITY.slug}`
+const COMPETE_LEVEL_UP_HREF = `/level-up/${COMPETE_PLAYER_IDENTITY.slug}#level-up-flow`
 const COMPETE_PLAYER_DEVELOPMENT_HREF = `/player-development/${COMPETE_PLAYER_IDENTITY.slug}`
 const COMPETE_PLAYER_ID_ACTIONS = [
   { href: COMPETE_LEVEL_UP_HREF, label: 'Start Level Up' },

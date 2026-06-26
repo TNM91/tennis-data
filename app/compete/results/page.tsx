@@ -27,7 +27,7 @@ const emptyResultActions = [
 
 const RESULTS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const RESULTS_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(RESULTS_PLAYER_IDENTITY)
-const RESULTS_LEVEL_UP_HREF = `/level-up/${RESULTS_PLAYER_IDENTITY.slug}`
+const RESULTS_LEVEL_UP_HREF = `/level-up/${RESULTS_PLAYER_IDENTITY.slug}#level-up-flow`
 const RESULTS_PLAYER_DEVELOPMENT_HREF = `/player-development/${RESULTS_PLAYER_IDENTITY.slug}`
 const resultPlayerIdProofItems = [
   { label: 'Result read', value: RESULTS_PLAYER_IDENTITY_READ.matchTrigger },

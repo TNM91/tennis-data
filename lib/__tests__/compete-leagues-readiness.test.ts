@@ -65,7 +65,7 @@ describe('compete leagues readiness', () => {
     expect(source).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(source).toContain("const LEAGUE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
     expect(source).toContain('const LEAGUE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(LEAGUE_PLAYER_IDENTITY)')
-    expect(source).toContain('const LEAGUE_LEVEL_UP_HREF = `/level-up/${LEAGUE_PLAYER_IDENTITY.slug}`')
+    expect(source).toContain('const LEAGUE_LEVEL_UP_HREF = `/level-up/${LEAGUE_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(source).toContain('const LEAGUE_PLAYER_DEVELOPMENT_HREF = `/player-development/${LEAGUE_PLAYER_IDENTITY.slug}`')
     expect(source).toContain('aria-label="Leagues Player ID individual prep"')
     expect(source).toContain('aria-label="Leagues Player ID starter read"')

@@ -38,7 +38,7 @@ const emptyScheduleActions = [
 
 const SCHEDULE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('smart-attacker-4-0-to-4-5')
 const SCHEDULE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(SCHEDULE_PLAYER_IDENTITY)
-const SCHEDULE_LEVEL_UP_HREF = `/level-up/${SCHEDULE_PLAYER_IDENTITY.slug}`
+const SCHEDULE_LEVEL_UP_HREF = `/level-up/${SCHEDULE_PLAYER_IDENTITY.slug}#level-up-flow`
 const SCHEDULE_PLAYER_DEVELOPMENT_HREF = `/player-development/${SCHEDULE_PLAYER_IDENTITY.slug}`
 const schedulePlayerIdPrepItems = [
   { label: 'Match prep read', value: SCHEDULE_PLAYER_IDENTITY_READ.matchTrigger },

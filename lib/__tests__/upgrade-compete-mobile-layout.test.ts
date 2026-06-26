@@ -128,7 +128,7 @@ describe('upgrade and compete mobile layout guards', () => {
   it('shows a shrink-safe Player ID match prep cue on Compete surfaces', () => {
     expect(competeFrameSource).toContain("import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'")
     expect(competeFrameSource).toContain("const COMPETE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')")
-    expect(competeFrameSource).toContain('const COMPETE_LEVEL_UP_HREF = `/level-up/${COMPETE_PLAYER_IDENTITY.slug}`')
+    expect(competeFrameSource).toContain('const COMPETE_LEVEL_UP_HREF = `/level-up/${COMPETE_PLAYER_IDENTITY.slug}#level-up-flow`')
     expect(competeFrameSource).toContain('const COMPETE_PLAYER_DEVELOPMENT_HREF = `/player-development/${COMPETE_PLAYER_IDENTITY.slug}`')
     expect(competeFrameSource).toContain('aria-label="Compete Player ID match prep"')
     expect(competeFrameSource).toContain('aria-label="Compete Player ID starter read"')
