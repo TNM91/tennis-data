@@ -124,6 +124,7 @@ describe('coach mobile resilience', () => {
     expect(coachSource).toContain("scrollToCoachSection('coach-student-setup-ready')")
     expect(coachSource).toContain('if (isMobile) scrollToStudentSetupReady()')
     expect(coachSource).toContain('const setupTextBody = card.pendingInvite ? buildCoachSetupText(card.pendingInvite.inviteHref) :')
+    expect(coachSource).toContain('body={buildCoachSetupText(card.pendingInvite.inviteHref)}')
     expect(coachSource).toContain("const mobileTextLabel = card.pendingInvite ? 'Text setup link' : 'Text'")
     expect(coachSource).toContain('{mobileTextLabel}')
     expect(coachSource).toContain('Setup waiting')

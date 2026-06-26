@@ -1439,6 +1439,15 @@ function CoachContent() {
           >
             Contact
           </button>
+          {card.pendingInvite && card.student.playerPhone ? (
+            <SmsActionLink
+              phone={card.student.playerPhone}
+              body={buildCoachSetupText(card.pendingInvite.inviteHref)}
+              style={actionLinkStyle}
+            >
+              Text setup link
+            </SmsActionLink>
+          ) : null}
           {card.student.playerUserId ? (
             <Link href={buildCoachPlayerMessageHref(card.student, 'Coach check-in', `Quick coach note for ${card.student.playerName}: `)} style={actionLinkStyle}>
               Message
