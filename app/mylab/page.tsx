@@ -5071,6 +5071,19 @@ function PlayerCoachAssignmentsPanel({
   const dueTodayAssignments = openAssignments.filter((assignment) => getCoachAssignmentDueState(assignment.dueDate).tone === 'today')
   const assignmentCards = (openAssignments.length ? openAssignments : sortedAssignments).slice(0, 4)
   const assignedQueue = openAssignments.slice(0, 3)
+  const latestCoachFeedback = useMemo(() => {
+    return sortedAssignments
+      .map((assignment) => {
+        const coachReview = getCoachAssignmentReview(assignment.assignment)
+        if (!coachReview) return null
+        const summary = getCoachAssignmentSummary(assignment.assignment)
+        const proofStandard = buildPlayerAssignmentProofStandard(assignment, summary)
+        const plan = buildPlayerCoachReviewNextPlan(assignment, coachReview, proofStandard)
+        return { assignment, coachReview, plan }
+      })
+      .filter((item): item is { assignment: CoachAssignment; coachReview: NonNullable<ReturnType<typeof getCoachAssignmentReview>>; plan: ReturnType<typeof buildPlayerCoachReviewNextPlan> } => Boolean(item))
+      .sort((left, right) => Date.parse(right.coachReview.reviewedAt || right.assignment.updatedAt || '') - Date.parse(left.coachReview.reviewedAt || left.assignment.updatedAt || ''))[0] ?? null
+  }, [sortedAssignments])
   const nextAssignment = openAssignments[0] ?? sortedAssignments[0] ?? null
   const nextDueState = nextAssignment ? getCoachAssignmentDueState(nextAssignment.dueDate) : null
   const nextAssignmentSummary = nextAssignment ? getCoachAssignmentSummary(nextAssignment.assignment) : null
@@ -5110,6 +5123,9 @@ function PlayerCoachAssignmentsPanel({
     'First Level Up assignment',
     'Coach, can you send my first TenAceIQ assignment so I can track it in My Lab? ',
   )
+  const latestCoachFeedbackHref = latestCoachFeedback
+    ? buildAssignmentLevelUpHref(latestCoachFeedback.assignment, coachLinkMap.get(latestCoachFeedback.assignment.studentLinkId))
+    : ''
   const coachLessonEvents = useMemo(
     () => buildPlayerCoachLessonEvents(
       activeCoachLink ? assignments.filter((assignment) => assignment.studentLinkId === activeCoachLink.id) : assignments,
@@ -5219,6 +5235,44 @@ function PlayerCoachAssignmentsPanel({
         <SummaryCard label="Open assignments" value={openAssignments.length ? String(openAssignments.length) : 'First read'} note="Coach-created work appears after setup" />
         <SummaryCard label="Completed" value={completedAssignments.length ? String(completedAssignments.length) : 'Later'} note="Finished coach follow-through" />
       </div>
+
+      {latestCoachFeedback ? (
+        <div style={latestCoachFeedbackCueStyle} aria-label="Latest coach feedback cue">
+          <div style={coachCalendarCopyStyle}>
+            <span style={metricLabelStyle}>Latest coach feedback</span>
+            <strong>{latestCoachFeedback.assignment.title}</strong>
+            <span>{latestCoachFeedback.coachReview.note || latestCoachFeedback.coachReview.nextFocus || 'Coach reviewed your assignment.'}</span>
+            <em>{latestCoachFeedback.coachReview.reviewedAt ? `Reviewed ${timeAgo(latestCoachFeedback.coachReview.reviewedAt)}` : 'Coach reply ready'}</em>
+          </div>
+          <div style={latestCoachFeedbackGridStyle}>
+            {latestCoachFeedback.plan.items.map((item) => (
+              <span key={item.label} style={latestCoachFeedbackItemStyle}>
+                <strong>{item.label}</strong>
+                <em>{item.value}</em>
+              </span>
+            ))}
+          </div>
+          <div style={coachReviewNextPlanActionsStyle}>
+            <Link href={latestCoachFeedbackHref} style={miniActionPillStyle}>Run coach response</Link>
+            <Link
+              href={buildPlayerCoachMessageHref(
+                coachLinkMap.get(latestCoachFeedback.assignment.studentLinkId),
+                `Coach review: ${latestCoachFeedback.assignment.title}`,
+                `I saw your review on ${latestCoachFeedback.assignment.title}. I will run: ${latestCoachFeedback.plan.nextRep}. Question: `,
+                {
+                  assignmentId: latestCoachFeedback.assignment.id,
+                  assignmentTitle: latestCoachFeedback.assignment.title,
+                  assignmentFocus: latestCoachFeedback.assignment.focus,
+                  assignmentCardId: getAssignmentLevelUpCardId(latestCoachFeedback.assignment),
+                },
+              )}
+              style={miniActionLinkStyle}
+            >
+              Ask coach
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       {activeCoachLink && !openAssignments.length && !loading ? (
         <div style={coachInviteLandingCueStyle} aria-label="My Lab coach invite landing cue">
@@ -6712,6 +6766,39 @@ const coachInviteLandingCueStyle: CSSProperties = {
   background:
     'radial-gradient(circle at 94% 12%, rgba(155,225,29,0.16), transparent 34%), color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg) 91%)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const latestCoachFeedbackCueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background:
+    'radial-gradient(circle at 92% 10%, rgba(116,190,255,0.16), transparent 34%), color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-panel-bg) 91%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const latestCoachFeedbackGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const latestCoachFeedbackItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 13,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(5,16,31,0.32)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
   overflowWrap: 'anywhere',
 }
 
