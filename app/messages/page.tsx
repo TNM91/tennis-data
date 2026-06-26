@@ -105,6 +105,16 @@ type CoachMessageContact = {
   status: CoachStudentLink['status']
 }
 
+type AssignmentMessageHandoff = {
+  title: string
+  detail: string
+  steps: Array<{ label: string; value: string }>
+  standard: Array<{ label: string; value: string }> | null
+  contextHref: string
+  contextCta: string
+  courtHref: string
+}
+
 type PlayerCalendarItemsResponse = {
   ok?: boolean
   items?: Array<{ id?: string }>
@@ -652,7 +662,7 @@ function buildConversationContextPresentation(conversation: InternalConversation
 function buildConversationAssignmentHandoff(
   conversation: InternalConversation | null,
   coachContacts: CoachMessageContact[],
-) {
+): AssignmentMessageHandoff | null {
   if (!conversation || !isCoachAssignmentConversation(conversation)) return null
 
   const assignmentTitle = conversation.metadata.assignmentTitle?.trim() || conversation.subject
@@ -670,6 +680,9 @@ function buildConversationAssignmentHandoff(
         { label: 'Send', value: 'Coach note' },
       ],
       standard: assignmentStandard,
+      contextHref: '',
+      contextCta: '',
+      courtHref: '',
     }
   }
 
@@ -682,11 +695,77 @@ function buildConversationAssignmentHandoff(
       { label: 'Send', value: 'Reply with recap' },
     ],
     standard: assignmentStandard,
+    contextHref: '',
+    contextCta: '',
+    courtHref: '',
   }
 }
 
 function getMessageAssignmentCard(conversation: InternalConversation) {
   const cardId = getMessageAssignmentCardId(conversation)
+  return cardId ? LEVEL_UP_CARDS.find((card) => card.id === cardId) ?? null : null
+}
+
+function buildComposeAssignmentHandoff(
+  prefill: MessagePrefill,
+  composeContext: { entityType: string; entityId: string },
+  coachContacts: CoachMessageContact[],
+): AssignmentMessageHandoff | null {
+  const hasAssignmentContext = Boolean(
+    prefill.assignmentId || prefill.assignmentTitle || prefill.assignmentFocus || prefill.assignmentCardId,
+  )
+  if (!hasAssignmentContext || composeContext.entityType !== 'coach_player_link') return null
+
+  const contact = coachContacts.find((item) => item.linkId === composeContext.entityId)
+  const isCoachView = contact?.relationship === 'student'
+  const assignmentAnchor = prefill.assignmentId ? `#coach-assignment-${encodeURIComponent(prefill.assignmentId)}` : ''
+  const assignmentCard = getComposeAssignmentCard(prefill)
+  const cardId = assignmentCard?.id ?? prefill.assignmentCardId.trim()
+  const contextHref = isCoachView
+    ? assignmentAnchor ? `/coach${assignmentAnchor}` : '/coach#coach-linked-dashboard'
+    : assignmentAnchor ? `/mylab${assignmentAnchor}` : '/mylab#coach-assignments'
+
+  let courtHref = ''
+  if (!isCoachView && prefill.assignmentId && cardId) {
+    const params = new URLSearchParams({
+      coach: '1',
+      assignmentId: prefill.assignmentId,
+      studentLinkId: composeContext.entityId,
+      card: cardId,
+    })
+    if (prefill.assignmentTitle) params.set('assignmentTitle', prefill.assignmentTitle)
+    if (prefill.assignmentFocus) params.set('assignmentFocus', prefill.assignmentFocus)
+    courtHref = `/player-development/${encodeURIComponent(contact?.identitySlug || MESSAGES_PLAYER_IDENTITY.slug)}/level-up?${params.toString()}`
+  }
+
+  return {
+    title: prefill.assignmentTitle || assignmentCard?.title || 'Coach assignment',
+    detail: prefill.assignmentFocus || assignmentCard?.cue || 'Send the follow-up while this Level Up context stays attached.',
+    steps: isCoachView
+      ? [
+          { label: 'Review', value: 'Read proof' },
+          { label: 'Decide', value: 'Pick next rep' },
+          { label: 'Reply', value: 'Coach note' },
+        ]
+      : [
+          { label: 'Ask', value: 'Send question' },
+          { label: 'Return', value: 'Open assignment' },
+          { label: 'Run', value: 'Court proof' },
+        ],
+    standard: assignmentCard ? buildMessageAssignmentStandard(assignmentCard) : null,
+    contextHref,
+    contextCta: isCoachView ? 'Open Coach Hub' : 'Open My Lab',
+    courtHref,
+  }
+}
+
+function getComposeAssignmentCard(prefill: MessagePrefill) {
+  const explicitCardId = prefill.assignmentCardId.trim()
+  if (explicitCardId) return LEVEL_UP_CARDS.find((card) => card.id === explicitCardId) ?? null
+
+  const searchText = [prefill.assignmentTitle, prefill.assignmentFocus].filter(Boolean).join(' ')
+  const shortcutCardId = getMessageAssignmentShortcutCardId(searchText)
+  const cardId = shortcutCardId || inferMessageAssignmentCardId(searchText)
   return cardId ? LEVEL_UP_CARDS.find((card) => card.id === cardId) ?? null : null
 }
 
@@ -886,6 +965,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const selectedAssignmentHandoff = useMemo(
     () => buildConversationAssignmentHandoff(selectedConversation, coachContacts),
     [coachContacts, selectedConversation],
+  )
+  const composeAssignmentHandoff = useMemo(
+    () => buildComposeAssignmentHandoff(prefill, composeContext, coachContacts),
+    [coachContacts, composeContext, prefill],
   )
   const quickReplyActions = useMemo(
     () => getQuickReplyActions(selectedConversation, identity?.role ?? 'public', coachContacts),
@@ -2748,6 +2831,42 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             </div>
           ) : null}
 
+          {composeAssignmentHandoff ? (
+            <div style={contextPanelStyle} aria-label={`Compose assignment handoff for ${composeAssignmentHandoff.title}`}>
+              <div>
+                <div style={labelStyle}>Coach feedback follow-up</div>
+                <p style={copyStyle}>{composeAssignmentHandoff.title}</p>
+                <div style={assignmentHandoffStyle}>
+                  <span style={assignmentDetailStyle}>{composeAssignmentHandoff.detail}</span>
+                  <div style={assignmentHandoffStepGridStyle}>
+                    {composeAssignmentHandoff.steps.map((step) => (
+                      <span key={step.label} style={assignmentHandoffStepStyle}>
+                        <b>{step.label}</b>
+                        {step.value}
+                      </span>
+                    ))}
+                  </div>
+                  {composeAssignmentHandoff.standard ? (
+                    <div style={assignmentHandoffStandardGridStyle} aria-label={`Compose assignment proof standard for ${composeAssignmentHandoff.title}`}>
+                      {composeAssignmentHandoff.standard.map((item) => (
+                        <span key={item.label} style={assignmentHandoffStandardItemStyle}>
+                          <b>{item.label}</b>
+                          {item.value}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div style={contextActionRowStyle}>
+                {composeAssignmentHandoff.courtHref ? (
+                  <Link href={composeAssignmentHandoff.courtHref} style={primaryMiniLinkStyle}>Open on court</Link>
+                ) : null}
+                <Link href={composeAssignmentHandoff.contextHref} style={ghostButtonStyle}>{composeAssignmentHandoff.contextCta}</Link>
+              </div>
+            </div>
+          ) : null}
+
           {composeMode === 'direct' ? (
             <label style={fieldStyle}>
               <span style={labelStyle}>Recipient</span>
@@ -3532,9 +3651,17 @@ const assignmentHandoffStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const assignmentDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
 const assignmentHandoffStepGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))',
   gap: 6,
   minWidth: 0,
 }

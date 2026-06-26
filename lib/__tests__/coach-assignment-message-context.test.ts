@@ -41,7 +41,7 @@ describe('coach assignment message context', () => {
     expect(myLabSource).toContain('id={`coach-assignment-${assignment.id}`}')
     expect(messagesSource).toContain('conversation.metadata.assignmentId')
     expect(messagesSource).toContain('#coach-assignment-')
-    expect(messagesSource).toContain('return `/coach${assignmentAnchor}`')
+    expect(messagesSource).toContain('return assignmentAnchor ? `/coach${assignmentAnchor}` :')
     expect(messagesSource).toContain('return assignmentAnchor ? `/mylab${assignmentAnchor}` :')
   })
 
@@ -88,6 +88,19 @@ describe('coach assignment message context', () => {
     expect(messagesSource).toContain('No assignment threads')
     expect(messagesSource).toContain('/mylab#coach-assignments')
     expect(messagesSource).toContain('Assignment threads appear after a coach or player messages about assigned work.')
+  })
+
+  it('shows assignment context before a coach feedback follow-up is sent', () => {
+    expect(messagesSource).toContain('buildComposeAssignmentHandoff')
+    expect(messagesSource).toContain('composeAssignmentHandoff')
+    expect(messagesSource).toContain('Coach feedback follow-up')
+    expect(messagesSource).toContain('Compose assignment handoff for')
+    expect(messagesSource).toContain('Compose assignment proof standard for')
+    expect(messagesSource).toContain('Send the follow-up while this Level Up context stays attached.')
+    expect(messagesSource).toContain('contextCta: isCoachView ?')
+    expect(messagesSource).toContain('courtHref = `/player-development/${encodeURIComponent')
+    expect(messagesSource).toContain('Open on court')
+    expect(messagesSource).toContain('Open My Lab')
   })
 
   it('adds court-ready quick replies for assignment message threads', () => {
