@@ -5061,6 +5061,11 @@ function PlayerCoachAssignmentsPanel({
     : activeCoachCalendarStatus?.active
       ? `Subscribed${activeCoachCalendarStatus.lastUsedAt ? `, calendar app last fetched ${safeDate(activeCoachCalendarStatus.lastUsedAt)}` : '. Create a new link to copy it again.'}`
       : 'Not subscribed yet.'
+  const firstAssignmentRequestHref = buildPlayerCoachMessageHref(
+    activeCoachLink,
+    'First Level Up assignment',
+    'Coach, can you send my first TenAceIQ assignment so I can track it in My Lab? ',
+  )
   const coachLessonEvents = useMemo(
     () => buildPlayerCoachLessonEvents(
       activeCoachLink ? assignments.filter((assignment) => assignment.studentLinkId === activeCoachLink.id) : assignments,
@@ -5170,6 +5175,24 @@ function PlayerCoachAssignmentsPanel({
         <SummaryCard label="Open assignments" value={openAssignments.length ? String(openAssignments.length) : 'First read'} note="Coach-created work appears after setup" />
         <SummaryCard label="Completed" value={completedAssignments.length ? String(completedAssignments.length) : 'Later'} note="Finished coach follow-through" />
       </div>
+
+      {activeCoachLink && !openAssignments.length && !loading ? (
+        <div style={coachInviteLandingCueStyle} aria-label="My Lab coach invite landing cue">
+          <div style={coachCalendarCopyStyle}>
+            <strong>Coach connection is ready.</strong>
+            <span>
+              You are linked to {activeCoachLink.playerName}. Ask for one measurable assignment so My Lab can track the work,
+              recap, and coach feedback in this section.
+            </span>
+          </div>
+          <div style={developmentActionRowStyle}>
+            <Link href={firstAssignmentRequestHref} style={miniActionLinkStyle}>
+              Request first assignment
+            </Link>
+            <Link href="/level-up" style={miniActionLinkStyle}>Open Level Up</Link>
+          </div>
+        </div>
+      ) : null}
 
       {activeCoachLink ? (
         <div style={playerCoachCalendarStyle}>
@@ -5680,11 +5703,7 @@ function PlayerCoachAssignmentsPanel({
               </div>
               <div style={developmentActionRowStyle}>
                 <Link
-                  href={buildPlayerCoachMessageHref(
-                    activeCoachLink,
-                    'First Level Up assignment',
-                    'Coach, can you send my first TenAceIQ assignment so I can track it in My Lab? ',
-                  )}
+                  href={firstAssignmentRequestHref}
                   style={miniActionLinkStyle}
                 >
                   Request first assignment
@@ -6619,6 +6638,18 @@ const playerCoachCalendarStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
   background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
   minWidth: 0,
+}
+
+const coachInviteLandingCueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
+  background:
+    'radial-gradient(circle at 94% 12%, rgba(155,225,29,0.16), transparent 34%), color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg) 91%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const coachCalendarHeaderStyle: CSSProperties = {
