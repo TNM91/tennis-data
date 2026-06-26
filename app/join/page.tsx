@@ -143,6 +143,12 @@ function JoinContent() {
   const selectedIntent = JOIN_INTENT_COPY[selectedPlanId]
   const selectedTier = getMembershipTier(selectedPlanId)
   const selectedNextRoute = isSafeLocalNextHref(searchParams.get('next'), getJoinNextRoute(selectedPlanId))
+  const loginParams = new URLSearchParams({
+    plan: selectedPlanId,
+    next: selectedNextRoute,
+  })
+  if (requestedEmail) loginParams.set('email', requestedEmail)
+  const signInHref = `/login?${loginParams.toString()}`
   const authLoading = !authResolved
 
   useEffect(() => {
@@ -198,7 +204,7 @@ function JoinContent() {
 
       setMessage(selectedIntent.success)
       setTimeout(() => {
-        router.push(`/login?plan=${selectedPlanId}&next=${encodeURIComponent(selectedNextRoute)}`)
+        router.push(signInHref)
       }, 1000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
@@ -430,7 +436,7 @@ function JoinContent() {
 
               <div style={helperRowResponsive}>
                 <span style={helperText}>Already have an account?</span>
-                <Link href="/login" style={isMobile ? mobileSignInLink : inlineLink}>
+                <Link href={signInHref} style={isMobile ? mobileSignInLink : inlineLink}>
                   Sign in
                 </Link>
               </div>

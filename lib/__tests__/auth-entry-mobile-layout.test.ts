@@ -95,6 +95,17 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('setEmail((current) => current || emailPrefill)')
   })
 
+  it('preserves invited emails from account creation into sign in', () => {
+    const source = sources.get('app/join/page.tsx')!
+
+    expect(source).toContain("const requestedEmail = searchParams.get('email')?.trim() ?? ''")
+    expect(source).toContain('const loginParams = new URLSearchParams({')
+    expect(source).toContain("if (requestedEmail) loginParams.set('email', requestedEmail)")
+    expect(source).toContain('const signInHref = `/login?${loginParams.toString()}`')
+    expect(source).toContain('router.push(signInHref)')
+    expect(source).toContain('href={signInHref}')
+  })
+
   it('keeps password recovery copy tied to returning to tennis work', () => {
     const forgotPassword = sources.get('app/forget-password/page.tsx')!
     const resetPassword = sources.get('app/reset-password/page.tsx')!
