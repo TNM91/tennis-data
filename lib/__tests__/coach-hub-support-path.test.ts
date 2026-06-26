@@ -67,6 +67,8 @@ describe('Coach Hub support path', () => {
     expect(source).toContain("label: 'Ask'")
     expect(source).toContain("label: 'Try next'")
     expect(source).toContain('buildCoachPlayerIdentityMessageHref')
+    expect(source).toContain('Player ID read: ${identityRead.title}')
+    expect(source).toContain('Coach question: ${identityRead.coachPrompt}')
     expect(source).toContain('Message Player ID plan')
     expect(source).toContain('Proof target: ${identityRead.proofTarget}')
   })

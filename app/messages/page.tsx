@@ -769,6 +769,44 @@ function getComposeAssignmentCard(prefill: MessagePrefill) {
   return cardId ? LEVEL_UP_CARDS.find((card) => card.id === cardId) ?? null : null
 }
 
+function buildComposeCoachIdentityHandoff(
+  prefill: MessagePrefill,
+  composeContext: { entityType: string; entityId: string },
+  coachContacts: CoachMessageContact[],
+): AssignmentMessageHandoff | null {
+  const hasPlayerIdPlan = /Player ID follow-up/i.test(prefill.subject) || /Player ID read:/i.test(prefill.body)
+  if (!hasPlayerIdPlan || composeContext.entityType !== 'coach_player_link') return null
+
+  const contact = coachContacts.find((item) => item.linkId === composeContext.entityId)
+  const isCoachView = contact?.relationship === 'student'
+  const identityTitle = extractPlayerIdPlanSegment(prefill.body, 'Player ID read') || 'Player ID plan'
+  const trainingPriority = extractPlayerIdPlanSegment(prefill.body, 'Train first') || 'Choose one visible training priority.'
+  const proofTarget = extractPlayerIdPlanSegment(prefill.body, 'Proof target') || 'Log one proof target before the next note.'
+  const coachQuestion = extractPlayerIdPlanSegment(prefill.body, 'Coach question') || 'Ask one question that creates the next assignment.'
+
+  return {
+    title: identityTitle,
+    detail: isCoachView
+      ? 'Send the plan with the same train, proof, and coach-question signals from the bench.'
+      : 'Use this coach note to run the next rep, save proof, and reply with the result.',
+    steps: [
+      { label: 'Train', value: trainingPriority },
+      { label: 'Proof', value: proofTarget },
+      { label: 'Ask', value: coachQuestion },
+    ],
+    standard: null,
+    contextHref: isCoachView ? '/coach#coach-linked-dashboard' : '/mylab#player-workshop',
+    contextCta: isCoachView ? 'Open Coach Hub' : 'Open My Lab',
+    courtHref: '',
+  }
+}
+
+function extractPlayerIdPlanSegment(text: string, label: string) {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = text.match(new RegExp(`${escapedLabel}:\\s*([^\\.]+(?:\\.(?!\\s+[A-Z][a-z]+\\s(?:first|target|question):)[^\\.]*)?)`, 'i'))
+  return match?.[1]?.trim() ?? ''
+}
+
 function buildMessageAssignmentStandard(card: (typeof LEVEL_UP_CARDS)[number]) {
   return [
     {
@@ -968,6 +1006,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   )
   const composeAssignmentHandoff = useMemo(
     () => buildComposeAssignmentHandoff(prefill, composeContext, coachContacts),
+    [coachContacts, composeContext, prefill],
+  )
+  const composeCoachIdentityHandoff = useMemo(
+    () => buildComposeCoachIdentityHandoff(prefill, composeContext, coachContacts),
     [coachContacts, composeContext, prefill],
   )
   const quickReplyActions = useMemo(
@@ -2863,6 +2905,29 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   <Link href={composeAssignmentHandoff.courtHref} style={primaryMiniLinkStyle}>Open on court</Link>
                 ) : null}
                 <Link href={composeAssignmentHandoff.contextHref} style={ghostButtonStyle}>{composeAssignmentHandoff.contextCta}</Link>
+              </div>
+            </div>
+          ) : null}
+
+          {!composeAssignmentHandoff && composeCoachIdentityHandoff ? (
+            <div style={contextPanelStyle} aria-label={`Compose Player ID plan handoff for ${composeCoachIdentityHandoff.title}`}>
+              <div>
+                <div style={labelStyle}>Player ID plan follow-up</div>
+                <p style={copyStyle}>{composeCoachIdentityHandoff.title}</p>
+                <div style={assignmentHandoffStyle}>
+                  <span style={assignmentDetailStyle}>{composeCoachIdentityHandoff.detail}</span>
+                  <div style={assignmentHandoffStepGridStyle} aria-label={`Compose Player ID plan signals for ${composeCoachIdentityHandoff.title}`}>
+                    {composeCoachIdentityHandoff.steps.map((step) => (
+                      <span key={step.label} style={assignmentHandoffStepStyle}>
+                        <b>{step.label}</b>
+                        {step.value}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={contextActionRowStyle}>
+                <Link href={composeCoachIdentityHandoff.contextHref} style={ghostButtonStyle}>{composeCoachIdentityHandoff.contextCta}</Link>
               </div>
             </div>
           ) : null}
