@@ -5126,6 +5126,35 @@ function PlayerCoachAssignmentsPanel({
   const latestCoachFeedbackHref = latestCoachFeedback
     ? buildAssignmentLevelUpHref(latestCoachFeedback.assignment, coachLinkMap.get(latestCoachFeedback.assignment.studentLinkId))
     : ''
+  const latestCoachFeedbackPlayerIdHref = latestCoachFeedback
+    ? buildPlayerCoachMessageHref(
+        coachLinkMap.get(latestCoachFeedback.assignment.studentLinkId),
+        `Player ID follow-up: ${latestCoachFeedback.assignment.title}`,
+        `Player ID read: ${latestCoachFeedback.plan.title}. Train first: ${latestCoachFeedback.plan.nextRep}. Proof target: ${latestCoachFeedback.plan.items[2]?.value ?? 'Log one proof signal before the next coach note.'}. Coach question: `,
+        {
+          assignmentId: latestCoachFeedback.assignment.id,
+          assignmentTitle: latestCoachFeedback.assignment.title,
+          assignmentFocus: latestCoachFeedback.assignment.focus,
+          assignmentCardId: getAssignmentLevelUpCardId(latestCoachFeedback.assignment),
+        },
+      )
+    : ''
+  const latestCoachFeedbackPlayerIdPlan = latestCoachFeedback
+    ? [
+        {
+          label: 'Train',
+          value: latestCoachFeedback.plan.nextRep,
+        },
+        {
+          label: 'Proof',
+          value: latestCoachFeedback.plan.items[2]?.value ?? 'Log one proof signal before the next coach note.',
+        },
+        {
+          label: 'Ask',
+          value: 'Send the coach one question that turns this rep into the next assignment.',
+        },
+      ]
+    : []
   const coachLessonEvents = useMemo(
     () => buildPlayerCoachLessonEvents(
       activeCoachLink ? assignments.filter((assignment) => assignment.studentLinkId === activeCoachLink.id) : assignments,
@@ -5251,6 +5280,25 @@ function PlayerCoachAssignmentsPanel({
                 <em>{item.value}</em>
               </span>
             ))}
+          </div>
+          <div style={playerIdCoachPlanStyle} aria-label="My Lab Player ID coach plan">
+            <div style={coachCalendarCopyStyle}>
+              <span style={metricLabelStyle}>Player ID plan from coach</span>
+              <strong>Keep the train / proof / ask thread visible.</strong>
+              <span>Use the same plan when you return to Level Up or ask your coach for the next layer.</span>
+            </div>
+            <div style={playerIdCoachPlanGridStyle}>
+              {latestCoachFeedbackPlayerIdPlan.map((item) => (
+                <span key={item.label} style={playerIdCoachPlanItemStyle}>
+                  <strong>{item.label}</strong>
+                  <em>{item.value}</em>
+                </span>
+              ))}
+            </div>
+            <div style={coachReviewNextPlanActionsStyle}>
+              <Link href={latestCoachFeedbackHref} style={miniActionPillStyle}>Train now</Link>
+              <Link href={latestCoachFeedbackPlayerIdHref} style={miniActionLinkStyle}>Message Player ID plan</Link>
+            </div>
           </div>
           <div style={coachReviewNextPlanActionsStyle}>
             <Link href={latestCoachFeedbackHref} style={miniActionPillStyle}>Run coach response</Link>
@@ -6796,6 +6844,39 @@ const latestCoachFeedbackItemStyle: CSSProperties = {
   borderRadius: 13,
   border: '1px solid rgba(255,255,255,0.12)',
   background: 'rgba(5,16,31,0.32)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdCoachPlanStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background:
+    'radial-gradient(circle at 94% 10%, rgba(155,225,29,0.14), transparent 34%), rgba(5,16,31,0.34)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdCoachPlanGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const playerIdCoachPlanItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 13,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(8,22,40,0.5)',
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.35,
