@@ -294,6 +294,10 @@
   margin-top: 14px;
 }
 
+.workspace > section {
+  min-width: 0;
+}
+
 .panel {
   border-radius: 24px;
   padding: 16px;
@@ -503,8 +507,11 @@
 
 .boardFrame {
   border-radius: 24px;
+  box-sizing: border-box;
+  max-width: 100%;
   overflow: hidden;
   padding: 12px;
+  width: 100%;
 }
 
 .board {
@@ -514,6 +521,7 @@
   box-shadow: 0 0 42px rgba(155, 225, 29, 0.11);
   isolation: isolate;
   margin: 0 auto;
+  max-width: 100%;
   overflow: hidden;
   position: relative;
   touch-action: none;
@@ -929,11 +937,14 @@
 
   .boardFrame {
     border-radius: 18px;
-    padding: 8px;
+    padding: 6px;
   }
 
   .board {
     border-radius: 14px;
+    max-height: min(54svh, 430px);
+    width: min(100%, 72vh);
+    width: min(100%, 72svh);
   }
 
   .scenarioBar {

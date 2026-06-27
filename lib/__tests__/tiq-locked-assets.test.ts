@@ -8,6 +8,10 @@ const sourceRoots = ['app', 'components', 'lib', 'public', 'docs']
 const textFilePattern = /\.(css|html|json|md|mjs|ts|tsx|txt|webmanifest)$/i
 const allowedLegacyLogoRefs = new Set([
   '/tenaceiq/logos/tenaceiq-brand-preview.png',
+  '/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg',
+  '/tenaceiq/logos/tenaceiq-primary-horizontal.svg',
+  '/tenaceiq/logos/tenaceiq-symbol-reverse.svg',
+  '/tenaceiq/logos/tenaceiq-symbol.svg',
   '/tenaceiq/logos/tenaceiq-social-preview.png',
 ])
 
@@ -66,7 +70,7 @@ describe('TIQ locked tactical assets', () => {
     expect(boardSource).toContain('fill priority')
   })
 
-  it('keeps legacy TenAceIQ logo-folder references out of source except social previews', () => {
+  it('keeps legacy TenAceIQ logo-folder references out of source except the restored nav and social previews', () => {
     const offenders: string[] = []
     const legacyLogoPattern = /\/tenaceiq\/logos\/[^"'`\s),]+/g
 
@@ -93,5 +97,21 @@ describe('TIQ locked tactical assets', () => {
     expect(tacticalSources).toContain('/tiq/logo/tiq-lockup-light.png')
     expect(tacticalSources).not.toContain('tenaceiq-q-icon.svg')
     expect(tacticalSources).not.toContain('tenaceiq-app-icon.svg')
+  })
+
+  it('keeps the restored nav wordmark scoped to the site header brand component', () => {
+    const offenders = readSourceFiles()
+      .filter((file) => file.path !== 'app/components/brand-wordmark.tsx')
+      .flatMap((file) => {
+        const matches = file.source.match(/\/tenaceiq\/logos\/tenaceiq-(primary-horizontal(?:-reverse)?|symbol(?:-reverse)?)\.svg/g) ?? []
+        return matches.map((match) => `${file.path}: ${match}`)
+      })
+
+    const brandSource = readFileSync(join(root, 'app/components/brand-wordmark.tsx'), 'utf8')
+    const headerSource = readFileSync(join(root, 'app/components/site-header.tsx'), 'utf8')
+
+    expect(offenders).toEqual([])
+    expect(brandSource).toContain('legacyNav')
+    expect(headerSource).toContain('<BrandWordmark top compact={useCompactBrand} legacyNav siteHeaderCompact={useCompactHeader} />')
   })
 })
