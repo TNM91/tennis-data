@@ -21,7 +21,7 @@ export function createTacticalTemplate(key: TacticalTemplateKey): TacticalScenar
         { id: id('token'), type: 'player', label: 'N', role: 'Net', x: 39, y: 58, team: 'green', handedness: 'righty' },
         { id: id('token'), type: 'player', label: 'R', role: 'Returner', x: 36, y: 20, team: 'blue', handedness: 'righty' },
         { id: id('token'), type: 'player', label: 'P', role: 'Partner', x: 62, y: 42, team: 'blue', handedness: 'righty' },
-        { id: id('token'), type: 'ball', label: '', x: 60, y: 75 },
+        { id: id('token'), type: 'ball', label: '', x: 52, y: 74 },
       ],
       paths: [],
       zones: [],

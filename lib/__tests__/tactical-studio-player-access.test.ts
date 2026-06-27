@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
+import { createTacticalTemplate } from '../tactical/templates'
+
 const gateSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudioGate.tsx'), 'utf8')
 const studioSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.tsx'), 'utf8')
 const studioStyles = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.module.css'), 'utf8')
@@ -65,5 +67,16 @@ describe('Tactical Studio player access', () => {
     expect(courtOverlaySource).toContain('fill="#a8f000"')
     expect(courtOverlaySource).toContain('stroke="#07101e"')
     expect(courtOverlaySource).toContain('stroke="#f8ffe2"')
+  })
+
+  it('keeps the Basic Board ball token separated from the server token', () => {
+    const basicBoard = createTacticalTemplate('basicDoubles')
+    const server = basicBoard.tokens.find((token) => token.type === 'player' && token.role === 'Server')
+    const ball = basicBoard.tokens.find((token) => token.type === 'ball')
+
+    expect(server).toBeDefined()
+    expect(ball).toBeDefined()
+    expect(ball!.x).toBeLessThan(server!.x - 4)
+    expect(ball!.y).toBeLessThan(server!.y - 4)
   })
 })

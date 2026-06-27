@@ -49,26 +49,26 @@ export default function TiqCourtOverlay({ overlay, showLabels = true }: TiqCourt
           <path d="M-4.8 0.2C-2.6 -3.15 0 -2.45 2.05 0.25C3.25 1.8 4.55 1.85 5.2 0.55" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.05" />
         </symbol>
         <symbol id="tiq-ball-marker" viewBox="-5 -5 10 10">
-          <circle cx="0" cy="0" fill="#07101e" opacity="0.78" r="4.45" />
-          <circle cx="0" cy="0" fill="#a8f000" r="4.1" stroke="#07101e" strokeWidth="0.62" />
-          <path d="M-3.38 1.88C-1.95 4.1 1.82 4.22 3.42 2A4.1 4.1 0 0 1-3.38 1.88Z" fill="#6faf08" opacity="0.36" />
-          <ellipse cx="-1.2" cy="-1.72" fill="#e8ff66" opacity="0.62" rx="1.52" ry="0.88" transform="rotate(-25 -1.2 -1.72)" />
+          <circle cx="0" cy="0" fill="#07101e" opacity="0.82" r="4.45" />
+          <circle cx="0" cy="0" fill="#a8f000" r="4.05" stroke="#07101e" strokeWidth="0.68" />
+          <path d="M-3.38 1.72C-1.98 4.12 1.88 4.22 3.45 1.9A4.02 4.02 0 0 1-3.38 1.72Z" fill="#5f9808" opacity="0.38" />
+          <ellipse cx="-1.22" cy="-1.92" fill="#ecff69" opacity="0.46" rx="1.42" ry="0.78" transform="rotate(-24 -1.22 -1.92)" />
           <path
             className="classic-tennis-ball-seam"
-            d="M-3.28-2.22C-1.52-3.36 1.3-3.06 2.4-1.1C3.4.7 1.18 1.9 1.28 3.58"
+            d="M-3.68-1.78C-2.2-3.38.95-3.2 2.24-1.14C3.24.44.36 1.22.8 3.68"
             fill="none"
             stroke="#07101e"
             strokeLinecap="round"
-            strokeOpacity="0.26"
-            strokeWidth="1.5"
+            strokeOpacity="0.28"
+            strokeWidth="1.85"
           />
           <path
             className="classic-tennis-ball-seam"
-            d="M-3.18-2.2C-1.5-3.25 1.18-2.95 2.2-1.04C3.1.68.98 1.82 1.1 3.5"
+            d="M-3.54-1.72C-2.12-3.18.8-3 2.02-1.06C2.86.32.14 1.1.54 3.56"
             fill="none"
             stroke="#f8ffe2"
             strokeLinecap="round"
-            strokeWidth="1.08"
+            strokeWidth="1.28"
           />
         </symbol>
         <symbol id="tiq-cone-marker" viewBox="-5 -5 10 10">
