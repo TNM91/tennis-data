@@ -314,11 +314,17 @@ function CoachContent() {
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [lastCreatedAssignment, setLastCreatedAssignment] = useState<CoachAssignment | null>(null)
   const [addStudentSubmitAttempted, setAddStudentSubmitAttempted] = useState(false)
+  const [coachRouteHandoffHandled, setCoachRouteHandoffHandled] = useState('')
   const [calendarLinkByStudentId, setCalendarLinkByStudentId] = useState<Record<string, string>>({})
   const [calendarFeedStatusByStudentId, setCalendarFeedStatusByStudentId] = useState<Record<string, CoachCalendarFeedStatus>>({})
   const [calendarLinkLoadingStudentId, setCalendarLinkLoadingStudentId] = useState('')
   const [shareOrigin, setShareOrigin] = useState('')
   const studentPhoneDigits = getPhoneDigits(studentPhone)
+  const requestedStudentLinkId = searchParams.get('studentLinkId') || ''
+  const firstAssignmentRequestActive = searchParams.get('firstAssignment') === '1'
+  const firstAssignmentRequestKey = firstAssignmentRequestActive && requestedStudentLinkId
+    ? `${requestedStudentLinkId}:first-assignment`
+    : ''
   const textContactNeedsPhone = (contactPreference === 'text' || contactPreference === 'both') && !studentPhoneDigits
   const studentPhoneLooksIncomplete = Boolean(studentPhone.trim()) && studentPhoneDigits.length < 7
   const addStudentMissingNameMessage = !studentName.trim() ? 'Add a player name before saving.' : ''
@@ -1392,6 +1398,34 @@ function CoachContent() {
       setActiveMobileBenchStudentId(linkedPlayerCards[0].student.id)
     }
   }, [activeMobileBenchStudentId, linkedPlayerCards, mobileCoachContextHydrated])
+
+  useEffect(() => {
+    if (!firstAssignmentRequestKey || coachRouteHandoffHandled === firstAssignmentRequestKey) return
+    if (!savedStudents.length) return
+
+    const requestedStudent = savedStudents.find((student) => student.id === requestedStudentLinkId)
+    if (!requestedStudent) return
+
+    setCoachRouteHandoffHandled(firstAssignmentRequestKey)
+    setActiveMobileBenchStudentId(requestedStudent.id)
+    setAssignmentStudentId(requestedStudent.id)
+    setContactStudentId(requestedStudent.id)
+    setAssignmentTitle('')
+    setAssignmentFocus('')
+    setAssignmentTemplateId(CUSTOM_ASSIGNMENT_TEMPLATE_ID)
+    setAssignmentPresetId('')
+    setAssignmentStarterId('')
+    setAssignmentLevelUpPackId('')
+    setAssignmentLevelUpCardId('')
+    setAssignmentEditId('')
+    setWorkspaceMessage(`First assignment request loaded for ${requestedStudent.playerName}. Add one measurable task, proof target, and due date.`)
+    window.requestAnimationFrame(() => {
+      document.getElementById('coach-lesson-frame')?.scrollIntoView({
+        behavior: isMobile ? 'smooth' : 'auto',
+        block: 'start',
+      })
+    })
+  }, [coachRouteHandoffHandled, firstAssignmentRequestKey, isMobile, requestedStudentLinkId, savedStudents])
 
   useEffect(() => {
     if (!assignmentDraftHydrated || !savedStudents.length || !assignmentStudentId) return

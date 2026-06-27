@@ -380,6 +380,20 @@ function isCoachAssignmentConversation(conversation: InternalConversation) {
   return entityType === 'coach_player_link' && Boolean(conversation.metadata.assignmentId || conversation.metadata.assignmentTitle)
 }
 
+function isFirstAssignmentConversation(conversation: InternalConversation | null) {
+  if (!conversation) return false
+  const entityType = conversation.metadata.entityType || conversation.relatedEntityType
+  return entityType === 'coach_player_link' && /first level up assignment|first assignment request/i.test(conversation.subject)
+}
+
+function buildCoachFirstAssignmentHref(studentLinkId: string) {
+  const params = new URLSearchParams({
+    studentLinkId,
+    firstAssignment: '1',
+  })
+  return `/coach?${params.toString()}#coach-lesson-frame`
+}
+
 function getCoachAssignmentConversationRelationship(
   conversation: InternalConversation,
   coachContacts: CoachMessageContact[],
@@ -509,7 +523,11 @@ function buildConversationContextHref(conversation: InternalConversation | null,
     const contact = coachContacts.find((item) => item.linkId === entityId)
     const assignmentId = conversation.metadata.assignmentId
     const assignmentAnchor = assignmentId ? `#coach-assignment-${encodeURIComponent(assignmentId)}` : ''
-    if (contact?.relationship === 'student') return assignmentAnchor ? `/coach${assignmentAnchor}` : '/coach#coach-linked-dashboard'
+    if (contact?.relationship === 'student') {
+      if (assignmentAnchor) return `/coach${assignmentAnchor}`
+      if (isFirstAssignmentConversation(conversation)) return buildCoachFirstAssignmentHref(entityId)
+      return '/coach#coach-linked-dashboard'
+    }
     return assignmentAnchor ? `/mylab${assignmentAnchor}` : '/mylab#player-workshop'
   }
   if (entityType === 'billing') return '/profile'

@@ -41,7 +41,12 @@ describe('coach assignment message context', () => {
     expect(myLabSource).toContain('id={`coach-assignment-${assignment.id}`}')
     expect(messagesSource).toContain('conversation.metadata.assignmentId')
     expect(messagesSource).toContain('#coach-assignment-')
-    expect(messagesSource).toContain('return assignmentAnchor ? `/coach${assignmentAnchor}` :')
+    expect(messagesSource).toContain('if (assignmentAnchor) return `/coach${assignmentAnchor}`')
+    expect(messagesSource).toContain('isFirstAssignmentConversation(conversation)')
+    expect(messagesSource).toContain('buildCoachFirstAssignmentHref(entityId)')
+    expect(messagesSource).toContain('studentLinkId')
+    expect(messagesSource).toContain("firstAssignment: '1'")
+    expect(messagesSource).toContain("return `/coach?${params.toString()}#coach-lesson-frame`")
     expect(messagesSource).toContain('return assignmentAnchor ? `/mylab${assignmentAnchor}` :')
   })
 
