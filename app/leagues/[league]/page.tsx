@@ -1093,7 +1093,7 @@ const watermarkStyle: CSSProperties = {
   top: '-118px',
   width: '310px',
   aspectRatio: '1045 / 490',
-  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

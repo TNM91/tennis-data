@@ -841,7 +841,7 @@ const portalBrandRunwayStyle: CSSProperties = {
 const portalBrandRunwayMarkStyle: CSSProperties = {
   display: 'block',
   aspectRatio: '1045 / 490',
-  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   mixBlendMode: 'screen',
   pointerEvents: 'none',
 }

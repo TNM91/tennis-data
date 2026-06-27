@@ -430,7 +430,7 @@ export default function HomePageHeroResponsive() {
               }}
             >
               <Image
-                src="/tenaceiq/logos/tenaceiq-symbol-reverse.svg"
+                src="/tiq/logo/tiq-mark-light.png"
                 alt="TenAceIQ"
                 fill
                 priority

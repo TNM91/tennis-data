@@ -30,7 +30,7 @@ export default function TiqLoader({
         aria-label={label || "Loading"}
       >
         <Image
-          src="/tenaceiq/logos/tenaceiq-q-icon.svg"
+          src="/tiq/logo/tiq-app-icon.png"
           alt=""
           width={512}
           height={512}

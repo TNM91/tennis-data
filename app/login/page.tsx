@@ -317,7 +317,7 @@ function canUseBrowserStorage() {
         <div style={loadingCard}>
           <span style={authLoadingIconStyle}>
             <Image
-              src="/tenaceiq/logos/tenaceiq-q-icon.svg"
+              src="/tiq/logo/tiq-app-icon.png"
               alt=""
               width={512}
               height={512}
@@ -482,7 +482,7 @@ const watermarkStyle: CSSProperties = {
   bottom: 'clamp(-76px, -6vw, -30px)',
   width: 'clamp(260px, 36vw, 500px)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.22,
   pointerEvents: 'none',
 }
