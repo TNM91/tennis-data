@@ -1410,15 +1410,32 @@ function CoachContent() {
     setActiveMobileBenchStudentId(requestedStudent.id)
     setAssignmentStudentId(requestedStudent.id)
     setContactStudentId(requestedStudent.id)
-    setAssignmentTitle('')
-    setAssignmentFocus('')
-    setAssignmentTemplateId(CUSTOM_ASSIGNMENT_TEMPLATE_ID)
-    setAssignmentPresetId('')
-    setAssignmentStarterId('')
-    setAssignmentLevelUpPackId('')
-    setAssignmentLevelUpCardId('')
+    const starter = FIRST_ASSIGNMENT_STARTERS[0]
+    if (starter) {
+      const template = getCoachAssignmentTemplate(starter.templateId)
+      setAssignmentTemplateId(template.id)
+      setAssignmentTitle(starter.title)
+      setAssignmentFocus(starter.focus)
+      setAssignmentDueDate(getDateInputDaysFromNow(7))
+      setAssignmentPresetId('')
+      setAssignmentStarterId(starter.id)
+      setAssignmentLevelUpCardId(getFirstAssignmentStarterCardId(starter.id))
+      setAssignmentLevelUpPackId('')
+    } else {
+      setAssignmentTitle('')
+      setAssignmentFocus('')
+      setAssignmentTemplateId(CUSTOM_ASSIGNMENT_TEMPLATE_ID)
+      setAssignmentPresetId('')
+      setAssignmentStarterId('')
+      setAssignmentLevelUpPackId('')
+      setAssignmentLevelUpCardId('')
+    }
     setAssignmentEditId('')
-    setWorkspaceMessage(`First assignment request loaded for ${requestedStudent.playerName}. Add one measurable task, proof target, and due date.`)
+    setWorkspaceMessage(
+      starter
+        ? `First assignment request loaded for ${requestedStudent.playerName}: ${starter.title}. Expected evidence: ${starter.evidence}`
+        : `First assignment request loaded for ${requestedStudent.playerName}. Add one measurable task, proof target, and due date.`,
+    )
     window.requestAnimationFrame(() => {
       document.getElementById('coach-lesson-frame')?.scrollIntoView({
         behavior: isMobile ? 'smooth' : 'auto',
