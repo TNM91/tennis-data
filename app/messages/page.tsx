@@ -722,6 +722,42 @@ function buildConversationAssignmentHandoff(
   }
 }
 
+function buildConversationFirstAssignmentHandoff(
+  conversation: InternalConversation | null,
+  coachContacts: CoachMessageContact[],
+): AssignmentMessageHandoff | null {
+  if (!conversation || !isFirstAssignmentConversation(conversation)) return null
+
+  const entityType = conversation.metadata.entityType || conversation.relatedEntityType
+  const entityId = conversation.metadata.entityId || conversation.relatedEntityId
+  if (entityType !== 'coach_player_link' || !entityId) return null
+
+  const contact = coachContacts.find((item) => item.linkId === entityId)
+  const isCoachView = contact?.relationship === 'student'
+  return {
+    eyebrow: 'First assignment request',
+    title: isCoachView ? 'Create the first assignment in Coach Hub.' : 'Your first assignment request is in the coach thread.',
+    detail: isCoachView
+      ? 'Open Coach Hub with this player selected, load the starter, adjust the proof target, then create the assignment.'
+      : 'Watch this thread for the coach-created assignment, then return to My Lab to run it and send proof.',
+    steps: isCoachView
+      ? [
+          { label: 'Open', value: 'Coach Hub' },
+          { label: 'Create', value: 'First assignment' },
+          { label: 'Send', value: 'Proof target' },
+        ]
+      : [
+          { label: 'Sent', value: 'Coach request' },
+          { label: 'Wait', value: 'Assignment card' },
+          { label: 'Run', value: 'My Lab proof' },
+        ],
+    standard: null,
+    contextHref: isCoachView ? buildCoachFirstAssignmentHref(entityId) : '/mylab#coach-assignments',
+    contextCta: isCoachView ? 'Open Coach Hub' : 'Open My Lab',
+    courtHref: '',
+  }
+}
+
 function getMessageAssignmentCard(conversation: InternalConversation) {
   const cardId = getMessageAssignmentCardId(conversation)
   return cardId ? LEVEL_UP_CARDS.find((card) => card.id === cardId) ?? null : null
@@ -1060,6 +1096,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   )
   const selectedAssignmentHandoff = useMemo(
     () => buildConversationAssignmentHandoff(selectedConversation, coachContacts),
+    [coachContacts, selectedConversation],
+  )
+  const selectedFirstAssignmentHandoff = useMemo(
+    () => buildConversationFirstAssignmentHandoff(selectedConversation, coachContacts),
     [coachContacts, selectedConversation],
   )
   const composeAssignmentHandoff = useMemo(
@@ -2444,6 +2484,22 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                         ))}
                       </div>
                     ) : null}
+                  </div>
+                ) : null}
+                {!selectedAssignmentHandoff && selectedFirstAssignmentHandoff ? (
+                  <div style={assignmentHandoffStyle} aria-label={`First assignment thread handoff for ${selectedFirstAssignmentHandoff.title}`}>
+                    <div>
+                      <strong>{selectedFirstAssignmentHandoff.title}</strong>
+                      <span>{selectedFirstAssignmentHandoff.detail}</span>
+                    </div>
+                    <div style={assignmentHandoffStepGridStyle} aria-label="First assignment thread path">
+                      {selectedFirstAssignmentHandoff.steps.map((step) => (
+                        <span key={step.label} style={assignmentHandoffStepStyle}>
+                          <b>{step.label}</b>
+                          {step.value}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
                 {selectedConversation.conversationType === 'support' ? (

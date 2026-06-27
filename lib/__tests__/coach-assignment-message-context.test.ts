@@ -122,6 +122,21 @@ describe('coach assignment message context', () => {
     expect(messagesSource).toContain('!composeAssignmentHandoff && !firstAssignmentComposeHandoff && composeCoachIdentityHandoff')
   })
 
+  it('shows a first-assignment request cue after the thread is opened', () => {
+    expect(messagesSource).toContain('buildConversationFirstAssignmentHandoff')
+    expect(messagesSource).toContain('selectedFirstAssignmentHandoff')
+    expect(messagesSource).toContain('First assignment thread handoff for')
+    expect(messagesSource).toContain('First assignment thread path')
+    expect(messagesSource).toContain('Create the first assignment in Coach Hub.')
+    expect(messagesSource).toContain('Your first assignment request is in the coach thread.')
+    expect(messagesSource).toContain('Open Coach Hub with this player selected, load the starter, adjust the proof target, then create the assignment.')
+    expect(messagesSource).toContain('Watch this thread for the coach-created assignment, then return to My Lab to run it and send proof.')
+    expect(messagesSource).toContain("label: 'Open', value: 'Coach Hub'")
+    expect(messagesSource).toContain("label: 'Create', value: 'First assignment'")
+    expect(messagesSource).toContain("label: 'Sent', value: 'Coach request'")
+    expect(messagesSource).toContain("contextHref: isCoachView ? buildCoachFirstAssignmentHref(entityId) : '/mylab#coach-assignments'")
+  })
+
   it('adds court-ready quick replies for assignment message threads', () => {
     expect(messagesSource).toContain('isCoachAssignmentConversation')
     expect(messagesSource).toContain('getCoachAssignmentConversationRelationship')
