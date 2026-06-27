@@ -5121,7 +5121,7 @@ function PlayerCoachAssignmentsPanel({
   const firstAssignmentRequestHref = buildPlayerCoachMessageHref(
     activeCoachLink,
     'First Level Up assignment',
-    'Coach, can you send my first TenAceIQ assignment so I can track it in My Lab? ',
+    buildFirstAssignmentRequestBody(activeCoachLink),
   )
   const coachInviteLandingSteps = activeCoachLink
     ? [
@@ -5957,6 +5957,18 @@ function buildPlayerCoachMessageHref(
   if (assignmentContext?.assignmentFocus) params.set('assignmentFocus', assignmentContext.assignmentFocus)
   if (assignmentContext?.assignmentCardId) params.set('assignmentCardId', assignmentContext.assignmentCardId)
   return `/messages?${params.toString()}`
+}
+
+function buildFirstAssignmentRequestBody(coachLink: CoachStudentLink | undefined) {
+  const playerName = coachLink?.playerName?.trim() || 'this player'
+  const levelContext = coachLink?.levelLabel?.trim() || 'player development'
+
+  return [
+    `Coach, ${playerName} is connected in My Lab now.`,
+    'Can you send one measurable first assignment from Coach Hub?',
+    'Please include the drill, the proof you want back, and the next-focus question I should answer after I finish.',
+    `Current player context: ${levelContext}.`,
+  ].join(' ')
 }
 
 function buildAssignmentLevelUpHref(
