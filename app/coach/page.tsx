@@ -57,6 +57,21 @@ const COACH_MOBILE_CONTEXT_KEY = 'tenaceiq.coach.mobileContext.v1'
 const COACH_ASSIGNMENT_DRAFT_KEY = 'tenaceiq.coach.assignmentDraft.v1'
 const COACH_LAST_STUDENT_SETUP_KEY = 'tenaceiq.coach.lastStudentSetup.v1'
 
+const PENDING_INVITE_STEPS = [
+  {
+    label: 'Text',
+    copy: 'Send or copy the setup link.',
+  },
+  {
+    label: 'Player',
+    copy: 'Player opens it and adds their own email.',
+  },
+  {
+    label: 'Accept',
+    copy: 'Player taps Accept coach connection.',
+  },
+] as const
+
 type CoachCalendarFeedStatus = {
   active: boolean
   createdAt: string | null
@@ -1422,9 +1437,19 @@ function CoachContent() {
           {card.latestAssignment
             ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
             : card.pendingInvite
-              ? 'Waiting on player. Send the setup text, then create the first Level Up assignment.'
+              ? 'Waiting on player. Keep the setup text handy until they accept the coach connection.'
               : 'Create a measurable next action from the last lesson.'}
         </p>
+        {card.pendingInvite ? (
+          <div style={pendingInviteChecklistStyle} aria-label={`Pending setup checklist for ${card.student.playerName}`}>
+            {PENDING_INVITE_STEPS.map((step) => (
+              <span key={step.label} style={pendingInviteStepStyle}>
+                <strong style={pendingInviteStepBadgeStyle}>{step.label}</strong>
+                <span style={pendingInviteStepCopyStyle}>{step.copy}</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div style={coachBenchIdentityReadStyle} aria-label={`Player ID action read for ${card.student.playerName}`}>
           <span style={coachBenchIdentityLabelStyle}>Train first</span>
           <strong style={coachBenchIdentityValueStyle}>{identityRead.title}</strong>
@@ -1574,13 +1599,21 @@ function CoachContent() {
           {card.latestAssignment
             ? `${card.latestAssignment.title}: ${card.latestAssignment.focus || 'next coach assignment'}`
             : card.pendingInvite
-              ? 'Waiting on player. Text the setup link, then load the first Level Up assignment.'
+              ? 'Waiting on player. Keep the setup text handy until they accept the coach connection.'
               : 'Choose the next measurable action before the player leaves the court.'}
         </p>
         {card.pendingInvite ? (
           <div style={mobileBenchSetupCueStyle} aria-label={`Setup next steps for ${card.student.playerName}`}>
             <strong>Setup waiting</strong>
-            <span>Use Text setup link below. The player opens it, adds their email, and connects this coach relationship.</span>
+            <span>Use Text setup link below. The player owns the email step.</span>
+            <div style={pendingInviteChecklistStyle}>
+              {PENDING_INVITE_STEPS.map((step) => (
+                <span key={step.label} style={pendingInviteStepStyle}>
+                  <strong style={pendingInviteStepBadgeStyle}>{step.label}</strong>
+                  <span style={pendingInviteStepCopyStyle}>{step.copy}</span>
+                </span>
+              ))}
+            </div>
           </div>
         ) : null}
         <div style={mobileBenchIdentityReadStyle} aria-label={`Mobile Player ID action read for ${card.student.playerName}`}>
@@ -4862,6 +4895,45 @@ const mobileBenchSetupCueStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.35,
   fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const pendingInviteChecklistStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+}
+
+const pendingInviteStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '68px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.3,
+  fontWeight: 760,
+}
+
+const pendingInviteStepBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 24,
+  padding: '4px 8px',
+  borderRadius: 999,
+  background: 'rgba(155,225,29,0.18)',
+  color: 'var(--shell-accent)',
+  fontSize: 10,
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
+const pendingInviteStepCopyStyle: CSSProperties = {
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
