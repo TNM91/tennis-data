@@ -152,14 +152,16 @@ function JoinContent() {
     : 'free'
   const selectedIntent = JOIN_INTENT_COPY[selectedPlanId]
   const selectedTier = getMembershipTier(selectedPlanId)
-  const selectedNextRoute = isSafeLocalNextHref(searchParams.get('next'), getJoinNextRoute(selectedPlanId))
+  const requestedNextRoute = searchParams.get('next')
+  const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
   const authLoading = !authResolved
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
-    router.replace(getDefaultSignedInRoute(role, entitlements))
-  }, [authResolved, entitlements, role, router])
+    const signedInRedirectRoute = requestedNextRoute ? selectedNextRoute : getDefaultSignedInRoute(role, entitlements)
+    router.replace(signedInRedirectRoute)
+  }, [authResolved, entitlements, requestedNextRoute, role, router, selectedNextRoute])
 
   useEffect(() => {
     if (requestedEmail && !email) setEmail(requestedEmail)

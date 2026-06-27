@@ -37,7 +37,8 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('const { role, entitlements, authResolved } = useAuth()')
     expect(source).toContain('const authLoading = !authResolved')
     expect(source).toContain("if (!authResolved || role === 'public') return")
-    expect(source).toContain('router.replace(getDefaultSignedInRoute(role, entitlements))')
+    expect(source).toContain('const signedInRedirectRoute = requestedNextRoute ? selectedNextRoute : getDefaultSignedInRoute(role, entitlements)')
+    expect(source).toContain('router.replace(signedInRedirectRoute)')
     expect(source).toContain("if (access.currentPlanId === 'coach') return '/coach'")
     expect(source).not.toContain('getClientAuthState')
     expect(source).not.toContain('const [role, setRole]')
@@ -105,6 +106,10 @@ describe('auth entry mobile layout guards', () => {
     const source = sources.get('app/join/page.tsx')!
 
     expect(source).toContain("const requestedEmail = searchParams.get('email')?.trim() ?? ''")
+    expect(source).toContain("const requestedNextRoute = searchParams.get('next')")
+    expect(source).toContain('const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))')
+    expect(source).toContain('const signedInRedirectRoute = requestedNextRoute ? selectedNextRoute : getDefaultSignedInRoute(role, entitlements)')
+    expect(source).toContain('router.replace(signedInRedirectRoute)')
     expect(source).toContain('function buildJoinLoginHref(planId: MembershipTierId, nextHref: string, email = \'\')')
     expect(source).toContain('const cleanEmail = email.trim()')
     expect(source).toContain("if (cleanEmail) loginParams.set('email', cleanEmail)")
