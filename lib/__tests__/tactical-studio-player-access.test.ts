@@ -44,8 +44,11 @@ describe('Tactical Studio player access', () => {
 
   it('keeps the phone tactical board shrink-safe inside the viewport', () => {
     expect(studioStyles).toContain('.workspace > section')
+    expect(studioStyles).toContain('max-width: 100svw;')
     expect(studioStyles).toContain('max-width: 100%;')
-    expect(studioStyles).toContain('max-height: min(54svh, 430px);')
-    expect(studioStyles).toContain('width: min(100%, 72svh);')
+    expect(studioStyles).toContain('overflow-x: hidden;')
+    expect(studioStyles).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
+    expect(studioStyles).toContain('max-height: none;')
+    expect(studioStyles).toContain('width: 100%;')
   })
 })
