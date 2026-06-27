@@ -64,13 +64,27 @@ export function MarkerIcon({ className, type }: MarkerIconProps) {
   return (
     <svg aria-hidden="true" className={className} viewBox="-10 -10 20 20">
       <g className="tiq-tennis-ball-marker">
-        <circle cx="0" cy="0" fill="#07101E" opacity="0.72" r="7.3" />
-        <circle cx="0" cy="0" fill="#DFFF5D" r="6.6" stroke="#07101E" strokeWidth="1.05" />
-        <path d="M-5.8 2.4C-3.5 6.1 1.2 6.8 4.6 4.15 5.55 3.4 6.2 2.55 6.55 1.7A6.7 6.7 0 0 1-5.8 2.4Z" fill="#8FC50F" opacity="0.54" />
-        <ellipse cx="-2.1" cy="-3.15" fill="#F5FF9B" opacity="0.76" rx="2.45" ry="1.55" transform="rotate(-26 -2.1 -3.15)" />
-        <path d="M-6.52.25C-3.85-3.98.7-3.55 3.18-.35 4.42 1.25 5.4 1.08 6.12.12" fill="none" stroke="#07101E" strokeLinecap="round" strokeOpacity="0.18" strokeWidth="2.35" />
-        <path d="M-6.15-.9C-3.65-4.95.95-4.42 3.45-1.15 4.75.55 5.72.38 6.42-.58" fill="none" stroke="#F8FFE2" strokeLinecap="round" strokeWidth="1.45" />
-        <path d="M-6.18 1.05C-3.25-1.92.65-1.6 3.08.98 4.32 2.28 5.23 2.2 5.98 1.35" fill="none" stroke="#5F9308" strokeLinecap="round" strokeWidth="1.18" />
+        <circle cx="0" cy="0" fill="#07101E" opacity="0.78" r="8.75" />
+        <circle cx="0" cy="0" fill="#A8F000" r="8.05" stroke="#07101E" strokeWidth="1.25" />
+        <path d="M-6.65 3.7C-3.85 8.18 3.62 8.42 6.85 3.95A8.04 8.04 0 0 1-6.65 3.7Z" fill="#6FAF08" opacity="0.36" />
+        <ellipse cx="-2.4" cy="-3.45" fill="#E8FF66" opacity="0.62" rx="3" ry="1.75" transform="rotate(-25 -2.4 -3.45)" />
+        <path
+          className="classic-tennis-ball-seam"
+          d="M-6.55-4.45C-3.05-6.72 2.6-6.12 4.78-2.2C6.8 1.42 2.36 3.8 2.55 7.18"
+          fill="none"
+          stroke="#07101E"
+          strokeLinecap="round"
+          strokeOpacity="0.26"
+          strokeWidth="3"
+        />
+        <path
+          className="classic-tennis-ball-seam"
+          d="M-6.35-4.42C-2.98-6.5 2.35-5.92 4.38-2.08C6.18 1.34 1.94 3.64 2.22 7"
+          fill="none"
+          stroke="#F8FFE2"
+          strokeLinecap="round"
+          strokeWidth="2.15"
+        />
       </g>
     </svg>
   )

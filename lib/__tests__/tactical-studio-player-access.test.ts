@@ -54,12 +54,16 @@ describe('Tactical Studio player access', () => {
     expect(studioStyles).toContain('width: 100%;')
   })
 
-  it('keeps tactical ball markers dimensional instead of flat circles', () => {
+  it('keeps tactical ball markers readable as classic tennis balls', () => {
     expect(markerIconsSource).toContain('tiq-tennis-ball-marker')
-    expect(markerIconsSource).toContain('fill="#F5FF9B"')
-    expect(markerIconsSource).toContain('stroke="#5F9308"')
+    expect(markerIconsSource).toContain('classic-tennis-ball-seam')
+    expect(markerIconsSource).toContain('fill="#A8F000"')
+    expect(markerIconsSource).toContain('stroke="#07101E"')
+    expect(markerIconsSource).toContain('stroke="#F8FFE2"')
     expect(courtOverlaySource).toContain('<symbol id="tiq-ball-marker"')
-    expect(courtOverlaySource).toContain('fill="#f5ff9b"')
-    expect(courtOverlaySource).toContain('stroke="#5f9308"')
+    expect(courtOverlaySource).toContain('classic-tennis-ball-seam')
+    expect(courtOverlaySource).toContain('fill="#a8f000"')
+    expect(courtOverlaySource).toContain('stroke="#07101e"')
+    expect(courtOverlaySource).toContain('stroke="#f8ffe2"')
   })
 })
