@@ -11,8 +11,8 @@ type TiqCourtProps = {
 }
 
 const courtAssetByVariant: Record<TiqCourtVariant, string> = {
-  isometric: '/tenaceiq/courts/tiq-court-master.png',
-  flat: '/tenaceiq/courts/tiq-court-master.png',
+  isometric: '/tiq/courts/tiq-court-master-v2.png',
+  flat: '/tiq/courts/tiq-court-master.png',
 }
 
 export default function TiqCourt({
@@ -27,7 +27,7 @@ export default function TiqCourt({
       className={className}
       data-tiq-court={variant}
       style={{
-        aspectRatio: '3 / 2',
+        aspectRatio: '1448 / 1086',
         background: '#020814',
         borderRadius: 14,
         isolation: 'isolate',

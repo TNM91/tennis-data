@@ -66,6 +66,20 @@ export default function TiqInspector({
 }
 
 function ScenarioEditor({ scenario, onChange }: { scenario: TacticalScenario; onChange: (patch: Partial<TacticalScenario>) => void }) {
+  function updateCue(role: 'captain' | 'coach' | 'player', text: string) {
+    const existing = scenario.cues.find((cue) => cue.role === role)
+    if (!text.trim()) {
+      onChange({ cues: scenario.cues.filter((cue) => cue.role !== role) })
+      return
+    }
+
+    onChange({
+      cues: existing
+        ? scenario.cues.map((cue) => cue.role === role ? { ...cue, text } : cue)
+        : [...scenario.cues, { id: `cue-${role}`, role, text }],
+    })
+  }
+
   return (
     <>
       <Field label="Scenario name" value={scenario.name} onChange={(name) => onChange({ name })} />
@@ -75,6 +89,15 @@ function ScenarioEditor({ scenario, onChange }: { scenario: TacticalScenario; on
         <Field label="Duration" value={scenario.duration} onChange={(duration) => onChange({ duration })} />
       </div>
       <TextArea label="Brief note" value={scenario.note} onChange={(note) => onChange({ note })} />
+      <div className={styles.panelTitle}>Role cues</div>
+      {(['captain', 'coach', 'player'] as const).map((role) => (
+        <TextArea
+          key={role}
+          label={`${role} cue`}
+          value={scenario.cues.find((cue) => cue.role === role)?.text ?? ''}
+          onChange={(text) => updateCue(role, text)}
+        />
+      ))}
     </>
   )
 }

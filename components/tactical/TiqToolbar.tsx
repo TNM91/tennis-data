@@ -1,8 +1,9 @@
 'use client'
 
+import Image from 'next/image'
 import type { TacticalPathKind, TacticalRole, TacticalTemplateKey, TacticalTokenType } from '@/lib/tactical/types'
 import { tacticalTemplateMeta } from '@/lib/tactical/templates'
-import { MarkerIcon, PlayerIcon } from './icons/TiqIcons'
+import { MarkerIcon } from './icons/TiqIcons'
 import styles from './TiqTacticalStudio.module.css'
 
 type TiqToolbarProps = {
@@ -23,6 +24,7 @@ type TiqToolbarProps = {
   onImportJson: (file: File) => void
   onSaveCloud: () => void
   onSaveLocal: () => void
+  onShareScenario: () => void
   onReset: () => void
 }
 
@@ -44,6 +46,7 @@ export default function TiqToolbar({
   onImportJson,
   onSaveCloud,
   onSaveLocal,
+  onShareScenario,
   onReset,
 }: TiqToolbarProps) {
   return (
@@ -100,6 +103,7 @@ export default function TiqToolbar({
         <button className={styles.toolButton} onClick={onCopyJson} type="button">Copy JSON</button>
         <button className={styles.toolButton} onClick={onCopyBriefing} type="button">Copy brief</button>
         <button className={styles.toolButton} onClick={onDownloadJson} type="button">Download</button>
+        <button className={styles.toolButton} onClick={onShareScenario} type="button">Share</button>
         <label className={styles.importButton}>
           Import
           <input
@@ -140,7 +144,11 @@ function TokenTool({
       onClick={onClick}
       type="button"
     >
-      {type === 'player' ? <PlayerIcon /> : <MarkerIcon type={type} />}
+      {type === 'player' ? (
+        <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/tiq/logo/tiq-app-icon.png" width={34} />
+      ) : (
+        <MarkerIcon type={type} />
+      )}
       <span>{label}</span>
     </button>
   )
