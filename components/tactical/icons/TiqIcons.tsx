@@ -64,26 +64,26 @@ export function MarkerIcon({ className, type }: MarkerIconProps) {
   return (
     <svg aria-hidden="true" className={className} viewBox="-10 -10 20 20">
       <g className="tiq-tennis-ball-marker">
-        <circle cx="0" cy="0" fill="#07101E" opacity="0.78" r="8.75" />
-        <circle cx="0" cy="0" fill="#A8F000" r="8.05" stroke="#07101E" strokeWidth="1.25" />
-        <path d="M-6.65 3.7C-3.85 8.18 3.62 8.42 6.85 3.95A8.04 8.04 0 0 1-6.65 3.7Z" fill="#6FAF08" opacity="0.36" />
-        <ellipse cx="-2.4" cy="-3.45" fill="#E8FF66" opacity="0.62" rx="3" ry="1.75" transform="rotate(-25 -2.4 -3.45)" />
+        <circle cx="0" cy="0" fill="#07101E" opacity="0.82" r="8.85" />
+        <circle cx="0" cy="0" fill="#A8F000" r="8" stroke="#07101E" strokeWidth="1.35" />
+        <path d="M-6.75 3.45C-3.95 8.28 3.74 8.46 6.9 3.8A8.02 8.02 0 0 1-6.75 3.45Z" fill="#5F9808" opacity="0.38" />
+        <ellipse cx="-2.45" cy="-3.85" fill="#ECFF69" opacity="0.46" rx="2.85" ry="1.55" transform="rotate(-24 -2.45 -3.85)" />
         <path
           className="classic-tennis-ball-seam"
-          d="M-6.55-4.45C-3.05-6.72 2.6-6.12 4.78-2.2C6.8 1.42 2.36 3.8 2.55 7.18"
+          d="M-7.35-3.55C-4.4-6.75 1.9-6.38 4.48-2.28C6.46 0.88 0.72 2.45 1.58 7.35"
           fill="none"
           stroke="#07101E"
           strokeLinecap="round"
-          strokeOpacity="0.26"
-          strokeWidth="3"
+          strokeOpacity="0.28"
+          strokeWidth="3.7"
         />
         <path
           className="classic-tennis-ball-seam"
-          d="M-6.35-4.42C-2.98-6.5 2.35-5.92 4.38-2.08C6.18 1.34 1.94 3.64 2.22 7"
+          d="M-7.08-3.42C-4.24-6.34 1.62-5.98 4.02-2.12C5.72.64 0.28 2.22 1.08 7.1"
           fill="none"
           stroke="#F8FFE2"
           strokeLinecap="round"
-          strokeWidth="2.15"
+          strokeWidth="2.55"
         />
       </g>
     </svg>
