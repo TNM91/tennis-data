@@ -49,8 +49,13 @@ export default function TiqCourtOverlay({ overlay, showLabels = true }: TiqCourt
           <path d="M-4.8 0.2C-2.6 -3.15 0 -2.45 2.05 0.25C3.25 1.8 4.55 1.85 5.2 0.55" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.05" />
         </symbol>
         <symbol id="tiq-ball-marker" viewBox="-5 -5 10 10">
-          <circle cx="0" cy="0" fill="#dfff73" r="3.35" stroke="#07101e" strokeWidth="0.85" />
-          <path d="M-3.1 0.1C-1.45 -2.55 1 -1.95 2.35 0.05C3.15 1.25 3.85 1.2 4.25 0.35" fill="none" stroke="#9be11d" strokeLinecap="round" strokeWidth="0.85" />
+          <circle cx="0" cy="0" fill="#07101e" opacity="0.72" r="3.92" />
+          <circle cx="0" cy="0" fill="#dfff5d" r="3.48" stroke="#07101e" strokeWidth="0.58" />
+          <path d="M-3.05 1.3C-1.85 3.28.62 3.55 2.42 2.18 2.98 1.75 3.32 1.3 3.48.9A3.55 3.55 0 0 1-3.05 1.3Z" fill="#8fc50f" opacity="0.54" />
+          <ellipse cx="-1.05" cy="-1.65" fill="#f5ff9b" opacity="0.76" rx="1.28" ry="0.82" transform="rotate(-26 -1.05 -1.65)" />
+          <path d="M-3.42.12C-2.02-2.1.38-1.88 1.68-.18 2.33.66 2.85.58 3.22.06" fill="none" stroke="#07101e" strokeLinecap="round" strokeOpacity="0.18" strokeWidth="1.22" />
+          <path d="M-3.24-.48C-1.92-2.6.5-2.32 1.82-.6 2.5.3 3.02.2 3.38-.3" fill="none" stroke="#f8ffe2" strokeLinecap="round" strokeWidth="0.76" />
+          <path d="M-3.25.55C-1.72-1.02.35-.85 1.62.52 2.28 1.18 2.76 1.15 3.15.7" fill="none" stroke="#5f9308" strokeLinecap="round" strokeWidth="0.62" />
         </symbol>
         <symbol id="tiq-cone-marker" viewBox="-5 -5 10 10">
           <path d="M0 -3.8L3.35 3.2H-3.35Z" fill="#ffc257" stroke="#07101e" strokeLinejoin="round" strokeWidth="0.7" />
