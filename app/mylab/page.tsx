@@ -5123,6 +5123,7 @@ function PlayerCoachAssignmentsPanel({
     'First Level Up assignment',
     buildFirstAssignmentRequestBody(activeCoachLink),
   )
+  const firstAssignmentRequestPreview = buildFirstAssignmentRequestBody(activeCoachLink)
   const coachInviteLandingSteps = activeCoachLink
     ? [
         {
@@ -5130,12 +5131,16 @@ function PlayerCoachAssignmentsPanel({
           value: `${activeCoachLink.playerName} is linked to Coach Hub.`,
         },
         {
-          label: 'Waiting on coach',
-          value: 'The first coach-created assignment will appear here.',
+          label: 'Ask sent',
+          value: 'Message your coach for one measurable drill, proof target, and next-focus question.',
         },
         {
-          label: 'Your move',
-          value: 'Request one measurable assignment or keep training in Level Up.',
+          label: 'Assignment lands',
+          value: 'Coach Hub sends the first card here with due pressure, court mode, and recap prompts.',
+        },
+        {
+          label: 'Proof returns',
+          value: 'Run the Level Up work, save evidence, then send one question back to coach.',
         },
       ]
     : []
@@ -5382,6 +5387,11 @@ function PlayerCoachAssignmentsPanel({
                 <span>{step.value}</span>
               </span>
             ))}
+          </div>
+          <div style={firstAssignmentRequestPreviewStyle} aria-label="First assignment request preview">
+            <span style={metricLabelStyle}>Message preview</span>
+            <strong>Ask for the first clear assignment.</strong>
+            <span>{firstAssignmentRequestPreview}</span>
           </div>
           <div style={developmentActionRowStyle}>
             <Link href={firstAssignmentRequestHref} style={miniActionLinkStyle}>
@@ -5901,6 +5911,11 @@ function PlayerCoachAssignmentsPanel({
                     <span>{step.value}</span>
                   </span>
                 ))}
+              </div>
+              <div style={firstAssignmentRequestPreviewStyle} aria-label="First assignment request preview">
+                <span style={metricLabelStyle}>Message preview</span>
+                <strong>Ask for the first clear assignment.</strong>
+                <span>{firstAssignmentRequestPreview}</span>
               </div>
               <div style={developmentActionRowStyle}>
                 <Link
@@ -6901,6 +6916,21 @@ const coachInviteLandingStepStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.35,
+  fontWeight: 780,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const firstAssignmentRequestPreviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'rgba(5,16,31,0.34)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
   fontWeight: 780,
   minWidth: 0,
   overflowWrap: 'anywhere',
