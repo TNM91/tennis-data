@@ -114,7 +114,11 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('const cleanEmail = email.trim()')
     expect(source).toContain("if (cleanEmail) loginParams.set('email', cleanEmail)")
     expect(source).toContain('const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)')
-    expect(source).toContain('router.push(buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail))')
+    expect(source).toContain('const postSignupLoginHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail)')
+    expect(source).toContain('const emailRedirectTo = typeof window !==')
+    expect(source).toContain('new URL(postSignupLoginHref, window.location.origin).toString()')
+    expect(source).toContain('options: emailRedirectTo ? { emailRedirectTo } : undefined')
+    expect(source).toContain('router.push(postSignupLoginHref)')
     expect(source).toContain('href={signInHref}')
   })
 

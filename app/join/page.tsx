@@ -202,16 +202,21 @@ function JoinContent() {
     setMessage('')
 
     try {
+      const postSignupLoginHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail)
+      const emailRedirectTo = typeof window !== 'undefined'
+        ? new URL(postSignupLoginHref, window.location.origin).toString()
+        : undefined
       const { error } = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
+        options: emailRedirectTo ? { emailRedirectTo } : undefined,
       })
 
       if (error) throw new Error(error.message)
 
       setMessage(selectedIntent.success)
       setTimeout(() => {
-        router.push(buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail))
+        router.push(postSignupLoginHref)
       }, 1000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
