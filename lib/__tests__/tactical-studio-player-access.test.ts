@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const gateSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudioGate.tsx'), 'utf8')
 const studioSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.tsx'), 'utf8')
+const studioStyles = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.module.css'), 'utf8')
 
 describe('Tactical Studio player access', () => {
   it('lets Player users open Tactics Tools without requiring Coach', () => {
@@ -39,5 +40,12 @@ describe('Tactical Studio player access', () => {
     expect(gateSource).toContain('styles.tacticsPlayerIdGrid')
     expect(gateSource).toContain('styles.tacticsPlayerIdActions')
     expect(gateSource).not.toContain('gateStats gateStats')
+  })
+
+  it('keeps the phone tactical board shrink-safe inside the viewport', () => {
+    expect(studioStyles).toContain('.workspace > section')
+    expect(studioStyles).toContain('max-width: 100%;')
+    expect(studioStyles).toContain('max-height: min(54svh, 430px);')
+    expect(studioStyles).toContain('width: min(100%, 72svh);')
   })
 })

@@ -5,6 +5,7 @@ import Image from 'next/image'
 type BrandWordmarkProps = {
   compact?: boolean
   footer?: boolean
+  legacyNav?: boolean
   onLight?: boolean
   siteHeaderCompact?: boolean
   top?: boolean
@@ -17,6 +18,26 @@ type BrandAsset = {
 }
 
 const BRAND_ASSETS = {
+  legacyPrimary: {
+    src: '/tenaceiq/logos/tenaceiq-primary-horizontal.svg',
+    width: 1600,
+    height: 420,
+  },
+  legacyPrimaryReverse: {
+    src: '/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg',
+    width: 1600,
+    height: 420,
+  },
+  legacySymbol: {
+    src: '/tenaceiq/logos/tenaceiq-symbol.svg',
+    width: 1045,
+    height: 490,
+  },
+  legacySymbolReverse: {
+    src: '/tenaceiq/logos/tenaceiq-symbol-reverse.svg',
+    width: 1045,
+    height: 490,
+  },
   primary: {
     src: '/tiq/logo/tiq-lockup-dark.png',
     width: 2048,
@@ -39,7 +60,11 @@ const BRAND_ASSETS = {
   },
 } satisfies Record<string, BrandAsset>
 
-function getBrandAsset({ compact, footer, onLight }: BrandWordmarkProps) {
+function getBrandAsset({ compact, footer, legacyNav, onLight }: BrandWordmarkProps) {
+  if (legacyNav) {
+    if (compact) return onLight ? BRAND_ASSETS.legacySymbol : BRAND_ASSETS.legacySymbolReverse
+    return onLight ? BRAND_ASSETS.legacyPrimary : BRAND_ASSETS.legacyPrimaryReverse
+  }
   if (compact) return onLight ? BRAND_ASSETS.symbol : BRAND_ASSETS.symbolReverse
   if (footer) return BRAND_ASSETS.primaryReverse
   return onLight ? BRAND_ASSETS.primary : BRAND_ASSETS.primaryReverse
@@ -48,11 +73,12 @@ function getBrandAsset({ compact, footer, onLight }: BrandWordmarkProps) {
 export default function BrandWordmark({
   compact = false,
   footer = false,
+  legacyNav = false,
   onLight = false,
   siteHeaderCompact = false,
   top = false,
 }: BrandWordmarkProps) {
-  const asset = getBrandAsset({ compact, footer, onLight, top })
+  const asset = getBrandAsset({ compact, footer, legacyNav, onLight, top })
   const height = compact ? (top ? 36 : 34) : footer ? 42 : top ? (siteHeaderCompact ? 42 : 64) : 48
   const width = Math.round((asset.width / asset.height) * height)
 

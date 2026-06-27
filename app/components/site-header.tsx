@@ -244,7 +244,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               textDecoration: 'none',
             }}
           >
-            <BrandWordmark top compact={useCompactBrand} siteHeaderCompact={useCompactHeader} />
+            <BrandWordmark top compact={useCompactBrand} legacyNav siteHeaderCompact={useCompactHeader} />
           </Link>
 
           <div
