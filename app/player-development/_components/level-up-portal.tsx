@@ -2934,6 +2934,15 @@ function LevelUpCardTile({
     detail: savedSessionRecap?.next ?? getAfterScoreDetail(card, savedRating),
     actionLabel: savedCoachRecommendedNext?.actionLabel ?? getAfterScorePrimaryButton(card, savedRating),
   }
+  const savedPlayerIdRead = savedRating === null ? null : {
+    meaning: savedRating >= 4
+      ? 'This habit is showing up. Keep it connected to pressure instead of chasing more reps.'
+      : savedRating >= 2
+        ? 'This habit is visible but not automatic yet. Repeat it before adding speed or score pressure.'
+        : 'The identity cue is not stable yet. Make the setup easier and prove one clean version.',
+    coachNote: savedCoachNextRead?.detail ?? savedProofAction?.detail ?? 'Send one useful proof note before leaving the court.',
+    nextRep: savedNextCardPlan?.firstRep ?? savedPrimaryPath?.actionLabel ?? 'Pick the next useful rep.',
+  }
   const activeFocusState = savedRating !== null ? 'saved' : loggerOpen ? 'scoring' : timerRunning ? 'running' : elapsedSeconds > 0 || cleanRepCount > 0 || missedRepCount > 0 ? 'working' : 'ready'
   const activeFocusLabel = getActiveFocusLabel(activeFocusState)
   const finishLineSteps = [
@@ -3912,6 +3921,20 @@ function LevelUpCardTile({
               <b>Coach update</b>
               <span>{coachUpdateCopyStatus === 'copied' ? 'Copied and ready to send.' : coachUpdateCopyStatus === 'blocked' ? 'Manual copy ready below.' : 'Ready to copy when linked with coach.'}</span>
             </div>
+            {savedPlayerIdRead ? (
+              <div className={styles.levelUpSavedPlayerIdRead} aria-label={`Saved proof Player ID read for ${card.title}`}>
+                <span>Player ID read</span>
+                <strong>{savedPlayerIdRead.meaning}</strong>
+                <div>
+                  <b>Coach note</b>
+                  <small>{savedPlayerIdRead.coachNote}</small>
+                </div>
+                <div>
+                  <b>Next rep</b>
+                  <small>{savedPlayerIdRead.nextRep}</small>
+                </div>
+              </div>
+            ) : null}
             {coachAssignment ? (
               <div className={styles.levelUpCoachSendBack} aria-label={`Coach send-back for ${card.title}`}>
                 <span>Send back to coach</span>

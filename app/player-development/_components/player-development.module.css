@@ -8878,6 +8878,54 @@
   background: rgba(255, 210, 116, 0.08);
 }
 
+.levelUpSavedPlayerIdRead {
+  display: grid;
+  gap: 7px;
+  margin-top: 3px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(5, 15, 30, 0.34);
+  padding: 9px;
+}
+
+.levelUpSavedPlayerIdRead > span {
+  color: var(--brand-green-3);
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpSavedPlayerIdRead > strong {
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.levelUpSavedPlayerIdRead div {
+  display: grid;
+  grid-template-columns: minmax(76px, auto) minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  min-width: 0;
+}
+
+.levelUpSavedPlayerIdRead b {
+  color: var(--brand-blue-2);
+  font-size: 0.58rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpSavedPlayerIdRead small {
+  min-width: 0;
+  color: var(--muted-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
 .levelUpCoachSendBack {
   display: grid;
   gap: 7px;
@@ -15240,6 +15288,7 @@
   }
 
   .levelUpSavedPrimaryPath div,
+  .levelUpSavedPlayerIdRead div,
   .levelUpCoachSendBackActions {
     grid-template-columns: 1fr;
   }
