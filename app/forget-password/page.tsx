@@ -176,7 +176,7 @@ const watermarkStyle: CSSProperties = {
   bottom: 'clamp(-120px, -10vw, -46px)',
   width: 'clamp(220px, 31vw, 430px)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

@@ -26,7 +26,7 @@ export default function TiqLoader({
     <div className="flex flex-col items-center justify-center gap-4 py-10">
       <div className={`relative grid place-items-center ${config.wrap}`} role="status" aria-label={label || "Loading"}>
         <Image
-          src="/tenaceiq/logos/tenaceiq-q-icon.svg"
+          src="/tiq/logo/tiq-app-icon.png"
           alt=""
           width={512}
           height={512}

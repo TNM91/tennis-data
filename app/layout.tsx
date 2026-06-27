@@ -95,7 +95,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any', type: 'image/x-icon' },
-      { url: '/tenaceiq/logos/tenaceiq-app-icon.svg', sizes: '512x512', type: 'image/svg+xml' },
+      { url: '/tiq/logo/tiq-app-icon.png', sizes: '512x512', type: 'image/png' },
       { url: '/tenaceiq-icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/tenaceiq-icon-512.png', sizes: '512x512', type: 'image/png' },
     ],

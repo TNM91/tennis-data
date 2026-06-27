@@ -114,10 +114,12 @@ If a slot id is not set, the related ad surface safely stays hidden.
 - Deleted legacy homepage and logo assets were audited against source files in `app`, `lib`, `docs`, and `supabase`
 - No remaining source references were found for the removed public assets
 - Header and footer branding now use:
-  - `public/tenaceiq/logos/tenaceiq-primary-horizontal.svg`
-  - `public/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg`
-  - `public/tenaceiq/logos/tenaceiq-symbol.svg`
-  - `public/tenaceiq/logos/tenaceiq-symbol-reverse.svg`
+  - `public/tiq/logo/tiq-lockup-dark.png`
+  - `public/tiq/logo/tiq-lockup-light.png`
+  - `public/tiq/logo/tiq-app-icon.png`
+  - `public/tiq/logo/tiq-q-icon-dark.png`
+  - `public/tiq/logo/tiq-mark-dark.png`
+  - `public/tiq/logo/tiq-mark-light.png`
 
 ## Quick Smoke Test
 

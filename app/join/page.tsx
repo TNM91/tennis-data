@@ -270,7 +270,7 @@ function JoinContent() {
         <div style={loadingCard}>
           <span style={authLoadingIconStyle}>
             <Image
-              src="/tenaceiq/logos/tenaceiq-q-icon.svg"
+              src="/tiq/logo/tiq-app-icon.png"
               alt=""
               width={512}
               height={512}
@@ -480,7 +480,7 @@ const watermarkStyle: CSSProperties = {
   top: '-118px',
   width: 'clamp(220px, 24vw, 310px)',
   aspectRatio: '1045 / 490',
-  background: 'url("/tenaceiq/logos/tenaceiq-symbol-reverse.svg") center / contain no-repeat',
+  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

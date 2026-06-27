@@ -154,10 +154,10 @@ export default function HeroAnimated() {
             className="hero-insane__ball-wrap"
           >
             <Image
-              src="/tenaceiq/logos/tenaceiq-symbol-reverse.svg"
+              src="/tiq/logo/tiq-mark-light.png"
               alt="TenAceIQ"
-              width={1045}
-              height={490}
+              width={1800}
+              height={844}
               priority
               className="hero-insane__ball"
             />
