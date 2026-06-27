@@ -1541,6 +1541,20 @@ function CoachContent() {
     const mobileTextLabel = card.pendingInvite ? 'Text setup link' : 'Text'
     const identityHandoff = getCoachStudentIdentityHandoff(identityRead)
     const identityMessageHref = buildCoachPlayerIdentityMessageHref(card.student, identityRead)
+    const mobileCoachLoop = [
+      {
+        label: 'Reply',
+        value: card.needsReview ? 'Review proof first' : card.student.playerUserId ? 'Send Player ID note' : 'Text setup',
+      },
+      {
+        label: 'Assign',
+        value: card.latestAssignment ? card.latestAssignment.title : 'Load first Level Up rep',
+      },
+      {
+        label: 'Review',
+        value: card.activeAssignments ? `${card.activeAssignments} active` : 'Wait for first proof',
+      },
+    ]
 
     return (
       <div style={mobileBenchCommandCenterStyle} aria-label={`Active player workspace for ${card.student.playerName}`}>
@@ -1588,6 +1602,17 @@ function CoachContent() {
               Message Player ID plan
             </Link>
           ) : null}
+        </div>
+        <div style={mobileCoachLoopStyle} aria-label={`Coach follow-through loop for ${card.student.playerName}`}>
+          <span style={coachBenchIdentityLabelStyle}>Coach loop</span>
+          <div style={mobileCoachLoopGridStyle}>
+            {mobileCoachLoop.map((item) => (
+              <span key={item.label} style={mobileCoachLoopItemStyle}>
+                <strong>{item.label}</strong>
+                <em>{item.value}</em>
+              </span>
+            ))}
+          </div>
         </div>
         <div style={mobileBenchPrimaryActionGridStyle}>
           <button type="button" onClick={() => loadStudentLevelUpPack(card)} style={mobileBenchPrimaryActionStyle}>
@@ -4849,6 +4874,38 @@ const mobileBenchIdentityReadStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.20)',
   background: 'rgba(5,15,30,0.34)',
   color: 'var(--shell-copy-muted)',
+  overflowWrap: 'anywhere',
+}
+
+const mobileCoachLoopStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: '10px 11px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(5,15,30,0.3)',
+  overflowWrap: 'anywhere',
+}
+
+const mobileCoachLoopGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const mobileCoachLoopItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '7px 8px',
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.25,
   overflowWrap: 'anywhere',
 }
 
