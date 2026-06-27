@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest'
 const gateSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudioGate.tsx'), 'utf8')
 const studioSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.tsx'), 'utf8')
 const studioStyles = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.module.css'), 'utf8')
+const markerIconsSource = readFileSync(join(process.cwd(), 'components/tactical/icons/TiqIcons.tsx'), 'utf8')
+const courtOverlaySource = readFileSync(join(process.cwd(), 'components/tactical/TiqCourtOverlay.tsx'), 'utf8')
 
 describe('Tactical Studio player access', () => {
   it('lets Player users open Tactics Tools without requiring Coach', () => {
@@ -50,5 +52,14 @@ describe('Tactical Studio player access', () => {
     expect(studioStyles).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
     expect(studioStyles).toContain('max-height: none;')
     expect(studioStyles).toContain('width: 100%;')
+  })
+
+  it('keeps tactical ball markers dimensional instead of flat circles', () => {
+    expect(markerIconsSource).toContain('tiq-tennis-ball-marker')
+    expect(markerIconsSource).toContain('fill="#F5FF9B"')
+    expect(markerIconsSource).toContain('stroke="#5F9308"')
+    expect(courtOverlaySource).toContain('<symbol id="tiq-ball-marker"')
+    expect(courtOverlaySource).toContain('fill="#f5ff9b"')
+    expect(courtOverlaySource).toContain('stroke="#5f9308"')
   })
 })
