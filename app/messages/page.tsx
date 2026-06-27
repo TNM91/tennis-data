@@ -790,6 +790,32 @@ function buildComposeAssignmentHandoff(
   }
 }
 
+function buildFirstAssignmentComposeHandoff(
+  subject: string,
+  composeContext: { entityType: string; entityId: string },
+  coachContacts: CoachMessageContact[],
+): AssignmentMessageHandoff | null {
+  if (composeContext.entityType !== 'coach_player_link') return null
+  if (!/first level up assignment|first assignment request/i.test(subject)) return null
+
+  const contact = coachContacts.find((item) => item.linkId === composeContext.entityId)
+  const isCoachView = contact?.relationship === 'student'
+  return {
+    eyebrow: 'First assignment request',
+    title: 'Ask for one clear coach assignment.',
+    detail: 'Send this request so Coach Hub can create the first assignment with a drill, proof target, and next-focus question attached.',
+    steps: [
+      { label: 'Ask', value: 'One measurable drill' },
+      { label: 'Coach', value: 'Creates assignment' },
+      { label: 'Return', value: 'My Lab proof' },
+    ],
+    standard: null,
+    contextHref: isCoachView ? buildCoachFirstAssignmentHref(composeContext.entityId) : '/mylab#coach-assignments',
+    contextCta: isCoachView ? 'Open Coach Hub' : 'Open My Lab',
+    courtHref: '',
+  }
+}
+
 function getComposeAssignmentCard(prefill: MessagePrefill) {
   const explicitCardId = prefill.assignmentCardId.trim()
   if (explicitCardId) return LEVEL_UP_CARDS.find((card) => card.id === explicitCardId) ?? null
@@ -1039,6 +1065,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const composeAssignmentHandoff = useMemo(
     () => buildComposeAssignmentHandoff(prefill, composeContext, coachContacts),
     [coachContacts, composeContext, prefill],
+  )
+  const firstAssignmentComposeHandoff = useMemo(
+    () => buildFirstAssignmentComposeHandoff(subject, composeContext, coachContacts),
+    [coachContacts, composeContext, subject],
   )
   const composeCoachIdentityHandoff = useMemo(
     () => buildComposeCoachIdentityHandoff(prefill, composeContext, coachContacts),
@@ -2941,7 +2971,30 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             </div>
           ) : null}
 
-          {!composeAssignmentHandoff && composeCoachIdentityHandoff ? (
+          {!composeAssignmentHandoff && firstAssignmentComposeHandoff ? (
+            <div style={contextPanelStyle} aria-label="Compose first assignment request handoff">
+              <div>
+                <div style={labelStyle}>{firstAssignmentComposeHandoff.eyebrow}</div>
+                <p style={copyStyle}>{firstAssignmentComposeHandoff.title}</p>
+                <div style={assignmentHandoffStyle}>
+                  <span style={assignmentDetailStyle}>{firstAssignmentComposeHandoff.detail}</span>
+                  <div style={assignmentHandoffStepGridStyle} aria-label="First assignment request path">
+                    {firstAssignmentComposeHandoff.steps.map((step) => (
+                      <span key={step.label} style={assignmentHandoffStepStyle}>
+                        <b>{step.label}</b>
+                        {step.value}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={contextActionRowStyle}>
+                <Link href={firstAssignmentComposeHandoff.contextHref} style={ghostButtonStyle}>{firstAssignmentComposeHandoff.contextCta}</Link>
+              </div>
+            </div>
+          ) : null}
+
+          {!composeAssignmentHandoff && !firstAssignmentComposeHandoff && composeCoachIdentityHandoff ? (
             <div style={contextPanelStyle} aria-label={`Compose Player ID plan handoff for ${composeCoachIdentityHandoff.title}`}>
               <div>
                 <div style={labelStyle}>{composeCoachIdentityHandoff.eyebrow}</div>

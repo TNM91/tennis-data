@@ -108,6 +108,20 @@ describe('coach assignment message context', () => {
     expect(messagesSource).toContain('Open My Lab')
   })
 
+  it('shows a first-assignment request cue before the message is sent', () => {
+    expect(messagesSource).toContain('buildFirstAssignmentComposeHandoff')
+    expect(messagesSource).toContain('firstAssignmentComposeHandoff')
+    expect(messagesSource).toContain('Compose first assignment request handoff')
+    expect(messagesSource).toContain('First assignment request path')
+    expect(messagesSource).toContain('Ask for one clear coach assignment.')
+    expect(messagesSource).toContain('Send this request so Coach Hub can create the first assignment with a drill, proof target, and next-focus question attached.')
+    expect(messagesSource).toContain("label: 'Ask', value: 'One measurable drill'")
+    expect(messagesSource).toContain("label: 'Coach', value: 'Creates assignment'")
+    expect(messagesSource).toContain("label: 'Return', value: 'My Lab proof'")
+    expect(messagesSource).toContain("contextHref: isCoachView ? buildCoachFirstAssignmentHref(composeContext.entityId) : '/mylab#coach-assignments'")
+    expect(messagesSource).toContain('!composeAssignmentHandoff && !firstAssignmentComposeHandoff && composeCoachIdentityHandoff')
+  })
+
   it('adds court-ready quick replies for assignment message threads', () => {
     expect(messagesSource).toContain('isCoachAssignmentConversation')
     expect(messagesSource).toContain('getCoachAssignmentConversationRelationship')
