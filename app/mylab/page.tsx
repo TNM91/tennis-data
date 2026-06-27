@@ -5155,6 +5155,22 @@ function PlayerCoachAssignmentsPanel({
         },
       ]
     : []
+  const latestCoachFeedbackFollowThrough = latestCoachFeedback
+    ? [
+        {
+          label: 'Coach said',
+          value: latestCoachFeedback.coachReview.nextFocus || latestCoachFeedback.coachReview.note || 'Coach reviewed the proof.',
+        },
+        {
+          label: 'Run now',
+          value: latestCoachFeedback.plan.nextRep,
+        },
+        {
+          label: 'Send back',
+          value: latestCoachFeedback.plan.items[2]?.value ?? 'Save one proof score, then ask what to repeat or scale.',
+        },
+      ]
+    : []
   const coachLessonEvents = useMemo(
     () => buildPlayerCoachLessonEvents(
       activeCoachLink ? assignments.filter((assignment) => assignment.studentLinkId === activeCoachLink.id) : assignments,
@@ -5280,6 +5296,18 @@ function PlayerCoachAssignmentsPanel({
                 <em>{item.value}</em>
               </span>
             ))}
+          </div>
+          <div style={latestCoachFollowThroughStyle} aria-label="Latest coach feedback follow-through">
+            <span style={metricLabelStyle}>Follow-through</span>
+            <strong>Turn the review into one court rep.</strong>
+            <div style={latestCoachFollowThroughGridStyle}>
+              {latestCoachFeedbackFollowThrough.map((item) => (
+                <span key={item.label} style={latestCoachFollowThroughItemStyle}>
+                  <strong>{item.label}</strong>
+                  <em>{item.value}</em>
+                </span>
+              ))}
+            </div>
           </div>
           <div style={playerIdCoachPlanStyle} aria-label="My Lab Player ID coach plan">
             <div style={coachCalendarCopyStyle}>
@@ -6844,6 +6872,38 @@ const latestCoachFeedbackItemStyle: CSSProperties = {
   borderRadius: 13,
   border: '1px solid rgba(255,255,255,0.12)',
   background: 'rgba(5,16,31,0.32)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const latestCoachFollowThroughStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'rgba(5,16,31,0.3)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const latestCoachFollowThroughGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const latestCoachFollowThroughItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 13,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(8,22,40,0.44)',
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.35,
