@@ -99,6 +99,12 @@ describe('Level Up session sync', () => {
     expect(coachPageSource).toContain('proofReviewCommandGridStyle')
     expect(coachPageSource).toContain('proofReviewCommandItemStyle')
     expect(coachPageSource).toContain('Review proof')
+    expect(coachPageSource).toContain('buildCoachProofResponseMessageHref')
+    expect(coachPageSource).toContain('Message proof response')
+    expect(coachPageSource).toContain('Player ID read: ${proof.focusTitle}')
+    expect(coachPageSource).toContain('Train first: ${draft.nextMove.title}')
+    expect(coachPageSource).toContain('Proof target: ${draft.nextFocus}')
+    expect(coachPageSource).toContain('Coach question: ${draft.note}')
   })
 
   it('recommends and preloads the next coach assignment from Level Up proof', () => {

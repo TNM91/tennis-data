@@ -2333,6 +2333,9 @@ function CoachContent() {
     if (!firstProofReviewCommand) return null
 
     const { assignment, proof, student, draft, href } = firstProofReviewCommand
+    const proofResponseHref = student?.playerUserId
+      ? buildCoachProofResponseMessageHref(student, assignment, proof, draft)
+      : ''
     return (
       <article style={proofReviewCommandStyle} aria-label="Coach proof review command">
         <div style={proofReviewCommandHeaderStyle}>
@@ -2361,6 +2364,9 @@ function CoachContent() {
         </div>
         <div style={proofNextMoveActionRowStyle}>
           <a href={href} style={smallPrimaryLinkStyle}>Review proof</a>
+          {proofResponseHref ? (
+            <Link href={proofResponseHref} style={smallGhostLinkStyle}>Message proof response</Link>
+          ) : null}
           <button
             type="button"
             onClick={() => loadNextAssignmentFromProof(assignment, proof, draft)}
@@ -3178,6 +3184,14 @@ function CoachContent() {
                               >
                                 Load next assignment
                               </button>
+                              {student?.playerUserId ? (
+                                <Link
+                                  href={buildCoachProofResponseMessageHref(student, assignment, levelUpProof, proofReviewDraft)}
+                                  style={smallGhostLinkStyle}
+                                >
+                                  Message proof response
+                                </Link>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -4215,6 +4229,25 @@ function buildCoachPlayerIdentityMessageHref(
     student,
     `Player ID follow-up: ${student.playerName}`,
     `Player ID read: ${identityRead.title}. Train first: ${identityRead.trainingPriority}. Proof target: ${identityRead.proofTarget}. Coach question: ${identityRead.coachPrompt}`,
+  )
+}
+
+function buildCoachProofResponseMessageHref(
+  student: CoachStudentLink,
+  assignment: CoachAssignment,
+  proof: LevelUpSession,
+  draft: LevelUpProofReviewDraft,
+) {
+  return buildCoachPlayerMessageHref(
+    student,
+    `Player ID follow-up: ${assignment.title}`,
+    `Player ID read: ${proof.focusTitle}. Train first: ${draft.nextMove.title}. Proof target: ${draft.nextFocus}. Coach question: ${draft.note}`,
+    {
+      assignmentId: assignment.id,
+      assignmentTitle: assignment.title,
+      assignmentFocus: assignment.focus || proof.focusTitle,
+      assignmentCardId: getCoachAssignmentCourtCardId(assignment),
+    },
   )
 }
 
