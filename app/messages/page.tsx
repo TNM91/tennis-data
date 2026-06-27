@@ -106,6 +106,7 @@ type CoachMessageContact = {
 }
 
 type AssignmentMessageHandoff = {
+  eyebrow: string
   title: string
   detail: string
   steps: Array<{ label: string; value: string }>
@@ -672,6 +673,7 @@ function buildConversationAssignmentHandoff(
   const assignmentStandard = assignmentCard ? buildMessageAssignmentStandard(assignmentCard) : null
   if (relationship === 'student') {
     return {
+      eyebrow: 'Coach assignment follow-up',
       title: assignmentTitle || 'Coach assignment',
       detail: assignmentFocus || 'Review proof, choose the next coach move, then send the note.',
       steps: [
@@ -687,6 +689,7 @@ function buildConversationAssignmentHandoff(
   }
 
   return {
+    eyebrow: 'Assignment follow-up',
     title: assignmentTitle || 'Coach assignment',
     detail: assignmentFocus || 'Open court mode, score proof, then send the recap.',
     steps: [
@@ -737,21 +740,31 @@ function buildComposeAssignmentHandoff(
     if (prefill.assignmentFocus) params.set('assignmentFocus', prefill.assignmentFocus)
     courtHref = `/player-development/${encodeURIComponent(contact?.identitySlug || MESSAGES_PLAYER_IDENTITY.slug)}/level-up?${params.toString()}`
   }
+  const isProofResponse = /Player ID follow-up/i.test(prefill.subject) || /Player ID read:/i.test(prefill.body)
+  const proofResponseDetail = extractPlayerIdPlanSegment(prefill.body, 'Coach question')
+  const proofResponseSteps = [
+    { label: 'Proof', value: extractPlayerIdPlanSegment(prefill.body, 'Proof target') || 'Use the saved proof signal' },
+    { label: 'Coach note', value: proofResponseDetail || 'Send the next cue' },
+    { label: 'Next rep', value: extractPlayerIdPlanSegment(prefill.body, 'Train first') || 'Assign next work' },
+  ]
+  const coachResponseSteps = [
+    { label: 'Review', value: 'Read proof' },
+    { label: 'Decide', value: 'Pick next rep' },
+    { label: 'Reply', value: 'Coach note' },
+  ]
+  const playerResponseSteps = [
+    { label: 'Ask', value: 'Send question' },
+    { label: 'Return', value: 'Open assignment' },
+    { label: 'Run', value: 'Court proof' },
+  ]
 
   return {
+    eyebrow: isProofResponse ? 'Coach proof response' : 'Coach feedback follow-up',
     title: prefill.assignmentTitle || assignmentCard?.title || 'Coach assignment',
-    detail: prefill.assignmentFocus || assignmentCard?.cue || 'Send the follow-up while this Level Up context stays attached.',
-    steps: isCoachView
-      ? [
-          { label: 'Review', value: 'Read proof' },
-          { label: 'Decide', value: 'Pick next rep' },
-          { label: 'Reply', value: 'Coach note' },
-        ]
-      : [
-          { label: 'Ask', value: 'Send question' },
-          { label: 'Return', value: 'Open assignment' },
-          { label: 'Run', value: 'Court proof' },
-        ],
+    detail: isProofResponse
+      ? proofResponseDetail || 'Send the proof response, then load or assign the next clean rep.'
+      : prefill.assignmentFocus || assignmentCard?.cue || 'Send the follow-up while this Level Up context stays attached.',
+    steps: isProofResponse ? proofResponseSteps : isCoachView ? coachResponseSteps : playerResponseSteps,
     standard: assignmentCard ? buildMessageAssignmentStandard(assignmentCard) : null,
     contextHref,
     contextCta: isCoachView ? 'Open Coach Hub' : 'Open My Lab',
@@ -785,6 +798,7 @@ function buildComposeCoachIdentityHandoff(
   const coachQuestion = extractPlayerIdPlanSegment(prefill.body, 'Coach question') || 'Ask one question that creates the next assignment.'
 
   return {
+    eyebrow: isCoachView && /Player ID follow-up/i.test(prefill.subject) ? 'Player ID proof response' : 'Player ID plan follow-up',
     title: identityTitle,
     detail: isCoachView
       ? 'Send the plan with the same train, proof, and coach-question signals from the bench.'
@@ -2876,7 +2890,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           {composeAssignmentHandoff ? (
             <div style={contextPanelStyle} aria-label={`Compose assignment handoff for ${composeAssignmentHandoff.title}`}>
               <div>
-                <div style={labelStyle}>Coach feedback follow-up</div>
+                <div style={labelStyle}>{composeAssignmentHandoff.eyebrow}</div>
                 <p style={copyStyle}>{composeAssignmentHandoff.title}</p>
                 <div style={assignmentHandoffStyle}>
                   <span style={assignmentDetailStyle}>{composeAssignmentHandoff.detail}</span>
@@ -2912,7 +2926,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           {!composeAssignmentHandoff && composeCoachIdentityHandoff ? (
             <div style={contextPanelStyle} aria-label={`Compose Player ID plan handoff for ${composeCoachIdentityHandoff.title}`}>
               <div>
-                <div style={labelStyle}>Player ID plan follow-up</div>
+                <div style={labelStyle}>{composeCoachIdentityHandoff.eyebrow}</div>
                 <p style={copyStyle}>{composeCoachIdentityHandoff.title}</p>
                 <div style={assignmentHandoffStyle}>
                   <span style={assignmentDetailStyle}>{composeCoachIdentityHandoff.detail}</span>
