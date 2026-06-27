@@ -244,6 +244,43 @@ const pageStyles = {
     fontWeight: 900,
     overflowWrap: 'anywhere',
   },
+  finalAcceptCard: {
+    display: 'grid',
+    gap: 12,
+    marginTop: 18,
+    padding: 18,
+    borderRadius: 20,
+    border: '1px solid rgba(155,225,29,0.36)',
+    background: 'linear-gradient(135deg, rgba(155,225,29,0.15), rgba(255,255,255,0.045))',
+    minWidth: 0,
+  },
+  finalAcceptList: {
+    display: 'grid',
+    gap: 8,
+    marginTop: 2,
+  },
+  finalAcceptItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    color: '#dce8f9',
+    fontSize: 14,
+    lineHeight: 1.4,
+    fontWeight: 800,
+    minWidth: 0,
+  },
+  finalAcceptBadge: {
+    display: 'inline-grid',
+    placeItems: 'center',
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    background: '#9be11d',
+    color: '#071226',
+    fontSize: 12,
+    fontWeight: 950,
+    flex: '0 0 auto',
+  },
 } satisfies Record<string, CSSProperties>
 
 const invitePathSteps = [
@@ -404,6 +441,7 @@ function CoachInviteContent() {
       ? `This setup link is for ${invite?.inviteEmail}. Sign in with that email to accept the coach connection.`
       : ''
   const acceptButtonDisabled = accepting || Boolean(acceptBlockedMessage)
+  const readyToAccept = authResolved && !loading && Boolean(userId) && invite?.status === 'pending' && !acceptBlockedMessage
 
   const loadInvite = useCallback(async () => {
     if (!token) return
@@ -550,6 +588,31 @@ function CoachInviteContent() {
               </div>
             ) : null}
 
+            {readyToAccept ? (
+              <div style={pageStyles.finalAcceptCard} aria-label="Coach invite final accept checklist">
+                <span style={pageStyles.eyebrow}>Ready to connect</span>
+                <h2 style={pageStyles.nextStepTitle}>Tap Accept coach connection to finish.</h2>
+                <p style={pageStyles.nextStepCopy}>
+                  You are signed in as {signedInAccountLabel}. This final tap links {studentName} to the coach who sent
+                  this setup link.
+                </p>
+                <div style={pageStyles.finalAcceptList}>
+                  <div style={pageStyles.finalAcceptItem}>
+                    <span style={pageStyles.finalAcceptBadge}>1</span>
+                    <span>Player account is signed in.</span>
+                  </div>
+                  <div style={pageStyles.finalAcceptItem}>
+                    <span style={pageStyles.finalAcceptBadge}>2</span>
+                    <span>Invite check is clear: {inviteAccountMatch}.</span>
+                  </div>
+                  <div style={pageStyles.finalAcceptItem}>
+                    <span style={pageStyles.finalAcceptBadge}>3</span>
+                    <span>Use the button below to activate Coach Hub assignments for this player.</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div style={pageStyles.actions} className="coach-invite-actions">
               {!authResolved || loading ? (
                 <span style={pageStyles.secondaryButton}>Loading invite</span>
@@ -604,7 +667,7 @@ function CoachInviteContent() {
                       cursor: acceptButtonDisabled ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    {accepting ? 'Connecting' : 'Accept coach invite'}
+                    {accepting ? 'Connecting' : 'Accept coach connection'}
                   </button>
                   {acceptBlockedMessage ? (
                     <Link href={loginHref} style={pageStyles.secondaryButton}>
