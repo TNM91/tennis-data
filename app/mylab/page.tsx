@@ -5123,6 +5123,22 @@ function PlayerCoachAssignmentsPanel({
     'First Level Up assignment',
     'Coach, can you send my first TenAceIQ assignment so I can track it in My Lab? ',
   )
+  const coachInviteLandingSteps = activeCoachLink
+    ? [
+        {
+          label: 'Connected',
+          value: `${activeCoachLink.playerName} is linked to Coach Hub.`,
+        },
+        {
+          label: 'Waiting on coach',
+          value: 'The first coach-created assignment will appear here.',
+        },
+        {
+          label: 'Your move',
+          value: 'Request one measurable assignment or keep training in Level Up.',
+        },
+      ]
+    : []
   const latestCoachFeedbackHref = latestCoachFeedback
     ? buildAssignmentLevelUpHref(latestCoachFeedback.assignment, coachLinkMap.get(latestCoachFeedback.assignment.studentLinkId))
     : ''
@@ -5358,6 +5374,14 @@ function PlayerCoachAssignmentsPanel({
               You are linked to {activeCoachLink.playerName}. Ask for one measurable assignment so My Lab can track the work,
               recap, and coach feedback in this section.
             </span>
+          </div>
+          <div style={coachInviteLandingStepGridStyle} aria-label="Coach invite accepted next steps">
+            {coachInviteLandingSteps.map((step) => (
+              <span key={step.label} style={coachInviteLandingStepStyle}>
+                <strong>{step.label}</strong>
+                <span>{step.value}</span>
+              </span>
+            ))}
           </div>
           <div style={developmentActionRowStyle}>
             <Link href={firstAssignmentRequestHref} style={miniActionLinkStyle}>
@@ -5870,10 +5894,13 @@ function PlayerCoachAssignmentsPanel({
               <span>
                 Your Coach Hub is ready. Once your coach assigns work, it will show up here with recap prompts, evidence tracking, and feedback.
               </span>
-              <div style={coachConnectedEmptyStepsStyle}>
-                <span><strong>1</strong> Request a measurable assignment</span>
-                <span><strong>2</strong> Complete the work on court</span>
-                <span><strong>3</strong> Send back recap and evidence</span>
+              <div style={coachConnectedEmptyStepsStyle} aria-label="Coach connected empty assignment steps">
+                {coachInviteLandingSteps.map((step) => (
+                  <span key={step.label} style={coachInviteLandingStepStyle}>
+                    <strong>{step.label}</strong>
+                    <span>{step.value}</span>
+                  </span>
+                ))}
               </div>
               <div style={developmentActionRowStyle}>
                 <Link
@@ -6841,6 +6868,28 @@ const coachInviteLandingCueStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
   background:
     'radial-gradient(circle at 94% 12%, rgba(155,225,29,0.16), transparent 34%), color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg) 91%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const coachInviteLandingStepGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const coachInviteLandingStepStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: 10,
+  borderRadius: 13,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, rgba(255,255,255,0.055) 93%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 780,
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
