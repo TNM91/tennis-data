@@ -323,6 +323,22 @@ function getQuickReplyActions(
   coachContacts: CoachMessageContact[],
 ) {
   if (!conversation) return []
+  if (isFirstAssignmentConversation(conversation)) {
+    const relationship = getCoachAssignmentConversationRelationship(conversation, coachContacts)
+    if (relationship === 'student') {
+      return [
+        { label: 'Creating assignment', body: 'Got it. I am creating your first assignment now with one drill, one proof target, and one next-focus question.' },
+        { label: 'Need context', body: 'Before I assign the first card, send me one thing you want to improve most this week.' },
+        { label: 'Assignment sent', body: 'First assignment is sent. Open My Lab, run the card, then send back the proof score.' },
+      ]
+    }
+
+    return [
+      { label: 'Thanks coach', body: 'Thanks. I will watch for the first assignment in My Lab and send proof after I run it.' },
+      { label: 'My focus', body: 'My first focus this week is:' },
+      { label: 'Ready for card', body: 'Ready for the first Level Up card when you send it.' },
+    ]
+  }
   if (isCoachAssignmentConversation(conversation)) {
     const assignmentTitle = conversation.metadata.assignmentTitle?.trim()
     const assignmentLabel = assignmentTitle ? ` for ${assignmentTitle}` : ''
@@ -377,7 +393,10 @@ function getQuickReplyActions(
 
 function isCoachAssignmentConversation(conversation: InternalConversation) {
   const entityType = conversation.metadata.entityType || conversation.relatedEntityType
-  return entityType === 'coach_player_link' && Boolean(conversation.metadata.assignmentId || conversation.metadata.assignmentTitle)
+  return entityType === 'coach_player_link' && (
+    Boolean(conversation.metadata.assignmentId || conversation.metadata.assignmentTitle) ||
+    isFirstAssignmentConversation(conversation)
+  )
 }
 
 function isFirstAssignmentConversation(conversation: InternalConversation | null) {
@@ -683,6 +702,7 @@ function buildConversationAssignmentHandoff(
   coachContacts: CoachMessageContact[],
 ): AssignmentMessageHandoff | null {
   if (!conversation || !isCoachAssignmentConversation(conversation)) return null
+  if (isFirstAssignmentConversation(conversation) && !conversation.metadata.assignmentId && !conversation.metadata.assignmentTitle) return null
 
   const assignmentTitle = conversation.metadata.assignmentTitle?.trim() || conversation.subject
   const assignmentFocus = conversation.metadata.assignmentFocus?.trim()

@@ -137,6 +137,19 @@ describe('coach assignment message context', () => {
     expect(messagesSource).toContain("contextHref: isCoachView ? buildCoachFirstAssignmentHref(entityId) : '/mylab#coach-assignments'")
   })
 
+  it('keeps first-assignment requests discoverable in the Assignment inbox filter', () => {
+    expect(messagesSource).toContain('isCoachAssignmentConversation(conversation)')
+    expect(messagesSource).toContain('isFirstAssignmentConversation(conversation)')
+    expect(messagesSource).toContain('Boolean(conversation.metadata.assignmentId || conversation.metadata.assignmentTitle) ||')
+    expect(messagesSource).toContain('if (isFirstAssignmentConversation(conversation) && !conversation.metadata.assignmentId && !conversation.metadata.assignmentTitle) return null')
+    expect(messagesSource).toContain("if (filter === 'assignment') return isCoachAssignmentConversation(conversation)")
+    expect(messagesSource).toContain('assignmentThreadCount')
+    expect(messagesSource).toContain('Creating assignment')
+    expect(messagesSource).toContain('I am creating your first assignment now with one drill, one proof target, and one next-focus question.')
+    expect(messagesSource).toContain('Ready for card')
+    expect(messagesSource).toContain('Ready for the first Level Up card when you send it.')
+  })
+
   it('adds court-ready quick replies for assignment message threads', () => {
     expect(messagesSource).toContain('isCoachAssignmentConversation')
     expect(messagesSource).toContain('getCoachAssignmentConversationRelationship')
