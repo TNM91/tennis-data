@@ -292,14 +292,19 @@
   gap: 14px;
   grid-template-columns: 280px minmax(0, 1fr) 330px;
   margin-top: 14px;
+  min-width: 0;
+  width: 100%;
 }
 
-.workspace > section {
+.workspace > * {
+  max-width: 100%;
   min-width: 0;
 }
 
 .panel {
   border-radius: 24px;
+  max-width: 100%;
+  min-width: 0;
   padding: 16px;
 }
 
@@ -358,6 +363,8 @@
 .template {
   display: grid;
   gap: 4px;
+  min-width: 0;
+  overflow: hidden;
   padding: 12px;
   text-align: left;
   width: 100%;
@@ -365,6 +372,13 @@
 
 .template strong {
   font-weight: 950;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.template span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .template + .template {
@@ -475,6 +489,8 @@
   gap: 16px;
   grid-template-columns: minmax(0, 1fr) auto;
   margin-bottom: 12px;
+  max-width: 100%;
+  min-width: 0;
   padding: 14px;
 }
 
@@ -759,6 +775,8 @@
 
 .timeline {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 100%;
+  min-width: 0;
   margin-top: 14px;
   padding-top: 14px;
 }
@@ -767,6 +785,8 @@
   display: none;
   gap: 8px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 100%;
+  min-width: 0;
   margin-top: 10px;
 }
 
@@ -779,7 +799,9 @@
   font: inherit;
   font-size: 0.76rem;
   font-weight: 950;
+  min-width: 0;
   min-height: 40px;
+  overflow-wrap: anywhere;
   padding: 8px 10px;
 }
 
@@ -872,7 +894,10 @@
   }
 
   .studio {
+    max-width: 100svw;
+    overflow-x: hidden;
     padding: 14px 10px 28px;
+    width: 100%;
   }
 
   .hero {
@@ -885,6 +910,9 @@
 
   .workspace {
     gap: 10px;
+    max-width: 100%;
+    overflow: hidden;
+    width: 100%;
   }
 
   .workspace > .panel:first-child {
@@ -893,6 +921,8 @@
 
   .workspace > section {
     order: 1;
+    overflow: hidden;
+    width: 100%;
   }
 
   .workspace > .panel:last-child {
@@ -904,21 +934,24 @@
     padding: 12px;
   }
 
+  .segment {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
   .toolGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .tokenPalette {
-    grid-template-columns: repeat(6, minmax(54px, 1fr));
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scroll-snap-type: x proximity;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
   }
 
   .paletteButton {
     min-height: 64px;
-    min-width: 58px;
-    scroll-snap-align: start;
+    min-width: 0;
   }
 
   .paletteButton svg,
@@ -937,18 +970,21 @@
 
   .boardFrame {
     border-radius: 18px;
+    max-width: 100%;
     padding: 6px;
+    width: 100%;
   }
 
   .board {
     border-radius: 14px;
-    max-height: min(54svh, 430px);
-    width: min(100%, 72vh);
-    width: min(100%, 72svh);
+    max-height: none;
+    max-width: 100%;
+    width: 100%;
   }
 
   .scenarioBar {
     border-radius: 18px;
+    overflow: hidden;
     padding: 12px;
   }
 
