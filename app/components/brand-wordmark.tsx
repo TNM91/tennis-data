@@ -18,24 +18,24 @@ type BrandAsset = {
 
 const BRAND_ASSETS = {
   primary: {
-    src: '/tenaceiq/logos/tenaceiq-primary-horizontal.svg',
-    width: 1600,
-    height: 420,
+    src: '/tiq/logo/tiq-lockup-dark.png',
+    width: 2048,
+    height: 537,
   },
   primaryReverse: {
-    src: '/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg',
-    width: 1600,
-    height: 420,
+    src: '/tiq/logo/tiq-lockup-light.png',
+    width: 2048,
+    height: 537,
   },
   symbol: {
-    src: '/tenaceiq/logos/tenaceiq-symbol.svg',
-    width: 1045,
-    height: 490,
+    src: '/tiq/logo/tiq-q-icon-dark.png',
+    width: 1024,
+    height: 1024,
   },
   symbolReverse: {
-    src: '/tenaceiq/logos/tenaceiq-symbol-reverse.svg',
-    width: 1045,
-    height: 490,
+    src: '/tiq/logo/tiq-app-icon.png',
+    width: 1024,
+    height: 1024,
   },
 } satisfies Record<string, BrandAsset>
 

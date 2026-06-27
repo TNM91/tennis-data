@@ -99,6 +99,24 @@ export default function TiqTacticalStudio() {
     notify('Copied')
   }
 
+  async function shareScenario() {
+    const text = scenarioBriefing(scenario, briefingRole)
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: scenario.name,
+          text,
+        })
+        notify('Share sheet opened')
+        return
+      }
+
+      await copyText(text)
+    } catch {
+      notify('Share canceled')
+    }
+  }
+
   function saveLibrary(nextLibrary: TacticalScenario[]) {
     setLibrary(nextLibrary)
     window.localStorage.setItem(LOCAL_LIBRARY_KEY, JSON.stringify(nextLibrary))
@@ -276,11 +294,18 @@ export default function TiqTacticalStudio() {
       <div className={styles.topbar}>
         <div className={styles.brand}>
           <Image
+            alt=""
+            height={1024}
+            src="/tiq/logo/tiq-app-icon.png"
+            width={1024}
+            className={styles.brandIcon}
+          />
+          <Image
             alt="TenAceIQ"
-            height={420}
-            src="/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg"
-            width={1600}
-            style={{ height: 34, width: 'auto', objectFit: 'contain' }}
+            height={537}
+            src="/tiq/logo/tiq-lockup-light.png"
+            width={2048}
+            className={styles.brandLockup}
           />
         </div>
         <div className={styles.navPills}>
@@ -329,6 +354,7 @@ export default function TiqTacticalStudio() {
           onRoleChange={setRole}
           onSaveCloud={saveScenarioCloud}
           onSaveLocal={saveScenarioLocal}
+          onShareScenario={shareScenario}
           onTemplateChange={loadTemplate}
         />
 
@@ -445,7 +471,7 @@ export default function TiqTacticalStudio() {
               <strong>{item.name}</strong>
               <span>{item.focus} · {item.level}</span>
             </button>
-          )) : <p className={styles.scenarioNote}>Saved scenarios stay in this browser until cloud saving is added.</p>}
+          )) : <p className={styles.scenarioNote}>Saved scenarios stay in this browser. Use cloud save when signed in.</p>}
         </div>
         <div className={styles.panelTitle}>Cloud scenario library</div>
         <div className={styles.libraryList}>
