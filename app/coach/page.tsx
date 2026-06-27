@@ -1205,6 +1205,14 @@ function CoachContent() {
     () => savedStudents.find((student) => student.id === assignmentStudentId) ?? savedStudents[0] ?? null,
     [assignmentStudentId, savedStudents],
   )
+  const firstAssignmentRequestStudent = useMemo(
+    () => (firstAssignmentRequestActive ? savedStudents.find((student) => student.id === requestedStudentLinkId) ?? null : null),
+    [firstAssignmentRequestActive, requestedStudentLinkId, savedStudents],
+  )
+  const firstAssignmentRequestStarter = useMemo(
+    () => FIRST_ASSIGNMENT_STARTERS.find((starter) => starter.id === assignmentStarterId) ?? FIRST_ASSIGNMENT_STARTERS[0] ?? null,
+    [assignmentStarterId],
+  )
   const suggestedLevelUpAssignmentCards = useMemo(
     () => buildCoachLevelUpAssignmentCards(selectedAssignmentStudent, assignmentTitle, assignmentFocus, assignmentTemplateId, assignmentStarterId),
     [assignmentFocus, assignmentStarterId, assignmentTemplateId, assignmentTitle, selectedAssignmentStudent],
@@ -2438,6 +2446,38 @@ function CoachContent() {
     )
   }
 
+  function renderFirstAssignmentRequestCue() {
+    if (!firstAssignmentRequestStudent) return null
+
+    return (
+      <div style={firstAssignmentRequestCueStyle} aria-label="First assignment request handoff">
+        <div style={firstAssignmentRequestCueCopyStyle}>
+          <div style={eyebrowStyle}>Player request</div>
+          <strong style={firstAssignmentRequestTitleStyle}>
+            {firstAssignmentRequestStudent.playerName} asked for a first assignment.
+          </strong>
+          <span>
+            Starter work is loaded below. Adjust the drill, proof target, and due date, then create the assignment.
+          </span>
+        </div>
+        <div style={firstAssignmentRequestCueGridStyle}>
+          <span style={firstAssignmentRequestCueItemStyle}>
+            <b style={firstAssignmentRequestCueLabelStyle}>Starter</b>
+            {firstAssignmentRequestStarter?.title ?? 'Choose starter'}
+          </span>
+          <span style={firstAssignmentRequestCueItemStyle}>
+            <b style={firstAssignmentRequestCueLabelStyle}>Proof</b>
+            {firstAssignmentRequestStarter?.evidence ?? 'Add expected evidence'}
+          </span>
+          <span style={firstAssignmentRequestCueItemStyle}>
+            <b style={firstAssignmentRequestCueLabelStyle}>Send</b>
+            Create assignment, then message the player.
+          </span>
+        </div>
+      </div>
+    )
+  }
+
   function renderProofReviewCommand() {
     if (!firstProofReviewCommand) return null
 
@@ -2871,6 +2911,7 @@ function CoachContent() {
         <div id="coach-lesson-frame" style={panelStyle}>
           <PanelHeader eyebrow="Lesson frame" title="Plan the session, then assign the follow-through." />
           {renderMobilePlayerWorkspaceRail('lesson')}
+          {renderFirstAssignmentRequestCue()}
           <form onSubmit={handleCreateAssignment} style={formGridStyle}>
             <label style={fieldStyle}>
               Student
@@ -5733,6 +5774,63 @@ const firstAssignmentStarterGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 8,
   minWidth: 0,
+}
+
+const firstAssignmentRequestCueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.055)), rgba(5,11,22,0.32)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 780,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const firstAssignmentRequestCueCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const firstAssignmentRequestTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 16,
+  lineHeight: 1.2,
+  fontWeight: 950,
+}
+
+const firstAssignmentRequestCueGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const firstAssignmentRequestCueItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(5,16,31,0.38)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 820,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const firstAssignmentRequestCueLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 10,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
 }
 
 const starterButtonStyle: CSSProperties = {
