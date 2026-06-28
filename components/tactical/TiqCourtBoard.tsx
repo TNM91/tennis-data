@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useRef, useState } from 'react'
-import type { TacticalPath, TacticalPathKind, TacticalPoint, TacticalScenario, TacticalSelection, TacticalToken, TacticalTokenType, TacticalZone } from '@/lib/tactical/types'
+import type { TacticalPath, TacticalPathKind, TacticalPoint, TacticalRole, TacticalScenario, TacticalSelection, TacticalToken, TacticalTokenScale, TacticalTokenType, TacticalZone } from '@/lib/tactical/types'
 import { pointFromPointer } from '@/lib/tactical/utils'
 import TiqTokenIcon from './TiqTokens'
 import styles from './TiqTacticalStudio.module.css'
@@ -14,8 +14,11 @@ type TiqCourtBoardProps = {
   showPaths: boolean
   showZones: boolean
   snapToGrid: boolean
+  tokenScale: TacticalTokenScale
+  roleView: TacticalRole
   drawingKind: TacticalPathKind | null
   placementTokenType: TacticalTokenType | null
+  readOnly?: boolean
   onMoveToken: (id: string, x: number, y: number) => void
   onMovePathPoint: (id: string, endpoint: 'from' | 'to', x: number, y: number) => void
   onMoveZone: (id: string, x: number, y: number) => void
@@ -36,6 +39,12 @@ const pathDash: Record<TacticalPath['kind'], string> = {
   recover: '3 6',
 }
 
+const tokenScaleClass: Record<TacticalTokenScale, string> = {
+  small: styles.tokenScaleSmall,
+  medium: styles.tokenScaleMedium,
+  large: styles.tokenScaleLarge,
+}
+
 export default function TiqCourtBoard({
   scenario,
   selected,
@@ -43,8 +52,11 @@ export default function TiqCourtBoard({
   showPaths,
   showZones,
   snapToGrid,
+  tokenScale,
+  roleView,
   drawingKind,
   placementTokenType,
+  readOnly = false,
   onMoveToken,
   onMovePathPoint,
   onMoveZone,
@@ -56,42 +68,49 @@ export default function TiqCourtBoard({
   const [draftStart, setDraftStart] = useState<TacticalPoint | null>(null)
 
   function startTokenDrag(token: TacticalToken, event: React.PointerEvent<HTMLButtonElement>) {
+    if (readOnly) return
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     onSelect({ type: 'token', id: token.id })
   }
 
   function moveToken(token: TacticalToken, event: React.PointerEvent<HTMLButtonElement>) {
+    if (readOnly) return
     if (!event.currentTarget.hasPointerCapture(event.pointerId) || !boardRef.current) return
     const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
     onMoveToken(token.id, point.x, point.y)
   }
 
   function startZoneDrag(zone: TacticalZone, event: React.PointerEvent<HTMLButtonElement>) {
+    if (readOnly) return
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     onSelect({ type: 'zone', id: zone.id })
   }
 
   function moveZone(zone: TacticalZone, event: React.PointerEvent<HTMLButtonElement>) {
+    if (readOnly) return
     if (!event.currentTarget.hasPointerCapture(event.pointerId) || !boardRef.current) return
     const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
     onMoveZone(zone.id, point.x, point.y)
   }
 
   function startPathPointDrag(path: TacticalPath, endpoint: 'from' | 'to', event: React.PointerEvent<SVGCircleElement>) {
+    if (readOnly) return
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     onSelect({ type: 'path', id: path.id })
   }
 
   function movePathPoint(path: TacticalPath, endpoint: 'from' | 'to', event: React.PointerEvent<SVGCircleElement>) {
+    if (readOnly) return
     if (!event.currentTarget.hasPointerCapture(event.pointerId) || !boardRef.current) return
     const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
     onMovePathPoint(path.id, endpoint, point.x, point.y)
   }
 
   function handleBoardPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (readOnly) return
     if (!boardRef.current) return
     if ((event.target as HTMLElement).closest('button')) return
     if (placementTokenType) {
@@ -119,7 +138,7 @@ export default function TiqCourtBoard({
   return (
     <div className={styles.boardFrame}>
       <div
-        className={`${styles.board} ${drawingKind || placementTokenType ? styles.drawing : ''}`}
+        className={`${styles.board} ${tokenScaleClass[tokenScale]} ${drawingKind || placementTokenType ? styles.drawing : ''} ${readOnly ? styles.readOnlyBoard : ''}`}
         ref={boardRef}
         onPointerDown={handleBoardPointerDown}
       >
@@ -178,6 +197,7 @@ export default function TiqCourtBoard({
         {scenario.tokens.map((token) => (
           <button
             className={`${styles.token} ${token.type === 'ball' ? styles.ballToken : ''} ${selected.type === 'token' && selected.id === token.id ? styles.selected : ''}`}
+            disabled={readOnly}
             key={token.id}
             onClick={(event) => {
               event.stopPropagation()
@@ -190,12 +210,24 @@ export default function TiqCourtBoard({
             type="button"
           >
             <TiqTokenIcon token={token} />
-            {showLabels && token.label ? <span className={styles.tokenLabel}>{token.label}</span> : null}
+            {showLabels ? <TokenLabel token={token} roleView={roleView} /> : null}
           </button>
         ))}
       </div>
     </div>
   )
+}
+
+function TokenLabel({ token, roleView }: { token: TacticalToken; roleView: TacticalRole }) {
+  const label = getTokenLabel(token, roleView)
+  return label ? <span className={styles.tokenLabel}>{label}</span> : null
+}
+
+function getTokenLabel(token: TacticalToken, roleView: TacticalRole) {
+  if (token.type !== 'player') return token.label
+  if (roleView === 'coach') return token.role || token.label
+  if (roleView === 'player') return token.team === 'green' ? token.label : ''
+  return token.label
 }
 
 function BoardPath({
