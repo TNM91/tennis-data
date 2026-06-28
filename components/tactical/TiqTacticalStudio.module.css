@@ -21,6 +21,7 @@
 .hero,
 .panel,
 .scenarioBar,
+.boardToolDock,
 .boardFrame {
   backdrop-filter: blur(18px);
   background:
@@ -580,6 +581,75 @@
   overflow: hidden;
   padding: 12px;
   width: 100%;
+}
+
+.boardToolDock {
+  border-radius: 20px;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px;
+}
+
+.boardToolGroup {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.boardToolLabel {
+  color: rgba(223, 248, 194, 0.78);
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.11em;
+  min-width: 44px;
+  text-transform: uppercase;
+}
+
+.boardIconTool {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  color: rgba(248, 251, 255, 0.78);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 950;
+  gap: 6px;
+  min-height: 40px;
+  min-width: 0;
+  padding: 6px 9px;
+}
+
+.boardIconTool:hover,
+.boardActionButton:hover {
+  border-color: rgba(155, 225, 29, 0.42);
+  color: #fff;
+}
+
+.boardIconTool svg,
+.boardIconTool img {
+  filter: drop-shadow(0 0 7px rgba(155, 225, 29, 0.54));
+  flex: 0 0 auto;
+  height: 24px;
+  object-fit: contain;
+  width: 24px;
+}
+
+.boardIconTool .zonePreview {
+  height: 18px;
+  width: 30px;
+}
+
+.activeBoardTool {
+  background: #9be11d;
+  border-color: transparent;
+  color: #07111f;
 }
 
 .board {
@@ -1222,6 +1292,40 @@
     max-width: 100%;
     padding: 6px;
     width: 100%;
+  }
+
+  .boardToolDock {
+    border-radius: 18px;
+    gap: 7px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    padding: 8px;
+    position: sticky;
+    top: 6px;
+    z-index: 12;
+  }
+
+  .boardToolGroup {
+    flex-wrap: nowrap;
+    margin: 0 -2px;
+    overflow-x: auto;
+    padding: 1px 2px 5px;
+    scrollbar-width: thin;
+  }
+
+  .boardToolLabel {
+    min-width: auto;
+  }
+
+  .boardIconTool,
+  .boardActionButton {
+    flex: 0 0 auto;
+    min-height: 38px;
+    white-space: nowrap;
+  }
+
+  .boardIconTool {
+    padding: 6px 8px;
   }
 
   .board {
