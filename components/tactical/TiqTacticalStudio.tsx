@@ -893,7 +893,7 @@ function BoardToolDock({
             title={formation.description}
             type="button"
           >
-            {formation.label}
+            {formation.shortLabel}
           </button>
         ))}
         {INLINE_TOKEN_TOOLS.map((type) => (
