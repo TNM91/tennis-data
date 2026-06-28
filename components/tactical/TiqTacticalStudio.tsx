@@ -12,7 +12,7 @@ import styles from './TiqTacticalStudio.module.css'
 import { scenarioBriefing, scenarioToJson } from '@/lib/tactical/scenarioExport'
 import { isTacticalScenario, type TacticalScenarioSummary } from '@/lib/tactical/scenarioStorage'
 import { createTacticalTemplate } from '@/lib/tactical/templates'
-import type { TacticalPathKind, TacticalRole, TacticalScenario, TacticalSelection, TacticalTemplateKey, TacticalTokenType } from '@/lib/tactical/types'
+import type { TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalScenario, TacticalSelection, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
 import { countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTacticalId, scoreScenarioReadiness, tacticalSuggestions } from '@/lib/tactical/utils'
 
 const LOCAL_LIBRARY_KEY = 'tiq-tactical-studio-library-v1'
@@ -29,6 +29,9 @@ export default function TiqTacticalStudio() {
   const [showPaths, setShowPaths] = useState(true)
   const [showZones, setShowZones] = useState(true)
   const [snapToGrid, setSnapToGrid] = useState(true)
+  const [tokenScale, setTokenScale] = useState<TacticalTokenScale>('medium')
+  const [boardFocusMode, setBoardFocusMode] = useState(false)
+  const [presentationMode, setPresentationMode] = useState(false)
   const [stepIndex, setStepIndex] = useState(99)
   const [library, setLibrary] = useState<TacticalScenario[]>([])
   const [cloudLibrary, setCloudLibrary] = useState<TacticalScenarioSummary[]>([])
@@ -208,6 +211,56 @@ export default function TiqTacticalStudio() {
     notify('Downloaded')
   }
 
+  async function downloadBoardPng() {
+    try {
+      await exportScenarioPng(scenario, tokenScale, showLabels, showPaths, showZones)
+      notify('PNG exported')
+    } catch {
+      notify('PNG export failed')
+    }
+  }
+
+  function applySnapPreset(preset: TacticalSnapPreset) {
+    if (selected.type === 'token') {
+      setScenario((current) => ({
+        ...current,
+        tokens: current.tokens.map((token) => token.id === selected.id ? { ...token, ...preset.point } : token),
+      }))
+      notify(`Moved to ${preset.label}`)
+      return
+    }
+
+    addTokenAt(placementType ?? 'player', preset.point.x, preset.point.y)
+    notify(`Placed at ${preset.label}`)
+  }
+
+  function addPathPreset(preset: TacticalPathPreset) {
+    const nextId = makeTacticalId('path')
+    setScenario((current) => ({
+      ...current,
+      paths: [
+        ...current.paths,
+        {
+          id: nextId,
+          kind: preset.kind,
+          label: preset.label,
+          from: preset.from,
+          to: preset.to,
+        },
+      ],
+    }))
+    setSelected({ type: 'path', id: nextId })
+    setStepIndex(99)
+    notify(`${preset.label} path added`)
+  }
+
+  function undoLastPath() {
+    setScenario((current) => ({ ...current, paths: current.paths.slice(0, -1) }))
+    setSelected({ type: 'scenario', id: 'scenario' })
+    setStepIndex(99)
+    notify('Last line removed')
+  }
+
   function deleteSelected() {
     if (selected.type === 'scenario') return
     setScenario((current) => ({
@@ -289,25 +342,53 @@ export default function TiqTacticalStudio() {
     }))
   }
 
-  return (
-    <div className={styles.studio}>
-      <div className={styles.topbar}>
-        <div className={styles.brand}>
-          <Image
-            alt=""
-            height={1024}
-            src="/tiq/logo/tiq-app-icon.png"
-            width={1024}
-            className={styles.brandIcon}
-          />
-          <Image
-            alt="TenAceIQ"
-            height={537}
-            src="/tiq/logo/tiq-lockup-light.png"
-            width={2048}
-            className={styles.brandLockup}
-          />
+  if (presentationMode) {
+    return (
+      <div className={`${styles.studio} ${styles.presentationMode}`}>
+        <div className={styles.topbar}>
+          <BrandLockup />
+          <button className={styles.button} onClick={() => setPresentationMode(false)} type="button">Exit presentation</button>
         </div>
+        <section className={styles.presentationStage}>
+          <div className={styles.presentationHeader}>
+            <div>
+              <div className={styles.eyebrow}>TIQ Presentation Board</div>
+              <h1>{scenario.name}</h1>
+              <p>{getRoleBoardCopy(role)}</p>
+            </div>
+            <div className={styles.presentationRole}>{role}</div>
+          </div>
+          <TiqCourtBoard
+            scenario={visibleScenario}
+            selected={{ type: 'scenario', id: 'scenario' }}
+            showLabels={showLabels}
+            showPaths={showPaths}
+            showZones={showZones}
+            snapToGrid={snapToGrid}
+            tokenScale={tokenScale}
+            roleView={role}
+            drawingKind={null}
+            placementTokenType={null}
+            readOnly
+            onCreatePath={() => undefined}
+            onPlaceToken={() => undefined}
+            onMovePathPoint={() => undefined}
+            onMoveToken={() => undefined}
+            onMoveZone={() => undefined}
+            onSelect={() => undefined}
+          />
+          <div className={styles.presentationBriefing}>
+            {scenarioBriefing(scenario, role)}
+          </div>
+        </section>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`${styles.studio} ${boardFocusMode ? styles.boardFocusActive : ''}`}>
+      <div className={styles.topbar}>
+        <BrandLockup />
         <div className={styles.navPills}>
           <button className={`${styles.button} ${styles.active}`} type="button">Tactics</button>
           <button className={styles.button} type="button">Coach beta</button>
@@ -334,14 +415,18 @@ export default function TiqTacticalStudio() {
           activeTemplate={templateKey}
           activeDrawKind={drawingKind}
           activePlacementType={placementType}
+          tokenScale={tokenScale}
           role={role}
           onAddPath={addPath}
+          onAddPathPreset={addPathPreset}
           onAddToken={addToken}
           onAddZone={addZone}
           onCopyBriefing={() => copyText(scenarioBriefing(scenario, briefingRole))}
           onCopyJson={() => copyText(scenarioToJson(scenario))}
           onDownloadJson={downloadScenario}
+          onDownloadPng={downloadBoardPng}
           onImportJson={importScenario}
+          onPresent={() => setPresentationMode(true)}
           onReset={() => loadTemplate(templateKey)}
           onDrawKindChange={(kind) => {
             setDrawingKind(kind)
@@ -352,10 +437,14 @@ export default function TiqTacticalStudio() {
             if (type) setDrawingKind(null)
           }}
           onRoleChange={setRole}
+          onTokenScaleChange={setTokenScale}
+          onSnapPreset={applySnapPreset}
+          onUndoPath={undoLastPath}
           onSaveCloud={saveScenarioCloud}
           onSaveLocal={saveScenarioLocal}
           onShareScenario={shareScenario}
           onTemplateChange={loadTemplate}
+          canUndoPath={scenario.paths.length > 0}
         />
 
         <section>
@@ -364,6 +453,10 @@ export default function TiqTacticalStudio() {
               <div className={styles.scenarioTitleLabel}>Scenario</div>
               <div className={styles.scenarioTitle}>{scenario.name}</div>
               <div className={styles.scenarioNote}>{scenario.note}</div>
+              <div className={styles.roleBoardCallout}>
+                <strong>{role} view</strong>
+                <span>{getRoleBoardCopy(role)}</span>
+              </div>
               <div className={styles.activeToolPill}>
                 {placementType
                   ? `Placing ${placementType === 'player' ? 'player' : placementType}`
@@ -385,6 +478,8 @@ export default function TiqTacticalStudio() {
             showPaths={showPaths}
             showZones={showZones}
             snapToGrid={snapToGrid}
+            tokenScale={tokenScale}
+            roleView={role}
             drawingKind={drawingKind}
             placementTokenType={placementType}
             onCreatePath={(kind, from, to) => {
@@ -433,6 +528,12 @@ export default function TiqTacticalStudio() {
                 Basic reset
               </button>
             )}
+            <button className={styles.boardActionButton} onClick={() => setBoardFocusMode((value) => !value)} type="button">
+              {boardFocusMode ? 'Full studio' : 'Board only'}
+            </button>
+            <button className={styles.boardActionButton} onClick={downloadBoardPng} type="button">
+              Export PNG
+            </button>
           </div>
         </section>
 
@@ -468,8 +569,11 @@ export default function TiqTacticalStudio() {
         <div className={styles.libraryList}>
           {library.length ? library.map((item) => (
             <button className={styles.libraryItem} key={item.id} onClick={() => loadScenario(item)} type="button">
-              <strong>{item.name}</strong>
-              <span>{item.focus} · {item.level}</span>
+              <ScenarioThumbnail scenario={item} />
+              <span className={styles.libraryCopy}>
+                <strong>{item.name}</strong>
+                <span>{item.focus} · {item.level}</span>
+              </span>
             </button>
           )) : <p className={styles.scenarioNote}>Saved scenarios stay in this browser. Use cloud save when signed in.</p>}
         </div>
@@ -478,8 +582,11 @@ export default function TiqTacticalStudio() {
           {cloudLibrary.length ? cloudLibrary.map((item) => (
             <div className={styles.libraryRow} key={item.id}>
               <button className={styles.libraryItem} onClick={() => loadScenario(item.scenario)} type="button">
-                <strong>{item.name}</strong>
-                <span>{item.focus} · {new Date(item.updatedAt).toLocaleDateString()}</span>
+                <ScenarioThumbnail scenario={item.scenario} />
+                <span className={styles.libraryCopy}>
+                  <strong>{item.name}</strong>
+                  <span>{item.focus} · {new Date(item.updatedAt).toLocaleDateString()}</span>
+                </span>
               </button>
               <button className={styles.libraryDelete} onClick={() => deleteCloudScenario(item.id)} type="button">Delete</button>
             </div>
@@ -520,4 +627,199 @@ function Meta({ label, value }: { label: string; value: string }) {
       <b>{value}</b>
     </div>
   )
+}
+
+function BrandLockup() {
+  return (
+    <div className={styles.brand}>
+      <Image
+        alt=""
+        height={1024}
+        src="/tiq/logo/tiq-app-icon.png"
+        width={1024}
+        className={styles.brandIcon}
+      />
+      <Image
+        alt="TenAceIQ"
+        height={537}
+        src="/tiq/logo/tiq-lockup-light.png"
+        width={2048}
+        className={styles.brandLockup}
+      />
+    </div>
+  )
+}
+
+function getRoleBoardCopy(role: TacticalRole) {
+  if (role === 'coach') return 'Coach view shows teaching cues and full role labels for instruction.'
+  if (role === 'player') return 'Player view strips the board down to readable movement, ball intent, and teammate labels.'
+  return 'Captain view keeps assignments, pattern purpose, and match-readiness visible.'
+}
+
+function ScenarioThumbnail({ scenario }: { scenario: TacticalScenario }) {
+  return (
+    <span className={styles.scenarioThumbnail} aria-hidden="true">
+      <Image alt="" fill sizes="92px" src="/tiq/courts/tiq-court-master-v2.png" />
+      {scenario.zones.slice(0, 3).map((zone) => (
+        <span
+          className={styles.thumbnailZone}
+          key={zone.id}
+          style={{ height: `${zone.height}%`, left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%` }}
+        />
+      ))}
+      {scenario.paths.slice(0, 4).map((path) => (
+        <span
+          className={`${styles.thumbnailPath} ${path.kind === 'ball' ? styles.thumbnailBallPath : ''}`}
+          key={path.id}
+          style={{
+            height: `${Math.max(1, Math.abs(path.to.y - path.from.y))}%`,
+            left: `${Math.min(path.from.x, path.to.x)}%`,
+            top: `${Math.min(path.from.y, path.to.y)}%`,
+            width: `${Math.max(1, Math.abs(path.to.x - path.from.x))}%`,
+          }}
+        />
+      ))}
+      {scenario.tokens.slice(0, 7).map((token) => (
+        <span
+          className={`${styles.thumbnailToken} ${token.type === 'ball' ? styles.thumbnailBall : ''}`}
+          key={token.id}
+          style={{ left: `${token.x}%`, top: `${token.y}%` }}
+        />
+      ))}
+    </span>
+  )
+}
+
+async function exportScenarioPng(
+  scenario: TacticalScenario,
+  tokenScale: TacticalTokenScale,
+  showLabels: boolean,
+  showPaths: boolean,
+  showZones: boolean,
+) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 1448
+  canvas.height = 1086
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Canvas unavailable')
+
+  const [court, qIcon, ballIcon] = await Promise.all([
+    loadCanvasImage('/tiq/courts/tiq-court-master-v2.png'),
+    loadCanvasImage('/tiq/logo/tiq-app-icon.png'),
+    loadCanvasImage('/tiq/tokens/tennis-ball-reference.png'),
+  ])
+
+  context.drawImage(court, 0, 0, canvas.width, canvas.height)
+
+  if (showZones) {
+    scenario.zones.forEach((zone) => {
+      const rect = toCanvasRect(zone.x, zone.y, zone.width, zone.height, canvas)
+      context.fillStyle = 'rgba(155, 225, 29, 0.17)'
+      context.strokeStyle = 'rgba(155, 225, 29, 0.86)'
+      context.lineWidth = 4
+      context.fillRect(rect.x, rect.y, rect.width, rect.height)
+      context.strokeRect(rect.x, rect.y, rect.width, rect.height)
+      if (showLabels) {
+        context.fillStyle = '#dff8c2'
+        context.font = '700 26px Arial'
+        context.fillText(zone.label, rect.x + 10, rect.y + 30)
+      }
+    })
+  }
+
+  if (showPaths) {
+    scenario.paths.forEach((path) => drawExportPath(context, path, canvas, showLabels))
+  }
+
+  const tokenSize = tokenScale === 'small' ? 58 : tokenScale === 'large' ? 82 : 68
+  scenario.tokens.forEach((token) => {
+    const x = (token.x / 100) * canvas.width
+    const y = (token.y / 100) * canvas.height
+    const size = token.type === 'ball' ? tokenSize * 1.08 : tokenSize
+    if (token.type === 'ball') {
+      context.drawImage(ballIcon, x - size / 2, y - size / 2, size, size)
+    } else if (token.type === 'player') {
+      context.beginPath()
+      context.arc(x, y, size / 2, 0, Math.PI * 2)
+      context.fillStyle = 'rgba(2, 8, 18, 0.9)'
+      context.fill()
+      context.lineWidth = 4
+      context.strokeStyle = '#9be11d'
+      context.stroke()
+      context.drawImage(qIcon, x - size * 0.34, y - size * 0.34, size * 0.68, size * 0.68)
+    } else {
+      context.beginPath()
+      context.arc(x, y, size * 0.36, 0, Math.PI * 2)
+      context.fillStyle = token.type === 'cone' ? '#ffc257' : '#f8fbff'
+      context.fill()
+      context.strokeStyle = '#07111f'
+      context.lineWidth = 3
+      context.stroke()
+    }
+
+    if (showLabels && token.label) {
+      context.fillStyle = '#f8fbff'
+      context.font = '900 26px Arial'
+      context.textAlign = 'center'
+      context.fillText(token.label, x, y + size * 0.78)
+    }
+  })
+
+  const url = canvas.toDataURL('image/png')
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${slugify(scenario.name)}-board.png`
+  document.body.append(link)
+  link.click()
+  link.remove()
+}
+
+function drawExportPath(context: CanvasRenderingContext2D, path: TacticalScenario['paths'][number], canvas: HTMLCanvasElement, showLabel: boolean) {
+  const from = toCanvasPoint(path.from.x, path.from.y, canvas)
+  const to = toCanvasPoint(path.to.x, path.to.y, canvas)
+  const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - (path.kind === 'ball' ? 72 : 44) }
+  const color = path.kind === 'ball' ? '#9be11d' : path.kind === 'move' ? '#20b7ff' : '#f8fbff'
+  context.save()
+  context.strokeStyle = color
+  context.lineWidth = path.kind === 'ball' ? 8 : 6
+  context.setLineDash(path.kind === 'ball' ? [34, 22] : path.kind === 'move' ? [24, 20] : [16, 20])
+  context.lineCap = 'round'
+  context.beginPath()
+  context.moveTo(from.x, from.y)
+  context.quadraticCurveTo(mid.x, mid.y, to.x, to.y)
+  context.stroke()
+  context.setLineDash([])
+  context.beginPath()
+  context.arc(to.x, to.y, 10, 0, Math.PI * 2)
+  context.fillStyle = color
+  context.fill()
+  if (showLabel) {
+    context.fillStyle = color
+    context.font = '900 27px Arial'
+    context.textAlign = 'center'
+    context.fillText(path.label, mid.x, mid.y - 10)
+  }
+  context.restore()
+}
+
+function toCanvasPoint(x: number, y: number, canvas: HTMLCanvasElement) {
+  return { x: (x / 100) * canvas.width, y: (y / 100) * canvas.height }
+}
+
+function toCanvasRect(x: number, y: number, width: number, height: number, canvas: HTMLCanvasElement) {
+  return {
+    x: (x / 100) * canvas.width,
+    y: (y / 100) * canvas.height,
+    width: (width / 100) * canvas.width,
+    height: (height / 100) * canvas.height,
+  }
+}
+
+function loadCanvasImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image()
+    image.onload = () => resolve(image)
+    image.onerror = reject
+    image.src = src
+  })
 }

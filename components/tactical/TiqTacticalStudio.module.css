@@ -82,7 +82,9 @@
 .navPills,
 .segment,
 .toolGrid,
-.modeGrid {
+.modeGrid,
+.snapPresetGrid,
+.pathPresetGrid {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -349,6 +351,12 @@
   color: #fff;
 }
 
+.toolButton:disabled,
+.modeButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .importButton input {
   display: none;
 }
@@ -386,7 +394,13 @@
 }
 
 .toolGrid,
-.modeGrid {
+.modeGrid,
+.pathPresetGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.snapPresetGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -520,6 +534,35 @@
   text-transform: uppercase;
 }
 
+.roleBoardCallout {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  max-width: 760px;
+  padding: 8px 10px;
+}
+
+.roleBoardCallout strong,
+.presentationRole {
+  color: #9be11d;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.roleBoardCallout span {
+  color: rgba(248, 251, 255, 0.68);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .metaPill {
   padding: 8px 11px;
 }
@@ -540,6 +583,11 @@
 }
 
 .board {
+  --ball-token-size: 46px;
+  --player-head-size: 38px;
+  --token-icon-size: 38px;
+  --token-label-size: 0.7rem;
+  --token-size: 42px;
   aspect-ratio: 1448 / 1086;
   background: #020814;
   border-radius: 18px;
@@ -555,6 +603,10 @@
 
 .board.drawing {
   cursor: crosshair;
+}
+
+.readOnlyBoard {
+  cursor: default;
 }
 
 .courtImage {
@@ -604,39 +656,39 @@
   background: transparent;
   border: 0;
   display: grid;
-  height: 42px;
+  height: var(--token-size);
   justify-items: center;
-  margin: -21px 0 0 -21px;
+  margin: calc(var(--token-size) / -2) 0 0 calc(var(--token-size) / -2);
   padding: 0;
   position: absolute;
-  width: 42px;
+  width: var(--token-size);
   z-index: 5;
 }
 
 .token svg {
   filter: drop-shadow(0 0 7px rgba(155, 225, 29, 0.68));
-  height: 38px;
-  width: 38px;
+  height: var(--token-icon-size);
+  width: var(--token-icon-size);
 }
 
 .ballToken {
-  height: 46px;
-  margin: -23px 0 0 -23px;
-  width: 46px;
+  height: var(--ball-token-size);
+  margin: calc(var(--ball-token-size) / -2) 0 0 calc(var(--ball-token-size) / -2);
+  width: var(--ball-token-size);
 }
 
 .ballToken svg {
   filter: drop-shadow(0 2px 7px rgba(2, 8, 18, 0.86)) drop-shadow(0 0 5px rgba(168, 240, 0, 0.5));
-  height: 42px;
-  width: 42px;
+  height: calc(var(--ball-token-size) - 4px);
+  width: calc(var(--ball-token-size) - 4px);
 }
 
 .ballTokenImage {
   display: block;
   filter: drop-shadow(0 2px 7px rgba(2, 8, 18, 0.86)) drop-shadow(0 0 5px rgba(168, 240, 0, 0.5));
-  height: 42px;
+  height: calc(var(--ball-token-size) - 4px);
   position: relative;
-  width: 42px;
+  width: calc(var(--ball-token-size) - 4px);
 }
 
 .ballTokenImage img {
@@ -649,10 +701,10 @@
   border-radius: 999px;
   box-shadow: 0 0 13px rgba(155, 225, 29, 0.42);
   display: block;
-  height: 38px;
+  height: var(--player-head-size);
   overflow: hidden;
   position: relative;
-  width: 38px;
+  width: var(--player-head-size);
 }
 
 .playerTokenHead img {
@@ -668,7 +720,7 @@
 
 .tokenLabel {
   color: #f8fbff;
-  font-size: 0.7rem;
+  font-size: var(--token-label-size);
   font-weight: 950;
   margin-top: -6px;
   text-shadow: 0 2px 6px rgba(2, 8, 18, 0.9);
@@ -757,10 +809,12 @@
   border-radius: 14px;
   color: #f8fbff;
   display: flex;
+  gap: 10px;
   font: inherit;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 9px 10px;
   text-align: left;
+  width: 100%;
 }
 
 .libraryRow {
@@ -788,12 +842,73 @@
 }
 
 .libraryItem strong {
+  display: block;
   font-size: 0.82rem;
 }
 
 .libraryItem span {
   color: rgba(248, 251, 255, 0.58);
   font-size: 0.72rem;
+}
+
+.libraryCopy {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.scenarioThumbnail {
+  aspect-ratio: 1448 / 1086;
+  background: #020814;
+  border: 1px solid rgba(155, 225, 29, 0.2);
+  border-radius: 9px;
+  box-shadow: 0 0 16px rgba(155, 225, 29, 0.1);
+  display: block;
+  flex: 0 0 74px;
+  overflow: hidden;
+  position: relative;
+}
+
+.scenarioThumbnail img {
+  object-fit: cover;
+}
+
+.thumbnailZone,
+.thumbnailPath,
+.thumbnailToken {
+  display: block;
+  pointer-events: none;
+  position: absolute;
+}
+
+.thumbnailZone {
+  background: rgba(155, 225, 29, 0.2);
+  border: 1px solid rgba(155, 225, 29, 0.72);
+}
+
+.thumbnailPath {
+  border-top: 2px solid rgba(32, 183, 255, 0.8);
+  transform: rotate(-10deg);
+}
+
+.thumbnailBallPath {
+  border-color: rgba(155, 225, 29, 0.88);
+}
+
+.thumbnailToken {
+  background: #f8fbff;
+  border: 1px solid #07111f;
+  border-radius: 999px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  width: 7px;
+  z-index: 2;
+}
+
+.thumbnailBall {
+  background: #9be11d;
+  box-shadow: 0 0 6px rgba(155, 225, 29, 0.7);
 }
 
 .toast {
@@ -861,6 +976,105 @@
 
 .jsonPreview {
   color: rgba(223, 248, 194, 0.82);
+}
+
+.presentationMode {
+  max-width: 1180px;
+}
+
+.presentationStage {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.presentationHeader,
+.presentationBriefing {
+  backdrop-filter: blur(18px);
+  background:
+    linear-gradient(145deg, rgba(9, 21, 38, 0.94), rgba(3, 9, 18, 0.88)),
+    rgba(7, 17, 31, 0.88);
+  border: 1px solid rgba(223, 248, 194, 0.12);
+  border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 16px;
+}
+
+.presentationHeader {
+  align-items: end;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.presentationHeader h1 {
+  font-size: clamp(1.8rem, 4vw, 3.6rem);
+  letter-spacing: -0.04em;
+  line-height: 0.96;
+  margin: 8px 0;
+}
+
+.presentationHeader p {
+  color: rgba(248, 251, 255, 0.7);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.presentationRole {
+  background: rgba(155, 225, 29, 0.12);
+  border: 1px solid rgba(155, 225, 29, 0.32);
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+
+.presentationBriefing {
+  color: rgba(248, 251, 255, 0.78);
+  font-size: 0.92rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.boardFocusActive .hero,
+.boardFocusActive > .panel,
+.boardFocusActive > .briefing,
+.boardFocusActive .workspace > .panel {
+  display: none;
+}
+
+.boardFocusActive .workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.boardFocusActive .scenarioBar {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.boardFocusActive .boardFrame {
+  padding: 8px;
+}
+
+.tokenScaleSmall {
+  --ball-token-size: 38px;
+  --player-head-size: 31px;
+  --token-icon-size: 31px;
+  --token-label-size: 0.62rem;
+  --token-size: 34px;
+}
+
+.tokenScaleMedium {
+  --ball-token-size: 46px;
+  --player-head-size: 38px;
+  --token-icon-size: 38px;
+  --token-label-size: 0.7rem;
+  --token-size: 42px;
+}
+
+.tokenScaleLarge {
+  --ball-token-size: 58px;
+  --player-head-size: 48px;
+  --token-icon-size: 48px;
+  --token-label-size: 0.78rem;
+  --token-size: 52px;
 }
 
 @media (max-width: 1180px) {
@@ -973,7 +1187,9 @@
     width: 100%;
   }
 
-  .toolGrid {
+  .toolGrid,
+  .snapPresetGrid,
+  .pathPresetGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
@@ -1026,23 +1242,40 @@
   }
 
   .token {
-    height: 36px;
-    margin: -18px 0 0 -18px;
-    width: 36px;
+    height: var(--token-size);
+    margin: calc(var(--token-size) / -2) 0 0 calc(var(--token-size) / -2);
+    width: var(--token-size);
   }
 
   .token svg,
   .playerTokenHead {
-    height: 32px;
-    width: 32px;
+    height: var(--token-icon-size);
+    width: var(--token-icon-size);
   }
 
   .tokenLabel {
-    font-size: 0.62rem;
+    font-size: var(--token-label-size);
     margin-top: -5px;
   }
 
   .boardActionBar {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .boardFocusActive .topbar {
+    display: none;
+  }
+
+  .studio.boardFocusActive {
+    padding-top: 8px;
+  }
+
+  .boardFocusActive .scenarioBar {
+    display: none;
+  }
+
+  .presentationHeader {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,11 +1,9 @@
-import type { TacticalScenario, TacticalTemplateKey } from './types'
-import { makeTacticalId } from './utils'
-
-function id(prefix: string) {
-  return makeTacticalId(prefix)
-}
+import type { TacticalPathPreset, TacticalScenario, TacticalSnapPreset, TacticalTemplateKey } from './types'
 
 export function createTacticalTemplate(key: TacticalTemplateKey): TacticalScenario {
+  let idIndex = 0
+  const id = (prefix: string) => `${key}-${prefix}-${idIndex += 1}`
+
   if (key === 'basicDoubles') {
     return {
       id: id('scenario'),
@@ -153,4 +151,23 @@ export const tacticalTemplateMeta: Array<{ key: TacticalTemplateKey; name: strin
   { key: 'australian', name: 'Australian', category: 'match', description: 'Stack near center and disrupt crosscourt comfort.' },
   { key: 'crosscourt', name: 'Crosscourt Pressure', category: 'practice', description: 'Build consistency, open space, then attack.' },
   { key: 'coachProgression', name: 'Coach Progression', category: 'practice', description: 'Feed, recover, attack, and finish at net.' },
+]
+
+export const tacticalSnapPresets: TacticalSnapPreset[] = [
+  { key: 'baseline', label: 'Baseline', point: { x: 50, y: 80 } },
+  { key: 'net', label: 'Net', point: { x: 50, y: 50 } },
+  { key: 'deuceBox', label: 'Deuce box', point: { x: 64, y: 34 } },
+  { key: 'adBox', label: 'Ad box', point: { x: 36, y: 34 } },
+  { key: 'middle', label: 'Middle', point: { x: 50, y: 66 } },
+  { key: 'alley', label: 'Alley', point: { x: 22, y: 58 } },
+  { key: 'poachLane', label: 'Poach lane', point: { x: 57, y: 49 } },
+]
+
+export const tacticalPathPresets: TacticalPathPreset[] = [
+  { key: 'serve', label: 'Serve', kind: 'ball', from: { x: 52, y: 75 }, to: { x: 68, y: 32 } },
+  { key: 'return', label: 'Return', kind: 'ball', from: { x: 68, y: 22 }, to: { x: 45, y: 63 } },
+  { key: 'recovery', label: 'Recovery', kind: 'recover', from: { x: 62, y: 79 }, to: { x: 52, y: 68 } },
+  { key: 'poach', label: 'Poach', kind: 'move', from: { x: 39, y: 58 }, to: { x: 56, y: 49 } },
+  { key: 'lob', label: 'Lob', kind: 'ball', from: { x: 37, y: 70 }, to: { x: 72, y: 20 } },
+  { key: 'approach', label: 'Approach', kind: 'move', from: { x: 48, y: 75 }, to: { x: 55, y: 55 } },
 ]

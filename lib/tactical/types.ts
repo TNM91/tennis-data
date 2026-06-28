@@ -4,6 +4,9 @@ export type TacticalTokenType = 'player' | 'ball' | 'cone' | 'x' | 'o'
 export type TacticalTeam = 'green' | 'blue' | 'white'
 export type TacticalPathKind = 'ball' | 'move' | 'recover'
 export type TacticalZoneTone = 'green' | 'blue' | 'white'
+export type TacticalTokenScale = 'small' | 'medium' | 'large'
+export type TacticalSnapPresetKey = 'baseline' | 'net' | 'deuceBox' | 'adBox' | 'middle' | 'alley' | 'poachLane'
+export type TacticalPathPresetKey = 'serve' | 'return' | 'recovery' | 'poach' | 'lob' | 'approach'
 
 export type TacticalPoint = {
   x: number
@@ -39,6 +42,20 @@ export type TacticalCue = {
   id: string
   role: TacticalRole
   text: string
+}
+
+export type TacticalSnapPreset = {
+  key: TacticalSnapPresetKey
+  label: string
+  point: TacticalPoint
+}
+
+export type TacticalPathPreset = {
+  key: TacticalPathPresetKey
+  label: string
+  kind: TacticalPathKind
+  from: TacticalPoint
+  to: TacticalPoint
 }
 
 export type TacticalScenario = {
