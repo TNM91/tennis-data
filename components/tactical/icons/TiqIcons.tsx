@@ -1,3 +1,5 @@
+import Image from 'next/image'
+
 type IconProps = {
   className?: string
 }
@@ -36,6 +38,10 @@ export function PlayerIcon({ className, handedness = 'righty' }: PlayerIconProps
 }
 
 export function MarkerIcon({ className, type }: MarkerIconProps) {
+  if (type === 'ball') {
+    return <Image alt="" aria-hidden="true" className={className} height={38} src="/tiq/tokens/tennis-ball-reference.png" width={38} />
+  }
+
   if (type === 'x' || type === 'o') {
     return (
       <svg aria-hidden="true" className={className} viewBox="-10 -10 20 20">
@@ -60,32 +66,4 @@ export function MarkerIcon({ className, type }: MarkerIconProps) {
       </svg>
     )
   }
-
-  return (
-    <svg aria-hidden="true" className={className} viewBox="-10 -10 20 20">
-      <g className="tiq-tennis-ball-marker">
-        <circle cx="0" cy="0" fill="#07101E" opacity="0.82" r="8.85" />
-        <circle cx="0" cy="0" fill="#A8F000" r="8" stroke="#07101E" strokeWidth="1.35" />
-        <path d="M-6.75 3.45C-3.95 8.28 3.74 8.46 6.9 3.8A8.02 8.02 0 0 1-6.75 3.45Z" fill="#5F9808" opacity="0.38" />
-        <ellipse cx="-2.45" cy="-3.85" fill="#ECFF69" opacity="0.46" rx="2.85" ry="1.55" transform="rotate(-24 -2.45 -3.85)" />
-        <path
-          className="classic-tennis-ball-seam"
-          d="M-7.35-3.55C-4.4-6.75 1.9-6.38 4.48-2.28C6.46 0.88 0.72 2.45 1.58 7.35"
-          fill="none"
-          stroke="#07101E"
-          strokeLinecap="round"
-          strokeOpacity="0.28"
-          strokeWidth="3.7"
-        />
-        <path
-          className="classic-tennis-ball-seam"
-          d="M-7.08-3.42C-4.24-6.34 1.62-5.98 4.02-2.12C5.72.64 0.28 2.22 1.08 7.1"
-          fill="none"
-          stroke="#F8FFE2"
-          strokeLinecap="round"
-          strokeWidth="2.55"
-        />
-      </g>
-    </svg>
-  )
 }

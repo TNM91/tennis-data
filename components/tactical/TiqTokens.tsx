@@ -12,5 +12,13 @@ export default function TiqTokenIcon({ token }: { token: TacticalToken }) {
     )
   }
 
+  if (token.type === 'ball') {
+    return (
+      <span className={styles.ballTokenImage}>
+        <Image alt="" fill sizes="42px" src="/tiq/tokens/tennis-ball-reference.png" />
+      </span>
+    )
+  }
+
   return <MarkerIcon type={token.type} />
 }
