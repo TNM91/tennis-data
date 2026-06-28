@@ -1,4 +1,4 @@
-import type { TacticalPathPreset, TacticalScenario, TacticalSnapPreset, TacticalTemplateKey } from './types'
+import type { TacticalFormationMode, TacticalPathPreset, TacticalScenario, TacticalSnapPreset, TacticalTemplateKey, TacticalToken } from './types'
 
 export function createTacticalTemplate(key: TacticalTemplateKey): TacticalScenario {
   let idIndex = 0
@@ -151,6 +151,34 @@ export const tacticalTemplateMeta: Array<{ key: TacticalTemplateKey; name: strin
   { key: 'australian', name: 'Australian', category: 'match', description: 'Stack near center and disrupt crosscourt comfort.' },
   { key: 'crosscourt', name: 'Crosscourt Pressure', category: 'practice', description: 'Build consistency, open space, then attack.' },
   { key: 'coachProgression', name: 'Coach Progression', category: 'practice', description: 'Feed, recover, attack, and finish at net.' },
+]
+
+export const tacticalFormationPresets: Array<{
+  key: TacticalFormationMode
+  label: string
+  description: string
+  players: Array<Omit<TacticalToken, 'id' | 'type'>>
+}> = [
+  {
+    key: 'singles',
+    label: 'Singles',
+    description: 'Server and returner in clean singles starting spots.',
+    players: [
+      { label: 'S', role: 'Server', x: 61, y: 82, team: 'green', handedness: 'righty' },
+      { label: 'R', role: 'Returner', x: 36, y: 20, team: 'blue', handedness: 'righty' },
+    ],
+  },
+  {
+    key: 'doubles',
+    label: 'Doubles',
+    description: 'Server, net player, returner, and partner set for doubles.',
+    players: [
+      { label: 'S', role: 'Server', x: 61, y: 82, team: 'green', handedness: 'righty' },
+      { label: 'N', role: 'Net', x: 39, y: 58, team: 'green', handedness: 'righty' },
+      { label: 'R', role: 'Returner', x: 36, y: 20, team: 'blue', handedness: 'righty' },
+      { label: 'P', role: 'Partner', x: 62, y: 42, team: 'blue', handedness: 'righty' },
+    ],
+  },
 ]
 
 export const tacticalSnapPresets: TacticalSnapPreset[] = [

@@ -5,6 +5,7 @@ export type TacticalTeam = 'green' | 'blue' | 'white'
 export type TacticalPathKind = 'ball' | 'move' | 'recover'
 export type TacticalZoneTone = 'green' | 'blue' | 'white'
 export type TacticalTokenScale = 'small' | 'medium' | 'large'
+export type TacticalFormationMode = 'singles' | 'doubles'
 export type TacticalSnapPresetKey = 'baseline' | 'net' | 'deuceBox' | 'adBox' | 'middle' | 'alley' | 'poachLane'
 export type TacticalPathPresetKey = 'serve' | 'return' | 'recovery' | 'poach' | 'lob' | 'approach'
 

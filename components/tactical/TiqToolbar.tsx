@@ -1,8 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import type { TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
-import { tacticalPathPresets, tacticalSnapPresets, tacticalTemplateMeta } from '@/lib/tactical/templates'
+import type { TacticalFormationMode, TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
+import { tacticalFormationPresets, tacticalPathPresets, tacticalSnapPresets, tacticalTemplateMeta } from '@/lib/tactical/templates'
 import { MarkerIcon } from './icons/TiqIcons'
 import styles from './TiqTacticalStudio.module.css'
 
@@ -15,6 +15,7 @@ type TiqToolbarProps = {
   onRoleChange: (role: TacticalRole) => void
   onTokenScaleChange: (scale: TacticalTokenScale) => void
   onTemplateChange: (key: TacticalTemplateKey) => void
+  onApplyFormation: (mode: TacticalFormationMode) => void
   onAddToken: (type: TacticalTokenType) => void
   onPlacementTypeChange: (type: TacticalTokenType | null) => void
   onAddPath: (kind: 'ball' | 'move' | 'recover') => void
@@ -45,6 +46,7 @@ export default function TiqToolbar({
   onRoleChange,
   onTokenScaleChange,
   onTemplateChange,
+  onApplyFormation,
   onAddToken,
   onPlacementTypeChange,
   onAddPath,
@@ -92,6 +94,20 @@ export default function TiqToolbar({
           <span>{template.description}</span>
         </button>
       ))}
+
+      <div className={styles.panelTitle}>Starting setup</div>
+      <div className={styles.toolGrid}>
+        {tacticalFormationPresets.map((formation) => (
+          <button
+            className={styles.toolButton}
+            key={formation.key}
+            onClick={() => onApplyFormation(formation.key)}
+            type="button"
+          >
+            {formation.label}
+          </button>
+        ))}
+      </div>
 
       <div className={styles.panelTitle}>Add elements</div>
       <p className={styles.toolHint}>Tap an icon, then tap the court where it belongs. Tap the active icon again to cancel.</p>
