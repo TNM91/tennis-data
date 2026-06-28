@@ -435,6 +435,12 @@
   width: 34px;
 }
 
+.ballPaletteButton svg {
+  filter: drop-shadow(0 2px 7px rgba(2, 8, 18, 0.72)) drop-shadow(0 0 5px rgba(168, 240, 0, 0.42));
+  height: 38px;
+  width: 38px;
+}
+
 .primaryPaletteButton {
   background: rgba(155, 225, 29, 0.12);
   border-color: rgba(155, 225, 29, 0.38);
@@ -608,6 +614,18 @@
   filter: drop-shadow(0 0 7px rgba(155, 225, 29, 0.68));
   height: 38px;
   width: 38px;
+}
+
+.ballToken {
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  width: 46px;
+}
+
+.ballToken svg {
+  filter: drop-shadow(0 2px 7px rgba(2, 8, 18, 0.86)) drop-shadow(0 0 5px rgba(168, 240, 0, 0.5));
+  height: 42px;
+  width: 42px;
 }
 
 .playerTokenHead {

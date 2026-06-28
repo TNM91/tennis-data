@@ -67,6 +67,8 @@ describe('Tactical Studio player access', () => {
     expect(courtOverlaySource).toContain('fill="#a8f000"')
     expect(courtOverlaySource).toContain('stroke="#07101e"')
     expect(courtOverlaySource).toContain('stroke="#f8ffe2"')
+    expect(studioStyles).toContain('.ballToken')
+    expect(studioStyles).toContain('.ballPaletteButton')
   })
 
   it('keeps the Basic Board ball token separated from the server token', () => {
