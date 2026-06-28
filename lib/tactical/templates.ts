@@ -156,27 +156,52 @@ export const tacticalTemplateMeta: Array<{ key: TacticalTemplateKey; name: strin
 export const tacticalFormationPresets: Array<{
   key: TacticalFormationMode
   label: string
+  shortLabel: string
   description: string
   players: Array<Omit<TacticalToken, 'id' | 'type'>>
 }> = [
   {
-    key: 'singles',
-    label: 'Singles',
-    description: 'Server and returner in clean singles starting spots.',
+    key: 'singlesDeuce',
+    label: 'Singles Deuce',
+    shortLabel: '1 Deuce',
+    description: 'Singles server and returner starting on the deuce side.',
     players: [
       { label: 'S', role: 'Server', x: 61, y: 82, team: 'green', handedness: 'righty' },
       { label: 'R', role: 'Returner', x: 36, y: 20, team: 'blue', handedness: 'righty' },
     ],
   },
   {
-    key: 'doubles',
-    label: 'Doubles',
-    description: 'Server, net player, returner, and partner set for doubles.',
+    key: 'singlesAd',
+    label: 'Singles Ad',
+    shortLabel: '1 Ad',
+    description: 'Singles server and returner starting on the ad side.',
+    players: [
+      { label: 'S', role: 'Server', x: 39, y: 82, team: 'green', handedness: 'righty' },
+      { label: 'R', role: 'Returner', x: 64, y: 20, team: 'blue', handedness: 'righty' },
+    ],
+  },
+  {
+    key: 'doublesDeuce',
+    label: 'Doubles Deuce',
+    shortLabel: '2 Deuce',
+    description: 'Doubles server, net player, returner, and partner set for the deuce side.',
     players: [
       { label: 'S', role: 'Server', x: 61, y: 82, team: 'green', handedness: 'righty' },
       { label: 'N', role: 'Net', x: 39, y: 58, team: 'green', handedness: 'righty' },
       { label: 'R', role: 'Returner', x: 36, y: 20, team: 'blue', handedness: 'righty' },
       { label: 'P', role: 'Partner', x: 62, y: 42, team: 'blue', handedness: 'righty' },
+    ],
+  },
+  {
+    key: 'doublesAd',
+    label: 'Doubles Ad',
+    shortLabel: '2 Ad',
+    description: 'Doubles server, net player, returner, and partner set for the ad side.',
+    players: [
+      { label: 'S', role: 'Server', x: 39, y: 82, team: 'green', handedness: 'righty' },
+      { label: 'N', role: 'Net', x: 61, y: 58, team: 'green', handedness: 'righty' },
+      { label: 'R', role: 'Returner', x: 64, y: 20, team: 'blue', handedness: 'righty' },
+      { label: 'P', role: 'Partner', x: 38, y: 42, team: 'blue', handedness: 'righty' },
     ],
   },
 ]
