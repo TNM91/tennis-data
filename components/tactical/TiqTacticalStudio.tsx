@@ -669,6 +669,7 @@ export default function TiqTacticalStudio() {
             onClearLines={clearBoardLines}
             onClearMarks={clearBoardMarks}
             onClearZones={clearBoardZones}
+            onCopyBriefing={() => copyText(scenarioBriefing(scenario, briefingRole))}
             onDeleteSelected={deleteSelected}
             onDone={cancelActiveTool}
             onDownloadPng={downloadBoardPng}
@@ -684,6 +685,8 @@ export default function TiqTacticalStudio() {
             }}
             onReset={() => loadTemplate('basicDoubles')}
             onRestoreClear={restoreLastClear}
+            onSaveLocal={saveScenarioLocal}
+            onShareScenario={shareScenario}
             onSnapPreset={applySnapPreset}
             onToggleBoardFocus={() => setBoardFocusMode((value) => !value)}
             onUndoPath={undoLastPath}
@@ -806,6 +809,7 @@ function BoardToolDock({
   onClearLines,
   onClearMarks,
   onClearZones,
+  onCopyBriefing,
   onDeleteSelected,
   onDone,
   onDownloadPng,
@@ -815,6 +819,8 @@ function BoardToolDock({
   onPlacementTypeChange,
   onReset,
   onRestoreClear,
+  onSaveLocal,
+  onShareScenario,
   onSnapPreset,
   onToggleBoardFocus,
   onUndoPath,
@@ -834,6 +840,7 @@ function BoardToolDock({
   onClearLines: () => void
   onClearMarks: () => void
   onClearZones: () => void
+  onCopyBriefing: () => void
   onDeleteSelected: () => void
   onDone: () => void
   onDownloadPng: () => void
@@ -843,6 +850,8 @@ function BoardToolDock({
   onPlacementTypeChange: (type: TacticalTokenType) => void
   onReset: () => void
   onRestoreClear: () => void
+  onSaveLocal: () => void
+  onShareScenario: () => void
   onSnapPreset: (preset: TacticalSnapPreset) => void
   onToggleBoardFocus: () => void
   onUndoPath: () => void
@@ -1035,6 +1044,9 @@ function BoardToolDock({
         <button className={styles.boardActionButton} onClick={onToggleBoardFocus} type="button">
           {boardFocusMode ? 'Full studio' : 'Board only'}
         </button>
+        <button className={styles.boardActionButton} data-testid="board-copy-brief" onClick={onCopyBriefing} type="button">Copy brief</button>
+        <button className={styles.boardActionButton} data-testid="board-save-local" onClick={onSaveLocal} type="button">Save local</button>
+        <button className={styles.boardActionButton} data-testid="board-share-scenario" onClick={onShareScenario} type="button">Share</button>
         <button className={styles.boardActionButton} onClick={onDownloadPng} type="button">Export PNG</button>
       </div>
     </div>
