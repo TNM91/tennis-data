@@ -779,12 +779,13 @@ function BoardToolDock({
   }
 
   return (
-    <div className={styles.boardToolDock} aria-label="Board tools">
+    <div className={styles.boardToolDock} aria-label="Board tools" data-active-mode={activeMobileGroup}>
       <div className={styles.boardToolModeTabs} aria-label="Mobile board tool groups">
         {BOARD_TOOL_MODES.map((mode) => (
           <button
             aria-pressed={activeMobileGroup === mode}
             className={`${styles.boardToolModeTab} ${activeMobileGroup === mode ? styles.activeBoardToolMode : ''}`}
+            data-testid={`board-tool-mode-${mode}`}
             key={mode}
             onClick={() => setPreferredMobileGroup(mode)}
             type="button"
@@ -799,6 +800,7 @@ function BoardToolDock({
         <button
           aria-pressed={quickClearPending}
           className={`${styles.boardActionButton} ${quickClearPending ? styles.confirmBoardAction : ''}`}
+          data-testid="board-quick-clear"
           onClick={handleQuickClearAll}
           type="button"
         >
@@ -863,7 +865,15 @@ function BoardToolDock({
         <button className={styles.boardActionButton} onClick={onClearLines} type="button">Clear lines</button>
         <button className={styles.boardActionButton} onClick={onClearZones} type="button">Clear zones</button>
         <button className={styles.boardActionButton} onClick={onClearMarks} type="button">Clear marks</button>
-        <button className={styles.boardActionButton} onClick={onClearAll} type="button">Clear all</button>
+        <button
+          aria-pressed={quickClearPending}
+          className={`${styles.boardActionButton} ${quickClearPending ? styles.confirmBoardAction : ''}`}
+          data-testid="board-edit-clear"
+          onClick={handleQuickClearAll}
+          type="button"
+        >
+          {quickClearPending ? 'Confirm clear' : 'Clear all'}
+        </button>
         <button className={styles.boardActionButton} disabled={!hasSelection} onClick={onDuplicateSelected} type="button">Duplicate</button>
         <button className={styles.boardActionButton} disabled={!hasSelection} onClick={onDeleteSelected} type="button">Delete</button>
         {hasActiveTool ? (

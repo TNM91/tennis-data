@@ -1663,6 +1663,10 @@
     display: grid;
   }
 
+  .boardFocusActive .boardToolDock[data-active-mode="edit"] .boardQuickActions {
+    display: none;
+  }
+
   .boardFocusActive .boardQuickActions .boardActionButton {
     min-height: 36px;
     padding: 7px 6px;
