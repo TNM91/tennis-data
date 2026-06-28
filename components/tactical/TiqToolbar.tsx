@@ -140,7 +140,7 @@ function TokenTool({
   return (
     <button
       aria-label={`Add ${label.toLowerCase()}`}
-      className={`${styles.paletteButton} ${primary ? styles.primaryPaletteButton : ''} ${active ? styles.activePaletteButton : ''}`}
+      className={`${styles.paletteButton} ${type === 'ball' ? styles.ballPaletteButton : ''} ${primary ? styles.primaryPaletteButton : ''} ${active ? styles.activePaletteButton : ''}`}
       onClick={onClick}
       type="button"
     >

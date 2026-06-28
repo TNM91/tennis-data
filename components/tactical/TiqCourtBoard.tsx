@@ -177,7 +177,7 @@ export default function TiqCourtBoard({
         ))}
         {scenario.tokens.map((token) => (
           <button
-            className={`${styles.token} ${selected.type === 'token' && selected.id === token.id ? styles.selected : ''}`}
+            className={`${styles.token} ${token.type === 'ball' ? styles.ballToken : ''} ${selected.type === 'token' && selected.id === token.id ? styles.selected : ''}`}
             key={token.id}
             onClick={(event) => {
               event.stopPropagation()
