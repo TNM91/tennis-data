@@ -595,6 +595,10 @@
   display: none;
 }
 
+.boardQuickActions {
+  display: none;
+}
+
 .mobileDockHidden {
   display: flex;
 }
@@ -1521,6 +1525,12 @@
     padding: 8px 5px;
   }
 
+  .boardQuickActions {
+    display: none;
+    gap: 6px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .mobileDockHidden {
     display: none;
   }
@@ -1641,6 +1651,15 @@
     margin-bottom: 0;
     order: 3;
     top: auto;
+  }
+
+  .boardFocusActive .boardQuickActions {
+    display: grid;
+  }
+
+  .boardFocusActive .boardQuickActions .boardActionButton {
+    min-height: 36px;
+    padding: 7px 6px;
   }
 
   .boardFocusActive .timeline {
