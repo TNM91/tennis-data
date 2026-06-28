@@ -1084,6 +1084,10 @@
   margin-top: 10px;
 }
 
+.mobileCourtActions {
+  display: none;
+}
+
 .boardActionButton {
   background: rgba(255, 255, 255, 0.055);
   border: 1px solid rgba(255, 255, 255, 0.11);
@@ -1441,6 +1445,20 @@
     z-index: 12;
   }
 
+  .mobileCourtActions {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    margin: -2px 0 8px;
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .mobileCourtActions .boardActionButton {
+    min-height: 42px;
+  }
+
   .boardToolModeTabs {
     display: grid;
     gap: 6px;
@@ -1547,6 +1565,17 @@
 
   .boardFocusActive .scenarioBar {
     display: none;
+  }
+
+  .boardFocusActive .mobileCourtActions {
+    margin-top: 0;
+    position: sticky;
+    top: 6px;
+    z-index: 13;
+  }
+
+  .boardFocusActive .boardToolDock {
+    top: 58px;
   }
 
   .presentationHeader {
