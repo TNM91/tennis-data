@@ -753,6 +753,7 @@ function BoardToolDock({
   const hasActiveTool = Boolean(activeDrawKind || activePlacementType)
   const canSnap = hasSelection || Boolean(activePlacementType)
   const [preferredMobileGroup, setPreferredMobileGroup] = useState<BoardToolMode>('add')
+  const [quickClearPending, setQuickClearPending] = useState(false)
   const activeMobileGroup: BoardToolMode = activeDrawKind
     ? 'lines'
     : activePlacementType
@@ -760,6 +761,22 @@ function BoardToolDock({
       : hasSelection && preferredMobileGroup === 'add'
         ? 'edit'
         : preferredMobileGroup
+
+  useEffect(() => {
+    if (!quickClearPending) return
+    const timeout = window.setTimeout(() => setQuickClearPending(false), 2400)
+    return () => window.clearTimeout(timeout)
+  }, [quickClearPending])
+
+  function handleQuickClearAll() {
+    if (!quickClearPending) {
+      setQuickClearPending(true)
+      return
+    }
+
+    setQuickClearPending(false)
+    onClearAll()
+  }
 
   return (
     <div className={styles.boardToolDock} aria-label="Board tools">
@@ -779,7 +796,14 @@ function BoardToolDock({
 
       <div className={styles.boardQuickActions} aria-label="Board quick actions">
         <button className={styles.boardActionButton} disabled={!canUndoPath} onClick={onUndoPath} type="button">Undo</button>
-        <button className={styles.boardActionButton} onClick={onClearAll} type="button">Clear all</button>
+        <button
+          aria-pressed={quickClearPending}
+          className={`${styles.boardActionButton} ${quickClearPending ? styles.confirmBoardAction : ''}`}
+          onClick={handleQuickClearAll}
+          type="button"
+        >
+          {quickClearPending ? 'Confirm clear' : 'Clear all'}
+        </button>
         <button className={`${styles.boardActionButton} ${hasActiveTool ? styles.primaryBoardAction : ''}`} disabled={!hasActiveTool} onClick={onDone} type="button">Done</button>
       </div>
 
