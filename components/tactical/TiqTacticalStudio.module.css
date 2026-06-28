@@ -1618,15 +1618,33 @@
     display: none;
   }
 
+  .boardFocusActive .workspace > section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .boardFocusActive .mobileCourtActions {
     margin-top: 0;
+    order: 1;
     position: sticky;
     top: 6px;
     z-index: 13;
   }
 
+  .boardFocusActive .boardFrame {
+    order: 2;
+  }
+
   .boardFocusActive .boardToolDock {
-    top: 58px;
+    bottom: max(6px, env(safe-area-inset-bottom));
+    margin-bottom: 0;
+    order: 3;
+    top: auto;
+  }
+
+  .boardFocusActive .timeline {
+    display: none;
   }
 
   .presentationHeader {
