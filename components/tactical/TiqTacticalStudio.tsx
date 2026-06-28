@@ -540,6 +540,21 @@ export default function TiqTacticalStudio() {
               <Meta label="Focus" value={scenario.focus} />
             </div>
           </div>
+          <div className={styles.mobileCourtActions} aria-label="Mobile court shortcuts">
+            <button
+              aria-pressed={boardFocusMode}
+              className={`${styles.boardActionButton} ${styles.primaryBoardAction}`}
+              onClick={() => setBoardFocusMode((value) => !value)}
+              type="button"
+            >
+              {boardFocusMode ? 'Full studio' : 'Court mode'}
+            </button>
+            {drawingKind || placementType ? (
+              <button className={styles.boardActionButton} onClick={cancelActiveTool} type="button">
+                Done
+              </button>
+            ) : null}
+          </div>
           <BoardToolDock
             activeDrawKind={drawingKind}
             activePlacementType={placementType}
