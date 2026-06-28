@@ -777,6 +777,12 @@ function BoardToolDock({
         ))}
       </div>
 
+      <div className={styles.boardQuickActions} aria-label="Board quick actions">
+        <button className={styles.boardActionButton} disabled={!canUndoPath} onClick={onUndoPath} type="button">Undo</button>
+        <button className={styles.boardActionButton} onClick={onClearAll} type="button">Clear all</button>
+        <button className={`${styles.boardActionButton} ${hasActiveTool ? styles.primaryBoardAction : ''}`} disabled={!hasActiveTool} onClick={onDone} type="button">Done</button>
+      </div>
+
       <div className={`${styles.boardToolGroup} ${activeMobileGroup === 'add' ? '' : styles.mobileDockHidden}`}>
         <span className={styles.boardToolLabel}>Add</span>
         {INLINE_TOKEN_TOOLS.map((type) => (
