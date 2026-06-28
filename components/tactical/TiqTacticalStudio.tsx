@@ -12,9 +12,9 @@ import { MarkerIcon } from './icons/TiqIcons'
 import styles from './TiqTacticalStudio.module.css'
 import { scenarioBriefing, scenarioToJson } from '@/lib/tactical/scenarioExport'
 import { isTacticalScenario, type TacticalScenarioSummary } from '@/lib/tactical/scenarioStorage'
-import { createTacticalTemplate } from '@/lib/tactical/templates'
+import { createTacticalTemplate, tacticalSnapPresets } from '@/lib/tactical/templates'
 import type { TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalScenario, TacticalSelection, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
-import { countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTacticalId, scoreScenarioReadiness, tacticalSuggestions } from '@/lib/tactical/utils'
+import { clampPercent, countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTacticalId, scoreScenarioReadiness, tacticalSuggestions } from '@/lib/tactical/utils'
 
 const LOCAL_LIBRARY_KEY = 'tiq-tactical-studio-library-v1'
 const INLINE_TOKEN_TOOLS: TacticalTokenType[] = ['player', 'ball', 'cone', 'x', 'o']
@@ -233,6 +233,28 @@ export default function TiqTacticalStudio() {
       return
     }
 
+    if (selected.type === 'path') {
+      setScenario((current) => ({
+        ...current,
+        paths: current.paths.map((path) => path.id === selected.id ? { ...path, to: preset.point } : path),
+      }))
+      notify(`Moved line end to ${preset.label}`)
+      return
+    }
+
+    if (selected.type === 'zone') {
+      setScenario((current) => ({
+        ...current,
+        zones: current.zones.map((zone) => zone.id === selected.id ? {
+          ...zone,
+          x: clampPercent(preset.point.x - zone.width / 2),
+          y: clampPercent(preset.point.y - zone.height / 2),
+        } : zone),
+      }))
+      notify(`Moved zone to ${preset.label}`)
+      return
+    }
+
     addTokenAt(placementType ?? 'player', preset.point.x, preset.point.y)
     notify(`Placed at ${preset.label}`)
   }
@@ -270,6 +292,35 @@ export default function TiqTacticalStudio() {
     setDrawingKind(null)
     setStepIndex(99)
     notify('Board marks cleared')
+  }
+
+  function clearBoardLines() {
+    setScenario((current) => ({ ...current, paths: [] }))
+    setSelected({ type: 'scenario', id: 'scenario' })
+    setDrawingKind(null)
+    setStepIndex(99)
+    notify('Lines cleared')
+  }
+
+  function clearBoardZones() {
+    setScenario((current) => ({ ...current, zones: [] }))
+    setSelected({ type: 'scenario', id: 'scenario' })
+    setStepIndex(99)
+    notify('Zones cleared')
+  }
+
+  function clearBoardAll() {
+    setScenario((current) => ({ ...current, tokens: [], paths: [], zones: [] }))
+    setSelected({ type: 'scenario', id: 'scenario' })
+    setDrawingKind(null)
+    setPlacementType(null)
+    setStepIndex(99)
+    notify('Board cleared')
+  }
+
+  function cancelActiveTool() {
+    setDrawingKind(null)
+    setPlacementType(null)
   }
 
   function deleteSelected() {
@@ -387,6 +438,10 @@ export default function TiqTacticalStudio() {
             onMoveToken={() => undefined}
             onMoveZone={() => undefined}
             onSelect={() => undefined}
+            onCancelTool={() => undefined}
+            onClearSelection={() => undefined}
+            onDeleteSelected={() => undefined}
+            onDuplicateSelected={() => undefined}
           />
           <div className={styles.presentationBriefing}>
             {scenarioBriefing(scenario, role)}
@@ -490,12 +545,12 @@ export default function TiqTacticalStudio() {
             hasSelection={selected.type !== 'scenario'}
             onAddPath={addPath}
             onAddZone={addZone}
+            onClearAll={clearBoardAll}
+            onClearLines={clearBoardLines}
             onClearMarks={clearBoardMarks}
+            onClearZones={clearBoardZones}
             onDeleteSelected={deleteSelected}
-            onDone={() => {
-              setDrawingKind(null)
-              setPlacementType(null)
-            }}
+            onDone={cancelActiveTool}
             onDownloadPng={downloadBoardPng}
             onDuplicateSelected={duplicateSelected}
             onDrawKindChange={(kind) => {
@@ -507,6 +562,7 @@ export default function TiqTacticalStudio() {
               setDrawingKind(null)
             }}
             onReset={() => loadTemplate('basicDoubles')}
+            onSnapPreset={applySnapPreset}
             onToggleBoardFocus={() => setBoardFocusMode((value) => !value)}
             onUndoPath={undoLastPath}
           />
@@ -542,6 +598,10 @@ export default function TiqTacticalStudio() {
             onMoveToken={(id, x, y) => setScenario((current) => ({ ...current, tokens: current.tokens.map((token) => token.id === id ? { ...token, x, y } : token) }))}
             onMoveZone={(id, x, y) => setScenario((current) => ({ ...current, zones: current.zones.map((zone) => zone.id === id ? { ...zone, x, y } : zone) }))}
             onSelect={setSelected}
+            onCancelTool={cancelActiveTool}
+            onClearSelection={() => setSelected({ type: 'scenario', id: 'scenario' })}
+            onDeleteSelected={deleteSelected}
+            onDuplicateSelected={duplicateSelected}
           />
           <TiqTimeline activeIndex={stepIndex} paths={scenario.paths} onStep={setStepIndex} />
         </section>
@@ -616,7 +676,10 @@ function BoardToolDock({
   hasSelection,
   onAddPath,
   onAddZone,
+  onClearAll,
+  onClearLines,
   onClearMarks,
+  onClearZones,
   onDeleteSelected,
   onDone,
   onDownloadPng,
@@ -624,6 +687,7 @@ function BoardToolDock({
   onDuplicateSelected,
   onPlacementTypeChange,
   onReset,
+  onSnapPreset,
   onToggleBoardFocus,
   onUndoPath,
 }: {
@@ -634,7 +698,10 @@ function BoardToolDock({
   hasSelection: boolean
   onAddPath: (kind: TacticalPathKind) => void
   onAddZone: () => void
+  onClearAll: () => void
+  onClearLines: () => void
   onClearMarks: () => void
+  onClearZones: () => void
   onDeleteSelected: () => void
   onDone: () => void
   onDownloadPng: () => void
@@ -642,10 +709,12 @@ function BoardToolDock({
   onDuplicateSelected: () => void
   onPlacementTypeChange: (type: TacticalTokenType) => void
   onReset: () => void
+  onSnapPreset: (preset: TacticalSnapPreset) => void
   onToggleBoardFocus: () => void
   onUndoPath: () => void
 }) {
   const hasActiveTool = Boolean(activeDrawKind || activePlacementType)
+  const canSnap = hasSelection || Boolean(activePlacementType)
 
   return (
     <div className={styles.boardToolDock} aria-label="Board tools">
@@ -685,9 +754,27 @@ function BoardToolDock({
       </div>
 
       <div className={styles.boardToolGroup}>
+        <span className={styles.boardToolLabel}>Snap</span>
+        {tacticalSnapPresets.map((preset) => (
+          <button
+            className={styles.boardActionButton}
+            disabled={!canSnap}
+            key={preset.key}
+            onClick={() => onSnapPreset(preset)}
+            type="button"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.boardToolGroup}>
         <span className={styles.boardToolLabel}>Edit</span>
         <button className={styles.boardActionButton} disabled={!canUndoPath} onClick={onUndoPath} type="button">Undo</button>
-        <button className={styles.boardActionButton} onClick={onClearMarks} type="button">Clear</button>
+        <button className={styles.boardActionButton} onClick={onClearLines} type="button">Clear lines</button>
+        <button className={styles.boardActionButton} onClick={onClearZones} type="button">Clear zones</button>
+        <button className={styles.boardActionButton} onClick={onClearMarks} type="button">Clear marks</button>
+        <button className={styles.boardActionButton} onClick={onClearAll} type="button">Clear all</button>
         <button className={styles.boardActionButton} disabled={!hasSelection} onClick={onDuplicateSelected} type="button">Duplicate</button>
         <button className={styles.boardActionButton} disabled={!hasSelection} onClick={onDeleteSelected} type="button">Delete</button>
         {hasActiveTool ? (

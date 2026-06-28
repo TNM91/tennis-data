@@ -700,25 +700,93 @@
   pointer-events: auto;
 }
 
+.pathHandleHitTarget {
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+}
+
 .pathHandle:active {
   cursor: grabbing;
 }
 
 .drawHint {
+  align-items: center;
   background: rgba(2, 8, 18, 0.78);
   border: 1px solid rgba(155, 225, 29, 0.36);
   border-radius: 999px;
   color: #dff8c2;
+  display: inline-flex;
   font-size: 0.72rem;
   font-weight: 950;
+  gap: 8px;
   left: 50%;
   padding: 7px 11px;
-  pointer-events: none;
+  pointer-events: auto;
   position: absolute;
   text-transform: uppercase;
   top: 12px;
   transform: translateX(-50%);
   z-index: 8;
+}
+
+.drawHintCancel {
+  background: rgba(155, 225, 29, 0.16);
+  border: 1px solid rgba(155, 225, 29, 0.34);
+  border-radius: 999px;
+  color: #f8fbff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 950;
+  min-height: 28px;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+.drawHintCancel:hover {
+  background: #9be11d;
+  color: #07111f;
+}
+
+.selectedQuickMenu {
+  align-items: center;
+  background: rgba(2, 8, 18, 0.9);
+  border: 1px solid rgba(155, 225, 29, 0.38);
+  border-radius: 999px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36), 0 0 22px rgba(155, 225, 29, 0.14);
+  display: inline-flex;
+  gap: 5px;
+  padding: 5px;
+  position: absolute;
+  transform: translate(-50%, -100%);
+  z-index: 11;
+}
+
+.selectedQuickMenuBelow {
+  transform: translate(-50%, 0);
+}
+
+.selectedQuickMenu button {
+  background: rgba(255, 255, 255, 0.065);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: rgba(248, 251, 255, 0.84);
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 950;
+  min-height: 30px;
+  padding: 5px 9px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.selectedQuickMenu button:hover {
+  background: #9be11d;
+  border-color: transparent;
+  color: #07111f;
 }
 
 .token {
@@ -1306,11 +1374,10 @@
   }
 
   .boardToolGroup {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     margin: 0 -2px;
-    overflow-x: auto;
-    padding: 1px 2px 5px;
-    scrollbar-width: thin;
+    overflow: visible;
+    padding: 1px 2px 3px;
   }
 
   .boardToolLabel {
@@ -1319,7 +1386,7 @@
 
   .boardIconTool,
   .boardActionButton {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     min-height: 38px;
     white-space: nowrap;
   }
