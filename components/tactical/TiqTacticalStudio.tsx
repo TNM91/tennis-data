@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import TiqCourtBoard from './TiqCourtBoard'
@@ -43,6 +43,7 @@ export default function TiqTacticalStudio() {
   const [cloudLibrary, setCloudLibrary] = useState<TacticalScenarioSummary[]>([])
   const [cloudStatus, setCloudStatus] = useState('Sign in to save scenarios across devices.')
   const [toast, setToast] = useState('')
+  const autoBoardFocusApplied = useRef(false)
   const readiness = scoreScenarioReadiness(scenario)
   const suggestions = useMemo(() => tacticalSuggestions(scenario), [scenario])
   const visibleScenario = useMemo(() => ({
@@ -89,6 +90,21 @@ export default function TiqTacticalStudio() {
     }
     void loadCloudLibrary()
   }, [loadCloudLibrary])
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+
+    const mobileBoardQuery = window.matchMedia('(max-width: 820px)')
+    const applyMobileBoardFocus = () => {
+      if (!mobileBoardQuery.matches || autoBoardFocusApplied.current) return
+      autoBoardFocusApplied.current = true
+      setBoardFocusMode(true)
+    }
+
+    applyMobileBoardFocus()
+    mobileBoardQuery.addEventListener('change', applyMobileBoardFocus)
+    return () => mobileBoardQuery.removeEventListener('change', applyMobileBoardFocus)
+  }, [])
 
   function notify(message: string) {
     setToast(message)
