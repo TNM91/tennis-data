@@ -12,7 +12,7 @@ import { MarkerIcon } from './icons/TiqIcons'
 import styles from './TiqTacticalStudio.module.css'
 import { scenarioBriefing, scenarioToJson } from '@/lib/tactical/scenarioExport'
 import { isTacticalScenario, type TacticalScenarioSummary } from '@/lib/tactical/scenarioStorage'
-import { createTacticalTemplate, tacticalFormationPresets, tacticalSnapPresets } from '@/lib/tactical/templates'
+import { createTacticalTemplate, tacticalFormationPresets, tacticalPathPresets, tacticalSnapPresets } from '@/lib/tactical/templates'
 import type { TacticalFormationMode, TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalScenario, TacticalSelection, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
 import { clampPercent, countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTacticalId, scoreScenarioReadiness, tacticalSuggestions } from '@/lib/tactical/utils'
 
@@ -662,6 +662,7 @@ export default function TiqTacticalStudio() {
             hasSelection={selected.type !== 'scenario'}
             activeFormation={activeFormation}
             onAddPath={addPath}
+            onAddPathPreset={addPathPreset}
             onAddZone={addZone}
             onApplyFormation={applyFormation}
             onClearAll={clearBoardAll}
@@ -798,6 +799,7 @@ function BoardToolDock({
   canUndoPath,
   hasSelection,
   onAddPath,
+  onAddPathPreset,
   onAddZone,
   onApplyFormation,
   onClearAll,
@@ -825,6 +827,7 @@ function BoardToolDock({
   canUndoPath: boolean
   hasSelection: boolean
   onAddPath: (kind: TacticalPathKind) => void
+  onAddPathPreset: (preset: TacticalPathPreset) => void
   onAddZone: () => void
   onApplyFormation: (mode: TacticalFormationMode) => void
   onClearAll: () => void
@@ -970,6 +973,18 @@ function BoardToolDock({
           </button>
         ))}
         <button className={styles.boardActionButton} onClick={() => onAddPath('ball')} type="button">Quick line</button>
+        {tacticalPathPresets.map((preset) => (
+          <button
+            className={styles.boardActionButton}
+            data-testid={`board-path-preset-${preset.key}`}
+            key={preset.key}
+            onClick={() => onAddPathPreset(preset)}
+            title={`${preset.label} ${preset.kind} pattern`}
+            type="button"
+          >
+            {preset.label}
+          </button>
+        ))}
       </div>
 
       <div className={`${styles.boardToolGroup} ${activeMobileGroup === 'snap' ? '' : styles.mobileDockHidden}`}>
