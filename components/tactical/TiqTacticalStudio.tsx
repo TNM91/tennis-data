@@ -49,6 +49,7 @@ export default function TiqTacticalStudio() {
     ...scenario,
     paths: stepIndex >= scenario.paths.length ? scenario.paths : scenario.paths.slice(0, stepIndex + 1),
   }), [scenario, stepIndex])
+  const boardStatus = getBoardStatus(placementType, drawingKind, selected)
 
   const getAccessToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession()
@@ -527,11 +528,7 @@ export default function TiqTacticalStudio() {
                 <span>{getRoleBoardCopy(role)}</span>
               </div>
               <div className={styles.activeToolPill}>
-                {placementType
-                  ? `Placing ${placementType === 'player' ? 'player' : placementType}`
-                  : drawingKind
-                    ? `Drawing ${drawingKind === 'ball' ? 'ball line' : `${drawingKind} line`}`
-                    : 'Select, drag, or choose a tool'}
+                {boardStatus}
               </div>
             </div>
             <div className={styles.metaGrid}>
@@ -541,19 +538,25 @@ export default function TiqTacticalStudio() {
             </div>
           </div>
           <div className={styles.mobileCourtActions} aria-label="Mobile court shortcuts">
-            <button
-              aria-pressed={boardFocusMode}
-              className={`${styles.boardActionButton} ${styles.primaryBoardAction}`}
-              onClick={() => setBoardFocusMode((value) => !value)}
-              type="button"
-            >
-              {boardFocusMode ? 'Full studio' : 'Court mode'}
-            </button>
-            {drawingKind || placementType ? (
-              <button className={styles.boardActionButton} onClick={cancelActiveTool} type="button">
-                Done
+            <div className={styles.mobileCourtStatus} aria-live="polite">
+              <span>Board status</span>
+              <strong>{boardStatus}</strong>
+            </div>
+            <div className={styles.mobileCourtButtonGroup}>
+              <button
+                aria-pressed={boardFocusMode}
+                className={`${styles.boardActionButton} ${styles.primaryBoardAction}`}
+                onClick={() => setBoardFocusMode((value) => !value)}
+                type="button"
+              >
+                {boardFocusMode ? 'Full studio' : 'Court mode'}
               </button>
-            ) : null}
+              {drawingKind || placementType ? (
+                <button className={styles.boardActionButton} onClick={cancelActiveTool} type="button">
+                  Done
+                </button>
+              ) : null}
+            </div>
           </div>
           <BoardToolDock
             activeDrawKind={drawingKind}
@@ -849,6 +852,19 @@ function getDefaultTokenPosition(type: TacticalTokenType) {
   if (type === 'cone') return { x: 82, y: 52 }
   if (type === 'x') return { x: 88, y: 46 }
   return { x: 88, y: 58 }
+}
+
+function getBoardStatus(
+  placementType: TacticalTokenType | null,
+  drawingKind: TacticalPathKind | null,
+  selected: TacticalSelection,
+) {
+  if (placementType) return `Placing ${placementType === 'player' ? 'player' : placementType}`
+  if (drawingKind) return `Drawing ${drawingKind === 'ball' ? 'ball line' : `${drawingKind} line`}`
+  if (selected.type === 'token') return 'Token selected'
+  if (selected.type === 'path') return 'Line selected'
+  if (selected.type === 'zone') return 'Zone selected'
+  return 'Select, drag, or choose a tool'
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: 'green' | 'blue' }) {
