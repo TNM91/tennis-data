@@ -38,6 +38,7 @@ export default function TiqTacticalStudio() {
   const [tokenScale, setTokenScale] = useState<TacticalTokenScale>('medium')
   const [boardFocusMode, setBoardFocusMode] = useState(false)
   const [presentationMode, setPresentationMode] = useState(false)
+  const [activeFormation, setActiveFormation] = useState<TacticalFormationMode | null>(null)
   const [stepIndex, setStepIndex] = useState(99)
   const [library, setLibrary] = useState<TacticalScenario[]>([])
   const [cloudLibrary, setCloudLibrary] = useState<TacticalScenarioSummary[]>([])
@@ -118,6 +119,7 @@ export default function TiqTacticalStudio() {
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
     setPlacementType(null)
+    setActiveFormation(null)
     setStepIndex(99)
     setLastClearedScenario(null)
   }
@@ -319,6 +321,7 @@ export default function TiqTacticalStudio() {
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
     setPlacementType(null)
+    setActiveFormation(null)
     setStepIndex(99)
     setLastClearedScenario(null)
     notify('Board restored')
@@ -440,9 +443,37 @@ export default function TiqTacticalStudio() {
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
     setPlacementType(null)
+    setActiveFormation(mode)
     setStepIndex(99)
     setLastClearedScenario(null)
     notify(`${formation.label} setup applied`)
+  }
+
+  function flipBoardEnds() {
+    setScenario((current) => ({
+      ...current,
+      tokens: current.tokens.map((token) => ({
+        ...token,
+        x: 100 - token.x,
+        y: 100 - token.y,
+      })),
+      paths: current.paths.map((path) => ({
+        ...path,
+        from: { x: 100 - path.from.x, y: 100 - path.from.y },
+        to: { x: 100 - path.to.x, y: 100 - path.to.y },
+      })),
+      zones: current.zones.map((zone) => ({
+        ...zone,
+        x: 100 - zone.x - zone.width,
+        y: 100 - zone.y - zone.height,
+      })),
+    }))
+    setSelected({ type: 'scenario', id: 'scenario' })
+    setDrawingKind(null)
+    setPlacementType(null)
+    setActiveFormation(null)
+    setStepIndex(99)
+    notify('Board ends swapped')
   }
 
   function addPath(kind: TacticalPathKind) {
@@ -568,8 +599,10 @@ export default function TiqTacticalStudio() {
             setPlacementType(type)
             if (type) setDrawingKind(null)
           }}
+          activeFormation={activeFormation}
           onRoleChange={setRole}
           onTokenScaleChange={setTokenScale}
+          onFlipBoardEnds={flipBoardEnds}
           onSnapPreset={applySnapPreset}
           onUndoPath={undoLastPath}
           onSaveCloud={saveScenarioCloud}
@@ -627,6 +660,7 @@ export default function TiqTacticalStudio() {
             canRestoreClear={Boolean(lastClearedScenario)}
             canUndoPath={scenario.paths.length > 0}
             hasSelection={selected.type !== 'scenario'}
+            activeFormation={activeFormation}
             onAddPath={addPath}
             onAddZone={addZone}
             onApplyFormation={applyFormation}
@@ -642,6 +676,7 @@ export default function TiqTacticalStudio() {
               setDrawingKind(drawingKind === kind ? null : kind)
               setPlacementType(null)
             }}
+            onFlipBoardEnds={flipBoardEnds}
             onPlacementTypeChange={(type) => {
               setPlacementType(placementType === type ? null : type)
               setDrawingKind(null)
@@ -755,6 +790,7 @@ export default function TiqTacticalStudio() {
 }
 
 function BoardToolDock({
+  activeFormation,
   activeDrawKind,
   activePlacementType,
   boardFocusMode,
@@ -772,6 +808,7 @@ function BoardToolDock({
   onDone,
   onDownloadPng,
   onDrawKindChange,
+  onFlipBoardEnds,
   onDuplicateSelected,
   onPlacementTypeChange,
   onReset,
@@ -780,6 +817,7 @@ function BoardToolDock({
   onToggleBoardFocus,
   onUndoPath,
 }: {
+  activeFormation: TacticalFormationMode | null
   activeDrawKind: TacticalPathKind | null
   activePlacementType: TacticalTokenType | null
   boardFocusMode: boolean
@@ -797,6 +835,7 @@ function BoardToolDock({
   onDone: () => void
   onDownloadPng: () => void
   onDrawKindChange: (kind: TacticalPathKind) => void
+  onFlipBoardEnds: () => void
   onDuplicateSelected: () => void
   onPlacementTypeChange: (type: TacticalTokenType) => void
   onReset: () => void
@@ -886,7 +925,8 @@ function BoardToolDock({
         <span className={styles.boardToolLabel}>Add</span>
         {tacticalFormationPresets.map((formation) => (
           <button
-            className={styles.boardActionButton}
+            aria-pressed={activeFormation === formation.key}
+            className={`${styles.boardActionButton} ${activeFormation === formation.key ? styles.activeBoardAction : ''}`}
             data-testid={`board-formation-${formation.key}`}
             key={formation.key}
             onClick={() => onApplyFormation(formation.key)}
@@ -896,6 +936,9 @@ function BoardToolDock({
             {formation.shortLabel}
           </button>
         ))}
+        <button className={styles.boardActionButton} data-testid="board-flip-ends" onClick={onFlipBoardEnds} type="button">
+          Swap ends
+        </button>
         {INLINE_TOKEN_TOOLS.map((type) => (
           <button
             aria-label={`Place ${type}`}

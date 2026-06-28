@@ -664,6 +664,13 @@
   color: #07111f;
 }
 
+.activeBoardAction {
+  background: #9be11d;
+  border-color: transparent;
+  box-shadow: 0 0 18px rgba(155, 225, 29, 0.18);
+  color: #07111f;
+}
+
 .board {
   --ball-token-size: 46px;
   --player-head-size: 38px;
