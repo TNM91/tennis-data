@@ -1151,6 +1151,12 @@
   color: #07111f;
 }
 
+.confirmBoardAction {
+  background: rgba(255, 194, 87, 0.18);
+  border-color: rgba(255, 194, 87, 0.58);
+  color: #fff4d6;
+}
+
 .briefing,
 .jsonPreview {
   font-size: 0.78rem;
