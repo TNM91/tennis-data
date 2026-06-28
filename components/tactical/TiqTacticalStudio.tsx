@@ -12,8 +12,8 @@ import { MarkerIcon } from './icons/TiqIcons'
 import styles from './TiqTacticalStudio.module.css'
 import { scenarioBriefing, scenarioToJson } from '@/lib/tactical/scenarioExport'
 import { isTacticalScenario, type TacticalScenarioSummary } from '@/lib/tactical/scenarioStorage'
-import { createTacticalTemplate, tacticalSnapPresets } from '@/lib/tactical/templates'
-import type { TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalScenario, TacticalSelection, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
+import { createTacticalTemplate, tacticalFormationPresets, tacticalSnapPresets } from '@/lib/tactical/templates'
+import type { TacticalFormationMode, TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalScenario, TacticalSelection, TacticalSnapPreset, TacticalTemplateKey, TacticalTokenScale, TacticalTokenType } from '@/lib/tactical/types'
 import { clampPercent, countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTacticalId, scoreScenarioReadiness, tacticalSuggestions } from '@/lib/tactical/utils'
 
 const LOCAL_LIBRARY_KEY = 'tiq-tactical-studio-library-v1'
@@ -422,6 +422,29 @@ export default function TiqTacticalStudio() {
     setSelected({ type: 'token', id: nextId })
   }
 
+  function applyFormation(mode: TacticalFormationMode) {
+    const formation = tacticalFormationPresets.find((preset) => preset.key === mode)
+    if (!formation) return
+
+    setScenario((current) => ({
+      ...current,
+      tokens: [
+        ...formation.players.map((player) => ({
+          ...player,
+          id: makeTacticalId('token'),
+          type: 'player' as const,
+        })),
+        ...current.tokens.filter((token) => token.type !== 'player'),
+      ],
+    }))
+    setSelected({ type: 'scenario', id: 'scenario' })
+    setDrawingKind(null)
+    setPlacementType(null)
+    setStepIndex(99)
+    setLastClearedScenario(null)
+    notify(`${formation.label} setup applied`)
+  }
+
   function addPath(kind: TacticalPathKind) {
     setScenario((current) => ({
       ...current,
@@ -525,6 +548,7 @@ export default function TiqTacticalStudio() {
           activePlacementType={placementType}
           tokenScale={tokenScale}
           role={role}
+          onApplyFormation={applyFormation}
           onAddPath={addPath}
           onAddPathPreset={addPathPreset}
           onAddToken={addToken}
@@ -605,6 +629,7 @@ export default function TiqTacticalStudio() {
             hasSelection={selected.type !== 'scenario'}
             onAddPath={addPath}
             onAddZone={addZone}
+            onApplyFormation={applyFormation}
             onClearAll={clearBoardAll}
             onClearLines={clearBoardLines}
             onClearMarks={clearBoardMarks}
@@ -738,6 +763,7 @@ function BoardToolDock({
   hasSelection,
   onAddPath,
   onAddZone,
+  onApplyFormation,
   onClearAll,
   onClearLines,
   onClearMarks,
@@ -762,6 +788,7 @@ function BoardToolDock({
   hasSelection: boolean
   onAddPath: (kind: TacticalPathKind) => void
   onAddZone: () => void
+  onApplyFormation: (mode: TacticalFormationMode) => void
   onClearAll: () => void
   onClearLines: () => void
   onClearMarks: () => void
@@ -857,6 +884,18 @@ function BoardToolDock({
 
       <div className={`${styles.boardToolGroup} ${activeMobileGroup === 'add' ? '' : styles.mobileDockHidden}`}>
         <span className={styles.boardToolLabel}>Add</span>
+        {tacticalFormationPresets.map((formation) => (
+          <button
+            className={styles.boardActionButton}
+            data-testid={`board-formation-${formation.key}`}
+            key={formation.key}
+            onClick={() => onApplyFormation(formation.key)}
+            title={formation.description}
+            type="button"
+          >
+            {formation.label}
+          </button>
+        ))}
         {INLINE_TOKEN_TOOLS.map((type) => (
           <button
             aria-label={`Place ${type}`}
