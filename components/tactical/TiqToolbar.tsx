@@ -8,6 +8,7 @@ import styles from './TiqTacticalStudio.module.css'
 
 type TiqToolbarProps = {
   activeTemplate: TacticalTemplateKey
+  activeFormation: TacticalFormationMode | null
   activeDrawKind: TacticalPathKind | null
   activePlacementType: TacticalTokenType | null
   tokenScale: TacticalTokenScale
@@ -16,6 +17,7 @@ type TiqToolbarProps = {
   onTokenScaleChange: (scale: TacticalTokenScale) => void
   onTemplateChange: (key: TacticalTemplateKey) => void
   onApplyFormation: (mode: TacticalFormationMode) => void
+  onFlipBoardEnds: () => void
   onAddToken: (type: TacticalTokenType) => void
   onPlacementTypeChange: (type: TacticalTokenType | null) => void
   onAddPath: (kind: 'ball' | 'move' | 'recover') => void
@@ -39,6 +41,7 @@ type TiqToolbarProps = {
 
 export default function TiqToolbar({
   activeTemplate,
+  activeFormation,
   activeDrawKind,
   activePlacementType,
   tokenScale,
@@ -47,6 +50,7 @@ export default function TiqToolbar({
   onTokenScaleChange,
   onTemplateChange,
   onApplyFormation,
+  onFlipBoardEnds,
   onAddToken,
   onPlacementTypeChange,
   onAddPath,
@@ -99,7 +103,8 @@ export default function TiqToolbar({
       <div className={styles.toolGrid}>
         {tacticalFormationPresets.map((formation) => (
           <button
-            className={styles.toolButton}
+            aria-pressed={activeFormation === formation.key}
+            className={`${styles.toolButton} ${activeFormation === formation.key ? styles.active : ''}`}
             key={formation.key}
             onClick={() => onApplyFormation(formation.key)}
             type="button"
@@ -107,6 +112,9 @@ export default function TiqToolbar({
             {formation.label}
           </button>
         ))}
+        <button className={styles.toolButton} onClick={onFlipBoardEnds} type="button">
+          Swap ends
+        </button>
       </div>
 
       <div className={styles.panelTitle}>Add elements</div>
