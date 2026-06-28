@@ -42,6 +42,7 @@ export default function TiqTacticalStudio() {
   const [library, setLibrary] = useState<TacticalScenario[]>([])
   const [cloudLibrary, setCloudLibrary] = useState<TacticalScenarioSummary[]>([])
   const [cloudStatus, setCloudStatus] = useState('Sign in to save scenarios across devices.')
+  const [lastClearedScenario, setLastClearedScenario] = useState<TacticalScenario | null>(null)
   const [toast, setToast] = useState('')
   const autoBoardFocusApplied = useRef(false)
   const readiness = scoreScenarioReadiness(scenario)
@@ -118,6 +119,7 @@ export default function TiqTacticalStudio() {
     setDrawingKind(null)
     setPlacementType(null)
     setStepIndex(99)
+    setLastClearedScenario(null)
   }
 
   async function copyText(text: string) {
@@ -207,6 +209,7 @@ export default function TiqTacticalStudio() {
     setDrawingKind(null)
     setPlacementType(null)
     setStepIndex(99)
+    setLastClearedScenario(null)
     notify('Scenario loaded')
   }
 
@@ -306,7 +309,23 @@ export default function TiqTacticalStudio() {
     notify('Last line removed')
   }
 
+  function captureClearSnapshot() {
+    if (countScenarioObjects(scenario) > 0) setLastClearedScenario(scenario)
+  }
+
+  function restoreLastClear() {
+    if (!lastClearedScenario) return
+    setScenario(lastClearedScenario)
+    setSelected({ type: 'scenario', id: 'scenario' })
+    setDrawingKind(null)
+    setPlacementType(null)
+    setStepIndex(99)
+    setLastClearedScenario(null)
+    notify('Board restored')
+  }
+
   function clearBoardMarks() {
+    captureClearSnapshot()
     setScenario((current) => ({ ...current, paths: [], zones: [] }))
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
@@ -315,6 +334,7 @@ export default function TiqTacticalStudio() {
   }
 
   function clearBoardLines() {
+    captureClearSnapshot()
     setScenario((current) => ({ ...current, paths: [] }))
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
@@ -323,6 +343,7 @@ export default function TiqTacticalStudio() {
   }
 
   function clearBoardZones() {
+    captureClearSnapshot()
     setScenario((current) => ({ ...current, zones: [] }))
     setSelected({ type: 'scenario', id: 'scenario' })
     setStepIndex(99)
@@ -330,6 +351,7 @@ export default function TiqTacticalStudio() {
   }
 
   function clearBoardAll() {
+    captureClearSnapshot()
     setScenario((current) => ({ ...current, tokens: [], paths: [], zones: [] }))
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
@@ -578,6 +600,7 @@ export default function TiqTacticalStudio() {
             activeDrawKind={drawingKind}
             activePlacementType={placementType}
             boardFocusMode={boardFocusMode}
+            canRestoreClear={Boolean(lastClearedScenario)}
             canUndoPath={scenario.paths.length > 0}
             hasSelection={selected.type !== 'scenario'}
             onAddPath={addPath}
@@ -599,6 +622,7 @@ export default function TiqTacticalStudio() {
               setDrawingKind(null)
             }}
             onReset={() => loadTemplate('basicDoubles')}
+            onRestoreClear={restoreLastClear}
             onSnapPreset={applySnapPreset}
             onToggleBoardFocus={() => setBoardFocusMode((value) => !value)}
             onUndoPath={undoLastPath}
@@ -709,6 +733,7 @@ function BoardToolDock({
   activeDrawKind,
   activePlacementType,
   boardFocusMode,
+  canRestoreClear,
   canUndoPath,
   hasSelection,
   onAddPath,
@@ -724,6 +749,7 @@ function BoardToolDock({
   onDuplicateSelected,
   onPlacementTypeChange,
   onReset,
+  onRestoreClear,
   onSnapPreset,
   onToggleBoardFocus,
   onUndoPath,
@@ -731,6 +757,7 @@ function BoardToolDock({
   activeDrawKind: TacticalPathKind | null
   activePlacementType: TacticalTokenType | null
   boardFocusMode: boolean
+  canRestoreClear: boolean
   canUndoPath: boolean
   hasSelection: boolean
   onAddPath: (kind: TacticalPathKind) => void
@@ -746,6 +773,7 @@ function BoardToolDock({
   onDuplicateSelected: () => void
   onPlacementTypeChange: (type: TacticalTokenType) => void
   onReset: () => void
+  onRestoreClear: () => void
   onSnapPreset: (preset: TacticalSnapPreset) => void
   onToggleBoardFocus: () => void
   onUndoPath: () => void
@@ -778,6 +806,16 @@ function BoardToolDock({
     onClearAll()
   }
 
+  function handleUndoOrRestore() {
+    setQuickClearPending(false)
+    if (canRestoreClear) {
+      onRestoreClear()
+      return
+    }
+
+    onUndoPath()
+  }
+
   return (
     <div className={styles.boardToolDock} aria-label="Board tools" data-active-mode={activeMobileGroup}>
       <div className={styles.boardToolModeTabs} aria-label="Mobile board tool groups">
@@ -796,7 +834,15 @@ function BoardToolDock({
       </div>
 
       <div className={styles.boardQuickActions} aria-label="Board quick actions">
-        <button className={styles.boardActionButton} disabled={!canUndoPath} onClick={onUndoPath} type="button">Undo</button>
+        <button
+          className={styles.boardActionButton}
+          data-testid="board-quick-undo"
+          disabled={!canUndoPath && !canRestoreClear}
+          onClick={handleUndoOrRestore}
+          type="button"
+        >
+          {canRestoreClear ? 'Restore' : 'Undo'}
+        </button>
         <button
           aria-pressed={quickClearPending}
           className={`${styles.boardActionButton} ${quickClearPending ? styles.confirmBoardAction : ''}`}
@@ -861,7 +907,15 @@ function BoardToolDock({
 
       <div className={`${styles.boardToolGroup} ${activeMobileGroup === 'edit' ? '' : styles.mobileDockHidden}`}>
         <span className={styles.boardToolLabel}>Edit</span>
-        <button className={styles.boardActionButton} disabled={!canUndoPath} onClick={onUndoPath} type="button">Undo</button>
+        <button
+          className={styles.boardActionButton}
+          data-testid="board-edit-undo"
+          disabled={!canUndoPath && !canRestoreClear}
+          onClick={handleUndoOrRestore}
+          type="button"
+        >
+          {canRestoreClear ? 'Restore clear' : 'Undo'}
+        </button>
         <button className={styles.boardActionButton} onClick={onClearLines} type="button">Clear lines</button>
         <button className={styles.boardActionButton} onClick={onClearZones} type="button">Clear zones</button>
         <button className={styles.boardActionButton} onClick={onClearMarks} type="button">Clear marks</button>
