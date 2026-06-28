@@ -591,6 +591,14 @@
   padding: 10px;
 }
 
+.boardToolModeTabs {
+  display: none;
+}
+
+.mobileDockHidden {
+  display: flex;
+}
+
 .boardToolGroup {
   align-items: center;
   display: flex;
@@ -1096,6 +1104,31 @@
   opacity: 0.45;
 }
 
+.boardToolModeTab {
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 999px;
+  color: rgba(248, 251, 255, 0.78);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 950;
+  min-height: 38px;
+  padding: 8px 10px;
+  text-transform: uppercase;
+}
+
+.boardToolModeTab:hover {
+  border-color: rgba(155, 225, 29, 0.42);
+  color: #fff;
+}
+
+.activeBoardToolMode {
+  background: #9be11d;
+  border-color: transparent;
+  color: #07111f;
+}
+
 .primaryBoardAction {
   background: #9be11d;
   border-color: transparent;
@@ -1364,13 +1397,28 @@
 
   .boardToolDock {
     border-radius: 18px;
-    gap: 7px;
+    gap: 8px;
     margin-bottom: 8px;
     overflow: hidden;
     padding: 8px;
     position: sticky;
     top: 6px;
     z-index: 12;
+  }
+
+  .boardToolModeTabs {
+    display: grid;
+    gap: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .boardToolModeTab {
+    min-width: 0;
+    padding: 8px 5px;
+  }
+
+  .mobileDockHidden {
+    display: none;
   }
 
   .boardToolGroup {

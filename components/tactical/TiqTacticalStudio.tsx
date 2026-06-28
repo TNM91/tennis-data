@@ -19,6 +19,9 @@ import { clampPercent, countScenarioObjects, defaultPathLabel, defaultTokenLabel
 const LOCAL_LIBRARY_KEY = 'tiq-tactical-studio-library-v1'
 const INLINE_TOKEN_TOOLS: TacticalTokenType[] = ['player', 'ball', 'cone', 'x', 'o']
 const INLINE_PATH_TOOLS: TacticalPathKind[] = ['ball', 'move', 'recover']
+const BOARD_TOOL_MODES = ['add', 'lines', 'snap', 'edit'] as const
+
+type BoardToolMode = (typeof BOARD_TOOL_MODES)[number]
 
 export default function TiqTacticalStudio() {
   const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('basicDoubles')
@@ -715,10 +718,32 @@ function BoardToolDock({
 }) {
   const hasActiveTool = Boolean(activeDrawKind || activePlacementType)
   const canSnap = hasSelection || Boolean(activePlacementType)
+  const [preferredMobileGroup, setPreferredMobileGroup] = useState<BoardToolMode>('add')
+  const activeMobileGroup: BoardToolMode = activeDrawKind
+    ? 'lines'
+    : activePlacementType
+      ? 'add'
+      : hasSelection && preferredMobileGroup === 'add'
+        ? 'edit'
+        : preferredMobileGroup
 
   return (
     <div className={styles.boardToolDock} aria-label="Board tools">
-      <div className={styles.boardToolGroup}>
+      <div className={styles.boardToolModeTabs} aria-label="Mobile board tool groups">
+        {BOARD_TOOL_MODES.map((mode) => (
+          <button
+            aria-pressed={activeMobileGroup === mode}
+            className={`${styles.boardToolModeTab} ${activeMobileGroup === mode ? styles.activeBoardToolMode : ''}`}
+            key={mode}
+            onClick={() => setPreferredMobileGroup(mode)}
+            type="button"
+          >
+            {mode === 'add' ? 'Add' : mode === 'lines' ? 'Lines' : mode === 'snap' ? 'Snap' : 'Edit'}
+          </button>
+        ))}
+      </div>
+
+      <div className={`${styles.boardToolGroup} ${activeMobileGroup === 'add' ? '' : styles.mobileDockHidden}`}>
         <span className={styles.boardToolLabel}>Add</span>
         {INLINE_TOKEN_TOOLS.map((type) => (
           <button
@@ -738,7 +763,7 @@ function BoardToolDock({
         </button>
       </div>
 
-      <div className={styles.boardToolGroup}>
+      <div className={`${styles.boardToolGroup} ${activeMobileGroup === 'lines' ? '' : styles.mobileDockHidden}`}>
         <span className={styles.boardToolLabel}>Lines</span>
         {INLINE_PATH_TOOLS.map((kind) => (
           <button
@@ -753,7 +778,7 @@ function BoardToolDock({
         <button className={styles.boardActionButton} onClick={() => onAddPath('ball')} type="button">Quick line</button>
       </div>
 
-      <div className={styles.boardToolGroup}>
+      <div className={`${styles.boardToolGroup} ${activeMobileGroup === 'snap' ? '' : styles.mobileDockHidden}`}>
         <span className={styles.boardToolLabel}>Snap</span>
         {tacticalSnapPresets.map((preset) => (
           <button
@@ -768,7 +793,7 @@ function BoardToolDock({
         ))}
       </div>
 
-      <div className={styles.boardToolGroup}>
+      <div className={`${styles.boardToolGroup} ${activeMobileGroup === 'edit' ? '' : styles.mobileDockHidden}`}>
         <span className={styles.boardToolLabel}>Edit</span>
         <button className={styles.boardActionButton} disabled={!canUndoPath} onClick={onUndoPath} type="button">Undo</button>
         <button className={styles.boardActionButton} onClick={onClearLines} type="button">Clear lines</button>
