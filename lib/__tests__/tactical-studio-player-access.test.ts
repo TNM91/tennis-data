@@ -9,6 +9,9 @@ const studioSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTa
 const studioStyles = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.module.css'), 'utf8')
 const markerIconsSource = readFileSync(join(process.cwd(), 'components/tactical/icons/TiqIcons.tsx'), 'utf8')
 const courtOverlaySource = readFileSync(join(process.cwd(), 'components/tactical/TiqCourtOverlay.tsx'), 'utf8')
+const tokenSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTokens.tsx'), 'utf8')
+
+const TENNIS_BALL_ASSET = '/tiq/tokens/tennis-ball-reference.png'
 
 describe('Tactical Studio player access', () => {
   it('lets Player users open Tactics Tools without requiring Coach', () => {
@@ -56,18 +59,13 @@ describe('Tactical Studio player access', () => {
     expect(studioStyles).toContain('width: 100%;')
   })
 
-  it('keeps tactical ball markers readable as classic tennis balls', () => {
-    expect(markerIconsSource).toContain('tiq-tennis-ball-marker')
-    expect(markerIconsSource).toContain('classic-tennis-ball-seam')
-    expect(markerIconsSource).toContain('fill="#A8F000"')
-    expect(markerIconsSource).toContain('stroke="#07101E"')
-    expect(markerIconsSource).toContain('stroke="#F8FFE2"')
+  it('uses the uploaded tennis ball image asset for tactical ball markers', () => {
+    expect(tokenSource).toContain(TENNIS_BALL_ASSET)
+    expect(markerIconsSource).toContain(TENNIS_BALL_ASSET)
     expect(courtOverlaySource).toContain('<symbol id="tiq-ball-marker"')
-    expect(courtOverlaySource).toContain('classic-tennis-ball-seam')
-    expect(courtOverlaySource).toContain('fill="#a8f000"')
-    expect(courtOverlaySource).toContain('stroke="#07101e"')
-    expect(courtOverlaySource).toContain('stroke="#f8ffe2"')
+    expect(courtOverlaySource).toContain(TENNIS_BALL_ASSET)
     expect(studioStyles).toContain('.ballToken')
+    expect(studioStyles).toContain('.ballTokenImage')
     expect(studioStyles).toContain('.ballPaletteButton')
   })
 

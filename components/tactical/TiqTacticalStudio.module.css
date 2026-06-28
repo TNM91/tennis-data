@@ -429,15 +429,18 @@
   color: #fff;
 }
 
-.paletteButton svg {
+.paletteButton svg,
+.paletteButton img {
   filter: drop-shadow(0 0 7px rgba(155, 225, 29, 0.54));
   height: 34px;
   width: 34px;
 }
 
+.ballPaletteButton img,
 .ballPaletteButton svg {
   filter: drop-shadow(0 2px 7px rgba(2, 8, 18, 0.72)) drop-shadow(0 0 5px rgba(168, 240, 0, 0.42));
   height: 38px;
+  object-fit: contain;
   width: 38px;
 }
 
@@ -626,6 +629,18 @@
   filter: drop-shadow(0 2px 7px rgba(2, 8, 18, 0.86)) drop-shadow(0 0 5px rgba(168, 240, 0, 0.5));
   height: 42px;
   width: 42px;
+}
+
+.ballTokenImage {
+  display: block;
+  filter: drop-shadow(0 2px 7px rgba(2, 8, 18, 0.86)) drop-shadow(0 0 5px rgba(168, 240, 0, 0.5));
+  height: 42px;
+  position: relative;
+  width: 42px;
+}
+
+.ballTokenImage img {
+  object-fit: contain;
 }
 
 .playerTokenHead {
