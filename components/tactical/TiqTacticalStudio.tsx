@@ -8,6 +8,7 @@ import TiqToolbar from './TiqToolbar'
 import TiqInspector from './TiqInspector'
 import TiqTimeline from './TiqTimeline'
 import TiqBriefingPanel from './TiqBriefingPanel'
+import { MarkerIcon } from './icons/TiqIcons'
 import styles from './TiqTacticalStudio.module.css'
 import { scenarioBriefing, scenarioToJson } from '@/lib/tactical/scenarioExport'
 import { isTacticalScenario, type TacticalScenarioSummary } from '@/lib/tactical/scenarioStorage'
@@ -16,6 +17,8 @@ import type { TacticalPathKind, TacticalPathPreset, TacticalRole, TacticalScenar
 import { countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTacticalId, scoreScenarioReadiness, tacticalSuggestions } from '@/lib/tactical/utils'
 
 const LOCAL_LIBRARY_KEY = 'tiq-tactical-studio-library-v1'
+const INLINE_TOKEN_TOOLS: TacticalTokenType[] = ['player', 'ball', 'cone', 'x', 'o']
+const INLINE_PATH_TOOLS: TacticalPathKind[] = ['ball', 'move', 'recover']
 
 export default function TiqTacticalStudio() {
   const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('basicDoubles')
@@ -261,6 +264,14 @@ export default function TiqTacticalStudio() {
     notify('Last line removed')
   }
 
+  function clearBoardMarks() {
+    setScenario((current) => ({ ...current, paths: [], zones: [] }))
+    setSelected({ type: 'scenario', id: 'scenario' })
+    setDrawingKind(null)
+    setStepIndex(99)
+    notify('Board marks cleared')
+  }
+
   function deleteSelected() {
     if (selected.type === 'scenario') return
     setScenario((current) => ({
@@ -471,6 +482,34 @@ export default function TiqTacticalStudio() {
               <Meta label="Focus" value={scenario.focus} />
             </div>
           </div>
+          <BoardToolDock
+            activeDrawKind={drawingKind}
+            activePlacementType={placementType}
+            boardFocusMode={boardFocusMode}
+            canUndoPath={scenario.paths.length > 0}
+            hasSelection={selected.type !== 'scenario'}
+            onAddPath={addPath}
+            onAddZone={addZone}
+            onClearMarks={clearBoardMarks}
+            onDeleteSelected={deleteSelected}
+            onDone={() => {
+              setDrawingKind(null)
+              setPlacementType(null)
+            }}
+            onDownloadPng={downloadBoardPng}
+            onDuplicateSelected={duplicateSelected}
+            onDrawKindChange={(kind) => {
+              setDrawingKind(drawingKind === kind ? null : kind)
+              setPlacementType(null)
+            }}
+            onPlacementTypeChange={(type) => {
+              setPlacementType(placementType === type ? null : type)
+              setDrawingKind(null)
+            }}
+            onReset={() => loadTemplate('basicDoubles')}
+            onToggleBoardFocus={() => setBoardFocusMode((value) => !value)}
+            onUndoPath={undoLastPath}
+          />
           <TiqCourtBoard
             scenario={visibleScenario}
             selected={selected}
@@ -505,36 +544,6 @@ export default function TiqTacticalStudio() {
             onSelect={setSelected}
           />
           <TiqTimeline activeIndex={stepIndex} paths={scenario.paths} onStep={setStepIndex} />
-          <div className={styles.boardActionBar}>
-            <button className={styles.boardActionButton} disabled={selected.type === 'scenario'} onClick={duplicateSelected} type="button">
-              Duplicate
-            </button>
-            <button className={styles.boardActionButton} disabled={selected.type === 'scenario'} onClick={deleteSelected} type="button">
-              Delete
-            </button>
-            {drawingKind || placementType ? (
-              <button
-                className={`${styles.boardActionButton} ${styles.primaryBoardAction}`}
-                onClick={() => {
-                  setDrawingKind(null)
-                  setPlacementType(null)
-                }}
-                type="button"
-              >
-                Done
-              </button>
-            ) : (
-              <button className={styles.boardActionButton} onClick={() => loadTemplate('basicDoubles')} type="button">
-                Basic reset
-              </button>
-            )}
-            <button className={styles.boardActionButton} onClick={() => setBoardFocusMode((value) => !value)} type="button">
-              {boardFocusMode ? 'Full studio' : 'Board only'}
-            </button>
-            <button className={styles.boardActionButton} onClick={downloadBoardPng} type="button">
-              Export PNG
-            </button>
-          </div>
         </section>
 
         <TiqInspector
@@ -597,6 +606,110 @@ export default function TiqTacticalStudio() {
       <TiqBriefingPanel briefingRole={briefingRole} scenario={scenario} onBriefingRoleChange={setBriefingRole} />
     </div>
   )
+}
+
+function BoardToolDock({
+  activeDrawKind,
+  activePlacementType,
+  boardFocusMode,
+  canUndoPath,
+  hasSelection,
+  onAddPath,
+  onAddZone,
+  onClearMarks,
+  onDeleteSelected,
+  onDone,
+  onDownloadPng,
+  onDrawKindChange,
+  onDuplicateSelected,
+  onPlacementTypeChange,
+  onReset,
+  onToggleBoardFocus,
+  onUndoPath,
+}: {
+  activeDrawKind: TacticalPathKind | null
+  activePlacementType: TacticalTokenType | null
+  boardFocusMode: boolean
+  canUndoPath: boolean
+  hasSelection: boolean
+  onAddPath: (kind: TacticalPathKind) => void
+  onAddZone: () => void
+  onClearMarks: () => void
+  onDeleteSelected: () => void
+  onDone: () => void
+  onDownloadPng: () => void
+  onDrawKindChange: (kind: TacticalPathKind) => void
+  onDuplicateSelected: () => void
+  onPlacementTypeChange: (type: TacticalTokenType) => void
+  onReset: () => void
+  onToggleBoardFocus: () => void
+  onUndoPath: () => void
+}) {
+  const hasActiveTool = Boolean(activeDrawKind || activePlacementType)
+
+  return (
+    <div className={styles.boardToolDock} aria-label="Board tools">
+      <div className={styles.boardToolGroup}>
+        <span className={styles.boardToolLabel}>Add</span>
+        {INLINE_TOKEN_TOOLS.map((type) => (
+          <button
+            aria-label={`Place ${type}`}
+            className={`${styles.boardIconTool} ${activePlacementType === type ? styles.activeBoardTool : ''}`}
+            key={type}
+            onClick={() => onPlacementTypeChange(type)}
+            type="button"
+          >
+            <BoardToolIcon type={type} />
+            <span>{type === 'player' ? 'Player' : type.toUpperCase()}</span>
+          </button>
+        ))}
+        <button className={styles.boardIconTool} onClick={onAddZone} type="button">
+          <span className={styles.zonePreview} />
+          <span>Zone</span>
+        </button>
+      </div>
+
+      <div className={styles.boardToolGroup}>
+        <span className={styles.boardToolLabel}>Lines</span>
+        {INLINE_PATH_TOOLS.map((kind) => (
+          <button
+            className={`${styles.boardActionButton} ${activeDrawKind === kind ? styles.primaryBoardAction : ''}`}
+            key={kind}
+            onClick={() => onDrawKindChange(kind)}
+            type="button"
+          >
+            {kind === 'ball' ? 'Ball line' : kind === 'move' ? 'Move' : 'Recover'}
+          </button>
+        ))}
+        <button className={styles.boardActionButton} onClick={() => onAddPath('ball')} type="button">Quick line</button>
+      </div>
+
+      <div className={styles.boardToolGroup}>
+        <span className={styles.boardToolLabel}>Edit</span>
+        <button className={styles.boardActionButton} disabled={!canUndoPath} onClick={onUndoPath} type="button">Undo</button>
+        <button className={styles.boardActionButton} onClick={onClearMarks} type="button">Clear</button>
+        <button className={styles.boardActionButton} disabled={!hasSelection} onClick={onDuplicateSelected} type="button">Duplicate</button>
+        <button className={styles.boardActionButton} disabled={!hasSelection} onClick={onDeleteSelected} type="button">Delete</button>
+        {hasActiveTool ? (
+          <button className={`${styles.boardActionButton} ${styles.primaryBoardAction}`} onClick={onDone} type="button">Done</button>
+        ) : (
+          <button className={styles.boardActionButton} onClick={onReset} type="button">Reset</button>
+        )}
+        <button className={styles.boardActionButton} onClick={onToggleBoardFocus} type="button">
+          {boardFocusMode ? 'Full studio' : 'Board only'}
+        </button>
+        <button className={styles.boardActionButton} onClick={onDownloadPng} type="button">Export PNG</button>
+      </div>
+    </div>
+  )
+}
+
+function BoardToolIcon({ type }: { type: TacticalTokenType }) {
+  if (type === 'player') {
+    return <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/tiq/logo/tiq-app-icon.png" width={34} />
+  }
+
+  return <MarkerIcon type={type} />
 }
 
 function slugify(value: string) {
