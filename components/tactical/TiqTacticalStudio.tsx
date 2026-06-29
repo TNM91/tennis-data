@@ -437,6 +437,18 @@ export default function TiqTacticalStudio() {
     notify('Removed')
   }
 
+  function deleteTokenById(id: string) {
+    recordUndoSnapshot()
+    setScenario((current) => ({
+      ...current,
+      tokens: current.tokens.filter((token) => token.id !== id),
+    }))
+    if (selected.type === 'token' && selected.id === id) {
+      setSelected({ type: 'scenario', id: 'scenario' })
+    }
+    notify('Removed')
+  }
+
   function duplicateSelected() {
     recordUndoSnapshot()
     setScenario((current) => {
@@ -595,6 +607,7 @@ export default function TiqTacticalStudio() {
             onPlaceToken={() => undefined}
             onMovePathPoint={() => undefined}
             onMoveToken={() => undefined}
+            onDeleteToken={() => undefined}
             onMoveZone={() => undefined}
             onSelect={() => undefined}
             onCancelTool={() => undefined}
@@ -785,6 +798,7 @@ export default function TiqTacticalStudio() {
             onPlaceToken={(type, point) => addTokenAt(type, point.x, point.y)}
             onMovePathPoint={(id, endpoint, x, y) => setScenario((current) => ({ ...current, paths: current.paths.map((path) => path.id === id ? { ...path, [endpoint]: { x, y } } : path) }))}
             onMoveToken={(id, x, y) => setScenario((current) => ({ ...current, tokens: current.tokens.map((token) => token.id === id ? { ...token, x, y } : token) }))}
+            onDeleteToken={deleteTokenById}
             onMoveZone={(id, x, y) => setScenario((current) => ({ ...current, zones: current.zones.map((zone) => zone.id === id ? { ...zone, x, y } : zone) }))}
             onSelect={setSelected}
             onCancelTool={cancelActiveTool}
@@ -928,9 +942,7 @@ function BoardToolDock({
     ? 'lines'
     : activePlacementType
       ? 'add'
-      : hasSelection && preferredMobileGroup === 'add'
-        ? 'edit'
-        : preferredMobileGroup
+      : preferredMobileGroup
 
   useEffect(() => {
     if (!quickClearPending) return

@@ -20,6 +20,7 @@ type TiqCourtBoardProps = {
   placementTokenType: TacticalTokenType | null
   readOnly?: boolean
   onMoveToken: (id: string, x: number, y: number) => void
+  onDeleteToken: (id: string) => void
   onMovePathPoint: (id: string, endpoint: 'from' | 'to', x: number, y: number) => void
   onMoveZone: (id: string, x: number, y: number) => void
   onCreatePath: (kind: TacticalPathKind, from: TacticalPoint, to: TacticalPoint) => void
@@ -62,6 +63,7 @@ export default function TiqCourtBoard({
   placementTokenType,
   readOnly = false,
   onMoveToken,
+  onDeleteToken,
   onMovePathPoint,
   onMoveZone,
   onCreatePath,
@@ -73,23 +75,38 @@ export default function TiqCourtBoard({
   onDuplicateSelected,
 }: TiqCourtBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null)
+  const tokenDragRef = useRef<{ id: string; moved: boolean } | null>(null)
   const [draftStart, setDraftStart] = useState<TacticalPoint | null>(null)
   const modeHint = getModeHint(placementTokenType, drawingKind, draftStart)
-  const selectedAnchor = !readOnly ? getSelectedAnchor(scenario, selected) : null
+  const selectedAnchor = !readOnly && selected.type !== 'token' ? getSelectedAnchor(scenario, selected) : null
   const quickMenuBelow = selectedAnchor ? selectedAnchor.y < 24 : false
 
   function startTokenDrag(token: TacticalToken, event: React.PointerEvent<HTMLButtonElement>) {
     if (readOnly) return
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
+    tokenDragRef.current = { id: token.id, moved: false }
     onSelect({ type: 'token', id: token.id })
   }
 
   function moveToken(token: TacticalToken, event: React.PointerEvent<HTMLButtonElement>) {
     if (readOnly) return
     if (!event.currentTarget.hasPointerCapture(event.pointerId) || !boardRef.current) return
+    if (tokenDragRef.current?.id === token.id) tokenDragRef.current.moved = true
     const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
     onMoveToken(token.id, point.x, point.y)
+  }
+
+  function finishTokenDrag(token: TacticalToken, event: React.PointerEvent<HTMLButtonElement>) {
+    if (readOnly) return
+    event.stopPropagation()
+    const dragState = tokenDragRef.current
+    tokenDragRef.current = null
+    if (!boardRef.current || dragState?.id !== token.id) return
+
+    if (isPointerOutsideElement(event.clientX, event.clientY, boardRef.current)) {
+      onDeleteToken(token.id)
+    }
   }
 
   function startZoneDrag(zone: TacticalZone, event: React.PointerEvent<HTMLButtonElement>) {
@@ -150,6 +167,7 @@ export default function TiqCourtBoard({
     <div className={styles.boardFrame}>
       <div
         className={`${styles.board} ${tokenScaleClass[tokenScale]} ${drawingKind || placementTokenType ? styles.drawing : ''} ${readOnly ? styles.readOnlyBoard : ''}`}
+        data-testid="tiq-court-board"
         ref={boardRef}
         onPointerDown={handleBoardPointerDown}
       >
@@ -215,6 +233,8 @@ export default function TiqCourtBoard({
         {scenario.tokens.map((token) => (
           <button
             className={`${styles.token} ${token.type === 'ball' ? styles.ballToken : ''} ${selected.type === 'token' && selected.id === token.id ? styles.selected : ''}`}
+            data-token-role={token.role ?? token.type}
+            data-testid={`tiq-token-${token.role?.toLowerCase() ?? token.type}`}
             disabled={readOnly}
             key={token.id}
             onClick={(event) => {
@@ -223,6 +243,10 @@ export default function TiqCourtBoard({
             }}
             onPointerDown={(event) => startTokenDrag(token, event)}
             onPointerMove={(event) => moveToken(token, event)}
+            onPointerUp={(event) => finishTokenDrag(token, event)}
+            onPointerCancel={() => {
+              tokenDragRef.current = null
+            }}
             style={{ left: `${token.x}%`, top: `${token.y}%` }}
             title={token.role || token.label || token.type}
             type="button"
@@ -249,6 +273,15 @@ export default function TiqCourtBoard({
       </div>
     </div>
   )
+}
+
+function isPointerOutsideElement(clientX: number, clientY: number, element: HTMLElement) {
+  const rect = element.getBoundingClientRect()
+  const buffer = 12
+  return clientX < rect.left - buffer
+    || clientX > rect.right + buffer
+    || clientY < rect.top - buffer
+    || clientY > rect.bottom + buffer
 }
 
 function getModeHint(placementTokenType: TacticalTokenType | null, drawingKind: TacticalPathKind | null, draftStart: TacticalPoint | null) {
