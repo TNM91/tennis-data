@@ -1,4 +1,4 @@
-import { customerJourneySessions, fixtureGateJourneyIds, journeyById, normalizeQaQuery } from './customer-journey-qa-data.mjs'
+import { customerJourneySessions, fixtureGateJourneyIds, getFixtureAuthSmokeCommand, journeyById, normalizeQaQuery } from './customer-journey-qa-data.mjs'
 
 const options = parseArgs(process.argv.slice(2))
 const rawSession = options.session.trim().toLowerCase()
@@ -90,10 +90,11 @@ for (const journey of deviceJourneys) {
   console.log(`  Fixture: ${journey.accountFixture}`)
   console.log(`  Pass: ${journey.passSignal}`)
   console.log(`  Capture: ${journey.evidence.join('; ')}`)
-  if (fixtureGateJourneyIds.has(journey.id)) {
+  const authSmokeCommand = getFixtureAuthSmokeCommand(journey.accountFixture)
+  if (fixtureGateJourneyIds.has(journey.id) || authSmokeCommand) {
     console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journey.id}`)
     console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-    console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+    console.log(`  Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
   }
   console.log(`  Live card: npm run qa:live-card -- ${journey.id} --date=${date} --tester=${slug(tester)} --device=${device.value}`)
 }

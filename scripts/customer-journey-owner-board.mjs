@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneyDetails, fixtureGateJourneyIds, sessionByJourneyId } from './customer-journey-qa-data.mjs'
+import { customerJourneyDetails, fixtureGateJourneyIds, getFixtureAuthSmokeCommand, sessionByJourneyId } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
@@ -109,9 +109,10 @@ function printOwnerRow(row) {
   console.log(`  Open rows: ${row.openRows.length}; open p0/p1: ${row.openHighPriorityRows.length}; missing next action: ${row.missingNextActionRows.length}`)
   if (row.fixtureGapRows.length) {
     console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journey.id}`)
-    if (fixtureGateJourneyIds.has(journey.id)) {
+    const authSmokeCommand = getFixtureAuthSmokeCommand(row.fixtureGapRows[0]?.accountFixture ?? journey.fixture)
+    if (fixtureGateJourneyIds.has(journey.id) || authSmokeCommand) {
       console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-      console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+      console.log(`  Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
     }
   }
   console.log(`  Next: ${getNextCommand(row)}`)
@@ -134,8 +135,11 @@ function getState({ journeyRows, hasPass, hasEvidence, openHighPriorityRows }) {
 
 function getNextCommand(row) {
   if (row.openHighPriorityRows.length) return `npm run qa:action-list ${row.journey.id}`
-  if (row.fixtureGapRows.length && fixtureGateJourneyIds.has(row.journey.id)) return `npm run qa:fixture-gate -- ${row.journey.id}; npm run qa:fixture-auth-smoke -- --env; npm run qa:fixture-auth-smoke`
-  if (row.fixtureGapRows.length) return `npm run qa:fixture-gate -- ${row.journey.id}`
+  if (row.fixtureGapRows.length) {
+    const authSmokeCommand = getFixtureAuthSmokeCommand(row.fixtureGapRows[0]?.accountFixture ?? row.journey.fixture)
+    const authSmokeSuffix = fixtureGateJourneyIds.has(row.journey.id) || authSmokeCommand ? `; npm run qa:fixture-auth-smoke -- --env; ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}` : ''
+    return `npm run qa:fixture-gate -- ${row.journey.id}${authSmokeSuffix}`
+  }
   if (row.state === 'unassigned result' || row.state === 'needs pass') return `npm run qa:journey -- ${row.journey.id}`
   if (row.state === 'needs evidence') return `npm run qa:evidence-pack -- ${row.journey.session}`
   return `npm run qa:close-day -- ${row.journey.session}`

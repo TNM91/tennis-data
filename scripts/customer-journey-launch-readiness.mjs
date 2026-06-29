@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fixtureGateJourneyIds, plannedJourneyIds } from './customer-journey-qa-data.mjs'
+import { getFixtureAuthSmokeCommand, journeyById, plannedJourneyIds } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 
@@ -25,11 +25,12 @@ console.log('')
 if (missingPassJourneyIds.length) {
   console.log('Journeys missing pass evidence:')
   for (const journeyId of missingPassJourneyIds) {
+    const authSmokeCommand = getFixtureAuthSmokeCommand(journeyById.get(journeyId)?.accountFixture ?? '')
     console.log(`- ${journeyId}`)
-    if (fixtureGateJourneyIds.has(journeyId)) {
+    if (authSmokeCommand) {
       console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
       console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-      console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+      console.log(`  Auth smoke: ${authSmokeCommand}`)
     }
   }
 } else {

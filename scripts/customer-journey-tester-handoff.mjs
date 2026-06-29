@@ -4,6 +4,7 @@ import {
   customerJourneyDetails,
   customerJourneySessions,
   fixtureGateJourneyIds,
+  getFixtureAuthSmokeCommand,
   resultRank,
   severityRank,
 } from './customer-journey-qa-data.mjs'
@@ -193,7 +194,8 @@ function printJourneyNeed(journeyId, need) {
   console.log(`    Session: ${session?.id ?? 'unknown'}${session ? ` (${session.focus})` : ''}`)
   console.log(`    Route: ${journey?.entryRoute ?? 'missing route'}`)
   console.log(`    Fixture: ${journey?.accountFixture ?? 'missing fixture'}`)
-  if (fixtureGateJourneyIds.has(journeyId)) {
+  const authSmokeCommand = getFixtureAuthSmokeCommand(journey?.accountFixture ?? '')
+  if (fixtureGateJourneyIds.has(journeyId) || authSmokeCommand) {
     console.log(`    Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
   }
   printFixtureAuthCommands(journeyId, '    ')
@@ -201,9 +203,11 @@ function printJourneyNeed(journeyId, need) {
 }
 
 function printFixtureAuthCommands(journeyId, indent) {
-  if (!fixtureGateJourneyIds.has(journeyId)) return
+  const row = ledgerRows.find((item) => item.journeyId === journeyId && item.category === 'fixture-gap' && item.result !== 'pass')
+  const authSmokeCommand = getFixtureAuthSmokeCommand(row?.accountFixture || journeyById.get(journeyId)?.accountFixture || '')
+  if (!fixtureGateJourneyIds.has(journeyId) && !authSmokeCommand) return
   console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)
-  console.log(`${indent}Auth smoke: npm run qa:fixture-auth-smoke`)
+  console.log(`${indent}Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
 }
 
 function selectSessions() {

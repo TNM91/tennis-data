@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneySessions, fixtureGateJourneyIds } from './customer-journey-qa-data.mjs'
+import { customerJourneySessions, fixtureGateJourneyIds, getFixtureAuthSmokeCommand, journeyById } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const args = parseArgs(process.argv.slice(2))
@@ -114,9 +114,10 @@ function printSessionCloseout(session) {
         console.log(`    Open: ${row.severity || 'unscored'} ${row.result || 'unknown'} ${row.category || 'uncategorized'}`)
         if (row.category === 'fixture-gap') {
           console.log(`    Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
-          if (fixtureGateJourneyIds.has(journeyId)) {
+          const authSmokeCommand = getFixtureAuthSmokeCommand(row.accountFixture)
+          if (fixtureGateJourneyIds.has(journeyId) || authSmokeCommand) {
             console.log('    Auth env: npm run qa:fixture-auth-smoke -- --env')
-            console.log('    Auth smoke: npm run qa:fixture-auth-smoke')
+            console.log(`    Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
           }
         }
         console.log(`    Next: ${row.nextAction || 'add a next action before closeout'}`)
@@ -130,10 +131,12 @@ function printSessionCloseout(session) {
     console.log('  Retest queue:')
     for (const journeyId of retestJourneyIds) {
       const hasFixtureBlocker = openFixtureRows.some((row) => row.journeyId === journeyId)
-      if (hasFixtureBlocker && fixtureGateJourneyIds.has(journeyId)) {
+      const fixtureRow = openFixtureRows.find((row) => row.journeyId === journeyId)
+      const authSmokeCommand = getFixtureAuthSmokeCommand(fixtureRow?.accountFixture || journeyById.get(journeyId)?.accountFixture || '')
+      if (hasFixtureBlocker && (fixtureGateJourneyIds.has(journeyId) || authSmokeCommand)) {
         console.log(`  - npm run qa:fixture-gate -- ${journeyId}`)
         console.log('  - npm run qa:fixture-auth-smoke -- --env')
-        console.log('  - npm run qa:fixture-auth-smoke')
+        console.log(`  - ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
         continue
       }
       console.log(`  - ${hasFixtureBlocker ? `npm run qa:fixture-gate -- ${journeyId}` : `npm run qa:retest -- ${journeyId}`}`)

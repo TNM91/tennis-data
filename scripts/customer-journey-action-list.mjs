@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   fixtureGateJourneyIds,
+  getFixtureAuthSmokeCommand,
   journeyById,
   normalizeQaQuery,
   plannedJourneyIds,
@@ -62,9 +63,10 @@ for (const row of rows) {
   console.log(`  Notes: ${row.notes || 'none'}`)
   if (row.category === 'fixture-gap') {
     console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
-    if (fixtureGateJourneyIds.has(row.journeyId)) {
+    const authSmokeCommand = getFixtureAuthSmokeCommand(row.accountFixture)
+    if (fixtureGateJourneyIds.has(row.journeyId) || authSmokeCommand) {
       console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-      console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+      console.log(`  Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
     }
   }
   console.log(`  Next action: ${row.nextAction || 'missing next action'}`)

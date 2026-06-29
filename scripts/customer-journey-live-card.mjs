@@ -73,7 +73,7 @@ function printLiveCard(journey) {
   console.log(`Data fixtures: ${journey.fixtureIds.join(', ')}`)
   console.log(`Open: ${journey.entryRoute}`)
   console.log('')
-  if (fixtureGateJourneyIds.has(journey.id)) {
+  if (fixtureGateJourneyIds.has(journey.id) || fixtureAuthSmokeCommand) {
     console.log('Fixture preflight:')
     console.log(`- npm run qa:fixture-gate -- ${journey.id}`)
     console.log('- npm run qa:fixture-auth-smoke -- --env')
@@ -102,7 +102,7 @@ function printLiveCard(journey) {
   console.log('')
   console.log('If blocked:')
   console.log('- redirected to login: sign in as `' + journey.accountFixture + '` first; run `npm run qa:fixture-auth-smoke -- --env` if local credential keys are unclear' + (fixtureAuthSmokeCommand ? ', then run `' + fixtureAuthSmokeCommand + '`.' : '.'))
-  if (fixtureGateJourneyIds.has(journey.id)) {
+  if (fixtureGateJourneyIds.has(journey.id) || fixtureAuthSmokeCommand) {
     console.log('- auth smoke blocked: keep Result `blocked`, set Category `fixture-gap`, run `npm run qa:fixture-gate -- ' + journey.id + '`, then rerun this card after fixture repair.')
   }
   console.log('- fixture missing: set Category `fixture-gap`, run `npm run qa:fixture-gate -- ' + journey.id + '`, then rerun this card.')

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   fixtureGateJourneyIds,
+  getFixtureAuthSmokeCommand,
   journeyById,
   normalizeQaQuery,
   plannedJourneyIds,
@@ -53,9 +54,10 @@ if (openRows.length) {
     console.log(`  Evidence: ${row.screenshotOrVideo || 'missing screenshot/video'}`)
     if (row.category === 'fixture-gap') {
       console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
-      if (fixtureGateJourneyIds.has(row.journeyId)) {
+      const authSmokeCommand = getFixtureAuthSmokeCommand(row.accountFixture)
+      if (fixtureGateJourneyIds.has(row.journeyId) || authSmokeCommand) {
         console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-        console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+        console.log(`  Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
       }
     }
     console.log(`  Next action: ${row.nextAction || 'missing next action'}`)
@@ -73,10 +75,11 @@ if (missingPassJourneyIds.length) {
     console.log(`  Session: ${session?.id ?? 'unknown'}${session ? ` (${session.label})` : ''}`)
     console.log(`  Route: ${journey?.entryRoute ?? 'missing route'}`)
     console.log(`  Fixture: ${journey?.accountFixture ?? 'missing fixture'}`)
-    if (fixtureGateJourneyIds.has(journeyId)) {
+    const authSmokeCommand = getFixtureAuthSmokeCommand(journey?.accountFixture ?? '')
+    if (fixtureGateJourneyIds.has(journeyId) || authSmokeCommand) {
       console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
       console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-      console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+      console.log(`  Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
     }
     console.log(`  Commands: npm run qa:journey -- ${journeyId}; npm run qa:session-ledger -- ${session?.id ?? '<day>'}`)
   }

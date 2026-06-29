@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneySessions, fixtureGateJourneyIds, normalizeQaQuery, plannedJourneyIds } from './customer-journey-qa-data.mjs'
+import { customerJourneySessions, fixtureGateJourneyIds, getFixtureAuthSmokeCommand, journeyById, normalizeQaQuery, plannedJourneyIds } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv[2]?.trim().toLowerCase() ?? ''
@@ -119,7 +119,9 @@ function parseMarkdownRow(line) {
 }
 
 function printFixtureAuthCommands(journeyId, indent) {
-  if (!fixtureGateJourneyIds.has(journeyId)) return
+  const row = rows.find((item) => item.journeyId === journeyId && item.category === 'fixture-gap' && item.result !== 'pass')
+  const authSmokeCommand = getFixtureAuthSmokeCommand(row?.accountFixture || journeyById.get(journeyId)?.accountFixture || '')
+  if (!fixtureGateJourneyIds.has(journeyId) && !authSmokeCommand) return
   console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)
-  console.log(`${indent}Auth smoke: npm run qa:fixture-auth-smoke`)
+  console.log(`${indent}Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
 }

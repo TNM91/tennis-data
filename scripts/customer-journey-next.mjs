@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneySessions, fixtureGateJourneyIds, plannedJourneyIds } from './customer-journey-qa-data.mjs'
+import { customerJourneySessions, getFixtureAuthSmokeCommand, journeyById, plannedJourneyIds } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 
@@ -51,11 +51,12 @@ console.log(`Session command: npm run qa:session -- ${firstIncompleteSession.id}
 console.log('')
 console.log('Journeys still needing a pass:')
 for (const journeyId of missingInSession) {
+  const authSmokeCommand = getFixtureAuthSmokeCommand(journeyById.get(journeyId)?.accountFixture ?? '')
   console.log(`- ${journeyId}`)
-  if (fixtureGateJourneyIds.has(journeyId)) {
+  if (authSmokeCommand) {
     console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journeyId}`)
     console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-    console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+    console.log(`  Auth smoke: ${authSmokeCommand}`)
   }
 }
 
@@ -63,10 +64,11 @@ console.log('')
 console.log('Recommended commands:')
 console.log('- npm run qa:status')
 console.log(`- npm run qa:session -- ${firstIncompleteSession.id}`)
-for (const journeyId of missingInSession.filter((id) => fixtureGateJourneyIds.has(id))) {
+for (const journeyId of missingInSession.filter((id) => getFixtureAuthSmokeCommand(journeyById.get(id)?.accountFixture ?? ''))) {
+  const authSmokeCommand = getFixtureAuthSmokeCommand(journeyById.get(journeyId)?.accountFixture ?? '')
   console.log(`- npm run qa:fixture-gate -- ${journeyId}`)
   console.log('- npm run qa:fixture-auth-smoke -- --env')
-  console.log('- npm run qa:fixture-auth-smoke')
+  console.log(`- ${authSmokeCommand}`)
 }
 for (const command of firstIncompleteSession.focusCommands) {
   console.log(`- ${command}`)

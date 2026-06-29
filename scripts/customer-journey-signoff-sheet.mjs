@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneyDetails, fixtureGateJourneyIds, sessionByJourneyId } from './customer-journey-qa-data.mjs'
+import { customerJourneyDetails, fixtureGateJourneyIds, getFixtureAuthSmokeCommand, sessionByJourneyId } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 
@@ -95,9 +95,10 @@ function printSignoffRow(row) {
 
   if (row.openFixtureRows.length) {
     console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journey.id}`)
-    if (fixtureGateJourneyIds.has(journey.id)) {
+    const authSmokeCommand = getFixtureAuthSmokeCommand(row.openFixtureRows[0]?.accountFixture ?? '')
+    if (fixtureGateJourneyIds.has(journey.id) || authSmokeCommand) {
       console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-      console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+      console.log(`  Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
     }
   }
 
@@ -106,8 +107,11 @@ function printSignoffRow(row) {
 
 function getNextCommand(row) {
   if (row.openHighPriorityRows.length) return `npm run qa:action-list ${row.journey.id}`
-  if (row.openFixtureRows.length && fixtureGateJourneyIds.has(row.journey.id)) return `npm run qa:fixture-gate -- ${row.journey.id}; npm run qa:fixture-auth-smoke -- --env; npm run qa:fixture-auth-smoke`
-  if (row.openFixtureRows.length) return `npm run qa:fixture-gate -- ${row.journey.id}`
+  if (row.openFixtureRows.length) {
+    const authSmokeCommand = getFixtureAuthSmokeCommand(row.openFixtureRows[0]?.accountFixture ?? '')
+    const authSmokeSuffix = fixtureGateJourneyIds.has(row.journey.id) || authSmokeCommand ? `; npm run qa:fixture-auth-smoke -- --env; ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}` : ''
+    return `npm run qa:fixture-gate -- ${row.journey.id}${authSmokeSuffix}`
+  }
   if (!row.hasPassEvidence) return `npm run qa:journey -- ${row.journey.id}`
   if (!row.hasScreenshotOrVideo) return `npm run qa:evidence-pack -- ${row.journey.session}`
   return `npm run qa:close-day -- ${row.journey.session}`

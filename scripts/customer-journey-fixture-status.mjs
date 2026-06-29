@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneySessions, fixtureGateJourneyIds, journeyById } from './customer-journey-qa-data.mjs'
+import { customerJourneySessions, fixtureGateJourneyIds, getFixtureAuthSmokeCommand, journeyById } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const fixtureGuidePath = 'docs/customer-journey-test-fixtures.md'
@@ -92,9 +92,12 @@ function printSession(session) {
     console.log(`  - ${state}: ${journey.label} (${journey.id})`)
     console.log(`    Route: ${journey.entryRoute}`)
     console.log(`    Fixtures: ${journey.fixtureIds.join(', ')}`)
-    if (hasOpenFixtureGap && fixtureGateJourneyIds.has(journey.id)) {
+    const authSmokeCommand = getFixtureAuthSmokeCommand(journey.accountFixture)
+    if (hasOpenFixtureGap && (fixtureGateJourneyIds.has(journey.id) || authSmokeCommand)) {
       console.log(`    Fixture gate: npm run qa:fixture-gate -- ${journey.id}`)
-      console.log(`    Command: npm run qa:fixture-gate -- ${journey.id}`)
+      console.log(`    Auth env: npm run qa:fixture-auth-smoke -- --env`)
+      console.log(`    Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
+      console.log(`    Command: npm run qa:fixture-gate -- ${journey.id}; npm run qa:fixture-auth-smoke -- --env; ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
     } else {
       console.log(`    Command: npm run qa:journey -- ${journey.id}`)
     }
@@ -103,8 +106,11 @@ function printSession(session) {
     console.log('  Open fixture-gap rows:')
     for (const row of fixtureGapRows) {
       console.log(`  - ${row.journeyId}: ${row.notes || 'missing note'}; next: ${row.nextAction || 'missing next action'}`)
-      if (fixtureGateJourneyIds.has(row.journeyId)) {
+      const authSmokeCommand = getFixtureAuthSmokeCommand(row.accountFixture)
+      if (fixtureGateJourneyIds.has(row.journeyId) || authSmokeCommand) {
         console.log(`    Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
+        console.log(`    Auth env: npm run qa:fixture-auth-smoke -- --env`)
+        console.log(`    Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
       }
     }
   }

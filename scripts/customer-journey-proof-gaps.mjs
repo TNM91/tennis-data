@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneyDetails, fixtureGateJourneyIds, sessionByJourneyId, tierAliases } from './customer-journey-qa-data.mjs'
+import { customerJourneyDetails, fixtureGateJourneyIds, getFixtureAuthSmokeCommand, sessionByJourneyId, tierAliases } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
@@ -72,10 +72,11 @@ console.log(`- Open follow-up rows: ${openFollowUps.length}`)
 console.log('')
 
 printSection('Missing pass evidence', missingPass, (row) => {
+  const authSmokeCommand = getFixtureAuthSmokeCommand(row.journey.fixture)
   console.log(`- ${row.journey.label} (${row.journey.id})`)
   console.log(`  Tier/session: ${row.journey.tier} / ${row.journey.session}`)
   console.log(`  Need: log a real pass row that proves: ${row.journey.passSignal}`)
-  if (fixtureGateJourneyIds.has(row.journey.id)) {
+  if (fixtureGateJourneyIds.has(row.journey.id) || authSmokeCommand) {
     console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journey.id}`)
   }
   printFixtureAuthCommands(row.journey.id, '  ')
@@ -219,7 +220,10 @@ function normalize(value) {
 }
 
 function printFixtureAuthCommands(journeyId, indent) {
-  if (!fixtureGateJourneyIds.has(journeyId)) return
+  const row = rows.find((item) => item.journeyId === journeyId && item.category === 'fixture-gap' && item.result !== 'pass')
+  const journey = journeys.find((item) => item.id === journeyId)
+  const authSmokeCommand = getFixtureAuthSmokeCommand(row?.accountFixture || journey?.fixture || '')
+  if (!fixtureGateJourneyIds.has(journeyId) && !authSmokeCommand) return
   console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)
-  console.log(`${indent}Auth smoke: npm run qa:fixture-auth-smoke`)
+  console.log(`${indent}Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
 }

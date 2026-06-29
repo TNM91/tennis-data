@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneyDetails, customerJourneySessions, fixtureGateJourneyIds, normalizeQaQuery, sessionByJourneyId } from './customer-journey-qa-data.mjs'
+import {
+  customerJourneyDetails,
+  customerJourneySessions,
+  fixtureGateJourneyIds,
+  getFixtureAuthSmokeCommand,
+  normalizeQaQuery,
+  sessionByJourneyId,
+} from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const options = parseArgs(process.argv.slice(2))
@@ -102,6 +109,7 @@ function printKickoff(journey) {
   const latestRow = rows.filter((row) => row.journeyId === journey.id).at(-1)
   const fixtureQuery = journey.fixtureIds[0] ?? journey.accountFixture
   const device = journey.requiredDeviceIds.includes(selectedDevice.id) ? selectedDevice : devices.find((item) => journey.requiredDeviceIds.includes(item.id)) ?? selectedDevice
+  const authSmokeCommand = getFixtureAuthSmokeCommand(journey.accountFixture)
   const resultState = latestRow
     ? `${latestRow.result || 'logged'}${latestRow.category ? `/${latestRow.category}` : ''}${latestRow.screenshotOrVideo ? ' with evidence' : ' without evidence'}`
     : 'missing result row'
@@ -120,12 +128,12 @@ function printKickoff(journey) {
   console.log(`1. npm run qa:fixture-board -- ${fixtureQuery}`)
   console.log(`2. npm run qa:fixture-status -- ${session?.id ?? journey.id}`)
   let step = 3
-  if (fixtureGateJourneyIds.has(journey.id)) {
+  if (fixtureGateJourneyIds.has(journey.id) || authSmokeCommand) {
     console.log(`${step}. npm run qa:fixture-gate -- ${journey.id}`)
     step += 1
     console.log(`${step}. npm run qa:fixture-auth-smoke -- --env`)
     step += 1
-    console.log(`${step}. npm run qa:fixture-auth-smoke`)
+    console.log(`${step}. ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
     step += 1
   }
   console.log(`${step}. npm run qa:tester-packet -- ${session?.id ?? 'day1'} --device=${device.id} --date=${date} --tester=${slug(tester)}`)
