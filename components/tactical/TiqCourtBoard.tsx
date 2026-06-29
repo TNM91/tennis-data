@@ -173,7 +173,7 @@ export default function TiqCourtBoard({
         onPointerDown={handleBoardPointerDown}
       >
         <div className={styles.courtSurface} data-testid="tiq-court-surface" ref={surfaceRef}>
-          <Image alt="TenAceIQ master tactical court" className={styles.courtImage} draggable={false} fill priority sizes="(max-width: 900px) 100vw, 1080px" src="/tiq/courts/tiq-court-master-v2.png" />
+          <Image alt="TenAceIQ master tactical court" className={styles.courtImage} draggable={false} fill priority sizes="(max-width: 900px) 100vw, 1080px" src="/tiq/courts/tiq-court-master.png" />
           <svg aria-hidden="true" className={styles.overlay} preserveAspectRatio="none" viewBox="0 0 100 100">
             <defs>
               <filter id="tiq-studio-glow" x="-30%" y="-30%" width="160%" height="160%">

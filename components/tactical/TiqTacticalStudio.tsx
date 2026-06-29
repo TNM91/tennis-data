@@ -1213,7 +1213,7 @@ function getRoleBoardCopy(role: TacticalRole) {
 function ScenarioThumbnail({ scenario }: { scenario: TacticalScenario }) {
   return (
     <span className={styles.scenarioThumbnail} aria-hidden="true">
-      <Image alt="" fill sizes="92px" src="/tiq/courts/tiq-court-master-v2.png" />
+      <Image alt="" fill sizes="92px" src="/tiq/courts/tiq-court-master.png" />
       {scenario.zones.slice(0, 3).map((zone) => (
         <span
           className={styles.thumbnailZone}
@@ -1258,7 +1258,7 @@ async function exportScenarioPng(
   if (!context) throw new Error('Canvas unavailable')
 
   const [court, qIcon, ballIcon] = await Promise.all([
-    loadCanvasImage('/tiq/courts/tiq-court-master-v2.png'),
+    loadCanvasImage('/tiq/courts/tiq-court-master.png'),
     loadCanvasImage('/tiq/logo/tiq-app-icon.png'),
     loadCanvasImage('/tiq/tokens/tennis-ball-reference.png'),
   ])

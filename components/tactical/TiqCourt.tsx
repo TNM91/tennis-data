@@ -11,7 +11,7 @@ type TiqCourtProps = {
 }
 
 const courtAssetByVariant: Record<TiqCourtVariant, string> = {
-  isometric: '/tiq/courts/tiq-court-master-v2.png',
+  isometric: '/tiq/courts/tiq-court-master.png',
   flat: '/tiq/courts/tiq-court-master.png',
 }
 

@@ -17,7 +17,6 @@ const allowedLegacyLogoRefs = new Set([
 
 const lockedAssets = [
   'public/tiq/courts/tiq-court-master.png',
-  'public/tiq/courts/tiq-court-master-v2.png',
   'public/tiq/logo/tiq-lockup-light.png',
   'public/tiq/logo/tiq-lockup-dark.png',
   'public/tiq/logo/tiq-q-icon-dark.png',
@@ -65,7 +64,7 @@ describe('TIQ locked tactical assets', () => {
   it('renders the tactical board from the locked court image, not a recreated court', () => {
     const boardSource = readFileSync(join(root, 'components/tactical/TiqCourtBoard.tsx'), 'utf8')
 
-    expect(boardSource).toContain('src="/tiq/courts/tiq-court-master-v2.png"')
+    expect(boardSource).toContain('src="/tiq/courts/tiq-court-master.png"')
     expect(boardSource).toContain('className={styles.courtImage}')
     expect(boardSource).toContain('fill priority')
   })
