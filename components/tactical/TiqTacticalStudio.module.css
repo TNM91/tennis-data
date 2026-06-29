@@ -812,14 +812,20 @@
   align-items: center;
   background: transparent;
   border: 0;
+  cursor: grab;
   display: grid;
   height: var(--token-size);
   justify-items: center;
   margin: calc(var(--token-size) / -2) 0 0 calc(var(--token-size) / -2);
   padding: 0;
   position: absolute;
+  touch-action: none;
   width: var(--token-size);
   z-index: 5;
+}
+
+.token:active {
+  cursor: grabbing;
 }
 
 .token svg {
@@ -849,7 +855,10 @@
 }
 
 .ballTokenImage img {
+  -webkit-user-drag: none;
   object-fit: contain;
+  pointer-events: none;
+  user-select: none;
 }
 
 .playerTokenHead {
@@ -865,8 +874,11 @@
 }
 
 .playerTokenHead img {
+  -webkit-user-drag: none;
   object-fit: contain;
   padding: 4px;
+  pointer-events: none;
+  user-select: none;
 }
 
 .paletteQIcon {
@@ -1343,7 +1355,7 @@
   .studio {
     max-width: 100svw;
     overflow-x: hidden;
-    padding: 10px 10px 24px;
+    padding: 8px 8px 20px;
     width: 100%;
   }
 
@@ -1455,7 +1467,7 @@
   .boardFrame {
     border-radius: 18px;
     max-width: 100%;
-    padding: 6px;
+    padding: 4px;
     width: 100%;
   }
 
@@ -1473,9 +1485,9 @@
   .mobileCourtActions {
     align-items: stretch;
     display: grid;
-    gap: 8px;
+    gap: 6px;
     grid-template-columns: minmax(0, 1fr) minmax(150px, 0.65fr);
-    margin: -2px 0 8px;
+    margin: -2px 0 6px;
     max-width: 100%;
     min-width: 0;
     width: 100%;
@@ -1487,7 +1499,7 @@
     border-radius: 18px;
     display: grid;
     gap: 2px;
-    min-height: 42px;
+    min-height: 38px;
     min-width: 0;
     padding: 6px 10px;
   }
@@ -1520,7 +1532,7 @@
   }
 
   .mobileCourtActions .boardActionButton {
-    min-height: 42px;
+    min-height: 38px;
   }
 
   .mobileCourtButtonGroup .boardActionButton {
@@ -1575,6 +1587,30 @@
     max-height: none;
     max-width: 100%;
     width: 100%;
+  }
+
+  .tokenScaleSmall {
+    --ball-token-size: 34px;
+    --player-head-size: 27px;
+    --token-icon-size: 27px;
+    --token-label-size: 0.56rem;
+    --token-size: 30px;
+  }
+
+  .tokenScaleMedium {
+    --ball-token-size: 38px;
+    --player-head-size: 30px;
+    --token-icon-size: 30px;
+    --token-label-size: 0.6rem;
+    --token-size: 34px;
+  }
+
+  .tokenScaleLarge {
+    --ball-token-size: 48px;
+    --player-head-size: 39px;
+    --token-icon-size: 39px;
+    --token-label-size: 0.7rem;
+    --token-size: 44px;
   }
 
   .scenarioBar {
@@ -1634,7 +1670,7 @@
   }
 
   .studio.boardFocusActive {
-    padding-top: 8px;
+    padding: 3px 4px 10px;
   }
 
   .boardFocusActive .scenarioBar {
@@ -1644,7 +1680,7 @@
   .boardFocusActive .workspace > section {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 5px;
   }
 
   .boardFocusActive .mobileCourtActions {
@@ -1657,6 +1693,7 @@
 
   .boardFocusActive .boardFrame {
     order: 2;
+    padding: 2px;
   }
 
   .boardFocusActive .boardToolDock {
