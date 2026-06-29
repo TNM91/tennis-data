@@ -6,6 +6,20 @@ const env = loadEnvFile('.env.local')
 const baseUrl = getEnv('TENACEIQ_QA_BASE_URL') || getEnv('PLATFORM_QA_BASE_URL') || 'http://localhost:3000'
 const rawArgs = process.argv.slice(2)
 const fixtureChecks = {
+  free_viewer: {
+    fixture: 'free_viewer',
+    plan: 'free',
+    route: '/explore/search',
+    credentials: [
+      ['TENACEIQ_QA_FREE_EMAIL', getEnv('TENACEIQ_QA_FREE_EMAIL')],
+      ['TENACEIQ_QA_FREE_PASSWORD', getEnv('TENACEIQ_QA_FREE_PASSWORD')],
+    ],
+    hasExpectedSignal(text) {
+      return /Explore/i.test(text) && /Search/i.test(text) && /Player|Team|League|Flight|Area/i.test(text)
+    },
+    missingSignalReason: 'missing-free-explore-signal',
+    verifiedSignal: 'Free Explore signal visible',
+  },
   coach_primary: {
     fixture: 'coach_primary',
     plan: 'coach',
@@ -207,14 +221,22 @@ async function verifyFixture(browser, check) {
     await page.getByLabel('Email').fill(credentials[check.credentials[0][0]])
     await page.locator('#password').fill(credentials[check.credentials[1][0]])
     await page.locator('button[type="submit"]').click()
-    await page.waitForLoadState('networkidle', { timeout: 35_000 })
-    await page.waitForTimeout(800)
+    await page.waitForFunction(
+      () => {
+        const bodyText = document.body?.innerText ?? ''
+        return location.pathname !== '/login' || /unable to sign in|invalid login|invalid credentials|email not confirmed|sign in timed out/i.test(bodyText)
+      },
+      null,
+      { timeout: 35_000 },
+    )
+    await page.waitForLoadState('networkidle', { timeout: 35_000 }).catch(() => undefined)
 
-    const currentUrl = new URL(page.url())
-    const text = (await page.locator('body').innerText({ timeout: 10_000 })).replace(/\s+/g, ' ').trim()
+    const settled = await waitForFixtureSignal(page, check)
+    const currentUrl = settled.currentUrl
+    const text = settled.text
     const stillOnLogin = currentUrl.pathname === '/login'
-    const hasExpectedSignal = check.hasExpectedSignal(text)
-    const hasAuthError = /unable to sign in|invalid login|invalid credentials|email not confirmed|sign in timed out/i.test(text)
+    const hasExpectedSignal = settled.hasExpectedSignal
+    const hasAuthError = settled.hasAuthError
 
     if (stillOnLogin || hasAuthError || !hasExpectedSignal) {
       return {
@@ -246,6 +268,29 @@ async function verifyFixture(browser, check) {
   }
 }
 
+async function waitForFixtureSignal(page, check) {
+  const deadline = Date.now() + 35_000
+  let currentUrl = new URL(page.url())
+  let text = ''
+  let hasExpectedSignal = false
+  let hasAuthError = false
+
+  while (Date.now() < deadline) {
+    currentUrl = new URL(page.url())
+    text = (await page.locator('body').innerText({ timeout: 10_000 })).replace(/\s+/g, ' ').trim()
+    hasExpectedSignal = check.hasExpectedSignal(text)
+    hasAuthError = /unable to sign in|invalid login|invalid credentials|email not confirmed|sign in timed out/i.test(text)
+
+    if (hasAuthError || (currentUrl.pathname !== '/login' && hasExpectedSignal)) {
+      break
+    }
+
+    await page.waitForTimeout(500)
+  }
+
+  return { currentUrl, text, hasExpectedSignal, hasAuthError }
+}
+
 function selectFixtures(rawArgs) {
   const requested = rawArgs.filter((arg) => arg && !arg.startsWith('--'))
   const labels = requested.length ? requested : ['day1']
@@ -272,6 +317,8 @@ function printEnvContract() {
   console.log('TENACEIQ_QA_PLAYER_PASSWORD=')
   console.log('')
   console.log('Optional selectors for later fixture blocks:')
+  console.log('TENACEIQ_QA_FREE_EMAIL=')
+  console.log('TENACEIQ_QA_FREE_PASSWORD=')
   console.log('TENACEIQ_QA_CAPTAIN_EMAIL=')
   console.log('TENACEIQ_QA_CAPTAIN_PASSWORD=')
   console.log('TENACEIQ_QA_LEAGUE_EMAIL=')
