@@ -97,6 +97,7 @@ type CoachLastStudentSetup = {
 }
 
 type CoachAssignmentDraft = {
+  assignmentRouteRequestKey: string
   assignmentStudentId: string
   assignmentTitle: string
   assignmentFocus: string
@@ -298,6 +299,7 @@ function CoachContent() {
   const [assignmentLevelUpPackId, setAssignmentLevelUpPackId] = useState('')
   const [assignmentEditId, setAssignmentEditId] = useState('')
   const [assignmentDraftHydrated, setAssignmentDraftHydrated] = useState(false)
+  const [assignmentRouteRequestKey, setAssignmentRouteRequestKey] = useState('')
   const [contactStudentId, setContactStudentId] = useState('')
   const [mobileContactPanelOpen, setMobileContactPanelOpen] = useState(false)
   const [mobileReviewQueueOpen, setMobileReviewQueueOpen] = useState(false)
@@ -439,6 +441,7 @@ function CoachContent() {
       const rawDraft = window.localStorage.getItem(COACH_ASSIGNMENT_DRAFT_KEY)
       if (rawDraft) {
         const draft = JSON.parse(rawDraft) as Partial<CoachAssignmentDraft>
+        setAssignmentRouteRequestKey(cleanText(draft.assignmentRouteRequestKey))
         setAssignmentStudentId(cleanText(draft.assignmentStudentId))
         setAssignmentTitle(cleanText(draft.assignmentTitle))
         setAssignmentFocus(cleanText(draft.assignmentFocus))
@@ -465,6 +468,7 @@ function CoachContent() {
     if (!assignmentDraftHydrated) return
 
     const draft: CoachAssignmentDraft = {
+      assignmentRouteRequestKey,
       assignmentStudentId,
       assignmentTitle,
       assignmentFocus,
@@ -482,6 +486,7 @@ function CoachContent() {
     }
 
     const hasDraft =
+      assignmentRouteRequestKey ||
       assignmentStudentId ||
       assignmentTitle.trim() ||
       assignmentFocus.trim() ||
@@ -505,6 +510,7 @@ function CoachContent() {
     window.localStorage.setItem(COACH_ASSIGNMENT_DRAFT_KEY, JSON.stringify(draft))
   }, [
     assignmentDraftHydrated,
+    assignmentRouteRequestKey,
     assignmentDueDate,
     assignmentEditId,
     assignmentFocus,
@@ -880,6 +886,7 @@ function CoachContent() {
       setAssignmentLevelUpCardId('')
       setAssignmentLevelUpPackId('')
       setAssignmentEditId('')
+      setAssignmentRouteRequestKey('')
       setLessonDateTime('')
       setLessonFocus('')
       setLessonLocation('')
@@ -1073,6 +1080,7 @@ function CoachContent() {
       setAssignmentLevelUpCardId('')
       setAssignmentLevelUpPackId('')
       setAssignmentEditId('')
+      setAssignmentRouteRequestKey('')
       return
     }
 
@@ -1085,6 +1093,7 @@ function CoachContent() {
     setAssignmentLevelUpCardId(getCoachAssignmentShortcutCardId(`${template.id} ${template.title} ${template.focus}`))
     setAssignmentLevelUpPackId('')
     setAssignmentEditId('')
+    setAssignmentRouteRequestKey('')
   }
 
   function useSessionPresetForAssignment() {
@@ -1096,6 +1105,7 @@ function CoachContent() {
     setAssignmentLevelUpCardId(getCoachAssignmentShortcutCardId(`${presetAssignment.title} ${presetAssignment.focus} ${presetAssignment.detail}`))
     setAssignmentLevelUpPackId('')
     setAssignmentEditId('')
+    setAssignmentRouteRequestKey('')
     setWorkspaceMessage('Session preset loaded into the assignment form. Choose a student and due date, then create the Level Up follow-through.')
   }
 
@@ -1110,6 +1120,7 @@ function CoachContent() {
     setAssignmentLevelUpCardId(getFirstAssignmentStarterCardId(starter.id))
     setAssignmentLevelUpPackId('')
     setAssignmentEditId('')
+    if (firstAssignmentRequestKey) setAssignmentRouteRequestKey(firstAssignmentRequestKey)
     setWorkspaceMessage(`${starter.title} loaded. Expected evidence: ${starter.evidence}`)
   }
 
@@ -1132,6 +1143,7 @@ function CoachContent() {
     setAssignmentLevelUpCardId(nextCardId)
     setAssignmentLevelUpPackId('')
     setAssignmentEditId('')
+    setAssignmentRouteRequestKey('')
     setWorkspaceMessage(`Next assignment loaded from ${session.drillTitle}: ${proofMove.nextMove.label}. Create it when it fits the player.`)
 
     if (!nextCard) {
@@ -1409,6 +1421,7 @@ function CoachContent() {
 
   useEffect(() => {
     if (!firstAssignmentRequestKey || coachRouteHandoffHandled === firstAssignmentRequestKey) return
+    if (!assignmentDraftHydrated) return
     if (!savedStudents.length) return
 
     const requestedStudent = savedStudents.find((student) => student.id === requestedStudentLinkId)
@@ -1416,8 +1429,23 @@ function CoachContent() {
 
     setCoachRouteHandoffHandled(firstAssignmentRequestKey)
     setActiveMobileBenchStudentId(requestedStudent.id)
-    setAssignmentStudentId(requestedStudent.id)
     setContactStudentId(requestedStudent.id)
+    const matchingRestoredDraft = assignmentRouteRequestKey === firstAssignmentRequestKey &&
+      assignmentStudentId === requestedStudent.id &&
+      Boolean(assignmentTitle.trim() || assignmentFocus.trim() || assignmentStarterId)
+
+    if (matchingRestoredDraft) {
+      setWorkspaceMessage(`First assignment request draft restored for ${requestedStudent.playerName}. Review the edits, then create the assignment.`)
+      window.requestAnimationFrame(() => {
+        document.getElementById('coach-lesson-frame')?.scrollIntoView({
+          behavior: isMobile ? 'smooth' : 'auto',
+          block: 'start',
+        })
+      })
+      return
+    }
+
+    setAssignmentStudentId(requestedStudent.id)
     const starter = FIRST_ASSIGNMENT_STARTERS[0]
     if (starter) {
       const template = getCoachAssignmentTemplate(starter.templateId)
@@ -1429,6 +1457,7 @@ function CoachContent() {
       setAssignmentStarterId(starter.id)
       setAssignmentLevelUpCardId(getFirstAssignmentStarterCardId(starter.id))
       setAssignmentLevelUpPackId('')
+      setAssignmentRouteRequestKey(firstAssignmentRequestKey)
     } else {
       setAssignmentTitle('')
       setAssignmentFocus('')
@@ -1437,6 +1466,7 @@ function CoachContent() {
       setAssignmentStarterId('')
       setAssignmentLevelUpPackId('')
       setAssignmentLevelUpCardId('')
+      setAssignmentRouteRequestKey(firstAssignmentRequestKey)
     }
     setAssignmentEditId('')
     setWorkspaceMessage(
@@ -1450,7 +1480,19 @@ function CoachContent() {
         block: 'start',
       })
     })
-  }, [coachRouteHandoffHandled, firstAssignmentRequestKey, isMobile, requestedStudentLinkId, savedStudents])
+  }, [
+    assignmentDraftHydrated,
+    assignmentFocus,
+    assignmentRouteRequestKey,
+    assignmentStarterId,
+    assignmentStudentId,
+    assignmentTitle,
+    coachRouteHandoffHandled,
+    firstAssignmentRequestKey,
+    isMobile,
+    requestedStudentLinkId,
+    savedStudents,
+  ])
 
   useEffect(() => {
     if (!assignmentDraftHydrated || !savedStudents.length || !assignmentStudentId) return
