@@ -5,6 +5,7 @@ Use this checklist before promoting the current redesign and product-architectur
 ## Build
 
 - Run `npm run build`
+- Run `npm run audit:artifacts` after local builds to confirm generated files, logs, zips, screenshots, and nested repo copies are not sitting in the workspace
 - Confirm the homepage, pricing page, explore routes, captain routes, and auth pages load locally
 - Run `npm run qa:prep` for the customer journey prep packet and inventory guard
 - Start journey QA from `docs/customer-journey-qa-index.md`
@@ -125,6 +126,7 @@ If a slot id is not set, the related ad surface safely stays hidden.
 
 - Start with `docs/customer-journey-qa-index.md` and `docs/customer-journey-test-week-quickstart.md` so the QA status, runbooks, ledger, fixtures, daily rhythm, and closeout evidence stay connected
 - `npm run verify:closeout` should pass before deploy
+- `npm run audit:artifacts` should pass before deploy so local generated files stay out of the platform workspace
 - Production closeout with `npm run verify:closeout:live` should pass after deploy
 - `npm run qa:status` should show every journey QA doc and command present
 - Check single dark-shell header/footer branding

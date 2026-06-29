@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "check:extension": "node --check tenaceiq-capture-extension/content_script.js",
+    "audit:artifacts": "node scripts/audit-artifacts.mjs",
     "verify:closeout:inventory": "node scripts/verify-platform-closeout-inventory.mjs",
     "verify:closeout": "node scripts/verify-platform-closeout.mjs",
     "verify:closeout:live": "node scripts/verify-platform-closeout.mjs --live",

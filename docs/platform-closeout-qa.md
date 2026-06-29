@@ -45,6 +45,7 @@ Use this when the platform is ready for a full quality pass by tier, feature, an
 - Every mock/local-only feature should be labeled in this QA doc as `mock`, `local`, `backend-backed`, or `blocked`.
 - The executable feature inventory in `lib/platform-closeout-inventory.ts` should label every closeout surface with capability status, verification kind, and next closeout step.
 - Every workflow should have at least one smoke check or manual checklist item before closeout.
+- Local generated artifacts should be removed after verification; `npm run audit:artifacts` should pass before deploy or closeout handoff.
 
 ## Level Up Closeout Loop
 
@@ -172,6 +173,7 @@ Add or extend scripts after this checklist is accepted:
 - `scripts/verify-coach-player-loop.mjs`: exercise coach assignment payloads, Level Up session payloads, player proof check-ins, and coach review handoff with test fixtures. Created 2026-06-04.
 - `scripts/verify-level-up-content.mjs`: assert Level Up cards/modules stay practical, tennis-specific, scoreable, linked, and identity-recommended as the library expands. Created 2026-06-04.
 - `scripts/portal-overflow-check.mjs`: keep as mobile/desktop layout guard for portal surfaces.
+- `scripts/audit-artifacts.mjs`: flag generated build output, zips, logs, screenshots, nested repo copies, TypeScript build info, and oversized non-asset files before closeout. Created 2026-06-29.
 
 ## Initial Findings
 
@@ -186,4 +188,5 @@ Add or extend scripts after this checklist is accepted:
 5. Run Player, Captain, League, and Admin route passes.
 6. Fix broken links, stale tier copy, confusing upgrade prompts, and mock/local-only surfaces that should be backend-backed.
 7. Run `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, route smoke, Level Up smoke, and overflow checks.
-8. Deploy and verify production.
+8. Run `npm run audit:artifacts` and remove generated local output after verification.
+9. Deploy and verify production.
