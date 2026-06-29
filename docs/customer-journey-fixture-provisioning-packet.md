@@ -1,6 +1,6 @@
 # TenAceIQ Fixture Provisioning Packet
 
-Use this packet to unblock the customer journey ledger after the public and gated-route evidence pass. Keep credentials out of git. Store secrets in `.env.local`, a password manager, or the production QA account system only.
+Use this packet to unblock the customer journey ledger after the public and gated-route evidence pass. Keep credentials out of git. Store secrets in `.env.local`, a password manager, or the production QA account system only. Use `docs/customer-journey-fixture-env-template.md` as the tracked non-secret env template.
 
 Current state on 2026-06-29:
 

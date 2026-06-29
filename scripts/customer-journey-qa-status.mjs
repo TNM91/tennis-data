@@ -14,6 +14,7 @@ const requiredDocs = [
   'docs/qa-evidence/README.md',
   'docs/customer-journey-test-fixtures.md',
   'docs/customer-journey-fixture-provisioning-packet.md',
+  'docs/customer-journey-fixture-env-template.md',
   'docs/customer-journey-test-scripts.md',
   'docs/customer-journey-process-map.md',
   'docs/level-up-sync-audit.md',

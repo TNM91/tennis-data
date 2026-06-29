@@ -152,6 +152,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `docs/qa-evidence/README.md` | Evidence folder pattern, capture standard, and ledger proof rules. |
 | `docs/customer-journey-test-fixtures.md` | Account and data fixture checklist. |
 | `docs/customer-journey-fixture-provisioning-packet.md` | Short fixture handoff packet for account/data provisioning and rerun order. |
+| `docs/customer-journey-fixture-env-template.md` | Tracked non-secret `.env.local` template for QA fixture credentials. |
 | `docs/customer-journey-test-scripts.md` | Manual journey steps by tier. |
 | `docs/customer-journey-process-map.md` | Tier-by-feature flow map and pain points. |
 | `docs/level-up-sync-audit.md` | Level Up local, Player+, coach-invited, and sync behavior. |

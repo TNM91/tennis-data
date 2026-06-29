@@ -13,6 +13,7 @@ const requiredDocs = [
   'docs/customer-journey-test-results.md',
   'docs/customer-journey-test-fixtures.md',
   'docs/customer-journey-fixture-provisioning-packet.md',
+  'docs/customer-journey-fixture-env-template.md',
   'docs/customer-journey-process-map.md',
   'docs/level-up-sync-audit.md',
   'docs/platform-closeout-qa.md',
