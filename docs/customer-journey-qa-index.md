@@ -36,8 +36,8 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:fixtures` | Print account, data fixture, and setup-order expectations. |
 | `npm run qa:fixture-gate -- <journey \| fixture \| route \| search>` | Print the executable fixture gate for a blocked journey, including ready signals and pass command. |
 | `npm run qa:fixture-auth-smoke -- --env` | Print the local auth env contract without requiring or printing credential values. |
-| `npm run qa:fixture-auth-smoke` | Sign in with the local Day 1 coach/player fixture envs and verify Coach Hub plus My Lab open without printing credentials. |
-| `npm run qa:fixture-auth-smoke -- <fixture \| day3 \| day4 \| day5 \| paid \| all>` | Verify later role fixture credentials and workspace signals without printing secrets. |
+| `npm run qa:fixture-auth-smoke` | Sign in with both local Day 1 coach/player fixture envs and verify Coach Hub plus My Lab open without printing credentials. |
+| `npm run qa:fixture-auth-smoke -- <fixture \| day3 \| day4 \| day5 \| paid \| all>` | Verify one role fixture, later role fixtures, or grouped paid credentials without printing secrets. |
 | `npm run qa:fixture-board -- <group \| fixture \| day1-day5 \| journey \| account \| data>` | Group fixtures by account access, player/coach link, safe data, dependent journeys, and fixture-gap rows. |
 | `npm run qa:fixture-status -- <day1-day5 \| fixture \| journey \| route>` | Print required fixtures, dependent journeys, and fixture-gap blockers for a testing block. |
 | `npm run qa:fixture-review -- <fixture \| tier \| journey \| route>` | Print one fixture's setup needs, dependent journeys, routes, and evidence state. |
@@ -106,8 +106,8 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 28. Run `npm run qa:week-plan -- --date=yyyy-mm-dd --tester=<name>` to map the week into device-specific tester packets.
 29. Run `npm run qa:fixtures` while confirming test accounts and safe data.
 30. Run `npm run qa:fixture-auth-smoke -- --env` if the local auth env contract is unclear.
-31. Run `npm run qa:fixture-auth-smoke` before Day 1 coach retest when `coach_primary` and `player_plus_linked` credentials are available in `.env.local`.
-32. Run `npm run qa:fixture-auth-smoke -- <fixture | day3 | day4 | day5 | paid | all>` when later role credentials are available.
+31. Run `npm run qa:fixture-auth-smoke` before Day 1 coach retest when both `coach_primary` and `player_plus_linked` credentials are available in `.env.local`.
+32. Run `npm run qa:fixture-auth-smoke -- coach_primary`, `npm run qa:fixture-auth-smoke -- player_plus_linked`, or `npm run qa:fixture-auth-smoke -- <fixture | day3 | day4 | day5 | paid | all>` when one fixture needs confirmation.
 33. Run `npm run qa:fixture-board` to confirm account access, linked-player/coach state, safe data, dependent journeys, and fixture-gap rows.
 34. Run `npm run qa:fixture-status -- day1` or the active day before opening the browser.
 35. Run `npm run qa:fixture-review -- coach_primary` or the fixture being used to see dependent journeys and setup needs.

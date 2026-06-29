@@ -30,6 +30,8 @@ TENACEIQ_QA_PLAYER_PASSWORD=
 ```bash
 npm run qa:fixture-auth-smoke -- --env
 npm run qa:fixture-auth-smoke
+npm run qa:fixture-auth-smoke -- coach_primary
+npm run qa:fixture-auth-smoke -- player_plus_linked
 npm run qa:fixture-gate -- coach-player-assigned-challenge
 npm run qa:live-card -- coach-player-assigned-challenge --date=2026-06-29 --tester=<name> --device=phone
 ```
@@ -89,17 +91,22 @@ npm run qa:fixture-auth-smoke -- all
 
 After fixtures exist, rerun in this order:
 
-1. `npm run qa:fixture-auth-smoke`
-2. `npm run qa:live-card -- coach-player-assigned-challenge --date=2026-06-29 --tester=<name> --device=phone`
-3. `npm run qa:live-card -- player-my-lab-return-state --date=2026-06-29 --tester=<name> --device=desktop`
-4. `npm run qa:live-card -- coach-lesson-support --date=2026-06-29 --tester=<name> --device=desktop`
-5. `npm run qa:live-card -- captain-week-flow --date=2026-06-29 --tester=<name> --device=desktop`
-6. `npm run qa:live-card -- league-result-to-public-context --date=2026-06-29 --tester=<name> --device=desktop`
-7. `npm run qa:live-card -- full-court-access-pass --date=2026-06-29 --tester=<name> --device=desktop`
-8. `npm run qa:live-card -- admin-access-and-data-quality --date=2026-06-29 --tester=<name> --device=desktop`
-9. `npm run qa:ledger-check`
-10. `npm run qa:scorecard`
-11. `npm run qa:launch-board`
+1. `npm run qa:fixture-auth-smoke -- coach_primary`
+2. `npm run qa:fixture-auth-smoke -- player_plus_linked`
+3. `npm run qa:live-card -- coach-player-assigned-challenge --date=2026-06-29 --tester=<name> --device=phone`
+4. `npm run qa:live-card -- player-my-lab-return-state --date=2026-06-29 --tester=<name> --device=desktop`
+5. `npm run qa:live-card -- coach-lesson-support --date=2026-06-29 --tester=<name> --device=desktop`
+6. `npm run qa:fixture-auth-smoke -- captain_primary`
+7. `npm run qa:live-card -- captain-week-flow --date=2026-06-29 --tester=<name> --device=desktop`
+8. `npm run qa:fixture-auth-smoke -- league_coordinator`
+9. `npm run qa:live-card -- league-result-to-public-context --date=2026-06-29 --tester=<name> --device=desktop`
+10. `npm run qa:fixture-auth-smoke -- full_court_operator`
+11. `npm run qa:live-card -- full-court-access-pass --date=2026-06-29 --tester=<name> --device=desktop`
+12. `npm run qa:fixture-auth-smoke -- admin_test`
+13. `npm run qa:live-card -- admin-access-and-data-quality --date=2026-06-29 --tester=<name> --device=desktop`
+14. `npm run qa:ledger-check`
+15. `npm run qa:scorecard`
+16. `npm run qa:launch-board`
 
 ## Safety Rules
 
