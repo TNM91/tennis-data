@@ -205,8 +205,8 @@ async function verifyFixture(browser, check) {
     const loginUrl = `${baseUrl}/login?plan=${check.plan}&next=${encodeURIComponent(check.route)}&fixtureauth=${Date.now()}`
     await page.goto(loginUrl, { waitUntil: 'networkidle', timeout: 35_000 })
     await page.getByLabel('Email').fill(credentials[check.credentials[0][0]])
-    await page.getByLabel('Password').fill(credentials[check.credentials[1][0]])
-    await page.getByRole('button', { name: /^Sign in$/i }).click()
+    await page.locator('#password').fill(credentials[check.credentials[1][0]])
+    await page.locator('button[type="submit"]').click()
     await page.waitForLoadState('networkidle', { timeout: 35_000 })
     await page.waitForTimeout(800)
 

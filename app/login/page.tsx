@@ -176,13 +176,7 @@ function LoginContent() {
       router.replace(await getPostLoginRoute(nextRole, nextEntitlements, userId))
     }
 
-    if (!authResolved) {
-      if (userId) {
-        if (switchingAccount) return
-        void redirectAuthenticatedUser(role === 'public' ? 'member' : role, entitlements, userId)
-      }
-      return
-    }
+    if (!authResolved) return
     if (role !== 'public' && !switchingAccount) {
       void redirectAuthenticatedUser(role, entitlements, userId)
       return
