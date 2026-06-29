@@ -59,7 +59,7 @@ export async function getClientAuthState(): Promise<AuthState> {
           .maybeSingle(),
       ),
       AUTH_TIMEOUT_MS,
-      { data: null, error: null, count: null, status: 408, statusText: 'timeout' },
+      { data: null, error: null, count: null, status: 200, statusText: 'timeout', success: true },
     ),
   ])
 
