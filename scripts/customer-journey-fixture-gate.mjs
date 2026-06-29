@@ -11,7 +11,8 @@ const gates = [
     label: 'Day 1 Coach-Player Fixture Gate',
     journeyId: 'coach-player-assigned-challenge',
     route: '/coach',
-    passCommand: 'npm run qa:live-card -- coach-player-assigned-challenge --date=2026-06-07 --tester=Codex --device=phone',
+    authCommands: ['npm run qa:fixture-auth-smoke -- coach_primary', 'npm run qa:fixture-auth-smoke -- player_plus_linked'],
+    passCommand: 'npm run qa:live-card -- coach-player-assigned-challenge --date=2026-06-29 --tester=<name> --device=phone',
     rows: [
       {
         fixture: 'coach_primary',
@@ -117,7 +118,7 @@ for (const gate of matchingGates) {
   console.log('')
   console.log('Pass command:')
   console.log('- npm run qa:fixture-auth-smoke -- --env')
-  console.log('- npm run qa:fixture-auth-smoke')
+  for (const command of gate.authCommands) console.log(`- ${command}`)
   console.log(`- ${gate.passCommand}`)
   console.log('')
 }
