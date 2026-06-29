@@ -239,6 +239,7 @@ describe('customer journey test results', () => {
     expect(proofGapScriptSource).toContain('Fixture gate: npm run qa:fixture-gate --')
     expect(proofGapScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
     expect(proofGapScriptSource).toContain('getFixtureAuthSmokeCommand')
+    expect(proofGapScriptSource).toContain('[...rows].reverse().find')
     expect(proofGapScriptSource).toContain('Auth smoke: ${authSmokeCommand')
     expect(proofGapScriptSource).toContain('qa:kickoff')
     expect(proofGapScriptSource).toContain('qa:evidence-pack')
@@ -582,6 +583,7 @@ describe('customer journey test results', () => {
     expect(resultsSummaryScriptSource).toContain('Open fixture-gap rows')
     expect(resultsSummaryScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
     expect(resultsSummaryScriptSource).toContain('getFixtureAuthSmokeCommand')
+    expect(resultsSummaryScriptSource).toContain('[...rows].reverse().find')
     expect(resultsSummaryScriptSource).toContain('Auth smoke: ${command}')
 
     for (const plan of CUSTOMER_JOURNEY_TEST_PLANS) {

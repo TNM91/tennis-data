@@ -119,7 +119,7 @@ function parseMarkdownRow(line) {
 }
 
 function printFixtureAuthCommands(journeyId, indent) {
-  const row = rows.find((item) => item.journeyId === journeyId && item.category === 'fixture-gap' && item.result !== 'pass')
+  const row = [...rows].reverse().find((item) => item.journeyId === journeyId && item.category === 'fixture-gap' && item.result !== 'pass')
   const authSmokeCommand = getFixtureAuthSmokeCommand(row?.accountFixture || journeyById.get(journeyId)?.accountFixture || '')
   if (!fixtureGateJourneyIds.has(journeyId) && !authSmokeCommand) return
   console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)

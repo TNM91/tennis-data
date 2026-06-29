@@ -220,7 +220,7 @@ function normalize(value) {
 }
 
 function printFixtureAuthCommands(journeyId, indent) {
-  const row = rows.find((item) => item.journeyId === journeyId && item.category === 'fixture-gap' && item.result !== 'pass')
+  const row = [...rows].reverse().find((item) => item.journeyId === journeyId && item.category === 'fixture-gap' && item.result !== 'pass')
   const journey = journeys.find((item) => item.id === journeyId)
   const authSmokeCommand = getFixtureAuthSmokeCommand(row?.accountFixture || journey?.fixture || '')
   if (!fixtureGateJourneyIds.has(journeyId) && !authSmokeCommand) return
