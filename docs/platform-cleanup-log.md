@@ -66,6 +66,8 @@ Production verification:
 - Production route smoke returned `200` for `/`, `/explore`, `/pricing`, `/mylab`, `/tactics`, and `/data-assist`.
 - Vercel production logs showed no recent runtime logs after deployment.
 - Deployed the final cleanup sync from commit `edae2d4d` to `tennis-data-e7q4iqr3v-tennis-data.vercel.app` (`dpl_G394YELu3QaUNFFYiK27PvgzsfAx`) and confirmed `www.tenaceiq.com` returned `200` for `/`, `/explore`, `/pricing`, `/mylab`, `/tactics`, `/data-assist`, and `/favicon.ico`.
+- Pruned 35 unaliased Vercel Preview deployments with `vercel remove --safe --yes`; production rollback deployments and actively aliased previews were left intact.
+- Confirmed production still returned `200` for `/`, `/explore`, `/pricing`, and `/favicon.ico` after the preview deployment prune.
 
 Remaining launch blocker:
 
