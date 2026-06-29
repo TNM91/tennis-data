@@ -95,7 +95,7 @@ for (const gate of matchingGates) {
   const rowsForJourney = ledgerRows.filter((row) => row.journeyId === gate.journeyId)
   const latestRow = rowsForJourney.at(-1)
   const hasPass = rowsForJourney.some((row) => row.result === 'pass' && row.screenshotOrVideo)
-  const openFixtureGap = rowsForJourney.find((row) => row.result !== 'pass' && row.category === 'fixture-gap')
+  const openFixtureGap = [...rowsForJourney].reverse().find((row) => row.result !== 'pass' && row.category === 'fixture-gap')
 
   console.log(`${gate.label} (${gate.journeyId})`)
   console.log(`Route: ${gate.route}`)

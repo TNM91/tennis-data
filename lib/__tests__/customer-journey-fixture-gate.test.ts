@@ -46,6 +46,7 @@ describe('customer journey fixture gate', () => {
     expect(gateScriptSource).toContain('level-up-completion')
     expect(gateScriptSource).toContain('Coach review queue shows the same proof signal')
     expect(gateScriptSource).toContain('If a ready signal is missing:')
+    expect(gateScriptSource).toContain('[...rowsForJourney].reverse().find')
     expect(gateScriptSource).toContain('/login?next=/coach')
     expect(gateScriptSource).toContain('Repair coach authentication, access, or Coach Hub entitlement')
     expect(gateScriptSource).toContain('Repair Player access or linked-player profile')
