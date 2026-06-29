@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 const files = {
   productStory: 'lib/product-story.ts',
   pricingPlans: 'lib/pricing-plans.ts',
-  accessModel: 'lib/access-model.ts',
+  accessModelCore: 'lib/access-model-core.ts',
   primaryNavAccess: 'lib/primary-nav-access.ts',
   tierInventory: 'docs/tier-inventory.md',
   platformQa: 'docs/platform-closeout-qa.md',
@@ -41,14 +41,14 @@ for (const tier of expectedTiers.filter((tier) => tier.id !== 'full_court')) {
 
 for (const planId of ['player_plus', 'coach', 'captain', 'league']) {
   expectContains(sources.primaryNavAccess, `return '${planId}'`, files.primaryNavAccess, `${planId} primary nav lock`)
-  expectContains(sources.accessModel, `hasPlanAccess(activePlanIds, '${planId}')`, files.accessModel, `${planId} access capability`)
+  expectContains(sources.accessModelCore, `hasPlanAccess(activePlanIds, '${planId}')`, files.accessModelCore, `${planId} access capability`)
 }
 
-expectContains(sources.accessModel, "activePlanIds.includes('full_court')", files.accessModel, 'full_court access override')
-expectContains(sources.accessModel, 'FULL_COURT_PRICE_LABEL', files.accessModel, 'full court price label')
-expectContains(sources.pricingPlans, "badge: 'Full Suite'", files.pricingPlans, 'full court pricing badge')
+expectContains(sources.accessModelCore, "activePlanIds.includes('full_court')", files.accessModelCore, 'full_court access override')
+expectContains(sources.accessModelCore, 'FULL_COURT_PRICE_LABEL', files.accessModelCore, 'full court price label')
+expectContains(sources.pricingPlans, "badge: 'Complete Toolkit'", files.pricingPlans, 'full court pricing badge')
 expectContains(sources.productStory, 'Connected development workflows for coaches', files.productStory, 'coach principle')
-expectContains(sources.productStory, 'League operations for coordinators and admins', files.productStory, 'league principle')
+expectContains(sources.productStory, 'Competition tools for league and tournament organizers', files.productStory, 'league principle')
 
 const pricingPlanIds = collectRegexMatches(sources.pricingPlans, /id: '([^']+)'/g)
 const missingPricingPlans = expectedTiers.map((tier) => tier.id).filter((id) => !pricingPlanIds.includes(id))

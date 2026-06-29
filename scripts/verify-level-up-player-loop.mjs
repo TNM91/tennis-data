@@ -3,6 +3,7 @@ import { chromium } from 'playwright'
 const baseUrl = process.env.LEVEL_UP_BASE_URL ?? 'http://localhost:3074'
 const identity = process.env.LEVEL_UP_IDENTITY ?? 'relentless-competitor-4-0'
 const cardId = process.env.LEVEL_UP_CARD_ID ?? 'serve-target-call'
+const cardTitle = 'Serve Target Call'
 const url = `${baseUrl}/player-development/${identity}/level-up?card=${cardId}&playerloop=${Date.now()}`
 
 const expectedBeforeStart = [
@@ -61,10 +62,9 @@ try {
   await page.getByRole('button', { name: /Score now/i }).first().click()
   const scoringText = await normalizedBodyText(page)
   assertIncludes(scoringText, ['Pick the number that matches the habit.', '0-1: not yet', '2-3: showing up', '4-5: repeatable'], 'scoring panel')
-  await page.getByRole('button', { name: /^4$/ }).first().click()
-  await activeRegion.getByText('Add tiny note').click()
-  await activeRegion.getByLabel('Note for Serve Target Call').fill('Target call stayed clear.')
-  await page.getByRole('button', { name: /Save 4\/5 proof/i }).first().click()
+  await chooseRatingFour(page, activeRegion)
+  await fillTinyNote(page, activeRegion, 'Target call stayed clear.')
+  await page.getByRole('button', { name: /Save 4\/5(?: proof)?/i }).first().click()
   await page.getByText('Review proof details').first().click()
 
   const savedText = await normalizedBodyText(page)
@@ -106,4 +106,35 @@ function assertIncludes(text, needles, label) {
   if (!missing.length) return
 
   throw new Error(`Missing ${label} copy: ${missing.join(', ')}\nSaw:\n${text}`)
+}
+
+async function chooseRatingFour(page, activeRegion) {
+  const portalRating = activeRegion
+    .getByLabel(`Proof rating buttons for ${cardTitle}`)
+    .getByRole('button', { name: /^4\b/ })
+
+  if (await portalRating.count()) {
+    await portalRating.first().click()
+    return
+  }
+
+  await page
+    .getByLabel('Rate this work from 0 to 5')
+    .getByRole('button', { name: /^4$/ })
+    .click()
+}
+
+async function fillTinyNote(page, activeRegion, note) {
+  const portalNote = activeRegion.getByLabel(`Note for ${cardTitle}`)
+  if (await portalNote.count()) {
+    const noteDrawer = activeRegion.getByText('Add tiny note')
+    if (await noteDrawer.count()) {
+      await noteDrawer.first().click()
+    }
+
+    await portalNote.first().fill(note)
+    return
+  }
+
+  await page.getByLabel('Tiny tracking note').fill(note)
 }
