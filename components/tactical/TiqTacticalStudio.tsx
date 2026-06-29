@@ -19,6 +19,9 @@ import { clampPercent, countScenarioObjects, defaultPathLabel, defaultTokenLabel
 const LOCAL_LIBRARY_KEY = 'tiq-tactical-studio-library-v1'
 const LOCAL_DRAFT_KEY = 'tiq-tactical-studio-draft-v1'
 const MAX_UNDO_STEPS = 24
+const BOARD_EXPORT_WIDTH = 1448
+const BOARD_EXPORT_HEIGHT = 1600
+const COURT_ASSET_HEIGHT = 1086
 const INLINE_TOKEN_TOOLS: TacticalTokenType[] = ['player', 'ball', 'cone', 'x', 'o']
 const INLINE_PATH_TOOLS: TacticalPathKind[] = ['ball', 'move', 'recover']
 const BOARD_TOOL_MODES = ['add', 'lines', 'snap', 'edit'] as const
@@ -559,8 +562,8 @@ export default function TiqTacticalStudio() {
           id: makeTacticalId('path'),
           kind,
           label: defaultPathLabel(kind),
-          from: { x: 45, y: 70 },
-          to: { x: 60, y: 42 },
+          from: { x: 45, y: 72 },
+          to: { x: 60, y: 45 },
         },
       ],
     }))
@@ -1142,9 +1145,9 @@ function slugify(value: string) {
 }
 
 function getDefaultTokenPosition(type: TacticalTokenType) {
-  if (type === 'player') return { x: 50, y: 75 }
-  if (type === 'ball') return { x: 55, y: 68 }
-  if (type === 'cone') return { x: 82, y: 52 }
+  if (type === 'player') return { x: 50, y: 86 }
+  if (type === 'ball') return { x: 55, y: 72 }
+  if (type === 'cone') return { x: 82, y: 54 }
   if (type === 'x') return { x: 88, y: 46 }
   return { x: 88, y: 58 }
 }
@@ -1249,8 +1252,8 @@ async function exportScenarioPng(
   showZones: boolean,
 ) {
   const canvas = document.createElement('canvas')
-  canvas.width = 1448
-  canvas.height = 1086
+  canvas.width = BOARD_EXPORT_WIDTH
+  canvas.height = BOARD_EXPORT_HEIGHT
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Canvas unavailable')
 
@@ -1260,7 +1263,9 @@ async function exportScenarioPng(
     loadCanvasImage('/tiq/tokens/tennis-ball-reference.png'),
   ])
 
-  context.drawImage(court, 0, 0, canvas.width, canvas.height)
+  context.fillStyle = '#020814'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.drawImage(court, 0, (canvas.height - COURT_ASSET_HEIGHT) / 2, canvas.width, COURT_ASSET_HEIGHT)
 
   if (showZones) {
     scenario.zones.forEach((zone) => {
@@ -1286,7 +1291,7 @@ async function exportScenarioPng(
   scenario.tokens.forEach((token) => {
     const x = (token.x / 100) * canvas.width
     const y = (token.y / 100) * canvas.height
-    const size = token.type === 'ball' ? tokenSize * 1.08 : tokenSize
+    const size = token.type === 'ball' ? tokenSize * 0.62 : tokenSize
     if (token.type === 'ball') {
       context.drawImage(ballIcon, x - size / 2, y - size / 2, size, size)
     } else if (token.type === 'player') {

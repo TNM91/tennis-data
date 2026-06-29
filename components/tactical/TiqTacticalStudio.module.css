@@ -672,12 +672,12 @@
 }
 
 .board {
-  --ball-token-size: 36px;
+  --ball-token-size: 28px;
   --player-head-size: 38px;
   --token-icon-size: 38px;
   --token-label-size: 0.7rem;
   --token-size: 42px;
-  aspect-ratio: 1448 / 1228;
+  aspect-ratio: 1448 / 1600;
   background: #020814;
   border-radius: 18px;
   box-shadow: 0 0 42px rgba(155, 225, 29, 0.11);
@@ -691,12 +691,9 @@
 }
 
 .courtSurface {
-  aspect-ratio: 1448 / 1086;
-  inset-inline: 0;
+  inset: 0;
   overflow: visible;
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
   width: 100%;
 }
 
@@ -1038,7 +1035,7 @@
 }
 
 .scenarioThumbnail {
-  aspect-ratio: 1448 / 1086;
+  aspect-ratio: 1448 / 1600;
   background: #020814;
   border: 1px solid rgba(155, 225, 29, 0.2);
   border-radius: 9px;
@@ -1050,7 +1047,7 @@
 }
 
 .scenarioThumbnail img {
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .thumbnailZone,
@@ -1276,7 +1273,7 @@
 }
 
 .tokenScaleSmall {
-  --ball-token-size: 30px;
+  --ball-token-size: 22px;
   --player-head-size: 31px;
   --token-icon-size: 31px;
   --token-label-size: 0.62rem;
@@ -1284,7 +1281,7 @@
 }
 
 .tokenScaleMedium {
-  --ball-token-size: 36px;
+  --ball-token-size: 28px;
   --player-head-size: 38px;
   --token-icon-size: 38px;
   --token-label-size: 0.7rem;
@@ -1292,7 +1289,7 @@
 }
 
 .tokenScaleLarge {
-  --ball-token-size: 46px;
+  --ball-token-size: 36px;
   --player-head-size: 48px;
   --token-icon-size: 48px;
   --token-label-size: 0.78rem;
@@ -1600,7 +1597,7 @@
   }
 
   .tokenScaleSmall {
-    --ball-token-size: 24px;
+    --ball-token-size: 18px;
     --player-head-size: 27px;
     --token-icon-size: 27px;
     --token-label-size: 0.56rem;
@@ -1608,7 +1605,7 @@
   }
 
   .tokenScaleMedium {
-    --ball-token-size: 28px;
+    --ball-token-size: 20px;
     --player-head-size: 30px;
     --token-icon-size: 30px;
     --token-label-size: 0.6rem;
@@ -1616,7 +1613,7 @@
   }
 
   .tokenScaleLarge {
-    --ball-token-size: 36px;
+    --ball-token-size: 28px;
     --player-head-size: 39px;
     --token-icon-size: 39px;
     --token-label-size: 0.7rem;
