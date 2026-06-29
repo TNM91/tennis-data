@@ -2,6 +2,26 @@
 
 Use this as the running evidence log for platform closeout. Keep detailed bugs in issue tracking or daily notes; this file records the high-level verification passes that matter for release confidence.
 
+## 2026-06-29 Cleanup Sync Production Deployment
+
+Command: `vercel deploy --prod --yes --scope tennis-data`
+
+Base URL: `https://www.tenaceiq.com`
+
+Result: pass
+
+Deployment:
+
+- Production deployment: `tennis-data-e7q4iqr3v-tennis-data.vercel.app`
+- Vercel deployment id: `dpl_G394YELu3QaUNFFYiK27PvgzsfAx`
+- Commit: `edae2d4d`
+
+Checks passed:
+
+- Vercel production build completed successfully in about 3 minutes.
+- Production alias `www.tenaceiq.com` points to `dpl_G394YELu3QaUNFFYiK27PvgzsfAx`.
+- Production route smoke returned `200` for `/`, `/explore`, `/pricing`, `/mylab`, `/tactics`, `/data-assist`, and `/favicon.ico`.
+
 ## 2026-06-29 Cleanup Production Promotion
 
 Command: `vercel promote https://tennis-data-1l7xhv3gi-tennis-data.vercel.app --yes`

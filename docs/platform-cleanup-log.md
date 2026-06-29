@@ -65,6 +65,7 @@ Production verification:
 - Promoted deployment `tennis-data-g6g2yhnpl-tennis-data.vercel.app` (`dpl_4wKr3kNEL6LTUv8NL2egbvvfJnqd`) to production.
 - Production route smoke returned `200` for `/`, `/explore`, `/pricing`, `/mylab`, `/tactics`, and `/data-assist`.
 - Vercel production logs showed no recent runtime logs after deployment.
+- Deployed the final cleanup sync from commit `edae2d4d` to `tennis-data-e7q4iqr3v-tennis-data.vercel.app` (`dpl_G394YELu3QaUNFFYiK27PvgzsfAx`) and confirmed `www.tenaceiq.com` returned `200` for `/`, `/explore`, `/pricing`, `/mylab`, `/tactics`, `/data-assist`, and `/favicon.ico`.
 
 Remaining launch blocker:
 
