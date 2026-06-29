@@ -672,12 +672,12 @@
 }
 
 .board {
-  --ball-token-size: 46px;
+  --ball-token-size: 36px;
   --player-head-size: 38px;
   --token-icon-size: 38px;
   --token-label-size: 0.7rem;
   --token-size: 42px;
-  aspect-ratio: 1448 / 1086;
+  aspect-ratio: 1448 / 1228;
   background: #020814;
   border-radius: 18px;
   box-shadow: 0 0 42px rgba(155, 225, 29, 0.11);
@@ -687,6 +687,16 @@
   overflow: hidden;
   position: relative;
   touch-action: none;
+  width: 100%;
+}
+
+.courtSurface {
+  aspect-ratio: 1448 / 1086;
+  inset-inline: 0;
+  overflow: visible;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   width: 100%;
 }
 
@@ -1266,7 +1276,7 @@
 }
 
 .tokenScaleSmall {
-  --ball-token-size: 38px;
+  --ball-token-size: 30px;
   --player-head-size: 31px;
   --token-icon-size: 31px;
   --token-label-size: 0.62rem;
@@ -1274,7 +1284,7 @@
 }
 
 .tokenScaleMedium {
-  --ball-token-size: 46px;
+  --ball-token-size: 36px;
   --player-head-size: 38px;
   --token-icon-size: 38px;
   --token-label-size: 0.7rem;
@@ -1282,7 +1292,7 @@
 }
 
 .tokenScaleLarge {
-  --ball-token-size: 58px;
+  --ball-token-size: 46px;
   --player-head-size: 48px;
   --token-icon-size: 48px;
   --token-label-size: 0.78rem;
@@ -1590,7 +1600,7 @@
   }
 
   .tokenScaleSmall {
-    --ball-token-size: 34px;
+    --ball-token-size: 24px;
     --player-head-size: 27px;
     --token-icon-size: 27px;
     --token-label-size: 0.56rem;
@@ -1598,7 +1608,7 @@
   }
 
   .tokenScaleMedium {
-    --ball-token-size: 38px;
+    --ball-token-size: 28px;
     --player-head-size: 30px;
     --token-icon-size: 30px;
     --token-label-size: 0.6rem;
@@ -1606,7 +1616,7 @@
   }
 
   .tokenScaleLarge {
-    --ball-token-size: 48px;
+    --ball-token-size: 36px;
     --player-head-size: 39px;
     --token-icon-size: 39px;
     --token-label-size: 0.7rem;
@@ -1647,6 +1657,12 @@
     height: var(--token-size);
     margin: calc(var(--token-size) / -2) 0 0 calc(var(--token-size) / -2);
     width: var(--token-size);
+  }
+
+  .ballToken {
+    height: var(--ball-token-size);
+    margin: calc(var(--ball-token-size) / -2) 0 0 calc(var(--ball-token-size) / -2);
+    width: var(--ball-token-size);
   }
 
   .token svg,

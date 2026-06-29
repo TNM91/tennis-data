@@ -75,6 +75,7 @@ export default function TiqCourtBoard({
   onDuplicateSelected,
 }: TiqCourtBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null)
+  const surfaceRef = useRef<HTMLDivElement>(null)
   const tokenDragRef = useRef<{ id: string; moved: boolean } | null>(null)
   const [draftStart, setDraftStart] = useState<TacticalPoint | null>(null)
   const modeHint = getModeHint(placementTokenType, drawingKind, draftStart)
@@ -91,9 +92,9 @@ export default function TiqCourtBoard({
 
   function moveToken(token: TacticalToken, event: React.PointerEvent<HTMLButtonElement>) {
     if (readOnly) return
-    if (!event.currentTarget.hasPointerCapture(event.pointerId) || !boardRef.current) return
+    if (!event.currentTarget.hasPointerCapture(event.pointerId) || !surfaceRef.current) return
     if (tokenDragRef.current?.id === token.id) tokenDragRef.current.moved = true
-    const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
+    const point = pointFromPointer(event.clientX, event.clientY, surfaceRef.current, snapToGrid)
     onMoveToken(token.id, point.x, point.y)
   }
 
@@ -118,8 +119,8 @@ export default function TiqCourtBoard({
 
   function moveZone(zone: TacticalZone, event: React.PointerEvent<HTMLButtonElement>) {
     if (readOnly) return
-    if (!event.currentTarget.hasPointerCapture(event.pointerId) || !boardRef.current) return
-    const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
+    if (!event.currentTarget.hasPointerCapture(event.pointerId) || !surfaceRef.current) return
+    const point = pointFromPointer(event.clientX, event.clientY, surfaceRef.current, snapToGrid)
     onMoveZone(zone.id, point.x, point.y)
   }
 
@@ -132,17 +133,17 @@ export default function TiqCourtBoard({
 
   function movePathPoint(path: TacticalPath, endpoint: 'from' | 'to', event: React.PointerEvent<SVGCircleElement>) {
     if (readOnly) return
-    if (!event.currentTarget.hasPointerCapture(event.pointerId) || !boardRef.current) return
-    const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
+    if (!event.currentTarget.hasPointerCapture(event.pointerId) || !surfaceRef.current) return
+    const point = pointFromPointer(event.clientX, event.clientY, surfaceRef.current, snapToGrid)
     onMovePathPoint(path.id, endpoint, point.x, point.y)
   }
 
   function handleBoardPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (readOnly) return
-    if (!boardRef.current) return
+    if (!surfaceRef.current) return
     if ((event.target as HTMLElement).closest('button')) return
     if (placementTokenType) {
-      const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
+      const point = pointFromPointer(event.clientX, event.clientY, surfaceRef.current, snapToGrid)
       onPlaceToken(placementTokenType, point)
       setDraftStart(null)
       return
@@ -153,7 +154,7 @@ export default function TiqCourtBoard({
       return
     }
 
-    const point = pointFromPointer(event.clientX, event.clientY, boardRef.current, snapToGrid)
+    const point = pointFromPointer(event.clientX, event.clientY, surfaceRef.current, snapToGrid)
     if (!draftStart) {
       setDraftStart(point)
       return
@@ -171,105 +172,107 @@ export default function TiqCourtBoard({
         ref={boardRef}
         onPointerDown={handleBoardPointerDown}
       >
-        <Image alt="TenAceIQ master tactical court" className={styles.courtImage} draggable={false} fill priority sizes="(max-width: 900px) 100vw, 1080px" src="/tiq/courts/tiq-court-master-v2.png" />
-        <svg aria-hidden="true" className={styles.overlay} preserveAspectRatio="none" viewBox="0 0 100 100">
-          <defs>
-            <filter id="tiq-studio-glow" x="-30%" y="-30%" width="160%" height="160%">
-              <feDropShadow dx="0" dy="0" floodColor="#9be11d" floodOpacity="0.58" stdDeviation="1.2" />
-            </filter>
-            {Object.entries(pathColor).map(([kind, color]) => (
-              <marker id={`studio-arrow-${kind}`} key={kind} markerHeight="5" markerWidth="5" orient="auto" refX="4" refY="2.5" viewBox="0 0 5 5">
-                <path d="M0 0 5 2.5 0 5Z" fill={color} />
-              </marker>
+        <div className={styles.courtSurface} data-testid="tiq-court-surface" ref={surfaceRef}>
+          <Image alt="TenAceIQ master tactical court" className={styles.courtImage} draggable={false} fill priority sizes="(max-width: 900px) 100vw, 1080px" src="/tiq/courts/tiq-court-master-v2.png" />
+          <svg aria-hidden="true" className={styles.overlay} preserveAspectRatio="none" viewBox="0 0 100 100">
+            <defs>
+              <filter id="tiq-studio-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="0" floodColor="#9be11d" floodOpacity="0.58" stdDeviation="1.2" />
+              </filter>
+              {Object.entries(pathColor).map(([kind, color]) => (
+                <marker id={`studio-arrow-${kind}`} key={kind} markerHeight="5" markerWidth="5" orient="auto" refX="4" refY="2.5" viewBox="0 0 5 5">
+                  <path d="M0 0 5 2.5 0 5Z" fill={color} />
+                </marker>
+              ))}
+            </defs>
+            {showPaths && scenario.paths.map((path) => (
+              <BoardPath
+                key={path.id}
+                path={path}
+                selected={selected.type === 'path' && selected.id === path.id}
+                showLabel={showLabels}
+                onMovePoint={movePathPoint}
+                onSelect={onSelect}
+                onStartPointDrag={startPathPointDrag}
+              />
             ))}
-          </defs>
-          {showPaths && scenario.paths.map((path) => (
-            <BoardPath
-              key={path.id}
-              path={path}
-              selected={selected.type === 'path' && selected.id === path.id}
-              showLabel={showLabels}
-              onMovePoint={movePathPoint}
-              onSelect={onSelect}
-              onStartPointDrag={startPathPointDrag}
-            />
-          ))}
-          {drawingKind && draftStart ? (
-            <circle cx={draftStart.x} cy={draftStart.y} fill="#020814" r="2.25" stroke={pathColor[drawingKind]} strokeWidth="0.75" />
+            {drawingKind && draftStart ? (
+              <circle cx={draftStart.x} cy={draftStart.y} fill="#020814" r="2.25" stroke={pathColor[drawingKind]} strokeWidth="0.75" />
+            ) : null}
+          </svg>
+          {modeHint ? (
+            <div className={styles.drawHint}>
+              <span>{modeHint}</span>
+              <button
+                className={styles.drawHintCancel}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setDraftStart(null)
+                  onCancelTool()
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
           ) : null}
-        </svg>
-        {modeHint ? (
-          <div className={styles.drawHint}>
-            <span>{modeHint}</span>
+          {showZones && scenario.zones.map((zone) => (
             <button
-              className={styles.drawHintCancel}
+              className={`${styles.zoneHandle} ${selected.type === 'zone' && selected.id === zone.id ? styles.selected : ''}`}
+              key={zone.id}
               onClick={(event) => {
                 event.stopPropagation()
-                setDraftStart(null)
-                onCancelTool()
+                onSelect({ type: 'zone', id: zone.id })
               }}
+              onPointerDown={(event) => startZoneDrag(zone, event)}
+              onPointerMove={(event) => moveZone(zone, event)}
+              style={{ height: `${zone.height}%`, left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%` }}
               type="button"
             >
-              Cancel
+              {showLabels ? zone.label : ''}
             </button>
-          </div>
-        ) : null}
-        {showZones && scenario.zones.map((zone) => (
-          <button
-            className={`${styles.zoneHandle} ${selected.type === 'zone' && selected.id === zone.id ? styles.selected : ''}`}
-            key={zone.id}
-            onClick={(event) => {
-              event.stopPropagation()
-              onSelect({ type: 'zone', id: zone.id })
-            }}
-            onPointerDown={(event) => startZoneDrag(zone, event)}
-            onPointerMove={(event) => moveZone(zone, event)}
-            style={{ height: `${zone.height}%`, left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%` }}
-            type="button"
-          >
-            {showLabels ? zone.label : ''}
-          </button>
-        ))}
-        {scenario.tokens.map((token) => (
-          <button
-            className={`${styles.token} ${token.type === 'ball' ? styles.ballToken : ''} ${selected.type === 'token' && selected.id === token.id ? styles.selected : ''}`}
-            data-token-role={token.role ?? token.type}
-            data-testid={`tiq-token-${token.role?.toLowerCase() ?? token.type}`}
-            disabled={readOnly}
-            key={token.id}
-            onClick={(event) => {
-              event.stopPropagation()
-              onSelect({ type: 'token', id: token.id })
-            }}
-            onPointerDown={(event) => startTokenDrag(token, event)}
-            onPointerMove={(event) => moveToken(token, event)}
-            onPointerUp={(event) => finishTokenDrag(token, event)}
-            onPointerCancel={() => {
-              tokenDragRef.current = null
-            }}
-            style={{ left: `${token.x}%`, top: `${token.y}%` }}
-            title={token.role || token.label || token.type}
-            type="button"
-          >
-            <TiqTokenIcon token={token} />
-            {showLabels ? <TokenLabel token={token} roleView={roleView} /> : null}
-          </button>
-        ))}
-        {selectedAnchor ? (
-          <div
-            className={`${styles.selectedQuickMenu} ${quickMenuBelow ? styles.selectedQuickMenuBelow : ''}`}
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-            style={{
-              left: `${Math.min(Math.max(selectedAnchor.x, 18), 82)}%`,
-              top: quickMenuBelow ? `${Math.min(selectedAnchor.y + 8, 86)}%` : `${Math.max(selectedAnchor.y - 6, 14)}%`,
-            }}
-          >
-            <button onClick={onDuplicateSelected} type="button">Duplicate</button>
-            <button onClick={onDeleteSelected} type="button">Delete</button>
-            <button onClick={onClearSelection} type="button">Done</button>
-          </div>
-        ) : null}
+          ))}
+          {scenario.tokens.map((token) => (
+            <button
+              className={`${styles.token} ${token.type === 'ball' ? styles.ballToken : ''} ${selected.type === 'token' && selected.id === token.id ? styles.selected : ''}`}
+              data-token-role={token.role ?? token.type}
+              data-testid={`tiq-token-${token.role?.toLowerCase() ?? token.type}`}
+              disabled={readOnly}
+              key={token.id}
+              onClick={(event) => {
+                event.stopPropagation()
+                onSelect({ type: 'token', id: token.id })
+              }}
+              onPointerDown={(event) => startTokenDrag(token, event)}
+              onPointerMove={(event) => moveToken(token, event)}
+              onPointerUp={(event) => finishTokenDrag(token, event)}
+              onPointerCancel={() => {
+                tokenDragRef.current = null
+              }}
+              style={{ left: `${token.x}%`, top: `${token.y}%` }}
+              title={token.role || token.label || token.type}
+              type="button"
+            >
+              <TiqTokenIcon token={token} />
+              {showLabels ? <TokenLabel token={token} roleView={roleView} /> : null}
+            </button>
+          ))}
+          {selectedAnchor ? (
+            <div
+              className={`${styles.selectedQuickMenu} ${quickMenuBelow ? styles.selectedQuickMenuBelow : ''}`}
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+              style={{
+                left: `${Math.min(Math.max(selectedAnchor.x, 18), 82)}%`,
+                top: quickMenuBelow ? `${Math.min(selectedAnchor.y + 8, 86)}%` : `${Math.max(selectedAnchor.y - 6, 14)}%`,
+              }}
+            >
+              <button onClick={onDuplicateSelected} type="button">Duplicate</button>
+              <button onClick={onDeleteSelected} type="button">Delete</button>
+              <button onClick={onClearSelection} type="button">Done</button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   )
