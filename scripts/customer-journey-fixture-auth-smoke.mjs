@@ -34,10 +34,71 @@ const fixtureChecks = {
     missingSignalReason: 'missing-my-lab-signal',
     verifiedSignal: 'My Lab linked-player signal visible',
   },
+  captain_primary: {
+    fixture: 'captain_primary',
+    plan: 'captain',
+    route: '/captain',
+    credentials: [
+      ['TENACEIQ_QA_CAPTAIN_EMAIL', getEnv('TENACEIQ_QA_CAPTAIN_EMAIL')],
+      ['TENACEIQ_QA_CAPTAIN_PASSWORD', getEnv('TENACEIQ_QA_CAPTAIN_PASSWORD')],
+    ],
+    hasExpectedSignal(text) {
+      return /Captain|Team Hub/i.test(text) && /availability|lineup|team|match week/i.test(text)
+    },
+    missingSignalReason: 'missing-captain-hub-signal',
+    verifiedSignal: 'Captain/Team Hub signal visible',
+  },
+  league_coordinator: {
+    fixture: 'league_coordinator',
+    plan: 'league',
+    route: '/league-coordinator',
+    credentials: [
+      ['TENACEIQ_QA_LEAGUE_EMAIL', getEnv('TENACEIQ_QA_LEAGUE_EMAIL')],
+      ['TENACEIQ_QA_LEAGUE_PASSWORD', getEnv('TENACEIQ_QA_LEAGUE_PASSWORD')],
+    ],
+    hasExpectedSignal(text) {
+      return /League Office|League/i.test(text) && /season|result|standings|coordinator/i.test(text)
+    },
+    missingSignalReason: 'missing-league-office-signal',
+    verifiedSignal: 'League Office signal visible',
+  },
+  full_court_operator: {
+    fixture: 'full_court_operator',
+    plan: 'full_court',
+    route: '/pricing',
+    credentials: [
+      ['TENACEIQ_QA_FULL_COURT_EMAIL', getEnv('TENACEIQ_QA_FULL_COURT_EMAIL')],
+      ['TENACEIQ_QA_FULL_COURT_PASSWORD', getEnv('TENACEIQ_QA_FULL_COURT_PASSWORD')],
+    ],
+    hasExpectedSignal(text) {
+      return /Full-Court/i.test(text) && /access pass|all paid tools|Open Full-Court|Player.*Coach.*Captain.*League/i.test(text)
+    },
+    missingSignalReason: 'missing-full-court-access-signal',
+    verifiedSignal: 'Full-Court access signal visible',
+  },
+  admin_test: {
+    fixture: 'admin_test',
+    plan: 'free',
+    route: '/admin/access',
+    credentials: [
+      ['TENACEIQ_QA_ADMIN_EMAIL', getEnv('TENACEIQ_QA_ADMIN_EMAIL')],
+      ['TENACEIQ_QA_ADMIN_PASSWORD', getEnv('TENACEIQ_QA_ADMIN_PASSWORD')],
+    ],
+    hasExpectedSignal(text) {
+      return /Admin|Access/i.test(text) && /profile|entitlement|repair|billing|test/i.test(text)
+    },
+    missingSignalReason: 'missing-admin-access-signal',
+    verifiedSignal: 'Admin access signal visible',
+  },
 }
 const fixtureGroups = {
   all: Object.keys(fixtureChecks),
   day1: ['coach_primary', 'player_plus_linked'],
+  day2: ['coach_primary', 'player_plus_linked'],
+  day3: ['captain_primary'],
+  day4: ['league_coordinator', 'admin_test'],
+  day5: ['full_court_operator'],
+  paid: ['player_plus_linked', 'coach_primary', 'captain_primary', 'league_coordinator', 'full_court_operator'],
 }
 
 if (rawArgs.includes('--help') || rawArgs.includes('help') || rawArgs.includes('--env')) {
@@ -79,6 +140,10 @@ if (missing.length) {
   console.log('- npm run qa:fixture-auth-smoke')
   console.log('- npm run qa:fixture-auth-smoke -- coach_primary')
   console.log('- npm run qa:fixture-auth-smoke -- player_plus_linked')
+  console.log('- npm run qa:fixture-auth-smoke -- captain_primary')
+  console.log('- npm run qa:fixture-auth-smoke -- league_coordinator')
+  console.log('- npm run qa:fixture-auth-smoke -- full_court_operator')
+  console.log('- npm run qa:fixture-auth-smoke -- admin_test')
   console.log('- npm run qa:fixture-auth-smoke -- --env')
   console.log('')
   console.log('Credential values are intentionally never printed by this command.')
@@ -206,12 +271,27 @@ function printEnvContract() {
   console.log('TENACEIQ_QA_PLAYER_EMAIL=')
   console.log('TENACEIQ_QA_PLAYER_PASSWORD=')
   console.log('')
+  console.log('Optional selectors for later fixture blocks:')
+  console.log('TENACEIQ_QA_CAPTAIN_EMAIL=')
+  console.log('TENACEIQ_QA_CAPTAIN_PASSWORD=')
+  console.log('TENACEIQ_QA_LEAGUE_EMAIL=')
+  console.log('TENACEIQ_QA_LEAGUE_PASSWORD=')
+  console.log('TENACEIQ_QA_FULL_COURT_EMAIL=')
+  console.log('TENACEIQ_QA_FULL_COURT_PASSWORD=')
+  console.log('TENACEIQ_QA_ADMIN_EMAIL=')
+  console.log('TENACEIQ_QA_ADMIN_PASSWORD=')
+  console.log('')
   console.log('For local QA, use TENACEIQ_QA_BASE_URL=http://localhost:3000 and start the dev server first.')
   console.log('')
   console.log('Selectors:')
   console.log('- npm run qa:fixture-auth-smoke')
   console.log('- npm run qa:fixture-auth-smoke -- coach_primary')
   console.log('- npm run qa:fixture-auth-smoke -- player_plus_linked')
+  console.log('- npm run qa:fixture-auth-smoke -- day3')
+  console.log('- npm run qa:fixture-auth-smoke -- day4')
+  console.log('- npm run qa:fixture-auth-smoke -- day5')
+  console.log('- npm run qa:fixture-auth-smoke -- paid')
+  console.log('- npm run qa:fixture-auth-smoke -- all')
 }
 
 function getEnv(key) {

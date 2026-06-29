@@ -36,6 +36,30 @@ npm run qa:live-card -- coach-player-assigned-challenge --date=2026-06-29 --test
 
 Do not mark the coach journey pass until Coach Hub, player My Lab or Level Up, invite/link state, assignment, player proof, and coach review are all visible with screenshots.
 
+When later role accounts are ready, add only the needed local-only keys:
+
+```env
+TENACEIQ_QA_CAPTAIN_EMAIL=
+TENACEIQ_QA_CAPTAIN_PASSWORD=
+TENACEIQ_QA_LEAGUE_EMAIL=
+TENACEIQ_QA_LEAGUE_PASSWORD=
+TENACEIQ_QA_FULL_COURT_EMAIL=
+TENACEIQ_QA_FULL_COURT_PASSWORD=
+TENACEIQ_QA_ADMIN_EMAIL=
+TENACEIQ_QA_ADMIN_PASSWORD=
+```
+
+Then run one of:
+
+```bash
+npm run qa:fixture-auth-smoke -- captain_primary
+npm run qa:fixture-auth-smoke -- league_coordinator
+npm run qa:fixture-auth-smoke -- full_court_operator
+npm run qa:fixture-auth-smoke -- admin_test
+npm run qa:fixture-auth-smoke -- paid
+npm run qa:fixture-auth-smoke -- all
+```
+
 ## Account Fixtures
 
 | Fixture | Must prove | Unblocks |
