@@ -29,12 +29,19 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+dev-server*.log
 server-*.log
+.codex-dev-server*.log
 
 # local rollout artifacts
 /backups/
 /screenshots-*.png
 /tmp-screenshots/
+/app.zip
+/lint-errors.txt
+/type-errors.txt
+/tennis-data/
+/Step
 
 # env files (can opt-in for committing if needed)
 .env*
