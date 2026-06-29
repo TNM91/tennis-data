@@ -486,6 +486,14 @@ export const plannedJourneyIds = customerJourneyDetails.map((journey) => journey
 export const journeyById = new Map(customerJourneyDetails.map((journey) => [journey.id, journey]))
 export const sessionByJourneyId = new Map(customerJourneySessions.flatMap((session) => session.journeyIds.map((journeyId) => [journeyId, session])))
 export const fixtureGateJourneyIds = new Set(['coach-player-assigned-challenge'])
+export const fixtureAuthSmokeSelectorsByAccount = new Map([
+  ['player_plus_linked', 'player_plus_linked'],
+  ['coach_primary', 'coach_primary'],
+  ['captain_primary', 'captain_primary'],
+  ['league_coordinator', 'league_coordinator'],
+  ['full_court_operator', 'full_court_operator'],
+  ['admin_test', 'admin_test'],
+])
 
 export const tierAliases = new Map([
   ['free', 'Free'],
@@ -528,4 +536,9 @@ export const resultRank = {
 
 export function normalizeQaQuery(value) {
   return value.toLowerCase().replace(/\s+/g, '').replace(/[-_]/g, '')
+}
+
+export function getFixtureAuthSmokeCommand(accountFixture) {
+  const selector = fixtureAuthSmokeSelectorsByAccount.get(accountFixture)
+  return selector ? `npm run qa:fixture-auth-smoke -- ${selector}` : ''
 }

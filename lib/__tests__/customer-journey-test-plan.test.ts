@@ -977,7 +977,8 @@ describe('customer journey test plan', () => {
     expect(ledgerCheckScriptSource).toContain('npm run qa:launch')
     expect(resultsSummaryScriptSource).toContain('Open fixture-gap rows')
     expect(resultsSummaryScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
-    expect(resultsSummaryScriptSource).toContain('Auth smoke: npm run qa:fixture-auth-smoke')
+    expect(resultsSummaryScriptSource).toContain('getFixtureAuthSmokeCommand')
+    expect(resultsSummaryScriptSource).toContain('Auth smoke: ${command}')
     expect(nextJourneyScriptSource).toContain('npm run qa:fixture-gate --')
     expect(nextJourneyScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')
     expect(nextJourneyScriptSource).toContain('npm run qa:fixture-auth-smoke')
@@ -999,7 +1000,8 @@ describe('customer journey test plan', () => {
     expect(scorecardScriptSource).toContain('fixture blocked')
     expect(scorecardScriptSource).toContain('npm run qa:fixture-gate --')
     expect(scorecardScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')
-    expect(scorecardScriptSource).toContain('npm run qa:fixture-auth-smoke')
+    expect(scorecardScriptSource).toContain('getFixtureAuthSmokeCommand')
+    expect(scorecardScriptSource).toContain('authSmokeCommand')
     expect(scorecardScriptSource).toContain('Closeout rule: use the scorecard')
     expect(scorecardScriptSource).toContain('customerJourneyDetails')
     expect(scorecardScriptSource).toContain('sessionByJourneyId')
@@ -1148,7 +1150,8 @@ describe('customer journey test plan', () => {
       'Fixture/test blockers',
       'Fixture gate: npm run qa:fixture-gate --',
       'Auth env: npm run qa:fixture-auth-smoke -- --env',
-      'Auth smoke: npm run qa:fixture-auth-smoke',
+      'getFixtureAuthSmokeCommand',
+      'Auth smoke: ${authSmokeCommand',
       'Quality follow-ups',
       'Missing pass evidence',
       'Pass rows missing screenshot/video',

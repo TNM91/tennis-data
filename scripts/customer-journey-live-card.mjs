@@ -1,4 +1,10 @@
-import { customerJourneyDetails, fixtureGateJourneyIds, normalizeQaQuery, sessionByJourneyId } from './customer-journey-qa-data.mjs'
+import {
+  customerJourneyDetails,
+  fixtureGateJourneyIds,
+  getFixtureAuthSmokeCommand,
+  normalizeQaQuery,
+  sessionByJourneyId,
+} from './customer-journey-qa-data.mjs'
 
 const options = parseArgs(process.argv.slice(2))
 const rawQuery = options.query.trim().toLowerCase()
@@ -59,6 +65,7 @@ function printLiveCard(journey) {
   }
   const evidenceFolder = `docs/qa-evidence/${defaults.date}/${sessionId}`
   const evidenceFiles = journey.evidenceSlugs.map((item) => `${defaults.date}-${sessionId}-${journey.id}-${item}-${slug(defaults.deviceBrowser)}-${slug(defaults.tester)}.png`)
+  const fixtureAuthSmokeCommand = getFixtureAuthSmokeCommand(journey.accountFixture)
 
   console.log(`${journey.label} (${journey.id})`)
   console.log(`Session: ${sessionLabel} | Tier: ${tierLabels[journey.tierId]} | Risk: ${journey.risk}`)
@@ -70,7 +77,7 @@ function printLiveCard(journey) {
     console.log('Fixture preflight:')
     console.log(`- npm run qa:fixture-gate -- ${journey.id}`)
     console.log('- npm run qa:fixture-auth-smoke -- --env')
-    console.log('- npm run qa:fixture-auth-smoke')
+    console.log(`- ${fixtureAuthSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
     console.log('')
   }
   console.log('Do this:')
@@ -94,7 +101,7 @@ function printLiveCard(journey) {
   )
   console.log('')
   console.log('If blocked:')
-  console.log('- redirected to login: sign in as `' + journey.accountFixture + '` first; run `npm run qa:fixture-auth-smoke -- --env` if local credential keys are unclear.')
+  console.log('- redirected to login: sign in as `' + journey.accountFixture + '` first; run `npm run qa:fixture-auth-smoke -- --env` if local credential keys are unclear' + (fixtureAuthSmokeCommand ? ', then run `' + fixtureAuthSmokeCommand + '`.' : '.'))
   if (fixtureGateJourneyIds.has(journey.id)) {
     console.log('- auth smoke blocked: keep Result `blocked`, set Category `fixture-gap`, run `npm run qa:fixture-gate -- ' + journey.id + '`, then rerun this card after fixture repair.')
   }

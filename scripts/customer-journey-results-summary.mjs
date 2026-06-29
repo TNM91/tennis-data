@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { fixtureGateJourneyIds, plannedJourneyIds } from './customer-journey-qa-data.mjs'
+import { getFixtureAuthSmokeCommand, plannedJourneyIds } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const statuses = ['pass', 'fail', 'blocked', 'needs-follow-up']
@@ -99,7 +99,9 @@ function parseMarkdownRow(line) {
 }
 
 function printFixtureAuthCommands(journeyId, indent) {
-  if (!fixtureGateJourneyIds.has(journeyId)) return
+  const row = rows.find((item) => item.journeyId === journeyId)
+  const command = getFixtureAuthSmokeCommand(row?.accountFixture ?? '')
+  if (!command) return
   console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)
-  console.log(`${indent}Auth smoke: npm run qa:fixture-auth-smoke`)
+  console.log(`${indent}Auth smoke: ${command}`)
 }

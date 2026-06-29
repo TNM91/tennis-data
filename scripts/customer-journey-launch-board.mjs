@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneyDetails, fixtureGateJourneyIds, sessionByJourneyId } from './customer-journey-qa-data.mjs'
+import {
+  customerJourneyDetails,
+  fixtureGateJourneyIds,
+  getFixtureAuthSmokeCommand,
+  sessionByJourneyId,
+} from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
@@ -88,10 +93,11 @@ if (missingPassJourneys.length) {
     console.log(`  Route: ${journey.route}`)
     if (fixtureBlockersByJourneyId.has(journey.id)) {
       console.log(`  Fixture gate: npm run qa:fixture-gate -- ${journey.id}`)
-      if (fixtureGateJourneyIds.has(journey.id)) {
+      const authSmokeCommand = getFixtureAuthSmokeCommand(fixtureBlockersByJourneyId.get(journey.id)?.accountFixture ?? '')
+      if (fixtureGateJourneyIds.has(journey.id) || authSmokeCommand) {
         console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-        console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
-        console.log(`  Next: npm run qa:fixture-gate -- ${journey.id}; npm run qa:fixture-auth-smoke -- --env; npm run qa:fixture-auth-smoke`)
+        console.log(`  Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
+        console.log(`  Next: npm run qa:fixture-gate -- ${journey.id}; npm run qa:fixture-auth-smoke -- --env; ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
       } else {
         console.log(`  Next: npm run qa:fixture-gate -- ${journey.id}`)
       }
@@ -145,9 +151,10 @@ function printSection({ title, rows: sectionRows, empty, fallbackCommand }) {
     console.log(`  Notes: ${row.notes || 'missing notes'}`)
     if (row.category === 'fixture-gap') {
       console.log(`  Fixture gate: npm run qa:fixture-gate -- ${row.journeyId}`)
-      if (fixtureGateJourneyIds.has(row.journeyId)) {
+      const authSmokeCommand = getFixtureAuthSmokeCommand(row.accountFixture)
+      if (fixtureGateJourneyIds.has(row.journeyId) || authSmokeCommand) {
         console.log('  Auth env: npm run qa:fixture-auth-smoke -- --env')
-        console.log('  Auth smoke: npm run qa:fixture-auth-smoke')
+        console.log(`  Auth smoke: ${authSmokeCommand || 'npm run qa:fixture-auth-smoke'}`)
       }
     }
     console.log(`  Next: ${row.nextAction || fallbackCommand}`)

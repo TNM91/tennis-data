@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { customerJourneyDetails, fixtureGateJourneyIds, sessionByJourneyId } from './customer-journey-qa-data.mjs'
+import { customerJourneyDetails, getFixtureAuthSmokeCommand, sessionByJourneyId } from './customer-journey-qa-data.mjs'
 
 const resultsPath = 'docs/customer-journey-test-results.md'
 
@@ -92,8 +92,11 @@ function getEvidenceState({ hasPass, hasScreenshotOrVideo }) {
 
 function getNextCommand({ journey, state, openFixtureRows, openHighPriorityRows }) {
   if (openHighPriorityRows.length) return `npm run qa:action-list ${journey.id}`
-  if (openFixtureRows.length && fixtureGateJourneyIds.has(journey.id)) return `npm run qa:fixture-gate -- ${journey.id}; npm run qa:fixture-auth-smoke -- --env; npm run qa:fixture-auth-smoke`
-  if (openFixtureRows.length) return `npm run qa:fixture-gate -- ${journey.id}`
+  if (openFixtureRows.length) {
+    const authSmokeCommand = getFixtureAuthSmokeCommand(openFixtureRows[0]?.accountFixture ?? '')
+    const authSmokeSuffix = authSmokeCommand ? `; npm run qa:fixture-auth-smoke -- --env; ${authSmokeCommand}` : ''
+    return `npm run qa:fixture-gate -- ${journey.id}${authSmokeSuffix}`
+  }
   if (state === 'untested' || state === 'needs pass') return `npm run qa:journey -- ${journey.id}`
   if (state === 'needs evidence') return `npm run qa:evidence-pack -- ${journey.session}`
   return `npm run qa:close-day -- ${journey.session}`
