@@ -13,6 +13,7 @@ const requiredDocs = [
   'docs/customer-journey-test-results.md',
   'docs/qa-evidence/README.md',
   'docs/customer-journey-test-fixtures.md',
+  'docs/customer-journey-fixture-provisioning-packet.md',
   'docs/customer-journey-test-scripts.md',
   'docs/customer-journey-process-map.md',
   'docs/level-up-sync-audit.md',
@@ -145,6 +146,7 @@ console.log('- npm run qa:fixtures')
 console.log('- npm run qa:fixture-gate -- <journey | fixture | route | search>')
 console.log('- npm run qa:fixture-auth-smoke -- --env')
 console.log('- npm run qa:fixture-auth-smoke')
+console.log('- npm run qa:fixture-auth-smoke -- <coach_primary | player_plus_linked | captain_primary | league_coordinator | full_court_operator | admin_test | day3 | day4 | day5 | paid | all>')
 console.log('- npm run qa:fixture-board -- <group | fixture | day1-day5 | journey | account | data>')
 console.log('- npm run qa:fixture-status -- <day1-day5 | fixture | journey | route>')
 console.log('- npm run qa:fixture-review -- <fixture | tier | journey | route>')

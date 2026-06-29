@@ -66,8 +66,8 @@ Run `npm run qa:tier-board -- <tier>` when a result needs the tier promise, feat
 Run `npm run qa:feature-review -- <feature>` when a result is about one feature's route, pain point, proving journey, connected flow, or handoff.
 Run `npm run qa:trace -- <tier|journey|feature|route>` when a result needs to be reviewed against tier promise, access rule, proving journeys, handoffs, and ledger evidence together.
 Run `npm run qa:fixture-gate -- <journey|fixture|route|search>` when a fixture-gap row needs a concrete browser setup gate, including ready signals, auth redirect checks, and what to repair when a signal is missing.
-Run `npm run qa:fixture-auth-smoke -- --env` when the local Day 1 auth env contract is unclear; it prints key names only, never credential values.
-Run `npm run qa:fixture-auth-smoke` when Day 1 `coach_primary` and `player_plus_linked` credentials are available in `.env.local` and you need to prove Coach Hub plus My Lab open without printing secrets.
+Run `npm run qa:fixture-auth-smoke -- --env` when the local auth env contract is unclear; it prints key names only, never credential values.
+Run `npm run qa:fixture-auth-smoke` when Day 1 `coach_primary` and `player_plus_linked` credentials are available in `.env.local` and you need to prove Coach Hub plus My Lab open without printing secrets. Use `npm run qa:fixture-auth-smoke -- <fixture | day3 | day4 | day5 | paid | all>` for later role fixtures.
 Run `npm run qa:fixture-board` when a result is blocked by account access, player/coach link state, safe data setup, or fixture readiness across multiple journeys.
 Run `npm run qa:fixture-status -- <day1-day5>` when checking whether a testing block has required fixtures or open fixture-gap blockers.
 Run `npm run qa:fixture-review -- <fixture>` when a result is blocked by account setup, linked state, test data, or safe fixture shape.

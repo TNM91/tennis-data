@@ -12,6 +12,7 @@ const requiredDocs = [
   'docs/customer-journey-test-plan.md',
   'docs/customer-journey-test-results.md',
   'docs/customer-journey-test-fixtures.md',
+  'docs/customer-journey-fixture-provisioning-packet.md',
   'docs/customer-journey-process-map.md',
   'docs/level-up-sync-audit.md',
   'docs/platform-closeout-qa.md',
@@ -116,6 +117,8 @@ console.log('- npm run qa:prep')
 console.log('- npm run qa:week-plan -- --date=yyyy-mm-dd --tester=<name>')
 console.log('- npm run qa:tester-packet -- day1 --device=phone --date=yyyy-mm-dd --tester=<name>')
 console.log('- npm run qa:device-ledger -- phone --date=yyyy-mm-dd --tester=<name>')
+console.log('- npm run qa:fixture-auth-smoke -- --env')
+console.log('- npm run qa:fixture-auth-smoke -- <fixture | day3 | day4 | day5 | paid | all> after fixture credentials exist')
 console.log('- npm run qa:ledger-check after logging rows')
 console.log('- npm run qa:launch only after pass evidence is logged')
 console.log('')
