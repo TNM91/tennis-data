@@ -2,6 +2,8 @@
 node_modules
 coverage
 test-results
+playwright-report
+blob-report
 backups
 screenshots-*.png
 tmp-screenshots
@@ -9,6 +11,7 @@ server-*.log
 dev-server*.log
 .codex-dev-server*.log
 app.zip
+dist
 lint-errors.txt
 type-errors.txt
 tennis-data

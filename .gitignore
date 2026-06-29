@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/playwright-report/
+/blob-report/
 
 # next.js
 /.next/
@@ -19,6 +21,8 @@
 
 # production
 /build
+/dist/
+/.vercel/output/
 
 # misc
 .DS_Store
