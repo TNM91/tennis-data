@@ -176,6 +176,7 @@ function LoginContent() {
       router.replace(await getPostLoginRoute(nextRole, nextEntitlements, userId))
     }
 
+    if (submitting || redirecting || hasRedirectedRef.current) return
     if (!authResolved) return
     if (role !== 'public' && !switchingAccount) {
       void redirectAuthenticatedUser(role, entitlements, userId)
@@ -184,7 +185,7 @@ function LoginContent() {
 
     hasRedirectedRef.current = false
     setRedirecting(false)
-  }, [authResolved, entitlements, getPostLoginRoute, role, router, switchingAccount, userId])
+  }, [authResolved, entitlements, getPostLoginRoute, redirecting, role, router, submitting, switchingAccount, userId])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
