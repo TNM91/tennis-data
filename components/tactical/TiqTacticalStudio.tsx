@@ -17,6 +17,8 @@ import type { TacticalFormationMode, TacticalPathKind, TacticalPathPreset, Tacti
 import { clampPercent, countScenarioObjects, defaultPathLabel, defaultTokenLabel, makeTacticalId, scoreScenarioReadiness, tacticalSuggestions } from '@/lib/tactical/utils'
 
 const LOCAL_LIBRARY_KEY = 'tiq-tactical-studio-library-v1'
+const LOCAL_DRAFT_KEY = 'tiq-tactical-studio-draft-v1'
+const MAX_UNDO_STEPS = 24
 const INLINE_TOKEN_TOOLS: TacticalTokenType[] = ['player', 'ball', 'cone', 'x', 'o']
 const INLINE_PATH_TOOLS: TacticalPathKind[] = ['ball', 'move', 'recover']
 const BOARD_TOOL_MODES = ['add', 'lines', 'snap', 'edit'] as const
@@ -26,6 +28,7 @@ type BoardToolMode = (typeof BOARD_TOOL_MODES)[number]
 export default function TiqTacticalStudio() {
   const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('basicDoubles')
   const [scenario, setScenario] = useState<TacticalScenario>(() => createTacticalTemplate('basicDoubles'))
+  const scenarioRef = useRef(scenario)
   const [role, setRole] = useState<TacticalRole>('captain')
   const [briefingRole, setBriefingRole] = useState<TacticalRole>('captain')
   const [selected, setSelected] = useState<TacticalSelection>({ type: 'scenario', id: 'scenario' })
@@ -44,8 +47,10 @@ export default function TiqTacticalStudio() {
   const [cloudLibrary, setCloudLibrary] = useState<TacticalScenarioSummary[]>([])
   const [cloudStatus, setCloudStatus] = useState('Sign in to save scenarios across devices.')
   const [lastClearedScenario, setLastClearedScenario] = useState<TacticalScenario | null>(null)
+  const [undoStack, setUndoStack] = useState<TacticalScenario[]>([])
   const [toast, setToast] = useState('')
   const autoBoardFocusApplied = useRef(false)
+  const draftReady = useRef(false)
   const readiness = scoreScenarioReadiness(scenario)
   const suggestions = useMemo(() => tacticalSuggestions(scenario), [scenario])
   const visibleScenario = useMemo(() => ({
@@ -53,6 +58,7 @@ export default function TiqTacticalStudio() {
     paths: stepIndex >= scenario.paths.length ? scenario.paths : scenario.paths.slice(0, stepIndex + 1),
   }), [scenario, stepIndex])
   const boardStatus = getBoardStatus(placementType, drawingKind, selected)
+  const canUndoBoardAction = undoStack.length > 0 || scenario.paths.length > 0
 
   const getAccessToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession()
@@ -90,8 +96,31 @@ export default function TiqTacticalStudio() {
     } catch {
       setLibrary([])
     }
+    try {
+      const storedDraft = window.localStorage.getItem(LOCAL_DRAFT_KEY)
+      const parsedDraft = storedDraft ? JSON.parse(storedDraft) : null
+      if (isTacticalScenario(parsedDraft)) {
+        scenarioRef.current = parsedDraft
+        setScenario(parsedDraft)
+        notify('Draft restored')
+      }
+    } catch {
+      window.localStorage.removeItem(LOCAL_DRAFT_KEY)
+    }
+    draftReady.current = true
     void loadCloudLibrary()
   }, [loadCloudLibrary])
+
+  useEffect(() => {
+    scenarioRef.current = scenario
+    if (!draftReady.current) return
+
+    const timeout = window.setTimeout(() => {
+      window.localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify(scenario))
+    }, 700)
+
+    return () => window.clearTimeout(timeout)
+  }, [scenario])
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return
@@ -113,7 +142,12 @@ export default function TiqTacticalStudio() {
     window.setTimeout(() => setToast(''), 2600)
   }
 
+  function recordUndoSnapshot(snapshot = scenarioRef.current) {
+    setUndoStack((current) => [snapshot, ...current].slice(0, MAX_UNDO_STEPS))
+  }
+
   function loadTemplate(key: TacticalTemplateKey) {
+    recordUndoSnapshot()
     setTemplateKey(key)
     setScenario(createTacticalTemplate(key))
     setSelected({ type: 'scenario', id: 'scenario' })
@@ -205,6 +239,7 @@ export default function TiqTacticalStudio() {
   }
 
   function loadScenario(nextScenario: TacticalScenario) {
+    recordUndoSnapshot()
     setScenario(nextScenario)
     setTemplateKey('basicDoubles')
     setSelected({ type: 'scenario', id: 'scenario' })
@@ -250,6 +285,7 @@ export default function TiqTacticalStudio() {
 
   function applySnapPreset(preset: TacticalSnapPreset) {
     if (selected.type === 'token') {
+      recordUndoSnapshot()
       setScenario((current) => ({
         ...current,
         tokens: current.tokens.map((token) => token.id === selected.id ? { ...token, ...preset.point } : token),
@@ -259,6 +295,7 @@ export default function TiqTacticalStudio() {
     }
 
     if (selected.type === 'path') {
+      recordUndoSnapshot()
       setScenario((current) => ({
         ...current,
         paths: current.paths.map((path) => path.id === selected.id ? { ...path, to: preset.point } : path),
@@ -268,6 +305,7 @@ export default function TiqTacticalStudio() {
     }
 
     if (selected.type === 'zone') {
+      recordUndoSnapshot()
       setScenario((current) => ({
         ...current,
         zones: current.zones.map((zone) => zone.id === selected.id ? {
@@ -285,6 +323,7 @@ export default function TiqTacticalStudio() {
   }
 
   function addPathPreset(preset: TacticalPathPreset) {
+    recordUndoSnapshot()
     const nextId = makeTacticalId('path')
     setScenario((current) => ({
       ...current,
@@ -305,6 +344,19 @@ export default function TiqTacticalStudio() {
   }
 
   function undoLastPath() {
+    if (undoStack.length) {
+      const [previous, ...rest] = undoStack
+      setScenario(previous)
+      setUndoStack(rest)
+      setSelected({ type: 'scenario', id: 'scenario' })
+      setDrawingKind(null)
+      setPlacementType(null)
+      setStepIndex(99)
+      setLastClearedScenario(null)
+      notify('Board change undone')
+      return
+    }
+
     setScenario((current) => ({ ...current, paths: current.paths.slice(0, -1) }))
     setSelected({ type: 'scenario', id: 'scenario' })
     setStepIndex(99)
@@ -329,6 +381,7 @@ export default function TiqTacticalStudio() {
 
   function clearBoardMarks() {
     captureClearSnapshot()
+    recordUndoSnapshot()
     setScenario((current) => ({ ...current, paths: [], zones: [] }))
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
@@ -338,6 +391,7 @@ export default function TiqTacticalStudio() {
 
   function clearBoardLines() {
     captureClearSnapshot()
+    recordUndoSnapshot()
     setScenario((current) => ({ ...current, paths: [] }))
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
@@ -347,6 +401,7 @@ export default function TiqTacticalStudio() {
 
   function clearBoardZones() {
     captureClearSnapshot()
+    recordUndoSnapshot()
     setScenario((current) => ({ ...current, zones: [] }))
     setSelected({ type: 'scenario', id: 'scenario' })
     setStepIndex(99)
@@ -355,6 +410,7 @@ export default function TiqTacticalStudio() {
 
   function clearBoardAll() {
     captureClearSnapshot()
+    recordUndoSnapshot()
     setScenario((current) => ({ ...current, tokens: [], paths: [], zones: [] }))
     setSelected({ type: 'scenario', id: 'scenario' })
     setDrawingKind(null)
@@ -370,6 +426,7 @@ export default function TiqTacticalStudio() {
 
   function deleteSelected() {
     if (selected.type === 'scenario') return
+    recordUndoSnapshot()
     setScenario((current) => ({
       ...current,
       tokens: selected.type === 'token' ? current.tokens.filter((token) => token.id !== selected.id) : current.tokens,
@@ -381,6 +438,7 @@ export default function TiqTacticalStudio() {
   }
 
   function duplicateSelected() {
+    recordUndoSnapshot()
     setScenario((current) => {
       if (selected.type === 'token') {
         const token = current.tokens.find((item) => item.id === selected.id)
@@ -405,6 +463,7 @@ export default function TiqTacticalStudio() {
   }
 
   function addTokenAt(type: TacticalTokenType, x: number, y: number) {
+    recordUndoSnapshot()
     const nextId = makeTacticalId('token')
     setScenario((current) => ({
       ...current,
@@ -429,6 +488,7 @@ export default function TiqTacticalStudio() {
     const formation = tacticalFormationPresets.find((preset) => preset.key === mode)
     if (!formation) return
 
+    recordUndoSnapshot()
     setScenario((current) => ({
       ...current,
       tokens: [
@@ -450,6 +510,7 @@ export default function TiqTacticalStudio() {
   }
 
   function flipBoardEnds() {
+    recordUndoSnapshot()
     setScenario((current) => ({
       ...current,
       tokens: current.tokens.map((token) => ({
@@ -477,6 +538,7 @@ export default function TiqTacticalStudio() {
   }
 
   function addPath(kind: TacticalPathKind) {
+    recordUndoSnapshot()
     setScenario((current) => ({
       ...current,
       paths: [
@@ -494,6 +556,7 @@ export default function TiqTacticalStudio() {
   }
 
   function addZone() {
+    recordUndoSnapshot()
     setScenario((current) => ({
       ...current,
       zones: [...current.zones, { id: makeTacticalId('zone'), label: 'Target window', x: 52, y: 42, width: 16, height: 9, tone: 'green' }],
@@ -609,7 +672,7 @@ export default function TiqTacticalStudio() {
           onSaveLocal={saveScenarioLocal}
           onShareScenario={shareScenario}
           onTemplateChange={loadTemplate}
-          canUndoPath={scenario.paths.length > 0}
+          canUndoPath={canUndoBoardAction}
         />
 
         <section>
@@ -658,7 +721,7 @@ export default function TiqTacticalStudio() {
             activePlacementType={placementType}
             boardFocusMode={boardFocusMode}
             canRestoreClear={Boolean(lastClearedScenario)}
-            canUndoPath={scenario.paths.length > 0}
+            canUndoPath={canUndoBoardAction}
             hasSelection={selected.type !== 'scenario'}
             activeFormation={activeFormation}
             onAddPath={addPath}
@@ -703,6 +766,7 @@ export default function TiqTacticalStudio() {
             drawingKind={drawingKind}
             placementTokenType={placementType}
             onCreatePath={(kind, from, to) => {
+              recordUndoSnapshot()
               setScenario((current) => ({
                 ...current,
                 paths: [

@@ -154,7 +154,7 @@ export default function TiqToolbar({
           </button>
         ))}
         <button className={styles.toolButton} onClick={() => onAddPath('ball')} type="button">Quick line</button>
-        <button className={styles.toolButton} disabled={!canUndoPath} onClick={onUndoPath} type="button">Undo line</button>
+        <button className={styles.toolButton} disabled={!canUndoPath} onClick={onUndoPath} type="button">Undo board</button>
       </div>
       <div className={styles.pathPresetGrid}>
         {tacticalPathPresets.map((preset) => (
