@@ -42,3 +42,30 @@ Decision notes:
 - Do not rewrite Git history unless GitHub repository size becomes an actual constraint. The remote repo was about 95 MB after cleanup, and history rewriting would add coordination risk.
 - Do not remove `node_modules/` as routine cleanup. It is local-only, ignored, and useful for development; delete it only when local disk space matters.
 - Treat remaining production deployments as rollback anchors unless Vercel retention or plan limits require a stricter policy.
+
+## 2026-06-29 Follow-Up Capacity And Dependency Cleanup
+
+Result: complete
+
+Repository and deployment capacity:
+
+- Excluded docs, tests, QA evidence, GitHub workflow files, Playwright config, and capture-extension tooling from Vercel uploads with `.vercelignore`. The promoted production build removed 305 ignored files from the build context.
+- Removed unused `@react-three/drei`, `@react-three/fiber`, and `three` dependencies after confirming there were no source imports.
+- Removed the duplicate `public/tiq/courts/tiq-court-master-v2.png` asset after consolidating all tactical court references onto `public/tiq/courts/tiq-court-master.png`.
+- Removed three byte-for-byte duplicate QA evidence screenshots and updated the customer journey ledger to reference the kept proof files.
+
+Dependency hardening:
+
+- Updated production packages to `next@16.2.9`, `eslint-config-next@16.2.9`, and `@supabase/supabase-js@2.108.2`.
+- Added a narrow npm override so Next uses patched `postcss@8.5.16`.
+- Ran non-force `npm audit fix` for dev-only advisories; full `npm audit` now reports zero vulnerabilities.
+
+Production verification:
+
+- Promoted deployment `tennis-data-g6g2yhnpl-tennis-data.vercel.app` (`dpl_4wKr3kNEL6LTUv8NL2egbvvfJnqd`) to production.
+- Production route smoke returned `200` for `/`, `/explore`, `/pricing`, `/mylab`, `/tactics`, and `/data-assist`.
+- Vercel production logs showed no recent runtime logs after deployment.
+
+Remaining launch blocker:
+
+- Signed-in customer journey QA still needs real fixture credentials outside Git. Day 1 is blocked until `TENACEIQ_QA_COACH_EMAIL`, `TENACEIQ_QA_COACH_PASSWORD`, `TENACEIQ_QA_PLAYER_EMAIL`, and `TENACEIQ_QA_PLAYER_PASSWORD` are set in `.env.local` or the shell.

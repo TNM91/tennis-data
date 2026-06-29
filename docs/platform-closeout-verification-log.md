@@ -2,6 +2,33 @@
 
 Use this as the running evidence log for platform closeout. Keep detailed bugs in issue tracking or daily notes; this file records the high-level verification passes that matter for release confidence.
 
+## 2026-06-29 Cleanup Production Promotion
+
+Command: `vercel promote https://tennis-data-1l7xhv3gi-tennis-data.vercel.app --yes`
+
+Base URL: `https://www.tenaceiq.com`
+
+Result: pass
+
+Deployment:
+
+- Production deployment: `tennis-data-g6g2yhnpl-tennis-data.vercel.app`
+- Vercel deployment id: `dpl_4wKr3kNEL6LTUv8NL2egbvvfJnqd`
+- Commit: `85eb40c`
+
+Checks passed:
+
+- Vercel production build completed successfully in about 3 minutes.
+- Production route smoke returned `200` for `/`, `/explore`, `/pricing`, `/mylab`, `/tactics`, and `/data-assist`.
+- `npm audit --omit=dev` reported zero production vulnerabilities before promotion.
+- Full `npm audit` reported zero vulnerabilities after dev lockfile cleanup.
+- `npm run audit:artifacts` reported no generated or oversized local artifacts.
+- Vercel production logs returned no recent runtime logs after deployment.
+
+Note:
+
+- Launch readiness is still blocked by signed-in fixture credentials, not by deployment health. `npm run qa:fixture-auth-smoke -- coach_primary` is blocked until `TENACEIQ_QA_COACH_EMAIL` and `TENACEIQ_QA_COACH_PASSWORD` are set; `npm run qa:fixture-auth-smoke -- player_plus_linked` is blocked until `TENACEIQ_QA_PLAYER_EMAIL` and `TENACEIQ_QA_PLAYER_PASSWORD` are set.
+
 ## 2026-06-05 Expanded Production Closeout Pass
 
 Command: `npm run verify:closeout:live`
@@ -61,7 +88,8 @@ Note:
 
 ## Next Verification Target
 
-Use real test accounts to execute the first two manual journeys in `docs/customer-journey-test-plan.md`:
+Use real test accounts to execute the first signed-in Day 1 journey in `docs/customer-journey-test-plan.md`:
 
-1. Player Level Up mobile loop with Player+ or coach-invited sync state.
-2. Coach to player assigned challenge with invite, assignment, player proof, and coach review.
+1. Set `TENACEIQ_QA_BASE_URL=https://www.tenaceiq.com`, `TENACEIQ_QA_COACH_EMAIL`, `TENACEIQ_QA_COACH_PASSWORD`, `TENACEIQ_QA_PLAYER_EMAIL`, and `TENACEIQ_QA_PLAYER_PASSWORD` in `.env.local` or the shell.
+2. Run `npm run qa:fixture-auth-smoke -- coach_primary` and `npm run qa:fixture-auth-smoke -- player_plus_linked`.
+3. Run `npm run qa:live-card -- coach-player-assigned-challenge --date=2026-06-29 --tester=<name> --device=phone` after both fixtures authenticate.
