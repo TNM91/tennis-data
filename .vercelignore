@@ -19,3 +19,11 @@ yarn-error.log*
 .agents
 .claude
 skills-lock.json
+
+# Project QA/docs/dev tooling that should stay in Git but not in Vercel builds
+.github
+docs
+tests
+lib/__tests__
+playwright.config.ts
+tenaceiq-capture-extension
