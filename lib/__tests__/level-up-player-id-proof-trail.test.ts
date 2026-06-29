@@ -4,12 +4,13 @@ import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/level-up/level-up-page-content.tsx'), 'utf8')
 const styles = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8')
+const normalizedStyles = styles.replace(/\r\n/g, '\n')
 
 function cssBlock(selector: string) {
-  const start = styles.indexOf(selector)
+  const start = normalizedStyles.indexOf(selector)
   expect(start, `Missing ${selector}`).toBeGreaterThanOrEqual(0)
-  const next = styles.indexOf('\n.', start + 1)
-  return styles.slice(start, next === -1 ? undefined : next)
+  const next = normalizedStyles.indexOf('\n.', start + 1)
+  return normalizedStyles.slice(start, next === -1 ? undefined : next)
 }
 
 describe('Level Up Player ID proof trail', () => {
@@ -42,7 +43,7 @@ describe('Level Up Player ID proof trail', () => {
   })
 
   it('keeps the proof trail compact and mobile-safe', () => {
-    expect(styles).toContain('.playerIdProofTrail')
+    expect(normalizedStyles).toContain('.playerIdProofTrail')
     expect(cssBlock('.playerIdProofTrail')).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr))')
     expect(cssBlock('.playerIdProofTrail')).toContain('min-width: 0')
     expect(cssBlock('.playerIdProofTrail article')).toContain('min-width: 0')
@@ -51,20 +52,20 @@ describe('Level Up Player ID proof trail', () => {
   })
 
   it('keeps the on-court brief compact and phone-safe', () => {
-    expect(styles).toContain('.playerIdOnCourtBrief')
+    expect(normalizedStyles).toContain('.playerIdOnCourtBrief')
     expect(cssBlock('.playerIdOnCourtBrief')).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))')
     expect(cssBlock('.playerIdOnCourtBrief')).toContain('min-width: 0')
     expect(cssBlock('.playerIdOnCourtBrief article')).toContain('overflow-wrap: anywhere')
-    expect(styles).toContain('.playerIdOnCourtBrief {\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
-    expect(styles).toContain('.playerIdOnCourtBrief {\n    grid-template-columns: 1fr;')
+    expect(normalizedStyles).toContain('.playerIdOnCourtBrief {\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
+    expect(normalizedStyles).toContain('.playerIdOnCourtBrief {\n    grid-template-columns: 1fr;')
   })
 
   it('keeps the coach assignment Player ID read compact and phone-safe', () => {
-    expect(styles).toContain('.liveAssignmentPlayerIdRead')
+    expect(normalizedStyles).toContain('.liveAssignmentPlayerIdRead')
     expect(cssBlock('.liveAssignmentPlayerIdRead')).toContain('grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr)')
     expect(cssBlock('.liveAssignmentPlayerIdRead')).toContain('min-width: 0')
     expect(cssBlock('.liveAssignmentPlayerIdRead article')).toContain('overflow-wrap: anywhere')
-    expect(styles).toContain('.liveAssignmentPlayerIdRead,')
-    expect(styles).toContain('.liveAssignmentPlayerIdGrid,')
+    expect(normalizedStyles).toContain('.liveAssignmentPlayerIdRead,')
+    expect(normalizedStyles).toContain('.liveAssignmentPlayerIdGrid,')
   })
 })
