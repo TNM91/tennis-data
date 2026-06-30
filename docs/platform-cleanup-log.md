@@ -69,6 +69,35 @@ Production verification:
 - Pruned 35 unaliased Vercel Preview deployments with `vercel remove --safe --yes`; production rollback deployments and actively aliased previews were left intact.
 - Confirmed production still returned `200` for `/`, `/explore`, `/pricing`, and `/favicon.ico` after the preview deployment prune.
 
-Remaining launch blocker:
+Launch QA status:
 
-- Signed-in customer journey QA still needs real fixture credentials outside Git. Day 1 is blocked until `TENACEIQ_QA_COACH_EMAIL`, `TENACEIQ_QA_COACH_PASSWORD`, `TENACEIQ_QA_PLAYER_EMAIL`, and `TENACEIQ_QA_PLAYER_PASSWORD` are set in `.env.local` or the shell.
+- Signed-in production QA is complete for Free, Player, Coach, Captain, League, Full-Court, and Admin coverage. Fixture credentials remain local-only in `.env.local` and are not committed.
+
+## 2026-06-29 Launch Evidence And Local Git Capacity Cleanup
+
+Result: complete
+
+QA evidence capacity:
+
+- Recompressed committed QA evidence PNGs with a lossless Sharp pass: 65 PNGs scanned, 59 optimized.
+- Reduced `docs/qa-evidence` from about 69.66 MB to about 31.20 MB, saving about 38.46 MB while keeping existing filenames and ledger references stable.
+- Spot-checked optimized desktop and mobile evidence images after recompression.
+
+Deployment capacity:
+
+- Confirmed `.vercelignore` already excludes docs and QA evidence, so the signed-off evidence archive is retained in Git without increasing Vercel build upload size.
+
+Local repository maintenance:
+
+- Ran `git gc` after image optimization. Loose objects dropped from 78.34 MiB to 0 bytes; local `.git` storage is about 218.81 MB after packing.
+- No Git history rewrite was performed; the stable launch marker remains `launch-ready-2026-06-29`.
+
+Verification:
+
+- `npm run audit:artifacts` passed after generated local artifacts were removed.
+- `npm run qa:launch` passed after the evidence optimization.
+
+Related commits:
+
+- `a47004e5` Optimize QA evidence images
+- `3077b32e` Note optimized QA evidence size
