@@ -147,11 +147,7 @@ Preview deployment capacity:
 
 - Pruned 201 old Vercel Preview deployments with targeted `vercel remove <deployment-id> --safe --yes --scope tennis-data` batches.
 - Removed stale merged-PR previews and old `master` previews after checking current open PR branches and preserving the newest `master` preview anchors.
-- Kept the four newest `master` preview deployments:
-  - `tennis-data-2btgdrhz7-tennis-data.vercel.app` from `fa7e6b34` (`Record targeted Vercel preview prune`)
-  - `tennis-data-p127trrp8-tennis-data.vercel.app` from `e5f78a5e` (`Make QA gap report ledger-aware`)
-  - `tennis-data-8htq51bdf-tennis-data.vercel.app` from `b2bd23bf` (`Record June 30 production closeout`)
-  - `tennis-data-oc03bye6b-tennis-data.vercel.app` from `24ca239c` (`Record local workspace cleanup`)
+- Kept the four newest `master` preview deployments as rolling anchors. Because each cleanup-log commit creates a new preview, the exact retained URLs should be confirmed from Vercel with `npx vercel ls tennis-data --scope tennis-data` rather than hard-coded here.
 - Left production deployments intact as rollback anchors.
 
 Verification:
