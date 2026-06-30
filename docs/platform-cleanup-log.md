@@ -138,3 +138,25 @@ Verification:
 
 - `npm run audit:artifacts` passed after removing `tsconfig.tsbuildinfo`.
 - `npm run qa:launch` passed before the cleanup-log entry was committed.
+
+## 2026-06-30 Targeted Vercel Preview Deployment Prune
+
+Result: complete
+
+Preview deployment capacity:
+
+- Pruned 201 old Vercel Preview deployments with targeted `vercel remove <deployment-id> --safe --yes --scope tennis-data` batches.
+- Removed stale merged-PR previews and old `master` previews after checking current open PR branches and preserving the newest `master` preview anchors.
+- Kept the four newest `master` preview deployments:
+  - `tennis-data-p127trrp8-tennis-data.vercel.app` from `e5f78a5e` (`Make QA gap report ledger-aware`)
+  - `tennis-data-8htq51bdf-tennis-data.vercel.app` from `b2bd23bf` (`Record June 30 production closeout`)
+  - `tennis-data-oc03bye6b-tennis-data.vercel.app` from `24ca239c` (`Record local workspace cleanup`)
+  - `tennis-data-8xj43cf4d-tennis-data.vercel.app` from `f8373103` (`Record Vercel preview cleanup follow-up`)
+- Left production deployments intact as rollback anchors.
+
+Verification:
+
+- Vercel API scan checked 250 deployments after pruning and reported 4 remaining Preview deployments, 4 `master` previews, and 0 old `master` previews beyond the kept anchors.
+- `npx vercel inspect https://www.tenaceiq.com --scope tennis-data` reported production deployment `tennis-data-6w079qjdn-tennis-data.vercel.app` as `Ready`.
+- `npx vercel inspect https://tennis-data-p127trrp8-tennis-data.vercel.app --scope tennis-data` reported the latest Preview deployment as `Ready`.
+- Local working tree was clean after the remote cleanup.
