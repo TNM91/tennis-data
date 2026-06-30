@@ -102,7 +102,7 @@ Use this order before launch readiness.
 4. `npm run verify:closeout`
 5. `npm run verify:closeout:live`
 
-`npm run qa:launch` is expected to fail until every planned journey has pass evidence and no open p0 or p1 row remains.
+`npm run qa:launch` fails until every planned journey has pass evidence and no open p0 or p1 row remains. It should stay green for the current signed-off ledger.
 
 ## Testing Standard
 

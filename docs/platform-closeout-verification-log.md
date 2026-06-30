@@ -74,9 +74,9 @@ Checks passed:
 - `npm run audit:artifacts` reported no generated or oversized local artifacts.
 - Vercel production logs returned no recent runtime logs after deployment.
 
-Note:
+Historical note:
 
-- Launch readiness is still blocked by signed-in fixture credentials, not by deployment health. `npm run qa:fixture-auth-smoke -- coach_primary` is blocked until `TENACEIQ_QA_COACH_EMAIL` and `TENACEIQ_QA_COACH_PASSWORD` are set; `npm run qa:fixture-auth-smoke -- player_plus_linked` is blocked until `TENACEIQ_QA_PLAYER_EMAIL` and `TENACEIQ_QA_PLAYER_PASSWORD` are set.
+- At this point in the cleanup sequence, launch readiness was blocked by signed-in fixture credentials, not by deployment health. This was superseded by the 2026-06-29 launch-ready closeout recheck above after production QA fixtures were provisioned and signed-in journey evidence passed.
 
 ## 2026-06-05 Expanded Production Closeout Pass
 

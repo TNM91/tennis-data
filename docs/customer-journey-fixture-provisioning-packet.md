@@ -1,17 +1,16 @@
 # TenAceIQ Fixture Provisioning Packet
 
-Use this packet to unblock the customer journey ledger after the public and gated-route evidence pass. Keep credentials out of git. Store secrets in `.env.local`, a password manager, or the production QA account system only. Use `docs/customer-journey-fixture-env-template.md` as the tracked non-secret env template.
+Use this packet to provision, rotate, or repair production QA fixtures. Keep credentials out of git. Store secrets in `.env.local`, a password manager, or the production QA account system only. Use `docs/customer-journey-fixture-env-template.md` as the tracked non-secret env template.
 
 Current state on 2026-06-29:
 
-- 9/9 journeys have at least one recorded result.
-- 2/9 journeys are signed off with pass evidence.
+- 9/9 journeys are signed off with pass evidence.
 - No open p0/p1 product blockers are logged.
-- The remaining launch blockers are fixture/test blockers.
+- The launch ledger is ready; fixture credentials remain local-only and should be reprovisioned with this packet only when an account is missing, expired, or intentionally rotated.
 
-## First Unblock
+## Reprovisioning Start
 
-Start with the Day 1 coach/player trust loop because it unlocks the most downstream proof.
+When rebuilding fixtures from zero, start with the Day 1 coach/player trust loop because it unlocks the most downstream proof.
 
 1. Provision or confirm `player_plus_linked`.
 2. Provision or confirm `coach_primary`.

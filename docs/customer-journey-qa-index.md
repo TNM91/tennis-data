@@ -228,4 +228,4 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 - Use `npm run qa:scorecard` before signoff meetings to see each tier, session, evidence state, blockers, and next command in one table.
 - Use `npm run qa:signoff` before launch readiness to see which journey owners can call their flow done.
 - Use `npm run qa:launch-board` before the hard launch gate so blockers are separated into product fixes, fixture/test setup, quality follow-ups, and missing evidence.
-- Use `npm run qa:launch` as the final manual-evidence gate; it is expected to fail until every journey has a pass row.
+- Use `npm run qa:launch` as the final manual-evidence gate; it fails until every journey has a pass row, and should stay green for the current signed-off ledger.
