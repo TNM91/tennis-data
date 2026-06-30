@@ -2,6 +2,35 @@
 
 Use this as the running evidence log for platform closeout. Keep detailed bugs in issue tracking or daily notes; this file records the high-level verification passes that matter for release confidence.
 
+## 2026-06-29 Launch-Ready Production Closeout Recheck
+
+Command: `npm run verify:closeout:live`
+
+Base URL: `https://www.tenaceiq.com`
+
+Result: pass
+
+Checks passed:
+
+- Tier copy consistency across Free, Player, Coach, Captain, League, and Full-Court.
+- Coach-player Level Up contract tests: 3 files passed, 29 tests passed.
+- Level Up content quality tests: 1 file passed, 7 tests passed.
+- Platform closeout inventory tests: 3 files passed, 71 tests passed.
+- Expanded production platform route smoke checked 17 routes.
+- Production Level Up player loop smoke verified mobile proof save, next-action copy, and localStorage persistence.
+- Production portal overflow smoke passed.
+
+Evidence:
+
+- Route smoke accepted the expected signed-out redirects for protected Coach and Captain routes.
+- Player loop smoke verified `relentless-competitor-4-0` with `serve-target-call`.
+- The first sandboxed Playwright launch failed with `spawn EPERM`; rerunning the same live closeout with approved escalation passed, confirming an execution-permission issue rather than a product failure.
+
+Launch QA state:
+
+- Signed-in production QA is complete across Free, Player, Coach, Captain, League, Full-Court, and Admin.
+- `npm run qa:readiness` reports 11/11 docs present, 9/9 start commands registered, 9/9 journeys with pass evidence, 0 open p0/p1 rows, and launch-ready ledger state.
+
 ## 2026-06-29 Cleanup Sync Production Deployment
 
 Command: `vercel deploy --prod --yes --scope tennis-data`
@@ -108,8 +137,8 @@ Note:
 
 ## Next Verification Target
 
-Use real test accounts to execute the first signed-in Day 1 journey in `docs/customer-journey-test-plan.md`:
+Use post-launch monitoring rather than more fixture setup:
 
-1. Set `TENACEIQ_QA_BASE_URL=https://www.tenaceiq.com`, `TENACEIQ_QA_COACH_EMAIL`, `TENACEIQ_QA_COACH_PASSWORD`, `TENACEIQ_QA_PLAYER_EMAIL`, and `TENACEIQ_QA_PLAYER_PASSWORD` in `.env.local` or the shell.
-2. Run `npm run qa:fixture-auth-smoke -- coach_primary` and `npm run qa:fixture-auth-smoke -- player_plus_linked`.
-3. Run `npm run qa:live-card -- coach-player-assigned-challenge --date=2026-06-29 --tester=<name> --device=phone` after both fixtures authenticate.
+1. Check Vercel production deployment health and runtime logs after each production deploy.
+2. Rerun `npm run verify:closeout:live` before broad launch announcements or after any auth, tier, or navigation change.
+3. Keep using `npm run qa:launch` as the manual-evidence launch gate; it should stay green unless new journeys are added.
