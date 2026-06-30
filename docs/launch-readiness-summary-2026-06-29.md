@@ -21,9 +21,9 @@ TenAceIQ is launch-ready based on the recorded customer-journey QA ledger, produ
 - Recent production error logs: none found for the checked window
 - Full live closeout against production: passed
 
-The latest pushed commit also produced a Vercel preview deployment, `tennis-data-808jrtgpg-tennis-data.vercel.app`, with status Ready. That preview is protected by Vercel Authentication, so route smoke against the preview URL redirects to Vercel login and is not useful as an app signal. Production smoke remains the authoritative launch signal for this closeout.
+A post-signoff QA housekeeping commit produced Vercel preview deployment `tennis-data-808jrtgpg-tennis-data.vercel.app` with status Ready. Preview deployments are protected by Vercel Authentication, so route smoke against preview URLs redirects to Vercel login and is not useful as an app signal. Production smoke remains the authoritative launch signal for this closeout.
 
-After the launch-readiness tag was created, follow-up commits were limited to QA/handoff housekeeping. `1da52cc3 Add Node version hint` added `.nvmrc` with Node `22` to match `package.json` engines, and its Vercel preview, `tennis-data-817zwfdkx-tennis-data.vercel.app`, is Ready. `a47004e5 Optimize QA evidence images` recompressed committed QA evidence PNGs from about 69.66 MB to 31.20 MB without changing filenames or ledger references. The launch tag intentionally remains on `c429b568`, the signed-off launch summary commit.
+After the launch-readiness tag was created, follow-up commits were limited to QA, evidence, and handoff housekeeping. `1da52cc3 Add Node version hint` added `.nvmrc` with Node `22` to match `package.json` engines, and its Vercel preview, `tennis-data-817zwfdkx-tennis-data.vercel.app`, is Ready. `a47004e5 Optimize QA evidence images` recompressed committed QA evidence PNGs from about 69.66 MB to 31.20 MB without changing filenames or ledger references. `3077b32e`, `28ab58df`, `3d8428ca`, and `7af7d9ca` refreshed the launch summary, cleanup log, closeout verification log, and fixture guidance so the docs match the signed-off state. The launch tag intentionally remains on `c429b568`, the signed-off launch summary commit.
 
 ## Final Verification Commands
 
