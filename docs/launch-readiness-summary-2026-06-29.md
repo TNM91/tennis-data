@@ -13,6 +13,16 @@ TenAceIQ is launch-ready based on the recorded customer-journey QA ledger, produ
 - Missing screenshot/video evidence: 0
 - Stable launch-readiness marker: `launch-ready-2026-06-29` at `c429b568 Add launch readiness summary`
 
+## 2026-06-30 Recheck
+
+TenAceIQ remains launch-ready after the June 30 cleanup and handoff work.
+
+- `npm run qa:launch` passed: 9/9 journeys with pass evidence, 0 open p0/p1 rows.
+- `npm run verify:closeout:live` passed against `https://www.tenaceiq.com`.
+- Vercel production deployment `tennis-data-6w079qjdn-tennis-data.vercel.app` remains `Ready`.
+- Production error logs returned no entries for the checked 1-hour window.
+- Remaining manual platform item: change Vercel's Git production branch setting from `main` to `master` in the Vercel dashboard. Until then, keep treating production deploys as explicit verified promotions.
+
 ## Production State
 
 - Production domain: `https://www.tenaceiq.com`

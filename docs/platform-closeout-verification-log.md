@@ -2,6 +2,36 @@
 
 Use this as the running evidence log for platform closeout. Keep detailed bugs in issue tracking or daily notes; this file records the high-level verification passes that matter for release confidence.
 
+## 2026-06-30 Final Production Closeout Recheck
+
+Commands:
+
+- `npm run qa:launch`
+- `npx vercel inspect https://www.tenaceiq.com --scope tennis-data`
+- `npx vercel logs https://www.tenaceiq.com --since 1h --level error --scope tennis-data`
+- `npm run verify:closeout:live`
+
+Base URL: `https://www.tenaceiq.com`
+
+Result: pass
+
+Checks passed:
+
+- Customer journey launch gate passed with 9/9 journeys and 0 open p0/p1 rows.
+- Production deployment `tennis-data-6w079qjdn-tennis-data.vercel.app` is `Ready`.
+- Error-level production runtime log query for the checked 1-hour window returned no logs.
+- Tier copy consistency passed across Free, Player, Coach, Captain, League, and Full-Court.
+- Coach-player Level Up contract tests passed: 3 files, 29 tests.
+- Level Up content quality tests passed: 1 file, 7 tests.
+- Platform closeout inventory tests passed: 3 files, 71 tests.
+- Production route smoke checked 17 routes and accepted expected signed-out redirects for protected Coach and Captain routes.
+- Production Level Up player loop smoke verified mobile load, direct active card, proof rating and note save, next-action copy, and localStorage persistence.
+- Production portal overflow smoke passed.
+
+Remaining manual item:
+
+- Vercel project Git production branch still needs to be changed from `main` to `master` in the Vercel dashboard. CLI/API patch attempts remain rejected by validation, so production deploys should stay explicit verified promotions until the dashboard setting is corrected.
+
 ## 2026-06-29 Production Monitoring And Runtime Alignment Check
 
 Commands:
