@@ -101,3 +101,19 @@ Related commits:
 
 - `a47004e5` Optimize QA evidence images
 - `3077b32e` Note optimized QA evidence size
+
+## 2026-06-30 Follow-Up Vercel Preview Capacity Cleanup
+
+Result: partial safe cleanup
+
+Preview deployment capacity:
+
+- Ran `npx vercel remove tennis-data --safe --yes --scope tennis-data` to prune unaliased Preview deployments while preserving production deployments and actively aliased branch previews.
+- The command timed out after making progress, so the lingering `vercel remove tennis-data --safe --yes --scope tennis-data` Node processes were stopped manually.
+- Confirmed at least one stale preview deployment from the recent housekeeping run, `tennis-data-2ulg7ug9r-tennis-data.vercel.app`, was removed; subsequent deployment listings exposed older retained production and rollback deployments.
+- Left production deployments and branch-aliased previews intact.
+
+Verification:
+
+- `npx vercel inspect https://www.tenaceiq.com --scope tennis-data` reported production deployment `tennis-data-6w079qjdn-tennis-data.vercel.app` as `Ready`.
+- `npx vercel logs https://www.tenaceiq.com --since 1h --level error --scope tennis-data` returned no logs for the checked window.
