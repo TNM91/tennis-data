@@ -27,6 +27,13 @@ Runtime alignment:
 - Vercel project metadata was aligned from Node `24.x` to Node `22.x` with `npx vercel api /v9/projects/prj_v5O8xWepQDShD0EzC6R6ooS0IlW0 --method PATCH --field nodeVersion=22.x --silent`.
 - `npx vercel project inspect tennis-data --scope tennis-data` confirmed Node.js Version `22.x` after the update.
 
+Git production branch alignment:
+
+- GitHub default branch and active release branch are `master`.
+- Vercel project metadata still reports Git production branch `main`, while the current production deployment was promoted from `master`.
+- CLI/API attempts to patch `productionBranch=master` and `gitProductionBranch=master` were rejected with `400` validation errors, so this should be changed in the Vercel dashboard rather than forced through unverified nested API fields.
+- Until that dashboard setting is changed, treat production deploys as explicit verified promotions instead of relying on automatic production deployment from `master` pushes.
+
 ## 2026-06-29 Launch-Ready Production Closeout Recheck
 
 Command: `npm run verify:closeout:live`

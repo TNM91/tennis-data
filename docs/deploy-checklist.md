@@ -4,6 +4,7 @@ Use this checklist before promoting the current redesign and product-architectur
 
 ## Build
 
+- Confirm the active release branch is `master`. GitHub default branch is `master`, but the Vercel Git production branch setting still reports `main`; do not rely on automatic production deploys from Git until that Vercel dashboard setting is changed to `master`.
 - Run `npm run build`
 - Run `npm run audit:artifacts` after local builds to confirm generated files, logs, zips, screenshots, and nested repo copies are not sitting in the workspace
 - Confirm the homepage, pricing page, explore routes, captain routes, and auth pages load locally
@@ -72,6 +73,13 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
 - For production closeout checks after deploy, run `npm run verify:closeout:live`
+
+## Production Promotion
+
+- Until Vercel's Git production branch setting is aligned from `main` to `master`, promote production intentionally from a verified deployment instead of assuming a `master` push becomes production.
+- Confirm `npx vercel project inspect tennis-data --scope tennis-data` before promotion; Node.js Version should be `22.x`.
+- Confirm the deployment to promote is `Ready`, tied to the expected `master` commit, and has passed the relevant QA gates.
+- After promotion, run `npm run verify:closeout:live` and check recent production error logs.
 
 ## Database
 
