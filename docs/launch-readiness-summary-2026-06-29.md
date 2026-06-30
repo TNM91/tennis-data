@@ -11,7 +11,8 @@ TenAceIQ is launch-ready based on the recorded customer-journey QA ledger, produ
 - Open p0/p1 rows: 0
 - Missing pass evidence: 0
 - Missing screenshot/video evidence: 0
-- Current local commit: `6ed323eb Close active QA retest rows`
+- Launch-readiness tag commit: `c429b568 Add launch readiness summary`
+- Current repository head: `1da52cc3 Add Node version hint`
 
 ## Production State
 
@@ -22,6 +23,8 @@ TenAceIQ is launch-ready based on the recorded customer-journey QA ledger, produ
 - Full live closeout against production: passed
 
 The latest pushed commit also produced a Vercel preview deployment, `tennis-data-808jrtgpg-tennis-data.vercel.app`, with status Ready. That preview is protected by Vercel Authentication, so route smoke against the preview URL redirects to Vercel login and is not useful as an app signal. Production smoke remains the authoritative launch signal for this closeout.
+
+After the launch-readiness tag was created, `1da52cc3 Add Node version hint` added `.nvmrc` with Node `22` to match `package.json` engines. The Vercel preview for that housekeeping commit, `tennis-data-817zwfdkx-tennis-data.vercel.app`, is Ready. The launch tag intentionally remains on `c429b568`, the signed-off launch summary commit.
 
 ## Final Verification Commands
 
