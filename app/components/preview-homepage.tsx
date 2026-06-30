@@ -481,7 +481,7 @@ const commandModeDetails: Record<
 > = {
   free: {
     headline: `${HOME_HERO_STORY.headlineTop} ${HOME_HERO_STORY.headlineBottom}`,
-    subhead: HOME_HERO_STORY.body,
+    subhead: `${HOME_HERO_STORY.body} Start with the tennis map, then unlock the tools that save your week.`,
     searchPlaceholder: 'Search players, teams, leagues, ratings...',
     queue: ['Find a player', 'Browse teams', 'Check standings', 'Check rankings'],
     unlockLine: 'Free stays useful. Unlock My Lab, Team Hub, or League Office when your tennis needs become personal, team-based, or league-wide.',
