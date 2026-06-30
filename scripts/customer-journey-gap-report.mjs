@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { customerJourneyDetails, plannedJourneyIds } from './customer-journey-qa-data.mjs'
 
 const processMapPath = 'docs/customer-journey-process-map.md'
+const resultsPath = 'docs/customer-journey-test-results.md'
 const processMapSource = readFileSync(join(process.cwd(), processMapPath), 'utf8')
+const resultsSource = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 
 const matrixStart = processMapSource.indexOf('## Feature Access And Pain Point Matrix')
 const matrixEnd = processMapSource.indexOf('## Next Week Test Order')
@@ -33,27 +36,105 @@ const rows = processMapSource
     verification,
   }))
 
+const featureProofByLabel = buildFeatureProofByLabel()
 const gaps = rows
   .filter((row) => row.status !== 'backend-backed' || row.verification !== 'automated')
+  .map((row) => ({ ...row, proof: getClosedFeatureProof(row) }))
+  .filter((row) => !row.proof)
   .sort((a, b) => gapPriority(b) - gapPriority(a))
+const closedProofs = rows
+  .filter((row) => row.status !== 'backend-backed' || row.verification !== 'automated')
+  .map((row) => ({ ...row, proof: getClosedFeatureProof(row) }))
+  .filter((row) => row.proof)
+  .sort((a, b) => a.tier.localeCompare(b.tier) || a.feature.localeCompare(b.feature))
 
 console.log('TenAceIQ Journey QA Gap Report')
 console.log('')
-console.log(`Source: ${processMapPath}`)
-console.log('Use this to decide what still needs real-account, fixture, mobile, or manual evidence.')
+console.log(`Sources: ${processMapPath}; ${resultsPath}`)
+console.log('Use this to decide what still needs real-account, fixture, mobile, or manual evidence after signed-off pass rows are applied.')
 console.log('')
 
-for (const row of gaps) {
-  console.log(`${gapLabel(row)} - ${row.tier}: ${row.feature}`)
-  console.log(`  Stage: ${row.stage}`)
-  console.log(`  Route: ${row.route}`)
-  console.log(`  Status: ${row.status}; verification: ${row.verification}`)
-  console.log(`  Prove this: ${row.painPoint}`)
-  console.log(`  Next evidence: ${evidencePrompt(row)}`)
+console.log('Active evidence gaps:')
+if (gaps.length) {
+  for (const row of gaps) {
+    console.log(`- ${gapLabel(row)} - ${row.tier}: ${row.feature}`)
+    console.log(`  Stage: ${row.stage}`)
+    console.log(`  Route: ${row.route}`)
+    console.log(`  Status: ${row.status}; verification: ${row.verification}`)
+    console.log(`  Prove this: ${row.painPoint}`)
+    console.log(`  Next evidence: ${evidencePrompt(row)}`)
+  }
+} else {
+  console.log('- None')
 }
 
 console.log('')
-console.log(`${gaps.length} feature gaps need manual, account, fixture, or local-sync evidence before the loop is fully closed.`)
+console.log('Closed by signed-off pass evidence:')
+if (closedProofs.length) {
+  for (const row of closedProofs) {
+    console.log(`- ${row.tier}: ${row.feature}`)
+    console.log(`  Proven by: ${row.proof.journeyId} (${row.proof.date || 'undated'})`)
+  }
+} else {
+  console.log('- None')
+}
+
+console.log('')
+console.log(`${gaps.length} active feature gaps need manual, account, fixture, or local-sync evidence before the loop is fully closed.`)
+
+function buildFeatureProofByLabel() {
+  const latestPassRows = resultsSource
+    .split('\n')
+    .filter((line) => line.startsWith('| ') && !line.includes('---'))
+    .map((line, ledgerIndex) => ({ ...parseMarkdownRow(line), ledgerIndex }))
+    .filter((row) => plannedJourneyIds.includes(row.journeyId))
+    .filter((row) => row.result === 'pass')
+    .reduce((acc, row) => {
+      const existing = acc.get(row.journeyId)
+      if (!existing || row.ledgerIndex > existing.ledgerIndex) acc.set(row.journeyId, row)
+      return acc
+    }, new Map())
+
+  return customerJourneyDetails.reduce((acc, journey) => {
+    const proof = latestPassRows.get(journey.id)
+    if (!proof?.screenshotOrVideo) return acc
+
+    for (const label of journey.riskFeatureLabels) {
+      const proofs = acc.get(label) ?? []
+      proofs.push({ ...proof, tier: journey.tier })
+      acc.set(label, proofs)
+    }
+
+    return acc
+  }, new Map())
+}
+
+function getClosedFeatureProof(row) {
+  const proofs = featureProofByLabel.get(row.feature) ?? []
+  return proofs.find((proof) => proof.tier === row.tier) ?? proofs[0]
+}
+
+function parseMarkdownRow(line) {
+  const cells = line
+    .split('|')
+    .slice(1, -1)
+    .map((cell) => cell.trim())
+
+  return {
+    date: cells[0] ?? '',
+    tester: cells[1] ?? '',
+    deviceBrowser: cells[2] ?? '',
+    accountFixture: cells[3] ?? '',
+    journeyId: cells[4] ?? '',
+    entryRoute: cells[5] ?? '',
+    result: cells[6] ?? '',
+    category: cells[7] ?? '',
+    severity: cells[8] ?? '',
+    screenshotOrVideo: cells[9] ?? '',
+    notes: cells[10] ?? '',
+    nextAction: cells[11] ?? '',
+  }
+}
 
 function gapPriority(row) {
   const verificationScore = {
