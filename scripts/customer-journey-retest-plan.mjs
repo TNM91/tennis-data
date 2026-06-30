@@ -19,12 +19,15 @@ const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const rows = extractResultLedger(source)
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
-  .map(parseMarkdownRow)
+  .map((line, ledgerIndex) => ({ ...parseMarkdownRow(line), ledgerIndex }))
   .filter((row) => plannedJourneyIds.includes(row.journeyId))
   .filter(matchesQuery)
+const latestPassIndexByJourneyId = buildLatestPassIndexByJourneyId(rows)
 
 const passJourneyIds = new Set(rows.filter((row) => row.result === 'pass').map((row) => row.journeyId))
-const openRows = rows.filter((row) => row.result && row.result !== 'pass').sort(sortRows)
+const openRows = rows
+  .filter((row) => row.result && row.result !== 'pass' && !isSupersededByLaterPass(row))
+  .sort(sortRows)
 const missingPassJourneyIds = plannedJourneyIds.filter((journeyId) => !passJourneyIds.has(journeyId)).filter(matchesJourneyQuery)
 const openHighPriorityRows = openRows.filter((row) => row.severity === 'p0' || row.severity === 'p1')
 
@@ -147,6 +150,19 @@ function sortRows(a, b) {
   if (resultDelta !== 0) return resultDelta
 
   return plannedJourneyIds.indexOf(a.journeyId) - plannedJourneyIds.indexOf(b.journeyId)
+}
+
+function buildLatestPassIndexByJourneyId(rows) {
+  return rows.reduce((acc, row) => {
+    if (row.result !== 'pass') return acc
+    acc.set(row.journeyId, Math.max(acc.get(row.journeyId) ?? -1, row.ledgerIndex))
+    return acc
+  }, new Map())
+}
+
+function isSupersededByLaterPass(row) {
+  const latestPassIndex = latestPassIndexByJourneyId.get(row.journeyId)
+  return latestPassIndex !== undefined && latestPassIndex > row.ledgerIndex
 }
 
 function extractResultLedger(markdown) {

@@ -9,24 +9,22 @@ const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const rows = source
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
-  .map(parseMarkdownRow)
+  .map((line, ledgerIndex) => ({ ...parseMarkdownRow(line), ledgerIndex }))
   .filter((row) => plannedJourneyIds.includes(row.journeyId))
+const latestPassIndexByJourneyId = buildLatestPassIndexByJourneyId(rows)
+const openRows = rows.filter((row) => row.result !== 'pass' && !isSupersededByLaterPass(row))
 
 const byStatus = Object.fromEntries(statuses.map((status) => [status, 0]))
 const testedJourneyIds = new Set()
-const highPriorityOpenRows = []
 
 for (const row of rows) {
   testedJourneyIds.add(row.journeyId)
   if (row.result in byStatus) byStatus[row.result] += 1
-
-  if ((row.severity === 'p0' || row.severity === 'p1') && row.result !== 'pass') {
-    highPriorityOpenRows.push(row)
-  }
 }
 
 const missingJourneyIds = plannedJourneyIds.filter((journeyId) => !testedJourneyIds.has(journeyId))
-const fixtureGapRows = rows.filter((row) => row.result !== 'pass' && row.category === 'fixture-gap')
+const highPriorityOpenRows = openRows.filter((row) => row.severity === 'p0' || row.severity === 'p1')
+const fixtureGapRows = openRows.filter((row) => row.category === 'fixture-gap')
 
 console.log('TenAceIQ Customer Journey Result Summary')
 console.log('')
@@ -99,9 +97,22 @@ function parseMarkdownRow(line) {
 }
 
 function printFixtureAuthCommands(journeyId, indent) {
-  const row = [...rows].reverse().find((item) => item.journeyId === journeyId && item.category === 'fixture-gap' && item.result !== 'pass')
+  const row = [...openRows].reverse().find((item) => item.journeyId === journeyId && item.category === 'fixture-gap')
   const command = getFixtureAuthSmokeCommand(row?.accountFixture ?? '')
   if (!command) return
   console.log(`${indent}Auth env: npm run qa:fixture-auth-smoke -- --env`)
   console.log(`${indent}Auth smoke: ${command}`)
+}
+
+function buildLatestPassIndexByJourneyId(rows) {
+  return rows.reduce((acc, row) => {
+    if (row.result !== 'pass') return acc
+    acc.set(row.journeyId, Math.max(acc.get(row.journeyId) ?? -1, row.ledgerIndex))
+    return acc
+  }, new Map())
+}
+
+function isSupersededByLaterPass(row) {
+  const latestPassIndex = latestPassIndexByJourneyId.get(row.journeyId)
+  return latestPassIndex !== undefined && latestPassIndex > row.ledgerIndex
 }

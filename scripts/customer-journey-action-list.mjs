@@ -17,12 +17,15 @@ const rawQuery = process.argv.slice(2).join(' ').trim().toLowerCase()
 const normalizedQuery = normalizeQaQuery(rawQuery)
 
 const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
-const rows = source
+const ledgerRows = source
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
-  .map(parseMarkdownRow)
+  .map((line, ledgerIndex) => ({ ...parseMarkdownRow(line), ledgerIndex }))
   .filter((row) => plannedJourneyIds.includes(row.journeyId))
+const latestPassIndexByJourneyId = buildLatestPassIndexByJourneyId(ledgerRows)
+const rows = ledgerRows
   .filter((row) => row.result !== 'pass')
+  .filter((row) => !isSupersededByLaterPass(row))
   .filter(matchesQuery)
   .sort(sortActionRows)
 
@@ -118,6 +121,19 @@ function sortActionRows(a, b) {
   if (resultDelta !== 0) return resultDelta
 
   return plannedJourneyIds.indexOf(a.journeyId) - plannedJourneyIds.indexOf(b.journeyId)
+}
+
+function buildLatestPassIndexByJourneyId(rows) {
+  return rows.reduce((acc, row) => {
+    if (row.result !== 'pass') return acc
+    acc.set(row.journeyId, Math.max(acc.get(row.journeyId) ?? -1, row.ledgerIndex))
+    return acc
+  }, new Map())
+}
+
+function isSupersededByLaterPass(row) {
+  const latestPassIndex = latestPassIndexByJourneyId.get(row.journeyId)
+  return latestPassIndex !== undefined && latestPassIndex > row.ledgerIndex
 }
 
 function parseMarkdownRow(line) {

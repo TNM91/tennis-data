@@ -21,9 +21,10 @@ const source = readFileSync(join(process.cwd(), resultsPath), 'utf8')
 const ledgerRows = source
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
-  .map(parseMarkdownRow)
+  .map((line, ledgerIndex) => ({ ...parseMarkdownRow(line), ledgerIndex }))
   .filter((row) => plannedJourneyIds.includes(row.journeyId))
   .filter((row) => !dateFilter || row.date === dateFilter)
+const latestPassIndexByJourneyId = buildLatestPassIndexByJourneyId(ledgerRows)
 
 const selectedSessions = selectSessions()
 
@@ -70,10 +71,11 @@ function printSessionCloseout(session) {
   const testedJourneyIds = new Set(sessionRows.map((row) => row.journeyId))
   const missingResultJourneyIds = session.journeyIds.filter((journeyId) => !testedJourneyIds.has(journeyId))
   const missingPassJourneyIds = session.journeyIds.filter((journeyId) => !passJourneyIds.has(journeyId))
-  const openRows = sessionRows.filter((row) => row.result !== 'pass')
+  const activeRows = sessionRows.filter((row) => row.result === 'pass' || !isSupersededByLaterPass(row))
+  const openRows = activeRows.filter((row) => row.result !== 'pass')
   const openFixtureRows = openRows.filter((row) => row.category === 'fixture-gap')
   const openHighPriorityRows = openRows.filter((row) => row.severity === 'p0' || row.severity === 'p1')
-  const missingEvidenceRows = sessionRows.filter((row) => !row.screenshotOrVideo)
+  const missingEvidenceRows = activeRows.filter((row) => !row.screenshotOrVideo)
   const missingNextActionRows = openRows.filter((row) => !row.nextAction)
   const canClose =
     sessionRows.length > 0 &&
@@ -99,7 +101,7 @@ function printSessionCloseout(session) {
     const journeyRows = sessionRows.filter((row) => row.journeyId === journeyId)
     const hasPass = journeyRows.some((row) => row.result === 'pass')
     const hasEvidence = journeyRows.some((row) => row.screenshotOrVideo)
-    const openJourneyRows = journeyRows.filter((row) => row.result !== 'pass')
+    const openJourneyRows = journeyRows.filter((row) => row.result !== 'pass' && !isSupersededByLaterPass(row))
     const marker = hasPass && hasEvidence && !openJourneyRows.some((row) => row.severity === 'p0' || row.severity === 'p1') ? 'closeable' : 'needs attention'
 
     console.log(`  - ${marker}: ${journeyId}`)
@@ -145,6 +147,19 @@ function printSessionCloseout(session) {
   }
 
   console.log('')
+}
+
+function buildLatestPassIndexByJourneyId(rows) {
+  return rows.reduce((acc, row) => {
+    if (row.result !== 'pass') return acc
+    acc.set(row.journeyId, Math.max(acc.get(row.journeyId) ?? -1, row.ledgerIndex))
+    return acc
+  }, new Map())
+}
+
+function isSupersededByLaterPass(row) {
+  const latestPassIndex = latestPassIndexByJourneyId.get(row.journeyId)
+  return row.result !== 'pass' && latestPassIndex !== undefined && latestPassIndex > row.ledgerIndex
 }
 
 function parseArgs(rawArgs) {

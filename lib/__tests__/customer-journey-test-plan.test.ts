@@ -986,7 +986,7 @@ describe('customer journey test plan', () => {
     expect(resultsSummaryScriptSource).toContain('Open fixture-gap rows')
     expect(resultsSummaryScriptSource).toContain('Auth env: npm run qa:fixture-auth-smoke -- --env')
     expect(resultsSummaryScriptSource).toContain('getFixtureAuthSmokeCommand')
-    expect(resultsSummaryScriptSource).toContain('[...rows].reverse().find')
+    expect(resultsSummaryScriptSource).toContain('[...openRows].reverse().find')
     expect(resultsSummaryScriptSource).toContain('Auth smoke: ${command}')
     expect(nextJourneyScriptSource).toContain('npm run qa:fixture-gate --')
     expect(nextJourneyScriptSource).toContain('npm run qa:fixture-auth-smoke -- --env')

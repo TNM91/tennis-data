@@ -24,15 +24,17 @@ const fixtureCategories = new Set(['fixture-gap'])
 const rows = readFileSync(join(process.cwd(), resultsPath), 'utf8')
   .split('\n')
   .filter((line) => line.startsWith('| ') && !line.includes('---'))
-  .map(parseMarkdownRow)
+  .map((line, ledgerIndex) => ({ ...parseMarkdownRow(line), ledgerIndex }))
   .filter((row) => journeys.some((journey) => journey.id === row.journeyId))
   .filter(matchesQuery)
+const latestPassIndexByJourneyId = buildLatestPassIndexByJourneyId(rows)
+const activeRows = rows.filter((row) => row.result === 'pass' || !isSupersededByLaterPass(row))
 
 const visibleJourneys = journeys.filter((journey) => matchesJourney(journey))
-const launchBlockers = rows.filter(isLaunchBlocker)
-const testBlockers = rows.filter((row) => row.result !== 'pass' && fixtureCategories.has(row.category))
-const qualityFollowUps = rows.filter((row) => row.result !== 'pass' && qualityCategories.has(row.category))
-const unclassifiedOpenRows = rows.filter((row) => row.result !== 'pass' && !isLaunchBlocker(row) && !fixtureCategories.has(row.category) && !qualityCategories.has(row.category))
+const launchBlockers = activeRows.filter(isLaunchBlocker)
+const testBlockers = activeRows.filter((row) => row.result !== 'pass' && fixtureCategories.has(row.category))
+const qualityFollowUps = activeRows.filter((row) => row.result !== 'pass' && qualityCategories.has(row.category))
+const unclassifiedOpenRows = activeRows.filter((row) => row.result !== 'pass' && !isLaunchBlocker(row) && !fixtureCategories.has(row.category) && !qualityCategories.has(row.category))
 const missingPassJourneys = visibleJourneys.filter((journey) => !rows.some((row) => row.journeyId === journey.id && row.result === 'pass'))
 const missingEvidenceJourneys = visibleJourneys.filter((journey) => rows.some((row) => row.journeyId === journey.id && row.result === 'pass') && !rows.some((row) => row.journeyId === journey.id && row.result === 'pass' && row.screenshotOrVideo))
 const fixtureBlockersByJourneyId = new Map(testBlockers.map((row) => [row.journeyId, row]))
@@ -132,6 +134,19 @@ console.log('Launch board rule: product blockers require a fix or explicit launc
 
 function isLaunchBlocker(row) {
   return row.severity === 'p0' || row.severity === 'p1' || launchBlockingCategories.has(row.category)
+}
+
+function buildLatestPassIndexByJourneyId(rows) {
+  return rows.reduce((acc, row) => {
+    if (row.result !== 'pass') return acc
+    acc.set(row.journeyId, Math.max(acc.get(row.journeyId) ?? -1, row.ledgerIndex))
+    return acc
+  }, new Map())
+}
+
+function isSupersededByLaterPass(row) {
+  const latestPassIndex = latestPassIndexByJourneyId.get(row.journeyId)
+  return row.result !== 'pass' && latestPassIndex !== undefined && latestPassIndex > row.ledgerIndex
 }
 
 function printSection({ title, rows: sectionRows, empty, fallbackCommand }) {
