@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -21,6 +23,20 @@ describe('stripe checkout helpers', () => {
     expect(getStripePriceId('captain', { STRIPE_CAPTAIN_PRICE_ID: 'price_captain' })).toBe('price_captain')
     expect(getStripePriceId('league', { STRIPE_LEAGUE_PRICE_ID: 'price_league' })).toBe('price_league')
     expect(getStripePriceId('full_court', { STRIPE_FULL_COURT_PRICE_ID: 'price_full_court' })).toBe('price_full_court')
+  })
+
+  it('documents every paid Stripe price environment variable for launch setup', () => {
+    const qaDoc = readFileSync(join(process.cwd(), 'docs/stripe-lifecycle-qa.md'), 'utf8')
+
+    for (const envName of [
+      'STRIPE_PLAYER_PRICE_ID',
+      'STRIPE_COACH_PRICE_ID',
+      'STRIPE_CAPTAIN_PRICE_ID',
+      'STRIPE_LEAGUE_PRICE_ID',
+      'STRIPE_FULL_COURT_PRICE_ID',
+    ]) {
+      expect(qaDoc).toContain(envName)
+    }
   })
 
   it('builds subscription Checkout Session params with request metadata', () => {

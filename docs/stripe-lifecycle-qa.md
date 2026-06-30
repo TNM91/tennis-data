@@ -8,6 +8,7 @@ Use this checklist after billing changes, Stripe webhook configuration changes, 
 - Confirm the local or deployed app points at test credentials before sending test events. Do not create, cancel, or force-fail live customer subscriptions for QA.
 - Keep the canonical production webhook endpoint as `https://www.tenaceiq.com/api/stripe/webhook`.
 - Keep these webhook events enabled: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`.
+- Keep all paid checkout price env vars configured anywhere checkout can run: `STRIPE_PLAYER_PRICE_ID`, `STRIPE_COACH_PRICE_ID`, `STRIPE_CAPTAIN_PRICE_ID`, `STRIPE_LEAGUE_PRICE_ID`, and `STRIPE_FULL_COURT_PRICE_ID`.
 
 ## Test-mode lifecycle pass
 
