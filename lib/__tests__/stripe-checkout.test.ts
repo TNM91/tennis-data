@@ -43,7 +43,20 @@ describe('stripe checkout helpers', () => {
     expect(qaDoc).toContain('https://www.tenaceiq.com/api/stripe/webhook')
     expect(qaDoc).toContain('cs_live_')
     expect(qaDoc).toContain('cs_test_')
+    expect(qaDoc).toContain('npm run qa:stripe-live-mode')
     expect(qaDoc).toContain('controlled live payment')
+  })
+
+  it('keeps the repeatable Stripe live-mode smoke available for launch', () => {
+    const packageJson = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
+    const smokeScript = readFileSync(join(process.cwd(), 'scripts/stripe-checkout-mode-smoke.mjs'), 'utf8')
+
+    expect(packageJson).toContain('"qa:stripe-live-mode": "node scripts/stripe-checkout-mode-smoke.mjs --expect=live"')
+    expect(smokeScript).toContain('TENACEIQ_QA_FREE_EMAIL')
+    expect(smokeScript).toContain('TENACEIQ_QA_FREE_PASSWORD')
+    expect(smokeScript).toContain('cs_live_')
+    expect(smokeScript).toContain('cs_test_')
+    expect(smokeScript).not.toContain('sessionId,')
   })
 
   it('builds subscription Checkout Session params with request metadata', () => {

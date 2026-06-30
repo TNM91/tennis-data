@@ -83,6 +83,7 @@
     "qa:signoff": "node scripts/customer-journey-signoff-sheet.mjs",
     "qa:launch-board": "node scripts/customer-journey-launch-board.mjs",
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",
+    "qa:stripe-live-mode": "node scripts/stripe-checkout-mode-smoke.mjs --expect=live",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
     "db:migrations": "supabase migration list",
     "db:push:dry": "supabase db push --dry-run",
