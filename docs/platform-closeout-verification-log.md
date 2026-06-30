@@ -2,6 +2,29 @@
 
 Use this as the running evidence log for platform closeout. Keep detailed bugs in issue tracking or daily notes; this file records the high-level verification passes that matter for release confidence.
 
+## 2026-06-29 Production Monitoring And Runtime Alignment Check
+
+Commands:
+
+- `npx vercel inspect https://www.tenaceiq.com --scope tennis-data`
+- `npx vercel logs https://www.tenaceiq.com --since 1h --level error --scope tennis-data`
+
+Base URL: `https://www.tenaceiq.com`
+
+Result: pass
+
+Checks passed:
+
+- Production deployment `tennis-data-6w079qjdn-tennis-data.vercel.app` is `Ready`.
+- Production aliases include `https://www.tenaceiq.com` and `https://tenaceiq.com`.
+- Error-level production runtime log query for the last hour returned no logs.
+
+Runtime alignment:
+
+- Repository runtime remains pinned to Node `22.x` in `package.json` and `.nvmrc`.
+- GitHub CI was updated to run on `main` and `master`, and to use Node `22` for both verify and TIQ schema audit jobs.
+- Vercel project metadata currently reports Node `24.x`; leave this as a platform-setting follow-up unless the next production deployment proves a build/runtime issue, because current production is healthy.
+
 ## 2026-06-29 Launch-Ready Production Closeout Recheck
 
 Command: `npm run verify:closeout:live`
