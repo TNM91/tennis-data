@@ -9,7 +9,7 @@ import {
   PublicPageShell,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
-import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
+import { HOME_HERO_STORY, PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
   'TenAceIQ helps the tennis community improve, compete, and manage the game with less friction.'
@@ -47,13 +47,16 @@ export default function HomePage() {
     <PublicPageShell active="home">
       <main style={pageWrapStyle}>
         <CommandHero
-          title="More Tennis. Less Chaos."
-          body={PLATFORM_POSITIONING}
+          title={`${HOME_HERO_STORY.headlineTop} ${HOME_HERO_STORY.headlineBottom}`}
+          body={`${HOME_HERO_STORY.body} ${PLATFORM_POSITIONING}`}
           primary={{ href: '/explore', label: 'Start Exploring' }}
           secondary={{ href: '/explore/players', label: 'Find Player Insights' }}
           searchPlaceholder="Search players, teams, leagues, tournaments, coaches, resources, or tennis actions"
           showBoard
         />
+        <p style={homeTierPromiseStyle}>
+          Start free, then unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when your game, team, players, league, or tournament needs more support.
+        </p>
         <HomeCtaGrid />
         <PlatformPillarGrid />
         <AudiencePathGrid />
@@ -64,4 +67,13 @@ export default function HomePage() {
       </main>
     </PublicPageShell>
   )
+}
+
+const homeTierPromiseStyle = {
+  margin: '-8px 0 0',
+  color: 'var(--muted-strong)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 760,
+  maxWidth: 860,
 }
