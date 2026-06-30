@@ -56,6 +56,8 @@ const COACH_STUDENT_DRAFT_KEY = 'tenaceiq.coach.studentDraft.v1'
 const COACH_MOBILE_CONTEXT_KEY = 'tenaceiq.coach.mobileContext.v1'
 const COACH_ASSIGNMENT_DRAFT_KEY = 'tenaceiq.coach.assignmentDraft.v1'
 const COACH_LAST_STUDENT_SETUP_KEY = 'tenaceiq.coach.lastStudentSetup.v1'
+const COACH_HUB_LAUNCH_PROMISE =
+  'Coach Hub helps coaches plan lessons, assign drills, track player development, review proof, and support students between sessions.'
 
 const PENDING_INVITE_STEPS = [
   {
@@ -2655,7 +2657,11 @@ function CoachContent() {
   return (
     <main style={pageStyle}>
       {isMobile ? (
-        <h1 style={visuallyHiddenStyle}>Coach Hub</h1>
+        <section style={mobileCoachIntroStyle} aria-label="Coach Hub">
+          <div style={eyebrowStyle}>Coach Hub</div>
+          <h1 style={mobileCoachIntroTitleStyle}>Coach Hub</h1>
+          <p style={bodyStyle}>{COACH_HUB_LAUNCH_PROMISE}</p>
+        </section>
       ) : (
         <>
           <section style={heroStyle}>
@@ -2663,7 +2669,7 @@ function CoachContent() {
               <div style={eyebrowStyle}>Coach Hub</div>
               <h1 style={titleStyle}>Assign the next step. Track the player. Support the work between lessons.</h1>
               <p style={bodyStyle}>
-                Coach is for private teachers, development coaches, and team coaches who need drills, proof, resources, and player follow-through between lessons.
+                {COACH_HUB_LAUNCH_PROMISE} Coach is for private teachers, development coaches, and team coaches who need drills, proof, resources, and player follow-through between lessons.
                 Team competition operations stay in Captain; Full-Court includes both.
               </p>
               <div style={heroActionsStyle}>
@@ -4452,18 +4458,6 @@ const pageStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const visuallyHiddenStyle: CSSProperties = {
-  position: 'absolute',
-  width: 1,
-  height: 1,
-  padding: 0,
-  margin: -1,
-  overflow: 'hidden',
-  clip: 'rect(0, 0, 0, 0)',
-  whiteSpace: 'nowrap',
-  border: 0,
-}
-
 const heroStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
@@ -4483,6 +4477,24 @@ const heroCopyStyle: CSSProperties = {
   gap: 13,
   alignContent: 'center',
   minWidth: 0,
+}
+
+const mobileCoachIntroStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(145deg, rgba(7,17,31,0.96), rgba(5,11,22,0.92))',
+}
+
+const mobileCoachIntroTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 28,
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: 0,
 }
 
 const eyebrowStyle: CSSProperties = {

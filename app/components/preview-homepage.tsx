@@ -26,6 +26,7 @@ import { buildProductAccessState, type ProductAccessState } from '@/lib/access-m
 import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import {
+  HOME_HERO_STORY,
   getMembershipTier,
   TIER_HOMEPAGE_STORY,
   type MembershipTierId,
@@ -479,8 +480,8 @@ const commandModeDetails: Record<
   }
 > = {
   free: {
-    headline: 'More Tennis. Less Chaos.',
-    subhead: 'Start with the tennis map, then unlock the tools that save your week.',
+    headline: `${HOME_HERO_STORY.headlineTop} ${HOME_HERO_STORY.headlineBottom}`,
+    subhead: HOME_HERO_STORY.body,
     searchPlaceholder: 'Search players, teams, leagues, ratings...',
     queue: ['Find a player', 'Browse teams', 'Check standings', 'Check rankings'],
     unlockLine: 'Free stays useful. Unlock My Lab, Team Hub, or League Office when your tennis needs become personal, team-based, or league-wide.',
