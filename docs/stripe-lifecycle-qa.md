@@ -10,6 +10,25 @@ Use this checklist after billing changes, Stripe webhook configuration changes, 
 - Keep these webhook events enabled: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`.
 - Keep all paid checkout price env vars configured anywhere checkout can run: `STRIPE_PLAYER_PRICE_ID`, `STRIPE_COACH_PRICE_ID`, `STRIPE_CAPTAIN_PRICE_ID`, `STRIPE_LEAGUE_PRICE_ID`, and `STRIPE_FULL_COURT_PRICE_ID`.
 
+## Live-mode go-live gate
+
+Do not open paid launch until Stripe mode is intentionally switched and verified.
+
+1. Create or confirm live-mode Stripe Products and Prices for Player, Coach, Captain, League, and Full-Court.
+2. Replace Production Vercel Stripe env vars with live-mode values:
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_WEBHOOK_SECRET`
+   - `STRIPE_PLAYER_PRICE_ID`
+   - `STRIPE_COACH_PRICE_ID`
+   - `STRIPE_CAPTAIN_PRICE_ID`
+   - `STRIPE_LEAGUE_PRICE_ID`
+   - `STRIPE_FULL_COURT_PRICE_ID`
+3. Confirm the live Stripe webhook endpoint is `https://www.tenaceiq.com/api/stripe/webhook` and includes the required lifecycle events.
+4. Redeploy Production after the env swap.
+5. Start one no-card checkout smoke from a Free QA account and confirm the returned Checkout Session ID starts with `cs_live_`, not `cs_test_`.
+6. Run one controlled live payment for the lowest-risk paid plan, then confirm the profile access, billing event audit row, and customer portal handoff.
+7. Refund or cancel the controlled live payment only through Stripe Dashboard, then confirm the corresponding webhook updates TenAceIQ access.
+
 ## Test-mode lifecycle pass
 
 1. Player checkout

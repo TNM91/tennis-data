@@ -29,6 +29,8 @@ describe('stripe checkout helpers', () => {
     const qaDoc = readFileSync(join(process.cwd(), 'docs/stripe-lifecycle-qa.md'), 'utf8')
 
     for (const envName of [
+      'STRIPE_SECRET_KEY',
+      'STRIPE_WEBHOOK_SECRET',
       'STRIPE_PLAYER_PRICE_ID',
       'STRIPE_COACH_PRICE_ID',
       'STRIPE_CAPTAIN_PRICE_ID',
@@ -37,6 +39,11 @@ describe('stripe checkout helpers', () => {
     ]) {
       expect(qaDoc).toContain(envName)
     }
+
+    expect(qaDoc).toContain('https://www.tenaceiq.com/api/stripe/webhook')
+    expect(qaDoc).toContain('cs_live_')
+    expect(qaDoc).toContain('cs_test_')
+    expect(qaDoc).toContain('controlled live payment')
   })
 
   it('builds subscription Checkout Session params with request metadata', () => {
