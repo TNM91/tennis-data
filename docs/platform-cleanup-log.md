@@ -117,3 +117,24 @@ Verification:
 
 - `npx vercel inspect https://www.tenaceiq.com --scope tennis-data` reported production deployment `tennis-data-6w079qjdn-tennis-data.vercel.app` as `Ready`.
 - `npx vercel logs https://www.tenaceiq.com --since 1h --level error --scope tennis-data` returned no logs for the checked window.
+
+## 2026-06-30 Local Workspace Git And Artifact Cleanup
+
+Result: complete
+
+Local workspace cleanup:
+
+- Removed generated `tsconfig.tsbuildinfo` after `npm run audit:artifacts` flagged it as a closeout artifact.
+- Deleted three local branches already merged into `master`: `codex-design-polish-pass`, `codex/ci-master-branch-trigger`, and `codex/data-assist-foundation`.
+- Pruned stale local `origin/...` remote-tracking refs that no longer exist on GitHub; remote-tracking refs dropped to 19.
+- Ran `git gc`; loose Git object storage dropped to 0 bytes.
+
+Dependency and runtime notes:
+
+- `npm prune` completed with zero vulnerabilities. Four optional native support packages still appear as extraneous in `npm ls --depth=0`; prior prune passes do not remove them, so they are being left as npm-managed local dependency state rather than manually deleting package internals.
+- Local shell Node is `v24.14.1`, while the repo, CI, and Vercel project are aligned on Node `22.x`. No local Node version manager (`nvm`, `fnm`, or `volta`) was found, so local runtime switching remains a workstation setup follow-up.
+
+Verification:
+
+- `npm run audit:artifacts` passed after removing `tsconfig.tsbuildinfo`.
+- `npm run qa:launch` passed before the cleanup-log entry was committed.
