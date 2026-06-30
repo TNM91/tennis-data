@@ -23,6 +23,7 @@ Runtime alignment:
 
 - Repository runtime remains pinned to Node `22.x` in `package.json` and `.nvmrc`.
 - GitHub CI was updated to run on `main` and `master`, and to use Node `22` for both verify and TIQ schema audit jobs.
+- GitHub workflow actions were updated from `actions/checkout@v4` and `actions/setup-node@v4` to `actions/checkout@v7` and `actions/setup-node@v6` to clear the Actions Node 20 deprecation warning.
 - Vercel project metadata was aligned from Node `24.x` to Node `22.x` with `npx vercel api /v9/projects/prj_v5O8xWepQDShD0EzC6R6ooS0IlW0 --method PATCH --field nodeVersion=22.x --silent`.
 - `npx vercel project inspect tennis-data --scope tennis-data` confirmed Node.js Version `22.x` after the update.
 
