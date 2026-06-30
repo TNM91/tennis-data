@@ -23,7 +23,7 @@ TenAceIQ is launch-ready based on the recorded customer-journey QA ledger, produ
 
 The latest pushed commit also produced a Vercel preview deployment, `tennis-data-808jrtgpg-tennis-data.vercel.app`, with status Ready. That preview is protected by Vercel Authentication, so route smoke against the preview URL redirects to Vercel login and is not useful as an app signal. Production smoke remains the authoritative launch signal for this closeout.
 
-After the launch-readiness tag was created, follow-up commits were limited to QA/handoff housekeeping. `1da52cc3 Add Node version hint` added `.nvmrc` with Node `22` to match `package.json` engines, and its Vercel preview, `tennis-data-817zwfdkx-tennis-data.vercel.app`, is Ready. The launch tag intentionally remains on `c429b568`, the signed-off launch summary commit.
+After the launch-readiness tag was created, follow-up commits were limited to QA/handoff housekeeping. `1da52cc3 Add Node version hint` added `.nvmrc` with Node `22` to match `package.json` engines, and its Vercel preview, `tennis-data-817zwfdkx-tennis-data.vercel.app`, is Ready. `a47004e5 Optimize QA evidence images` recompressed committed QA evidence PNGs from about 69.66 MB to 31.20 MB without changing filenames or ledger references. The launch tag intentionally remains on `c429b568`, the signed-off launch summary commit.
 
 ## Final Verification Commands
 
@@ -72,4 +72,5 @@ These commands passed after the final Player+ Level Up mobile retest and reporti
 
 - The final active retest row was closed by a signed-in Player+ mobile Level Up pass. Evidence proves active card start, tiny note, saved proof, next recommendation, Level Up sync honesty, and My Lab return-state proof.
 - Historical blocked and needs-follow-up rows remain in the ledger for traceability. Reporting scripts now treat those rows as closed when a newer pass row exists for the same journey.
+- QA evidence screenshots were losslessly recompressed after signoff to reduce repository/platform payload while keeping the evidence paths stable.
 - No production promotion is recommended for the final QA-only commit because it changes documentation, QA reporting scripts, and evidence artifacts rather than runtime application behavior. Production is already healthy.
