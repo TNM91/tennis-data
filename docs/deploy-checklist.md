@@ -69,6 +69,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:scorecard` before signoff meetings to review tier, session, evidence, blocker, and next-command status
 - Run `npm run qa:signoff` before launch readiness to confirm every journey owner, evidence state, and blocker
 - Run `npm run qa:launch-board` before launch readiness to separate product blockers, fixture/test blockers, quality follow-ups, and missing evidence
+- Run `npm run qa:launch-owner-board -- --live --stripe-mode` before launch handoff to separate blocking product/code gates from owner-controlled Vercel and Stripe cutover actions
 - Run `npm run qa:launch` after testing is logged; it should pass before broad launch decisions
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`

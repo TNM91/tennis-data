@@ -82,6 +82,7 @@
     "qa:scorecard": "node scripts/customer-journey-scorecard.mjs",
     "qa:signoff": "node scripts/customer-journey-signoff-sheet.mjs",
     "qa:launch-board": "node scripts/customer-journey-launch-board.mjs",
+    "qa:launch-owner-board": "node scripts/launch-owner-board.mjs",
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",
     "qa:adsense-live": "node scripts/adsense-live-readiness-smoke.mjs",
     "qa:stripe-live-mode": "node scripts/stripe-checkout-mode-smoke.mjs --expect=live",

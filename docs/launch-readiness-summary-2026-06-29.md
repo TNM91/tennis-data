@@ -36,6 +36,15 @@ TenAceIQ remains launch-ready after the production log smoke was added and deplo
 - GitHub CI passed on both `master` and `main`.
 - Remaining intentional launch gate: switch Stripe from test mode to live mode only when real payments should open, then run `npm run qa:stripe-live-mode`.
 
+## 2026-07-01 Owner Gate Recheck
+
+TenAceIQ now has a compact owner handoff command for the final launch gates.
+
+- Run `npm run qa:launch-owner-board` for local blocking gates: journey launch evidence, workspace artifact audit, and Stripe readiness guard.
+- Run `npm run qa:launch-owner-board -- --live --stripe-mode` before launch handoff to add production logs, AdSense readiness, Vercel branch alignment, and the current Stripe checkout mode smoke.
+- The Vercel production branch gate is expected to remain an owner action until the dashboard setting changes from `main` to `master`.
+- The Stripe mode gate is expected to remain in test mode until the owner intentionally opens real paid upgrades.
+
 ## Production State
 
 - Production domain: `https://www.tenaceiq.com`
