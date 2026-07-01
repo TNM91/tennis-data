@@ -45,6 +45,13 @@ if (includeLive) {
       type: 'blocking',
     }),
     runCheck({
+      name: 'SEO and share readiness',
+      command: process.execPath,
+      commandArgs: ['scripts/seo-share-readiness-smoke.mjs', '--live'],
+      label: 'npm run qa:seo-share -- --live',
+      type: 'blocking',
+    }),
+    runCheck({
       name: 'Vercel production branch alignment',
       command: process.execPath,
       commandArgs: ['scripts/vercel-production-branch-smoke.mjs'],

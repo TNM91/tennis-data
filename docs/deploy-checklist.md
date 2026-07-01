@@ -71,6 +71,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:launch-board` before launch readiness to separate product blockers, fixture/test blockers, quality follow-ups, and missing evidence
 - Run `npm run qa:launch-owner-board -- --live --stripe-mode` before launch handoff to separate blocking product/code gates from owner-controlled Vercel and Stripe cutover actions
 - Run `npm run qa:launch` after testing is logged; it should pass before broad launch decisions
+- Run `npm run qa:seo-share -- --live` before launch handoff to verify canonical metadata, social cards, structured data, sitemap, robots, and the social preview image against production
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
 - For production closeout checks after deploy, run `npm run verify:closeout:live`
@@ -150,6 +151,7 @@ If a slot id is not set, the related ad surface safely stays hidden.
 - `npm run audit:artifacts` should pass before deploy so local generated files stay out of the platform workspace
 - Production closeout with `npm run verify:closeout:live` should pass after deploy
 - Production runtime health with `npm run qa:prod-logs` should report zero recent errors, fatals, or HTTP 500s after deploy
+- Production SEO/share readiness with `npm run qa:seo-share -- --live` should pass before sending broad public links
 - `npm run qa:status` should show every journey QA doc and command present
 - Check single dark-shell header/footer branding
 - Check homepage hero, product preview cards, and footer CTAs
