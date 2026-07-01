@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import JsonLd from '@/app/components/json-ld'
 import { ThemeProvider } from '@/app/components/theme-provider'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
@@ -132,6 +134,8 @@ export default function RootLayout({
         <JsonLd id="tenaceiq-organization-jsonld" data={buildOrganizationJsonLd()} />
         <JsonLd id="tenaceiq-website-jsonld" data={buildWebSiteJsonLd()} />
         <ThemeProvider>{children}</ThemeProvider>
+        <Analytics />
+        <SpeedInsights />
         <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"

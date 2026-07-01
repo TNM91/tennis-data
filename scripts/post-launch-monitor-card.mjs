@@ -14,11 +14,15 @@ const postLaunchCadence = [
   },
   {
     window: 'First hour after launch announcement',
-    goal: 'Watch for runtime errors, broken public metadata, and owner-gated items.',
+    goal: 'Watch for runtime errors, broken public metadata, traffic, performance, and owner-gated items.',
     commands: [
       'npm run qa:prod-logs -- --since=1h --limit=100',
       'npm run qa:seo-share -- --live',
       'npm run qa:adsense-live',
+    ],
+    dashboards: [
+      'https://vercel.com/tennis-data/tennis-data/analytics',
+      'https://vercel.com/tennis-data/tennis-data/speed-insights',
     ],
   },
   {
@@ -28,6 +32,10 @@ const postLaunchCadence = [
       'npm run qa:launch-owner-board -- --live --stripe-mode',
       'npm run verify:closeout:live',
       'npm run qa:results',
+    ],
+    dashboards: [
+      'https://vercel.com/tennis-data/tennis-data/analytics',
+      'https://vercel.com/tennis-data/tennis-data/speed-insights',
     ],
   },
 ]

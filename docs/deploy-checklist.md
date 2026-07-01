@@ -87,6 +87,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Confirm `npx vercel project inspect tennis-data --scope tennis-data` before promotion; Node.js Version should be `22.x`.
 - Confirm the deployment to promote is `Ready`, tied to the expected `master` commit, and has passed the relevant QA gates.
 - After promotion, run `npm run verify:closeout:live` and `npm run qa:prod-logs` to confirm recent production runtime health.
+- Vercel Web Analytics and Speed Insights are mounted in the root app shell; review `https://vercel.com/tennis-data/tennis-data/analytics` and `https://vercel.com/tennis-data/tennis-data/speed-insights` during the first hour and daily launch-week checks.
 
 ## Database
 
@@ -153,6 +154,7 @@ If a slot id is not set, the related ad surface safely stays hidden.
 - Production closeout with `npm run verify:closeout:live` should pass after deploy
 - Production runtime health with `npm run qa:prod-logs` should report zero recent errors, fatals, or HTTP 500s after deploy
 - Post-launch monitoring with `npm run qa:post-launch -- --live` should pass after deploys or broad public announcements
+- Vercel Web Analytics and Speed Insights should show expected public traffic and no material performance regression after broad public links are shared
 - Production SEO/share readiness with `npm run qa:seo-share -- --live` should pass before sending broad public links
 - `npm run qa:status` should show every journey QA doc and command present
 - Check single dark-shell header/footer branding
