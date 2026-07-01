@@ -125,6 +125,7 @@ Result: complete
 Local workspace cleanup:
 
 - Removed generated `tsconfig.tsbuildinfo` after `npm run audit:artifacts` flagged it as a closeout artifact.
+- Updated `npm run typecheck` to pass `--incremental false` so TypeScript does not recreate `tsconfig.tsbuildinfo` during launch verification.
 - Deleted three local branches already merged into `master`: `codex-design-polish-pass`, `codex/ci-master-branch-trigger`, and `codex/data-assist-foundation`.
 - Pruned stale local `origin/...` remote-tracking refs that no longer exist on GitHub; remote-tracking refs dropped to 19.
 - Ran `git gc`; loose Git object storage dropped to 0 bytes.
