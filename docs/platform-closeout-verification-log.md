@@ -236,7 +236,8 @@ Use post-launch monitoring rather than more fixture setup:
 
 1. Run `npm run qa:post-launch -- --live` after each production deploy or broad launch announcement.
 2. Check Vercel production deployment health and runtime logs after each production deploy.
-3. Check Vercel Web Analytics and Speed Insights during the first hour and daily launch-week checks.
-4. Rerun `npm run verify:closeout:live` before broad launch announcements or after any auth, tier, or navigation change.
-5. Keep using `npm run qa:launch` as the manual-evidence launch gate; it should stay green unless new journeys are added.
-6. Run `npm run qa:vercel-branch` after the Vercel dashboard production branch is changed from `main` to `master`.
+3. Run `npm run qa:observability -- --live` so Vercel Web Analytics, Speed Insights, and the latest promoted deployment stay visible.
+4. Check Vercel Web Analytics and Speed Insights during the first hour and daily launch-week checks.
+5. Rerun `npm run verify:closeout:live` before broad launch announcements or after any auth, tier, or navigation change.
+6. Keep using `npm run qa:launch` as the manual-evidence launch gate; it should stay green unless new journeys are added.
+7. Run `npm run qa:vercel-branch` after the Vercel dashboard production branch is changed from `main` to `master`.

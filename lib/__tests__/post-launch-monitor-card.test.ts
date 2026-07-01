@@ -19,6 +19,7 @@ describe('post-launch monitor card', () => {
 
     for (const expected of [
       'npm run qa:launch-owner-board -- --live --stripe-mode',
+      'npm run qa:observability -- --live',
       'npm run qa:prod-logs -- --since=30m',
       'npm run qa:seo-share -- --live',
       'npm run qa:adsense-live',

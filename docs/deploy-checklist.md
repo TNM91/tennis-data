@@ -71,6 +71,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run qa:launch-board` before launch readiness to separate product blockers, fixture/test blockers, quality follow-ups, and missing evidence
 - Run `npm run qa:launch-owner-board -- --live --stripe-mode` before launch handoff to separate blocking product/code gates from owner-controlled Vercel and Stripe cutover actions
 - Run `npm run qa:post-launch -- --live` after production deploys or launch announcements to keep production logs, SEO/share, AdSense, owner actions, and closeout checks in one monitoring cadence
+- Run `npm run qa:observability -- --live` after production deploys to confirm Vercel Web Analytics, Speed Insights, dashboard links, and the latest promoted deployment stay visible
 - Run `npm run qa:launch` after testing is logged; it should pass before broad launch decisions
 - Run `npm run qa:seo-share -- --live` before launch handoff to verify canonical metadata, social cards, structured data, sitemap, robots, and the social preview image against production
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
@@ -154,6 +155,7 @@ If a slot id is not set, the related ad surface safely stays hidden.
 - Production closeout with `npm run verify:closeout:live` should pass after deploy
 - Production runtime health with `npm run qa:prod-logs` should report zero recent errors, fatals, or HTTP 500s after deploy
 - Post-launch monitoring with `npm run qa:post-launch -- --live` should pass after deploys or broad public announcements
+- Observability smoke with `npm run qa:observability -- --live` should pass after deploys so dashboard checks are tied to the latest promoted production commit
 - Vercel Web Analytics and Speed Insights should show expected public traffic and no material performance regression after broad public links are shared
 - Production SEO/share readiness with `npm run qa:seo-share -- --live` should pass before sending broad public links
 - `npm run qa:status` should show every journey QA doc and command present

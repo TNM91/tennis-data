@@ -9,6 +9,7 @@ const postLaunchCadence = [
     goal: 'Confirm the deploy is clean before sharing broadly.',
     commands: [
       'npm run qa:launch-owner-board -- --live --stripe-mode',
+      'npm run qa:observability -- --live',
       'npm run qa:prod-logs -- --since=30m',
     ],
   },

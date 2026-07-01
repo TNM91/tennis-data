@@ -26,6 +26,13 @@ const checks = [
     label: 'npm run qa:stripe-live-readiness',
     type: 'blocking',
   }),
+  runCheck({
+    name: 'Vercel observability wiring',
+    command: process.execPath,
+    commandArgs: ['scripts/vercel-observability-smoke.mjs'],
+    label: 'npm run qa:observability',
+    type: 'blocking',
+  }),
 ]
 
 if (includeLive) {
