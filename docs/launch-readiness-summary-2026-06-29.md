@@ -56,6 +56,15 @@ TenAceIQ now has one final pre-announcement packet for launch day.
 - Paid upgrades remain intentionally deferred until Stripe live cutover is completed.
 - After public links are shared, run `npm run qa:post-launch -- --live` and watch Vercel Web Analytics plus Speed Insights.
 
+## 2026-07-01 Launch Announcement Packet
+
+TenAceIQ now has a reusable owner-review announcement packet for public launch copy.
+
+- Run `npm run qa:announcement` after `npm run qa:go-no-go -- --live`.
+- The packet reads `lib/product-story.ts` so launch copy stays tied to the approved north star, motto, positioning, and role-based tiers.
+- It prints short social copy, long social copy, email copy, tier talking points, copy guardrails, and post-launch checks.
+- Keep Stripe live paid-upgrade language deferred until live mode is intentionally opened.
+
 ## Production State
 
 - Production domain: `https://www.tenaceiq.com`

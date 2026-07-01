@@ -73,6 +73,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:post-launch -- --live` | Print and optionally run the post-launch monitoring cadence: owner board, production logs, SEO/share, AdSense, and closeout checks. |
 | `npm run qa:observability -- --live` | Confirm Vercel Web Analytics and Speed Insights are wired, the latest production deploy is ready, and the dashboard links are in the launch cadence. |
 | `npm run qa:go-no-go -- --live` | Print the final launch decision packet: product/code gates, production deployment, owner actions, paid-upgrade caveat, and post-launch command order. |
+| `npm run qa:announcement` | Print the owner-review launch announcement packet with reusable public copy, tier talking points, copy guardrails, and post-launch checks from centralized product language. |
 | `npm run qa:launch` | Fail unless every journey has pass evidence and no p0/p1 row remains open. |
 | `npm run verify:closeout` | Run deterministic closeout checks. |
 | `npm run verify:closeout:live` | Run production closeout checks with browser smoke. |
@@ -143,8 +144,9 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 61. Run `npm run qa:post-launch -- --live` after the latest production deploy or launch announcement.
 62. Run `npm run qa:observability -- --live` after production deploys so Web Analytics, Speed Insights, and the latest promoted deployment stay visible.
 63. Run `npm run qa:go-no-go -- --live` as the final pre-announcement decision packet.
-64. Run `npm run qa:launch` only after the ledger has real pass evidence.
-65. Run `npm run verify:closeout:live` after the latest deploy.
+64. Run `npm run qa:announcement` to review public launch copy, tier talking points, and owner copy guardrails.
+65. Run `npm run qa:launch` only after the ledger has real pass evidence.
+66. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -236,4 +238,5 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 - Use `npm run qa:signoff` before launch readiness to see which journey owners can call their flow done.
 - Use `npm run qa:launch-board` before the hard launch gate so blockers are separated into product fixes, fixture/test setup, quality follow-ups, and missing evidence.
 - Use `npm run qa:post-launch -- --live` after production deploys or launch announcements so runtime logs, public metadata, AdSense, owner actions, and closeout checks stay in one watch cadence.
+- Use `npm run qa:announcement` after `qa:go-no-go -- --live` to review public launch copy, tier talking points, and copy guardrails before broad posting.
 - Use `npm run qa:launch` as the final manual-evidence gate; it fails until every journey has a pass row, and should stay green for the current signed-off ledger.
