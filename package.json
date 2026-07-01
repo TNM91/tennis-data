@@ -83,6 +83,7 @@
     "qa:signoff": "node scripts/customer-journey-signoff-sheet.mjs",
     "qa:launch-board": "node scripts/customer-journey-launch-board.mjs",
     "qa:launch-owner-board": "node scripts/launch-owner-board.mjs",
+    "qa:post-launch": "node scripts/post-launch-monitor-card.mjs",
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",
     "qa:seo-share": "node scripts/seo-share-readiness-smoke.mjs",
     "qa:adsense-live": "node scripts/adsense-live-readiness-smoke.mjs",

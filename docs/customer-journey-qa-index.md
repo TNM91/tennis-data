@@ -70,6 +70,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:scorecard` | Print the compact tier, session, evidence, blocker, and next-command status table; fixture blockers point to the fixture gate. |
 | `npm run qa:signoff` | Print the final journey signoff sheet with owners, evidence state, and launch blockers; fixture blockers point to the fixture gate. |
 | `npm run qa:launch-board -- <tier \| day \| journey \| category>` | Separate product launch blockers, fixture/test blockers, quality follow-ups, and missing evidence before the hard launch gate; fixture blockers point to the fixture gate. |
+| `npm run qa:post-launch -- --live` | Print and optionally run the post-launch monitoring cadence: owner board, production logs, SEO/share, AdSense, and closeout checks. |
 | `npm run qa:launch` | Fail unless every journey has pass evidence and no p0/p1 row remains open. |
 | `npm run verify:closeout` | Run deterministic closeout checks. |
 | `npm run verify:closeout:live` | Run production closeout checks with browser smoke. |
@@ -137,8 +138,9 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 58. Run `npm run qa:scorecard` for the compact meeting/status view across every journey.
 59. Run `npm run qa:signoff` to confirm journey owners, evidence, and blockers.
 60. Run `npm run qa:launch-board` to separate product blockers, fixture blockers, quality follow-ups, and evidence gaps.
-61. Run `npm run qa:launch` only after the ledger has real pass evidence.
-62. Run `npm run verify:closeout:live` after the latest deploy.
+61. Run `npm run qa:post-launch -- --live` after the latest production deploy or launch announcement.
+62. Run `npm run qa:launch` only after the ledger has real pass evidence.
+63. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 
@@ -229,4 +231,5 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 - Use `npm run qa:scorecard` before signoff meetings to see each tier, session, evidence state, blockers, and next command in one table.
 - Use `npm run qa:signoff` before launch readiness to see which journey owners can call their flow done.
 - Use `npm run qa:launch-board` before the hard launch gate so blockers are separated into product fixes, fixture/test setup, quality follow-ups, and missing evidence.
+- Use `npm run qa:post-launch -- --live` after production deploys or launch announcements so runtime logs, public metadata, AdSense, owner actions, and closeout checks stay in one watch cadence.
 - Use `npm run qa:launch` as the final manual-evidence gate; it fails until every journey has a pass row, and should stay green for the current signed-off ledger.
