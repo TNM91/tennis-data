@@ -123,6 +123,7 @@ If a slot id is not set, the related ad surface safely stays hidden.
 ## Stripe Live Mode
 
 - Keep Stripe in test mode until real paid upgrades should open.
+- Run `npm run qa:stripe-live-cutover` to print the secret-free owner packet.
 - Run `npm run qa:stripe-live-readiness` before changing credentials.
 - Run `npm run qa:stripe-live-readiness -- --vercel` to verify Production env names are present without printing secret values.
 - After replacing Production Stripe values with live keys, live webhook secret, and live price IDs, redeploy Production and run `npm run qa:stripe-live-mode`.
