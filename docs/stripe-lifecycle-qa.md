@@ -14,6 +14,10 @@ Use this checklist after billing changes, Stripe webhook configuration changes, 
 
 Do not open paid launch until Stripe mode is intentionally switched and verified.
 
+Read Stripe's current go-live checklist before the cutover: https://docs.stripe.com/get-started/checklist/go-live
+
+Run `npm run qa:stripe-live-readiness` before changing credentials. Run `npm run qa:stripe-live-readiness -- --vercel` when Vercel access is available to verify Production env names are present without printing secret values.
+
 1. Create or confirm live-mode Stripe Products and Prices for Player, Coach, Captain, League, and Full-Court.
 2. Replace Production Vercel Stripe env vars with live-mode values:
    - `STRIPE_SECRET_KEY`

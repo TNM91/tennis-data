@@ -74,6 +74,7 @@ Use this checklist before promoting the current redesign and product-architectur
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
 - For production closeout checks after deploy, run `npm run verify:closeout:live`
 - For production runtime health after deploy, run `npm run qa:prod-logs`
+- Before switching Stripe to live mode, run `npm run qa:stripe-live-readiness -- --vercel`
 
 ## Production Promotion
 
@@ -118,6 +119,13 @@ Optional inline slots already supported in `.env.example`:
 - `NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE`
 
 If a slot id is not set, the related ad surface safely stays hidden.
+
+## Stripe Live Mode
+
+- Keep Stripe in test mode until real paid upgrades should open.
+- Run `npm run qa:stripe-live-readiness` before changing credentials.
+- Run `npm run qa:stripe-live-readiness -- --vercel` to verify Production env names are present without printing secret values.
+- After replacing Production Stripe values with live keys, live webhook secret, and live price IDs, redeploy Production and run `npm run qa:stripe-live-mode`.
 
 ## Assets
 
