@@ -73,6 +73,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:launch` | Fail unless every journey has pass evidence and no p0/p1 row remains open. |
 | `npm run verify:closeout` | Run deterministic closeout checks. |
 | `npm run verify:closeout:live` | Run production closeout checks with browser smoke. |
+| `npm run qa:prod-logs` | Confirm recent production Vercel logs have zero errors, fatals, or HTTP 500s after deploy. |
 
 ## Start Here
 

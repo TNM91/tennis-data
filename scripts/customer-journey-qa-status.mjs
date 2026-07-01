@@ -88,6 +88,7 @@ const requiredCommands = [
   'qa:launch',
   'verify:closeout',
   'verify:closeout:live',
+  'qa:prod-logs',
 ]
 
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
@@ -182,6 +183,7 @@ console.log('- npm run qa:signoff')
 console.log('- npm run qa:launch-board -- <tier | day | journey | category>')
 console.log('- npm run qa:launch')
 console.log('- npm run verify:closeout:live')
+console.log('- npm run qa:prod-logs')
 
 if (missingDocs.length || missingCommands.length) {
   process.exitCode = 1

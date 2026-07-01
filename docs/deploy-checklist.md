@@ -73,13 +73,14 @@ Use this checklist before promoting the current redesign and product-architectur
 - Run `npm run verify:closeout` for deterministic tier and coach-player Level Up contract checks
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
 - For production closeout checks after deploy, run `npm run verify:closeout:live`
+- For production runtime health after deploy, run `npm run qa:prod-logs`
 
 ## Production Promotion
 
 - Until Vercel's Git production branch setting is aligned from `main` to `master`, promote production intentionally from a verified deployment instead of assuming a `master` push becomes production.
 - Confirm `npx vercel project inspect tennis-data --scope tennis-data` before promotion; Node.js Version should be `22.x`.
 - Confirm the deployment to promote is `Ready`, tied to the expected `master` commit, and has passed the relevant QA gates.
-- After promotion, run `npm run verify:closeout:live` and check recent production error logs.
+- After promotion, run `npm run verify:closeout:live` and `npm run qa:prod-logs` to confirm recent production runtime health.
 
 ## Database
 
@@ -136,6 +137,7 @@ If a slot id is not set, the related ad surface safely stays hidden.
 - `npm run verify:closeout` should pass before deploy
 - `npm run audit:artifacts` should pass before deploy so local generated files stay out of the platform workspace
 - Production closeout with `npm run verify:closeout:live` should pass after deploy
+- Production runtime health with `npm run qa:prod-logs` should report zero recent errors, fatals, or HTTP 500s after deploy
 - `npm run qa:status` should show every journey QA doc and command present
 - Check single dark-shell header/footer branding
 - Check homepage hero, product preview cards, and footer CTAs
