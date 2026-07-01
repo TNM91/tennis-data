@@ -25,6 +25,7 @@ Use this checklist after deployment and before or during AdSense review.
 
 ## Live QA
 
+- Run `npm run qa:adsense-live` after deployment to verify public routes, trust pages, `ads.txt`, `robots.txt`, `sitemap.xml`, and private-route ad exclusions.
 - Check home, explore, rankings, players, leagues, teams, and matchup on desktop.
 - Check the same routes on mobile.
 - Confirm ads are clearly labeled and visually separate from navigation and action buttons.
