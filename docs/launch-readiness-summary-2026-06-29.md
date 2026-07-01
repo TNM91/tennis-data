@@ -23,12 +23,25 @@ TenAceIQ remains launch-ready after the June 30 cleanup and handoff work.
 - Production error logs returned no entries for the checked 1-hour window.
 - Remaining manual platform item: change Vercel's Git production branch setting from `main` to `master` in the Vercel dashboard. Until then, keep treating production deploys as explicit verified promotions.
 
+## 2026-07-01 Production Health Recheck
+
+TenAceIQ remains launch-ready after the production log smoke was added and deployed.
+
+- Commit `1dc7f53f Add production log smoke` deployed to production as `tennis-data-6mmmi43th-tennis-data.vercel.app`.
+- Vercel production deployment is `Ready` and aliased to `https://www.tenaceiq.com` and `https://tenaceiq.com`.
+- `npm run qa:launch` passed: 9/9 journeys with pass evidence, 0 open p0/p1 rows.
+- `npm run verify:closeout:live` passed against `https://www.tenaceiq.com`.
+- `npm run qa:adsense-live` passed for public pages, trust pages, policy files, sitemap coverage, and private-route ad exclusions.
+- `npm run qa:prod-logs` passed with 0 recent production errors, 0 fatals, 0 HTTP 500s, and 0 warnings for the checked 2-hour window.
+- GitHub CI passed on both `master` and `main`.
+- Remaining intentional launch gate: switch Stripe from test mode to live mode only when real payments should open, then run `npm run qa:stripe-live-mode`.
+
 ## Production State
 
 - Production domain: `https://www.tenaceiq.com`
-- Vercel production deployment inspected: `tennis-data-6w079qjdn-tennis-data.vercel.app`
+- Vercel production deployment inspected: `tennis-data-6mmmi43th-tennis-data.vercel.app`
 - Production deployment status: Ready
-- Recent production error logs: none found for the checked window
+- Recent production runtime logs: no errors, fatals, HTTP 500s, or warnings found for the checked window
 - Full live closeout against production: passed
 
 A post-signoff QA housekeeping commit produced Vercel preview deployment `tennis-data-808jrtgpg-tennis-data.vercel.app` with status Ready. Preview deployments are protected by Vercel Authentication, so route smoke against preview URLs redirects to Vercel login and is not useful as an app signal. Production smoke remains the authoritative launch signal for this closeout.

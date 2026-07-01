@@ -2,6 +2,39 @@
 
 Use this as the running evidence log for platform closeout. Keep detailed bugs in issue tracking or daily notes; this file records the high-level verification passes that matter for release confidence.
 
+## 2026-07-01 Production Health Smoke Recheck
+
+Commands:
+
+- `npm run qa:launch`
+- `npm run verify:closeout:live`
+- `npm run qa:adsense-live`
+- `npm run qa:prod-logs`
+- `npx vercel inspect https://tennis-data-6mmmi43th-tennis-data.vercel.app --scope tennis-data`
+
+Base URL: `https://www.tenaceiq.com`
+
+Result: pass
+
+Checks passed:
+
+- Customer journey launch gate passed with 9/9 journeys and 0 open p0/p1 rows.
+- Production deployment `tennis-data-6mmmi43th-tennis-data.vercel.app` is `Ready` and aliased to `https://www.tenaceiq.com` and `https://tenaceiq.com`.
+- Tier copy consistency passed across Free, Player, Coach, Captain, League, and Full-Court.
+- Coach-player Level Up contract tests passed: 3 files, 29 tests.
+- Level Up content quality tests passed: 1 file, 7 tests.
+- Platform closeout inventory tests passed: 3 files, 71 tests.
+- Production route smoke checked 17 routes and accepted expected signed-out redirects for protected Coach and Captain routes.
+- Production Level Up player loop smoke verified mobile load, direct active card, proof rating and note save, next-action copy, and localStorage persistence.
+- Production portal overflow smoke passed.
+- AdSense live readiness passed for public pages, trust pages, `ads.txt`, `robots.txt`, `sitemap.xml`, and private-route ad exclusions.
+- Production runtime log smoke passed with 0 recent errors, 0 fatals, 0 HTTP 500s, and 0 warnings for the checked 2-hour window.
+- GitHub CI passed on both `master` and `main` for commit `1dc7f53f Add production log smoke`.
+
+Remaining manual item:
+
+- Stripe can stay in test mode until the intentional live-mode cutover. Run `npm run qa:stripe-live-mode` only after live Stripe keys, live price IDs, and webhook secrets are set for production.
+
 ## 2026-06-30 Final Production Closeout Recheck
 
 Commands:
