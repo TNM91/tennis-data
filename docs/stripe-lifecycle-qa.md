@@ -19,6 +19,8 @@ Read Stripe's current go-live checklist before the cutover: https://docs.stripe.
 Run `npm run qa:stripe-live-readiness` before changing credentials. Run `npm run qa:stripe-live-readiness -- --vercel` when Vercel access is available to verify Production env names are present without printing secret values.
 
 1. Create or confirm live-mode Stripe Products and Prices for Player, Coach, Captain, League, and Full-Court.
+   - Run `npm run qa:stripe-live-catalog` to review the expected TenAceIQ paid catalog.
+   - When a live-mode Stripe key and live price IDs are available in the shell, run `npm run qa:stripe-live-catalog -- --stripe` to verify the live Price objects without printing secret values.
 2. Replace Production Vercel Stripe env vars with live-mode values:
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
