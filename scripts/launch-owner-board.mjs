@@ -57,7 +57,7 @@ if (includeLive) {
       commandArgs: ['scripts/vercel-production-branch-smoke.mjs'],
       label: 'npm run qa:vercel-branch',
       type: 'owner-action',
-      expectedFailureMeans: 'Vercel dashboard still points production at main instead of master.',
+      expectedFailureMeans: 'Vercel dashboard still points production at main instead of master. Open https://vercel.com/tennis-data/tennis-data/settings/git#connected-git-repository and change the Production Branch to master.',
     }),
   )
 }

@@ -76,13 +76,13 @@ Use this checklist before promoting the current redesign and product-architectur
 - For local browser closeout checks, run `npm run verify:closeout -- --browser-base=http://localhost:3074`
 - For production closeout checks after deploy, run `npm run verify:closeout:live`
 - For production runtime health after deploy, run `npm run qa:prod-logs`
-- Run `npm run qa:vercel-branch` to confirm Vercel's Git production branch is aligned to `master`; until it passes, keep production promotions explicit and verified.
+- Run `npm run qa:vercel-branch` to confirm Vercel's Git production branch is aligned to `master`; until it passes, keep production promotions explicit and verified. The dashboard setting is at `https://vercel.com/tennis-data/tennis-data/settings/git#connected-git-repository`.
 - Before switching Stripe to live mode, run `npm run qa:stripe-live-readiness -- --vercel`
 
 ## Production Promotion
 
 - Until Vercel's Git production branch setting is aligned from `main` to `master`, promote production intentionally from a verified deployment instead of assuming a `master` push becomes production.
-- `npm run qa:vercel-branch` should pass after the Vercel dashboard setting is corrected.
+- `npm run qa:vercel-branch` should pass after the Vercel dashboard setting is corrected at `https://vercel.com/tennis-data/tennis-data/settings/git#connected-git-repository`.
 - Confirm `npx vercel project inspect tennis-data --scope tennis-data` before promotion; Node.js Version should be `22.x`.
 - Confirm the deployment to promote is `Ready`, tied to the expected `master` commit, and has passed the relevant QA gates.
 - After promotion, run `npm run verify:closeout:live` and `npm run qa:prod-logs` to confirm recent production runtime health.

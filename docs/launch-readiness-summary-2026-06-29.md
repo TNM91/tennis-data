@@ -43,7 +43,7 @@ TenAceIQ now has a compact owner handoff command for the final launch gates.
 - Run `npm run qa:launch-owner-board` for local blocking gates: journey launch evidence, workspace artifact audit, and Stripe readiness guard.
 - Run `npm run qa:launch-owner-board -- --live --stripe-mode` before launch handoff to add production logs, AdSense readiness, SEO/share readiness, Vercel branch alignment, and the current Stripe checkout mode smoke.
 - Run `npm run qa:seo-share -- --live` when you want the focused production check for canonical metadata, social cards, structured data, sitemap, robots, and the social preview image.
-- The Vercel production branch gate is expected to remain an owner action until the dashboard setting changes from `main` to `master`.
+- The Vercel production branch gate is expected to remain an owner action until the dashboard setting changes from `main` to `master` at `https://vercel.com/tennis-data/tennis-data/settings/git#connected-git-repository`.
 - The Stripe mode gate is expected to remain in test mode until the owner intentionally opens real paid upgrades.
 
 ## Production State

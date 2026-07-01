@@ -13,6 +13,7 @@ const args = new Map(
 const project = args.get('project') || readLinkedProjectId()
 const scope = args.get('scope') || 'tennis-data'
 const expectedProductionBranch = args.get('expect') || 'master'
+const dashboardGitSettingsUrl = `https://vercel.com/${scope}/tennis-data/settings/git#connected-git-repository`
 
 const projectDetails = readVercelProject(project, scope)
 const actualProductionBranch = projectDetails.link?.productionBranch || ''
@@ -34,9 +35,15 @@ console.log(JSON.stringify({
   productionDeploymentReadyState: latestProductionDeployment?.readyState || null,
   latestMasterDeployment: summarizeDeployment(latestMasterDeployment),
   latestMainDeployment: summarizeDeployment(latestMainDeployment),
+  dashboardGitSettingsUrl,
+  dashboardSteps: [
+    'Open the Vercel project Git settings.',
+    `In Connected Git Repository, change the Production Branch from ${actualProductionBranch || 'unknown'} to ${expectedProductionBranch}.`,
+    'Save the setting, then rerun npm run qa:vercel-branch.',
+  ],
   next: ok
     ? 'Vercel Git production branch is aligned with the release branch.'
-    : `Change the Vercel project Git production branch from ${actualProductionBranch || 'unknown'} to ${expectedProductionBranch} in the Vercel dashboard, then rerun this command.`,
+    : `Change the Vercel project Git production branch from ${actualProductionBranch || 'unknown'} to ${expectedProductionBranch} at ${dashboardGitSettingsUrl}, then rerun this command.`,
 }, null, 2))
 
 if (!ok) {
