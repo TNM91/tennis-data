@@ -88,6 +88,7 @@
     "qa:stripe-live-readiness": "node scripts/stripe-live-readiness.mjs",
     "qa:stripe-live-catalog": "node scripts/stripe-live-catalog-audit.mjs",
     "qa:stripe-live-cutover": "node scripts/stripe-live-cutover-packet.mjs",
+    "qa:vercel-branch": "node scripts/vercel-production-branch-smoke.mjs",
     "qa:prod-logs": "node scripts/vercel-production-log-smoke.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
     "db:migrations": "supabase migration list",
