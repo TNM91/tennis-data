@@ -46,6 +46,16 @@ TenAceIQ now has a compact owner handoff command for the final launch gates.
 - The Vercel production branch gate is expected to remain an owner action until the dashboard setting changes from `main` to `master` at `https://vercel.com/tennis-data/tennis-data/settings/git#connected-git-repository`.
 - The Stripe mode gate is expected to remain in test mode until the owner intentionally opens real paid upgrades.
 
+## 2026-07-01 Go/No-Go Packet
+
+TenAceIQ now has one final pre-announcement packet for launch day.
+
+- Run `npm run qa:go-no-go -- --live` before sharing broad public links.
+- The packet composes the live launch owner board, Vercel observability smoke, and post-launch cadence.
+- A passing packet means product/code gates are clear for public launch announcement.
+- Paid upgrades remain intentionally deferred until Stripe live cutover is completed.
+- After public links are shared, run `npm run qa:post-launch -- --live` and watch Vercel Web Analytics plus Speed Insights.
+
 ## Production State
 
 - Production domain: `https://www.tenaceiq.com`

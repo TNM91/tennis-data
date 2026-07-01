@@ -72,6 +72,7 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 | `npm run qa:launch-board -- <tier \| day \| journey \| category>` | Separate product launch blockers, fixture/test blockers, quality follow-ups, and missing evidence before the hard launch gate; fixture blockers point to the fixture gate. |
 | `npm run qa:post-launch -- --live` | Print and optionally run the post-launch monitoring cadence: owner board, production logs, SEO/share, AdSense, and closeout checks. |
 | `npm run qa:observability -- --live` | Confirm Vercel Web Analytics and Speed Insights are wired, the latest production deploy is ready, and the dashboard links are in the launch cadence. |
+| `npm run qa:go-no-go -- --live` | Print the final launch decision packet: product/code gates, production deployment, owner actions, paid-upgrade caveat, and post-launch command order. |
 | `npm run qa:launch` | Fail unless every journey has pass evidence and no p0/p1 row remains open. |
 | `npm run verify:closeout` | Run deterministic closeout checks. |
 | `npm run verify:closeout:live` | Run production closeout checks with browser smoke. |
@@ -141,8 +142,9 @@ Start here when preparing for next-week journey testing. Use `docs/customer-jour
 60. Run `npm run qa:launch-board` to separate product blockers, fixture blockers, quality follow-ups, and evidence gaps.
 61. Run `npm run qa:post-launch -- --live` after the latest production deploy or launch announcement.
 62. Run `npm run qa:observability -- --live` after production deploys so Web Analytics, Speed Insights, and the latest promoted deployment stay visible.
-63. Run `npm run qa:launch` only after the ledger has real pass evidence.
-64. Run `npm run verify:closeout:live` after the latest deploy.
+63. Run `npm run qa:go-no-go -- --live` as the final pre-announcement decision packet.
+64. Run `npm run qa:launch` only after the ledger has real pass evidence.
+65. Run `npm run verify:closeout:live` after the latest deploy.
 
 ## Core Docs
 

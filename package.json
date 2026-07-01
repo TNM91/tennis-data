@@ -85,6 +85,7 @@
     "qa:launch-owner-board": "node scripts/launch-owner-board.mjs",
     "qa:post-launch": "node scripts/post-launch-monitor-card.mjs",
     "qa:observability": "node scripts/vercel-observability-smoke.mjs",
+    "qa:go-no-go": "node scripts/launch-go-no-go.mjs",
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",
     "qa:seo-share": "node scripts/seo-share-readiness-smoke.mjs",
     "qa:adsense-live": "node scripts/adsense-live-readiness-smoke.mjs",
