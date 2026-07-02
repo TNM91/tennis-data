@@ -38,6 +38,7 @@ const TIQ_SITE_URL = 'https://tenaceiq.com'
 export default function PlayerDevelopmentSystem({ focus = 'overview', identitySlug }: PlayerDevelopmentSystemProps) {
   const identity = getPlayerDevelopmentIdentity(identitySlug)
   const packetView = focus !== 'overview'
+  const improveLanding = focus === 'overview' && !identitySlug
   const workbookPrintActive = focus === 'workbook'
   const coachPrintActive = focus === 'coach'
   const identityHeroDiagram = getIdentityHeroDiagram(identity)
@@ -47,6 +48,8 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
     <main className={`${styles.shell} ${packetView ? styles.packetShell : ''} player-development-print-surface`}>
         {!packetView ? (
           <>
+            {improveLanding ? <ImproveLandingHub identity={identity} /> : null}
+
             <section className={styles.hero}>
               <div className={styles.heroCopy}>
                 <div className={styles.brandRow}>
@@ -54,7 +57,11 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
                   <span className={styles.printBadge}>Phone-first Level Up</span>
                 </div>
                 <p className={styles.kicker}>TenAceIQ Player ID + Level Up</p>
-                <h1>{identity.title}</h1>
+                {improveLanding ? (
+                  <h2 className={styles.heroTitle}>{identity.title}</h2>
+                ) : (
+                  <h1 className={styles.heroTitle}>{identity.title}</h1>
+                )}
                 <p className={styles.heroText}>
                   {PRODUCT_MOTTO} Choose today&apos;s court habit, run the rep from your phone, score one proof, and keep the next step visible for {identity.ratingBand.toLowerCase()}: {identity.promise}
                 </p>
@@ -153,6 +160,54 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
 
 function getIdentityHeroDiagram(identity: PlayerDevelopmentIdentity): PlayerDevelopmentDiagram {
   return identity.weeks.find((week) => week.diagram !== 'player-led-review')?.diagram ?? 'movement-screen'
+}
+
+function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const actions = [
+    {
+      body: 'Run the next court rep, score one proof, and decide whether to repeat, progress, or test it in a match.',
+      cta: 'Start Level Up',
+      href: `/level-up/${identity.slug}#level-up-flow`,
+      icon: 'reports' as const,
+      title: 'Start Level Up',
+    },
+    {
+      body: 'Keep goals, match notes, proof history, follows, and coach assignments close to your player profile.',
+      cta: 'Open My Lab',
+      href: '/mylab',
+      icon: 'myLab' as const,
+      title: 'Open My Lab',
+    },
+    {
+      body: 'Turn the next Player ID cue into a serve pattern, return plan, or point map before you compete.',
+      cta: 'Build a tactic board',
+      href: '/tactics',
+      icon: 'scenarioBuilder' as const,
+      title: 'Build a tactic board',
+    },
+  ]
+
+  return (
+    <section className={styles.improveHub} aria-labelledby="improve-hub-title">
+      <div className={styles.improveHubCopy}>
+        <h1 id="improve-hub-title">Improve</h1>
+        <p>
+          Start with the work you can do today: train one rep, save one player signal,
+          or map the tactic you want to use in the next match.
+        </p>
+      </div>
+      <div className={styles.improveHubActions} aria-label="Improve actions">
+        {actions.map((action) => (
+          <Link className={styles.improveHubAction} href={action.href} key={action.title}>
+            <TiqFeatureIcon name={action.icon} size="md" variant="surface" />
+            <span>{action.title}</span>
+            <strong>{action.body}</strong>
+            <em>{action.cta}</em>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
 }
 
 function PlayerIdActionPlan({ identity }: { identity: PlayerDevelopmentIdentity }) {
