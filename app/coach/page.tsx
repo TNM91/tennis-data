@@ -3169,7 +3169,9 @@ function CoachContent() {
                 const proofReviewDraft = levelUpProof ? buildLevelUpProofReviewDraft(levelUpProof, assignment) : null
                 const proofReviewDecisions = levelUpProof ? buildLevelUpProofReviewDecisions(levelUpProof, assignment) : []
                 const proofReviewStandard = levelUpProof ? buildCoachProofReviewStandard(assignment, levelUpProof) : null
-                const proofStarterRead = levelUpProof ? buildCoachProofStarterRead(levelUpProof) : null
+                const proofStarterRead = levelUpProof
+                  ? buildCoachProofStarterRead(levelUpProof, proofReviewStandard, proofReviewDraft)
+                  : null
                 const proofReplyPlan = proofReviewDraft && levelUpProof ? [
                   {
                     label: 'Acknowledge',
@@ -3735,6 +3737,11 @@ type CoachProofHistoryReadItem = {
   value: string
 }
 
+type CoachProofReviewStandard = {
+  card: LevelUpCard
+  items: Array<{ label: string; value: string }>
+}
+
 type CoachLevelUpAssignmentStandard = {
   playerSees: string
   coachWatches: string
@@ -4047,11 +4054,41 @@ function buildCoachProofReviewStandard(assignment: CoachAssignment, session: Lev
         value: card.commonMiss?.fix ?? card.regression ?? card.cue,
       },
     ],
-  }
+  } satisfies CoachProofReviewStandard
 }
 
-function buildCoachProofStarterRead(session: LevelUpSession): CoachProofStarterReadItem[] | null {
-  if (!session.starterRead) return null
+function buildCoachProofStarterRead(
+  session: LevelUpSession,
+  standard: CoachProofReviewStandard | null,
+  draft: LevelUpProofReviewDraft | null,
+): CoachProofStarterReadItem[] | null {
+  if (!session.starterRead && !standard && !draft) return null
+
+  if (!session.starterRead) {
+    return [
+      {
+        label: 'Trained',
+        value: `${session.drillTitle}: ${session.focusTitle}`,
+      },
+      {
+        label: 'Counted',
+        value: standard?.items.find((item) => item.label === 'Player counted')?.value
+          ?? `${session.rating}/5 proof score with ${session.feeling.toLowerCase()} finish.`,
+      },
+      {
+        label: 'Leak',
+        value: session.note
+          ?? standard?.items.find((item) => item.label === 'Coach checks')?.value
+          ?? 'Watch the first breakdown before adding pressure.',
+      },
+      {
+        label: 'Next',
+        value: draft?.nextMove.title
+          ?? standard?.items.find((item) => item.label === 'Next rep')?.value
+          ?? 'Choose repeat, simplify, or add pressure from this proof.',
+      },
+    ]
+  }
 
   return [
     {
