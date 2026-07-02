@@ -3321,6 +3321,16 @@ function CoachContent() {
                         <span>{levelUpProof.drillTitle}: {levelUpProof.focusTitle}</span>
                         <em>{formatClock(levelUpProof.elapsedSeconds)} / {levelUpProof.feeling}</em>
                         {levelUpProof.note ? <small>{levelUpProof.note}</small> : null}
+                        {proofReviewDraft ? (
+                          <div style={proofReviewOrderStyle} aria-label={`Proof review order for ${assignment.title}`}>
+                            <span>Review order</span>
+                            <div style={proofReviewOrderGridStyle}>
+                              <strong>1. Read the proof</strong>
+                              <strong>2. Choose the next move</strong>
+                              <strong>3. Message or assign</strong>
+                            </div>
+                          </div>
+                        ) : null}
                         {proofStarterRead ? (
                           <div style={proofStarterReadStyle} aria-label={`Coach starter read for ${assignment.title}`}>
                             <div style={proofDecisionHeaderStyle}>
@@ -3397,14 +3407,14 @@ function CoachContent() {
                               <button
                                 type="button"
                                 onClick={() => loadNextAssignmentFromProof(assignment, levelUpProof, proofReviewDraft)}
-                                style={smallPrimaryButtonStyle}
+                                style={proofReviewPrimaryActionStyle}
                               >
                                 Load next assignment
                               </button>
                               {student?.playerUserId ? (
                                 <Link
                                   href={buildCoachProofResponseMessageHref(student, assignment, levelUpProof, proofReviewDraft)}
-                                  style={smallGhostLinkStyle}
+                                  style={proofReviewSecondaryLinkStyle}
                                 >
                                   Message proof response
                                 </Link>
@@ -3416,7 +3426,7 @@ function CoachContent() {
                                   setReviewNote(proofReviewDraft.note)
                                   setReviewNextFocus(proofReviewDraft.nextFocus)
                                 }}
-                                style={smallGhostButtonStyle}
+                                style={proofReviewSecondaryButtonStyle}
                               >
                                 Use coach response
                               </button>
@@ -6383,6 +6393,29 @@ const proofNextMoveStyle: CSSProperties = {
   background: 'rgba(5,11,22,0.3)',
 }
 
+const proofReviewOrderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  marginTop: 4,
+  padding: 9,
+  borderRadius: 13,
+  border: '1px solid rgba(155,225,29,0.2)',
+  background: 'rgba(155,225,29,0.075)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const proofReviewOrderGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
+  minWidth: 0,
+}
+
 const proofDecisionPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -6506,6 +6539,7 @@ const proofNextMoveActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   alignItems: 'center',
+  minWidth: 0,
 }
 
 function proofScoreBadgeStyle(rating: number): CSSProperties {
@@ -6640,6 +6674,24 @@ const smallGhostLinkStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   textDecoration: 'none',
+}
+
+const proofReviewPrimaryActionStyle: CSSProperties = {
+  ...smallPrimaryButtonStyle,
+  flex: '1 1 155px',
+  minWidth: 0,
+}
+
+const proofReviewSecondaryButtonStyle: CSSProperties = {
+  ...smallGhostButtonStyle,
+  flex: '1 1 155px',
+  minWidth: 0,
+}
+
+const proofReviewSecondaryLinkStyle: CSSProperties = {
+  ...smallGhostLinkStyle,
+  flex: '1 1 155px',
+  minWidth: 0,
 }
 
 const disabledPillStyle: CSSProperties = {
