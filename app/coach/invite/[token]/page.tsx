@@ -758,8 +758,8 @@ function CoachInviteContent() {
             </div>
 
             <p style={{ ...pageStyles.copy, marginTop: 18, fontSize: 14 }}>
-              The printed workbook remains a standalone development tool. Your coach invite unlocks assigned work and
-              check-ins from that coach; Player unlocks the full self-guided layer across your own training.
+              Your coach invite unlocks assigned Level Up work and check-ins from that coach. Player unlocks the
+              full self-guided layer across your own training; print backups stay available when paper helps.
             </p>
           </aside>
         </div>

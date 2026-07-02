@@ -14,6 +14,7 @@ import {
   PLAYER_DEVELOPMENT_IDENTITIES,
   PLAYER_DEVELOPMENT_DIAGRAMS,
   getPlayerDevelopmentIdentityActionRead,
+  getPlayerDevelopmentIdentityCourtsideRead,
   getPlayerDevelopmentIdentity,
   type CoachLessonPlan,
   type PlayerDevelopmentDiagram,
@@ -37,8 +38,10 @@ const TIQ_SITE_URL = 'https://tenaceiq.com'
 export default function PlayerDevelopmentSystem({ focus = 'overview', identitySlug }: PlayerDevelopmentSystemProps) {
   const identity = getPlayerDevelopmentIdentity(identitySlug)
   const packetView = focus !== 'overview'
-  const workbookPrintActive = focus === 'overview' || focus === 'workbook'
-  const coachPrintActive = focus === 'overview' || focus === 'coach'
+  const workbookPrintActive = focus === 'workbook'
+  const coachPrintActive = focus === 'coach'
+  const identityHeroDiagram = getIdentityHeroDiagram(identity)
+  const identityShortTitle = identity.title.replace(/^The /, '')
 
   const content = (
     <main className={`${styles.shell} ${packetView ? styles.packetShell : ''} player-development-print-surface`}>
@@ -48,32 +51,32 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
               <div className={styles.heroCopy}>
                 <div className={styles.brandRow}>
                   <BrandWordmark top />
-                  <span className={styles.printBadge}>Printable + My Lab companion</span>
+                  <span className={styles.printBadge}>Phone-first Level Up</span>
                 </div>
-                <p className={styles.kicker}>TenAceIQ Player Development System</p>
+                <p className={styles.kicker}>TenAceIQ Player ID + Level Up</p>
                 <h1>{identity.title}</h1>
                 <p className={styles.heroText}>
-                  {PRODUCT_MOTTO} Choose what to work on, prove one habit, and keep the next step visible for {identity.ratingBand.toLowerCase()}: {identity.promise}
+                  {PRODUCT_MOTTO} Choose today&apos;s court habit, run the rep from your phone, score one proof, and keep the next step visible for {identity.ratingBand.toLowerCase()}: {identity.promise}
                 </p>
                 <div className={styles.actions}>
                   <Link className="button-primary" href={`/player-development/${identity.slug}/level-up`}>
-                    Start Level Up Today
+                    Start Level Up
                   </Link>
-                  <Link className="button-secondary" href={`/player-development/${identity.slug}/workbook`}>
-                    Print Workbook
+                  <Link className="button-secondary" href={`/level-up/${identity.slug}#level-up-flow`}>
+                    Open phone drill mode
                   </Link>
                   <Link className="button-secondary" href={`/player-development/${identity.slug}/coach-planner`}>
-                    Coach Planner
+                    Coach handoff
                   </Link>
                 </div>
               </div>
               <div className={styles.heroPanel}>
-                <CourtDiagram diagram="serve-target-ladder" title="Serve target map" />
+                <CourtDiagram diagram={identityHeroDiagram} title={`${identityShortTitle} court map`} />
                 <div className={styles.identityCard}>
                   <TiqFeatureIcon name="myLab" size="md" variant="surface" />
                   <div>
                     <span>Player identity</span>
-                    <strong>{identity.title.replace(/^The /, '')}</strong>
+                    <strong>{identityShortTitle}</strong>
                     <p>{identity.mantra}</p>
                   </div>
                 </div>
@@ -97,41 +100,42 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
             <section className={styles.structurePanel} aria-labelledby="structure-title">
               <div className={styles.sectionHead}>
                 <p className={styles.kicker}>Player Development</p>
-                <h2 id="structure-title">Turn match goals into court work.</h2>
+                <h2 id="structure-title">Turn match goals into phone-ready court work.</h2>
                 <p>
-                  Use the Level Up portal, printable workbook companion, coach planner, weekly goals, match evidence, and My Lab check-ins to keep improvement moving between matches and lessons.
+                  Use Level Up, phone court mode, weekly proof scores, match evidence, and My Lab check-ins to keep improvement moving between matches and lessons. Print backups stay available when a coach or player wants paper.
                 </p>
               </div>
               <div className={styles.planGrid}>
                 <PlanCard icon="myLab" title="My Lab connection" items={['Choose a goal', 'Save match evidence', 'Track the next read']} />
-                <PlanCard icon="reports" title="Level Up portal" items={['Recommended modules', 'Favorites', 'Proof history', 'Coach assignments']} />
-                <PlanCard icon="schedule" title="Coach planner" items={['Lesson template', 'Cues', 'Homework', 'Evaluation tracking']} />
+                <PlanCard icon="reports" title="Phone Level Up" items={['On-court reps', 'Timer', '0-5 proof', 'Next action']} />
+                <PlanCard icon="schedule" title="Coach handoff" items={['Assignment cue', 'Proof standard', 'Review prompt', 'Print backup']} />
               </div>
             </section>
           </>
         ) : (
-          <section className={styles.packetHeader} aria-label="Print packet">
+          <section className={styles.packetHeader} aria-label="Paper backup">
             <BrandWordmark top />
             <div>
-              <p className={styles.kicker}>{focus === 'coach' ? 'Coach planner' : 'Player workbook'}</p>
+              <p className={styles.kicker}>{focus === 'coach' ? 'Coach planner' : 'Print backup'}</p>
               <h1>{identity.title}</h1>
             </div>
           </section>
         )}
 
-        <PlayerDevelopmentPrintControls
-          activePacket={focus === 'coach' ? 'coach' : focus === 'workbook' ? 'workbook' : 'overview'}
-          identitySlug={identity.slug}
-        />
+        {packetView ? (
+          <PlayerDevelopmentPrintControls
+            activePacket={focus === 'coach' ? 'coach' : 'workbook'}
+            identitySlug={identity.slug}
+          />
+        ) : null}
 
         {focus === 'overview' ? <LevelUpOverviewPanel identity={identity} /> : null}
         {focus === 'overview' || focus === 'workbook' ? <PlayerMissionDashboard identity={identity} /> : null}
-        <WorkbookPreview identity={identity} active={focus === 'workbook'} printActive={workbookPrintActive} />
-        <CoachPlannerPreview identity={identity} active={focus === 'coach'} printActive={coachPrintActive} />
+        {focus === 'workbook' ? <WorkbookPreview identity={identity} active printActive={workbookPrintActive} /> : null}
+        {focus === 'coach' ? <CoachPlannerPreview identity={identity} active printActive={coachPrintActive} /> : null}
 
         {!packetView ? (
           <>
-            <ReusableSheets identity={identity} />
             <ConnectedCompanion identity={identity} />
           </>
         ) : null}
@@ -145,6 +149,10 @@ export default function PlayerDevelopmentSystem({ focus = 'overview', identitySl
       {content}
     </SiteShell>
   )
+}
+
+function getIdentityHeroDiagram(identity: PlayerDevelopmentIdentity): PlayerDevelopmentDiagram {
+  return identity.weeks.find((week) => week.diagram !== 'player-led-review')?.diagram ?? 'movement-screen'
 }
 
 function PlayerIdActionPlan({ identity }: { identity: PlayerDevelopmentIdentity }) {
@@ -201,7 +209,7 @@ function IdentitySelector({ activeSlug }: { activeSlug: string }) {
         <p className={styles.kicker}>Development identities</p>
         <h2 id="identity-selector-title">Choose the player path</h2>
         <p>
-          Each identity has a workbook path, coach planner, and My Lab companion for the same development loop.
+          Each identity opens a Level Up path, phone court flow, coach handoff, and My Lab companion for the same development loop.
         </p>
       </div>
       <div className={styles.identitySelectorGrid}>
@@ -442,6 +450,7 @@ function PlayerMissionDashboard({ identity }: { identity: PlayerDevelopmentIdent
   const primaryModule = identity.weeks[0]
   const primaryFocus = identity.sections[0]
   const trainingMenus = getPlayerTrainingMenus(identity)
+  const courtsideRead = getPlayerDevelopmentIdentityCourtsideRead(identity)
 
   return (
     <>
@@ -487,6 +496,7 @@ function PlayerMissionDashboard({ identity }: { identity: PlayerDevelopmentIdent
         identitySlug={identity.slug}
         identityTitle={identity.title}
         mantra={identity.mantra}
+        identityCourtsideRead={courtsideRead}
         focuses={identity.sections}
         solo={trainingMenus.solo}
         partner={trainingMenus.partner}
@@ -517,7 +527,7 @@ function WorkbookPreview({
       <WorkbookPage className={styles.coverPage} core footer="Workbook cover">
         <div className={styles.pageTopline}>
           <BrandWordmark compact onLight />
-          <span>Player workbook</span>
+          <span>Print backup</span>
         </div>
         <div className={styles.coverContent}>
           <p className={styles.kicker}>{moduleCount}-module {identity.programLabel.toLowerCase()}</p>
@@ -534,16 +544,16 @@ function WorkbookPreview({
             <span>{moduleCount} modules</span>
           </div>
           <div className={styles.coverAccess}>
-            <strong>Standalone workbook. {playerTier.name} connected path.</strong>
-            <p>Use the pages on court with or without the app. Scan to connect goals, progress, and coach handoffs when {playerTier.name} access is active.</p>
-            <QrAction href={`/player-development/${identity.slug}/workbook`} label="Open path" />
+            <strong>Optional print backup. Phone Level Up is the connected path.</strong>
+            <p>Use these pages only when paper helps. Scan to open Level Up for phone courtside reps, proof scores, progress, and coach handoffs when {playerTier.name} access is active.</p>
+            <QrAction href={`/player-development/${identity.slug}/level-up`} label="Open Level Up" />
           </div>
         </div>
         <CourtDiagram diagram={identity.weeks[0]?.diagram ?? 'movement-screen'} title={`${identity.title.replace(/^The /, '')} court map`} />
       </WorkbookPage>
 
       <WorkbookPage core footer="Packet index">
-        <PageHeader label="Packet index" title="How to use this workbook" />
+        <PageHeader label="Packet index" title="How to use this backup" />
         <WorkbookPacketIndex identity={identity} />
       </WorkbookPage>
 
@@ -552,7 +562,7 @@ function WorkbookPreview({
         <div className={styles.tiqPromptBlock}>
           <span>Digital-first training</span>
           <p>
-            The workbook gives you the plan. The Level Up Portal gives you the card library: coach-assigned tools,
+            The print backup holds the plan. The Level Up Portal gives you the live card library: coach-assigned tools,
             identity recommendations, favorites, and proof history.
           </p>
           <QrAction href={`/player-development/${identity.slug}/level-up`} label="Open Level Up Portal" mode="player-plus" />
@@ -650,14 +660,14 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage footer={`${playerTier.name} handoff`}>
-        <PageHeader label={`${playerTier.name} workflow`} title="Turn the workbook into court work" />
+        <PageHeader label={`${playerTier.name} workflow`} title="Turn the backup into court work" />
         <div className={styles.playerPlusBridge}>
           <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
           <div>
-            <span>Workbook to My Lab</span>
+            <span>Backup to My Lab</span>
             <h3>Set one goal, track one behavior, bring one note to your coach.</h3>
             <p>
-              The paper guide stands on its own. {playerTier.name} unlocks the connected layer:
+              Level Up is the primary path. This paper guide stands on its own when needed. {playerTier.name} unlocks the connected layer:
               goal updates, match reflections, serve target charts, progress history, and coach handoff notes.
             </p>
           </div>
@@ -757,7 +767,7 @@ function WorkbookPreview({
           <div>
             <span>{playerTier.name} rhythm</span>
             <strong>Plan the phase, train the module, upload the evidence.</strong>
-        <p>The workbook pages are useful on paper. {playerTier.name} turns each phase into tracked goals, coach notes, and match reflections inside TenAceIQ.</p>
+        <p>Print pages are useful when paper helps. {playerTier.name} turns each phase into tracked goals, coach notes, and match reflections inside TenAceIQ.</p>
           </div>
         </div>
       </WorkbookPage>
@@ -833,7 +843,7 @@ function WorkbookPreview({
       </WorkbookPage>
 
       <WorkbookPage footer={`${playerTier.name} companion`}>
-        <PageHeader label="Connected companion" title={`What ${playerTier.name} adds to this workbook`} />
+        <PageHeader label="Connected companion" title={`What ${playerTier.name} adds to the phone path`} />
         <PlayerPlusCompanionMap identity={identity} />
       </WorkbookPage>
 
@@ -847,9 +857,9 @@ function PlayerPlusAccessNote() {
     <div className={styles.accessNote}>
       <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
       <div>
-        <strong>Print guide first. Connected Level Up second.</strong>
+        <strong>Level Up first. Print backup when needed.</strong>
         <p>
-          Anyone can use the workbook as a training guide if it is shared with them.
+          Anyone can use the print backup as a training guide if it is shared with them.
           Coach-invited players can complete assigned Level Up work through the coach tier.
           {playerTier.name} unlocks self-guided goals, check-ins, progress history, and recommendations.
         </p>
@@ -1804,7 +1814,7 @@ function NextFocusSelector({ identity }: { identity: PlayerDevelopmentIdentity }
           <strong>One focus. One pressure test. One coach note.</strong>
           <p>Do not chase every weakness at once. Pick the focus that would change the next match fastest.</p>
         </div>
-        <QrAction href={`/player-development/${identity.slug}/workbook`} label="Save focus" mode="player-plus" />
+        <QrAction href={`/player-development/${identity.slug}/level-up`} label="Save focus" mode="player-plus" />
       </div>
     </div>
   )
@@ -1878,7 +1888,7 @@ function CoachConversationSheet({ identity }: { identity: PlayerDevelopmentIdent
         <div>
           <span>{playerTier.name} handoff</span>
           <strong>Turn the conversation into a saved assignment.</strong>
-          <p>The workbook can guide the lesson on paper. My Lab stores your status update; Coach Hub keeps the coach&apos;s plan and review.</p>
+          <p>The print backup can guide the lesson on paper. My Lab stores your status update; Coach Hub keeps the coach&apos;s plan and review.</p>
         </div>
         <QrAction href="/mylab#coach-assignments" label="Update status" mode="player-plus" />
       </div>
@@ -1972,7 +1982,7 @@ function WeeklyWorkbookPage({ identity, week }: { identity: PlayerDevelopmentIde
             <CourtDiagram diagram={week.diagram} title={`Module ${week.week} court cue`} />
             <DiagramReadout diagram={week.diagram} />
             <TiqPromptBlock
-              href={`/player-development/${identity.slug}/workbook#module-${week.week}`}
+              href={`/player-development/${identity.slug}/level-up`}
               text={week.tiqPrompt}
               title="Level Up check-in"
             />
@@ -2200,7 +2210,7 @@ function toAbsoluteTiqUrl(href: string) {
 function PlayerPlusEvidenceLog({ identity, weeks = identity.weeks }: { identity: PlayerDevelopmentIdentity; weeks?: PlayerDevelopmentWeek[] }) {
   const actionCycle = [
     { href: '/mylab', label: 'My Lab goal', icon: 'myLab' as const },
-    { href: `/player-development/${identity.slug}/workbook`, label: 'Match reflection', icon: 'reports' as const },
+    { href: `/player-development/${identity.slug}/level-up`, label: 'Level Up proof', icon: 'reports' as const },
     { href: '/mylab#coach-assignments', label: 'Assignment status', icon: 'messagingCenter' as const },
     { href: '/profile', label: 'Progress check', icon: 'playerRatings' as const },
   ]
@@ -2276,9 +2286,9 @@ function PlayerPlusCompanionMap({ identity }: { identity: PlayerDevelopmentIdent
   const dataAssistPlayerDevelopmentHref = '/data-assist?intent=upload-source&context=Player%20development'
   const rows = [
     ['Save my identity', 'Turn the style finder into a My Lab goal', '/mylab'],
-    ['Save my two-week focus', 'Track the one focus that changes the next match fastest', `/player-development/${identity.slug}/workbook`],
-    ['Build the tactic board', 'Turn the workbook cue into a visual point plan in TIQ Tactical Studio', '/tactics'],
-    ['Log match evidence', 'Keep proof from pressure points, serve targets, and style triggers', `/player-development/${identity.slug}/workbook`],
+    ['Save my two-week focus', 'Track the one focus that changes the next match fastest', `/player-development/${identity.slug}/level-up`],
+    ['Build the tactic board', 'Turn the Level Up cue into a visual point plan in TIQ Tactical Studio', '/tactics'],
+    ['Log match evidence', 'Keep proof from pressure points, serve targets, and style triggers', `/player-development/${identity.slug}/level-up`],
     ['Update coach assignment status', 'Mark the work complete in My Lab; linked coaches see the recap in Coach Hub', '/mylab#coach-assignments'],
     ['Check readiness', `Compare evidence against ${identity.levelPath.to} gates`, '/profile'],
     ['Notice missing context', DATA_ASSIST_STORY.shortCue, dataAssistPlayerDevelopmentHref],
@@ -2492,7 +2502,7 @@ function CoachPacketIndex({ identity }: { identity: PlayerDevelopmentIdentity })
         <div>
           <span>Coach workflow</span>
           <strong>Coach the evidence, not the page count.</strong>
-          <p>Use this planner to turn each workbook module into one private lesson, one pressure test, and one measurable assignment.</p>
+          <p>Use this planner to turn each player path module into one private lesson, one pressure test, and one measurable assignment.</p>
         </div>
       </div>
       <div className={styles.packetIndexGrid}>
@@ -2525,7 +2535,7 @@ function CoachReadinessAdapter({ identity }: { identity: PlayerDevelopmentIdenti
         <div>
           <span>Use the player check-in first</span>
           <strong>The same lesson should feel different when the player is tight, tired, confident, or confused.</strong>
-          <p>Start from the player workbook: goal, work, proof, next step. Then choose the lesson tone that fits today.</p>
+          <p>Start from the player path: goal, work, proof, next step. Then choose the lesson tone that fits today.</p>
         </div>
       </div>
       <div className={styles.coachFeelingGrid}>
@@ -2561,7 +2571,7 @@ function CoachProgressionRules({ identity }: { identity: PlayerDevelopmentIdenti
         <TiqFeatureIcon name="schedule" size="lg" variant="surface" />
         <div>
           <span>Coach-player alignment</span>
-          <strong>The player workbook and lesson plan should agree on the next move.</strong>
+          <strong>The player path and lesson plan should agree on the next move.</strong>
           <p>Use the player progression card before you choose volume, pressure, or a new module. Easy alignment beats extra instruction.</p>
         </div>
       </div>
@@ -2720,29 +2730,6 @@ function CoachEvidenceReview({ identity }: { identity: PlayerDevelopmentIdentity
         </article>
       ))}
     </div>
-  )
-}
-
-function ReusableSheets({ identity }: { identity: PlayerDevelopmentIdentity }) {
-  return (
-    <section className={styles.sheetPanel} aria-labelledby="sheets-title">
-      <div className={styles.sectionHead}>
-        <p className={styles.kicker}>Reusable printable sheets</p>
-        <h2 id="sheets-title">Ready-to-print sheet library</h2>
-      </div>
-      <div className={styles.sheetGrid}>
-        {identity.reusableSheets.map((sheet) => (
-          <article className={styles.sheetCard} key={sheet}>
-            <span>{sheet}</span>
-            <div className={styles.sheetLines} aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
   )
 }
 
@@ -3003,13 +2990,25 @@ function TemplateBlock({ time, title, text }: { time: string; title: string; tex
 
 function CourtDiagram({ diagram, title }: { diagram: PlayerDevelopmentDiagram; title: string }) {
   const meta = PLAYER_DEVELOPMENT_DIAGRAMS[diagram]
-  const overlay = getWorkbookCourtOverlay(getTacticalOverlay(diagram))
+  const tacticalOverlay = getTacticalOverlay(diagram)
+  const overlay = getWorkbookCourtOverlay(tacticalOverlay)
+  const diagramStats = getDiagramStats(tacticalOverlay)
 
   return (
     <figure className={styles.courtFigure}>
       <figcaption>
-        <span>{title}</span>
-        <small>{meta.title}</small>
+        <div>
+          <span>{title}</span>
+          <small>{meta.title}</small>
+        </div>
+        <dl className={styles.courtFigureStats} aria-label={`${meta.title} board contents`}>
+          {diagramStats.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
       </figcaption>
       <TiqCourt alt={title} className={styles.tiqCourtFrame} overlay={overlay} showLabels />
     </figure>
@@ -3017,20 +3016,26 @@ function CourtDiagram({ diagram, title }: { diagram: PlayerDevelopmentDiagram; t
 }
 
 function getWorkbookCourtOverlay(overlay: DrillOverlay): DrillOverlay {
-  const startMarkers = overlay.players?.map((player) => ({
-    id: `start-${player.id}`,
-    label: player.label,
-    size: 6,
-    type: 'cone' as const,
-    x: player.x,
-    y: player.y,
-  })) ?? []
+  const players = overlay.players?.map((player, index) => ({
+    ...player,
+    label: player.label || `P${index + 1}`,
+    size: player.size ?? 1.1,
+  }))
 
   return {
     ...overlay,
-    players: undefined,
-    markers: [...(overlay.markers ?? []), ...startMarkers],
+    players,
   }
+}
+
+function getDiagramStats(overlay: DrillOverlay) {
+  const counts = [
+    ['Players', overlay.players?.length ?? 0],
+    ['Routes', overlay.arrows?.length ?? 0],
+    ['Targets', (overlay.zones?.length ?? 0) + (overlay.markers?.length ?? 0)],
+  ] as const
+
+  return counts.map(([label, value]) => [label, value.toString()] as const)
 }
 
 function DiagramReadout({ diagram }: { diagram: PlayerDevelopmentDiagram }) {

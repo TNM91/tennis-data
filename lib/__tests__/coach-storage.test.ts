@@ -521,6 +521,12 @@ describe('coach storage helpers', () => {
         sharedWithCoach: true,
         elapsedSeconds: 420,
         note: 'Target call stayed clear.',
+        starterRead: {
+          starterRep: 'Run one serve rep where target is called before the toss.',
+          starterProofCue: 'Score it only when target and first ball match.',
+          starterLeakWatch: 'Repeat slower if the routine rushes.',
+          starterSmartNext: 'If it scores 4/5, test it at 30-30; if not, repeat the same cue once slower.',
+        },
       },
       'player-1',
       { coachUserId: 'coach-1', studentLinkId: 'student-link-1' },
@@ -539,6 +545,16 @@ describe('coach storage helpers', () => {
       access_mode: 'coach_invited',
       shared_with_coach: true,
       note: 'Target call stayed clear.',
+      session_json: {
+        source: 'level-up-workbench',
+        quickNote: 'Target call stayed clear.',
+        starterRead: {
+          starterRep: 'Run one serve rep where target is called before the toss.',
+          starterProofCue: 'Score it only when target and first ball match.',
+          starterLeakWatch: 'Repeat slower if the routine rushes.',
+          starterSmartNext: 'If it scores 4/5, test it at 30-30; if not, repeat the same cue once slower.',
+        },
+      },
     })
 
     const session = mapLevelUpSessionRow({
@@ -552,15 +568,30 @@ describe('coach storage helpers', () => {
       assignmentId: 'assignment-serve-target',
       rating: 4,
       sharedWithCoach: true,
+      starterRead: {
+        starterRep: 'Run one serve rep where target is called before the toss.',
+        starterProofCue: 'Score it only when target and first ball match.',
+        starterLeakWatch: 'Repeat slower if the routine rushes.',
+        starterSmartNext: 'If it scores 4/5, test it at 30-30; if not, repeat the same cue once slower.',
+      },
     })
 
+    const starterRead = session.starterRead
+    if (!starterRead) throw new Error('Expected structured starter read')
+
     const completedAssignmentJson = buildPlayerAssignmentCompletion(assignmentPayload!.assignment_json as Record<string, unknown>, {
-      recap: `${levelUpPayload!.focus_title}: ${levelUpPayload!.drill_title} (${levelUpPayload!.rating}/5, ${levelUpPayload!.feeling}, 7:00) - ${levelUpPayload!.note}`,
+      recap: [
+        `${levelUpPayload!.focus_title}: ${levelUpPayload!.drill_title} (${levelUpPayload!.rating}/5, ${levelUpPayload!.feeling}, 7:00) - ${levelUpPayload!.note}`,
+        `Trained: ${starterRead.starterRep}`,
+        `Counted: ${starterRead.starterProofCue}`,
+        `Leaked: ${starterRead.starterLeakWatch}`,
+        `Next: ${starterRead.starterSmartNext}`,
+      ].join(' '),
       evidence: 'Level Up training log',
     })
     const checkIn = getPlayerAssignmentCheckIn(completedAssignmentJson)
     expect(checkIn).toMatchObject({
-      recap: 'Serve: Serve Target Call (4/5, ready, 7:00) - Target call stayed clear.',
+      recap: 'Serve: Serve Target Call (4/5, ready, 7:00) - Target call stayed clear. Trained: Run one serve rep where target is called before the toss. Counted: Score it only when target and first ball match. Leaked: Repeat slower if the routine rushes. Next: If it scores 4/5, test it at 30-30; if not, repeat the same cue once slower.',
       evidence: 'Level Up training log',
       completedAt: '2026-06-04T18:00:00.000Z',
     })

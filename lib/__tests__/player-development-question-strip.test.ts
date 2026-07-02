@@ -8,7 +8,7 @@ const stylesSource = readFileSync(join(process.cwd(), 'app/player-development/_c
 describe('player development question strip', () => {
   it('frames the public player-development page around player questions', () => {
     expect(systemSource).toContain("import { DATA_ASSIST_STORY, PRODUCT_MOTTO, getMembershipTier } from '@/lib/product-story'")
-    expect(systemSource).toContain('{PRODUCT_MOTTO} Choose what to work on, prove one habit, and keep the next step visible')
+    expect(systemSource).toContain('{PRODUCT_MOTTO} Choose today&apos;s court habit, run the rep from your phone, score one proof, and keep the next step visible')
     expect(systemSource).toContain('PlayerIdActionPlan')
     expect(systemSource).toContain('aria-label="Player ID action plan"')
     expect(systemSource).toContain('aria-label="Player ID train prove use loop"')

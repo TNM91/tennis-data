@@ -3,6 +3,19 @@ export type LevelUpTrainingContext = 'alone' | 'partner' | 'singles' | 'doubles'
 export type LevelUpFeeling = 'ready' | 'tight' | 'tired' | 'nervous'
 export type LevelUpAccessMode = 'coach_invited' | 'player_plus' | 'free_preview'
 
+export type LevelUpSessionStarterRead = {
+  starterRep: string
+  starterProofCue: string
+  starterLeakWatch: string
+  starterSmartNext: string
+}
+
+export type LevelUpSessionJson = {
+  source?: string
+  quickNote?: string
+  starterRead?: LevelUpSessionStarterRead
+}
+
 export type LevelUpSession = {
   id: string
   playerUserId: string
@@ -21,6 +34,8 @@ export type LevelUpSession = {
   note: string
   elapsedSeconds: number
   sharedWithCoach: boolean
+  sessionJson: LevelUpSessionJson
+  starterRead: LevelUpSessionStarterRead | null
   completedAt: string
   createdAt: string
   updatedAt: string
@@ -44,6 +59,7 @@ export type LevelUpSessionRow = {
   note: string
   elapsed_seconds: number
   shared_with_coach: boolean
+  session_json?: unknown
   completed_at: string
   created_at: string
   updated_at: string
@@ -66,9 +82,12 @@ export type LevelUpSessionInput = {
   assignmentId?: unknown
   studentLinkId?: unknown
   identitySlug?: unknown
+  starterRead?: unknown
 }
 
 export function mapLevelUpSessionRow(row: LevelUpSessionRow): LevelUpSession {
+  const sessionJson = normalizeSessionJson(row.session_json)
+
   return {
     id: row.id,
     playerUserId: row.player_user_id,
@@ -87,6 +106,8 @@ export function mapLevelUpSessionRow(row: LevelUpSessionRow): LevelUpSession {
     note: row.note,
     elapsedSeconds: normalizeSeconds(row.elapsed_seconds),
     sharedWithCoach: Boolean(row.shared_with_coach),
+    sessionJson,
+    starterRead: sessionJson.starterRead ?? null,
     completedAt: row.completed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -107,6 +128,8 @@ export function buildLevelUpSessionPayload(
   const now = new Date().toISOString()
   const accessMode = normalizeAccessMode(input.accessMode)
   const sharedWithCoach = accessMode === 'coach_invited' && Boolean(input.sharedWithCoach)
+  const note = stringOrEmpty(input.note).trim()
+  const starterRead = normalizeStarterRead(input.starterRead)
 
   return {
     id: stringOrEmpty(input.id).trim() || `level-up-${crypto.randomUUID()}`,
@@ -123,12 +146,13 @@ export function buildLevelUpSessionPayload(
     rating,
     feeling: normalizeFeeling(input.feeling),
     access_mode: accessMode,
-    note: stringOrEmpty(input.note).trim().slice(0, 700),
+    note: note.slice(0, 700),
     elapsed_seconds: normalizeSeconds(input.elapsedSeconds),
     shared_with_coach: sharedWithCoach,
     session_json: {
       source: 'level-up-workbench',
-      quickNote: stringOrEmpty(input.note).trim().slice(0, 220),
+      quickNote: note.slice(0, 220),
+      ...(starterRead ? { starterRead } : {}),
     },
     completed_at: normalizeIsoDate(input.completedAt) || now,
     updated_at: now,
@@ -174,6 +198,41 @@ function normalizeIsoDate(value: unknown) {
 function nullableString(value: unknown) {
   const text = stringOrEmpty(value).trim()
   return text || null
+}
+
+function normalizeSessionJson(value: unknown): LevelUpSessionJson {
+  if (!isRecord(value)) return {}
+
+  const source = stringOrEmpty(value.source).trim()
+  const quickNote = stringOrEmpty(value.quickNote).trim()
+  const starterRead = normalizeStarterRead(value.starterRead)
+
+  return {
+    ...(source ? { source } : {}),
+    ...(quickNote ? { quickNote } : {}),
+    ...(starterRead ? { starterRead } : {}),
+  }
+}
+
+function normalizeStarterRead(value: unknown): LevelUpSessionStarterRead | null {
+  if (!isRecord(value)) return null
+
+  const starterRep = normalizeStarterReadLine(value.starterRep)
+  const starterProofCue = normalizeStarterReadLine(value.starterProofCue)
+  const starterLeakWatch = normalizeStarterReadLine(value.starterLeakWatch)
+  const starterSmartNext = normalizeStarterReadLine(value.starterSmartNext)
+
+  if (!starterRep || !starterProofCue || !starterLeakWatch || !starterSmartNext) return null
+
+  return { starterRep, starterProofCue, starterLeakWatch, starterSmartNext }
+}
+
+function normalizeStarterReadLine(value: unknown) {
+  return stringOrEmpty(value).replace(/\s+/g, ' ').trim().slice(0, 220)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 function stringOrEmpty(value: unknown) {

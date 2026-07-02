@@ -7,7 +7,7 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Player Development System | TenAceIQ',
   description:
-    'Printable workbook paths, coach planner sheets, weekly goals, match evidence, and My Lab check-ins for competitive tennis player development.',
+    'Phone-first Level Up paths, on-court tennis drills, quick proof scores, and My Lab check-ins for competitive player development.',
   path: '/player-development',
   titleAbsolute: true,
 })

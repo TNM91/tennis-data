@@ -7,7 +7,7 @@ import { buildBreadcrumbJsonLd } from '@/lib/structured-data'
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Coach Planner | TenAceIQ Player Development',
   description:
-    'Printable TenAceIQ coach planner pages for the Relentless Competitor tennis development path.',
+    'Optional TenAceIQ coach planner print pages for the Relentless Competitor tennis development path.',
   path: '/player-development/coach-planner',
   titleAbsolute: true,
 })

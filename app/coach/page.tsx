@@ -2181,8 +2181,8 @@ function CoachContent() {
           <div style={eyebrowStyle}>How this fits TenAceIQ</div>
           <h2 style={sectionTitleStyle}>Coach sets the next step. Player carries it between lessons.</h2>
           <p style={bodyStyle}>
-            The printed workbook should stand alone, but the best version links the athlete back into TenAceIQ:
-            QR check-ins, assigned drills, lesson notes, tactical boards, and weekly recaps.
+            Level Up carries the athlete between lessons: assigned drills, proof check-ins,
+            lesson notes, tactical boards, and weekly recaps stay connected in TenAceIQ.
           </p>
         </div>
         <div style={integrationGridStyle}>
@@ -2679,7 +2679,7 @@ function CoachContent() {
             <div style={heroPanelStyle}>
               <TiqFeatureIcon name="scenarioBuilder" size="xl" variant="surface" />
               <strong>Player connection</strong>
-              <span>Standalone guides stay useful on paper. Linked players get check-ins, assignments, reviewed proof, and progress history inside TenAceIQ.</span>
+              <span>Linked players get phone check-ins, assignments, reviewed proof, and progress history inside TenAceIQ. Print stays a backup when paper helps.</span>
             </div>
           </section>
 
@@ -3156,6 +3156,7 @@ function CoachContent() {
             {sortedAssignments.length > 0 ? (
               sortedAssignments.slice(0, 6).map((assignment) => {
                 const playerCheckIn = getPlayerAssignmentCheckIn(assignment.assignment)
+                const proofHistoryRead = playerCheckIn?.recap ? buildCoachProofHistoryRead(playerCheckIn.recap) : null
                 const coachReview = getCoachAssignmentReview(assignment.assignment)
                 const assignmentSummary = getCoachAssignmentSummary(assignment.assignment)
                 const packProgress = getCoachAssignmentPackProgress(assignment.assignment)
@@ -3168,6 +3169,7 @@ function CoachContent() {
                 const proofReviewDraft = levelUpProof ? buildLevelUpProofReviewDraft(levelUpProof, assignment) : null
                 const proofReviewDecisions = levelUpProof ? buildLevelUpProofReviewDecisions(levelUpProof, assignment) : []
                 const proofReviewStandard = levelUpProof ? buildCoachProofReviewStandard(assignment, levelUpProof) : null
+                const proofStarterRead = levelUpProof ? buildCoachProofStarterRead(levelUpProof) : null
                 const proofReplyPlan = proofReviewDraft && levelUpProof ? [
                   {
                     label: 'Acknowledge',
@@ -3317,6 +3319,22 @@ function CoachContent() {
                         <span>{levelUpProof.drillTitle}: {levelUpProof.focusTitle}</span>
                         <em>{formatClock(levelUpProof.elapsedSeconds)} / {levelUpProof.feeling}</em>
                         {levelUpProof.note ? <small>{levelUpProof.note}</small> : null}
+                        {proofStarterRead ? (
+                          <div style={proofStarterReadStyle} aria-label={`Coach starter read for ${assignment.title}`}>
+                            <div style={proofDecisionHeaderStyle}>
+                              <span>Starter read</span>
+                              <strong>What the player trained, counted, leaked, and should run next.</strong>
+                            </div>
+                            <div style={proofStarterReadGridStyle}>
+                              {proofStarterRead.map((item) => (
+                                <article key={item.label} style={proofStarterReadItemStyle}>
+                                  <span>{item.label}</span>
+                                  <strong>{item.value}</strong>
+                                </article>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
                         {proofReviewStandard ? (
                           <div style={proofReviewStandardStyle} aria-label={`Coach review standard for ${assignment.title}`}>
                             <span>Review standard</span>
@@ -3408,7 +3426,19 @@ function CoachContent() {
                     {playerCheckIn ? (
                       <div style={checkInReviewStyle}>
                         <strong>Player recap</strong>
-                        {playerCheckIn.recap ? <span>{playerCheckIn.recap}</span> : null}
+                        {proofHistoryRead ? (
+                          <div style={proofHistoryReadStyle} aria-label={`Proof history read for ${assignment.title}`}>
+                            <span>Proof history read</span>
+                            <div style={proofHistoryReadGridStyle}>
+                              {proofHistoryRead.map((item) => (
+                                <article key={item.label} style={proofHistoryReadItemStyle}>
+                                  <span>{item.label}</span>
+                                  <strong>{item.value}</strong>
+                                </article>
+                              ))}
+                            </div>
+                          </div>
+                        ) : playerCheckIn.recap ? <span>{playerCheckIn.recap}</span> : null}
                         {playerCheckIn.evidence ? <em>Evidence: {playerCheckIn.evidence}</em> : null}
                       </div>
                     ) : assignment.status === 'completed' ? (
@@ -3693,6 +3723,16 @@ type LevelUpProofReviewDecision = {
   nextMove: LevelUpProofReviewNextMove
   reason: string
   recommended: boolean
+}
+
+type CoachProofStarterReadItem = {
+  label: 'Trained' | 'Counted' | 'Leak' | 'Next'
+  value: string
+}
+
+type CoachProofHistoryReadItem = {
+  label: 'Trained' | 'Counted' | 'Leaked' | 'Next'
+  value: string
 }
 
 type CoachLevelUpAssignmentStandard = {
@@ -4008,6 +4048,51 @@ function buildCoachProofReviewStandard(assignment: CoachAssignment, session: Lev
       },
     ],
   }
+}
+
+function buildCoachProofStarterRead(session: LevelUpSession): CoachProofStarterReadItem[] | null {
+  if (!session.starterRead) return null
+
+  return [
+    {
+      label: 'Trained',
+      value: session.starterRead.starterRep,
+    },
+    {
+      label: 'Counted',
+      value: session.starterRead.starterProofCue,
+    },
+    {
+      label: 'Leak',
+      value: session.starterRead.starterLeakWatch,
+    },
+    {
+      label: 'Next',
+      value: session.starterRead.starterSmartNext,
+    },
+  ]
+}
+
+function buildCoachProofHistoryRead(recap: string): CoachProofHistoryReadItem[] | null {
+  const trained = getProofHistoryRecapMarker(recap, 'Trained')
+  const counted = getProofHistoryRecapMarker(recap, 'Counted')
+  const leaked = getProofHistoryRecapMarker(recap, 'Leaked')
+  const next = getProofHistoryRecapMarker(recap, 'Next')
+
+  if (!trained || !counted || !leaked || !next) return null
+
+  return [
+    { label: 'Trained', value: trained },
+    { label: 'Counted', value: counted },
+    { label: 'Leaked', value: leaked },
+    { label: 'Next', value: next },
+  ]
+}
+
+function getProofHistoryRecapMarker(recap: string, label: CoachProofHistoryReadItem['label']) {
+  const markerPattern = new RegExp(`(?:^|\\s)${label}:\\s*(.*?)(?=\\s(?:Trained|Counted|Leaked|Next):|$)`)
+  const match = recap.match(markerPattern)
+  return match?.[1]?.replace(/\s+/g, ' ').trim() ?? ''
 }
 
 function buildLevelUpProofReviewDecisions(
@@ -4438,7 +4523,7 @@ function buildCoachProofResponseMessageHref(
   return buildCoachPlayerMessageHref(
     student,
     `Player ID follow-up: ${assignment.title}`,
-    `Player ID read: ${proof.focusTitle}. Train first: ${draft.nextMove.title}. Proof target: ${draft.nextFocus}. Coach question: ${draft.note}`,
+    buildCoachProofResponseBody(proof, draft),
     {
       assignmentId: assignment.id,
       assignmentTitle: assignment.title,
@@ -4446,6 +4531,22 @@ function buildCoachProofResponseMessageHref(
       assignmentCardId: getCoachAssignmentCourtCardId(assignment),
     },
   )
+}
+
+function buildCoachProofResponseBody(proof: LevelUpSession, draft: LevelUpProofReviewDraft) {
+  const starterRead = proof.starterRead
+  if (!starterRead) {
+    return `Player ID read: ${proof.focusTitle}. Train first: ${draft.nextMove.title}. Proof target: ${draft.nextFocus}. Coach question: ${draft.note}`
+  }
+
+  return [
+    `Player ID read: ${proof.focusTitle}.`,
+    `Trained: ${starterRead.starterRep}`,
+    `Counted: ${starterRead.starterProofCue}`,
+    `Leaked: ${starterRead.starterLeakWatch}`,
+    `Next: ${starterRead.starterSmartNext}`,
+    `Coach response: ${draft.note}`,
+  ].join(' ')
 }
 
 const pageStyle: CSSProperties = {
@@ -6110,11 +6211,44 @@ const checkInReviewStyle: CSSProperties = {
   display: 'grid',
   gap: 5,
   marginTop: 3,
+  minWidth: 0,
   padding: 10,
   borderRadius: 14,
   border: '1px solid rgba(255,255,255,0.1)',
   background: 'rgba(5,11,22,0.32)',
   color: 'var(--shell-copy-muted)',
+  overflowWrap: 'anywhere',
+}
+
+const proofHistoryReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginTop: 4,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const proofHistoryReadGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
+  minWidth: 0,
+}
+
+const proofHistoryReadItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minHeight: 86,
+  alignContent: 'start',
+  padding: 9,
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  color: 'var(--shell-copy)',
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const levelUpProofStyle: CSSProperties = {
@@ -6163,6 +6297,43 @@ const proofReviewStandardStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.45,
+}
+
+const proofStarterReadStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  marginTop: 6,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.05))',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  minWidth: 0,
+}
+
+const proofStarterReadGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  minWidth: 0,
+}
+
+const proofStarterReadItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minHeight: 104,
+  alignContent: 'start',
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(5,11,22,0.3)',
+  color: 'var(--shell-copy)',
+  fontSize: 12,
+  fontWeight: 750,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const proofNextMoveStyle: CSSProperties = {

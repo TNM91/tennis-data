@@ -9,9 +9,9 @@ type PlayerDevelopmentPrintControlsProps = {
 }
 
 const labels: Record<PlayerDevelopmentPrintControlsProps['activePacket'], string> = {
-  overview: 'Print overview',
-  workbook: 'Print player workbook',
-  coach: 'Print coach planner',
+  overview: 'Optional print backup',
+  workbook: 'Optional player backup',
+  coach: 'Optional coach planner',
 }
 
 export default function PlayerDevelopmentPrintControls({
@@ -32,26 +32,26 @@ export default function PlayerDevelopmentPrintControls({
   return (
     <div className="surface-card panel-pad player-development-print-controls" style={wrapStyle}>
       <div style={copyStyle}>
-        <span style={eyebrowStyle}>Print packet</span>
+        <span style={eyebrowStyle}>Paper backup</span>
         <strong style={titleStyle}>{labels[activePacket]}</strong>
       </div>
       <div style={actionsStyle}>
         {isWorkbook ? (
           <>
             <button type="button" className="button-primary" onClick={() => printPacket('core')}>
-              Print core workbook
+              Print quick backup
             </button>
             <button type="button" className="button-secondary" onClick={() => printPacket('full')} style={linkStyle}>
-              Print full workbook
+              Print full backup
             </button>
           </>
         ) : (
           <button type="button" className="button-primary" onClick={() => printPacket('full')}>
-            Print / save PDF
+            Print backup
           </button>
         )}
-        <PacketLink href={`${basePath}/workbook`}>Player workbook</PacketLink>
-        <PacketLink href={`${basePath}/coach-planner`}>Coach section</PacketLink>
+        <PacketLink href={`${basePath}/workbook`}>Player backup</PacketLink>
+        <PacketLink href={`${basePath}/coach-planner`}>Coach backup</PacketLink>
       </div>
     </div>
   )

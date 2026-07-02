@@ -4,7 +4,7 @@ import { mapLevelUpSessionRow, type LevelUpSessionRow } from '@/lib/level-up-ses
 export const runtime = 'nodejs'
 
 const sessionSelect =
-  'id,player_user_id,coach_user_id,student_link_id,assignment_id,identity_slug,focus_id,focus_title,work_type,training_context,drill_title,rating,feeling,access_mode,note,elapsed_seconds,shared_with_coach,completed_at,created_at,updated_at'
+  'id,player_user_id,coach_user_id,student_link_id,assignment_id,identity_slug,focus_id,focus_title,work_type,training_context,drill_title,rating,feeling,access_mode,note,elapsed_seconds,shared_with_coach,session_json,completed_at,created_at,updated_at'
 
 export async function GET(request: Request) {
   const auth = await getCoachApiAuth(request)

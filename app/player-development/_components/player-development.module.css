@@ -1437,6 +1437,7 @@
 .levelUpQuestBuilderHeader span,
 .levelUpQuestBuilderFlow span,
 .levelUpQuestTemplateGrid span {
+  display: block;
   color: var(--brand-green-3);
   font-size: 0.7rem;
   font-weight: 950;
@@ -1524,9 +1525,11 @@
 
 .levelUpQuestBuilderFlow strong,
 .levelUpQuestTemplateGrid strong {
+  display: block;
   color: var(--foreground-strong);
   font-weight: 950;
   line-height: 1.14;
+  overflow-wrap: anywhere;
 }
 
 .levelUpQuestBuilderFlow small,
@@ -1674,7 +1677,9 @@
 }
 
 .levelUpQuestPackList,
-.levelUpQuestPackList article {
+.levelUpQuestAssignmentPacks,
+.levelUpQuestPackList article,
+.levelUpQuestAssignmentPacks article {
   display: grid;
   gap: 8px;
 }
@@ -1699,6 +1704,7 @@
 
 .levelUpQuestPackList span,
 .levelUpQuestAssignmentPacks span {
+  display: block;
   color: var(--brand-green-3);
   font-size: 0.6rem;
   font-weight: 950;
@@ -9459,6 +9465,254 @@
   display: none;
 }
 
+.liveFlowAnchor {
+  scroll-margin-top: 14px;
+}
+
+.liveIdentityCourtRead {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.liveIdentityCourtRead article {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+}
+
+.liveIdentityCourtRead article[data-state='watch'] {
+  border-color: rgba(255, 209, 102, 0.22);
+}
+
+.liveIdentityCourtRead article[data-state='next'] {
+  border-color: rgba(155, 225, 29, 0.24);
+}
+
+.liveIdentityCourtRead span {
+  display: block;
+  color: var(--muted-strong);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveIdentityCourtRead strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--foreground-strong);
+  font-size: 0.83rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.liveActiveResumeStrip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(116, 190, 255, 0.24);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.12), transparent 44%),
+    rgba(5, 18, 24, 0.64);
+  padding: 11px;
+  min-width: 0;
+}
+
+.liveActiveResumeStrip[data-state='draft'] {
+  border-color: rgba(155, 225, 29, 0.34);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.13), transparent 46%),
+    rgba(7, 24, 20, 0.68);
+}
+
+.liveActiveResumeStrip[data-state='proof'] {
+  border-color: rgba(255, 209, 102, 0.3);
+  background:
+    linear-gradient(135deg, rgba(255, 209, 102, 0.12), transparent 44%),
+    rgba(24, 20, 8, 0.5);
+}
+
+.liveActiveResumeStrip[data-state='starter'] {
+  border-color: rgba(255, 255, 255, 0.18);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.14), transparent 46%),
+    rgba(8, 21, 30, 0.72);
+}
+
+.liveActiveResumeStrip div {
+  min-width: 0;
+}
+
+.liveActiveResumeStrip span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.64rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveActiveResumeStrip strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.liveActiveResumeStrip p {
+  margin: 4px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+}
+
+.liveActiveResumeStrip button {
+  min-width: 112px;
+  min-height: 42px;
+}
+
+.liveCourtsideResume {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), transparent 42%),
+    rgba(6, 20, 22, 0.58);
+  padding: 12px;
+  min-width: 0;
+}
+
+.liveCourtsideResume[data-state='saved'] {
+  border-color: rgba(155, 225, 29, 0.34);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.15), transparent 44%),
+    rgba(8, 24, 18, 0.64);
+}
+
+.liveCourtsideResume > div:first-child {
+  min-width: 0;
+}
+
+.liveCourtsideResume > div:first-child span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background: rgba(155, 225, 29, 0.1);
+  color: #d8f7a4;
+  padding: 7px 10px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.liveCourtsideResume > div:first-child strong {
+  display: block;
+  margin: 8px 0 0;
+  color: var(--foreground-strong);
+  line-height: 1.14;
+  overflow-wrap: anywhere;
+}
+
+.liveCourtsideResume > div:first-child p {
+  margin: 6px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.liveCourtsideResumeStatus {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 8px;
+  border: 1px solid rgba(116, 190, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(116, 190, 255, 0.08);
+  color: var(--foreground-strong);
+  padding: 6px 9px;
+  font-size: 0.74rem;
+  font-weight: 850;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.liveCourtsideResume[data-state='saved'] .liveCourtsideResumeStatus {
+  border-color: rgba(155, 225, 29, 0.3);
+  background: rgba(155, 225, 29, 0.12);
+  color: #d8f7a4;
+}
+
+.liveCourtsideResumeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.liveCourtsideResumeGrid article {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(4, 17, 24, 0.42);
+  padding: 9px;
+  overflow-wrap: anywhere;
+}
+
+.liveCourtsideResumeGrid article[data-state='active'] {
+  border-color: rgba(116, 190, 255, 0.34);
+  background: rgba(116, 190, 255, 0.11);
+}
+
+.liveCourtsideResumeGrid article[data-state='done'] {
+  border-color: rgba(155, 225, 29, 0.34);
+  background: rgba(155, 225, 29, 0.1);
+}
+
+.liveCourtsideResumeGrid span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveCourtsideResumeGrid strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  line-height: 1.12;
+}
+
+.liveCourtsideResumeActions {
+  display: grid;
+  gap: 8px;
+  min-width: 118px;
+}
+
+.liveCourtsideResumeActions button {
+  width: 100%;
+  min-width: 0;
+}
+
 .liveSessionDock {
   display: none;
 }
@@ -9550,6 +9804,284 @@
   color: var(--muted-strong);
   font-size: 0.74rem;
   font-weight: 850;
+}
+
+.liveTodayCloseoutRead {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(4, 15, 22, 0.36);
+  padding: 8px;
+  min-width: 0;
+}
+
+.liveTodayCloseoutRead > span {
+  color: var(--brand-green-3);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveTodayCloseoutRead > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.liveTodayCloseoutRead article {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 7px;
+}
+
+.liveTodayCloseoutRead article[data-state='pressure'] {
+  border-color: rgba(255, 206, 116, 0.34);
+  background: rgba(255, 206, 116, 0.09);
+}
+
+.liveTodayCloseoutRead article[data-state='quiet'] {
+  border-color: rgba(116, 190, 255, 0.12);
+  background: rgba(116, 190, 255, 0.055);
+}
+
+.liveTodayCloseoutRead article span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveTodayCloseoutRead article strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  font-size: 0.74rem;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.liveTodayCloseoutActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.liveTodayCloseoutActions button {
+  min-height: 38px;
+  width: 100%;
+}
+
+.liveTomorrowStarterPlan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.28);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.11), transparent 44%),
+    rgba(5, 20, 18, 0.5);
+  padding: 8px;
+  min-width: 0;
+}
+
+.liveTomorrowStarterPlan div:first-child {
+  min-width: 0;
+}
+
+.liveTomorrowStarterPlan span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveTomorrowStarterPlan strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.liveTomorrowStarterPlan p {
+  margin: 4px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.liveTomorrowStarterPlan small {
+  display: block;
+  margin-top: 5px;
+  color: #d8f7a4;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+.liveTomorrowStarterActions {
+  display: grid;
+  gap: 6px;
+  min-width: 86px;
+}
+
+.liveTomorrowStarterActions button {
+  min-height: 36px;
+  min-width: 0;
+  padding-inline: 10px;
+}
+
+.liveTomorrowStarterCheck {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(255, 206, 116, 0.32);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 206, 116, 0.1), transparent 44%),
+    rgba(22, 18, 8, 0.5);
+  padding: 8px;
+  min-width: 0;
+}
+
+.liveTomorrowStarterCheck > div:first-child {
+  min-width: 0;
+}
+
+.liveTomorrowStarterCheck > div:first-child span {
+  display: block;
+  color: #ffd37d;
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveTomorrowStarterCheck > div:first-child strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  font-size: 0.88rem;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.liveTomorrowStarterCheckGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.liveTomorrowStarterCheckGrid article {
+  min-width: 0;
+  border: 1px solid rgba(255, 206, 116, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 206, 116, 0.07);
+  padding: 7px;
+}
+
+.liveTomorrowStarterCheckGrid span {
+  display: block;
+  color: #ffd37d;
+  font-size: 0.56rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveTomorrowStarterCheckGrid strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  font-size: 0.72rem;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.liveTomorrowStarterCheckActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.liveTomorrowStarterCheckActions button {
+  min-height: 38px;
+  min-width: 0;
+  padding-inline: 10px;
+}
+
+.liveTomorrowStarterDone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(155, 225, 29, 0.36);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.14), transparent 44%),
+    rgba(7, 24, 18, 0.56);
+  padding: 8px;
+  min-width: 0;
+}
+
+.liveTomorrowStarterDone div {
+  min-width: 0;
+}
+
+.liveTomorrowStarterDone span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveTomorrowStarterDone strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.liveTomorrowStarterDone p {
+  margin: 4px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.74rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.liveTomorrowStarterDoneActions {
+  display: grid;
+  grid-template-columns: minmax(82px, 1fr);
+  gap: 6px;
+  min-width: 112px;
+}
+
+.liveTomorrowStarterDoneActions button {
+  min-height: 36px;
+  min-width: 0;
+  padding-inline: 10px;
 }
 
 .liveAssignmentStatusRail {
@@ -9835,10 +10367,17 @@
 .liveSavedIdentitySignals article,
 .liveSavedDeliveryRail article,
 .liveSavedNextSteps article,
+.liveSavedCoachBrief article,
+.liveSavedChecklist,
+.liveSavedCueRail,
+.liveSavedMomentRail,
+.liveSavedAskRail,
+.liveSavedProofRecap,
 .liveStepPanel,
 .liveCurrentGoal,
 .liveActionCard,
 .liveTimerPanel,
+.liveProofCounter,
 .liveTracker,
 .liveAccessPanel,
 .liveAssignmentBanner,
@@ -9857,13 +10396,20 @@
 .liveStepPanel,
 .liveActionCard,
 .liveTimerPanel,
+.liveProofCounter,
 .liveTracker,
+.liveSavedProofRecap,
+.liveSavedChecklist,
+.liveSavedCueRail,
+.liveSavedMomentRail,
+.liveSavedAskRail,
 .liveAccessPanel,
 .liveAssignmentBanner,
 .liveSavedBanner,
 .liveSavedIdentitySignals article,
 .liveSavedDeliveryRail article,
 .liveSavedNextSteps article,
+.liveSavedCoachBrief article,
 .liveSyncProofPanel,
 .liveCoachChallengeEntry,
 .liveUnlockPanel,
@@ -9900,6 +10446,11 @@
 .liveSavedBanner span,
 .liveSavedIdentitySignals span,
 .liveSavedDeliveryRail span,
+.liveSavedCoachBrief span,
+.liveSavedChecklist > span,
+.liveSavedCueRail span,
+.liveSavedMomentRail span,
+.liveSavedAskRail span,
 .liveSavedNextSteps span,
 .liveSyncProofPanel span,
 .liveSyncProofGrid span,
@@ -9931,6 +10482,10 @@
 .liveSavedBanner strong,
 .liveSavedIdentitySignals strong,
 .liveSavedDeliveryRail strong,
+.liveSavedChecklist strong,
+.liveSavedCueRail strong,
+.liveSavedMomentRail strong,
+.liveSavedAskRail strong,
 .liveSavedNextSteps strong,
 .liveSyncProofPanel strong,
 .liveUnlockPanel strong,
@@ -9955,6 +10510,9 @@
 .liveCoachLoop p,
 .liveProgressPanel p,
 .liveSavedBanner p,
+.liveSavedCueRail p,
+.liveSavedMomentRail p,
+.liveSavedAskRail p,
 .liveSyncProofPanel p,
 .liveUnlockPanel p,
 .liveRecentList p,
@@ -9964,6 +10522,49 @@
   color: var(--muted-strong);
   font-size: 0.87rem;
   line-height: 1.45;
+}
+
+.liveCourtsideCommand {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1fr;
+  gap: 8px;
+}
+
+.liveCourtsideCommand article {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(5, 16, 31, 0.42);
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+
+.liveCourtsideCommand article[data-state='now'] {
+  border-color: rgba(155, 225, 29, 0.34);
+  background: rgba(155, 225, 29, 0.1);
+}
+
+.liveCourtsideCommand article[data-state='count'] {
+  border-color: rgba(116, 190, 255, 0.28);
+}
+
+.liveCourtsideCommand span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveCourtsideCommand strong {
+  display: block;
+  color: var(--foreground-strong);
+  font-size: 0.86rem;
+  line-height: 1.2;
 }
 
 .liveSavedDeliveryRail article {
@@ -10003,6 +10604,161 @@
 .liveSavedDeliveryRail article[data-state='error'] {
   border-color: rgba(255, 139, 139, 0.38);
   background: rgba(255, 139, 139, 0.1);
+}
+
+.liveSavedChecklist {
+  margin-top: 8px;
+  border-color: rgba(155, 225, 29, 0.22);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.08), transparent 42%),
+    rgba(7, 21, 22, 0.52);
+}
+
+.liveSavedChecklist > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.liveSavedChecklist article {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(4, 17, 24, 0.42);
+  padding: 9px;
+  overflow-wrap: anywhere;
+}
+
+.liveSavedChecklist article[data-state='ready'] {
+  border-color: rgba(155, 225, 29, 0.3);
+  background: rgba(155, 225, 29, 0.09);
+}
+
+.liveSavedChecklist article[data-state='missing'] {
+  border-color: rgba(255, 206, 116, 0.34);
+  background: rgba(255, 206, 116, 0.08);
+}
+
+.liveSavedChecklist article span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.1);
+  color: var(--brand-green-3);
+  padding: 4px 7px;
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveSavedChecklist article strong {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.15;
+}
+
+.liveSavedCueRail {
+  grid-template-columns: minmax(0, 0.85fr) minmax(320px, 1.15fr);
+  align-items: center;
+  margin-top: 8px;
+  border-color: rgba(155, 225, 29, 0.24);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), transparent 42%),
+    rgba(7, 22, 25, 0.55);
+  min-width: 0;
+}
+
+.liveSavedMomentRail {
+  grid-template-columns: minmax(0, 0.85fr) minmax(320px, 1.15fr);
+  align-items: center;
+  margin-top: 8px;
+  border-color: rgba(116, 190, 255, 0.22);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.1), transparent 42%),
+    rgba(6, 18, 31, 0.54);
+  min-width: 0;
+}
+
+.liveSavedAskRail {
+  grid-template-columns: minmax(0, 0.85fr) minmax(320px, 1.15fr);
+  align-items: center;
+  margin-top: 8px;
+  border-color: rgba(155, 225, 29, 0.24);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.09), transparent 42%),
+    rgba(9, 24, 23, 0.56);
+  min-width: 0;
+}
+
+.liveSavedCueRail p {
+  overflow-wrap: anywhere;
+}
+
+.liveSavedMomentRail p {
+  overflow-wrap: anywhere;
+}
+
+.liveSavedAskRail p {
+  overflow-wrap: anywhere;
+}
+
+.liveSavedCueButtons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(90px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.liveSavedMomentButtons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(90px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.liveSavedAskButtons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(90px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.liveSavedCueButtons button {
+  min-height: 42px;
+  min-width: 0;
+  padding-inline: 10px;
+  overflow-wrap: anywhere;
+}
+
+.liveSavedMomentButtons button {
+  min-height: 42px;
+  min-width: 0;
+  padding-inline: 10px;
+  overflow-wrap: anywhere;
+}
+
+.liveSavedAskButtons button {
+  min-height: 42px;
+  min-width: 0;
+  padding-inline: 10px;
+  overflow-wrap: anywhere;
+}
+
+.liveSavedCueButtons button[data-active='true'] {
+  box-shadow: 0 0 0 1px rgba(155, 225, 29, 0.22) inset;
+}
+
+.liveSavedMomentButtons button[data-active='true'] {
+  box-shadow: 0 0 0 1px rgba(116, 190, 255, 0.22) inset;
+}
+
+.liveSavedAskButtons button[data-active='true'] {
+  box-shadow: 0 0 0 1px rgba(155, 225, 29, 0.22) inset;
 }
 
 .liveLaneTabs {
@@ -10293,6 +11049,103 @@
   line-height: 1.35;
 }
 
+.livePressureRepeatCue {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(255, 206, 116, 0.34);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 206, 116, 0.13), transparent 48%),
+    rgba(255, 255, 255, 0.045);
+  padding: 10px;
+}
+
+.livePressureRepeatCue span {
+  color: #ffd37d;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.livePressureRepeatCue strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.livePressureRepeatCue p {
+  margin: 5px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.livePressureRepeatCue button {
+  min-height: 40px;
+  padding-inline: 12px;
+}
+
+.liveProofCounter {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-color: rgba(155, 225, 29, 0.22);
+  background:
+    radial-gradient(circle at 0 0, rgba(155, 225, 29, 0.12), transparent 42%),
+    rgba(155, 225, 29, 0.065);
+}
+
+.liveProofCounter[data-complete='true'] {
+  border-color: rgba(155, 225, 29, 0.44);
+  background:
+    radial-gradient(circle at 0 0, rgba(155, 225, 29, 0.2), transparent 42%),
+    rgba(155, 225, 29, 0.12);
+}
+
+.liveProofCounter span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.liveProofCounter strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--foreground-strong);
+  font-size: 1.1rem;
+  line-height: 1.1;
+}
+
+.liveProofCounter p {
+  margin: 5px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.liveProofCounterActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(52px, auto));
+  gap: 7px;
+}
+
+.liveProofCounterActions button {
+  min-height: 42px;
+  min-width: 0;
+  padding-inline: 10px;
+}
+
+.liveProofCounterActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .liveActionGuide {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: 10px;
@@ -10362,6 +11215,58 @@
   transition: width 0.3s ease;
 }
 
+.liveWakeLockControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(116, 190, 255, 0.07);
+  padding: 9px;
+}
+
+.liveWakeLockControl[data-enabled='true'] {
+  border-color: rgba(155, 225, 29, 0.3);
+  background: rgba(155, 225, 29, 0.09);
+}
+
+.liveWakeLockControl[data-status='active'] {
+  border-color: rgba(155, 225, 29, 0.44);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.14), transparent 48%),
+    rgba(10, 32, 25, 0.62);
+}
+
+.liveWakeLockControl[data-status='blocked'],
+.liveWakeLockControl[data-status='unsupported'] {
+  border-color: rgba(255, 206, 116, 0.34);
+  background: rgba(255, 206, 116, 0.08);
+}
+
+.liveWakeLockControl div {
+  min-width: 0;
+}
+
+.liveWakeLockControl span {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-green-3);
+}
+
+.liveWakeLockControl strong {
+  margin-top: 3px;
+  font-size: 0.92rem;
+  line-height: 1.16;
+}
+
+.liveWakeLockControl button {
+  min-height: 38px;
+  min-width: 116px;
+  padding-inline: 11px;
+}
+
 .liveTimerActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(112px, 1fr));
@@ -10427,6 +11332,17 @@
   padding-inline: 10px;
 }
 
+.liveDraftActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.liveDraftActions button {
+  min-height: 44px;
+}
+
 .liveActionLinks {
   display: flex;
   flex-wrap: wrap;
@@ -10439,6 +11355,156 @@
   align-items: center;
   border-color: rgba(155, 225, 29, 0.32);
   background: rgba(155, 225, 29, 0.09);
+}
+
+.liveSavedProofRecap {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin-top: 8px;
+  border-color: rgba(155, 225, 29, 0.28);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.11), transparent 42%),
+    rgba(8, 24, 21, 0.58);
+  min-width: 0;
+}
+
+.liveSavedProofRecap[data-copy-status='copied'] {
+  border-color: rgba(155, 225, 29, 0.46);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.16), transparent 46%),
+    rgba(8, 32, 26, 0.66);
+}
+
+.liveSavedProofRecap[data-copy-status='shared'] {
+  border-color: rgba(116, 190, 255, 0.42);
+  background:
+    linear-gradient(135deg, rgba(116, 190, 255, 0.14), transparent 46%),
+    rgba(8, 24, 32, 0.66);
+}
+
+.liveSavedProofRecap[data-copy-status='unsent'] {
+  border-color: rgba(255, 206, 116, 0.4);
+  background:
+    linear-gradient(135deg, rgba(255, 206, 116, 0.13), transparent 46%),
+    rgba(28, 23, 13, 0.62);
+}
+
+.liveSavedProofRecap[data-sent='true'] {
+  border-color: rgba(155, 225, 29, 0.48);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.16), transparent 46%),
+    rgba(11, 33, 26, 0.7);
+}
+
+.liveSavedProofRecap[data-copy-status='manual'] {
+  border-color: rgba(255, 206, 116, 0.38);
+  background:
+    linear-gradient(135deg, rgba(255, 206, 116, 0.12), transparent 46%),
+    rgba(30, 24, 12, 0.58);
+}
+
+.liveSavedProofRecap p {
+  margin: 7px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.liveSavedCoachBrief {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.liveSavedCoachBrief article {
+  min-width: 0;
+  border-color: rgba(116, 190, 255, 0.18);
+  background: rgba(4, 15, 22, 0.44);
+  padding: 10px;
+}
+
+.liveSavedCoachBrief article[data-state='strong'] {
+  border-color: rgba(155, 225, 29, 0.32);
+  background: rgba(155, 225, 29, 0.1);
+}
+
+.liveSavedCoachBrief article[data-state='watch'] {
+  border-color: rgba(255, 206, 116, 0.32);
+  background: rgba(255, 206, 116, 0.09);
+}
+
+.liveSavedCoachBrief article[data-state='next'] {
+  border-color: rgba(116, 190, 255, 0.32);
+  background: rgba(116, 190, 255, 0.09);
+}
+
+.liveSavedCoachBrief strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--foreground-strong);
+  font-size: 0.82rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.liveSavedProofRecap small {
+  display: block;
+  margin-top: 7px;
+  color: var(--brand-green-3);
+  font-size: 0.75rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.liveSavedProofRecapActions :is(a, button) {
+  min-height: 42px;
+  min-width: 116px;
+  padding-inline: 12px;
+}
+
+.liveSavedRecapMode {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  gap: 5px;
+  margin-top: 8px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(4, 12, 18, 0.32);
+  padding: 4px;
+}
+
+.liveSavedRecapMode button {
+  appearance: none;
+  min-height: 30px;
+  min-width: 0;
+  cursor: pointer;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-strong);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+.liveSavedRecapMode button[data-active='true'] {
+  background: rgba(155, 225, 29, 0.16);
+  color: var(--foreground-strong);
+}
+
+.liveSavedProofRecapActions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(92px, auto));
+  gap: 8px;
+  justify-content: end;
+}
+
+.liveSavedProofRecapActions button:disabled {
+  cursor: default;
+  opacity: 0.72;
 }
 
 .liveSavedActions {
@@ -10502,6 +11568,58 @@
   color: var(--muted-strong);
   font-size: 0.84rem;
   line-height: 1.35;
+}
+
+.liveNextActionSignals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.liveNextActionSignals article {
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(4, 15, 22, 0.42);
+  padding: 9px;
+}
+
+.liveNextActionSignals article[data-state='add-pressure'] {
+  border-color: rgba(155, 225, 29, 0.34);
+  background: rgba(155, 225, 29, 0.1);
+}
+
+.liveNextActionSignals article[data-state='repeat-clean'] {
+  border-color: rgba(116, 190, 255, 0.28);
+  background: rgba(116, 190, 255, 0.08);
+}
+
+.liveNextActionSignals article[data-state='recover'] {
+  border-color: rgba(255, 206, 116, 0.34);
+  background: rgba(255, 206, 116, 0.1);
+}
+
+.liveNextActionSignals article[data-state='finish'] {
+  border-color: rgba(116, 190, 255, 0.34);
+  background: rgba(116, 190, 255, 0.1);
+}
+
+.liveNextActionSignals span {
+  display: block;
+  color: var(--brand-green-3);
+  font-size: 0.6rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveNextActionSignals strong {
+  margin-top: 5px;
+  font-size: 0.78rem;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
 }
 
 .liveNextActionButtons {
@@ -10632,6 +11750,51 @@
 
 .liveTracker textarea::placeholder {
   color: rgba(225, 237, 242, 0.5);
+}
+
+.liveQuickNoteChips {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(116, 190, 255, 0.06);
+  padding: 10px;
+}
+
+.liveQuickNoteChips > span {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  background: rgba(155, 225, 29, 0.12);
+  color: var(--brand-green-3);
+  padding: 5px 8px;
+  font-size: 0.66rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.liveQuickNoteChips > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.liveQuickNoteChips button {
+  min-height: 36px;
+  min-width: 0;
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.liveQuickNoteChips button[data-active='true'] {
+  border-color: rgba(155, 225, 29, 0.38);
+  background: rgba(155, 225, 29, 0.14);
+  color: var(--foreground-strong);
 }
 
 .liveShareToggle {
@@ -13319,12 +14482,23 @@
 }
 
 .courtFigure figcaption {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 10px;
   margin-bottom: 10px;
   color: var(--foreground-strong);
   font-weight: 900;
+}
+
+.courtFigure figcaption > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.courtFigure figcaption span {
+  overflow-wrap: anywhere;
 }
 
 .courtFigure figcaption small {
@@ -13332,8 +14506,45 @@
   font-size: 0.74rem;
   font-weight: 900;
   letter-spacing: 0.08em;
-  text-align: right;
   text-transform: uppercase;
+}
+
+.courtFigureStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(44px, auto));
+  gap: 6px;
+  margin: 0;
+}
+
+.courtFigureStats div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 6px 7px;
+  text-align: center;
+}
+
+.courtFigureStats dt,
+.courtFigureStats dd {
+  margin: 0;
+}
+
+.courtFigureStats dt {
+  color: rgba(223, 248, 194, 0.72);
+  font-size: 0.54rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.courtFigureStats dd {
+  color: var(--foreground-strong);
+  font-size: 0.84rem;
+  font-weight: 950;
+  line-height: 1;
 }
 
 .courtFigure svg {
@@ -14069,6 +15280,19 @@
 }
 
 .printBook .courtFigure figcaption {
+  color: var(--paper-navy);
+}
+
+.printBook .courtFigureStats div {
+  border-color: rgba(110, 166, 0, 0.26);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.printBook .courtFigureStats dt {
+  color: var(--paper-green);
+}
+
+.printBook .courtFigureStats dd {
   color: var(--paper-navy);
 }
 
@@ -15367,6 +16591,7 @@
   .levelUpCardRail article,
   .levelUpModuleRail article,
   .levelUpLibraryGrid a,
+  .levelUpQuestPackPreviewGrid a,
   .levelUpQuestPackPreviewGrid article,
   .levelUpHabitPathGrid article,
   .levelUpFeatureFrameGrid article,
@@ -15572,7 +16797,7 @@
 
   .liveTodayCommandStats {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
   }
 
@@ -15650,6 +16875,10 @@
   .liveSessionDock button:disabled {
     cursor: not-allowed;
     opacity: 0.48;
+  }
+
+  .liveSessionDock[data-active='false'] {
+    display: none;
   }
 
   .liveTodayStack {
@@ -15745,10 +16974,17 @@
   .liveAssignmentPlayerIdGrid,
   .liveAssignmentStatusRail,
   .liveAssignmentBanner,
+  .liveActiveResumeStrip,
+  .liveCourtsideResume,
   .liveSavedBanner,
   .liveSavedIdentitySignals,
   .liveSavedDeliveryRail,
   .liveSavedNextSteps,
+  .liveSavedChecklist,
+  .liveSavedCueRail,
+  .liveSavedMomentRail,
+  .liveSavedAskRail,
+  .liveSavedProofRecap,
   .liveSyncProofPanel,
   .liveUnlockPanel,
   .liveModeStrip {
@@ -15759,6 +16995,46 @@
     grid-template-columns: 1fr;
   }
 
+  .liveIdentityCourtRead {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .liveIdentityCourtRead article {
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .liveIdentityCourtRead strong {
+    margin-top: 5px;
+    font-size: 0.78rem;
+    line-height: 1.18;
+  }
+
+  .liveIdentityCourtRead article[data-state='watch'],
+  .liveIdentityCourtRead article[data-state='next'] {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px;
+    align-items: start;
+    padding: 7px 8px;
+    text-align: left;
+  }
+
+  .liveIdentityCourtRead article[data-state='watch'] span,
+  .liveIdentityCourtRead article[data-state='next'] span {
+    font-size: 0.56rem;
+    letter-spacing: 0.06em;
+    line-height: 1.1;
+  }
+
+  .liveIdentityCourtRead article[data-state='watch'] strong,
+  .liveIdentityCourtRead article[data-state='next'] strong {
+    margin-top: 0;
+    font-size: 0.72rem;
+    line-height: 1.12;
+  }
+
   .liveTrainingFlow,
   .liveStepPanel,
   .liveLaneColumn,
@@ -15766,6 +17042,8 @@
   .liveTracker,
   .liveQualityGrid,
   .liveProofRubric,
+  .liveCourtsideCommand,
+  .liveProofCounter,
   .liveDrillSteps div,
   .liveTimerPanel {
     gap: 8px;
@@ -15775,6 +17053,14 @@
   .liveLaneColumn,
   .liveCurrentGoal,
   .liveActionCard,
+  .liveActiveResumeStrip,
+  .liveCourtsideResume,
+  .liveProofCounter,
+  .liveSavedChecklist,
+  .liveSavedCueRail,
+  .liveSavedMomentRail,
+  .liveSavedAskRail,
+  .liveSavedProofRecap,
   .liveTracker,
   .liveTimerPanel,
   .liveAssignmentBanner,
@@ -15783,12 +17069,95 @@
     border-radius: 13px;
   }
 
+  .liveCourtsideResumeGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .liveCourtsideResumeGrid article {
+    padding: 8px;
+  }
+
+  .liveCourtsideResumeActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+  }
+
+  .liveActiveResumeStrip button {
+    width: 100%;
+    min-width: 0;
+  }
+
   .liveTracker {
     scroll-margin-top: 12px;
   }
 
   .liveSavedBanner {
     scroll-margin-top: 12px;
+  }
+
+  .liveSavedCueRail {
+    grid-template-columns: 1fr;
+  }
+
+  .liveSavedMomentRail {
+    grid-template-columns: 1fr;
+  }
+
+  .liveSavedAskRail {
+    grid-template-columns: 1fr;
+  }
+
+  .liveSavedChecklist > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .liveSavedCoachBrief {
+    grid-template-columns: 1fr;
+  }
+
+  .liveSavedChecklist article {
+    padding: 8px;
+  }
+
+  .liveSavedCueButtons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .liveSavedMomentButtons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .liveSavedAskButtons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .liveSavedCueButtons button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .liveSavedMomentButtons button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .liveSavedAskButtons button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .liveSavedProofRecap {
+    grid-template-columns: 1fr;
+  }
+
+  .liveSavedProofRecapActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .liveSavedProofRecapActions :is(a, button) {
+    width: 100%;
+    min-width: 0;
   }
 
   .liveSavedActions {
@@ -15840,12 +17209,42 @@
     grid-template-columns: 1fr;
   }
 
+  .liveCourtsideCommand {
+    grid-template-columns: 1fr;
+  }
+
+  .liveCourtsideCommand article {
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: start;
+    padding: 8px;
+  }
+
+  .liveCourtsideCommand span {
+    font-size: 0.62rem;
+    line-height: 1.1;
+  }
+
+  .liveCourtsideCommand strong {
+    font-size: 0.78rem;
+    line-height: 1.16;
+  }
+
   .liveQualityGrid {
     grid-template-columns: 1fr;
   }
 
   .liveProofRubric {
     grid-template-columns: 1fr;
+  }
+
+  .liveWakeLockControl {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 8px;
+  }
+
+  .liveWakeLockControl button {
+    min-width: 104px;
+    padding-inline: 10px;
   }
 
   .liveDrillSteps div {
@@ -15861,8 +17260,24 @@
   }
 
   .liveMicroPlan,
+  .livePressureRepeatCue,
+  .liveProofCounter,
   .liveActionGuide {
     padding: 8px;
+  }
+
+  .livePressureRepeatCue,
+  .liveProofCounter {
+    grid-template-columns: 1fr;
+  }
+
+  .liveProofCounterActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .liveProofCounterActions button {
+    min-height: 40px;
+    padding-inline: 8px;
   }
 
   .liveScoreGuide {
@@ -15947,6 +17362,10 @@
     font-size: 0.78rem;
   }
 
+  .liveDraftActions {
+    grid-template-columns: 1fr;
+  }
+
   .liveSessionToast {
     position: sticky;
     z-index: 19;
@@ -15964,6 +17383,10 @@
   .liveNextActionCard {
     grid-template-columns: 1fr;
     gap: 9px;
+  }
+
+  .liveNextActionSignals {
+    grid-template-columns: 1fr;
   }
 
   .liveNextActionButtons {
@@ -16043,6 +17466,25 @@
     min-height: 78px;
   }
 
+  .liveQuickNoteChips {
+    padding: 8px;
+  }
+
+  .liveQuickNoteChips > div {
+    flex-wrap: nowrap;
+    margin-inline: -8px;
+    overflow-x: auto;
+    padding: 0 8px 2px;
+    scroll-snap-type: x proximity;
+  }
+
+  .liveQuickNoteChips button {
+    flex: 0 0 auto;
+    max-width: min(220px, 72vw);
+    scroll-snap-align: start;
+    white-space: normal;
+  }
+
   .companionMap article {
     grid-template-columns: 1fr;
   }
@@ -16110,6 +17552,14 @@
   .levelUpCardActions[data-proof-saved='true'] :global(.button-primary) {
     grid-column: 1 / -1;
     width: 100%;
+  }
+
+  .courtFigure figcaption {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .courtFigureStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

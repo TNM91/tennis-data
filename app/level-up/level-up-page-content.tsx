@@ -10,6 +10,7 @@ import { buildLevelUpHabitPaths, buildLevelUpQuestBuilderPlan, formatHabitCatego
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
   getPlayerDevelopmentIdentityActionRead,
+  getPlayerDevelopmentIdentityCourtsideRead,
   type PlayerDevelopmentIdentity,
 } from '@/lib/player-development'
 import { getPlayerTrainingMenus } from '@/lib/player-training-menus'
@@ -26,6 +27,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
   const libraryPacks = [...new Set(LEVEL_UP_CARDS.map((card) => card.pack))].slice(0, 8)
   const quickStartCards = recommendedCards.slice(0, 5)
   const actionRead = getPlayerDevelopmentIdentityActionRead(identity)
+  const courtsideRead = getPlayerDevelopmentIdentityCourtsideRead(identity)
   const playerIdRows = [
     ['Profile ID', identity.title.replace(/^The /, '')],
     ['Weapon', actionRead.title],
@@ -605,6 +607,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             identitySlug={identity.slug}
             identityTitle={identity.title}
             mantra={identity.mantra}
+            identityCourtsideRead={courtsideRead}
             focuses={identity.sections}
             solo={trainingMenus.solo}
             partner={trainingMenus.partner}

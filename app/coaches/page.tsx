@@ -335,7 +335,7 @@ const coachNextActions = [
   {
     eyebrow: 'Resources',
     title: 'How can I recommend resources?',
-    body: 'Point the player to drills, development paths, match prep, or workbook resources that match the lesson focus.',
+    body: 'Point the player to drills, Level Up work, match prep, or tactical resources that match the lesson focus.',
     metrics: [
       { label: 'Find', value: 'Resources' },
       { label: 'Match', value: 'Lesson' },

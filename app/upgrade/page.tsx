@@ -135,8 +135,8 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     title: 'Coach Hub is active. Build the next lesson.',
     body: 'Open Coach Hub, map court work in Tactical Studio, and turn the next player-development need into assignments.',
     primaryAction: 'Open Coach Hub',
-    secondaryAction: 'Open workbook',
-    secondaryHref: '/player-development',
+    secondaryAction: 'Map court work',
+    secondaryHref: '/tactics',
     steps: ['Plan a lesson', 'Build a tactical board', 'Assign the next drill'],
   },
   captain: {

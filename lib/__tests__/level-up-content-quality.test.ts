@@ -1,9 +1,16 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { LEVEL_UP_CARDS } from '../level-up/level-up-cards'
 import { IDENTITY_LEVEL_UP_PROFILES } from '../level-up/identity-recommendations'
 import { LEVEL_UP_MODULES } from '../level-up/level-up-modules'
 import { getRecommendedCardsForIdentity, getRecommendedModulesForIdentity } from '../level-up/recommendations'
-import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentityActionRead } from '../player-development'
+import {
+  PLAYER_DEVELOPMENT_DIAGRAMS,
+  PLAYER_DEVELOPMENT_IDENTITIES,
+  getPlayerDevelopmentIdentityActionRead,
+  getPlayerDevelopmentIdentityCourtsideRead,
+} from '../player-development'
 import { MEMBERSHIP_TIERS } from '../product-story'
 
 const EMPTY_COPY_PATTERNS = [
@@ -49,6 +56,8 @@ const TENNIS_TRANSFER_WORDS = [
   'target',
   'split',
   'court',
+  'forehand',
+  'backhand',
   'volley',
 ]
 
@@ -198,6 +207,97 @@ describe('Level Up content quality', () => {
         `${identity.slug} action read should stay tennis-specific`
       ).toBe(true)
     }
+  })
+
+  it('turns every player identity into a phone-courtside read', () => {
+    for (const identity of PLAYER_DEVELOPMENT_IDENTITIES) {
+      const courtsideRead = getPlayerDevelopmentIdentityCourtsideRead(identity)
+      const values = [
+        courtsideRead.trainFirst,
+        courtsideRead.proof,
+        courtsideRead.leak,
+        courtsideRead.nextCue,
+        courtsideRead.starterRep,
+        courtsideRead.starterProofCue,
+        courtsideRead.starterLeakWatch,
+        courtsideRead.starterSmartNext,
+      ]
+      const joined = values.join(' ')
+
+      for (const value of values) {
+        expect(value.trim(), identity.slug).not.toHaveLength(0)
+      }
+
+      expect(courtsideRead.trainFirst, identity.slug).toContain(':')
+      expect(courtsideRead.proof.split(':').length, identity.slug).toBe(2)
+      expect(courtsideRead.starterRep, identity.slug).toMatch(/^Run one .+ rep where .+\.$/)
+      expect(courtsideRead.starterProofCue, identity.slug).toMatch(/^Score it only when .+\.$/)
+      expect(courtsideRead.starterLeakWatch, identity.slug).toMatch(/^Repeat slower if .+\.$/)
+      expect(courtsideRead.starterSmartNext, identity.slug).toContain('4/5')
+      expect(
+        TENNIS_TRANSFER_WORDS.some((word) => joined.toLowerCase().includes(word)),
+        `${identity.slug} courtside read should stay tennis-specific`
+      ).toBe(true)
+      expect(joined, identity.slug).not.toMatch(/\b(todo|tbd|placeholder|generic)\b/i)
+    }
+  })
+
+  it('keeps every Player ID workbook module tied to a complete tactic-board read', () => {
+    const diagramIds = new Set(Object.keys(PLAYER_DEVELOPMENT_DIAGRAMS))
+
+    for (const identity of PLAYER_DEVELOPMENT_IDENTITIES) {
+      expect(identity.weeks.length, identity.slug).toBeGreaterThanOrEqual(6)
+      expect(new Set(identity.weeks.map((week) => week.week)).size, identity.slug).toBe(identity.weeks.length)
+
+      for (const week of identity.weeks) {
+        const meta = PLAYER_DEVELOPMENT_DIAGRAMS[week.diagram]
+        expect(diagramIds.has(week.diagram), `${identity.slug} module ${week.week} references a missing diagram`).toBe(true)
+        expect(meta.title.trim(), week.diagram).not.toHaveLength(0)
+        expect(meta.intent.trim(), week.diagram).not.toHaveLength(0)
+        expect(meta.setup.trim(), week.diagram).not.toHaveLength(0)
+        expect(meta.read.trim(), week.diagram).not.toHaveLength(0)
+
+        const moduleCopy = [
+          week.title,
+          week.objective,
+          week.mainDrill,
+          week.pressureGame,
+          week.accountability,
+          week.coachCue,
+          week.tiqPrompt,
+          meta.title,
+          meta.intent,
+          meta.setup,
+          meta.read,
+        ].join(' ')
+
+        expect(moduleCopy, `${identity.slug} module ${week.week}`).not.toMatch(/\b(todo|tbd|placeholder|generic)\b/i)
+        expect(
+          TENNIS_TRANSFER_WORDS.some((word) => moduleCopy.toLowerCase().includes(word)),
+          `${identity.slug} module ${week.week} should stay tennis-specific`
+        ).toBe(true)
+      }
+    }
+  })
+
+  it('keeps tactic-board visual data wired into the shared printable renderer', () => {
+    const systemSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development-system.tsx'), 'utf8')
+    const overlaySource = readFileSync(join(process.cwd(), 'components/tactical/TiqCourtOverlay.tsx'), 'utf8')
+    const styleSource = readFileSync(join(process.cwd(), 'app/player-development/_components/player-development.module.css'), 'utf8')
+
+    expect(systemSource).toContain('const overlay = getWorkbookCourtOverlay(tacticalOverlay)')
+    expect(systemSource).toContain('const identityHeroDiagram = getIdentityHeroDiagram(identity)')
+    expect(systemSource).toContain('function getIdentityHeroDiagram(identity: PlayerDevelopmentIdentity): PlayerDevelopmentDiagram')
+    expect(systemSource).toContain("identity.weeks.find((week) => week.diagram !== 'player-led-review')?.diagram")
+    expect(systemSource).toContain('const players = overlay.players?.map')
+    expect(systemSource).toContain('players,')
+    expect(systemSource).toContain('getDiagramStats(tacticalOverlay)')
+    expect(overlaySource).toContain('function Label({')
+    expect(overlaySource).toContain('tiq-overlay-label-shadow')
+    expect(styleSource).toContain('.courtFigureStats')
+    expect(styleSource).toContain('.courtFigure figcaption {')
+    expect(styleSource).toContain('grid-template-columns: minmax(0, 1fr);')
+    expect(styleSource).toContain('.printBook .courtFigureStats')
   })
 
   it('keeps player-development tier copy aligned to the Player plan name', () => {

@@ -39,6 +39,9 @@ export default function TiqCourtOverlay({ overlay, showLabels = true }: TiqCourt
         <filter id="tiq-overlay-glow" x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="0" dy="0" stdDeviation="1.2" floodColor="#9be11d" floodOpacity="0.55" />
         </filter>
+        <filter id="tiq-overlay-label-shadow" x="-30%" y="-40%" width="160%" height="180%">
+          <feDropShadow dx="0" dy="0.35" stdDeviation="0.45" floodColor="#020814" floodOpacity="0.82" />
+        </filter>
         {Object.entries(arrowColor).map(([type, color]) => (
           <marker id={`tiq-arrow-head-${type}`} key={type} markerHeight="4" markerWidth="4" orient="auto" refX="3.2" refY="2" viewBox="0 0 4 4">
             <path d="M0 0 4 2 0 4Z" fill={color} />
@@ -64,21 +67,7 @@ export default function TiqCourtOverlay({ overlay, showLabels = true }: TiqCourt
       {overlay.markers?.map((marker) => <Marker key={marker.id} marker={marker} showLabel={showLabels} />)}
       {overlay.players?.map((player) => <Player key={player.id} player={player} showLabel={showLabels} />)}
       {showLabels && overlay.labels?.map((label) => (
-        <text
-          fill={label.tone === 'danger' ? '#ffc257' : label.tone === 'muted' ? 'rgba(248,251,255,0.72)' : '#f8fbff'}
-          fontSize="2.8"
-          fontWeight="800"
-          key={label.id}
-          paintOrder="stroke"
-          stroke="rgba(2,8,18,0.78)"
-          strokeLinejoin="round"
-          strokeWidth="0.7"
-          textAnchor="middle"
-          x={label.x}
-          y={label.y}
-        >
-          {label.text}
-        </text>
+        <Label key={label.id} text={label.text} tone={label.tone} x={label.x} y={label.y} />
       ))}
     </svg>
   )
@@ -118,9 +107,7 @@ function Zone({ zone, showLabel }: { zone: DrillZone; showLabel: boolean }) {
         </g>
       ) : null}
       {showLabel && zone.label ? (
-        <text fill="#dff8c2" fontSize="2.35" fontWeight="800" textAnchor="middle" x={centerX} y={centerY}>
-          {zone.label}
-        </text>
+        <Label text={zone.label} tone={zone.tone === 'blue' ? 'muted' : 'default'} x={centerX} y={centerY} />
       ) : null}
     </g>
   )
@@ -161,9 +148,7 @@ function Arrow({ arrow, showLabel }: { arrow: DrillArrow; showLabel: boolean }) 
       )}
       {type === 'ball' ? <use href="#tiq-ball-marker" height="4.6" width="4.6" x={arrow.to.x - 2.3} y={arrow.to.y - 2.3} /> : null}
       {showLabel && arrow.label ? (
-        <text fill={color} fontSize="2.35" fontWeight="800" paintOrder="stroke" stroke="rgba(2,8,18,0.82)" strokeWidth="0.6" textAnchor="middle" x={midX} y={midY + (arrow.curved ? curveY : -1.5)}>
-          {arrow.label}
-        </text>
+        <Label color={color} compact text={arrow.label} x={midX} y={midY + (arrow.curved ? curveY : -1.5)} />
       ) : null}
     </g>
   )
@@ -177,9 +162,7 @@ function Marker({ marker, showLabel }: { marker: DrillMarker; showLabel: boolean
     <g filter="url(#tiq-overlay-glow)">
       <use href={symbol} height={size} width={size} x={marker.x - size / 2} y={marker.y - size / 2} />
       {showLabel && marker.label ? (
-        <text fill="#f8fbff" fontSize="2.15" fontWeight="800" paintOrder="stroke" stroke="rgba(2,8,18,0.86)" strokeWidth="0.55" textAnchor="middle" x={marker.x} y={marker.y + size / 2 + 3}>
-          {marker.label}
-        </text>
+        <Label compact text={marker.label} x={marker.x} y={marker.y + size / 2 + 3} />
       ) : null}
     </g>
   )
@@ -216,10 +199,64 @@ function Player({ player, showLabel }: { player: DrillPlayer; showLabel: boolean
         <circle cx={racquet.cx} cy={racquet.cy} fill="none" r="1.15" stroke={stroke} strokeWidth="0.48" />
       </g>
       {showLabel ? (
-        <text fill="#f8fbff" fontSize="2.15" fontWeight="800" paintOrder="stroke" stroke="rgba(2,8,18,0.86)" strokeWidth="0.55" textAnchor="middle" y="7.4">
-          {player.label}
-        </text>
+        <Label compact text={player.label} y="7.9" />
       ) : null}
+    </g>
+  )
+}
+
+function Label({
+  color,
+  compact = false,
+  text,
+  tone = 'default',
+  x = 0,
+  y,
+}: {
+  color?: string
+  compact?: boolean
+  text?: string
+  tone?: 'default' | 'muted' | 'danger'
+  x?: number | string
+  y: number | string
+}) {
+  if (!text) return null
+
+  const fill = color ?? (tone === 'danger' ? '#ffc257' : tone === 'muted' ? '#d9f2ff' : '#f8fbff')
+  const estimatedWidth = Math.max(8.2, Math.min(24, text.length * (compact ? 1.42 : 1.58) + 3.8))
+  const height = compact ? 4.4 : 5.2
+  const numericX = typeof x === 'number' ? x : Number(x)
+  const numericY = typeof y === 'number' ? y : Number(y)
+  const canDrawPill = Number.isFinite(numericX) && Number.isFinite(numericY)
+
+  return (
+    <g filter="url(#tiq-overlay-label-shadow)">
+      {canDrawPill ? (
+        <rect
+          fill="rgba(2,8,18,0.72)"
+          height={height}
+          rx={height / 2}
+          stroke="rgba(248,251,255,0.18)"
+          strokeWidth="0.22"
+          width={estimatedWidth}
+          x={numericX - estimatedWidth / 2}
+          y={numericY - height + 1.25}
+        />
+      ) : null}
+      <text
+        fill={fill}
+        fontSize={compact ? '2.05' : '2.45'}
+        fontWeight="850"
+        paintOrder="stroke"
+        stroke="rgba(2,8,18,0.7)"
+        strokeLinejoin="round"
+        strokeWidth="0.38"
+        textAnchor="middle"
+        x={x}
+        y={y}
+      >
+        {text}
+      </text>
     </g>
   )
 }

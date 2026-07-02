@@ -103,6 +103,17 @@ export type PlayerDevelopmentIdentityActionRead = {
   levelUpNudge: string
 }
 
+export type PlayerDevelopmentIdentityCourtsideRead = {
+  trainFirst: string
+  proof: string
+  leak: string
+  nextCue: string
+  starterRep: string
+  starterProofCue: string
+  starterLeakWatch: string
+  starterSmartNext: string
+}
+
 export type PlayerDevelopmentIdentity = {
   slug: string
   title: string
@@ -1027,7 +1038,7 @@ export const SMART_ATTACKER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use recaps to separate pressure created from points donated.',
-      href: '/player-development/smart-attacker-4-0-to-4-5/workbook',
+      href: '/player-development/smart-attacker-4-0-to-4-5/level-up',
     },
     {
       title: 'Bring to coach',
@@ -1324,7 +1335,7 @@ export const CONSISTENT_BUILDER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate patience from passive play.',
-      href: '/player-development/consistent-builder-4-0/workbook',
+      href: '/player-development/consistent-builder-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -1621,7 +1632,7 @@ export const DOUBLES_COMMANDER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate partner alignment from point result.',
-      href: '/player-development/doubles-commander-4-0/workbook',
+      href: '/player-development/doubles-commander-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -1918,7 +1929,7 @@ export const SERVE_FORWARD_FINISHER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate clean pressure from rushed attacking.',
-      href: '/player-development/serve-forward-finisher-4-0/workbook',
+      href: '/player-development/serve-forward-finisher-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -2215,7 +2226,7 @@ export const DEFENSIVE_COUNTERPUNCHER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate smart defense from rushed countering.',
-      href: '/player-development/defensive-counterpuncher-4-0/workbook',
+      href: '/player-development/defensive-counterpuncher-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -2512,7 +2523,7 @@ export const PRESSURE_CLOSER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate pressure behavior from score outcome.',
-      href: '/player-development/pressure-closer-4-0/workbook',
+      href: '/player-development/pressure-closer-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -2809,7 +2820,7 @@ export const RETURN_DISRUPTOR_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate return intent from return result.',
-      href: '/player-development/return-disruptor-4-0/workbook',
+      href: '/player-development/return-disruptor-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -3106,7 +3117,7 @@ export const FOREHAND_PRESSURE_BUILDER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate forehand pressure from forehand forcing.',
-      href: '/player-development/forehand-pressure-builder-4-0/workbook',
+      href: '/player-development/forehand-pressure-builder-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -3403,7 +3414,7 @@ export const BACKHAND_STABILITY_BUILDER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate backhand stability from backhand survival.',
-      href: '/player-development/backhand-stability-builder-4-0/workbook',
+      href: '/player-development/backhand-stability-builder-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -3700,7 +3711,7 @@ export const NET_CONFIDENCE_BUILDER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate confident net decisions from rushed finishes.',
-      href: '/player-development/net-confidence-builder-4-0/workbook',
+      href: '/player-development/net-confidence-builder-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -3997,7 +4008,7 @@ export const SINGLES_POINT_BUILDER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate good point construction from lucky point results.',
-      href: '/player-development/singles-point-builder-4-0/workbook',
+      href: '/player-development/singles-point-builder-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -4294,7 +4305,7 @@ export const ALL_COURT_ADAPTER_IDENTITY: PlayerDevelopmentIdentity = {
     {
       title: 'Track evidence',
       cue: 'Use Level Up proof to separate good reads from lucky results.',
-      href: '/player-development/all-court-adapter-4-0/workbook',
+      href: '/player-development/all-court-adapter-4-0/level-up',
     },
     {
       title: 'Bring to coach',
@@ -4349,5 +4360,42 @@ export function getPlayerDevelopmentIdentityActionRead(
     nextCue: firstWeek?.coachCue ?? identity.mantra,
     levelUpNudge: `Start with one ${identityName} card, score the proof, then decide whether to repeat, progress, or test it in a match.`,
   }
+}
+
+export function getPlayerDevelopmentIdentityCourtsideRead(
+  identity: PlayerDevelopmentIdentity
+): PlayerDevelopmentIdentityCourtsideRead {
+  const actionRead = getPlayerDevelopmentIdentityActionRead(identity)
+  const firstSection = identity.sections[0]
+  const firstTracker = firstSection?.tracker[0] ?? 'proof'
+  const firstMetric = identity.metrics[0]
+  const firstWeek = identity.weeks[0]
+  const pressureHabit = identity.identityProfile.pressureHabits[0] ?? actionRead.nextCue
+  const matchTrigger = identity.identityProfile.matchTriggers[0] ?? actionRead.matchTrigger
+  const trainTitle = firstSection?.title.replace(/\s+Development$/i, '') ?? actionRead.title
+  const proofEvidence = firstMetric?.evidence ?? firstWeek?.accountability ?? actionRead.proofTarget
+  const cleanPressureHabit = trimSentence(pressureHabit)
+  const cleanProofEvidence = trimSentence(proofEvidence)
+  const cleanLeakWatch = trimSentence(actionRead.leakWatch)
+  const cleanMatchTrigger = trimSentence(matchTrigger)
+
+  return {
+    trainFirst: `${trainTitle}: ${actionRead.trainingPriority}`,
+    proof: `${firstTracker}: ${proofEvidence}`,
+    leak: actionRead.leakWatch,
+    nextCue: pressureHabit,
+    starterRep: `Run one ${trainTitle.toLowerCase()} rep where ${lowerFirst(cleanPressureHabit)}.`,
+    starterProofCue: `Score it only when ${lowerFirst(cleanProofEvidence)}.`,
+    starterLeakWatch: `Repeat slower if ${lowerFirst(cleanLeakWatch)}.`,
+    starterSmartNext: `If it scores 4/5, test it ${lowerFirst(cleanMatchTrigger)}; if not, repeat the same cue once slower.`,
+  }
+}
+
+function trimSentence(value: string) {
+  return value.replace(/\s+/g, ' ').replace(/[.!?]+$/, '').trim()
+}
+
+function lowerFirst(value: string) {
+  return value ? `${value[0].toLowerCase()}${value.slice(1)}` : value
 }
 
