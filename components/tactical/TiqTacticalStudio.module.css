@@ -149,6 +149,40 @@
   max-width: 760px;
 }
 
+.gateStarterCue {
+  border: 1px solid rgba(155, 225, 29, 0.24);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.14), transparent 54%),
+    rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  display: grid;
+  gap: 6px;
+  margin: 16px 0 18px;
+  max-width: 620px;
+  padding: 14px;
+}
+
+.gateStarterCue span {
+  color: #9be11d;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.gateStarterCue strong {
+  color: #f8fbff;
+  font-size: clamp(1rem, 1.6vw, 1.22rem);
+  line-height: 1.2;
+}
+
+.gateStarterCue small {
+  color: rgba(248, 251, 255, 0.7);
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.38;
+}
+
 .gateStats {
   align-content: center;
   display: grid;
@@ -1479,7 +1513,8 @@
   }
 
   .gateStats {
-    grid-template-columns: 1fr;
+    gap: 6px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .tacticsPlayerIdHeader,
@@ -1504,6 +1539,32 @@
 
   .gateCopy h1 {
     font-size: clamp(2.4rem, 14vw, 4.2rem);
+  }
+
+  .gateStarterCue {
+    border-radius: 14px;
+    margin: 10px 0;
+    padding: 11px;
+  }
+
+  .gateStarterCue strong {
+    font-size: 0.95rem;
+  }
+
+  .gateStarterCue small {
+    font-size: 0.76rem;
+  }
+
+  .gateStats .stat {
+    display: grid;
+    justify-items: center;
+    min-height: 68px;
+    padding: 8px 5px;
+    text-align: center;
+  }
+
+  .gateStats .stat p {
+    display: none;
   }
 
   .topbar {

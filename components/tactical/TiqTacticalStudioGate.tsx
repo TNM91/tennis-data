@@ -56,6 +56,11 @@ export default function TiqTacticalStudioGate() {
       <section className={`${styles.hero} ${styles.gateHero}`}>
         <div className={styles.gateCopy}>
           <div className={styles.eyebrow}>Player unlock preview</div>
+          <div className={styles.gateStarterCue} aria-label="Improve starter board requested">
+            <span>Improve starter board requested</span>
+            <strong>Crosscourt pattern board opens after Player unlock.</strong>
+            <small>Read the Player ID cue, adjust the court, then save or copy the brief.</small>
+          </div>
           <h1>Build the drill board, then save the plan.</h1>
           <p>
             TIQ Tactical Studio is part of Player, Coach, Captain, and Full-Court access. Use it to map drills,
