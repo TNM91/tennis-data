@@ -2,10 +2,14 @@
 
 import Link from 'next/link'
 import { CSSProperties, FormEvent, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/components/auth-provider'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { isSafeLocalNextHref } from '@/lib/plan-intent'
+import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
+import { buildAuthEntryHref, getAuthEntryPlanId } from '@/lib/auth-entry-hrefs'
 
 export default function ForgotPasswordPage() {
   return (
@@ -16,6 +20,7 @@ export default function ForgotPasswordPage() {
 }
 
 function ForgotPasswordContent() {
+  const searchParams = useSearchParams()
   const { authResolved } = useAuth()
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -23,6 +28,14 @@ function ForgotPasswordContent() {
   const [error, setError] = useState('')
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const authLoading = !authResolved
+  const selectedPlanId = getAuthEntryPlanId(searchParams.get('plan'))
+  const requestedNextRoute = searchParams.get('next')
+  const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, '/login')
+  const hasSafeRequestedNext = !!requestedNextRoute && selectedNextRoute === requestedNextRoute
+  const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
+  const resetPasswordHref = buildAuthEntryHref('/reset-password', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
+  const loginHref = buildAuthEntryHref('/login', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
+  const joinHref = buildAuthEntryHref('/join', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -41,7 +54,7 @@ function ForgotPasswordContent() {
     try {
       const redirectTo =
         typeof window !== 'undefined'
-          ? `${window.location.origin}/reset-password`
+          ? new URL(resetPasswordHref, window.location.origin).toString()
           : undefined
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
@@ -103,6 +116,13 @@ function ForgotPasswordContent() {
           Enter your email and TenAceIQ will send a secure link back to your saved tennis work.
         </p>
         <div style={destinationPillStyle}>Next step: check your inbox</div>
+        {nextIntent ? (
+          <div aria-label="Password recovery next action" style={nextIntentStyle}>
+            <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+            <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+            <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+          </div>
+        ) : null}
       </div>
 
       <div style={formPanelResponsive}>
@@ -141,10 +161,10 @@ function ForgotPasswordContent() {
             {error ? <div id="reset-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
             <div style={helperRow}>
-              <Link href="/login" style={inlineLink}>
+              <Link href={loginHref} style={inlineLink}>
                 Back to login
               </Link>
-              <Link href="/join" style={inlineLinkMuted}>
+              <Link href={joinHref} style={inlineLinkMuted}>
                 Create free account
               </Link>
             </div>
@@ -242,6 +262,45 @@ const destinationPillStyle: CSSProperties = {
   fontWeight: 900,
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const nextIntentStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  alignSelf: 'flex-start',
+  maxWidth: '560px',
+  padding: '10px 12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  boxSizing: 'border-box',
+}
+
+const nextIntentLabelStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '11px',
+  fontWeight: 900,
+  lineHeight: 1.2,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  lineHeight: 1.18,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontWeight: 700,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const formPanel: CSSProperties = {

@@ -14,6 +14,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { type MembershipTierId } from '@/lib/product-story'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
+import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 
 const DEFAULT_POST_LOGIN_ROUTE = FREE_POST_LOGIN_ROUTE
 const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
@@ -67,15 +68,6 @@ function getLoginPlanIntent() {
   if (typeof window === 'undefined') return 'free'
   const plan = new URLSearchParams(window.location.search).get('plan')
   return LOGIN_PLAN_IDS.includes(plan as MembershipTierId) ? (plan as MembershipTierId) : 'free'
-}
-
-function buildLoginJoinHref(planId: MembershipTierId, nextHref: string, includeNextHref: boolean) {
-  const params = new URLSearchParams()
-  if (planId !== 'free') params.set('plan', planId)
-  if (includeNextHref) params.set('next', nextHref)
-
-  const query = params.toString()
-  return query ? `/join?${query}` : '/join'
 }
 
 async function getDefaultPostLoginRoute(
@@ -158,7 +150,8 @@ function LoginContent() {
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, DEFAULT_POST_LOGIN_ROUTE)
   const hasSafeRequestedNext = !!requestedNextRoute && selectedNextRoute === requestedNextRoute
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
-  const createAccountHref = buildLoginJoinHref(selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
+  const createAccountHref = buildAuthEntryHref('/join', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
+  const forgotPasswordHref = buildAuthEntryHref('/forget-password', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
   const emailPrefill = searchParams.get('email')?.trim() ?? ''
   const switchingAccount = searchParams.get('switchAccount') === '1'
   const coachSetupEmailLabel = emailPrefill || 'the invited email'
@@ -453,7 +446,7 @@ function canUseBrowserStorage() {
                 >
                   Create free account
                 </Link>
-                <Link href="/forget-password" style={isMobile ? mobileSecondaryAuthLink : inlineLinkMuted}>
+                <Link href={forgotPasswordHref} style={isMobile ? mobileSecondaryAuthLink : inlineLinkMuted}>
                   Forgot password?
                 </Link>
               </div>

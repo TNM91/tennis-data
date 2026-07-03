@@ -2,13 +2,17 @@
 
 import Link from 'next/link'
 import { CSSProperties, FormEvent, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { isSafeLocalNextHref } from '@/lib/plan-intent'
+import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
+import { buildAuthEntryHref, getAuthEntryPlanId } from '@/lib/auth-entry-hrefs'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -18,6 +22,13 @@ export default function ResetPasswordPage() {
   const [sessionReady, setSessionReady] = useState(false)
   const [checking, setChecking] = useState(true)
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const selectedPlanId = getAuthEntryPlanId(searchParams.get('plan'))
+  const requestedNextRoute = searchParams.get('next')
+  const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, '/login')
+  const hasSafeRequestedNext = !!requestedNextRoute && selectedNextRoute === requestedNextRoute
+  const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
+  const loginHref = buildAuthEntryHref('/login', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
+  const forgotPasswordHref = buildAuthEntryHref('/forget-password', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
 
   useEffect(() => {
     async function loadSession() {
@@ -75,7 +86,7 @@ export default function ResetPasswordPage() {
       setMessage('Password updated. Sending you back to login...')
       setTimeout(async () => {
         await supabase.auth.signOut()
-        router.push('/login')
+        router.push(loginHref)
       }, 1200)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update password.')
@@ -132,6 +143,13 @@ export default function ResetPasswordPage() {
             Secure the account, then return to your saved tennis work.
           </p>
           <div style={destinationPillStyle}>Next step: sign back in</div>
+          {nextIntent ? (
+            <div aria-label="Reset password next action" style={nextIntentStyle}>
+              <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+              <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+              <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+            </div>
+          ) : null}
         </div>
 
         <div style={formPanelResponsive}>
@@ -209,10 +227,10 @@ export default function ResetPasswordPage() {
               {error ? <div id="reset-pw-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
               <div style={helperRow}>
-                <Link href="/forget-password" style={inlineLink}>
+                <Link href={forgotPasswordHref} style={inlineLink}>
                   Send another reset email
                 </Link>
-                <Link href="/login" style={inlineLinkMuted}>
+                <Link href={loginHref} style={inlineLinkMuted}>
                   Back to login
                 </Link>
               </div>
@@ -311,6 +329,45 @@ const destinationPillStyle: CSSProperties = {
   fontWeight: 900,
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const nextIntentStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  alignSelf: 'flex-start',
+  maxWidth: '560px',
+  padding: '10px 12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  boxSizing: 'border-box',
+}
+
+const nextIntentLabelStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '11px',
+  fontWeight: 900,
+  lineHeight: 1.2,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  lineHeight: 1.18,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontWeight: 700,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const formPanel: CSSProperties = {
