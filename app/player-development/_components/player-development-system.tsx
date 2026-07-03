@@ -174,14 +174,14 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
     {
       body: 'Keep goals, match notes, proof history, follows, and coach assignments close to your player profile.',
       cta: 'Open My Lab',
-      href: '/mylab',
+      href: '/mylab#player-workshop',
       icon: 'myLab' as const,
       title: 'Open My Lab',
     },
     {
       body: 'Turn the next Player ID cue into a serve pattern, return plan, or point map before you compete.',
       cta: 'Build a tactic board',
-      href: '/tactics',
+      href: '/tactics?source=improve&template=crosscourt&role=player',
       icon: 'scenarioBuilder' as const,
       title: 'Build a tactic board',
     },

@@ -25,8 +25,15 @@ const COURT_ASSET_HEIGHT = 1086
 const INLINE_TOKEN_TOOLS: TacticalTokenType[] = ['player', 'ball', 'cone', 'x', 'o']
 const INLINE_PATH_TOOLS: TacticalPathKind[] = ['ball', 'move', 'recover']
 const BOARD_TOOL_MODES = ['add', 'lines', 'snap', 'edit'] as const
+const TACTICAL_TEMPLATE_KEYS: TacticalTemplateKey[] = ['basicDoubles', 'poach', 'australian', 'crosscourt', 'coachProgression']
+const TACTICAL_ROLES: TacticalRole[] = ['captain', 'coach', 'player']
 
 type BoardToolMode = (typeof BOARD_TOOL_MODES)[number]
+type TacticalEntryIntent = {
+  role: TacticalRole
+  source: string | null
+  templateKey: TacticalTemplateKey
+}
 
 export default function TiqTacticalStudio() {
   const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('basicDoubles')
@@ -92,6 +99,8 @@ export default function TiqTacticalStudio() {
   }, [getAccessToken])
 
   useEffect(() => {
+    const entryIntent = readTacticalEntryIntent()
+
     try {
       const stored = window.localStorage.getItem(LOCAL_LIBRARY_KEY)
       const parsed = stored ? JSON.parse(stored) : []
@@ -102,13 +111,24 @@ export default function TiqTacticalStudio() {
     try {
       const storedDraft = window.localStorage.getItem(LOCAL_DRAFT_KEY)
       const parsedDraft = storedDraft ? JSON.parse(storedDraft) : null
-      if (isTacticalScenario(parsedDraft)) {
+      if (!entryIntent && isTacticalScenario(parsedDraft)) {
         scenarioRef.current = parsedDraft
         setScenario(parsedDraft)
         notify('Draft restored')
       }
     } catch {
       window.localStorage.removeItem(LOCAL_DRAFT_KEY)
+    }
+    if (entryIntent) {
+      const nextScenario = createTacticalTemplate(entryIntent.templateKey)
+      scenarioRef.current = nextScenario
+      setTemplateKey(entryIntent.templateKey)
+      setScenario(nextScenario)
+      setRole(entryIntent.role)
+      setBriefingRole(entryIntent.role)
+      setSelected({ type: 'scenario', id: 'scenario' })
+      setStepIndex(99)
+      notify(entryIntent.source === 'improve' ? 'Improve board ready' : 'Starter board ready')
     }
     draftReady.current = true
     void loadCloudLibrary()
@@ -1208,6 +1228,28 @@ function getRoleBoardCopy(role: TacticalRole) {
   if (role === 'coach') return 'Coach view shows teaching cues and full role labels for instruction.'
   if (role === 'player') return 'Player view strips the board down to readable movement, ball intent, and teammate labels.'
   return 'Captain view keeps assignments, pattern purpose, and match-readiness visible.'
+}
+
+function readTacticalEntryIntent(): TacticalEntryIntent | null {
+  const params = new URLSearchParams(window.location.search)
+  const source = params.get('source')
+  const template = params.get('template')
+  const role = params.get('role')
+  if (!source && !template && !role) return null
+
+  return {
+    role: isTacticalRole(role) ? role : 'player',
+    source,
+    templateKey: isTacticalTemplateKey(template) ? template : 'crosscourt',
+  }
+}
+
+function isTacticalTemplateKey(value: string | null): value is TacticalTemplateKey {
+  return Boolean(value && TACTICAL_TEMPLATE_KEYS.includes(value as TacticalTemplateKey))
+}
+
+function isTacticalRole(value: string | null): value is TacticalRole {
+  return Boolean(value && TACTICAL_ROLES.includes(value as TacticalRole))
 }
 
 function ScenarioThumbnail({ scenario }: { scenario: TacticalScenario }) {

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import { getPlanUnlockHref } from '@/lib/plan-intent'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import TiqTacticalStudio from './TiqTacticalStudio'
@@ -13,6 +14,7 @@ const TACTICS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('smart-attacker-4-0
 const TACTICS_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TACTICS_PLAYER_IDENTITY)
 const TACTICS_LEVEL_UP_HREF = `/level-up/${TACTICS_PLAYER_IDENTITY.slug}#level-up-flow`
 const TACTICS_PLAYER_DEVELOPMENT_HREF = `/player-development/${TACTICS_PLAYER_IDENTITY.slug}`
+const TACTICS_IMPROVE_HREF = '/tactics?source=improve&template=crosscourt&role=player'
 const tacticsPlayerIdStarterRead = [
   { label: 'Court pattern', value: TACTICS_PLAYER_IDENTITY_READ.trainingPriority },
   { label: 'Proof target', value: TACTICS_PLAYER_IDENTITY_READ.proofTarget },
@@ -107,6 +109,7 @@ export default function TiqTacticalStudioGate() {
         body="Create reusable drill boards, save tactical scenarios, export briefings, and connect court work to your Level Up plan."
         result="Player includes My Lab, Level Up, Tactics Tools, matchup prep, follows, and tennis messages."
         ctaLabel="Unlock Player"
+        ctaHref={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}
         secondaryHref="/pricing#captain"
         secondaryLabel="Compare Captain"
       />
