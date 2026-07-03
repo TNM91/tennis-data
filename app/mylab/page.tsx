@@ -667,6 +667,7 @@ const MY_LAB_NOTEBOOK_HREF = '/mylab#player-notebook'
 const MY_LAB_RECENT_MATCHES_HREF = '/mylab#recent-matches'
 const MY_LAB_SCORECARD_HREF = '/mylab#scorecard-summary'
 const MY_LAB_GOAL_PROGRESS_HREF = '/mylab#goal-progress'
+const MY_LAB_TACTICS_BOARD_HREF = '/tactics?source=improve&template=crosscourt&role=player'
 
 function getMatchupRead(gap: number) {
   if (gap <= 0.08) return 'Very close'
@@ -4360,7 +4361,7 @@ function PlayerDevelopmentPathPanel({
       <div style={developmentActionRowStyle}>
         <Link href={`/level-up/${primaryIdentity.slug}`} style={miniActionLinkStyle}>Level Up now</Link>
         <Link href="/player-development" style={miniActionLinkStyle}>Open paths</Link>
-        <Link href="/tactics" style={miniActionLinkStyle}>Tactics Tools</Link>
+        <Link href={MY_LAB_TACTICS_BOARD_HREF} style={miniActionLinkStyle}>Build tactic board</Link>
         <Link href={MY_LAB_GOAL_PROGRESS_HREF} style={miniActionLinkStyle}>Update My Lab goal</Link>
       </div>
     </section>
@@ -4454,6 +4455,13 @@ function LevelUpReturnStatePanel({
         : 'Turn the rep into a small weekly quest with proof.',
       href: todayHabitQuestHref,
       action: 'Build habit',
+    },
+    {
+      label: 'Board',
+      title: 'Map the court shape',
+      body: 'Turn the same Level Up cue into a starter tactic board before the next court block.',
+      href: MY_LAB_TACTICS_BOARD_HREF,
+      action: 'Build board',
     },
     {
       label: 'Coach',

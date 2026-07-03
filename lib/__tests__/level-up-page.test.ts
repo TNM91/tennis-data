@@ -1653,8 +1653,9 @@ describe('Level Up page', () => {
   it('surfaces Level Up from My Lab, navigation, and the sitemap', () => {
     expect(myLabSource).toContain('Level Up now')
     expect(myLabSource).toContain('href="/level-up"')
-    expect(myLabSource).toContain('Tactics Tools')
-    expect(myLabSource).toContain('href="/tactics"')
+    expect(myLabSource).toContain('Build tactic board')
+    expect(myLabSource).toContain("const MY_LAB_TACTICS_BOARD_HREF = '/tactics?source=improve&template=crosscourt&role=player'")
+    expect(myLabSource).toContain('href={MY_LAB_TACTICS_BOARD_HREF}')
     expect(contentSource).toContain('Tactics Tools')
     expect(contentSource).toContain('href="/tactics"')
     expect(navSource).toContain("{ href: '/level-up', label: 'Level Up' }")
