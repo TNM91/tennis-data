@@ -12,6 +12,8 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { type MembershipTierId } from '@/lib/product-story'
+import { isSafeLocalNextHref } from '@/lib/plan-intent'
+import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
 
 const DEFAULT_POST_LOGIN_ROUTE = FREE_POST_LOGIN_ROUTE
 const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
@@ -65,6 +67,15 @@ function getLoginPlanIntent() {
   if (typeof window === 'undefined') return 'free'
   const plan = new URLSearchParams(window.location.search).get('plan')
   return LOGIN_PLAN_IDS.includes(plan as MembershipTierId) ? (plan as MembershipTierId) : 'free'
+}
+
+function buildLoginJoinHref(planId: MembershipTierId, nextHref: string, includeNextHref: boolean) {
+  const params = new URLSearchParams()
+  if (planId !== 'free') params.set('plan', planId)
+  if (includeNextHref) params.set('next', nextHref)
+
+  const query = params.toString()
+  return query ? `/join?${query}` : '/join'
 }
 
 async function getDefaultPostLoginRoute(
@@ -143,6 +154,11 @@ function LoginContent() {
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const selectedPlanId = getLoginPlanIntent()
   const selectedIntent = LOGIN_INTENT_COPY[selectedPlanId]
+  const requestedNextRoute = searchParams.get('next')
+  const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, DEFAULT_POST_LOGIN_ROUTE)
+  const hasSafeRequestedNext = !!requestedNextRoute && selectedNextRoute === requestedNextRoute
+  const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
+  const createAccountHref = buildLoginJoinHref(selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
   const emailPrefill = searchParams.get('email')?.trim() ?? ''
   const switchingAccount = searchParams.get('switchAccount') === '1'
   const coachSetupEmailLabel = emailPrefill || 'the invited email'
@@ -339,6 +355,13 @@ function canUseBrowserStorage() {
           </p>
 
           <div style={destinationPillStyle}>Next tennis tool: {selectedIntent.destination}</div>
+          {nextIntent ? (
+            <div aria-label="Login next action" style={nextIntentStyle}>
+              <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+              <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+              <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+            </div>
+          ) : null}
         </div>
 
         <div style={loginPanelResponsive}>
@@ -425,7 +448,7 @@ function canUseBrowserStorage() {
 
               <div style={helperRowResponsive}>
                 <Link
-                  href={selectedPlanId === 'free' ? '/join' : `/join?plan=${selectedPlanId}`}
+                  href={createAccountHref}
                   style={isMobile ? mobilePrimaryAuthLink : inlineLink}
                 >
                   Create free account
@@ -545,6 +568,45 @@ const destinationPillStyle: CSSProperties = {
   fontWeight: 900,
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const nextIntentStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  alignSelf: 'flex-start',
+  maxWidth: '560px',
+  padding: '10px 12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  boxSizing: 'border-box',
+}
+
+const nextIntentLabelStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '11px',
+  fontWeight: 900,
+  lineHeight: 1.2,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  lineHeight: 1.18,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontWeight: 700,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const loginPanel: CSSProperties = {

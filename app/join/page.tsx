@@ -18,6 +18,7 @@ import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '@/lib/plan-intent'
+import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
 
 const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -154,6 +155,7 @@ function JoinContent() {
   const selectedTier = getMembershipTier(selectedPlanId)
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
+  const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
   const authLoading = !authResolved
 
@@ -307,6 +309,13 @@ function JoinContent() {
             {selectedPlanId !== 'free' ? (
               <div style={entitlementNoticeStyle}>
                 Account creation starts Free access first.
+              </div>
+            ) : null}
+            {nextIntent ? (
+              <div aria-label="Join next action" style={nextIntentStyle}>
+                <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+                <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+                <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
               </div>
             ) : null}
             <div style={selectedPlanActionRowResponsive}>
@@ -575,6 +584,44 @@ const entitlementNoticeStyle: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 800,
+}
+
+const nextIntentStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  marginTop: '2px',
+  padding: '10px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  boxSizing: 'border-box',
+}
+
+const nextIntentLabelStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '11px',
+  fontWeight: 900,
+  lineHeight: 1.2,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  lineHeight: 1.18,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontWeight: 700,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const selectedPlanActionRowStyle: CSSProperties = {
