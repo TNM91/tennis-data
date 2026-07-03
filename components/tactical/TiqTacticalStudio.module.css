@@ -548,6 +548,70 @@
   padding: 8px 10px;
 }
 
+.entryCallout {
+  align-items: center;
+  background:
+    radial-gradient(circle at 96% 12%, rgba(155, 225, 29, 0.18), transparent 34%),
+    rgba(155, 225, 29, 0.07);
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 16px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 10px;
+  max-width: 860px;
+  padding: 10px 12px;
+}
+
+.entryCallout div {
+  min-width: 0;
+}
+
+.entryCallout strong {
+  color: #dff8c2;
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.entryCallout span {
+  color: rgba(248, 251, 255, 0.76);
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.45;
+  margin-top: 3px;
+}
+
+.entryCalloutActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.entryCalloutLink {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: #f8fbff;
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 950;
+  min-height: 32px;
+  padding: 0 10px;
+  text-decoration: none;
+}
+
+.entryCalloutLink:hover {
+  background: #9be11d;
+  border-color: transparent;
+  color: #07111f;
+}
+
 .roleBoardCallout strong,
 .presentationRole {
   color: #9be11d;
@@ -1624,6 +1688,10 @@
     border-radius: 18px;
     overflow: hidden;
     padding: 10px;
+  }
+
+  .entryCallout {
+    display: none;
   }
 
   .scenarioTitle {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import TiqCourtBoard from './TiqCourtBoard'
 import TiqToolbar from './TiqToolbar'
@@ -58,6 +59,7 @@ export default function TiqTacticalStudio() {
   const [cloudStatus, setCloudStatus] = useState('Sign in to save scenarios across devices.')
   const [lastClearedScenario, setLastClearedScenario] = useState<TacticalScenario | null>(null)
   const [undoStack, setUndoStack] = useState<TacticalScenario[]>([])
+  const [entryIntent, setEntryIntent] = useState<TacticalEntryIntent | null>(null)
   const [toast, setToast] = useState('')
   const autoBoardFocusApplied = useRef(false)
   const draftReady = useRef(false)
@@ -99,7 +101,8 @@ export default function TiqTacticalStudio() {
   }, [getAccessToken])
 
   useEffect(() => {
-    const entryIntent = readTacticalEntryIntent()
+    const nextEntryIntent = readTacticalEntryIntent()
+    setEntryIntent(nextEntryIntent)
 
     try {
       const stored = window.localStorage.getItem(LOCAL_LIBRARY_KEY)
@@ -111,7 +114,7 @@ export default function TiqTacticalStudio() {
     try {
       const storedDraft = window.localStorage.getItem(LOCAL_DRAFT_KEY)
       const parsedDraft = storedDraft ? JSON.parse(storedDraft) : null
-      if (!entryIntent && isTacticalScenario(parsedDraft)) {
+      if (!nextEntryIntent && isTacticalScenario(parsedDraft)) {
         scenarioRef.current = parsedDraft
         setScenario(parsedDraft)
         notify('Draft restored')
@@ -119,16 +122,16 @@ export default function TiqTacticalStudio() {
     } catch {
       window.localStorage.removeItem(LOCAL_DRAFT_KEY)
     }
-    if (entryIntent) {
-      const nextScenario = createTacticalTemplate(entryIntent.templateKey)
+    if (nextEntryIntent) {
+      const nextScenario = createTacticalTemplate(nextEntryIntent.templateKey)
       scenarioRef.current = nextScenario
-      setTemplateKey(entryIntent.templateKey)
+      setTemplateKey(nextEntryIntent.templateKey)
       setScenario(nextScenario)
-      setRole(entryIntent.role)
-      setBriefingRole(entryIntent.role)
+      setRole(nextEntryIntent.role)
+      setBriefingRole(nextEntryIntent.role)
       setSelected({ type: 'scenario', id: 'scenario' })
       setStepIndex(99)
-      notify(entryIntent.source === 'improve' ? 'Improve board ready' : 'Starter board ready')
+      notify(nextEntryIntent.source === 'improve' ? 'Improve board ready' : 'Starter board ready')
     }
     draftReady.current = true
     void loadCloudLibrary()
@@ -717,6 +720,18 @@ export default function TiqTacticalStudio() {
               <div className={styles.scenarioTitleLabel}>Scenario</div>
               <div className={styles.scenarioTitle}>{scenario.name}</div>
               <div className={styles.scenarioNote}>{scenario.note}</div>
+              {entryIntent?.source === 'improve' ? (
+                <div className={styles.entryCallout}>
+                  <div>
+                    <strong>Improve starter</strong>
+                    <span>{scenario.name} is loaded in player view. Save the board, copy the brief, or send the proof back to My Lab.</span>
+                  </div>
+                  <div className={styles.entryCalloutActions}>
+                    <Link href="/player-development" className={styles.entryCalloutLink}>Improve</Link>
+                    <Link href="/mylab#player-workshop" className={styles.entryCalloutLink}>My Lab</Link>
+                  </div>
+                </div>
+              ) : null}
               <div className={styles.roleBoardCallout}>
                 <strong>{role} view</strong>
                 <span>{getRoleBoardCopy(role)}</span>
