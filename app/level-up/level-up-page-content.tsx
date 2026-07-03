@@ -144,19 +144,19 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
       href: primaryHabitPath?.drillHref ?? '#level-up-flow',
     },
     {
-      label: 'Quest',
-      title: 'Build a habit',
-      href: primaryHabitPath?.questHref ?? '#quest-builder',
-    },
-    {
-      label: 'Path',
-      title: 'Find your track',
-      href: '#habit-path-wizard-title',
+      label: 'Board',
+      title: 'Build the court plan',
+      href: '/tactics?source=improve&template=crosscourt&role=player',
     },
     {
       label: 'Proof',
       title: 'Score the work',
       href: '#level-up-flow',
+    },
+    {
+      label: 'Lab',
+      title: 'Save the signal',
+      href: '/mylab#level-up-proof',
     },
   ]
   const questPackPreviews = [
@@ -252,6 +252,29 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
           </div>
         </section>
 
+        <section className={styles.levelUpIphoneCommandCenter} aria-label="Level Up iPhone command center">
+          <div>
+            <span>iPhone quick start</span>
+            <strong>Today&apos;s court commands</strong>
+          </div>
+          <div>
+            {iphoneQuickActions.map((action) => (
+              <Link key={action.label} href={action.href}>
+                <span>{action.label}</span>
+                <strong>{action.title}</strong>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <nav className={styles.levelUpIphoneDock} aria-label="Level Up mobile dock">
+          {iphoneQuickActions.map((action) => (
+            <Link key={action.label} href={action.href}>
+              <span>{action.label}</span>
+            </Link>
+          ))}
+        </nav>
+
         <section className={styles.levelUpNextRepCommand} aria-label="Level Up next best rep command">
           <div className={styles.levelUpNextRepCommandCopy}>
             <span>Next best rep</span>
@@ -327,29 +350,6 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
             ))}
           </div>
         </section>
-
-        <section className={styles.levelUpIphoneCommandCenter} aria-label="Level Up iPhone command center">
-          <div>
-            <span>iPhone quick start</span>
-            <strong>Today&apos;s court commands</strong>
-          </div>
-          <div>
-            {iphoneQuickActions.map((action) => (
-              <Link key={action.label} href={action.href}>
-                <span>{action.label}</span>
-                <strong>{action.title}</strong>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <nav className={styles.levelUpIphoneDock} aria-label="Level Up mobile dock">
-          {iphoneQuickActions.map((action) => (
-            <Link key={action.label} href={action.href}>
-              <span>{action.label}</span>
-            </Link>
-          ))}
-        </nav>
 
         <section className={styles.levelUpPortal} aria-labelledby="level-up-portal-title">
           <div className={styles.levelUpPortalHeader}>

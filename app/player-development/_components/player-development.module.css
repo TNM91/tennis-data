@@ -918,9 +918,72 @@
   white-space: normal;
 }
 
-.levelUpIphoneCommandCenter,
 .levelUpIphoneDock {
   display: none;
+}
+
+.levelUpIphoneCommandCenter {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.36fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(155, 225, 29, 0.1), transparent 38%),
+    rgba(5, 15, 30, 0.78);
+  box-shadow: var(--shadow-card);
+  color: var(--foreground);
+  padding: clamp(12px, 2vw, 18px);
+}
+
+.levelUpIphoneCommandCenter > div:first-child,
+.levelUpIphoneCommandCenter > div:last-child,
+.levelUpIphoneCommandCenter a {
+  min-width: 0;
+}
+
+.levelUpIphoneCommandCenter > div:first-child {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.levelUpIphoneCommandCenter > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.levelUpIphoneCommandCenter span {
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.levelUpIphoneCommandCenter strong {
+  color: var(--foreground-strong);
+  font-size: clamp(0.9rem, 1.4vw, 1.08rem);
+  line-height: 1.12;
+}
+
+.levelUpIphoneCommandCenter a {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-height: 66px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+  text-decoration: none;
+}
+
+.levelUpIphoneCommandCenter a:hover {
+  border-color: rgba(155, 225, 29, 0.38);
+  background: rgba(155, 225, 29, 0.1);
 }
 
 .levelUpPortal {
@@ -16270,6 +16333,7 @@
 
   .levelUpIphoneCommandCenter {
     display: grid;
+    grid-template-columns: 1fr;
     gap: 10px;
     border: 1px solid rgba(155, 225, 29, 0.24);
     border-radius: 16px;
