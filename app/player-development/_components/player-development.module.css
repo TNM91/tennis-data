@@ -132,6 +132,36 @@
   line-height: 1.5;
 }
 
+.improveHubSignals {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.improveHubSignals li {
+  display: grid;
+  grid-template-columns: minmax(0, 8px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.32;
+}
+
+.improveHubSignals li::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-top: 0.28em;
+  border-radius: 999px;
+  background: var(--brand-green-3);
+  box-shadow: 0 0 0 3px rgba(155, 225, 29, 0.11);
+}
+
 .improveHubAction em {
   align-self: end;
   width: fit-content;

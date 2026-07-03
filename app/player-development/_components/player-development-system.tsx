@@ -169,6 +169,7 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
       cta: 'Start Level Up',
       href: `/level-up/${identity.slug}#level-up-flow`,
       icon: 'reports' as const,
+      markers: ['Phone court mode', '0-5 proof', 'Repeat, progress, or test'],
       title: 'Start Level Up',
     },
     {
@@ -176,13 +177,15 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
       cta: 'Open My Lab',
       href: '/mylab#player-workshop',
       icon: 'myLab' as const,
+      markers: ['Player ID read', 'Saved proof trail', 'Coach assignments'],
       title: 'Open My Lab',
     },
     {
-      body: 'Turn the next Player ID cue into a serve pattern, return plan, or point map before you compete.',
+      body: 'Turn the next Player ID cue into the crosscourt starter board before you compete.',
       cta: 'Build a tactic board',
       href: '/tactics?source=improve&template=crosscourt&role=player',
       icon: 'scenarioBuilder' as const,
+      markers: ['Crosscourt starter board', 'Drag players and paths', 'Save or copy the brief'],
       title: 'Build a tactic board',
     },
   ]
@@ -202,6 +205,11 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
             <TiqFeatureIcon name={action.icon} size="md" variant="surface" />
             <span>{action.title}</span>
             <strong>{action.body}</strong>
+            <ul className={styles.improveHubSignals} aria-label={`${action.title} next steps`}>
+              {action.markers.map((marker) => (
+                <li key={marker}>{marker}</li>
+              ))}
+            </ul>
             <em>{action.cta}</em>
           </Link>
         ))}

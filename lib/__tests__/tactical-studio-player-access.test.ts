@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { createTacticalTemplate } from '../tactical/templates'
 
 const gateSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudioGate.tsx'), 'utf8')
+const tacticsPageSource = readFileSync(join(process.cwd(), 'app/tactics/page.tsx'), 'utf8')
 const studioSource = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.tsx'), 'utf8')
 const studioStyles = readFileSync(join(process.cwd(), 'components/tactical/TiqTacticalStudio.module.css'), 'utf8')
 const markerIconsSource = readFileSync(join(process.cwd(), 'components/tactical/icons/TiqIcons.tsx'), 'utf8')
@@ -19,6 +20,8 @@ const TENNIS_BALL_ASSET = '/tiq/tokens/tennis-ball-reference.png'
 
 describe('Tactical Studio player access', () => {
   it('lets Player users open Tactics Tools without requiring Coach', () => {
+    expect(tacticsPageSource).toContain('<SiteShell active="you">')
+    expect(tacticsPageSource).not.toContain('<SiteShell active="captain">')
     expect(gateSource).toContain('access.canUseAdvancedPlayerInsights')
     expect(gateSource).toContain('Loading your tactical board.')
     expect(gateSource).not.toContain('Loading your tactical workspace.')
