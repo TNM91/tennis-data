@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -16,12 +17,6 @@ const TACTICS_LEVEL_UP_HREF = `/level-up/${TACTICS_PLAYER_IDENTITY.slug}#level-u
 const TACTICS_PLAYER_DEVELOPMENT_HREF = `/player-development/${TACTICS_PLAYER_IDENTITY.slug}`
 const TACTICS_MY_LAB_HREF = '/mylab#level-up-proof'
 const TACTICS_IMPROVE_HREF = '/tactics?source=improve&template=crosscourt&role=player'
-const tacticsPlayerIdStarterRead = [
-  { label: 'Court pattern', value: TACTICS_PLAYER_IDENTITY_READ.trainingPriority },
-  { label: 'Proof target', value: TACTICS_PLAYER_IDENTITY_READ.proofTarget },
-  { label: 'Board starter', value: 'Crosscourt pattern board' },
-  { label: 'Match week test', value: TACTICS_PLAYER_IDENTITY_READ.matchTrigger },
-] as const
 const tacticsUnlockSteps = [
   { title: 'Open the starter board', body: 'Player unlock keeps the crosscourt board attached after checkout.' },
   { title: 'Adjust the court', body: 'Drag players, target windows, and paths until the rep matches your next session.' },
@@ -29,6 +24,7 @@ const tacticsUnlockSteps = [
 ] as const
 
 export default function TiqTacticalStudioGate() {
+  const searchParams = useSearchParams()
   const { role, userId, entitlements, authResolved } = useAuth()
   const authenticated = Boolean(userId) || role !== 'public'
   const accessPending = authenticated && (!authResolved || entitlements === null)
@@ -39,6 +35,15 @@ export default function TiqTacticalStudioGate() {
     access.canUseCoachWorkflow ||
     access.canUseCaptainWorkflow ||
     access.currentPlanId === 'full_court'
+  const tacticsImproveHref = buildTacticsImproveHref(searchParams)
+  const gateIdentityLabel = cleanGateIntentValue(searchParams.get('identityLabel')) ?? TACTICS_PLAYER_IDENTITY.title.replace(/^The /, '')
+  const gateCardTitle = cleanGateIntentValue(searchParams.get('cardTitle')) ?? 'Crosscourt pattern board'
+  const tacticsPlayerIdStarterRead = [
+    { label: 'Court pattern', value: TACTICS_PLAYER_IDENTITY_READ.trainingPriority },
+    { label: 'Proof target', value: TACTICS_PLAYER_IDENTITY_READ.proofTarget },
+    { label: 'Board starter', value: gateCardTitle },
+    { label: 'Match week test', value: TACTICS_PLAYER_IDENTITY_READ.matchTrigger },
+  ] as const
 
   if (accessPending) {
     return (
@@ -63,8 +68,8 @@ export default function TiqTacticalStudioGate() {
           <div className={styles.eyebrow}>Player unlock preview</div>
           <div className={styles.gateStarterCue} aria-label="Improve starter board requested">
             <span>Improve starter board requested</span>
-            <strong>Crosscourt pattern board opens after Player unlock.</strong>
-            <small>Read the Player ID cue, adjust the court, then save or copy the brief.</small>
+            <strong>{gateCardTitle} opens after Player unlock.</strong>
+            <small>{gateIdentityLabel}: read the Player ID cue, adjust the court, then save or copy the brief.</small>
           </div>
           <h1>Build the drill board, then save the plan.</h1>
           <p>
@@ -72,8 +77,8 @@ export default function TiqTacticalStudioGate() {
             point patterns, assignments, and player-ready briefings.
           </p>
           <div className={styles.actions}>
-            <Link className={styles.button} href={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}>See Player</Link>
-            <Link className={styles.button} href={getPlanUnlockHref('full_court', TACTICS_IMPROVE_HREF)}>See Full-Court</Link>
+            <Link className={styles.button} href={getPlanUnlockHref('player_plus', tacticsImproveHref)}>See Player</Link>
+            <Link className={styles.button} href={getPlanUnlockHref('full_court', tacticsImproveHref)}>See Full-Court</Link>
           </div>
         </div>
         <div className={styles.gateStats}>
@@ -90,7 +95,7 @@ export default function TiqTacticalStudioGate() {
             <h2>Start with the player read, then build the board.</h2>
           </div>
           <p>
-            {TACTICS_PLAYER_IDENTITY_READ.levelUpNudge} Tactical Studio turns that read into the court shape,
+            {gateIdentityLabel} starts from: {TACTICS_PLAYER_IDENTITY_READ.levelUpNudge} Tactical Studio turns that read into the court shape,
             assignment, and proof the next session needs.
           </p>
         </div>
@@ -106,7 +111,7 @@ export default function TiqTacticalStudioGate() {
           <Link className={`${styles.button} ${styles.primary}`} href={TACTICS_LEVEL_UP_HREF}>
             Start Level Up
           </Link>
-          <Link className={styles.button} href={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}>
+          <Link className={styles.button} href={getPlanUnlockHref('player_plus', tacticsImproveHref)}>
             Build starter board
           </Link>
           <Link className={styles.button} href={TACTICS_PLAYER_DEVELOPMENT_HREF}>
@@ -124,13 +129,39 @@ export default function TiqTacticalStudioGate() {
         body="Create reusable drill boards, save tactical scenarios, export briefings, and connect court work to your Level Up plan."
         result="Player includes My Lab, Level Up, Tactics Tools, matchup prep, follows, and tennis messages."
         ctaLabel="Unlock Player"
-        ctaHref={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}
-        secondaryHref={getPlanUnlockHref('full_court', TACTICS_IMPROVE_HREF)}
+        ctaHref={getPlanUnlockHref('player_plus', tacticsImproveHref)}
+        secondaryHref={getPlanUnlockHref('full_court', tacticsImproveHref)}
         secondaryLabel="Unlock Full-Court"
         unlockSteps={tacticsUnlockSteps}
       />
     </div>
   )
+}
+
+function buildTacticsImproveHref(params: { get(name: string): string | null }) {
+  const nextParams = new URLSearchParams({
+    source: 'improve',
+    template: 'crosscourt',
+    role: 'player',
+  })
+  let hasCustomIntent = false
+
+  const intentKeys = ['identity', 'identityLabel', 'card', 'cardTitle'] as const
+  intentKeys.forEach((key) => {
+    const value = cleanGateIntentValue(params.get(key))
+    if (value) {
+      hasCustomIntent = true
+      nextParams.set(key, value)
+    }
+  })
+
+  return hasCustomIntent ? `/tactics?${nextParams.toString()}` : TACTICS_IMPROVE_HREF
+}
+
+function cleanGateIntentValue(value: string | null) {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  return trimmed.slice(0, 80)
 }
 
 function PreviewCard({ icon, text, title }: { icon: 'scenarioBuilder' | 'reports' | 'accountSecurity'; text: string; title: string }) {

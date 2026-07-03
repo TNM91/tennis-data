@@ -34,6 +34,10 @@ type TacticalEntryIntent = {
   role: TacticalRole
   source: string | null
   templateKey: TacticalTemplateKey
+  identitySlug: string | null
+  identityLabel: string | null
+  cardId: string | null
+  cardTitle: string | null
 }
 
 export default function TiqTacticalStudio() {
@@ -71,6 +75,8 @@ export default function TiqTacticalStudio() {
   }), [scenario, stepIndex])
   const boardStatus = getBoardStatus(placementType, drawingKind, selected)
   const canUndoBoardAction = undoStack.length > 0 || scenario.paths.length > 0
+  const entryIdentityLabel = entryIntent?.identityLabel ?? 'Player ID'
+  const entryCardTitle = entryIntent?.cardTitle ?? 'Crosscourt pattern card'
 
   const getAccessToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession()
@@ -724,11 +730,11 @@ export default function TiqTacticalStudio() {
                 <div className={styles.entryCallout}>
                   <div>
                     <strong>Improve starter</strong>
-                    <span>{scenario.name} is loaded in player view. Save the board, copy the brief, or send the proof back to My Lab.</span>
+                    <span>{entryIdentityLabel} sent {entryCardTitle} into {scenario.name}. Save the board, copy the brief, or send the proof back to My Lab.</span>
                   </div>
                   <div className={styles.entryCalloutActions}>
                     <Link href="/player-development" className={styles.entryCalloutLink}>Improve</Link>
-                    <Link href="/mylab#player-workshop" className={styles.entryCalloutLink}>My Lab</Link>
+                    <Link href="/mylab#level-up-proof" className={styles.entryCalloutLink}>My Lab proof</Link>
                   </div>
                 </div>
               ) : null}
@@ -741,6 +747,16 @@ export default function TiqTacticalStudio() {
               </div>
               {entryIntent?.source === 'improve' ? (
                 <div className={styles.entryStarterStrip} aria-label="Improve starter board steps">
+                  <div className={styles.entryStarterContext} aria-label="Improve board handoff context">
+                    <article>
+                      <span>Player ID</span>
+                      <strong>{entryIdentityLabel}</strong>
+                    </article>
+                    <article>
+                      <span>Level Up card</span>
+                      <strong>{entryCardTitle}</strong>
+                    </article>
+                  </div>
                   <div className={styles.entryStarterStep}>
                     <span>1</span>
                     <strong>Read the pattern</strong>
@@ -1283,13 +1299,27 @@ function readTacticalEntryIntent(): TacticalEntryIntent | null {
   const source = params.get('source')
   const template = params.get('template')
   const role = params.get('role')
-  if (!source && !template && !role) return null
+  const identitySlug = params.get('identity')
+  const identityLabel = params.get('identityLabel')
+  const cardId = params.get('card')
+  const cardTitle = params.get('cardTitle')
+  if (!source && !template && !role && !identitySlug && !identityLabel && !cardId && !cardTitle) return null
 
   return {
     role: isTacticalRole(role) ? role : 'player',
     source,
     templateKey: isTacticalTemplateKey(template) ? template : 'crosscourt',
+    identitySlug: cleanEntryIntentValue(identitySlug),
+    identityLabel: cleanEntryIntentValue(identityLabel),
+    cardId: cleanEntryIntentValue(cardId),
+    cardTitle: cleanEntryIntentValue(cardTitle),
   }
+}
+
+function cleanEntryIntentValue(value: string | null) {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  return trimmed.slice(0, 80)
 }
 
 function isTacticalTemplateKey(value: string | null): value is TacticalTemplateKey {

@@ -18,6 +18,23 @@ import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import HabitPathWizardClient from './habit-path-wizard-client'
 import QuestBuilderClient from './quest-builder-client'
 
+function buildImproveTacticsHref(identity: PlayerDevelopmentIdentity, card?: LevelUpCard) {
+  const params = new URLSearchParams({
+    source: 'improve',
+    template: 'crosscourt',
+    role: 'player',
+    identity: identity.slug,
+    identityLabel: identity.title.replace(/^The /, ''),
+  })
+
+  if (card) {
+    params.set('card', card.id)
+    params.set('cardTitle', card.title)
+  }
+
+  return `/tactics?${params.toString()}`
+}
+
 export default function LevelUpPageContent({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const trainingMenus = getPlayerTrainingMenus(identity)
   const recommendedCards = getRecommendedLevelUpCards(identity.slug, 6)
@@ -37,6 +54,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
     ['Match trigger', actionRead.matchTrigger],
   ] as const
   const firstRecommendedCard = recommendedCards[0]
+  const improveBoardHref = buildImproveTacticsHref(identity, firstRecommendedCard)
   const playerIdProofTrail = [
     {
       label: 'Profile signal',
@@ -146,7 +164,7 @@ export default function LevelUpPageContent({ identity }: { identity: PlayerDevel
     {
       label: 'Board',
       title: 'Build the court plan',
-      href: '/tactics?source=improve&template=crosscourt&role=player',
+      href: improveBoardHref,
     },
     {
       label: 'Proof',
