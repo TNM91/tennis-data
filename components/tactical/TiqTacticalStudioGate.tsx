@@ -22,6 +22,11 @@ const tacticsPlayerIdStarterRead = [
   { label: 'Board starter', value: 'Crosscourt pattern board' },
   { label: 'Match week test', value: TACTICS_PLAYER_IDENTITY_READ.matchTrigger },
 ] as const
+const tacticsUnlockSteps = [
+  { title: 'Open the starter board', body: 'Player unlock keeps the crosscourt board attached after checkout.' },
+  { title: 'Adjust the court', body: 'Drag players, target windows, and paths until the rep matches your next session.' },
+  { title: 'Send proof back', body: 'Save or copy the player brief, then return the work to My Lab.' },
+] as const
 
 export default function TiqTacticalStudioGate() {
   const { role, userId, entitlements, authResolved } = useAuth()
@@ -120,8 +125,9 @@ export default function TiqTacticalStudioGate() {
         result="Player includes My Lab, Level Up, Tactics Tools, matchup prep, follows, and tennis messages."
         ctaLabel="Unlock Player"
         ctaHref={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}
-        secondaryHref="/pricing#captain"
-        secondaryLabel="Compare Captain"
+        secondaryHref={getPlanUnlockHref('full_court', TACTICS_IMPROVE_HREF)}
+        secondaryLabel="Unlock Full-Court"
+        unlockSteps={tacticsUnlockSteps}
       />
     </div>
   )

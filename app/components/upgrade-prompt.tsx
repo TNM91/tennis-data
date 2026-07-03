@@ -19,6 +19,12 @@ type UpgradePromptProps = {
   footnote?: string
   compact?: boolean
   children?: ReactNode
+  unlockSteps?: ReadonlyArray<UpgradePromptUnlockStep>
+}
+
+type UpgradePromptUnlockStep = {
+  title: string
+  body: string
 }
 
 export default function UpgradePrompt({
@@ -33,6 +39,7 @@ export default function UpgradePrompt({
   footnote,
   compact = false,
   children,
+  unlockSteps,
 }: UpgradePromptProps) {
   const { session, authResolved } = useAuth()
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
@@ -43,7 +50,7 @@ export default function UpgradePrompt({
   const canStartDirectCheckout = !ctaHref && authResolved && isSignedIn && planId !== 'free'
   const resolvedCtaHref = ctaHref || getPlanUnlockHref(planId)
   const resolvedSecondaryHref = secondaryHref || '/pricing'
-  const unlockSteps = getUnlockSteps(planId)
+  const resolvedUnlockSteps = unlockSteps ?? getUnlockSteps(planId)
 
   async function startCheckout() {
     if (checkoutSubmitting || !session?.access_token || planId === 'free') return
@@ -162,7 +169,7 @@ export default function UpgradePrompt({
         <div style={unlockPathStyle}>
           <div style={unlockPathLabelStyle}>Best next unlock</div>
           <div style={unlockStepGridStyle}>
-            {unlockSteps.map((step, index) => (
+            {resolvedUnlockSteps.map((step, index) => (
               <div key={step.title} style={unlockStepStyle}>
                 <span style={unlockStepNumberStyle}>{index + 1}</span>
                 <span style={unlockStepTextStyle}>

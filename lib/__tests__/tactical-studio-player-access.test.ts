@@ -17,6 +17,7 @@ const tacticalTypesSource = readFileSync(join(process.cwd(), 'lib/tactical/types
 const tacticalTemplatesSource = readFileSync(join(process.cwd(), 'lib/tactical/templates.ts'), 'utf8')
 
 const TENNIS_BALL_ASSET = '/tiq/tokens/tennis-ball-reference.png'
+const upgradePromptSource = readFileSync(join(process.cwd(), 'app/components/upgrade-prompt.tsx'), 'utf8')
 
 describe('Tactical Studio player access', () => {
   it('lets Player users open Tactics Tools without requiring Coach', () => {
@@ -78,6 +79,8 @@ describe('Tactical Studio player access', () => {
     expect(gateSource).toContain("href={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}>See Player")
     expect(gateSource).toContain("href={getPlanUnlockHref('full_court', TACTICS_IMPROVE_HREF)}>See Full-Court")
     expect(gateSource).toContain("ctaHref={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}")
+    expect(gateSource).toContain("secondaryHref={getPlanUnlockHref('full_court', TACTICS_IMPROVE_HREF)}")
+    expect(gateSource).toContain('secondaryLabel="Unlock Full-Court"')
     expect(gateSource).toContain('Tactics Player ID starter path')
     expect(gateSource).toContain('Tactics Player ID starter read')
     expect(gateSource).toContain('Improve starter board requested')
@@ -92,6 +95,15 @@ describe('Tactical Studio player access', () => {
     expect(gateSource).toContain("href={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}")
     expect(gateSource).toContain('Read Player ID')
     expect(gateSource).toContain('href={TACTICS_MY_LAB_HREF}')
+    expect(gateSource).toContain('const tacticsUnlockSteps = [')
+    expect(gateSource).toContain('Open the starter board')
+    expect(gateSource).toContain('Player unlock keeps the crosscourt board attached after checkout.')
+    expect(gateSource).toContain('Adjust the court')
+    expect(gateSource).toContain('Send proof back')
+    expect(gateSource).toContain('unlockSteps={tacticsUnlockSteps}')
+    expect(gateSource).not.toContain('Compare Captain')
+    expect(upgradePromptSource).toContain('unlockSteps?: ReadonlyArray<UpgradePromptUnlockStep>')
+    expect(upgradePromptSource).toContain('const resolvedUnlockSteps = unlockSteps ?? getUnlockSteps(planId)')
     expect(gateSource.indexOf('Tactics Player ID starter path')).toBeLessThan(gateSource.indexOf('Unlock TIQ Tactical Studio with Player.'))
   })
 
