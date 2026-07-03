@@ -165,6 +165,13 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
   },
 }
 
+type UpgradeNextIntent = {
+  label: string
+  title: string
+  body: string
+  action: string
+}
+
 type UpgradePageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
@@ -195,6 +202,7 @@ function UpgradeContent({
   const copy = UNLOCK_COPY[planId]
   const successHandoff = SUCCESS_HANDOFF_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
+  const nextIntent = getUpgradeNextIntent(planId, nextHref)
 
   const [requestName, setRequestName] = useState('')
   const [requestEmail, setRequestEmail] = useState('')
@@ -620,6 +628,16 @@ function UpgradeContent({
                 {isPublic ? 'Sign in' : 'Compare plans'}
               </Link>
             </div>
+            {nextIntent ? (
+              <div style={nextIntentStyle} aria-label="Upgrade next action">
+                <span style={labelStyle}>{nextIntent.label}</span>
+                <strong style={nextIntentTitleStyle}>{nextIntent.title}</strong>
+                <p style={noteTextStyle}>{nextIntent.body}</p>
+                <Link href={nextHref} style={nextIntentLinkStyle}>
+                  {nextIntent.action}
+                </Link>
+              </div>
+            ) : null}
           </div>
 
           <aside style={planCardStyle}>
@@ -923,6 +941,47 @@ function getPlanDestinationLabel(planId: PricingPlanId) {
   return 'Find'
 }
 
+function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeNextIntent | null {
+  const defaultDestination = getPlanDestinationHref(planId)
+  if (planId === 'player_plus' && nextHref.startsWith('/tactics') && nextHref.includes('source=improve')) {
+    return {
+      label: 'After unlock',
+      title: 'Build the starter tactic board.',
+      body: 'Player keeps the Improve board intent attached, then opens Tactical Studio with the crosscourt pattern ready.',
+      action: 'Preview board path',
+    }
+  }
+
+  if (planId === 'player_plus' && nextHref.startsWith('/mylab#level-up-proof')) {
+    return {
+      label: 'After unlock',
+      title: 'Return to My Lab proof.',
+      body: 'Player opens the Level Up proof panel so the next drill, board, and saved signal stay connected.',
+      action: 'Preview My Lab proof',
+    }
+  }
+
+  if (planId === 'player_plus' && nextHref.startsWith('/level-up')) {
+    return {
+      label: 'After unlock',
+      title: 'Start the Level Up court flow.',
+      body: 'Player opens the selected Level Up card with the same player-development context still attached.',
+      action: 'Preview Level Up',
+    }
+  }
+
+  if (nextHref !== defaultDestination) {
+    return {
+      label: 'After unlock',
+      title: `Open ${getPlanDestinationLabel(planId)} with this request.`,
+      body: 'TenAceIQ keeps the requested destination attached so the first click after access lands in the right tool.',
+      action: 'Preview destination',
+    }
+  }
+
+  return null
+}
+
 function isPlanAlreadyActive(planId: PricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
   if (planId === 'free') return access.currentPlanId === 'free'
   if (planId === 'player_plus') return access.canUseAdvancedPlayerInsights
@@ -1220,6 +1279,33 @@ const resultCardStyle: CSSProperties = {
   background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground)',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentStyle: CSSProperties = {
+  ...resultCardStyle,
+  gap: 8,
+  minWidth: 0,
+  maxWidth: 760,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, rgba(125, 211, 252, 0.16) 72%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(34,211,238,0.07))',
+}
+
+const nextIntentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentLinkStyle: CSSProperties = {
+  width: 'fit-content',
+  maxWidth: '100%',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  textDecoration: 'none',
   overflowWrap: 'anywhere',
 }
 

@@ -37,6 +37,7 @@ describe('upgrade and compete mobile layout guards', () => {
       'heroCopyStyle',
       'planCardStyle',
       'resultCardStyle',
+      'nextIntentStyle',
       'metaGridStyle',
       'activationStyle',
       'requestFormStyle',
@@ -49,7 +50,7 @@ describe('upgrade and compete mobile layout guards', () => {
     )
     expect(upgradeSource).not.toContain("calc(100% - 32px)")
 
-    for (const styleName of ['primaryButtonStyle', 'valuePillStyle', 'activationStepStyle', 'handoffStepStyle']) {
+    for (const styleName of ['primaryButtonStyle', 'valuePillStyle', 'activationStepStyle', 'handoffStepStyle', 'nextIntentLinkStyle']) {
       const block = styleBlock(upgradeSource, styleName)
       expect(block, styleName).toContain("overflowWrap: 'anywhere'")
       expect(block, styleName).toMatch(/maxWidth: '100%'|minWidth: 0/)
@@ -79,6 +80,7 @@ describe('upgrade and compete mobile layout guards', () => {
       'planNameStyle',
       'priceStyle',
       'mutedStyle',
+      'nextIntentTitleStyle',
       'activationTitleStyle',
       'noteTextStyle',
       'successTitleStyle',
