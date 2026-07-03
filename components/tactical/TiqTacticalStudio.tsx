@@ -739,6 +739,39 @@ export default function TiqTacticalStudio() {
               <div className={styles.activeToolPill}>
                 {boardStatus}
               </div>
+              {entryIntent?.source === 'improve' ? (
+                <div className={styles.entryStarterStrip} aria-label="Improve starter board steps">
+                  <div className={styles.entryStarterStep}>
+                    <span>1</span>
+                    <strong>Read the pattern</strong>
+                    <p>Heavy cross, recover through middle, attack the short ball.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>2</span>
+                    <strong>Adjust the court</strong>
+                    <p>Drag the attacker, defender, target window, or path handles to match your next rep.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>3</span>
+                    <strong>Capture proof</strong>
+                    <p>Copy the player brief or save the board before sending the work back to My Lab.</p>
+                  </div>
+                  <div className={styles.entryStarterActions}>
+                    <button className={styles.entryStarterButton} onClick={() => setBoardFocusMode(true)} type="button">
+                      Court mode
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={() => copyText(scenarioBriefing(scenario, briefingRole))} type="button">
+                      Copy brief
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={saveScenarioLocal} type="button">
+                      Save board
+                    </button>
+                    <Link href="/mylab#level-up-proof" className={styles.entryStarterButton}>
+                      My Lab proof
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className={styles.metaGrid}>
               <Meta label="Duration" value={scenario.duration} />
