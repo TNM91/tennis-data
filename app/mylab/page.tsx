@@ -663,6 +663,23 @@ function buildSinglesMatchupHref(linkedPlayerId: string | null | undefined, oppo
   return `/matchup?${params.toString()}`
 }
 
+function buildMyLabTacticsBoardHref(identitySlug: string, identityLabel: string, card?: LevelUpCard, proof?: MyLabLevelUpProof) {
+  const params = new URLSearchParams({
+    source: 'improve',
+    template: 'crosscourt',
+    role: 'player',
+    identity: identitySlug,
+    identityLabel,
+  })
+  const cardId = proof?.cardId || card?.id
+  const cardTitle = proof?.cardTitle || card?.title
+
+  if (cardId) params.set('card', cardId)
+  if (cardTitle) params.set('cardTitle', cardTitle)
+
+  return `/tactics?${params.toString()}`
+}
+
 const MY_LAB_NOTEBOOK_HREF = '/mylab#player-notebook'
 const MY_LAB_RECENT_MATCHES_HREF = '/mylab#recent-matches'
 const MY_LAB_SCORECARD_HREF = '/mylab#scorecard-summary'
@@ -4399,6 +4416,12 @@ function LevelUpReturnStatePanel({
     || (todayHabitCard ? `/level-up/${todayHabitIdentitySlug}?card=${encodeURIComponent(todayHabitCard.id)}#level-up-flow` : '/level-up')
   const todayHabitTitle = latestProof?.cardTitle || todayHabitCard?.title || 'Choose one Level Up card'
   const todayHabitProof = todayHabitCard?.proof || latestProof?.proofLabel || 'Score one useful proof.'
+  const myLabTacticsBoardHref = buildMyLabTacticsBoardHref(
+    todayHabitIdentitySlug,
+    todayHabitIdentity.title.replace(/^The /, ''),
+    todayHabitCard,
+    latestProof,
+  )
   const todayLevelUpStreak = getMyLabLevelUpStreak(proofs)
   const todayLevelUpStreakLabel = todayLevelUpStreak ? `${todayLevelUpStreak} day${todayLevelUpStreak === 1 ? '' : 's'}` : 'Start today'
   const latestProofScoreLabel = latestProof?.proofLabel || 'No proof yet'
@@ -4458,9 +4481,9 @@ function LevelUpReturnStatePanel({
     },
     {
       label: 'Board',
-      title: 'Map the court shape',
-      body: 'Turn the same Level Up cue into a starter tactic board before the next court block.',
-      href: MY_LAB_TACTICS_BOARD_HREF,
+      title: `Map ${todayHabitTitle}`,
+      body: 'Open the starter tactic board with this Player ID and Level Up card already attached.',
+      href: myLabTacticsBoardHref,
       action: 'Build board',
     },
     {

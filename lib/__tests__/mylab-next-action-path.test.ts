@@ -36,6 +36,10 @@ describe('My Lab next action path', () => {
     expect(source).toContain('Set a profile so proof belongs to the right player.')
     expect(source).toContain('feeds the next court decision.')
     expect(source).toContain('Use this signal for My Lab progress, matchup prep, or coach follow-up.')
+    expect(source).toContain('buildMyLabTacticsBoardHref')
+    expect(source).toContain('const myLabTacticsBoardHref = buildMyLabTacticsBoardHref(')
+    expect(source).toContain('href: myLabTacticsBoardHref')
+    expect(source).toContain('Open the starter tactic board with this Player ID and Level Up card already attached.')
   })
 
   it('keeps the personal path compact and mobile-safe', () => {
