@@ -67,8 +67,8 @@ export default function TiqTacticalStudioGate() {
             point patterns, assignments, and player-ready briefings.
           </p>
           <div className={styles.actions}>
-            <Link className={styles.button} href="/pricing#player_plus">See Player</Link>
-            <Link className={styles.button} href="/pricing#full_court">See Full-Court</Link>
+            <Link className={styles.button} href={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}>See Player</Link>
+            <Link className={styles.button} href={getPlanUnlockHref('full_court', TACTICS_IMPROVE_HREF)}>See Full-Court</Link>
           </div>
         </div>
         <div className={styles.gateStats}>

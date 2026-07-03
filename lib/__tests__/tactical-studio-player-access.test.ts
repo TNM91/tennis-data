@@ -75,6 +75,8 @@ describe('Tactical Studio player access', () => {
     expect(gateSource).toContain('const TACTICS_PLAYER_DEVELOPMENT_HREF = `/player-development/${TACTICS_PLAYER_IDENTITY.slug}`')
     expect(gateSource).toContain("const TACTICS_MY_LAB_HREF = '/mylab#level-up-proof'")
     expect(gateSource).toContain("const TACTICS_IMPROVE_HREF = '/tactics?source=improve&template=crosscourt&role=player'")
+    expect(gateSource).toContain("href={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}>See Player")
+    expect(gateSource).toContain("href={getPlanUnlockHref('full_court', TACTICS_IMPROVE_HREF)}>See Full-Court")
     expect(gateSource).toContain("ctaHref={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}")
     expect(gateSource).toContain('Tactics Player ID starter path')
     expect(gateSource).toContain('Tactics Player ID starter read')
