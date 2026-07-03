@@ -14,10 +14,12 @@ const TACTICS_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('smart-attacker-4-0
 const TACTICS_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TACTICS_PLAYER_IDENTITY)
 const TACTICS_LEVEL_UP_HREF = `/level-up/${TACTICS_PLAYER_IDENTITY.slug}#level-up-flow`
 const TACTICS_PLAYER_DEVELOPMENT_HREF = `/player-development/${TACTICS_PLAYER_IDENTITY.slug}`
+const TACTICS_MY_LAB_HREF = '/mylab#level-up-proof'
 const TACTICS_IMPROVE_HREF = '/tactics?source=improve&template=crosscourt&role=player'
 const tacticsPlayerIdStarterRead = [
   { label: 'Court pattern', value: TACTICS_PLAYER_IDENTITY_READ.trainingPriority },
   { label: 'Proof target', value: TACTICS_PLAYER_IDENTITY_READ.proofTarget },
+  { label: 'Board starter', value: 'Crosscourt pattern board' },
   { label: 'Match week test', value: TACTICS_PLAYER_IDENTITY_READ.matchTrigger },
 ] as const
 
@@ -94,10 +96,13 @@ export default function TiqTacticalStudioGate() {
           <Link className={`${styles.button} ${styles.primary}`} href={TACTICS_LEVEL_UP_HREF}>
             Start Level Up
           </Link>
+          <Link className={styles.button} href={getPlanUnlockHref('player_plus', TACTICS_IMPROVE_HREF)}>
+            Build starter board
+          </Link>
           <Link className={styles.button} href={TACTICS_PLAYER_DEVELOPMENT_HREF}>
             Read Player ID
           </Link>
-          <Link className={styles.button} href="/mylab">
+          <Link className={styles.button} href={TACTICS_MY_LAB_HREF}>
             Open My Lab
           </Link>
         </div>
