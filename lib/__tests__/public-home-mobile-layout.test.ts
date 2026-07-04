@@ -154,6 +154,13 @@ describe('Public home mobile layout guards', () => {
     expect(portalToolbarSource).toContain("paths: ['/coach', '/coaches', '/player-development', '/tactics']")
     expect(portalToolbarSource).toContain("paths: ['/captain', '/manage', '/compete/teams']")
     expect(portalToolbarSource).toContain("'/player-development', '/resources', '/tactics'")
+    expect(portalToolbarSource).toContain("const playerPortalTacticsHref = '/tactics?source=improve&template=crosscourt&role=player'")
+    expect(portalToolbarSource).toContain("const captainPortalTacticsHref = '/tactics?source=captain&template=basicDoubles&role=captain'")
+    expect(portalToolbarSource).toContain("from '@/lib/coach-workspace'")
+    expect(portalToolbarSource).toContain('href: playerPortalTacticsHref')
+    expect(portalToolbarSource).toContain('href: COACH_TACTICS_BOARD_HREF')
+    expect(portalToolbarSource).toContain('href: captainPortalTacticsHref')
+    expect(portalToolbarSource).not.toContain("href: '/tactics'")
     expect(portalToolbarSource).toContain("paths: ['/leagues-and-tournaments', '/league-coordinator', '/tournaments'")
   })
 

@@ -7,6 +7,7 @@ import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
+import { COACH_TACTICS_BOARD_HREF } from '@/lib/coach-workspace'
 import { getPortalLaneTarget } from '@/lib/portal-lane-routing'
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
@@ -17,6 +18,8 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 type PortalLaneId = 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league'
 
 const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'
+const playerPortalTacticsHref = '/tactics?source=improve&template=crosscourt&role=player'
+const captainPortalTacticsHref = '/tactics?source=captain&template=basicDoubles&role=captain'
 
 type PortalLane = {
   id: PortalLaneId
@@ -66,7 +69,7 @@ const portalLanes: PortalLane[] = [
     tasks: [
       { title: 'Open My Lab', detail: 'Your scorecard, goals, follows, and next read.', metric: 'Player', href: '/mylab', icon: 'myLab', requiredRoute: '/mylab' },
       { title: 'Level Up', detail: 'Choose a training card, run the rep, and save proof.', metric: 'Player', href: '/level-up', icon: 'matchPrep', requiredRoute: '/mylab' },
-      { title: 'Tactics Tools', detail: 'Map the court pattern before practice or your next match.', metric: 'Player', href: '/tactics', icon: 'scenarioBuilder', requiredRoute: '/mylab' },
+      { title: 'Tactics Tools', detail: 'Map the court pattern before practice or your next match.', metric: 'Player', href: playerPortalTacticsHref, icon: 'scenarioBuilder', requiredRoute: '/mylab' },
       { title: 'Fix tennis context', detail: 'Upload, report, or refresh the tennis context behind your read.', metric: 'Player', href: dataAssistPortalHref, icon: 'reports', requiredRoute: '/mylab' },
       { title: 'Prep matchup', detail: 'Compare the court before you play.', metric: 'Player', href: '/matchup', icon: 'matchupAnalysis', requiredRoute: '/mylab' },
       { title: 'Review messages', detail: 'Keep tennis replies and alerts together.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/mylab' },
@@ -99,7 +102,7 @@ const portalLanes: PortalLane[] = [
     searchScope: 'players',
     tasks: [
       { title: 'Player bench', detail: 'Open your roster, player profiles, assignments, and next coaching moves.', metric: 'Coach', href: '/coach#coach-linked-dashboard', icon: 'playerRatings', requiredRoute: '/coach' },
-      { title: 'Tactical Studio', detail: 'Map the drill or pattern before assigning it.', metric: 'Coach', href: '/tactics', icon: 'matchPrep', requiredRoute: '/coach' },
+      { title: 'Tactical Studio', detail: 'Map the drill or pattern before assigning it.', metric: 'Coach', href: COACH_TACTICS_BOARD_HREF, icon: 'matchPrep', requiredRoute: '/coach' },
       { title: 'Level Up library', detail: 'Assign training modules and keep player work aligned.', metric: 'Coach', href: '/level-up', icon: 'reports', requiredRoute: '/coach' },
       { title: 'Coach-player messages', detail: 'Keep lesson follow-up tied to player goals and assignments.', metric: 'Inbox', href: '/messages', icon: 'messagingCenter', requiredRoute: '/coach' },
     ],
@@ -116,7 +119,7 @@ const portalLanes: PortalLane[] = [
     tasks: [
       { title: 'Who can play', detail: 'Availability and readiness before lineup pressure.', metric: 'Captain', href: '/captain/availability', icon: 'reliabilityIndex', requiredRoute: '/captain' },
       { title: 'Plan practice', detail: 'Schedule practice, invite the roster, and collect RSVPs.', metric: 'Captain', href: '/captain/practice', icon: 'schedule', requiredRoute: '/captain' },
-      { title: 'Map tactics', detail: 'Build a court picture for the next point, drill, or team pattern.', metric: 'Coach beta', href: '/tactics', icon: 'scenarioBuilder', requiredRoute: '/captain' },
+      { title: 'Map tactics', detail: 'Build a court picture for the next point, drill, or team pattern.', metric: 'Coach beta', href: captainPortalTacticsHref, icon: 'scenarioBuilder', requiredRoute: '/captain' },
       { title: 'Build lineup', detail: 'Turn the roster into the weekly plan.', metric: 'Captain', href: '/captain/lineup-builder', icon: 'lineupBuilder', requiredRoute: '/captain' },
       { title: 'Send plan', detail: 'Message the team from Team Hub.', metric: 'Captain', href: '/captain/messaging', icon: 'messagingCenter', requiredRoute: '/captain' },
     ],
