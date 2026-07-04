@@ -6,6 +6,7 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
+import { COACH_TACTICS_BOARD_HREF } from '@/lib/coach-workspace'
 import { getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
@@ -136,7 +137,7 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     body: 'Open Coach Hub, map court work in Tactical Studio, and turn the next player-development need into assignments.',
     primaryAction: 'Open Coach Hub',
     secondaryAction: 'Map court work',
-    secondaryHref: '/tactics',
+    secondaryHref: COACH_TACTICS_BOARD_HREF,
     steps: ['Plan a lesson', 'Build a tactical board', 'Assign the next drill'],
   },
   captain: {
