@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { COACH_TACTICS_BOARD_HREF } from '../tactics-hrefs'
 import {
   DATA_ASSIST_STORY,
   HOME_HERO_STORY,
@@ -42,6 +43,7 @@ describe('product story guardrails', () => {
     expect(MEMBERSHIP_TIERS.full_court.valueProps).toContain('One connected toolkit for coaches, captains, coordinators, and organizers')
     expect(TIER_HOMEPAGE_STORY.full_court.headline).toBe('Unlock the complete TenAceIQ toolkit.')
     expect(TIER_HOMEPAGE_STORY.full_court.copy).toContain('Tournament Desk tools')
+    expect(TIER_HOMEPAGE_STORY.coach.secondaryCta?.href).toBe(COACH_TACTICS_BOARD_HREF)
     expect(Object.values(MEMBERSHIP_TIERS).map((tier) => tier.description).join(' ')).not.toContain('Player plus')
     expect(`${MEMBERSHIP_TIERS.free.description} ${TIER_HOMEPAGE_STORY.free.copy}`).not.toContain('personal workspace')
     expect(`${MEMBERSHIP_TIERS.full_court.description} ${TIER_HOMEPAGE_STORY.full_court.copy}`).not.toContain('suite')

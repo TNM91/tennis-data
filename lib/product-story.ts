@@ -1,3 +1,5 @@
+import { COACH_TACTICS_BOARD_HREF } from './tactics-hrefs'
+
 export const PRODUCT_NORTH_STAR =
   'TenAceIQ helps players, captains, coaches, leagues, and tournament organizers spend less time searching, guessing, and coordinating, and more time playing, improving, coaching, captaining, and enjoying tennis.'
 
@@ -362,7 +364,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
       'Use TIQ Tactical Studio for practical court work',
     ],
     primaryCta: { label: 'Unlock Coach', href: '/pricing#coach' },
-    secondaryCta: { label: 'Open Tactical Studio', href: '/tactics' },
+    secondaryCta: { label: 'Open Tactical Studio', href: COACH_TACTICS_BOARD_HREF },
     featuredNote: 'Best for coaches who teach players, groups, clinics, or school practices.',
   },
   captain: {

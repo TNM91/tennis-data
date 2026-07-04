@@ -1,5 +1,8 @@
 import type { TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { COACH_TACTICS_BOARD_HREF } from './tactics-hrefs'
 import { getPlayerDevelopmentIdentity } from './player-development'
+
+export { COACH_TACTICS_BOARD_HREF } from './tactics-hrefs'
 
 export type CoachWorkspaceCommand = {
   title: string
@@ -39,8 +42,6 @@ export type CoachSessionPreset = {
   pressureGame: string
   playerPlusPrompt: string
 }
-
-export const COACH_TACTICS_BOARD_HREF = '/tactics?source=coach&template=coachProgression&role=coach'
 
 export const COACH_WORKSPACE_COMMANDS: CoachWorkspaceCommand[] = [
   {

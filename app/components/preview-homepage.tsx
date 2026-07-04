@@ -31,6 +31,7 @@ import {
   TIER_HOMEPAGE_STORY,
   type MembershipTierId,
 } from '@/lib/product-story'
+import { COACH_TACTICS_BOARD_HREF } from '@/lib/tactics-hrefs'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TierTheme = {
@@ -304,7 +305,7 @@ const commandTaskSets: Record<PricingPlanId, CommandTask[]> = {
       title: 'Map a drill',
       detail: 'Use TIQ Tactical Studio to build the court picture before practice.',
       metric: 'Coach',
-      href: '/tactics',
+      href: COACH_TACTICS_BOARD_HREF,
       requiredPlan: 'coach',
       tint: 'green',
       graphic: 'court',
