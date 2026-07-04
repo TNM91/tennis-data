@@ -9,6 +9,7 @@ import { courtSpots, courtZones } from '@/components/tactical/coordinates'
 import type { DrillOverlay } from '@/components/tactical/types'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
+import type { LevelUpCard } from '@/lib/level-up/level-up-types'
 import { getLevelUpProfileForIdentity } from '@/lib/level-up/recommendations'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
@@ -162,7 +163,31 @@ function getIdentityHeroDiagram(identity: PlayerDevelopmentIdentity): PlayerDeve
   return identity.weeks.find((week) => week.diagram !== 'player-led-review')?.diagram ?? 'movement-screen'
 }
 
+function getIdentityStarterLevelUpCard(identity: PlayerDevelopmentIdentity) {
+  const profile = getLevelUpProfileForIdentity(identity.slug)
+  return LEVEL_UP_CARDS.find((card) => profile.starterCardIds.includes(card.id))
+}
+
+function buildPlayerDevelopmentTacticsHref(identity: PlayerDevelopmentIdentity, card?: LevelUpCard) {
+  const params = new URLSearchParams({
+    source: 'improve',
+    template: 'crosscourt',
+    role: 'player',
+    identity: identity.slug,
+    identityLabel: identity.title.replace(/^The /, ''),
+  })
+
+  if (card) {
+    params.set('card', card.id)
+    params.set('cardTitle', card.title)
+  }
+
+  return `/tactics?${params.toString()}`
+}
+
 function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }) {
+  const starterCard = getIdentityStarterLevelUpCard(identity)
+  const tacticsHref = buildPlayerDevelopmentTacticsHref(identity, starterCard)
   const actions = [
     {
       body: 'Run the next court rep, score one proof, and decide whether to repeat, progress, or test it in a match.',
@@ -183,7 +208,7 @@ function ImproveLandingHub({ identity }: { identity: PlayerDevelopmentIdentity }
     {
       body: 'Turn the next Player ID cue into the crosscourt starter board before you compete.',
       cta: 'Build a tactic board',
-      href: '/tactics?source=improve&template=crosscourt&role=player',
+      href: tacticsHref,
       icon: 'scenarioBuilder' as const,
       markers: ['Crosscourt starter board', 'Drag players and paths', 'Save or copy the brief'],
       title: 'Build a tactic board',
@@ -2347,10 +2372,12 @@ function PlayerPlusCheckIn({ identity }: { identity: PlayerDevelopmentIdentity }
 
 function PlayerPlusCompanionMap({ identity }: { identity: PlayerDevelopmentIdentity }) {
   const dataAssistPlayerDevelopmentHref = '/data-assist?intent=upload-source&context=Player%20development'
+  const starterCard = getIdentityStarterLevelUpCard(identity)
+  const tacticsHref = buildPlayerDevelopmentTacticsHref(identity, starterCard)
   const rows = [
     ['Save my identity', 'Turn the style finder into a My Lab goal', '/mylab'],
     ['Save my two-week focus', 'Track the one focus that changes the next match fastest', `/player-development/${identity.slug}/level-up`],
-    ['Build the tactic board', 'Turn the Level Up cue into a visual point plan in TIQ Tactical Studio', '/tactics'],
+    ['Build the tactic board', 'Turn the Level Up cue into a visual point plan in TIQ Tactical Studio', tacticsHref],
     ['Log match evidence', 'Keep proof from pressure points, serve targets, and style triggers', `/player-development/${identity.slug}/level-up`],
     ['Update coach assignment status', 'Mark the work complete in My Lab; linked coaches see the recap in Coach Hub', '/mylab#coach-assignments'],
     ['Check readiness', `Compare evidence against ${identity.levelPath.to} gates`, '/profile'],
