@@ -23,6 +23,18 @@ describe('auth entry next intent', () => {
     })
   })
 
+  it('recognizes a named My Lab proof board through the upgrade handoff', () => {
+    const intent = getAuthEntryNextIntent(
+      '/upgrade?plan=player_plus&next=%2Ftactics%3Fsource%3Dimprove%26template%3Dcrosscourt%26role%3Dplayer%26card%3Dsplit-step-rhythm%26cardTitle%3DSplit-Step%2520Rhythm',
+    )
+
+    expect(intent).toEqual({
+      label: 'After access',
+      title: 'Build the Split-Step Rhythm proof board.',
+      body: 'TenAceIQ keeps the Split-Step Rhythm My Lab proof path attached, then opens Tactical Studio with the crosscourt board ready.',
+    })
+  })
+
   it('does not add auth page clutter for ordinary destinations', () => {
     expect(getAuthEntryNextIntent('/profile')).toBeNull()
     expect(getAuthEntryNextIntent('/upgrade?plan=player_plus&next=%2Fprofile')).toBeNull()
@@ -39,7 +51,9 @@ describe('auth entry next intent', () => {
 
     for (const phrase of [
       'Build the starter tactic board.',
+      'Build the ${cardTitle} proof board.',
       'Tactical Studio with the crosscourt board ready.',
+      'getReadableSearchParam(readableHref, \'cardTitle\')',
     ]) {
       expect(intentSource).toContain(phrase)
     }

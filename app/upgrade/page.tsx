@@ -944,6 +944,17 @@ function getPlanDestinationLabel(planId: PricingPlanId) {
 function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeNextIntent | null {
   const defaultDestination = getPlanDestinationHref(planId)
   if (planId === 'player_plus' && nextHref.startsWith('/tactics') && nextHref.includes('source=improve')) {
+    const cardTitle = getUpgradeNextParam(nextHref, 'cardTitle')
+
+    if (cardTitle) {
+      return {
+        label: 'After unlock',
+        title: `Build the ${cardTitle} proof board.`,
+        body: `Player keeps the ${cardTitle} My Lab proof intent attached, then opens Tactical Studio with the crosscourt pattern ready.`,
+        action: 'Preview proof board path',
+      }
+    }
+
     return {
       label: 'After unlock',
       title: 'Build the starter tactic board.',
@@ -980,6 +991,15 @@ function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeN
   }
 
   return null
+}
+
+function getUpgradeNextParam(nextHref: string, paramName: string) {
+  const queryStart = nextHref.indexOf('?')
+  if (queryStart < 0) return ''
+
+  const hashStart = nextHref.indexOf('#', queryStart)
+  const rawSearch = nextHref.slice(queryStart + 1, hashStart >= 0 ? hashStart : undefined)
+  return new URLSearchParams(rawSearch).get(paramName)?.trim() ?? ''
 }
 
 function isPlanAlreadyActive(planId: PricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
