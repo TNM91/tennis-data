@@ -77,6 +77,11 @@ export default function TiqTacticalStudio() {
   const canUndoBoardAction = undoStack.length > 0 || scenario.paths.length > 0
   const entryIdentityLabel = entryIntent?.identityLabel ?? 'Player ID'
   const entryCardTitle = entryIntent?.cardTitle ?? 'Crosscourt pattern card'
+  const hasEntryLevelUpCard = Boolean(entryIntent?.cardId || entryIntent?.cardTitle)
+  const entryIntentLabel = hasEntryLevelUpCard ? 'My Lab proof board' : 'Improve starter'
+  const entryProofReturnCopy = hasEntryLevelUpCard
+    ? `Return ${entryCardTitle} proof to My Lab after saving this board.`
+    : 'Save the board, copy the brief, or send the proof back to My Lab.'
 
   const getAccessToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession()
@@ -130,6 +135,7 @@ export default function TiqTacticalStudio() {
     }
     if (nextEntryIntent) {
       const nextScenario = createTacticalTemplate(nextEntryIntent.templateKey)
+      const hasLevelUpCardIntent = Boolean(nextEntryIntent.cardId || nextEntryIntent.cardTitle)
       scenarioRef.current = nextScenario
       setTemplateKey(nextEntryIntent.templateKey)
       setScenario(nextScenario)
@@ -137,7 +143,7 @@ export default function TiqTacticalStudio() {
       setBriefingRole(nextEntryIntent.role)
       setSelected({ type: 'scenario', id: 'scenario' })
       setStepIndex(99)
-      notify(nextEntryIntent.source === 'improve' ? 'Improve board ready' : 'Starter board ready')
+      notify(hasLevelUpCardIntent ? 'My Lab proof board ready' : nextEntryIntent.source === 'improve' ? 'Improve board ready' : 'Starter board ready')
     }
     draftReady.current = true
     void loadCloudLibrary()
@@ -729,8 +735,8 @@ export default function TiqTacticalStudio() {
               {entryIntent?.source === 'improve' ? (
                 <div className={styles.entryCallout}>
                   <div>
-                    <strong>Improve starter</strong>
-                    <span>{entryIdentityLabel} sent {entryCardTitle} into {scenario.name}. Save the board, copy the brief, or send the proof back to My Lab.</span>
+                    <strong>{entryIntentLabel}</strong>
+                    <span>{entryIdentityLabel} sent {entryCardTitle} into {scenario.name}. {entryProofReturnCopy}</span>
                   </div>
                   <div className={styles.entryCalloutActions}>
                     <Link href="/player-development" className={styles.entryCalloutLink}>Improve</Link>
@@ -770,7 +776,7 @@ export default function TiqTacticalStudio() {
                   <div className={styles.entryStarterStep}>
                     <span>3</span>
                     <strong>Capture proof</strong>
-                    <p>Copy the player brief or save the board before sending the work back to My Lab.</p>
+                    <p>{entryProofReturnCopy}</p>
                   </div>
                   <div className={styles.entryStarterActions}>
                     <button className={styles.entryStarterButton} onClick={() => setBoardFocusMode(true)} type="button">
