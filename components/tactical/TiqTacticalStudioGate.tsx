@@ -37,11 +37,19 @@ export default function TiqTacticalStudioGate() {
     access.currentPlanId === 'full_court'
   const tacticsImproveHref = buildTacticsImproveHref(searchParams)
   const gateIdentityLabel = cleanGateIntentValue(searchParams.get('identityLabel')) ?? TACTICS_PLAYER_IDENTITY.title.replace(/^The /, '')
-  const gateCardTitle = cleanGateIntentValue(searchParams.get('cardTitle')) ?? 'Crosscourt pattern board'
+  const gateCardId = cleanGateIntentValue(searchParams.get('card'))
+  const requestedGateCardTitle = cleanGateIntentValue(searchParams.get('cardTitle'))
+  const gateCardTitle = requestedGateCardTitle ?? 'Crosscourt pattern board'
+  const hasGateLevelUpCard = Boolean(gateCardId || requestedGateCardTitle)
+  const gateIntentLabel = hasGateLevelUpCard ? 'My Lab proof board requested' : 'Improve starter board requested'
+  const gateProofReturnCue = hasGateLevelUpCard
+    ? `Return ${gateCardTitle} proof to My Lab after the board is saved.`
+    : 'Save the board back to My Lab before the next court block.'
   const tacticsPlayerIdStarterRead = [
     { label: 'Court pattern', value: TACTICS_PLAYER_IDENTITY_READ.trainingPriority },
     { label: 'Proof target', value: TACTICS_PLAYER_IDENTITY_READ.proofTarget },
     { label: 'Board starter', value: gateCardTitle },
+    { label: 'My Lab handoff', value: gateProofReturnCue },
     { label: 'Match week test', value: TACTICS_PLAYER_IDENTITY_READ.matchTrigger },
   ] as const
 
@@ -66,12 +74,12 @@ export default function TiqTacticalStudioGate() {
       <section className={`${styles.hero} ${styles.gateHero}`}>
         <div className={styles.gateCopy}>
           <div className={styles.eyebrow}>Player unlock preview</div>
-          <div className={styles.gateStarterCue} aria-label="Improve starter board requested">
-            <span>Improve starter board requested</span>
+          <div className={styles.gateStarterCue} aria-label={gateIntentLabel}>
+            <span>{gateIntentLabel}</span>
             <strong>{gateCardTitle} opens after Player unlock.</strong>
-            <small>{gateIdentityLabel}: read the Player ID cue, adjust the court, then save or copy the brief.</small>
+            <small>{gateIdentityLabel}: read the Player ID cue, adjust the court, then save the proof back to My Lab.</small>
           </div>
-          <h1>Build the drill board, then save the plan.</h1>
+          <h1>Build the drill board, then return the proof.</h1>
           <p>
             TIQ Tactical Studio is part of Player, Coach, Captain, and Full-Court access. Use it to map drills,
             point patterns, assignments, and player-ready briefings.
@@ -96,7 +104,7 @@ export default function TiqTacticalStudioGate() {
           </div>
           <p>
             {gateIdentityLabel} starts from: {TACTICS_PLAYER_IDENTITY_READ.levelUpNudge} Tactical Studio turns that read into the court shape,
-            assignment, and proof the next session needs.
+            assignment, and My Lab proof the next session needs.
           </p>
         </div>
         <div className={styles.tacticsPlayerIdGrid} aria-label="Tactics Player ID starter read">
