@@ -30,6 +30,7 @@ import {
   COACH_INTEGRATION_STEPS,
   COACH_LESSON_BLOCKS,
   COACH_SESSION_PRESETS,
+  COACH_TACTICS_BOARD_HREF,
   COACH_WORKSPACE_COMMANDS,
   buildCoachStudentSnapshots,
   buildSessionPresetAssignment,
@@ -2091,7 +2092,7 @@ function CoachContent() {
           <button type="button" onClick={useSessionPresetForAssignment} style={smallPrimaryButtonStyle}>
             Use as assignment
           </button>
-          <Link href="/tactics" style={smallGhostLinkStyle}>
+          <Link href={COACH_TACTICS_BOARD_HREF} style={smallGhostLinkStyle}>
             Build court board
           </Link>
         </div>
@@ -2672,7 +2673,7 @@ function CoachContent() {
                 Team competition operations stay in Captain; Full-Court includes both.
               </p>
               <div style={heroActionsStyle}>
-                <Link href="/tactics" style={primaryLinkStyle}>Open Tactical Studio</Link>
+                <Link href={COACH_TACTICS_BOARD_HREF} style={primaryLinkStyle}>Open Tactical Studio</Link>
                 <Link href="/player-development" style={secondaryLinkStyle}>Open development paths</Link>
               </div>
             </div>

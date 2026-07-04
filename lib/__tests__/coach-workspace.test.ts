@@ -3,6 +3,7 @@ import {
   COACH_INTEGRATION_STEPS,
   COACH_LESSON_BLOCKS,
   COACH_SESSION_PRESETS,
+  COACH_TACTICS_BOARD_HREF,
   COACH_WORKSPACE_COMMANDS,
   buildCoachStudentSnapshots,
   buildSessionPresetAssignment,
@@ -12,9 +13,10 @@ import {
 
 describe('coach workspace model', () => {
   it('keeps the core coach workflow connected to product routes', () => {
+    expect(COACH_TACTICS_BOARD_HREF).toBe('/tactics?source=coach&template=coachProgression&role=coach')
     expect(COACH_WORKSPACE_COMMANDS.map((command) => command.href)).toEqual([
       '/player-development/relentless-competitor-4-0/coach-planner',
-      '/tactics',
+      COACH_TACTICS_BOARD_HREF,
       '/messages?compose=direct&subject=Coach%20assignment%20follow-up&body=Here%27s%20the%20assignment%20from%20today%27s%20lesson%3A%20',
       '/messages?compose=direct&subject=Next%20lesson%20schedule&body=Let%27s%20confirm%20the%20next%20lesson.%20Date%2Ftime%3A%20%20Site%3A%20%20Focus%3A%20',
     ])

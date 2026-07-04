@@ -50,7 +50,8 @@ describe('Tactical Studio player access', () => {
     expect(studioSource).toContain('setRole(nextEntryIntent.role)')
     expect(studioSource).toContain('setBriefingRole(nextEntryIntent.role)')
     expect(studioSource).toContain('const hasLevelUpCardIntent = Boolean(nextEntryIntent.cardId || nextEntryIntent.cardTitle)')
-    expect(studioSource).toContain("notify(hasLevelUpCardIntent ? 'My Lab proof board ready' : nextEntryIntent.source === 'improve' ? 'Improve board ready' : 'Starter board ready')")
+    expect(studioSource).toContain("hasLevelUpCardIntent\n          ? 'My Lab proof board ready'")
+    expect(studioSource).toContain("nextEntryIntent.source === 'improve'")
     expect(studioSource).toContain('Improve board ready')
     expect(studioSource).toContain('My Lab proof board ready')
     expect(studioSource).toContain('styles.entryCallout')
@@ -86,6 +87,17 @@ describe('Tactical Studio player access', () => {
     expect(studioStyles).toContain('.entryStarterContext')
     expect(studioStyles).toContain('.entryStarterActions')
     expect(studioStyles).toContain('.entryStarterButton')
+  })
+
+  it('opens coach lesson boards from Coach Hub links', () => {
+    expect(studioSource).toContain("nextEntryIntent.source === 'coach'")
+    expect(studioSource).toContain('Coach lesson board ready')
+    expect(studioSource).toContain("entryIntent?.source === 'coach'")
+    expect(studioSource).toContain('Coach lesson board')
+    expect(studioSource).toContain('Coach Hub opened {scenario.name} with teaching cues ready.')
+    expect(studioSource).toContain('Map the drill, copy the brief, then assign the next step.')
+    expect(studioSource).toContain('href="/coach"')
+    expect(studioSource).toContain('Development paths')
   })
 
   it('connects Tactical Studio to a Player ID starter path before the unlock prompt', () => {

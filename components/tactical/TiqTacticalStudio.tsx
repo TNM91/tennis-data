@@ -143,7 +143,15 @@ export default function TiqTacticalStudio() {
       setBriefingRole(nextEntryIntent.role)
       setSelected({ type: 'scenario', id: 'scenario' })
       setStepIndex(99)
-      notify(hasLevelUpCardIntent ? 'My Lab proof board ready' : nextEntryIntent.source === 'improve' ? 'Improve board ready' : 'Starter board ready')
+      notify(
+        hasLevelUpCardIntent
+          ? 'My Lab proof board ready'
+          : nextEntryIntent.source === 'coach'
+            ? 'Coach lesson board ready'
+            : nextEntryIntent.source === 'improve'
+              ? 'Improve board ready'
+              : 'Starter board ready',
+      )
     }
     draftReady.current = true
     void loadCloudLibrary()
@@ -741,6 +749,18 @@ export default function TiqTacticalStudio() {
                   <div className={styles.entryCalloutActions}>
                     <Link href="/player-development" className={styles.entryCalloutLink}>Improve</Link>
                     <Link href="/mylab#level-up-proof" className={styles.entryCalloutLink}>My Lab proof</Link>
+                  </div>
+                </div>
+              ) : null}
+              {entryIntent?.source === 'coach' ? (
+                <div className={styles.entryCallout}>
+                  <div>
+                    <strong>Coach lesson board</strong>
+                    <span>Coach Hub opened {scenario.name} with teaching cues ready. Map the drill, copy the brief, then assign the next step.</span>
+                  </div>
+                  <div className={styles.entryCalloutActions}>
+                    <Link href="/coach" className={styles.entryCalloutLink}>Coach Hub</Link>
+                    <Link href="/player-development" className={styles.entryCalloutLink}>Development paths</Link>
                   </div>
                 </div>
               ) : null}

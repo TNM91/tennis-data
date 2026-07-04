@@ -40,6 +40,8 @@ export type CoachSessionPreset = {
   playerPlusPrompt: string
 }
 
+export const COACH_TACTICS_BOARD_HREF = '/tactics?source=coach&template=coachProgression&role=coach'
+
 export const COACH_WORKSPACE_COMMANDS: CoachWorkspaceCommand[] = [
   {
     title: 'Build lesson plan',
@@ -51,7 +53,7 @@ export const COACH_WORKSPACE_COMMANDS: CoachWorkspaceCommand[] = [
   {
     title: 'Map the drill',
     detail: 'Create reusable court boards, paths, zones, and coaching cues in TIQ Tactical Studio.',
-    href: '/tactics',
+    href: COACH_TACTICS_BOARD_HREF,
     cta: 'Open tactics',
     icon: 'scenarioBuilder',
   },

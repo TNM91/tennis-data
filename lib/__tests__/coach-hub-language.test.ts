@@ -16,6 +16,9 @@ describe('Coach Hub naming', () => {
 
     expect(coachPage).toContain('Could not load Coach Hub.')
     expect(coachPage).toContain('Coach Hub keeps lesson plans, Tactical Studio boards, drill assignments, player development tracking, reviews, and scheduling tied to the lesson loop.')
+    expect(coachPage).toContain('COACH_TACTICS_BOARD_HREF')
+    expect(coachPage).toContain('href={COACH_TACTICS_BOARD_HREF}')
+    expect(coachPage).not.toContain('href="/tactics"')
     expect(coachPage).toContain('player follow-through between lessons')
     expect(coachPage).not.toContain('Coach Hub brings lesson plans')
     expect(coachPage).not.toContain('follow-through in one place')
