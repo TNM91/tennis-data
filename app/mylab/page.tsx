@@ -684,7 +684,6 @@ const MY_LAB_NOTEBOOK_HREF = '/mylab#player-notebook'
 const MY_LAB_RECENT_MATCHES_HREF = '/mylab#recent-matches'
 const MY_LAB_SCORECARD_HREF = '/mylab#scorecard-summary'
 const MY_LAB_GOAL_PROGRESS_HREF = '/mylab#goal-progress'
-const MY_LAB_TACTICS_BOARD_HREF = '/tactics?source=improve&template=crosscourt&role=player'
 
 function getMatchupRead(gap: number) {
   if (gap <= 0.08) return 'Very close'
@@ -2456,6 +2455,17 @@ function MyLabPageInner() {
   const levelUpProofs = useMemo(() => buildMyLabLevelUpProofs(levelUpCompletions), [levelUpCompletions])
   const latestLevelUpProof = levelUpProofs[0]
   const fallbackLevelUpIdentitySlug = PLAYER_DEVELOPMENT_IDENTITIES[0]?.slug || 'relentless-competitor-4-0'
+  const latestLevelUpProofCard = latestLevelUpProof
+    ? LEVEL_UP_CARDS.find((card) => card.id === latestLevelUpProof.cardId)
+    : undefined
+  const pathPanelTacticsIdentitySlug = latestLevelUpProofCard?.identitySlugs?.[0] || fallbackLevelUpIdentitySlug
+  const pathPanelTacticsIdentity = getPlayerDevelopmentIdentity(pathPanelTacticsIdentitySlug)
+  const pathPanelTacticsHref = buildMyLabTacticsBoardHref(
+    pathPanelTacticsIdentitySlug,
+    pathPanelTacticsIdentity.title.replace(/^The /, ''),
+    latestLevelUpProofCard,
+    latestLevelUpProof,
+  )
   const courtModeHref = latestLevelUpProof?.nextHref || `/player-development/${fallbackLevelUpIdentitySlug}/level-up`
   const earnedAwardCards = useMemo(() => {
     const profileNames = new Set(
@@ -3249,6 +3259,7 @@ function MyLabPageInner() {
           <PlayerDevelopmentPathPanel
             linkedPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
             currentGoal={activeGoal?.goal || ''}
+            tacticsBoardHref={pathPanelTacticsHref}
           />
 
           <LevelUpReturnStatePanel
@@ -4333,9 +4344,11 @@ function GhostButton({ onClick, children }: { onClick: () => void; children: Rea
 function PlayerDevelopmentPathPanel({
   linkedPlayerName,
   currentGoal,
+  tacticsBoardHref,
 }: {
   linkedPlayerName: string
   currentGoal: string
+  tacticsBoardHref: string
 }) {
   const primaryIdentity = PLAYER_DEVELOPMENT_IDENTITIES[0]
   const featuredIdentities = PLAYER_DEVELOPMENT_IDENTITIES.slice(0, 4)
@@ -4378,7 +4391,7 @@ function PlayerDevelopmentPathPanel({
       <div style={developmentActionRowStyle}>
         <Link href={`/level-up/${primaryIdentity.slug}`} style={miniActionLinkStyle}>Level Up now</Link>
         <Link href="/player-development" style={miniActionLinkStyle}>Open paths</Link>
-        <Link href={MY_LAB_TACTICS_BOARD_HREF} style={miniActionLinkStyle}>Build tactic board</Link>
+        <Link href={tacticsBoardHref} style={miniActionLinkStyle}>Build tactic board</Link>
         <Link href={MY_LAB_GOAL_PROGRESS_HREF} style={miniActionLinkStyle}>Update My Lab goal</Link>
       </div>
     </section>
