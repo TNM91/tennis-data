@@ -143,15 +143,7 @@ export default function TiqTacticalStudio() {
       setBriefingRole(nextEntryIntent.role)
       setSelected({ type: 'scenario', id: 'scenario' })
       setStepIndex(99)
-      notify(
-        hasLevelUpCardIntent
-          ? 'My Lab proof board ready'
-          : nextEntryIntent.source === 'coach'
-            ? 'Coach lesson board ready'
-            : nextEntryIntent.source === 'improve'
-              ? 'Improve board ready'
-              : 'Starter board ready',
-      )
+      notify(getEntryReadyToast(nextEntryIntent, hasLevelUpCardIntent))
     }
     draftReady.current = true
     void loadCloudLibrary()
@@ -764,6 +756,18 @@ export default function TiqTacticalStudio() {
                   </div>
                 </div>
               ) : null}
+              {entryIntent?.source === 'captain' ? (
+                <div className={styles.entryCallout}>
+                  <div>
+                    <strong>Captain match-week board</strong>
+                    <span>Team Hub opened {scenario.name} for a clean doubles picture. Set the pattern, name the assignments, then send the team plan.</span>
+                  </div>
+                  <div className={styles.entryCalloutActions}>
+                    <Link href="/captain" className={styles.entryCalloutLink}>Team Hub</Link>
+                    <Link href="/captain/lineup-builder" className={styles.entryCalloutLink}>Lineup builder</Link>
+                  </div>
+                </div>
+              ) : null}
               <div className={styles.roleBoardCallout}>
                 <strong>{role} view</strong>
                 <span>{getRoleBoardCopy(role)}</span>
@@ -810,6 +814,92 @@ export default function TiqTacticalStudio() {
                     </button>
                     <Link href="/mylab#level-up-proof" className={styles.entryStarterButton}>
                       My Lab proof
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+              {entryIntent?.source === 'coach' ? (
+                <div className={styles.entryStarterStrip} aria-label="Coach lesson board steps">
+                  <div className={styles.entryStarterContext} aria-label="Coach board handoff context">
+                    <article>
+                      <span>Coach focus</span>
+                      <strong>{scenario.focus}</strong>
+                    </article>
+                    <article>
+                      <span>Lesson board</span>
+                      <strong>{scenario.name}</strong>
+                    </article>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>1</span>
+                    <strong>Teach the constraint</strong>
+                    <p>Use the board to show feed, recovery, attack lane, and finish before the first live rep.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>2</span>
+                    <strong>Score the rep</strong>
+                    <p>Keep the point simple: recover before attacking, then finish balanced through the target.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>3</span>
+                    <strong>Assign the next step</strong>
+                    <p>Copy the brief back to Coach Hub or a player-development path after the board is saved.</p>
+                  </div>
+                  <div className={styles.entryStarterActions}>
+                    <button className={styles.entryStarterButton} onClick={() => setBoardFocusMode(true)} type="button">
+                      Court mode
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={() => copyText(scenarioBriefing(scenario, briefingRole))} type="button">
+                      Copy coach brief
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={saveScenarioLocal} type="button">
+                      Save lesson board
+                    </button>
+                    <Link href="/coach" className={styles.entryStarterButton}>
+                      Coach Hub
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+              {entryIntent?.source === 'captain' ? (
+                <div className={styles.entryStarterStrip} aria-label="Captain match-week board steps">
+                  <div className={styles.entryStarterContext} aria-label="Captain board handoff context">
+                    <article>
+                      <span>Team focus</span>
+                      <strong>{scenario.focus}</strong>
+                    </article>
+                    <article>
+                      <span>Match board</span>
+                      <strong>{scenario.name}</strong>
+                    </article>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>1</span>
+                    <strong>Name the pattern</strong>
+                    <p>Show the serve, first move, recovery lane, and target so the doubles pair has one picture.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>2</span>
+                    <strong>Confirm assignments</strong>
+                    <p>Use captain view to keep role labels, pattern purpose, and match-readiness visible.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>3</span>
+                    <strong>Send the plan</strong>
+                    <p>Save the board, copy the brief, then send it with the weekly lineup or practice plan.</p>
+                  </div>
+                  <div className={styles.entryStarterActions}>
+                    <button className={styles.entryStarterButton} onClick={() => setBoardFocusMode(true)} type="button">
+                      Court mode
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={() => copyText(scenarioBriefing(scenario, briefingRole))} type="button">
+                      Copy team brief
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={saveScenarioLocal} type="button">
+                      Save match board
+                    </button>
+                    <Link href="/captain/messaging" className={styles.entryStarterButton}>
+                      Send plan
                     </Link>
                   </div>
                 </div>
@@ -1318,6 +1408,14 @@ function getRoleBoardCopy(role: TacticalRole) {
   if (role === 'coach') return 'Coach view shows teaching cues and full role labels for instruction.'
   if (role === 'player') return 'Player view strips the board down to readable movement, ball intent, and teammate labels.'
   return 'Captain view keeps assignments, pattern purpose, and match-readiness visible.'
+}
+
+function getEntryReadyToast(entryIntent: TacticalEntryIntent, hasLevelUpCardIntent: boolean) {
+  if (hasLevelUpCardIntent) return 'My Lab proof board ready'
+  if (entryIntent.source === 'coach') return 'Coach lesson board ready'
+  if (entryIntent.source === 'captain') return 'Captain match-week board ready'
+  if (entryIntent.source === 'improve') return 'Improve board ready'
+  return 'Starter board ready'
 }
 
 function readTacticalEntryIntent(): TacticalEntryIntent | null {
