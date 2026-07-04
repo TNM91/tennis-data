@@ -197,6 +197,7 @@ describe('Tactical Studio player access', () => {
   it('preserves Coach and Captain board intent through the locked gate', () => {
     expect(gateSource).toContain("type TacticsGateSource = 'improve' | 'coach' | 'captain'")
     expect(gateSource).toContain("const gateSource = getTacticsGateSource(searchParams.get('source'), searchParams.get('role'))")
+    expect(gateSource).toContain('data-gate-source={gateSource}')
     expect(gateSource).toContain("if (source === 'coach' || role === 'coach') return 'coach'")
     expect(gateSource).toContain("if (source === 'captain' || role === 'captain') return 'captain'")
     expect(gateSource).toContain("if (source === 'coach') return 'coachProgression'")
@@ -223,8 +224,15 @@ describe('Tactical Studio player access', () => {
     expect(gateSource).toContain('styles.tacticsPlayerIdActions')
     expect(gateSource).toContain('styles.gateStarterCue')
     expect(studioStyles).toContain('.gateStarterCue')
+    expect(studioStyles).toContain(".studio[data-gate-source='coach'] .gateStarterCue")
+    expect(studioStyles).toContain(".studio[data-gate-source='captain'] .gateStarterCue")
     expect(studioStyles).toContain('.gateStats .stat p')
+    expect(studioStyles).toContain('.gateStats .statValue')
     expect(studioStyles).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));')
+    expect(studioStyles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));')
+    expect(studioStyles).toContain('@media (max-width: 420px)')
+    expect(studioStyles).toContain('overflow-wrap: anywhere;')
+    expect(studioStyles).toContain('white-space: normal;')
     expect(gateSource).not.toContain('gateStats gateStats')
   })
 

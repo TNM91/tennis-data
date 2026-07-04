@@ -64,7 +64,7 @@ export default function TiqTacticalStudioGate() {
   if (canOpenStudio) return <TiqTacticalStudio />
 
   return (
-    <div className={styles.studio}>
+    <div className={styles.studio} data-gate-source={gateSource}>
       <section className={`${styles.hero} ${styles.gateHero}`}>
         <div className={styles.gateCopy}>
           <div className={styles.eyebrow}>{gatePlanName} unlock preview</div>
