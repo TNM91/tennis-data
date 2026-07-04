@@ -1,3 +1,5 @@
+import { CAPTAIN_TACTICS_BOARD_HREF, COACH_TACTICS_BOARD_HREF, PLAYER_TACTICS_BOARD_HREF } from './tactics-hrefs'
+
 export type NavItem = {
   href: string
   label: string
@@ -22,7 +24,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
   { href: '/level-up', label: 'Level Up' },
   { href: '/mylab', label: 'Open My Lab' },
-  { href: '/tactics', label: 'Tactics Tools' },
+  { href: PLAYER_TACTICS_BOARD_HREF, label: 'Tactics Tools' },
   { href: '/coach', label: 'Coach Hub' },
   { href: '/data-assist', label: 'Fix tennis info' },
   { href: '/matchup', label: 'Prep matchup' },
@@ -39,7 +41,7 @@ export const EXPLORE_NAV_ITEMS: NavItem[] = [
 export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
   { href: '/captain/availability', label: 'Who can play' },
   { href: '/captain/practice', label: 'Plan practice' },
-  { href: '/tactics', label: 'Map tactics' },
+  { href: CAPTAIN_TACTICS_BOARD_HREF, label: 'Map tactics' },
   { href: '/captain/lineup-builder', label: 'Build lineup' },
   { href: '/captain/messaging', label: 'Send plan' },
 ]
@@ -47,7 +49,7 @@ export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
 export const COACH_QUICK_NAV_ITEMS: NavItem[] = [
   { href: '/coaches', label: 'Find coaches' },
   { href: '/coach', label: 'Coach Hub' },
-  { href: '/tactics', label: 'Tactical Studio' },
+  { href: COACH_TACTICS_BOARD_HREF, label: 'Tactical Studio' },
   { href: '/player-development', label: 'Development paths' },
   { href: '/player-development/relentless-competitor-4-0/coach-planner', label: 'Coach planner' },
 ]

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { buildProductAccessState } from '../access-model'
 import {
+  COACH_TACTICS_BOARD_HREF,
+  PLAYER_TACTICS_BOARD_HREF,
+} from '../tactics-hrefs'
+import {
   canUsePrimaryNavItem,
   getPrimaryNavLockedLabel,
   getPrimaryNavLockedTitle,
@@ -31,10 +35,19 @@ describe('primary nav access', () => {
     })
 
     expect(getRequiredPlanForPrimaryNav('/tactics')).toBe('player_plus')
+    expect(getRequiredPlanForPrimaryNav(PLAYER_TACTICS_BOARD_HREF)).toBe('player_plus')
+    expect(getRequiredPlanForPrimaryNav(COACH_TACTICS_BOARD_HREF)).toBe('player_plus')
     expect(canUsePrimaryNavItem(freeAccess, '/tactics')).toBe(false)
+    expect(canUsePrimaryNavItem(freeAccess, PLAYER_TACTICS_BOARD_HREF)).toBe(false)
     expect(canUsePrimaryNavItem(playerAccess, '/tactics')).toBe(true)
+    expect(canUsePrimaryNavItem(playerAccess, COACH_TACTICS_BOARD_HREF)).toBe(true)
     expect(getPrimaryNavTarget('/tactics', freeAccess, true)).toEqual({
       href: '/upgrade?plan=player_plus&next=%2Ftactics',
+      locked: true,
+      requiredPlan: 'player_plus',
+    })
+    expect(getPrimaryNavTarget(PLAYER_TACTICS_BOARD_HREF, freeAccess, true)).toEqual({
+      href: `/upgrade?plan=player_plus&next=${encodeURIComponent(PLAYER_TACTICS_BOARD_HREF)}`,
       locked: true,
       requiredPlan: 'player_plus',
     })

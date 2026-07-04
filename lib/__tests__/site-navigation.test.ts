@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PRIMARY_NAV_ITEMS, FOOTER_NAV_SECTIONS, ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, COACH_QUICK_NAV_ITEMS } from '../site-navigation'
+import { CAPTAIN_TACTICS_BOARD_HREF, COACH_TACTICS_BOARD_HREF, PLAYER_TACTICS_BOARD_HREF } from '../tactics-hrefs'
 
 describe('site navigation language', () => {
   it('uses the community-centered platform navigation map', () => {
@@ -66,7 +67,7 @@ describe('site navigation language', () => {
     expect(CAPTAIN_QUICK_NAV_ITEMS).toEqual([
       { href: '/captain/availability', label: 'Who can play' },
       { href: '/captain/practice', label: 'Plan practice' },
-      { href: '/tactics', label: 'Map tactics' },
+      { href: CAPTAIN_TACTICS_BOARD_HREF, label: 'Map tactics' },
       { href: '/captain/lineup-builder', label: 'Build lineup' },
       { href: '/captain/messaging', label: 'Send plan' },
     ])
@@ -76,7 +77,7 @@ describe('site navigation language', () => {
     expect(COACH_QUICK_NAV_ITEMS).toEqual([
       { href: '/coaches', label: 'Find coaches' },
       { href: '/coach', label: 'Coach Hub' },
-      { href: '/tactics', label: 'Tactical Studio' },
+      { href: COACH_TACTICS_BOARD_HREF, label: 'Tactical Studio' },
       { href: '/player-development', label: 'Development paths' },
       { href: '/player-development/relentless-competitor-4-0/coach-planner', label: 'Coach planner' },
     ])
@@ -84,6 +85,6 @@ describe('site navigation language', () => {
 
   it('surfaces Coach from account quick navigation', () => {
     expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/coach', label: 'Coach Hub' })
-    expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: '/tactics', label: 'Tactics Tools' })
+    expect(ACCOUNT_NAV_ITEMS).toContainEqual({ href: PLAYER_TACTICS_BOARD_HREF, label: 'Tactics Tools' })
   })
 })

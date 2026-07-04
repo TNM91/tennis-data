@@ -13,11 +13,17 @@ export const PRIMARY_NAV_VISUALS: Record<string, { step: string; intent: string;
   [PRODUCT_MODE_LANGUAGE.plans.route]: { step: '$', intent: PRODUCT_MODE_LANGUAGE.plans.label, note: 'Choose a tier' },
 }
 
+function normalizePrimaryNavHref(href: string) {
+  return href.split('?')[0].split('#')[0] || '/'
+}
+
 export function getRequiredPlanForPrimaryNav(href: string): PricingPlanId | null {
-  if (href === '/mylab' || href === '/matchup' || href === '/tactics') return 'player_plus'
-  if (href === '/coach') return 'coach'
-  if (href === '/captain') return 'captain'
-  if (href === '/league-coordinator') return 'league'
+  const pathname = normalizePrimaryNavHref(href)
+
+  if (pathname === '/mylab' || pathname === '/matchup' || pathname === '/tactics') return 'player_plus'
+  if (pathname === '/coach') return 'coach'
+  if (pathname === '/captain') return 'captain'
+  if (pathname === '/league-coordinator') return 'league'
   return null
 }
 
