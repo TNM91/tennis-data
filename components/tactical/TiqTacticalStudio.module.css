@@ -1569,6 +1569,11 @@
     padding: 18px;
   }
 
+  .gateHero::after {
+    inset: auto 0 -18% 24%;
+    transform: skewY(-8deg);
+  }
+
   .gateStats {
     gap: 6px;
     grid-template-columns: repeat(3, minmax(0, 1fr));

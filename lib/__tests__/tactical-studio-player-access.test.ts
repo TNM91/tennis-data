@@ -230,6 +230,8 @@ describe('Tactical Studio player access', () => {
     expect(studioStyles).toContain('.gateStats .statValue')
     expect(studioStyles).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));')
     expect(studioStyles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));')
+    expect(studioStyles).toContain('.gateHero::after')
+    expect(studioStyles).toContain('inset: auto 0 -18% 24%;')
     expect(studioStyles).toContain('@media (max-width: 420px)')
     expect(studioStyles).toContain('overflow-wrap: anywhere;')
     expect(studioStyles).toContain('white-space: normal;')
