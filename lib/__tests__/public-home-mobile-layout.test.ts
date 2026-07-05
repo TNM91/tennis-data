@@ -87,15 +87,22 @@ describe('Public home mobile layout guards', () => {
   })
 
   it('keeps the persistent public portal toolbar from becoming a clipped mobile rail', () => {
-    expect(portalToolbarSource).toContain("import { SITE_HEADER_COMPACT_BREAKPOINT } from '@/lib/site-header-responsive'")
-    expect(portalToolbarSource).toContain('const desktopHeaderHasPrimaryNav = screenWidth >= SITE_HEADER_COMPACT_BREAKPOINT')
-    expect(portalToolbarSource).toContain('const showPortalLanePicker = !desktopHeaderHasPrimaryNav')
+    expect(portalToolbarSource).not.toContain("import { SITE_HEADER_COMPACT_BREAKPOINT } from '@/lib/site-header-responsive'")
+    expect(portalToolbarSource).toContain('const showPortalLanePicker = !collapseMobilePortal')
     expect(portalToolbarSource).toContain('{showPortalLanePicker ? (')
     expect(portalToolbarSource).not.toContain("display: publicVisitor && isMobile ? 'flex' : 'grid'")
     expect(portalToolbarSource).not.toContain("overflowX: publicVisitor && isMobile ? 'auto' : undefined")
     expect(portalToolbarSource).not.toContain("flex: '0 0 154px'")
-    expect(portalToolbarSource).toContain('screenWidth < 360')
-    expect(portalToolbarSource).toContain("'repeat(2, minmax(0, 1fr))'")
+    expect(portalToolbarSource).toContain('const desktopPortalCommandGridStyle')
+    expect(portalToolbarSource).toContain('const desktopPortalRailStyle')
+    expect(portalToolbarSource).toContain('const desktopPortalMainStyle')
+    expect(portalToolbarSource).toContain('const desktopPortalSummaryStyle')
+    expect(portalToolbarSource).toContain('Active path')
+    expect(portalToolbarSource).toContain('const desktopPortalLaneGridStyle')
+    expect(styleBlock(portalToolbarSource, 'desktopPortalCommandGridStyle')).toContain(
+      "gridTemplateColumns: 'minmax(min(100%, 250px), 0.72fr) minmax(0, 1.28fr)'",
+    )
+    expect(styleBlock(portalToolbarSource, 'desktopPortalLaneGridStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
     expect(portalToolbarSource).toContain("const compactMobileLaneCardStyle")
     expect(styleBlock(portalToolbarSource, 'compactMobileLaneCardStyle')).toContain("width: '100%'")
     expect(styleBlock(portalToolbarSource, 'compactMobileLaneCardStyle')).toContain("boxSizing: 'border-box'")
