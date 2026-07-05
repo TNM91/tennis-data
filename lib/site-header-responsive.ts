@@ -1,9 +1,11 @@
 import type { UserRole } from './roles'
 
+export const SITE_HEADER_COMPACT_BREAKPOINT = 1200
+
 export function getSiteHeaderCompactBreakpoint(role: UserRole, authenticated: boolean) {
-  if (role === 'admin') return 1680
-  if (authenticated) return 1480
-  return 1200
+  void role
+  void authenticated
+  return SITE_HEADER_COMPACT_BREAKPOINT
 }
 
 export function shouldUseCompactSiteHeader(input: {

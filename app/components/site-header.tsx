@@ -220,13 +220,13 @@ export default function SiteHeader({ active }: { active?: string }) {
             display: 'grid',
             gridTemplateColumns: useCompactHeader
               ? 'minmax(0, 1fr) minmax(0, auto)'
-              : 'minmax(0, auto) minmax(0, 1fr)',
+              : 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
             alignItems: 'center',
-            gap: isMobile ? '8px' : useCompactHeader ? '12px' : '16px',
-            padding: isMobile ? '5px 6px' : useCompactHeader ? '8px 9px' : '10px 12px',
+            gap: isMobile ? '8px' : useCompactHeader ? '12px' : '14px',
+            padding: isMobile ? '5px 6px' : useCompactHeader ? '8px 9px' : '8px 10px',
             minWidth: 0,
             overflowWrap: 'anywhere',
-            borderRadius: isMobile ? 18 : 999,
+            borderRadius: isMobile ? 18 : useCompactHeader ? 999 : 16,
             border: '1px solid color-mix(in srgb, var(--shell-panel-border) 76%, rgba(116,190,255,0.18) 24%)',
             background:
               'linear-gradient(180deg, color-mix(in srgb, var(--header-bg) 86%, var(--surface) 14%) 0%, color-mix(in srgb, var(--header-bg) 94%, transparent 6%) 100%)',
@@ -247,6 +247,14 @@ export default function SiteHeader({ active }: { active?: string }) {
             <BrandWordmark top compact={useCompactBrand} legacyNav siteHeaderCompact={useCompactHeader} />
           </Link>
 
+          {!useCompactHeader ? (
+            <nav aria-label="Primary navigation" style={desktopNavRailStyle}>
+              {PRIMARY_NAV_ITEMS.map((item) => (
+                <UtilityLink key={item.href} href={item.href}>{item.label}</UtilityLink>
+              ))}
+            </nav>
+          ) : null}
+
           <div
             style={{
               display: 'inline-flex',
@@ -257,68 +265,36 @@ export default function SiteHeader({ active }: { active?: string }) {
               maxWidth: '100%',
             }}
           >
-            {useCompactHeader ? null : authPending ? (
-              <span aria-live="polite" style={accountPillStyle}>Checking access</span>
-            ) : authenticated ? (
+            {useCompactHeader ? null : (
               <>
-                {PRIMARY_NAV_ITEMS.map((item) => (
-                  <UtilityLink key={item.href} href={item.href}>{item.label}</UtilityLink>
-                ))}
-                {canOpenPersonalQuest ? (
-                  <UtilityLink href="/level-up/my-quest">My Quest</UtilityLink>
-                ) : null}
                 <button
                   type="button"
                   aria-label={searchOpen ? 'Close site search' : 'Open site search'}
                   aria-expanded={searchOpen}
                   aria-controls="site-header-search-panel"
                   aria-haspopup="dialog"
-                  onClick={() => setSearchOpen((current) => !current)}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setSearchOpen((current) => !current)
+                  }}
                   style={utilityButtonStyle}
                 >
                   Search
                 </button>
-                {accountLabel ? (
-                  <span style={accountPillStyle}>
-                    {profilePhotoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={profilePhotoUrl} alt="" style={accountPhotoStyle} />
-                    ) : null}
-                    {accountLabel}
-                  </span>
-                ) : null}
-                {workspaceShortcut ? (
-                  <Link href={workspaceShortcut.href} style={workspaceShortcutStyle}>
-                    {workspaceShortcut.label}
-                  </Link>
-                ) : null}
-                {role === 'admin' ? (
-                  <UtilityLink href="/admin">Admin dashboard</UtilityLink>
-                ) : null}
-                <button type="button" onClick={handleLogout} style={utilityButtonStyle}>
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                {PRIMARY_NAV_ITEMS.map((item) => (
-                  <UtilityLink key={item.href} href={item.href}>{item.label}</UtilityLink>
-                ))}
                 <button
                   type="button"
-                  aria-label={searchOpen ? 'Close site search' : 'Open site search'}
-                  aria-expanded={searchOpen}
-                  aria-controls="site-header-search-panel"
+                  aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+                  aria-expanded={menuOpen}
+                  aria-controls="site-header-desktop-menu"
                   aria-haspopup="dialog"
-                  onClick={() => setSearchOpen((current) => !current)}
-                  style={utilityButtonStyle}
+                  onClick={() => {
+                    setSearchOpen(false)
+                    setMenuOpen((prev) => !prev)
+                  }}
+                  style={desktopMenuButtonStyle}
                 >
-                  Search
+                  Menu
                 </button>
-                <UtilityLink href="/login">Sign in</UtilityLink>
-                <Link href="/join" style={primaryCtaStyle}>
-                  Start Free
-                </Link>
               </>
             )}
 
@@ -359,6 +335,78 @@ export default function SiteHeader({ active }: { active?: string }) {
               </button>
             </div>
             <UniversalSearch compact placeholder="Search players, teams, leagues, coaches, tournaments, resources, or actions" />
+          </div>
+        ) : null}
+
+        {!useCompactHeader && menuOpen ? (
+          <div
+            id="site-header-desktop-menu"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="site-header-desktop-menu-title"
+            style={desktopMenuPanelStyle}
+          >
+            <div style={desktopMenuHeaderStyle}>
+              <div style={desktopMenuTitleBlockStyle}>
+                <div style={mobileSectionLabelStyle}>{accessPending ? 'Account' : authenticated ? roleLabel || 'Account' : 'Menu'}</div>
+                <h2 id="site-header-desktop-menu-title" style={desktopMenuTitleStyle}>
+                  {authPending ? 'Checking access' : authenticated ? accountLabel || 'Your account' : 'Start playing smarter'}
+                </h2>
+              </div>
+              {profilePhotoUrl && authenticated ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profilePhotoUrl} alt="" style={desktopAccountPhotoStyle} />
+              ) : null}
+            </div>
+
+            {authPending ? (
+              <span aria-live="polite" style={desktopMenuStatusStyle}>Checking account access</span>
+            ) : authenticated ? (
+              <>
+                {workspaceShortcut ? (
+                  <Link href={workspaceShortcut.href} onClick={() => setMenuOpen(false)} style={desktopMenuHighlightLinkStyle}>
+                    {workspaceShortcut.label}
+                  </Link>
+                ) : null}
+                {canOpenPersonalQuest ? (
+                  <Link href="/level-up/my-quest" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                    My Quest
+                  </Link>
+                ) : null}
+                {role === 'admin' ? (
+                  <Link href="/admin" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                    Admin dashboard
+                  </Link>
+                ) : null}
+                <div style={desktopMenuDividerStyle} />
+                <Link href="/profile" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                  Profile
+                </Link>
+                <Link href="/messages" onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                  Messages
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    void handleLogout()
+                  }}
+                  style={desktopMenuButtonItemStyle}
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <p style={desktopMenuCueStyle}>{PRODUCT_MOTTO} Explore public tennis context, then save your own work.</p>
+                <Link href={signInHref} onClick={() => setMenuOpen(false)} style={desktopMenuLinkStyle}>
+                  Sign in
+                </Link>
+                <Link href="/join" onClick={() => setMenuOpen(false)} style={desktopMenuHighlightLinkStyle}>
+                  Start Free
+                </Link>
+              </>
+            )}
           </div>
         ) : null}
 
@@ -562,6 +610,29 @@ const utilityButtonStyle = {
   textOverflow: 'ellipsis',
 } as const
 
+const desktopNavRailStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  justifySelf: 'center',
+  gap: 4,
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: '0 8px',
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--shell-panel-border) 72%, rgba(116,190,255,0.14) 28%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 42%, transparent 58%)',
+  overflow: 'hidden',
+}
+
+const desktopMenuButtonStyle = {
+  ...utilityButtonStyle,
+  minWidth: '82px',
+  border: '1px solid color-mix(in srgb, var(--shell-panel-border) 78%, rgba(116,190,255,0.16) 22%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 68%, transparent 32%)',
+  color: 'var(--foreground-strong)',
+} as const
+
 const primaryCtaStyle = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -590,6 +661,113 @@ const workspaceShortcutStyle = {
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 } as const
+
+const desktopMenuPanelStyle: CSSProperties = {
+  position: 'absolute',
+  zIndex: 3,
+  top: 'calc(100% - 2px)',
+  right: 'max(14px, env(safe-area-inset-right))',
+  width: 'min(310px, calc(100vw - 28px))',
+  display: 'grid',
+  gap: 8,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--shell-panel-border) 78%, rgba(116,190,255,0.16) 22%)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--surface) 4%) 0%, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--surface-soft) 8%) 100%)',
+  boxShadow: '0 20px 48px rgba(2, 10, 24, 0.26), inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const desktopMenuHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '2px 2px 8px',
+}
+
+const desktopMenuTitleBlockStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const desktopMenuTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  fontWeight: 900,
+  letterSpacing: 0,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const desktopAccountPhotoStyle: CSSProperties = {
+  ...accountPhotoStyle,
+  width: 34,
+  height: 34,
+  flex: '0 0 auto',
+}
+
+const desktopMenuStatusStyle: CSSProperties = {
+  ...accountPillStyle,
+  justifyContent: 'flex-start',
+  width: '100%',
+  boxSizing: 'border-box',
+}
+
+const desktopMenuLinkStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  minHeight: 42,
+  padding: '0 12px',
+  borderRadius: 10,
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 14,
+  fontWeight: 820,
+  letterSpacing: 0,
+  background: 'transparent',
+  border: '1px solid transparent',
+}
+
+const desktopMenuHighlightLinkStyle: CSSProperties = {
+  ...workspaceShortcutStyle,
+  justifyContent: 'space-between',
+  width: '100%',
+  minHeight: 44,
+  boxSizing: 'border-box',
+  borderRadius: 10,
+}
+
+const desktopMenuButtonItemStyle: CSSProperties = {
+  ...desktopMenuLinkStyle,
+  width: '100%',
+  cursor: 'pointer',
+  appearance: 'none',
+  textAlign: 'left',
+}
+
+const desktopMenuDividerStyle: CSSProperties = {
+  height: 1,
+  background: 'var(--shell-panel-border)',
+  margin: '2px 0',
+}
+
+const desktopMenuCueStyle: CSSProperties = {
+  margin: 0,
+  borderRadius: 10,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--foreground-strong)',
+  padding: '10px 12px',
+  fontSize: 12,
+  fontWeight: 850,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
 
 const menuButtonStyle = {
   width: '36px',
