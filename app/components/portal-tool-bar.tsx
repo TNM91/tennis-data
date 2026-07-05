@@ -11,6 +11,7 @@ import { getPortalLaneTarget } from '@/lib/portal-lane-routing'
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
+import { SITE_HEADER_COMPACT_BREAKPOINT } from '@/lib/site-header-responsive'
 import { CAPTAIN_TACTICS_BOARD_HREF, COACH_TACTICS_BOARD_HREF, PLAYER_TACTICS_BOARD_HREF } from '@/lib/tactics-hrefs'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -237,6 +238,8 @@ export default function PortalToolBar() {
   const collapseMobilePortal = isMobile
   const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
+  const desktopHeaderHasPrimaryNav = screenWidth >= SITE_HEADER_COMPACT_BREAKPOINT
+  const showPortalLanePicker = !desktopHeaderHasPrimaryNav
   const currentPortalPath = `${pathname}${currentHash}`
   const mobilePortalHasActiveTask = mobilePortalLane
     ? mobilePortalLane.tasks.some((task) => isPortalTaskActive(currentPortalPath, task.href))
@@ -426,39 +429,41 @@ export default function PortalToolBar() {
             </div>
           ) : null}
 
-          <nav
-            aria-label="Choose a TenAceIQ tool"
-            style={{
-              position: 'relative',
-              zIndex: 1,
-              display: 'grid',
-              gridTemplateColumns: publicVisitor && isMobile
-                ? screenWidth < 360
-                  ? 'minmax(0, 1fr)'
-                  : 'repeat(2, minmax(0, 1fr))'
-                : isMobile
-                  ? 'minmax(0, 1fr)'
-                  : 'repeat(6, minmax(0, 1fr))',
-              gap: 10,
-              minWidth: 0,
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
-          >
-            {portalLanes.map((lane) => (
-              <PortalLaneCard
-                key={lane.id}
-                lane={lane}
-                active={lane.id === activeLane.id}
-                access={access}
-                authenticated={authenticated}
-                accessPending={accessPending}
-                profileLinked={profileLinked}
-                compact={publicVisitor}
-                mobileCompact={publicVisitor && isMobile}
-              />
-            ))}
-          </nav>
+          {showPortalLanePicker ? (
+            <nav
+              aria-label="Choose a TenAceIQ tool"
+              style={{
+                position: 'relative',
+                zIndex: 1,
+                display: 'grid',
+                gridTemplateColumns: publicVisitor && isMobile
+                  ? screenWidth < 360
+                    ? 'minmax(0, 1fr)'
+                    : 'repeat(2, minmax(0, 1fr))'
+                  : isMobile
+                    ? 'minmax(0, 1fr)'
+                    : 'repeat(6, minmax(0, 1fr))',
+                gap: 10,
+                minWidth: 0,
+                width: '100%',
+                boxSizing: 'border-box',
+              }}
+            >
+              {portalLanes.map((lane) => (
+                <PortalLaneCard
+                  key={lane.id}
+                  lane={lane}
+                  active={lane.id === activeLane.id}
+                  access={access}
+                  authenticated={authenticated}
+                  accessPending={accessPending}
+                  profileLinked={profileLinked}
+                  compact={publicVisitor}
+                  mobileCompact={publicVisitor && isMobile}
+                />
+              ))}
+            </nav>
+          ) : null}
 
           <form
             onSubmit={handleSearch}

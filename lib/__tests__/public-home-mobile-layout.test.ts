@@ -87,6 +87,10 @@ describe('Public home mobile layout guards', () => {
   })
 
   it('keeps the persistent public portal toolbar from becoming a clipped mobile rail', () => {
+    expect(portalToolbarSource).toContain("import { SITE_HEADER_COMPACT_BREAKPOINT } from '@/lib/site-header-responsive'")
+    expect(portalToolbarSource).toContain('const desktopHeaderHasPrimaryNav = screenWidth >= SITE_HEADER_COMPACT_BREAKPOINT')
+    expect(portalToolbarSource).toContain('const showPortalLanePicker = !desktopHeaderHasPrimaryNav')
+    expect(portalToolbarSource).toContain('{showPortalLanePicker ? (')
     expect(portalToolbarSource).not.toContain("display: publicVisitor && isMobile ? 'flex' : 'grid'")
     expect(portalToolbarSource).not.toContain("overflowX: publicVisitor && isMobile ? 'auto' : undefined")
     expect(portalToolbarSource).not.toContain("flex: '0 0 154px'")
