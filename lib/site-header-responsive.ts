@@ -1,6 +1,6 @@
 import type { UserRole } from './roles'
 
-export const SITE_HEADER_COMPACT_BREAKPOINT = 1200
+export const SITE_HEADER_COMPACT_BREAKPOINT = 10000
 
 export function getSiteHeaderCompactBreakpoint(role: UserRole, authenticated: boolean) {
   void role
