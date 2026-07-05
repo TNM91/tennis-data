@@ -10,16 +10,17 @@ const siteHeaderSource = readFileSync(join(process.cwd(), 'app/components/site-h
 
 describe('site header responsive rules', () => {
   it('keeps the compact breakpoint shared across auth states', () => {
-    expect(getSiteHeaderCompactBreakpoint('admin', true)).toBe(1200)
-    expect(getSiteHeaderCompactBreakpoint('member', true)).toBe(1200)
-    expect(getSiteHeaderCompactBreakpoint('public', false)).toBe(1200)
+    expect(getSiteHeaderCompactBreakpoint('admin', true)).toBe(10000)
+    expect(getSiteHeaderCompactBreakpoint('member', true)).toBe(10000)
+    expect(getSiteHeaderCompactBreakpoint('public', false)).toBe(10000)
   })
 
-  it('uses the same full action nav threshold for guests and members', () => {
+  it('keeps the top header compact for guests and members on real device widths', () => {
     expect(shouldUseCompactSiteHeader({ role: 'admin', authenticated: true, screenWidth: 1199 })).toBe(true)
-    expect(shouldUseCompactSiteHeader({ role: 'captain', authenticated: true, screenWidth: 1280 })).toBe(false)
+    expect(shouldUseCompactSiteHeader({ role: 'captain', authenticated: true, screenWidth: 1280 })).toBe(true)
+    expect(shouldUseCompactSiteHeader({ role: 'member', authenticated: true, screenWidth: 1920 })).toBe(true)
     expect(shouldUseCompactSiteHeader({ role: 'public', authenticated: false, screenWidth: 1100 })).toBe(true)
-    expect(shouldUseCompactSiteHeader({ role: 'public', authenticated: false, screenWidth: 1280 })).toBe(false)
+    expect(shouldUseCompactSiteHeader({ role: 'public', authenticated: false, screenWidth: 1920 })).toBe(true)
   })
 
   it('does not show public account CTAs while auth is still resolving', () => {

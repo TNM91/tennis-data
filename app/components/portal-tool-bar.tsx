@@ -11,7 +11,6 @@ import { getPortalLaneTarget } from '@/lib/portal-lane-routing'
 import { isPortalTaskActive } from '@/lib/portal-task-active'
 import { getPortalTaskTarget } from '@/lib/portal-task-target'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
-import { SITE_HEADER_COMPACT_BREAKPOINT } from '@/lib/site-header-responsive'
 import { CAPTAIN_TACTICS_BOARD_HREF, COACH_TACTICS_BOARD_HREF, PLAYER_TACTICS_BOARD_HREF } from '@/lib/tactics-hrefs'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -179,7 +178,7 @@ export default function PortalToolBar() {
   const pathname = usePathname() || '/'
   const router = useRouter()
   const { role, userId, entitlements, authResolved, session } = useAuth()
-  const { screenWidth, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const [query, setQuery] = useState('')
   const [profileName, setProfileName] = useState('')
   const [profileLinked, setProfileLinked] = useState(false)
@@ -238,8 +237,7 @@ export default function PortalToolBar() {
   const collapseMobilePortal = isMobile
   const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
-  const desktopHeaderHasPrimaryNav = screenWidth >= SITE_HEADER_COMPACT_BREAKPOINT
-  const showPortalLanePicker = !desktopHeaderHasPrimaryNav
+  const showPortalLanePicker = !collapseMobilePortal
   const currentPortalPath = `${pathname}${currentHash}`
   const mobilePortalHasActiveTask = mobilePortalLane
     ? mobilePortalLane.tasks.some((task) => isPortalTaskActive(currentPortalPath, task.href))
@@ -398,130 +396,129 @@ export default function PortalToolBar() {
           <>
 
           <div
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            display: 'grid',
-            gap: publicVisitor ? 10 : isMobile ? 14 : 16,
-            minWidth: 0,
-          }}
-        >
-          {showExpandedPortalIntro ? (
-            <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 6, minWidth: 0 }}>
-              <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
-              <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
-                {authenticated ? 'What do we want to work on today?' : PLATFORM_POSITIONING}
-              </p>
-            </div>
-          ) : null}
-
-          {showPortalBrandRunway ? (
-            <div
-              aria-hidden="true"
-              style={{
-                ...portalBrandRunwayStyle,
-                minHeight: isMobile ? 152 : 198,
-              }}
-            >
-              <span
-                style={{
-                  ...portalBrandRunwayMarkStyle,
-                  width: isMobile ? 'min(84vw, 320px)' : 'min(38vw, 420px)',
-                  opacity: isMobile ? 0.38 : 0.34,
-                }}
-              />
-            </div>
-          ) : null}
-
-          {showPortalLanePicker ? (
-            <nav
-              aria-label="Choose a TenAceIQ tool"
-              style={{
-                position: 'relative',
-                zIndex: 1,
-                display: 'grid',
-                gridTemplateColumns: publicVisitor && isMobile
-                  ? screenWidth < 360
-                    ? 'minmax(0, 1fr)'
-                    : 'repeat(2, minmax(0, 1fr))'
-                  : isMobile
-                    ? 'minmax(0, 1fr)'
-                    : 'repeat(6, minmax(0, 1fr))',
-                gap: 10,
-                minWidth: 0,
-                width: '100%',
-                boxSizing: 'border-box',
-              }}
-            >
-              {portalLanes.map((lane) => (
-                <PortalLaneCard
-                  key={lane.id}
-                  lane={lane}
-                  active={lane.id === activeLane.id}
-                  access={access}
-                  authenticated={authenticated}
-                  accessPending={accessPending}
-                  profileLinked={profileLinked}
-                  compact={publicVisitor}
-                  mobileCompact={publicVisitor && isMobile}
-                />
-              ))}
-            </nav>
-          ) : null}
-
-          <form
-            onSubmit={handleSearch}
             style={{
-              position: 'relative',
-              zIndex: 1,
-              display: 'grid',
-              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
-              gap: 12,
-              minWidth: 0,
+              ...desktopPortalCommandGridStyle,
+              gap: publicVisitor ? 12 : 16,
             }}
           >
-            <label style={{ ...searchShellStyle, ...(publicVisitor ? compactSearchShellStyle : null) }}>
-              <SearchIcon />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search players, teams, leagues, tournaments, coaches, resources..."
-                aria-label="Search players, teams, leagues, tournaments, coaches, and resources"
-                style={searchInputStyle}
-              />
-            </label>
-            <button type="submit" style={{ ...searchButtonStyle, ...(publicVisitor ? compactSearchButtonStyle : null) }}>
-              Search
-            </button>
-          </form>
+            <aside style={desktopPortalRailStyle}>
+              {showExpandedPortalIntro ? (
+                <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 6, minWidth: 0 }}>
+                  <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
+                  <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
+                    {authenticated ? 'What do we want to work on today?' : PLATFORM_POSITIONING}
+                  </p>
+                </div>
+              ) : null}
 
-          {visibleTasks.length > 0 ? (
-            <div
-              style={{
-                position: 'relative',
-                zIndex: 1,
-                display: 'grid',
-                gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
-                gap: 10,
-                minWidth: 0,
-              }}
-            >
-              {visibleTasks.map((task) => (
-                <PortalTaskCard
-                  key={task.title}
-                  task={task}
-                  access={access}
-                  authenticated={authenticated}
-                  accessPending={accessPending}
-                  accent={activeAccent}
-                  active={isPortalTaskActive(currentPortalPath, task.href)}
-                  profileLinked={profileLinked}
-                  compact={publicVisitor}
-                />
-            ))}
+              {showPortalBrandRunway ? (
+                <div
+                  aria-hidden="true"
+                  style={{
+                    ...portalBrandRunwayStyle,
+                    minHeight: 168,
+                  }}
+                >
+                  <span
+                    style={{
+                      ...portalBrandRunwayMarkStyle,
+                      width: 'min(100%, 420px)',
+                      opacity: 0.34,
+                    }}
+                  />
+                </div>
+              ) : null}
+
+              {showPortalLanePicker ? (
+                <nav
+                  aria-label="Choose a TenAceIQ tool"
+                  style={desktopPortalLaneGridStyle}
+                >
+                  {portalLanes.map((lane) => (
+                    <PortalLaneCard
+                      key={lane.id}
+                      lane={lane}
+                      active={lane.id === activeLane.id}
+                      access={access}
+                      authenticated={authenticated}
+                      accessPending={accessPending}
+                      profileLinked={profileLinked}
+                      compact={publicVisitor}
+                      mobileCompact={false}
+                    />
+                  ))}
+                </nav>
+              ) : null}
+            </aside>
+
+            <div style={desktopPortalMainStyle}>
+              <form
+                onSubmit={handleSearch}
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, auto)',
+                  gap: 12,
+                  minWidth: 0,
+                }}
+              >
+                <label style={{ ...searchShellStyle, ...(publicVisitor ? compactSearchShellStyle : null) }}>
+                  <SearchIcon />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search players, teams, leagues, tournaments, coaches, resources..."
+                    aria-label="Search players, teams, leagues, tournaments, coaches, and resources"
+                    style={searchInputStyle}
+                  />
+                </label>
+                <button type="submit" style={{ ...searchButtonStyle, ...(publicVisitor ? compactSearchButtonStyle : null) }}>
+                  Search
+                </button>
+              </form>
+
+              {visibleTasks.length > 0 ? (
+                <div
+                  style={{
+                    position: 'relative',
+                    zIndex: 1,
+                    display: 'grid',
+                    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
+                    gap: 10,
+                    minWidth: 0,
+                  }}
+                >
+                  {visibleTasks.map((task) => (
+                    <PortalTaskCard
+                      key={task.title}
+                      task={task}
+                      access={access}
+                      authenticated={authenticated}
+                      accessPending={accessPending}
+                      accent={activeAccent}
+                      active={isPortalTaskActive(currentPortalPath, task.href)}
+                      profileLinked={profileLinked}
+                      compact={publicVisitor}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              <div style={desktopPortalSummaryStyle}>
+                <span style={summaryKickerStyle}>Active path</span>
+                <strong style={summaryTitleStyle}>{activeLane.label}</strong>
+                <p style={summaryCopyStyle}>{activeLane.cue}. Start with search, then open the tennis action that matches today.</p>
+                <div style={summaryProofGridStyle}>
+                  {activeLane.tasks.slice(0, 3).map((task) => (
+                    <span key={task.title} style={summaryProofStyle}>
+                      <span style={summaryProofMetricStyle}>{task.metric}</span>
+                      {task.title}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        ) : null}
-        </div>
           </>
         )}
       </div>
@@ -822,6 +819,114 @@ const portalSubtitleStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.5,
   fontWeight: 700,
+}
+
+const desktopPortalCommandGridStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(min(100%, 250px), 0.72fr) minmax(0, 1.28fr)',
+  alignItems: 'stretch',
+  minWidth: 0,
+}
+
+const desktopPortalRailStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+}
+
+const desktopPortalMainStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+}
+
+const desktopPortalSummaryStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: 10,
+  minHeight: 188,
+  alignContent: 'start',
+  padding: 16,
+  borderRadius: 8,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'linear-gradient(160deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055) 42%, rgba(7,17,33,0.72))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+
+const summaryKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const summaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.05,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const summaryCopyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const summaryProofGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const summaryProofStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minHeight: 62,
+  alignContent: 'center',
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,33,0.58)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const summaryProofMetricStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  lineHeight: 1,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const desktopPortalLaneGridStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 10,
+  minWidth: 0,
+  width: '100%',
+  boxSizing: 'border-box',
 }
 
 const publicPortalTitleStyle: CSSProperties = {
