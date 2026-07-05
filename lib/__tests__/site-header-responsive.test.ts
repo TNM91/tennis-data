@@ -9,23 +9,22 @@ import {
 const siteHeaderSource = readFileSync(join(process.cwd(), 'app/components/site-header.tsx'), 'utf8')
 
 describe('site header responsive rules', () => {
-  it('keeps breakpoint constants documented for future wide-header tuning', () => {
-    expect(getSiteHeaderCompactBreakpoint('admin', true)).toBe(1680)
-    expect(getSiteHeaderCompactBreakpoint('member', true)).toBe(1480)
+  it('keeps the compact breakpoint shared across auth states', () => {
+    expect(getSiteHeaderCompactBreakpoint('admin', true)).toBe(1200)
+    expect(getSiteHeaderCompactBreakpoint('member', true)).toBe(1200)
     expect(getSiteHeaderCompactBreakpoint('public', false)).toBe(1200)
   })
 
-  it('uses the full action nav when the viewport can support it', () => {
-    expect(shouldUseCompactSiteHeader({ role: 'admin', authenticated: true, screenWidth: 1720 })).toBe(false)
-    expect(shouldUseCompactSiteHeader({ role: 'captain', authenticated: true, screenWidth: 1440 })).toBe(true)
-    expect(shouldUseCompactSiteHeader({ role: 'captain', authenticated: true, screenWidth: 1520 })).toBe(false)
+  it('uses the same full action nav threshold for guests and members', () => {
+    expect(shouldUseCompactSiteHeader({ role: 'admin', authenticated: true, screenWidth: 1199 })).toBe(true)
+    expect(shouldUseCompactSiteHeader({ role: 'captain', authenticated: true, screenWidth: 1280 })).toBe(false)
     expect(shouldUseCompactSiteHeader({ role: 'public', authenticated: false, screenWidth: 1100 })).toBe(true)
     expect(shouldUseCompactSiteHeader({ role: 'public', authenticated: false, screenWidth: 1280 })).toBe(false)
   })
 
   it('does not show public account CTAs while auth is still resolving', () => {
     expect(siteHeaderSource).toContain('const authPending = !authResolved')
-    expect(siteHeaderSource).toContain("authPending ? (")
+    expect(siteHeaderSource).toContain("authPending ? 'Checking access'")
     expect(siteHeaderSource).toContain('Checking access')
     expect(siteHeaderSource).toContain('{authPending ? null : authenticated ? (')
   })
@@ -44,13 +43,16 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain("if (access.canUseAdvancedPlayerInsights) return { href: '/mylab', label: 'My Lab' }")
     expect(siteHeaderSource).toContain("return { href: '/explore', label: 'Find tennis' }")
     expect(siteHeaderSource).toContain('const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)')
-    expect(siteHeaderSource).toContain('const workspaceShortcutStyle')
+    expect(siteHeaderSource).toContain('const desktopMenuHighlightLinkStyle')
     expect(siteHeaderSource).toContain('const mobileWorkspaceItemStyle')
   })
 
   it('keeps shared header controls readable across themes', () => {
     expect(siteHeaderSource).toContain('const primaryCtaStyle')
     expect(siteHeaderSource).toContain('const utilityButtonStyle')
+    expect(siteHeaderSource).toContain('const desktopNavRailStyle')
+    expect(siteHeaderSource).toContain('const desktopMenuButtonStyle')
+    expect(siteHeaderSource).toContain('const desktopMenuPanelStyle')
     expect(siteHeaderSource).toContain('const headerSearchPanelStyle')
     expect(siteHeaderSource).toContain('const mobileSearchWrapStyle')
     expect(siteHeaderSource).toContain("accessPending ? 'Account' : authenticated ? roleLabel || 'Account' : 'Menu'")
@@ -78,6 +80,7 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain('role="dialog"')
     expect(siteHeaderSource).toContain('aria-modal="false"')
     expect(siteHeaderSource).toContain('aria-labelledby="site-header-search-title"')
+    expect(siteHeaderSource).toContain('aria-labelledby="site-header-desktop-menu-title"')
     expect(siteHeaderSource).toContain('aria-label="Close site search"')
     expect(siteHeaderSource).toContain("event.key === 'Escape'")
     expect(siteHeaderSource).toContain('const headerSearchPanelHeaderStyle')
