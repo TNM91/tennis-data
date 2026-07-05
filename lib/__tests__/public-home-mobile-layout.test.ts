@@ -190,6 +190,7 @@ describe('Public home mobile layout guards', () => {
     expect(universalSearchSource).toContain("'minmax(0, 1fr) minmax(84px, auto)'")
     expect(universalSearchSource).toContain('gap: isMobile ? 8 : 10')
     expect(universalSearchSource).toContain('aria-label="Search TenAceIQ"')
+    expect(universalSearchSource).toContain('suppressHydrationWarning')
     expect(universalSearchSource).toContain("{isMobile ? 'Search' : 'Search Tennis'}")
   })
 })

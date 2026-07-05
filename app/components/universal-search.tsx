@@ -336,6 +336,7 @@ export default function UniversalSearch({
           onFocus={() => setInputFocused(true)}
           placeholder={placeholder}
           aria-controls={resultRegionId}
+          suppressHydrationWarning
           style={{
             ...inputStyle,
             ...(inputFocused ? inputFocusStyle : null),
