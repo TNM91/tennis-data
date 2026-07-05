@@ -99,8 +99,10 @@ describe('Public home mobile layout guards', () => {
     expect(portalToolbarSource).toContain('const desktopPortalSummaryStyle')
     expect(portalToolbarSource).toContain('Active path')
     expect(portalToolbarSource).toContain('const desktopPortalLaneGridStyle')
+    expect(portalToolbarSource).toContain('const useCompactPortalControls = publicVisitor || !isMobile')
+    expect(portalToolbarSource).toContain('showPortalBrandRunway && !useCompactPortalControls')
     expect(styleBlock(portalToolbarSource, 'desktopPortalCommandGridStyle')).toContain(
-      "gridTemplateColumns: 'minmax(min(100%, 250px), 0.72fr) minmax(0, 1.28fr)'",
+      "gridTemplateColumns: 'minmax(min(100%, 240px), 0.52fr) minmax(0, 1.48fr)'",
     )
     expect(styleBlock(portalToolbarSource, 'desktopPortalLaneGridStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
     expect(portalToolbarSource).toContain("const compactMobileLaneCardStyle")

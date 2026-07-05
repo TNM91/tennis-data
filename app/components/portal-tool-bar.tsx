@@ -281,6 +281,7 @@ export default function PortalToolBar() {
       : 'Welcome back.'
     : PRODUCT_MOTTO
   const activeAccent = getLaneAccent(activeLane.id)
+  const useCompactPortalControls = publicVisitor || !isMobile
 
   return (
     <>
@@ -300,7 +301,7 @@ export default function PortalToolBar() {
               : '10px 16px 8px'
             : isMobile
               ? '14px 8px 10px'
-              : '18px 16px 12px',
+              : '10px 16px 10px',
         overflow: 'clip',
         background: collapseMobilePortal ? mobilePortalDockBackground : undefined,
         borderBottom: collapseMobilePortal ? '1px solid rgba(116,190,255,0.12)' : undefined,
@@ -313,8 +314,8 @@ export default function PortalToolBar() {
           width: 'min(1280px, 100%)',
           margin: '0 auto',
           display: 'grid',
-          gap: publicVisitor ? 10 : isMobile ? 14 : 16,
-          padding: collapseMobilePortal ? '5px 0 0' : publicVisitor ? (isSmallMobile ? 12 : 14) : isSmallMobile ? 16 : isMobile ? 18 : 20,
+          gap: publicVisitor ? 10 : isMobile ? 14 : 12,
+          padding: collapseMobilePortal ? '5px 0 0' : publicVisitor ? (isSmallMobile ? 12 : 14) : isSmallMobile ? 16 : isMobile ? 18 : 14,
           borderRadius: collapseMobilePortal ? 0 : publicVisitor ? (isSmallMobile ? 18 : 20) : isSmallMobile ? 24 : 28,
           border: collapseMobilePortal ? '0' : '1px solid rgba(116,190,255,0.15)',
           background: collapseMobilePortal ? 'transparent' : portalSurfaceBackground,
@@ -400,12 +401,12 @@ export default function PortalToolBar() {
                 </div>
               ) : null}
 
-              {showPortalBrandRunway ? (
+              {showPortalBrandRunway && !useCompactPortalControls ? (
                 <div
                   aria-hidden="true"
                   style={{
                     ...portalBrandRunwayStyle,
-                    minHeight: 168,
+                    minHeight: useCompactPortalControls ? 84 : 132,
                   }}
                 >
                   <span
@@ -432,7 +433,7 @@ export default function PortalToolBar() {
                       authenticated={authenticated}
                       accessPending={accessPending}
                       profileLinked={profileLinked}
-                      compact={publicVisitor}
+                      compact={useCompactPortalControls}
                       mobileCompact={false}
                     />
                   ))}
@@ -452,7 +453,7 @@ export default function PortalToolBar() {
                   minWidth: 0,
                 }}
               >
-                <label style={{ ...searchShellStyle, ...(publicVisitor ? compactSearchShellStyle : null) }}>
+                <label style={{ ...searchShellStyle, ...(useCompactPortalControls ? compactSearchShellStyle : null) }}>
                   <SearchIcon />
                   <input
                     value={query}
@@ -462,7 +463,7 @@ export default function PortalToolBar() {
                     style={searchInputStyle}
                   />
                 </label>
-                <button type="submit" style={{ ...searchButtonStyle, ...(publicVisitor ? compactSearchButtonStyle : null) }}>
+                <button type="submit" style={{ ...searchButtonStyle, ...(useCompactPortalControls ? compactSearchButtonStyle : null) }}>
                   Search
                 </button>
               </form>
@@ -488,7 +489,7 @@ export default function PortalToolBar() {
                       accent={activeAccent}
                       active={isPortalTaskActive(currentPortalPath, task.href)}
                       profileLinked={profileLinked}
-                      compact={publicVisitor}
+                      compact={useCompactPortalControls}
                     />
                   ))}
                 </div>
@@ -851,7 +852,7 @@ const desktopPortalCommandGridStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'minmax(min(100%, 250px), 0.72fr) minmax(0, 1.28fr)',
+  gridTemplateColumns: 'minmax(min(100%, 240px), 0.52fr) minmax(0, 1.48fr)',
   alignItems: 'stretch',
   minWidth: 0,
 }
@@ -874,10 +875,10 @@ const desktopPortalSummaryStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gap: 10,
-  minHeight: 188,
+  gap: 8,
+  minHeight: 154,
   alignContent: 'start',
-  padding: 16,
+  padding: 14,
   borderRadius: 8,
   border: '1px solid rgba(155,225,29,0.16)',
   background:
@@ -949,7 +950,7 @@ const desktopPortalLaneGridStyle: CSSProperties = {
   zIndex: 1,
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr)',
-  gap: 10,
+  gap: 7,
   minWidth: 0,
   width: '100%',
   boxSizing: 'border-box',
@@ -1069,8 +1070,8 @@ const laneCardStyle: CSSProperties = {
 const compactLaneCardStyle: CSSProperties = {
   gridTemplateColumns: '34px minmax(0, 1fr)',
   gap: 8,
-  minHeight: 58,
-  padding: 9,
+  minHeight: 46,
+  padding: '7px 8px',
   borderRadius: 8,
 }
 
