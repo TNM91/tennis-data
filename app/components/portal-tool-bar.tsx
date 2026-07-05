@@ -371,25 +371,14 @@ export default function PortalToolBar() {
                 ))}
               </>
             ) : portalLanes.map((lane) => (
-              <button
+              <MobilePortalLaneButton
                 key={lane.id}
-                type="button"
-                onClick={(event) => handleMobilePortalLaneSelect(event, lane.id)}
-                style={{
-                  ...mobilePortalTileStyle,
-                  borderColor: lane.id === activeLane.id ? getLaneAccent(lane.id) : 'rgba(116,190,255,0.15)',
-                  background: lane.id === activeLane.id ? portalActiveCardBackground : 'rgba(255,255,255,0.045)',
-                }}
-                aria-pressed={lane.id === activeLane.id}
-                aria-controls={portalActionMenuId}
-                aria-expanded={mobilePortalLaneId === lane.id}
-                aria-label={`${lane.label}: ${lane.cue}`}
-              >
-                <span style={mobilePortalTileIconStyle}>
-                  <TiqFeatureIcon name={lane.icon} size="sm" variant={lane.id === activeLane.id ? 'surface' : 'ghost'} />
-                </span>
-                <span style={mobilePortalTileLabelStyle}>{getMobileLaneLabel(lane.id)}</span>
-              </button>
+                lane={lane}
+                active={lane.id === activeLane.id}
+                expanded={mobilePortalLaneId === lane.id}
+                controlsId={portalActionMenuId}
+                onSelect={handleMobilePortalLaneSelect}
+              />
             ))}
           </div>
         ) : (
@@ -690,6 +679,43 @@ function MobilePortalTaskTile({
         {target.locked ? <NavLockIcon size={10} /> : null}
       </span>
     </Link>
+  )
+}
+
+function MobilePortalLaneButton({
+  lane,
+  active,
+  expanded,
+  controlsId,
+  onSelect,
+}: {
+  lane: PortalLane
+  active: boolean
+  expanded: boolean
+  controlsId: string
+  onSelect: (event: MouseEvent<HTMLButtonElement>, laneId: PortalLaneId) => void
+}) {
+  const label = getMobileLaneLabel(lane.id)
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => onSelect(event, lane.id)}
+      style={{
+        ...mobilePortalTileStyle,
+        borderColor: active ? getLaneAccent(lane.id) : 'rgba(116,190,255,0.15)',
+        background: active ? portalActiveCardBackground : 'rgba(255,255,255,0.045)',
+      }}
+      aria-pressed={active}
+      aria-controls={controlsId}
+      aria-expanded={expanded}
+      aria-label={`${label}: ${lane.cue}`}
+    >
+      <span style={mobilePortalTileIconStyle}>
+        <TiqFeatureIcon name={lane.icon} size="sm" variant={active ? 'surface' : 'ghost'} />
+      </span>
+      <span style={mobilePortalTileLabelStyle}>{label}</span>
+    </button>
   )
 }
 
