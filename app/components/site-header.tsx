@@ -165,6 +165,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
   const signInHref = `/login?next=${encodeURIComponent(pathname || '/')}`
   const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)
+  const compactMenuId = 'site-header-compact-menu'
   const canOpenPersonalQuest = isPersonalQuestOwner({
     id: session?.user?.id ?? userId,
     email: session?.user?.email,
@@ -303,6 +304,8 @@ export default function SiteHeader({ active }: { active?: string }) {
                 type="button"
                 aria-label={menuOpen ? 'Close menu' : 'Open menu'}
                 aria-expanded={menuOpen}
+                aria-controls={compactMenuId}
+                aria-haspopup="dialog"
                 onClick={() => setMenuOpen((prev) => !prev)}
                 style={menuButtonStyle}
               >
@@ -412,6 +415,10 @@ export default function SiteHeader({ active }: { active?: string }) {
 
         {useCompactHeader && menuOpen ? (
           <div
+            id={compactMenuId}
+            role="dialog"
+            aria-modal="false"
+            aria-label="Site menu"
             style={{
               position: 'relative',
               zIndex: 2,
