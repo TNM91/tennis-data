@@ -247,6 +247,7 @@ export default function PortalToolBar() {
   const mobilePortalStickyTop = 'var(--header-height)'
   const showExpandedPortalIntro = !collapseMobilePortal
   const portalMenuId = 'tenaceiq-mobile-portal-menu'
+  const portalActionMenuId = 'tenaceiq-mobile-portal-actions'
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -328,7 +329,7 @@ export default function PortalToolBar() {
       >
         {collapseMobilePortal ? (
           <div
-            id={portalMenuId}
+            id={mobilePortalLane ? portalActionMenuId : portalMenuId}
             style={mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle}
             aria-label={mobilePortalLane ? `${mobilePortalLane.label} actions` : 'Main TenAceIQ menu'}
             aria-live="polite"
@@ -340,6 +341,7 @@ export default function PortalToolBar() {
                   onClick={handleMobilePortalMainSelect}
                   style={mobilePortalBackTileStyle}
                   aria-label="Show main TenAceIQ menu"
+                  aria-controls={portalMenuId}
                 >
                   <span style={mobilePortalTileIconStyle}>
                     <TiqFeatureIcon name="opponentScouting" size="sm" variant="ghost" />
@@ -381,6 +383,8 @@ export default function PortalToolBar() {
                   background: lane.id === activeLane.id ? portalActiveCardBackground : 'rgba(255,255,255,0.045)',
                 }}
                 aria-pressed={lane.id === activeLane.id}
+                aria-controls={portalActionMenuId}
+                aria-expanded={mobilePortalLaneId === lane.id}
                 aria-label={`${lane.label}: ${lane.cue}`}
               >
                 <span style={mobilePortalTileIconStyle}>
