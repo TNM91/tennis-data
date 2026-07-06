@@ -65,6 +65,7 @@ for (const viewport of viewports) {
       }
 
       const bodyText = (document.body.innerText || '').replace(/\s+/g, ' ').trim()
+      const footerContent = document.querySelector('[data-site-footer-content="true"]')
       const footerNav = document.querySelector('footer nav')
       const openMenuButton = document.querySelector('button[aria-label="Open menu"]')
 
@@ -72,6 +73,7 @@ for (const viewport of viewports) {
         bodyText,
         documentWidth: document.documentElement.scrollWidth,
         footer: roundRect('footer'),
+        footerContent: footerContent ? roundRect('[data-site-footer-content="true"]') : null,
         footerNav: footerNav ? roundRect('footer nav') : null,
         header: roundRect('header'),
         main: roundRect('#main-content'),
@@ -122,24 +124,32 @@ for (const viewport of viewports) {
         })
       }
 
-      if (!metrics.footerNav) {
+      if (!metrics.footerContent) {
         findings.push({
           viewport: viewport.name,
-          type: 'footer-nav-missing',
+          type: 'footer-content-missing',
           metrics,
         })
       } else if (metrics.main) {
-        const leftDelta = Math.abs(metrics.footerNav.left - metrics.main.left)
-        const rightDelta = Math.abs(metrics.footerNav.right - metrics.main.right)
+        const leftDelta = Math.abs(metrics.footerContent.left - metrics.main.left)
+        const rightDelta = Math.abs(metrics.footerContent.right - metrics.main.right)
 
         if (leftDelta > tolerance || rightDelta > tolerance) {
           findings.push({
             viewport: viewport.name,
-            type: 'footer-not-aligned-with-main',
-            footerNav: metrics.footerNav,
+            type: 'footer-content-not-aligned-with-main',
+            footerContent: metrics.footerContent,
             main: metrics.main,
           })
         }
+      }
+
+      if (metrics.footerNav) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'rail-footer-nav-visible',
+          footerNav: metrics.footerNav,
+        })
       }
     } else {
       if (metrics.rail) {

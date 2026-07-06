@@ -22,6 +22,7 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
   const { isTablet, isMobile } = useViewportBreakpoints()
   const useRailFooter = railLayout && !isMobile
   const railFooterOffset = railWidth + 32
+  const showFooterNav = !isMobile && !useRailFooter
 
   return (
     <footer
@@ -44,11 +45,12 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
         }}
       >
         <div
+          data-site-footer-content="true"
           style={{
-            paddingTop: isMobile ? 14 : 16,
+            paddingTop: useRailFooter ? 12 : isMobile ? 14 : 16,
             borderTop: '1px solid rgba(116, 190, 255, 0.10)',
             display: 'grid',
-            gap: isMobile ? 14 : 16,
+            gap: useRailFooter ? 12 : isMobile ? 14 : 16,
           }}
         >
           <div
@@ -82,7 +84,7 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
             </div>
           </div>
 
-          {isMobile ? null : (
+          {showFooterNav ? (
             <nav
               aria-label="Footer"
               style={{
@@ -106,7 +108,7 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
                 </div>
               ))}
             </nav>
-          )}
+          ) : null}
 
           <div
             style={{
