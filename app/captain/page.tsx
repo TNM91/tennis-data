@@ -433,6 +433,7 @@ function CaptainLockedSurface({
           secondaryLabel={secondaryLabel}
           secondaryHref={secondaryHref}
           compact
+          summaryOnly={isMobile}
         />
       </section>
     </div>
