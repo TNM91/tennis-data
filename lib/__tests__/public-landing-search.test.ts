@@ -9,7 +9,11 @@ const tournamentsSource = readFileSync(join(process.cwd(), 'app/tournaments/page
 describe('public landing search', () => {
   it('lets public landing pages tune the universal search prompt', () => {
     expect(commandCenterSource).toContain('searchPlaceholder')
-    expect(commandCenterSource).toContain('<UniversalSearch placeholder={searchPlaceholder} />')
+    expect(commandCenterSource).toContain('searchCompact')
+    expect(commandCenterSource).toContain('showSearchResults')
+    expect(commandCenterSource).toContain('compact={searchCompact}')
+    expect(commandCenterSource).toContain('placeholder={searchPlaceholder}')
+    expect(commandCenterSource).toContain('showResults={showSearchResults}')
   })
 
   it('keeps Coaches and Tournaments searchable from their hero sections', () => {
