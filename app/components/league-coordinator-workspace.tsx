@@ -1978,6 +1978,7 @@ export function LeagueCoordinatorWorkspace() {
                 secondaryLabel="Keep drafting"
                 footnote={accessBannerText}
                 compact
+                summaryOnly={isMobile}
               />
             ) : (
               <div
@@ -2620,6 +2621,7 @@ export function LeagueCoordinatorWorkspace() {
                   }
                   ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
                   secondaryLabel="Compare plans"
+                  summaryOnly={isMobile}
                 />
               </div>
             ) : null}
@@ -2777,6 +2779,7 @@ export function LeagueCoordinatorWorkspace() {
                   body={LEAGUE_COORDINATOR_STORY.finalUpgradeBody}
                   ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
                   secondaryLabel="See league value"
+                  summaryOnly={isMobile}
                 />
               </div>
             ) : null}
