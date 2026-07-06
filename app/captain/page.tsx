@@ -349,14 +349,24 @@ function CaptainLockedSurface({
     ...heroCard,
     gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : heroCard.gridTemplateColumns,
     gap: isMobile ? 16 : heroCard.gap,
-    padding: isSmallMobile ? 18 : isMobile ? 20 : heroCard.padding,
+    alignItems: 'start',
+    padding: 0,
+    border: 0,
+    background: 'transparent',
+    boxShadow: 'none',
+    overflow: 'visible',
+  }
+  const lockedPreviewPanel: CSSProperties = {
+    ...heroLeft,
+    ...lockedPreviewPanelStyle,
+    padding: isSmallMobile ? 18 : isMobile ? 20 : lockedPreviewPanelStyle.padding,
   }
 
   return (
     <div style={pageWrap}>
       <section style={lockedHeroCard} aria-label="Team Hub preview">
         <span aria-hidden="true" style={watermarkStyle} />
-        <div style={heroLeft}>
+        <div style={lockedPreviewPanel}>
           <div>
             <div style={sectionKicker}>Captain tools</div>
             <h1 style={scopeTitleStyle}>Run match week with less chaos.</h1>
@@ -3072,6 +3082,15 @@ const heroLeft: CSSProperties = {
   gap: 16,
   alignContent: 'start',
   minWidth: 0,
+}
+
+const lockedPreviewPanelStyle: CSSProperties = {
+  padding: 24,
+  borderRadius: 28,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: 'var(--portal-surface-bg)',
+  boxShadow: '0 24px 70px rgba(2,8,23,0.32), inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflow: 'hidden',
 }
 
 const scopeHeaderStyle: CSSProperties = {

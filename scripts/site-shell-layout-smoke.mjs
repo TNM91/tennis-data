@@ -87,6 +87,7 @@ for (const viewport of viewports) {
         openMenuButton: openMenuButton ? roundRect('button[aria-label="Open menu"]') : null,
         rail: roundRect('[data-portal-rail="true"]'),
         railScrollbarWidth: rail ? window.getComputedStyle(rail).scrollbarWidth : null,
+        viewportHeight: window.innerHeight,
         viewportWidth: window.innerWidth,
       }
     })
@@ -129,6 +130,13 @@ for (const viewport of viewports) {
           type: 'rail-overlaps-main',
           main: metrics.main,
           rail: metrics.rail,
+        })
+      } else if (metrics.rail.bottom < metrics.viewportHeight - 12) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'rail-does-not-fill-viewport',
+          rail: metrics.rail,
+          viewportHeight: metrics.viewportHeight,
         })
       }
 

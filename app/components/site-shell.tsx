@@ -159,6 +159,7 @@ const portalRailAsideStyle: CSSProperties = {
   left: 'max(16px, calc((100vw - 1280px) / 2 + 16px))',
   zIndex: 24,
   minWidth: 0,
+  height: 'calc(100dvh - var(--header-height) - 20px)',
   maxHeight: 'calc(100dvh - var(--header-height) - 20px)',
   overflow: 'auto',
 }

@@ -902,9 +902,10 @@ function SearchIcon() {
 const railPortalShellStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  alignContent: 'start',
+  gridTemplateRows: 'auto auto auto minmax(0, 1fr)',
   gap: 10,
   width: '100%',
+  minHeight: '100%',
   minWidth: 0,
   padding: 12,
   borderRadius: 14,
@@ -979,6 +980,7 @@ const railPortalStatusStyle: CSSProperties = {
   background: 'linear-gradient(160deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055) 42%, rgba(7,17,33,0.72))',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
+  alignSelf: 'end',
 }
 
 const railPortalStatusTitleStyle: CSSProperties = {
