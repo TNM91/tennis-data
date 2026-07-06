@@ -220,6 +220,8 @@ export function CommandHero({
   primary,
   secondary,
   showSearch = true,
+  searchCompact = false,
+  showSearchResults = true,
   searchPlaceholder,
   showBoard = true,
 }: {
@@ -229,6 +231,8 @@ export function CommandHero({
   primary?: { href: string; label: string }
   secondary?: { href: string; label: string }
   showSearch?: boolean
+  searchCompact?: boolean
+  showSearchResults?: boolean
   searchPlaceholder?: string
   showBoard?: boolean
 }) {
@@ -240,7 +244,13 @@ export function CommandHero({
           <div style={eyebrowStyle}>{eyebrow}</div>
           <h1 style={heroTitleStyle}>{title}</h1>
           <p style={heroBodyStyle}>{body}</p>
-          {showSearch ? <UniversalSearch placeholder={searchPlaceholder} /> : null}
+          {showSearch ? (
+            <UniversalSearch
+              compact={searchCompact}
+              placeholder={searchPlaceholder}
+              showResults={showSearchResults}
+            />
+          ) : null}
           {(primary || secondary) ? (
             <div style={actionRowStyle}>
               {primary ? (
@@ -548,9 +558,9 @@ export const pageWrapStyle: CSSProperties = {
   zIndex: 2,
   width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '18px 0 64px',
+  padding: '18px 0 56px',
   display: 'grid',
-  gap: 22,
+  gap: 18,
   minWidth: 0,
 }
 
@@ -572,11 +582,11 @@ const heroCopyStyle: CSSProperties = {
   containerType: 'inline-size',
   display: 'grid',
   alignContent: 'center',
-  gap: 14,
+  gap: 12,
   minWidth: 0,
   maxWidth: '100%',
   boxSizing: 'border-box',
-  padding: 'clamp(16px, 3vw, 24px)',
+  padding: 'clamp(16px, 3vw, 22px)',
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.18)',
   background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(7,20,40,0.90))',
@@ -601,7 +611,7 @@ const heroCopyContentStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gap: 14,
+  gap: 12,
   minWidth: 0,
 }
 
@@ -609,16 +619,16 @@ const heroPanelStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
   alignContent: 'start',
-  gap: 14,
+  gap: 12,
   minWidth: 0,
   maxWidth: '100%',
   boxSizing: 'border-box',
-  padding: 22,
+  padding: 18,
   borderRadius: 8,
   border: '1px solid rgba(155,225,29,0.22)',
   background: 'linear-gradient(160deg, rgba(155,225,29,0.12), rgba(116,190,255,0.08) 42%, rgba(8,16,34,0.84))',
   color: 'var(--shell-copy-muted)',
-  lineHeight: 1.65,
+  lineHeight: 1.55,
   fontWeight: 760,
   overflow: 'hidden',
 }
@@ -640,7 +650,7 @@ const heroPanelHeaderStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gap: 8,
+  gap: 7,
   minWidth: 0,
 }
 
@@ -655,7 +665,7 @@ const panelKickerStyle: CSSProperties = {
 
 const panelTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 22,
+  fontSize: 21,
   lineHeight: 1.05,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -665,7 +675,7 @@ const panelCopyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
-  lineHeight: 1.55,
+  lineHeight: 1.45,
   fontWeight: 720,
 }
 
@@ -681,7 +691,7 @@ const eyebrowStyle: CSSProperties = {
 const heroTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2.45rem, 10cqw, 4rem)',
+  fontSize: 'clamp(2.35rem, 9cqw, 3.7rem)',
   lineHeight: 0.95,
   fontWeight: 950,
   letterSpacing: 0,
@@ -692,8 +702,8 @@ const heroBodyStyle: CSSProperties = {
   margin: 0,
   maxWidth: 820,
   color: 'var(--shell-copy-muted)',
-  fontSize: 'clamp(0.98rem, 2.4cqw, 1.12rem)',
-  lineHeight: 1.7,
+  fontSize: 'clamp(0.96rem, 2.2cqw, 1.08rem)',
+  lineHeight: 1.58,
   fontWeight: 700,
 }
 
@@ -732,13 +742,13 @@ const ghostButtonStyle: CSSProperties = {
 
 const sectionStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
+  gap: 12,
   minWidth: 0,
 }
 
 const sectionHeaderStyle: CSSProperties = {
   display: 'grid',
-  gap: 7,
+  gap: 6,
   maxWidth: 820,
   minWidth: 0,
 }
@@ -746,7 +756,7 @@ const sectionHeaderStyle: CSSProperties = {
 const sectionTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(1.65rem, 3vw, 2.6rem)',
+  fontSize: 'clamp(1.45rem, 2.6vw, 2.25rem)',
   lineHeight: 1.05,
   fontWeight: 950,
 }
@@ -755,7 +765,7 @@ const sectionBodyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 15,
-  lineHeight: 1.7,
+  lineHeight: 1.55,
 }
 
 const actionGridStyle: CSSProperties = {
@@ -767,10 +777,10 @@ const actionGridStyle: CSSProperties = {
 
 const actionCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
-  minHeight: 236,
+  gap: 9,
+  minHeight: 202,
   alignContent: 'start',
-  padding: 18,
+  padding: 16,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(8,16,34,0.74)',
@@ -782,8 +792,8 @@ const chipStyle: CSSProperties = {
   width: 'fit-content',
   display: 'inline-flex',
   alignItems: 'center',
-  minHeight: 28,
-  padding: '0 10px',
+  minHeight: 26,
+  padding: '0 9px',
   borderRadius: 999,
   border: '1px solid rgba(155,225,29,0.24)',
   background: 'rgba(155,225,29,0.10)',
@@ -796,7 +806,7 @@ const chipStyle: CSSProperties = {
 const cardTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 24,
+  fontSize: 22,
   lineHeight: 1.08,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -806,7 +816,7 @@ const cardBodyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 14,
-  lineHeight: 1.65,
+  lineHeight: 1.5,
   fontWeight: 700,
 }
 
@@ -832,7 +842,7 @@ const cardGhostLinkStyle: CSSProperties = {
 
 const homeCtaSectionStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
+  gap: 10,
   minWidth: 0,
 }
 
@@ -854,8 +864,8 @@ const homeCtaHeadingStyle: CSSProperties = {
 
 const homeCtaGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: 10,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
+  gap: 9,
   minWidth: 0,
 }
 
@@ -863,13 +873,13 @@ const homePrimaryCtaStyle: CSSProperties = {
   ...primaryButtonStyle,
   flexDirection: 'column',
   alignItems: 'flex-start',
-  minHeight: 50,
+  minHeight: 46,
   width: '100%',
   boxSizing: 'border-box',
   borderRadius: 8,
   fontSize: 13,
   gap: 4,
-  padding: '10px 12px',
+  padding: '9px 11px',
   textAlign: 'left',
 }
 
@@ -877,13 +887,13 @@ const homeSecondaryCtaStyle: CSSProperties = {
   ...ghostButtonStyle,
   flexDirection: 'column',
   alignItems: 'flex-start',
-  minHeight: 50,
+  minHeight: 46,
   width: '100%',
   boxSizing: 'border-box',
   borderRadius: 8,
   fontSize: 13,
   gap: 4,
-  padding: '10px 12px',
+  padding: '9px 11px',
   textAlign: 'left',
 }
 
@@ -924,13 +934,13 @@ const homeCtaHelperStyle: CSSProperties = {
 const pillarGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))',
-  gap: 14,
+  gap: 12,
   minWidth: 0,
 }
 
 const pillarCardStyle: CSSProperties = {
   ...actionCardStyle,
-  minHeight: 300,
+  minHeight: 260,
   border: '1px solid rgba(155,225,29,0.16)',
   background:
     'linear-gradient(160deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055) 40%, rgba(8,16,34,0.84))',
@@ -938,15 +948,15 @@ const pillarCardStyle: CSSProperties = {
 
 const pillarProofGridStyle: CSSProperties = {
   display: 'grid',
-  gap: 7,
+  gap: 6,
   minWidth: 0,
 }
 
 const pillarProofStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  minHeight: 32,
-  padding: '0 10px',
+  minHeight: 30,
+  padding: '0 9px',
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(7,17,33,0.58)',
@@ -959,16 +969,16 @@ const pillarProofStyle: CSSProperties = {
 const audienceGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-  gap: 12,
+  gap: 10,
   minWidth: 0,
 }
 
 const audiencePathStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
-  minHeight: 166,
+  gap: 8,
+  minHeight: 138,
   alignContent: 'start',
-  padding: 16,
+  padding: 14,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(8,16,34,0.74)',
@@ -988,7 +998,7 @@ const audienceCtaStyle: CSSProperties = {
 const previewGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
-  gap: 14,
+  gap: 12,
   minWidth: 0,
 }
 
@@ -1007,7 +1017,7 @@ const storyCardStyle: CSSProperties = {
 const miniCourtStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  minHeight: 176,
+  minHeight: 138,
   borderRadius: 8,
   border: '2px solid rgba(155,225,29,0.44)',
   background:
@@ -1039,11 +1049,11 @@ function courtServiceLineStyle(position: 'top' | 'bottom'): CSSProperties {
 
 const courtBoardStyle: CSSProperties = {
   position: 'absolute',
-  inset: 14,
+  inset: 12,
   display: 'grid',
   alignContent: 'end',
   gap: 8,
-  padding: 14,
+  padding: 12,
   borderRadius: 8,
   border: '1px solid rgba(255,255,255,0.18)',
   background: 'linear-gradient(180deg, transparent 4%, rgba(3,7,18,0.22) 56%, rgba(3,7,18,0.72) 100%)',
@@ -1064,7 +1074,7 @@ const courtBoardKickerStyle: CSSProperties = {
 }
 
 const courtBoardTitleStyle: CSSProperties = {
-  fontSize: 18,
+  fontSize: 17,
   lineHeight: 1.14,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -1075,15 +1085,15 @@ const heroBoardGridStyle: CSSProperties = {
   zIndex: 1,
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: 10,
+  gap: 9,
   minWidth: 0,
 }
 
 const heroBoardActionStyle: CSSProperties = {
   display: 'grid',
-  gap: 5,
-  minHeight: 74,
-  padding: 12,
+  gap: 4,
+  minHeight: 62,
+  padding: 10,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'rgba(7,17,33,0.74)',
@@ -1095,7 +1105,7 @@ const heroBoardActionStyle: CSSProperties = {
 
 const heroBoardActionLabelStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 15,
+  fontSize: 14,
   lineHeight: 1.1,
   fontWeight: 950,
 }
@@ -1103,7 +1113,7 @@ const heroBoardActionLabelStyle: CSSProperties = {
 const heroBoardActionDetailStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
-  lineHeight: 1.35,
+  lineHeight: 1.28,
   fontWeight: 760,
   overflowWrap: 'anywhere',
 }
@@ -1114,8 +1124,8 @@ const panelFooterStyle: CSSProperties = {
   margin: 0,
   paddingTop: 2,
   color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.55,
+  fontSize: 12,
+  lineHeight: 1.45,
   fontWeight: 780,
 }
 

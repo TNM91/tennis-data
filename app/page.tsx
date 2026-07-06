@@ -52,6 +52,8 @@ export default function HomePage() {
           primary={{ href: '/explore', label: 'Start Exploring' }}
           secondary={{ href: '/explore/players', label: 'Find Player Insights' }}
           searchPlaceholder="Search players, teams, leagues, tournaments, coaches, resources, or tennis actions"
+          searchCompact
+          showSearchResults={false}
           showBoard
         />
         <p style={homeTierPromiseStyle}>
