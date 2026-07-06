@@ -35,7 +35,7 @@ const results: SearchResult[] = [
     title: 'Find a player',
     detail: 'Search names, cities, ratings, teams, leagues, and recent context.',
     href: '/explore/players',
-    keywords: ['player', 'name', 'rating', 'rating level', '4.0', '4.5', 'rankings', 'singles', 'doubles', 'doubles partner', 'opponent'],
+    keywords: ['player', 'players', 'find players', 'name', 'rating', 'rating level', '4.0', '4.5', 'rankings', 'singles', 'doubles', 'doubles partner', 'opponent'],
   },
   {
     group: 'Teams',
@@ -254,7 +254,9 @@ export default function UniversalSearch({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const q = query.trim()
+    const formData = new FormData(event.currentTarget)
+    const submittedQuery = formData.get('q')
+    const q = (typeof submittedQuery === 'string' ? submittedQuery : query).trim()
     if (!q) {
       void trackProductUsageEvent({
         eventName: 'search_submitted',
@@ -324,12 +326,13 @@ export default function UniversalSearch({
 
   return (
     <div style={searchShellStyle}>
-      <form onSubmit={handleSubmit} role="search" aria-label="Search TenAceIQ" style={formStyle(isMobile)}>
+      <form action="/explore/search" method="get" onSubmit={handleSubmit} role="search" aria-label="Search TenAceIQ" style={formStyle(isMobile)}>
         <label htmlFor={`tiq-universal-search-${searchId}`} style={srOnlyStyle}>
           Search tennis
         </label>
         <input
           id={`tiq-universal-search-${searchId}`}
+          name="q"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onBlur={() => setInputFocused(false)}

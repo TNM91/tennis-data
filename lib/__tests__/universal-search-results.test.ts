@@ -45,6 +45,7 @@ describe('universal search result model', () => {
   it('recognizes natural tennis search intents', () => {
     for (const keyword of [
       '4.0 league near me',
+      'find players',
       'doubles partner',
       'scorecard upload',
       'captain lineup',
@@ -110,5 +111,14 @@ describe('universal search result model', () => {
     expect(source).toContain('showResults?: boolean')
     expect(source).toContain('showResults && !compact')
     expect(source).toContain('{showResults ? (')
+  })
+
+  it('keeps search submission resilient when compact results are hidden', () => {
+    expect(source).toContain('action="/explore/search"')
+    expect(source).toContain('method="get"')
+    expect(source).toContain('name="q"')
+    expect(source).toContain('new FormData(event.currentTarget)')
+    expect(source).toContain("formData.get('q')")
+    expect(source).toContain("typeof submittedQuery === 'string' ? submittedQuery : query")
   })
 })
