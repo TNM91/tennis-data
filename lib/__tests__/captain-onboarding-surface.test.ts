@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
+const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}: CSSProperties = {`)
@@ -119,6 +120,9 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('captainPreviewMobileActionRowStyle')).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
     expect(styleBlock('captainPreviewMobilePrimaryActionStyle')).toContain('minHeight: 42')
     expect(styleBlock('captainPreviewMobilePrimaryActionStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(shellSmokeSource).toContain("type: 'captain-mobile-unlock-actions-missing'")
+    expect(shellSmokeSource).toContain("type: 'captain-mobile-unlock-action-not-prominent'")
+    expect(shellSmokeSource).toContain('/upgrade?plan=captain&next=%2Fcaptain')
     expect(styleBlock('captainDecisionPathShellStyle')).toContain('minWidth: 0')
     expect(styleBlock('captainDecisionPathGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
     expect(styleBlock('captainDecisionPathCardStyle')).toContain('minWidth: 0')
