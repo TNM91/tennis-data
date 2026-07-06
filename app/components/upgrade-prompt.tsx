@@ -18,6 +18,7 @@ type UpgradePromptProps = {
   secondaryHref?: string
   footnote?: string
   compact?: boolean
+  summaryOnly?: boolean
   children?: ReactNode
   unlockSteps?: ReadonlyArray<UpgradePromptUnlockStep>
 }
@@ -38,6 +39,7 @@ export default function UpgradePrompt({
   secondaryHref,
   footnote,
   compact = false,
+  summaryOnly = false,
   children,
   unlockSteps,
 }: UpgradePromptProps) {
@@ -52,6 +54,7 @@ export default function UpgradePrompt({
   const resolvedSecondaryHref = secondaryHref || '/pricing'
   const resolvedUnlockSteps = unlockSteps ?? getUnlockSteps(planId)
   const visibleUnlockSteps = resolvedUnlockSteps.slice(0, compact ? 2 : resolvedUnlockSteps.length)
+  const showDetailedGuidance = !summaryOnly
 
   async function startCheckout() {
     if (checkoutSubmitting || !session?.access_token || planId === 'free') return
@@ -142,7 +145,7 @@ export default function UpgradePrompt({
 
         <h3 style={titleStyle}>{headline}</h3>
         <p style={{ ...bodyStyle, ...(compact ? compactBodyStyle : null) }}>{body}</p>
-        {planId !== 'free' ? (
+        {planId !== 'free' && showDetailedGuidance ? (
           <p style={{ ...entitlementNoteStyle, ...(compact ? compactEntitlementNoteStyle : null) }}>
             Creating an account starts Free access. This tier unlocks after the plan is active.
           </p>
@@ -159,30 +162,34 @@ export default function UpgradePrompt({
           {plan.alternatePriceNote ? <span style={noteStyle}>{plan.alternatePriceNote}</span> : null}
         </div>
 
-        <div style={{ ...valueListStyle, ...(compact ? compactValueListStyle : null) }}>
-          {plan.valueProps.slice(0, compact ? 2 : 4).map((valueProp) => (
-            <span key={valueProp} style={{ ...valuePillStyle, ...(compact ? compactValuePillStyle : null) }}>
-              {valueProp}
-            </span>
-          ))}
-        </div>
-
-        <div style={{ ...unlockPathStyle, ...(compact ? compactUnlockPathStyle : null) }}>
-          <div style={unlockPathLabelStyle}>Best next unlock</div>
-          <div style={unlockStepGridStyle}>
-            {visibleUnlockSteps.map((step, index) => (
-              <div key={step.title} style={{ ...unlockStepStyle, ...(compact ? compactUnlockStepStyle : null) }}>
-                <span style={unlockStepNumberStyle}>{index + 1}</span>
-                <span style={unlockStepTextStyle}>
-                  <strong style={unlockStepTitleStyle}>{step.title}</strong>
-                  <span style={{ ...unlockStepBodyStyle, ...(compact ? compactUnlockStepBodyStyle : null) }}>
-                    {step.body}
-                  </span>
-                </span>
-              </div>
+        {showDetailedGuidance ? (
+          <div style={{ ...valueListStyle, ...(compact ? compactValueListStyle : null) }}>
+            {plan.valueProps.slice(0, compact ? 2 : 4).map((valueProp) => (
+              <span key={valueProp} style={{ ...valuePillStyle, ...(compact ? compactValuePillStyle : null) }}>
+                {valueProp}
+              </span>
             ))}
           </div>
-        </div>
+        ) : null}
+
+        {showDetailedGuidance ? (
+          <div style={{ ...unlockPathStyle, ...(compact ? compactUnlockPathStyle : null) }}>
+            <div style={unlockPathLabelStyle}>Best next unlock</div>
+            <div style={unlockStepGridStyle}>
+              {visibleUnlockSteps.map((step, index) => (
+                <div key={step.title} style={{ ...unlockStepStyle, ...(compact ? compactUnlockStepStyle : null) }}>
+                  <span style={unlockStepNumberStyle}>{index + 1}</span>
+                  <span style={unlockStepTextStyle}>
+                    <strong style={unlockStepTitleStyle}>{step.title}</strong>
+                    <span style={{ ...unlockStepBodyStyle, ...(compact ? compactUnlockStepBodyStyle : null) }}>
+                      {step.body}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {children}
 
