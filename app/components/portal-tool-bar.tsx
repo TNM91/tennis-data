@@ -282,6 +282,7 @@ export default function PortalToolBar() {
     : PRODUCT_MOTTO
   const activeAccent = getLaneAccent(activeLane.id)
   const useCompactPortalControls = publicVisitor || !isMobile
+  const useDenseDesktopPortalRail = authenticated && !isMobile
 
   return (
     <>
@@ -388,13 +389,14 @@ export default function PortalToolBar() {
           <div
             style={{
               ...desktopPortalCommandGridStyle,
+              ...(useDenseDesktopPortalRail ? desktopPortalMemberCommandGridStyle : null),
               gap: publicVisitor ? 12 : 16,
             }}
           >
             <aside style={desktopPortalRailStyle}>
               {showExpandedPortalIntro ? (
                 <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 6, minWidth: 0 }}>
-                  <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : null) }}>{headline}</div>
+                  <div style={{ ...portalTitleStyle, ...(publicVisitor ? publicPortalTitleStyle : signedInPortalTitleStyle) }}>{headline}</div>
                   <p style={{ ...portalSubtitleStyle, ...(publicVisitor ? publicPortalSubtitleStyle : null) }}>
                     {authenticated ? 'What do we want to work on today?' : PLATFORM_POSITIONING}
                   </p>
@@ -422,7 +424,10 @@ export default function PortalToolBar() {
               {showPortalLanePicker ? (
                 <nav
                   aria-label="Choose a TenAceIQ tool"
-                  style={desktopPortalLaneGridStyle}
+                  style={{
+                    ...desktopPortalLaneGridStyle,
+                    ...(useDenseDesktopPortalRail ? desktopPortalMemberLaneGridStyle : null),
+                  }}
                 >
                   {portalLanes.map((lane) => (
                     <PortalLaneCard
@@ -435,6 +440,7 @@ export default function PortalToolBar() {
                       profileLinked={profileLinked}
                       compact={useCompactPortalControls}
                       mobileCompact={false}
+                      dense={useDenseDesktopPortalRail}
                     />
                   ))}
                 </nav>
@@ -526,6 +532,7 @@ function PortalLaneCard({
   profileLinked,
   compact,
   mobileCompact,
+  dense,
 }: {
   lane: PortalLane
   active: boolean
@@ -535,6 +542,7 @@ function PortalLaneCard({
   profileLinked: boolean
   compact?: boolean
   mobileCompact?: boolean
+  dense?: boolean
 }) {
   const target = getPortalLaneTarget({
     laneId: lane.id,
@@ -555,6 +563,7 @@ function PortalLaneCard({
         ...laneCardStyle,
         ...(compact ? compactLaneCardStyle : null),
         ...(mobileCompact ? compactMobileLaneCardStyle : null),
+        ...(dense ? denseDesktopLaneCardStyle : null),
         borderColor: active ? accent : 'rgba(116,190,255,0.15)',
         background: active ? portalActiveCardBackground : 'rgba(255,255,255,0.045)',
         boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(116,190,255,0.08)' : undefined,
@@ -570,7 +579,7 @@ function PortalLaneCard({
             </span>
           ) : null}
         </span>
-        <span style={laneCueStyle}>{target.locked ? 'Preview unlock' : lane.cue}</span>
+        <span style={{ ...laneCueStyle, ...(dense ? denseDesktopLaneCueStyle : null) }}>{target.locked ? 'Preview unlock' : lane.cue}</span>
       </span>
     </Link>
   )
@@ -857,6 +866,10 @@ const desktopPortalCommandGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const desktopPortalMemberCommandGridStyle: CSSProperties = {
+  gridTemplateColumns: 'minmax(min(100%, 360px), 0.72fr) minmax(0, 1.28fr)',
+}
+
 const desktopPortalRailStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'start',
@@ -956,9 +969,18 @@ const desktopPortalLaneGridStyle: CSSProperties = {
   boxSizing: 'border-box',
 }
 
+const desktopPortalMemberLaneGridStyle: CSSProperties = {
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+}
+
 const publicPortalTitleStyle: CSSProperties = {
   fontSize: 'clamp(1.15rem, 2.2vw, 1.55rem)',
   lineHeight: 1.08,
+}
+
+const signedInPortalTitleStyle: CSSProperties = {
+  fontSize: 'clamp(1.35rem, 2.4vw, 2.05rem)',
+  lineHeight: 1.04,
 }
 
 const publicPortalSubtitleStyle: CSSProperties = {
@@ -1075,6 +1097,13 @@ const compactLaneCardStyle: CSSProperties = {
   borderRadius: 8,
 }
 
+const denseDesktopLaneCardStyle: CSSProperties = {
+  gridTemplateColumns: '28px minmax(0, 1fr)',
+  gap: 7,
+  minHeight: 42,
+  padding: '6px 8px',
+}
+
 const compactMobileLaneCardStyle: CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
@@ -1106,6 +1135,10 @@ const laneCueStyle: CSSProperties = {
   lineHeight: 1.3,
   fontWeight: 750,
   overflowWrap: 'anywhere',
+}
+
+const denseDesktopLaneCueStyle: CSSProperties = {
+  display: 'none',
 }
 
 const lockBubbleStyle: CSSProperties = {
