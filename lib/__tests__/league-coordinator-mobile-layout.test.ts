@@ -30,6 +30,7 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('mobileStackedActionRowStyle')
     expect(source).toContain('mobileParticipantBuilderStyle')
     expect(source).toContain('mobileNextActionCardStyle')
+    expect(source).toContain('summaryOnly={isMobile}')
   })
 
   it('keeps the setup form Data Assist upload workflow visible', () => {
