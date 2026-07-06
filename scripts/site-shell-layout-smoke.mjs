@@ -313,6 +313,132 @@ for (const viewport of viewports) {
   }
 }
 
+const captainMobilePage = await browser.newPage({
+  viewport: {
+    width: 390,
+    height: 844,
+  },
+})
+
+captainMobilePage.on('console', (message) => {
+  if (message.type() !== 'error') return
+  const text = message.text()
+  const location = message.location()
+  const locationUrl = location?.url ?? ''
+  const combined = `${text} ${locationUrl}`
+  if (ignoredConsoleFragments.some((fragment) => combined.includes(fragment))) return
+
+  findings.push({
+    viewport: 'mobile',
+    route: captainMobilePage.url(),
+    type: 'console',
+    source: locationUrl,
+    text: text.slice(0, 220),
+  })
+})
+
+try {
+  await captainMobilePage.goto(`${baseUrl}/captain?shellqa=${Date.now()}`, {
+    waitUntil: 'networkidle',
+    timeout: 35_000,
+  })
+  await captainMobilePage.waitForTimeout(400)
+
+  const captainMetrics = await captainMobilePage.evaluate(() => {
+    const quickActions = document.querySelector('[aria-label="Captain mobile unlock actions"]')
+    const links = Array.from(quickActions?.querySelectorAll('a') || []).map((element) => {
+      const rect = element.getBoundingClientRect()
+      return {
+        bottom: Math.round(rect.bottom),
+        height: Math.round(rect.height),
+        href: element.getAttribute('href'),
+        text: (element.textContent || '').replace(/\s+/g, ' ').trim(),
+        top: Math.round(rect.top),
+        visible: rect.bottom > 0 && rect.top < window.innerHeight,
+        width: Math.round(rect.width),
+      }
+    })
+
+    return {
+      documentWidth: document.documentElement.scrollWidth,
+      links,
+      quickActionsVisible: Boolean(quickActions),
+      railVisible: Boolean(document.querySelector('[data-portal-rail="true"]')),
+      viewportHeight: window.innerHeight,
+      viewportWidth: window.innerWidth,
+    }
+  })
+
+  if (captainMetrics.documentWidth > captainMetrics.viewportWidth + 1) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'captain-mobile-horizontal-overflow',
+      documentWidth: captainMetrics.documentWidth,
+      viewportWidth: captainMetrics.viewportWidth,
+    })
+  }
+
+  if (captainMetrics.railVisible) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'captain-mobile-rail-visible',
+    })
+  }
+
+  if (!captainMetrics.quickActionsVisible) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'captain-mobile-unlock-actions-missing',
+      captainMetrics,
+    })
+  } else {
+    const unlockAction = captainMetrics.links.find((link) => link.href === '/upgrade?plan=captain&next=%2Fcaptain')
+    const secondaryAction = captainMetrics.links.find((link) => link.href === '/pricing' || link.href === '/mylab')
+
+    if (!unlockAction || !unlockAction.visible || unlockAction.height < 42 || unlockAction.top > captainMetrics.viewportHeight * 0.58) {
+      findings.push({
+        viewport: 'mobile',
+        type: 'captain-mobile-unlock-action-not-prominent',
+        captainMetrics,
+      })
+    }
+
+    if (!secondaryAction || !secondaryAction.visible || secondaryAction.height < 42) {
+      findings.push({
+        viewport: 'mobile',
+        type: 'captain-mobile-secondary-action-not-prominent',
+        captainMetrics,
+      })
+    }
+  }
+
+  const captainUnlockAction = captainMobilePage.locator(
+    '[aria-label="Captain mobile unlock actions"] a[href="/upgrade?plan=captain&next=%2Fcaptain"]',
+  )
+  const captainUnlockActionCount = await captainUnlockAction.count()
+
+  if (captainUnlockActionCount !== 1) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'captain-mobile-unlock-action-route-missing',
+      captainUnlockActionCount,
+    })
+  } else {
+    await Promise.all([
+      captainMobilePage.waitForURL(/\/upgrade\?plan=captain&next=%2Fcaptain/, { timeout: 10_000 }),
+      captainUnlockAction.click(),
+    ])
+  }
+} catch (error) {
+  findings.push({
+    viewport: 'mobile',
+    type: 'captain-mobile-unlock-actions-navigation',
+    text: error instanceof Error ? error.message : String(error),
+  })
+} finally {
+  await captainMobilePage.close()
+}
+
 await browser.close()
 
 if (findings.length) {
