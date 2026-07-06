@@ -5,6 +5,11 @@ import BrandWordmark from '@/app/components/brand-wordmark'
 import { FOOTER_NAV_SECTIONS } from '@/lib/site-navigation'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
+type SiteFooterProps = {
+  railLayout?: boolean
+  railWidth?: number
+}
+
 const META_LINKS = [
   { href: '/about', label: 'About' },
   { href: '/faq', label: 'FAQ' },
@@ -13,15 +18,19 @@ const META_LINKS = [
   { href: '/legal/terms', label: 'Terms' },
 ]
 
-export default function SiteFooter() {
+export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFooterProps) {
   const { isTablet, isMobile } = useViewportBreakpoints()
+  const useRailFooter = railLayout && !isMobile
+  const railFooterOffset = railWidth + 32
 
   return (
     <footer
       style={{
         position: 'relative',
         zIndex: 1,
-        padding: `14px max(12px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))`,
+        padding: useRailFooter
+          ? '14px 0 calc(18px + env(safe-area-inset-bottom)) 0'
+          : `14px max(12px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))`,
       }}
     >
       <div
@@ -29,114 +38,122 @@ export default function SiteFooter() {
           width: '100%',
           maxWidth: '1280px',
           margin: '0 auto',
-          paddingTop: isMobile ? 14 : 16,
-          borderTop: '1px solid rgba(116, 190, 255, 0.10)',
-          display: 'grid',
-          gap: isMobile ? 14 : 16,
+          paddingLeft: useRailFooter ? railFooterOffset : 0,
+          paddingRight: useRailFooter ? 16 : 0,
+          boxSizing: 'border-box',
         }}
       >
         <div
           style={{
+            paddingTop: isMobile ? 14 : 16,
+            borderTop: '1px solid rgba(116, 190, 255, 0.10)',
             display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr)',
-            gap: isMobile ? 14 : 18,
-            alignItems: 'center',
-            minWidth: 0,
+            gap: isMobile ? 14 : 16,
           }}
         >
-          <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
-            <Link href="/" aria-label="TenAceIQ home" style={{ width: 'fit-content', maxWidth: '100%' }}>
-              <BrandWordmark footer />
-            </Link>
-
-            <p
-              style={{
-                margin: 0,
-                maxWidth: '540px',
-                minWidth: 0,
-                color: 'var(--footer-text)',
-                fontSize: '14px',
-                lineHeight: 1.5,
-                fontWeight: 600,
-                overflowWrap: 'anywhere',
-              }}
-            >
-              Find what matters. Personalize the read. Compare the next match. Go play.
-            </p>
-          </div>
-        </div>
-
-        {isMobile ? null : (
-          <nav
-            aria-label="Footer"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))',
-              gap: 22,
-              paddingTop: 14,
-              borderTop: '1px solid rgba(116, 190, 255, 0.08)',
-            }}
-          >
-            {FOOTER_NAV_SECTIONS.map((section) => (
-              <div key={section.title} style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
-                <div style={footerSectionTitleStyle}>{section.title}</div>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {section.items.map((item) => (
-                    <Link key={`${section.title}-${item.href}`} href={item.href} style={footerNavLinkStyle}>
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </nav>
-        )}
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 8.5rem)',
-            gap: isMobile ? 10 : 16,
-            alignItems: 'center',
-            paddingTop: 10,
-            borderTop: '1px solid rgba(116, 190, 255, 0.08)',
-            minWidth: 0,
-          }}
-        >
-
           <div
             style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '10px 14px',
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr)',
+              gap: isMobile ? 14 : 18,
               alignItems: 'center',
               minWidth: 0,
             }}
           >
-            {META_LINKS.map((item) => (
-              <Link key={item.href} href={item.href} style={footerMetaLinkStyle}>
-                {item.label}
+            <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
+              <Link href="/" aria-label="TenAceIQ home" style={{ width: 'fit-content', maxWidth: '100%' }}>
+                <BrandWordmark footer />
               </Link>
-            ))}
+
+              <p
+                style={{
+                  margin: 0,
+                  maxWidth: '540px',
+                  minWidth: 0,
+                  color: 'var(--footer-text)',
+                  fontSize: '14px',
+                  lineHeight: 1.5,
+                  fontWeight: 600,
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                Find what matters. Personalize the read. Compare the next match. Go play.
+              </p>
+            </div>
           </div>
 
-          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={backToTopStyle}>
-            Back to top
-          </button>
-        </div>
+          {isMobile ? null : (
+            <nav
+              aria-label="Footer"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))',
+                gap: 22,
+                paddingTop: 14,
+                borderTop: '1px solid rgba(116, 190, 255, 0.08)',
+              }}
+            >
+              {FOOTER_NAV_SECTIONS.map((section) => (
+                <div key={section.title} style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
+                  <div style={footerSectionTitleStyle}>{section.title}</div>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {section.items.map((item) => (
+                      <Link key={`${section.title}-${item.href}`} href={item.href} style={footerNavLinkStyle}>
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          )}
 
-        <div
-          style={{
-            color: 'var(--footer-meta)',
-            fontSize: '12px',
-            lineHeight: 1.6,
-            fontWeight: 600,
-            letterSpacing: '0.02em',
-            minWidth: 0,
-            overflowWrap: 'anywhere',
-          }}
-        >
-          {'\u00A9'} {new Date().getFullYear()} TenAceIQ. Data. Insight. Competitive advantage.
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 8.5rem)',
+              gap: isMobile ? 10 : 16,
+              alignItems: 'center',
+              paddingTop: 10,
+              borderTop: '1px solid rgba(116, 190, 255, 0.08)',
+              minWidth: 0,
+            }}
+          >
+
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '10px 14px',
+                alignItems: 'center',
+                minWidth: 0,
+              }}
+            >
+              {META_LINKS.map((item) => (
+                <Link key={item.href} href={item.href} style={footerMetaLinkStyle}>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+
+            <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={backToTopStyle}>
+              Back to top
+            </button>
+          </div>
+
+          <div
+            style={{
+              color: 'var(--footer-meta)',
+              fontSize: '12px',
+              lineHeight: 1.6,
+              fontWeight: 600,
+              letterSpacing: '0.02em',
+              minWidth: 0,
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {'\u00A9'} {new Date().getFullYear()} TenAceIQ. Data. Insight. Competitive advantage.
+          </div>
         </div>
       </div>
     </footer>
