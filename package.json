@@ -90,6 +90,7 @@
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",
     "qa:seo-share": "node scripts/seo-share-readiness-smoke.mjs",
     "qa:adsense-live": "node scripts/adsense-live-readiness-smoke.mjs",
+    "qa:shell": "node scripts/site-shell-layout-smoke.mjs",
     "qa:stripe-live-mode": "node scripts/stripe-checkout-mode-smoke.mjs --expect=live",
     "qa:stripe-live-readiness": "node scripts/stripe-live-readiness.mjs",
     "qa:stripe-live-catalog": "node scripts/stripe-live-catalog-audit.mjs",
