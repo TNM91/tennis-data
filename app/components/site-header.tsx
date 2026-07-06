@@ -188,6 +188,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
         : ''
   const firstName = linkedPlayerName.split(' ')[0] || ''
   const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
+  const showMobileAccountPill = Boolean(accountLabel && (firstName || profilePhotoUrl || accountLabel !== roleLabel))
   const signInHref = `/login?next=${encodeURIComponent(pathname || '/')}`
   const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)
   const compactMenuId = 'site-header-compact-menu'
@@ -455,7 +456,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               <div style={mobilePanelTopStyle}>
                 <div style={mobileSectionLabelStyle}>{accessPending ? 'Account' : authenticated ? roleLabel || 'Account' : 'Menu'}</div>
                 <div style={mobileAccountToolsStyle}>
-                  {accountLabel ? (
+                  {showMobileAccountPill ? (
                     <span style={mobileAccountPillStyle}>
                       {profilePhotoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
