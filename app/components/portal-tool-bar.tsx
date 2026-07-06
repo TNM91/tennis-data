@@ -21,6 +21,7 @@ const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'
 
 type PortalToolBarProps = {
   layout?: 'top' | 'rail'
+  suppressed?: boolean
 }
 
 type PortalLane = {
@@ -178,7 +179,7 @@ function getMetadataFirstName(session: ReturnType<typeof useAuth>['session']) {
   return raw.trim().split(' ')[0] || ''
 }
 
-export default function PortalToolBar({ layout = 'top' }: PortalToolBarProps) {
+export default function PortalToolBar({ layout = 'top', suppressed = false }: PortalToolBarProps) {
   const pathname = usePathname() || '/'
   const router = useRouter()
   const { role, userId, entitlements, authResolved, session } = useAuth()
@@ -239,6 +240,9 @@ export default function PortalToolBar({ layout = 'top' }: PortalToolBarProps) {
   const visibleTasks = publicVisitor ? (showPublicTasks ? activeLane.tasks.slice(0, 4) : []) : activeLane.tasks
   const showPortalBrandRunway = publicVisitor && pathname === '/' && !isMobile
   const collapseMobilePortal = isMobile
+
+  if (collapseMobilePortal && suppressed) return null
+
   const mobilePortalLaneId = mobilePortalLaneState.pathname === pathname ? mobilePortalLaneState.laneId : null
   const mobilePortalLane = mobilePortalLaneId ? portalLanes.find((lane) => lane.id === mobilePortalLaneId) ?? activeLane : null
   const showPortalLanePicker = !collapseMobilePortal

@@ -1,7 +1,7 @@
 'use client'
 
 import type { CSSProperties, ReactNode } from 'react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import SiteHeader from '@/app/components/site-header'
 import SiteFooter from '@/app/components/site-footer'
@@ -29,6 +29,7 @@ function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProp
   const { isMobile, isTablet } = useViewportBreakpoints()
   const atmosphereClassName = getBrandAtmosphereClassName(pathname)
   const lastPathnameRef = useRef(pathname)
+  const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
   const usePortalRailLayout = showPortalToolBar && !isMobile
   const portalRailWidth = isTablet ? 252 : 304
 
@@ -108,7 +109,11 @@ function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProp
         <div style={topBlueWash} />
         <div className={atmosphereClassName} aria-hidden="true" />
 
-        <SiteHeader active={active} railLayout={usePortalRailLayout} />
+        <SiteHeader
+          active={active}
+          railLayout={usePortalRailLayout}
+          onCompactMenuOpenChange={setCompactSiteMenuOpen}
+        />
         {usePortalRailLayout ? (
           <div
             style={{
@@ -129,7 +134,7 @@ function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProp
           </div>
         ) : (
           <>
-            {showPortalToolBar ? <PortalToolBar /> : null}
+            {showPortalToolBar ? <PortalToolBar suppressed={compactSiteMenuOpen} /> : null}
             <div id="main-content" className="page-reveal">{children}</div>
           </>
         )}

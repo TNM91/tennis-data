@@ -15,6 +15,12 @@ import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
+type SiteHeaderProps = {
+  active?: string
+  railLayout?: boolean
+  onCompactMenuOpenChange?: (open: boolean) => void
+}
+
 function HamburgerIcon() {
   return (
     <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
@@ -74,7 +80,7 @@ function MobileItemLabel({ label, description }: { label: string; description?: 
   )
 }
 
-export default function SiteHeader({ active, railLayout = false }: { active?: string; railLayout?: boolean }) {
+export default function SiteHeader({ active, railLayout = false, onCompactMenuOpenChange }: SiteHeaderProps) {
   void active
   const pathname = usePathname()
   const router = useRouter()
@@ -84,6 +90,11 @@ export default function SiteHeader({ active, railLayout = false }: { active?: st
   const [searchOpen, setSearchOpen] = useState(false)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
+  const authenticated = Boolean(userId) || role !== 'public'
+  const authPending = !authResolved
+  const accessPending = authenticated && (authPending || entitlements === null)
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const useCompactHeader = shouldUseCompactSiteHeader({ role: resolvedRole, authenticated, screenWidth })
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -106,6 +117,24 @@ export default function SiteHeader({ active, railLayout = false }: { active?: st
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [menuOpen, searchOpen])
+
+  useEffect(() => {
+    const root = document.documentElement
+    const shouldMarkCompactMenuOpen = useCompactHeader && menuOpen
+
+    if (shouldMarkCompactMenuOpen) {
+      root.dataset.siteCompactMenuOpen = 'true'
+    } else {
+      delete root.dataset.siteCompactMenuOpen
+    }
+
+    onCompactMenuOpenChange?.(shouldMarkCompactMenuOpen)
+
+    return () => {
+      delete root.dataset.siteCompactMenuOpen
+      onCompactMenuOpenChange?.(false)
+    }
+  }, [menuOpen, onCompactMenuOpenChange, useCompactHeader])
 
   useEffect(() => {
     let active = true
@@ -136,11 +165,6 @@ export default function SiteHeader({ active, railLayout = false }: { active?: st
     router.refresh()
   }
 
-  const authenticated = Boolean(userId) || role !== 'public'
-  const authPending = !authResolved
-  const accessPending = authenticated && (authPending || entitlements === null)
-  const resolvedRole = authResolved || !userId ? role : 'member'
-  const useCompactHeader = shouldUseCompactSiteHeader({ role: resolvedRole, authenticated, screenWidth })
   const useRailHeader = railLayout && !isMobile
   const useCompactBrand = screenWidth < 340
   const access = buildProductAccessState(resolvedRole, entitlements)
