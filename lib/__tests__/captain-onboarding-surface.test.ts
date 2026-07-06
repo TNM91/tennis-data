@@ -129,6 +129,8 @@ describe('Captain onboarding surface', () => {
     expect(styleBlock('captainPreviewMobilePrimaryActionStyle')).toContain("overflowWrap: 'anywhere'")
     expect(shellSmokeSource).toContain("type: 'captain-mobile-unlock-actions-missing'")
     expect(shellSmokeSource).toContain("type: 'captain-mobile-unlock-action-not-prominent'")
+    expect(shellSmokeSource).toContain("type: 'captain-mobile-summary-repeated-guidance'")
+    expect(shellSmokeSource).toContain("type: 'captain-mobile-summary-card-not-in-first-view'")
     expect(shellSmokeSource).toContain('/upgrade?plan=captain&next=%2Fcaptain')
     expect(styleBlock('captainDecisionPathShellStyle')).toContain('minWidth: 0')
     expect(styleBlock('captainDecisionPathGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")

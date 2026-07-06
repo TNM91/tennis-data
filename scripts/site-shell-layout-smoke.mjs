@@ -346,6 +346,12 @@ try {
 
   const captainMetrics = await captainMobilePage.evaluate(() => {
     const quickActions = document.querySelector('[aria-label="Captain mobile unlock actions"]')
+    const bodyText = document.body.textContent || ''
+    const summaryUpgradeHeading = Array.from(document.querySelectorAll('h3')).find((element) =>
+      (element.textContent || '').includes('Still building'),
+    )
+    const summaryUpgradeCard = summaryUpgradeHeading?.closest('section')
+    const summaryUpgradeCardRect = summaryUpgradeCard?.getBoundingClientRect()
     const links = Array.from(quickActions?.querySelectorAll('a') || []).map((element) => {
       const rect = element.getBoundingClientRect()
       return {
@@ -361,9 +367,15 @@ try {
 
     return {
       documentWidth: document.documentElement.scrollWidth,
+      repeatedUnlockGuidance: [
+        'Creating an account starts Free access',
+        'Best next unlock',
+        'Claim the team week',
+      ].filter((text) => bodyText.includes(text)),
       links,
       quickActionsVisible: Boolean(quickActions),
       railVisible: Boolean(document.querySelector('[data-portal-rail="true"]')),
+      summaryUpgradeCardTop: summaryUpgradeCardRect ? Math.round(summaryUpgradeCardRect.top) : null,
       viewportHeight: window.innerHeight,
       viewportWidth: window.innerWidth,
     }
@@ -382,6 +394,25 @@ try {
     findings.push({
       viewport: 'mobile',
       type: 'captain-mobile-rail-visible',
+    })
+  }
+
+  if (captainMetrics.repeatedUnlockGuidance.length) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'captain-mobile-summary-repeated-guidance',
+      repeatedUnlockGuidance: captainMetrics.repeatedUnlockGuidance,
+    })
+  }
+
+  if (
+    typeof captainMetrics.summaryUpgradeCardTop !== 'number' ||
+    captainMetrics.summaryUpgradeCardTop > captainMetrics.viewportHeight
+  ) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'captain-mobile-summary-card-not-in-first-view',
+      captainMetrics,
     })
   }
 
