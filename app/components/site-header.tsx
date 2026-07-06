@@ -74,7 +74,7 @@ function MobileItemLabel({ label, description }: { label: string; description?: 
   )
 }
 
-export default function SiteHeader({ active }: { active?: string }) {
+export default function SiteHeader({ active, railLayout = false }: { active?: string; railLayout?: boolean }) {
   void active
   const pathname = usePathname()
   const router = useRouter()
@@ -141,6 +141,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   const accessPending = authenticated && (authPending || entitlements === null)
   const resolvedRole = authResolved || !userId ? role : 'member'
   const useCompactHeader = shouldUseCompactSiteHeader({ role: resolvedRole, authenticated, screenWidth })
+  const useRailHeader = railLayout && !isMobile
   const useCompactBrand = screenWidth < 340
   const access = buildProductAccessState(resolvedRole, entitlements)
   const roleLabel =
@@ -213,7 +214,7 @@ export default function SiteHeader({ active }: { active?: string }) {
           width: '100%',
           maxWidth: '1280px',
           margin: '0 auto',
-          padding: isMobile ? '5px 2px' : isTablet ? '11px 4px' : '13px 8px',
+          padding: isMobile ? '5px 2px' : useRailHeader ? '7px 8px 5px' : isTablet ? '11px 4px' : '13px 8px',
         }}
       >
         <div
@@ -224,14 +225,15 @@ export default function SiteHeader({ active }: { active?: string }) {
               : 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
             alignItems: 'center',
             gap: isMobile ? '8px' : useCompactHeader ? '12px' : '14px',
-            padding: isMobile ? '5px 6px' : useCompactHeader ? '8px 9px' : '8px 10px',
+            padding: isMobile ? '5px 6px' : useRailHeader ? '4px 0' : useCompactHeader ? '8px 9px' : '8px 10px',
             minWidth: 0,
             overflowWrap: 'anywhere',
             borderRadius: isMobile ? 18 : useCompactHeader ? 999 : 16,
-            border: '1px solid color-mix(in srgb, var(--shell-panel-border) 76%, rgba(116,190,255,0.18) 24%)',
-            background:
-              'linear-gradient(180deg, color-mix(in srgb, var(--header-bg) 86%, var(--surface) 14%) 0%, color-mix(in srgb, var(--header-bg) 94%, transparent 6%) 100%)',
-            boxShadow: '0 14px 34px rgba(2, 10, 24, 0.10), inset 0 1px 0 rgba(255,255,255,0.04)',
+            border: useRailHeader ? '0' : '1px solid color-mix(in srgb, var(--shell-panel-border) 76%, rgba(116,190,255,0.18) 24%)',
+            background: useRailHeader
+              ? 'transparent'
+              : 'linear-gradient(180deg, color-mix(in srgb, var(--header-bg) 86%, var(--surface) 14%) 0%, color-mix(in srgb, var(--header-bg) 94%, transparent 6%) 100%)',
+            boxShadow: useRailHeader ? 'none' : '0 14px 34px rgba(2, 10, 24, 0.10), inset 0 1px 0 rgba(255,255,255,0.04)',
           }}
         >
           <Link
@@ -419,25 +421,11 @@ export default function SiteHeader({ active }: { active?: string }) {
             role="dialog"
             aria-modal="false"
             aria-label="Site menu"
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              maxHeight: 'calc(100dvh - 120px)',
-              overflowY: 'auto',
-              WebkitOverflowScrolling: 'touch',
-            }}
+            style={useRailHeader ? railHeaderMenuWrapStyle : compactMenuWrapStyle}
           >
             <div
               style={{
-                marginTop: '10px',
-                border: '1px solid color-mix(in srgb, var(--shell-panel-border) 78%, rgba(116,190,255,0.16) 22%)',
-                background:
-                  'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--surface) 4%) 0%, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--surface-soft) 8%) 100%)',
-                borderRadius: '20px',
-                padding: '12px',
-                boxShadow: 'var(--shadow-card)',
-                display: 'grid',
-                gap: '8px',
+                ...(useRailHeader ? railHeaderMenuPanelStyle : compactMenuPanelStyle),
               }}
             >
               <div style={mobilePanelTopStyle}>
@@ -865,6 +853,49 @@ const mobilePanelTopStyle = {
   gap: '10px',
   paddingBottom: '2px',
   minWidth: 0,
+}
+
+const compactMenuWrapStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxHeight: 'calc(100dvh - 120px)',
+  overflowY: 'auto',
+  WebkitOverflowScrolling: 'touch',
+}
+
+const compactMenuPanelStyle: CSSProperties = {
+  marginTop: '10px',
+  border: '1px solid color-mix(in srgb, var(--shell-panel-border) 78%, rgba(116,190,255,0.16) 22%)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--surface) 4%) 0%, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--surface-soft) 8%) 100%)',
+  borderRadius: '20px',
+  padding: '12px',
+  boxShadow: 'var(--shadow-card)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const railHeaderMenuWrapStyle: CSSProperties = {
+  position: 'absolute',
+  zIndex: 3,
+  top: 'calc(100% - 4px)',
+  right: '8px',
+  width: 'min(360px, calc(100vw - 28px))',
+  maxHeight: 'calc(100dvh - 74px)',
+  overflowY: 'auto',
+  WebkitOverflowScrolling: 'touch',
+}
+
+const railHeaderMenuPanelStyle: CSSProperties = {
+  ...compactMenuPanelStyle,
+  marginTop: 0,
+  borderRadius: 16,
+  padding: 10,
+  gap: 7,
+  background: 'linear-gradient(180deg, rgba(8,18,34,0.985) 0%, rgba(7,17,33,0.975) 100%)',
+  backdropFilter: 'blur(18px)',
+  WebkitBackdropFilter: 'blur(18px)',
+  boxShadow: '0 20px 48px rgba(2, 10, 24, 0.28), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
 const mobileAccountToolsStyle: CSSProperties = {
