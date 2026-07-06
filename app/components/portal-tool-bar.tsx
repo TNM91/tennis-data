@@ -19,6 +19,10 @@ type PortalLaneId = 'find' | 'you' | 'compete' | 'coach' | 'team' | 'league'
 
 const dataAssistPortalHref = '/data-assist?intent=upload-source&context=Portal'
 
+type PortalToolBarProps = {
+  layout?: 'top' | 'rail'
+}
+
 type PortalLane = {
   id: PortalLaneId
   label: string
@@ -174,7 +178,7 @@ function getMetadataFirstName(session: ReturnType<typeof useAuth>['session']) {
   return raw.trim().split(' ')[0] || ''
 }
 
-export default function PortalToolBar() {
+export default function PortalToolBar({ layout = 'top' }: PortalToolBarProps) {
   const pathname = usePathname() || '/'
   const router = useRouter()
   const { role, userId, entitlements, authResolved, session } = useAuth()
@@ -283,6 +287,58 @@ export default function PortalToolBar() {
   const activeAccent = getLaneAccent(activeLane.id)
   const useCompactPortalControls = publicVisitor || !isMobile
   const useDenseDesktopPortalRail = authenticated && !isMobile
+  const useRailPortalLayout = layout === 'rail' && !collapseMobilePortal
+
+  if (useRailPortalLayout) {
+    return (
+      <section aria-label="TenAceIQ platform navigation" style={railPortalShellStyle}>
+        <div style={railPortalHeaderStyle}>
+          <div style={{ ...portalTitleStyle, ...railPortalTitleStyle }}>{headline}</div>
+          <p style={railPortalSubtitleStyle}>
+            {authenticated ? 'Pick the tennis work for today.' : PLATFORM_POSITIONING}
+          </p>
+        </div>
+
+        <form onSubmit={handleSearch} style={railPortalSearchFormStyle}>
+          <label style={{ ...searchShellStyle, ...compactSearchShellStyle, ...railPortalSearchShellStyle }}>
+            <SearchIcon />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={`Search ${activeLane.searchScope}`}
+              aria-label={`Search ${activeLane.searchScope}`}
+              style={searchInputStyle}
+            />
+          </label>
+          <button type="submit" style={{ ...searchButtonStyle, ...compactSearchButtonStyle, ...railPortalSearchButtonStyle }}>
+            Search
+          </button>
+        </form>
+
+        <nav aria-label="Choose a TenAceIQ tool" style={railPortalLaneGridStyle}>
+          {portalLanes.map((lane) => (
+            <PortalLaneCard
+              key={lane.id}
+              lane={lane}
+              active={lane.id === activeLane.id}
+              access={access}
+              authenticated={authenticated}
+              accessPending={accessPending}
+              profileLinked={profileLinked}
+              compact
+              dense
+            />
+          ))}
+        </nav>
+
+        <div style={railPortalStatusStyle}>
+          <span style={summaryKickerStyle}>Active path</span>
+          <strong style={railPortalStatusTitleStyle}>{activeLane.label}</strong>
+          <span style={railPortalStatusCopyStyle}>{activeLane.cue}</span>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <>
@@ -837,6 +893,104 @@ function SearchIcon() {
       <path d="M12.4 12.4 17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   )
+}
+
+const railPortalShellStyle: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  width: '100%',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.15)',
+  background: portalSurfaceBackground,
+  color: 'var(--foreground)',
+  boxShadow: '0 28px 80px rgba(2, 10, 24, 0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
+  boxSizing: 'border-box',
+  overflow: 'hidden',
+}
+
+const railPortalHeaderStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const railPortalTitleStyle: CSSProperties = {
+  fontSize: 'clamp(1.12rem, 1.35vw, 1.45rem)',
+  lineHeight: 1.04,
+}
+
+const railPortalSubtitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 760,
+}
+
+const railPortalSearchFormStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const railPortalSearchShellStyle: CSSProperties = {
+  minHeight: 40,
+  padding: '0 11px',
+}
+
+const railPortalSearchButtonStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 38,
+  borderRadius: 8,
+}
+
+const railPortalLaneGridStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 7,
+  minWidth: 0,
+  width: '100%',
+  boxSizing: 'border-box',
+}
+
+const railPortalStatusStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 4,
+  padding: 11,
+  borderRadius: 8,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(160deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055) 42%, rgba(7,17,33,0.72))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+
+const railPortalStatusTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.05,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const railPortalStatusCopyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
 }
 
 const portalTitleStyle: CSSProperties = {

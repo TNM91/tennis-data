@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import SiteHeader from '@/app/components/site-header'
@@ -8,6 +8,7 @@ import SiteFooter from '@/app/components/site-footer'
 import PortalToolBar from '@/app/components/portal-tool-bar'
 import { AuthProvider } from '@/app/components/auth-provider'
 import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/design-system'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type SiteShellProps = {
   children: ReactNode
@@ -25,8 +26,11 @@ export default function SiteShell({ children, active, showPortalToolBar = true }
 
 function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProps) {
   const pathname = usePathname() || '/'
+  const { isMobile, isTablet } = useViewportBreakpoints()
   const atmosphereClassName = getBrandAtmosphereClassName(pathname)
   const lastPathnameRef = useRef(pathname)
+  const usePortalRailLayout = showPortalToolBar && !isMobile
+  const portalRailWidth = isTablet ? 252 : 304
 
   useEffect(() => {
     const storageKey = `tenaceiq.shell.scroll.${pathname}`
@@ -105,11 +109,58 @@ function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProp
         <div className={atmosphereClassName} aria-hidden="true" />
 
         <SiteHeader active={active} />
-        {showPortalToolBar ? <PortalToolBar /> : null}
-        <div id="main-content" className="page-reveal">{children}</div>
+        {usePortalRailLayout ? (
+          <div
+            style={{
+              ...portalRailLayoutStyle,
+              paddingLeft: 16 + portalRailWidth + 16,
+            }}
+          >
+            <aside
+              data-portal-rail="true"
+              style={{
+                ...portalRailAsideStyle,
+                width: portalRailWidth,
+              }}
+            >
+              <PortalToolBar layout="rail" />
+            </aside>
+            <div id="main-content" className="page-reveal" style={portalRailMainStyle}>{children}</div>
+          </div>
+        ) : (
+          <>
+            {showPortalToolBar ? <PortalToolBar /> : null}
+            <div id="main-content" className="page-reveal">{children}</div>
+          </>
+        )}
         <SiteFooter />
       </main>
   )
+}
+
+const portalRailLayoutStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'block',
+  width: 'min(1280px, 100%)',
+  margin: '0 auto',
+  padding: '10px 16px 0',
+  boxSizing: 'border-box',
+}
+
+const portalRailAsideStyle: CSSProperties = {
+  position: 'fixed',
+  top: 'calc(var(--header-height) + 10px)',
+  left: 'max(16px, calc((100vw - 1280px) / 2 + 16px))',
+  zIndex: 24,
+  minWidth: 0,
+  maxHeight: 'calc(100dvh - var(--header-height) - 20px)',
+  overflow: 'auto',
+  scrollbarGutter: 'stable',
+}
+
+const portalRailMainStyle: CSSProperties = {
+  minWidth: 0,
 }
 
 function getBrandAtmosphereClassName(pathname: string) {
