@@ -6,10 +6,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import UniversalSearch from '@/app/components/universal-search'
 import { useAuth } from '@/app/components/auth-provider'
-import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
+import { getHeaderWorkspaceShortcut } from '@/lib/site-header-workspace-shortcut'
 import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
@@ -60,15 +61,6 @@ function UtilityLink({
       {children}
     </Link>
   )
-}
-
-function getHeaderWorkspaceShortcut(access: ProductAccessState, authenticated: boolean) {
-  if (!authenticated) return null
-  if (access.canUseLeagueTools) return { href: '/league-coordinator', label: 'League Office' }
-  if (access.canUseCaptainWorkflow) return { href: '/captain', label: 'Team Hub' }
-  if (access.canUseCoachWorkflow) return { href: '/coach', label: 'Coach Hub' }
-  if (access.canUseAdvancedPlayerInsights) return { href: '/mylab', label: 'My Lab' }
-  return { href: '/explore', label: 'Find tennis' }
 }
 
 function MobileItemLabel({ label, description }: { label: string; description?: string }) {

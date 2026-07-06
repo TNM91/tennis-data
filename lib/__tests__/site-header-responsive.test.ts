@@ -37,12 +37,7 @@ describe('site header responsive rules', () => {
   })
 
   it('adds one role-aware workspace shortcut for signed-in users', () => {
-    expect(siteHeaderSource).toContain('function getHeaderWorkspaceShortcut')
-    expect(siteHeaderSource).toContain("if (access.canUseLeagueTools) return { href: '/league-coordinator', label: 'League Office' }")
-    expect(siteHeaderSource).toContain("if (access.canUseCaptainWorkflow) return { href: '/captain', label: 'Team Hub' }")
-    expect(siteHeaderSource).toContain("if (access.canUseCoachWorkflow) return { href: '/coach', label: 'Coach Hub' }")
-    expect(siteHeaderSource).toContain("if (access.canUseAdvancedPlayerInsights) return { href: '/mylab', label: 'My Lab' }")
-    expect(siteHeaderSource).toContain("return { href: '/explore', label: 'Find tennis' }")
+    expect(siteHeaderSource).toContain("import { getHeaderWorkspaceShortcut } from '@/lib/site-header-workspace-shortcut'")
     expect(siteHeaderSource).toContain('const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)')
     expect(siteHeaderSource).toContain('const desktopMenuHighlightLinkStyle')
     expect(siteHeaderSource).toContain('const mobileWorkspaceItemStyle')
