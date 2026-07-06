@@ -108,7 +108,7 @@ function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProp
         <div style={topBlueWash} />
         <div className={atmosphereClassName} aria-hidden="true" />
 
-        <SiteHeader active={active} />
+        <SiteHeader active={active} railLayout={usePortalRailLayout} />
         {usePortalRailLayout ? (
           <div
             style={{
