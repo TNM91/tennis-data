@@ -138,7 +138,7 @@ function SiteShellContent({ children, active, showPortalToolBar }: SiteShellProp
             <div id="main-content" className="page-reveal">{children}</div>
           </>
         )}
-        <SiteFooter />
+        <SiteFooter railLayout={usePortalRailLayout} railWidth={portalRailWidth} />
       </main>
   )
 }
