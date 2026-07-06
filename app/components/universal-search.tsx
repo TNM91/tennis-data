@@ -224,12 +224,7 @@ export default function UniversalSearch({
     const q = query.trim().toLowerCase()
     const scored = results
       .map((result) => {
-        const haystack = [result.title, result.detail, ...result.keywords].join(' ').toLowerCase()
-        const direct = haystack.includes(q)
-        const tokenHits = q
-          ? q.split(/\s+/).filter((token) => haystack.includes(token)).length
-          : 0
-        return { result, score: !q ? 1 : direct ? 3 + tokenHits : tokenHits }
+        return { result, score: scoreSearchResult(result, q) }
       })
       .filter((item) => item.score > 0)
       .sort((left, right) => right.score - left.score)
@@ -429,6 +424,35 @@ export default function UniversalSearch({
         </div>
       ) : null}
     </div>
+  )
+}
+
+function scoreSearchResult(result: SearchResult, query: string) {
+  const q = query.trim().toLowerCase()
+  if (!q) return 1
+
+  const title = result.title.toLowerCase()
+  const detail = result.detail.toLowerCase()
+  const keywords = result.keywords.map((keyword) => keyword.toLowerCase())
+  const keywordText = keywords.join(' ')
+  const tokens = q.split(/\s+/).filter(Boolean)
+
+  const keywordExact = keywords.some((keyword) => keyword === q)
+  const titleDirect = title.includes(q)
+  const keywordDirect = keywordText.includes(q)
+  const detailDirect = detail.includes(q)
+  const titleTokenHits = tokens.filter((token) => title.includes(token)).length
+  const keywordTokenHits = tokens.filter((token) => keywordText.includes(token)).length
+  const detailTokenHits = tokens.filter((token) => detail.includes(token)).length
+
+  return (
+    (keywordExact ? 12 : 0) +
+    (titleDirect ? 8 : 0) +
+    (keywordDirect ? 6 : 0) +
+    (detailDirect ? 2 : 0) +
+    titleTokenHits * 3 +
+    keywordTokenHits * 2 +
+    detailTokenHits
   )
 }
 

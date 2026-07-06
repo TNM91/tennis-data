@@ -195,6 +195,63 @@ for (const viewport of viewports) {
             menuState,
           })
         }
+
+        const menuSearchInput = page.locator('#site-header-compact-menu input[name="q"]')
+        const menuSearchSubmit = page.locator('#site-header-compact-menu button[type="submit"]')
+        const menuSearchInputCount = await menuSearchInput.count()
+        const menuSearchSubmitCount = await menuSearchSubmit.count()
+
+        if (menuSearchInputCount !== 1 || menuSearchSubmitCount !== 1) {
+          findings.push({
+            viewport: viewport.name,
+            type: 'mobile-menu-search-missing',
+            menuSearchInputCount,
+            menuSearchSubmitCount,
+          })
+        } else {
+          await menuSearchInput.click()
+          await menuSearchInput.pressSequentially('teams')
+          await Promise.all([
+            page.waitForURL(new URL('/teams?q=teams', baseUrl).href, { timeout: 10_000 }),
+            menuSearchSubmit.click(),
+          ])
+        }
+
+        await page.goto(`${baseUrl}/?shellqa=${Date.now()}&portal=1`, {
+          waitUntil: 'networkidle',
+          timeout: 35_000,
+        })
+        await page.evaluate(() => window.scrollTo(0, 0))
+
+        const competeLane = page.getByRole('button', { name: 'Compete: Matchups, scouting, lineups' })
+        const competeLaneCount = await competeLane.count()
+
+        if (competeLaneCount !== 1) {
+          findings.push({
+            viewport: viewport.name,
+            type: 'mobile-portal-compete-lane-missing',
+            competeLaneCount,
+          })
+        } else {
+          await competeLane.click()
+          await page.waitForTimeout(200)
+
+          const matchPrepAction = page.locator('#tenaceiq-mobile-portal-actions a[href="/matchup"]')
+          const matchPrepActionCount = await matchPrepAction.count()
+
+          if (matchPrepActionCount !== 1) {
+            findings.push({
+              viewport: viewport.name,
+              type: 'mobile-portal-match-prep-missing',
+              matchPrepActionCount,
+            })
+          } else {
+            await Promise.all([
+              page.waitForURL(/\/matchup/, { timeout: 10_000 }),
+              matchPrepAction.click(),
+            ])
+          }
+        }
       }
     }
   } catch (error) {

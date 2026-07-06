@@ -71,6 +71,10 @@ describe('universal search result model', () => {
   })
 
   it('preserves typed queries when users click a result card', () => {
+    expect(source).toContain('function scoreSearchResult')
+    expect(source).toContain('keywordExact ? 12 : 0')
+    expect(source).toContain('titleDirect ? 8 : 0')
+    expect(source).toContain('detailDirect ? 2 : 0')
     expect(source).toContain('function buildResultHref')
     expect(source).toContain('function appendSearchQuery')
     expect(source).toContain('href={buildResultHref(item, query, Boolean(session?.user))}')
