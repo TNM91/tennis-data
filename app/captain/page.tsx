@@ -361,6 +361,7 @@ function CaptainLockedSurface({
     ...lockedPreviewPanelStyle,
     padding: isSmallMobile ? 18 : isMobile ? 20 : lockedPreviewPanelStyle.padding,
   }
+  const captainUnlockHref = getPlanUnlockHref('captain')
 
   return (
     <div style={pageWrap}>
@@ -374,6 +375,16 @@ function CaptainLockedSurface({
           <p style={captainPreviewTextStyle}>
             Start with who can play, build the lineup, check the pairings, and send the match-week plan.
           </p>
+          {isMobile ? (
+            <div style={captainPreviewMobileActionRowStyle} aria-label="Captain mobile unlock actions">
+              <Link href={captainUnlockHref} style={captainPreviewMobilePrimaryActionStyle}>
+                {CAPTAIN_STORY.upgradeCta}
+              </Link>
+              <Link href={secondaryHref} style={captainPreviewMobileSecondaryActionStyle}>
+                {secondaryLabel}
+              </Link>
+            </div>
+          ) : null}
           <div style={captainPreviewGridStyle}>
             {CAPTAIN_STORY.workflow.map(([step, title, body]) => (
               <div key={step} style={captainPreviewStepStyle}>
@@ -3118,6 +3129,37 @@ const captainPreviewTextStyle: CSSProperties = {
   lineHeight: 1.7,
   fontWeight: 750,
   overflowWrap: 'anywhere',
+}
+
+const captainPreviewMobileActionRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const captainPreviewMobilePrimaryActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 42,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 24%, var(--shell-chip-bg) 76%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+  textAlign: 'center',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const captainPreviewMobileSecondaryActionStyle: CSSProperties = {
+  ...captainPreviewMobilePrimaryActionStyle,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#e7eefb',
 }
 
 const captainPreviewGridStyle: CSSProperties = {
