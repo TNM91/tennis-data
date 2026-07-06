@@ -68,6 +68,7 @@ for (const viewport of viewports) {
       const footerContent = document.querySelector('[data-site-footer-content="true"]')
       const footerNav = document.querySelector('footer nav')
       const openMenuButton = document.querySelector('button[aria-label="Open menu"]')
+      const rail = document.querySelector('[data-portal-rail="true"]')
 
       return {
         bodyText,
@@ -79,6 +80,7 @@ for (const viewport of viewports) {
         main: roundRect('#main-content'),
         openMenuButton: openMenuButton ? roundRect('button[aria-label="Open menu"]') : null,
         rail: roundRect('[data-portal-rail="true"]'),
+        railScrollbarWidth: rail ? window.getComputedStyle(rail).scrollbarWidth : null,
         viewportWidth: window.innerWidth,
       }
     })
@@ -121,6 +123,14 @@ for (const viewport of viewports) {
           type: 'rail-overlaps-main',
           main: metrics.main,
           rail: metrics.rail,
+        })
+      }
+
+      if (metrics.railScrollbarWidth !== 'none') {
+        findings.push({
+          viewport: viewport.name,
+          type: 'rail-scrollbar-visible',
+          railScrollbarWidth: metrics.railScrollbarWidth,
         })
       }
 

@@ -161,7 +161,6 @@ const portalRailAsideStyle: CSSProperties = {
   minWidth: 0,
   maxHeight: 'calc(100dvh - var(--header-height) - 20px)',
   overflow: 'auto',
-  scrollbarGutter: 'stable',
 }
 
 const portalRailMainStyle: CSSProperties = {
