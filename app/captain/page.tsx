@@ -361,6 +361,33 @@ function CaptainLockedSurface({
     ...lockedPreviewPanelStyle,
     padding: isSmallMobile ? 18 : isMobile ? 20 : lockedPreviewPanelStyle.padding,
   }
+  const lockedPreviewGrid: CSSProperties = {
+    ...captainPreviewGridStyle,
+    gridTemplateColumns: isMobile
+      ? 'repeat(2, minmax(0, 1fr))'
+      : captainPreviewGridStyle.gridTemplateColumns,
+    gap: isMobile ? 8 : captainPreviewGridStyle.gap,
+  }
+  const lockedPreviewStep: CSSProperties = {
+    ...captainPreviewStepStyle,
+    gridTemplateColumns: isMobile
+      ? 'minmax(0, 24px) minmax(0, 1fr)'
+      : captainPreviewStepStyle.gridTemplateColumns,
+    gap: isMobile ? 8 : captainPreviewStepStyle.gap,
+    padding: isMobile ? 10 : captainPreviewStepStyle.padding,
+    borderRadius: isMobile ? 14 : captainPreviewStepStyle.borderRadius,
+  }
+  const lockedPreviewStepNumber: CSSProperties = {
+    ...captainPreviewStepNumberStyle,
+    width: isMobile ? 24 : captainPreviewStepNumberStyle.width,
+    height: isMobile ? 24 : captainPreviewStepNumberStyle.height,
+  }
+  const lockedPreviewStepCopy: CSSProperties = {
+    ...captainPreviewStepCopyStyle,
+    gap: isMobile ? 3 : captainPreviewStepCopyStyle.gap,
+    fontSize: isMobile ? 12 : captainPreviewStepCopyStyle.fontSize,
+    lineHeight: isMobile ? 1.35 : captainPreviewStepCopyStyle.lineHeight,
+  }
   const captainUnlockHref = getPlanUnlockHref('captain')
 
   return (
@@ -385,11 +412,11 @@ function CaptainLockedSurface({
               </Link>
             </div>
           ) : null}
-          <div style={captainPreviewGridStyle}>
+          <div style={lockedPreviewGrid}>
             {CAPTAIN_STORY.workflow.map(([step, title, body]) => (
-              <div key={step} style={captainPreviewStepStyle}>
-                <span style={captainPreviewStepNumberStyle}>{step}</span>
-                <span style={captainPreviewStepCopyStyle}>
+              <div key={step} style={lockedPreviewStep}>
+                <span style={lockedPreviewStepNumber}>{step}</span>
+                <span style={lockedPreviewStepCopy}>
                   <strong>{title}</strong>
                   <span>{body}</span>
                 </span>
