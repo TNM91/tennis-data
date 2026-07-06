@@ -326,9 +326,10 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
                 aria-controls={compactMenuId}
                 aria-haspopup="dialog"
                 onClick={() => setMenuOpen((prev) => !prev)}
-                style={menuButtonStyle}
+                style={useRailHeader ? railHeaderMenuButtonStyle : menuButtonStyle}
               >
                 {menuOpen ? <CloseIcon /> : <HamburgerIcon />}
+                {useRailHeader ? <span>Menu</span> : null}
               </button>
             ) : null}
           </div>
@@ -792,6 +793,19 @@ const menuButtonStyle = {
   background: 'color-mix(in srgb, var(--shell-chip-bg) 82%, transparent 18%)',
   color: 'var(--foreground-strong)',
   cursor: 'pointer',
+} as const
+
+const railHeaderMenuButtonStyle = {
+  ...menuButtonStyle,
+  width: 'auto',
+  minWidth: '84px',
+  padding: '0 12px',
+  gap: '7px',
+  borderRadius: '999px',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 74%, transparent 26%)',
+  fontSize: '13px',
+  fontWeight: 850,
+  letterSpacing: 0,
 } as const
 
 const mobileItemStyle = {

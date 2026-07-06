@@ -63,6 +63,9 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain("padding: isMobile ? '5px 6px'")
     expect(siteHeaderSource).toContain("width: '36px'")
     expect(siteHeaderSource).toContain("height: '36px'")
+    expect(siteHeaderSource).toContain('const railHeaderMenuButtonStyle')
+    expect(siteHeaderSource).toContain('style={useRailHeader ? railHeaderMenuButtonStyle : menuButtonStyle}')
+    expect(siteHeaderSource).toContain('{useRailHeader ? <span>Menu</span> : null}')
     expect(readFileSync(join(process.cwd(), 'app/components/brand-wordmark.tsx'), 'utf8')).toContain(
       'top ? (siteHeaderCompact ? 42 : 64)',
     )

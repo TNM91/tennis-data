@@ -12,6 +12,8 @@ const ignoredConsoleFragments = [
   'ep1.adtrafficquality.google',
   'google/getconfig/sodar',
   '/_next/webpack-hmr',
+  '/_vercel/insights/script.js',
+  '/_vercel/speed-insights/script.js',
   "Framing 'https://www.google.com/' violates",
   'Failed to load resource: net::ERR_FAILED',
 ]
@@ -32,12 +34,16 @@ for (const viewport of viewports) {
   page.on('console', (message) => {
     if (message.type() !== 'error') return
     const text = message.text()
-    if (ignoredConsoleFragments.some((fragment) => text.includes(fragment))) return
+    const location = message.location()
+    const locationUrl = location?.url ?? ''
+    const combined = `${text} ${locationUrl}`
+    if (ignoredConsoleFragments.some((fragment) => combined.includes(fragment))) return
 
     findings.push({
       viewport: viewport.name,
       route: page.url(),
       type: 'console',
+      source: locationUrl,
       text: text.slice(0, 220),
     })
   })
@@ -131,6 +137,20 @@ for (const viewport of viewports) {
           viewport: viewport.name,
           type: 'rail-scrollbar-visible',
           railScrollbarWidth: metrics.railScrollbarWidth,
+        })
+      }
+
+      if (!metrics.openMenuButton) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'rail-header-menu-button-missing',
+          metrics,
+        })
+      } else if (metrics.openMenuButton.width < 72) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'rail-header-menu-button-too-small',
+          openMenuButton: metrics.openMenuButton,
         })
       }
 
