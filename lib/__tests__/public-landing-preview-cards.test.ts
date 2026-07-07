@@ -112,8 +112,16 @@ describe('public landing preview cards', () => {
 
   it('keeps homepage section copy approachable instead of workspace-heavy', () => {
     expect(commandCenterSource).toContain('Next best step')
-    expect(commandCenterSource).toContain('Choose the tennis move you need now.')
-    expect(commandCenterSource).toContain('Search first if you know the name. Use these cards when you know the decision, team week, player goal, event, or data fix in front of you.')
+    expect(commandCenterSource).toContain('Pick the job in front of you.')
+    expect(commandCenterSource).toContain('aria-labelledby="home-action-board-title"')
+    expect(commandCenterSource).toContain('titleId="home-action-board-title"')
+    expect(commandCenterSource).toContain('A lighter board for the common tennis needs: find context, improve, prep, manage, coach, organize, or fix the source.')
+    expect(commandCenterSource).toContain('Decision board')
+    expect(commandCenterSource).toContain('Choose once, then move into the lane or tool that matches the work.')
+    expect(commandCenterSource).toContain('actionBoardStyle')
+    expect(commandCenterSource).toContain('actionRowCardStyle')
+    expect(commandCenterSource).not.toContain('Choose the tennis move you need now.')
+    expect(commandCenterSource).not.toContain('Search first if you know the name. Use these cards when you know the decision, team week, player goal, event, or data fix in front of you.')
     expect(commandCenterSource).toContain('Pick the job, then move.')
     expect(commandCenterSource).toContain('Search when you know the name. Use a lane when you know what needs doing next.')
     expect(commandCenterSource).toContain('Tennis lanes')

@@ -346,30 +346,40 @@ export function PlatformPillarGrid() {
 
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
   return (
-    <section style={sectionStyle}>
+    <section style={sectionStyle} aria-labelledby="home-action-board-title">
       <SectionHeader
         eyebrow="Next best step"
-        title="Choose the tennis move you need now."
-        body="Search first if you know the name. Use these cards when you know the decision, team week, player goal, event, or data fix in front of you."
+        title="Pick the job in front of you."
+        body="A lighter board for the common tennis needs: find context, improve, prep, manage, coach, organize, or fix the source."
+        titleId="home-action-board-title"
       />
-      <div style={actionGridStyle}>
-        {cards.map((card) => (
-          <article key={card.title} style={actionCardStyle}>
-            {card.meta ? <span style={chipStyle}>{card.meta}</span> : null}
-            <h2 style={cardTitleStyle}>{card.title}</h2>
-            <p style={cardBodyStyle}>{card.body}</p>
-            <div style={cardActionRowStyle}>
-              <TrackedProductLink href={card.href} style={cardPrimaryLinkStyle} event={getPublicLinkEvent(card.cta, card.href, `action-${card.title}`)}>
-                {card.cta}
-              </TrackedProductLink>
-              {card.secondaryHref && card.secondaryCta ? (
-                <TrackedProductLink href={card.secondaryHref} style={cardGhostLinkStyle} event={getPublicLinkEvent(card.secondaryCta, card.secondaryHref, `action-${card.title}-secondary`)}>
-                  {card.secondaryCta}
+      <div style={actionBoardStyle}>
+        <div style={actionBoardHeaderStyle}>
+          <span style={actionBoardKickerStyle}>Decision board</span>
+          <p style={actionBoardCopyStyle}>Choose once, then move into the lane or tool that matches the work.</p>
+        </div>
+        <div role="list" style={actionListStyle}>
+          {cards.map((card) => (
+            <article key={card.title} role="listitem" style={actionRowCardStyle} aria-label={`${card.title}: ${card.body}`}>
+              <div style={actionRowMainStyle}>
+                {card.meta ? <span style={actionMetaStyle}>{card.meta}</span> : null}
+                <div style={actionRowCopyStyle}>
+                  <h3 style={actionRowTitleStyle}>{card.title}</h3>
+                </div>
+              </div>
+              <div style={actionRowLinkStyle}>
+                <TrackedProductLink href={card.href} style={cardPrimaryLinkStyle} event={getPublicLinkEvent(card.cta, card.href, `action-${card.title}`)}>
+                  {card.cta}
                 </TrackedProductLink>
-              ) : null}
-            </div>
-          </article>
-        ))}
+                {card.secondaryHref && card.secondaryCta ? (
+                  <TrackedProductLink href={card.secondaryHref} style={cardGhostLinkStyle} event={getPublicLinkEvent(card.secondaryCta, card.secondaryHref, `action-${card.title}-secondary`)}>
+                    {card.secondaryCta}
+                  </TrackedProductLink>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   )
@@ -725,10 +735,117 @@ const sectionBodyStyle: CSSProperties = {
   lineHeight: 1.55,
 }
 
-const actionGridStyle: CSSProperties = {
+const actionBoardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-  gap: 14,
+  gap: 10,
+  minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.70)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const actionBoardHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const actionBoardKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const actionBoardCopyStyle: CSSProperties = {
+  margin: 0,
+  flex: '1 1 340px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 760,
+}
+
+const actionListStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 390px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const actionRowCardStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const actionRowMainStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'start',
+  gap: 9,
+  minWidth: 0,
+}
+
+const actionMetaStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  flex: '0 1 auto',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const actionRowCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 210px',
+  minWidth: 0,
+}
+
+const actionRowTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const actionRowLinkStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  flex: '0 1 auto',
   minWidth: 0,
 }
 
@@ -743,21 +860,6 @@ const actionCardStyle: CSSProperties = {
   background: 'rgba(8,16,34,0.74)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.20), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
-}
-
-const chipStyle: CSSProperties = {
-  width: 'fit-content',
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: 26,
-  padding: '0 9px',
-  borderRadius: 999,
-  border: '1px solid rgba(155,225,29,0.24)',
-  background: 'rgba(155,225,29,0.10)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
-  textTransform: 'uppercase',
 }
 
 const cardTitleStyle: CSSProperties = {
@@ -775,14 +877,6 @@ const cardBodyStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.5,
   fontWeight: 700,
-}
-
-const cardActionRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-  marginTop: 'auto',
-  minWidth: 0,
 }
 
 const cardPrimaryLinkStyle: CSSProperties = {

@@ -90,8 +90,16 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(commandCenterSource, 'heroTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(commandCenterSource, 'primaryButtonStyle')).toContain("whiteSpace: 'normal'")
     expect(commandCenterSource).toContain('Next best step')
-    expect(commandCenterSource).toContain('Choose the tennis move you need now.')
-    expect(commandCenterSource).toContain('Search first if you know the name.')
+    expect(commandCenterSource).toContain('Pick the job in front of you.')
+    expect(commandCenterSource).toContain('A lighter board for the common tennis needs')
+    expect(commandCenterSource).toContain('Decision board')
+    expect(commandCenterSource).toContain('Choose once, then move into the lane or tool that matches the work.')
+    expect(styleBlock(commandCenterSource, 'actionListStyle')).toContain(
+      "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 390px), 1fr))'",
+    )
+    expect(styleBlock(commandCenterSource, 'actionRowCardStyle')).toContain('minWidth: 0')
+    expect(commandCenterSource).toContain('aria-label={`${card.title}: ${card.body}`}')
+    expect(commandCenterSource).not.toContain('actionRowBodyStyle')
     expect(commandCenterSource).toContain("title: 'Find Player Insights'")
     expect(commandCenterSource).toContain("title: 'Run a League or Tournament'")
     expect(commandCenterSource).not.toContain('HomeCtaGrid')
