@@ -272,7 +272,7 @@ const homeModeCards: HomeModeCard[] = [
   {
     label: MEMBERSHIP_TIERS.player_plus.name,
     title: MEMBERSHIP_TIERS.player_plus.shortPromise,
-    detail: 'Use Level Up, matchup prep, data refreshes, and My Lab when the platform should center on your game.',
+    detail: 'Use Level Up, matchup prep, data refreshes, and My Lab when your tennis work needs one personal path.',
     href: '/player-development',
     cta: 'Level Up My Game',
   },
