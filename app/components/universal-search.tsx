@@ -337,6 +337,7 @@ export default function UniversalSearch({
           suppressHydrationWarning
           style={{
             ...inputStyle,
+            ...(isMobile ? mobileInputStyle : null),
             ...(inputFocused ? inputFocusStyle : null),
           }}
         />
@@ -503,8 +504,8 @@ const searchShellStyle: CSSProperties = {
 
 const formStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr) minmax(84px, auto)' : 'minmax(0, 1fr) minmax(120px, auto)',
-  gap: isMobile ? 8 : 10,
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr) minmax(78px, auto)' : 'minmax(0, 1fr) minmax(120px, auto)',
+  gap: isMobile ? 7 : 10,
   minWidth: 0,
 })
 
@@ -522,6 +523,13 @@ const inputStyle: CSSProperties = {
   outlineOffset: 2,
   minWidth: 0,
   boxShadow: 'var(--home-control-shadow)',
+}
+
+const mobileInputStyle: CSSProperties = {
+  minHeight: 48,
+  borderRadius: 16,
+  padding: '0 13px',
+  fontSize: 14,
 }
 
 const inputFocusStyle: CSSProperties = {
@@ -546,6 +554,9 @@ const buttonStyle: CSSProperties = {
 const mobileButtonStyle: CSSProperties = {
   width: '100%',
   justifyContent: 'center',
+  minHeight: 48,
+  padding: '0 14px',
+  fontSize: 13,
 }
 
 const buttonFocusStyle: CSSProperties = {
