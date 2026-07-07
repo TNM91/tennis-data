@@ -30,32 +30,32 @@ export const PLATFORM_PILLARS = [
   {
     id: 'improve',
     title: 'Improve',
-    promise: 'Know what to work on next.',
+    promise: 'Turn player context into court work.',
     body:
-      'Use player development paths, ratings, progress signals, drills, skills, strategy, coach connection, and training resources to turn guesswork into focused court work.',
+      'Pick one focus, find the right drill or resource, and connect the next practice to the player in front of you.',
     href: '/player-development',
     cta: 'Level Up My Game',
-    proof: ['Player development', 'Drills and skills', 'Coach connection'],
+    proof: ['Player path', 'Drill focus', 'Coach handoff'],
   },
   {
     id: 'compete',
     title: 'Compete',
-    promise: 'Prepare for the matchup in front of you.',
+    promise: 'Turn matchup context into a plan.',
     body:
-      'Use matchup insight, scouting, lineup strategy, match preparation, performance tracking, and player or team intelligence to compete with a clearer plan.',
+      'Compare the matchup, scout the pressure points, and walk onto the court knowing what to watch first.',
     href: '/compete',
     cta: 'Prepare to Compete',
-    proof: ['Matchup insight', 'Scouting', 'Performance tracking'],
+    proof: ['Matchup read', 'Opponent scout', 'Court plan'],
   },
   {
     id: 'manage',
     title: 'Manage',
-    promise: 'Keep teams, leagues, and events organized.',
+    promise: 'Turn scattered admin into a cleaner week.',
     body:
-      'Use captain tools, scheduling, availability, communication, league setup, tournament setup, score tracking, rosters, and match organization to reduce admin work.',
+      'Collect availability, organize schedules and scores, and keep teams, leagues, or events moving without chasing every detail.',
     href: '/manage',
     cta: 'Manage My Team',
-    proof: ['Availability', 'Schedules and scores', 'Roster organization'],
+    proof: ['Availability', 'Schedules and scores', 'Rosters'],
   },
 ] as const
 
