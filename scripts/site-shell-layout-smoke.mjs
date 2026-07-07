@@ -585,6 +585,116 @@ try {
   await leagueMobilePage.close()
 }
 
+for (const viewport of viewports) {
+  const upgradePage = await browser.newPage({
+    viewport: {
+      width: viewport.width,
+      height: viewport.height,
+    },
+  })
+
+  upgradePage.on('console', (message) => {
+    if (message.type() !== 'error') return
+    const text = message.text()
+    const location = message.location()
+    const locationUrl = location?.url ?? ''
+    const combined = `${text} ${locationUrl}`
+    if (ignoredConsoleFragments.some((fragment) => combined.includes(fragment))) return
+
+    findings.push({
+      viewport: viewport.name,
+      route: upgradePage.url(),
+      type: 'console',
+      source: locationUrl,
+      text: text.slice(0, 220),
+    })
+  })
+
+  try {
+    await upgradePage.goto(`${baseUrl}/upgrade?plan=captain&next=%2Fcaptain&shellqa=${Date.now()}`, {
+      waitUntil: 'networkidle',
+      timeout: 35_000,
+    })
+    await upgradePage.waitForTimeout(400)
+
+    const upgradeMetrics = await upgradePage.evaluate(() => {
+      const roundRect = (selector) => {
+        const element = document.querySelector(selector)
+        if (!element) return null
+        const rect = element.getBoundingClientRect()
+        return {
+          bottom: Math.round(rect.bottom),
+          height: Math.round(rect.height),
+          left: Math.round(rect.left),
+          top: Math.round(rect.top),
+          width: Math.round(rect.width),
+        }
+      }
+
+      return {
+        documentWidth: document.documentElement.scrollWidth,
+        hero: roundRect('#main-content main > section'),
+        planCard: roundRect('#main-content main > section aside'),
+        railVisible: Boolean(document.querySelector('[data-portal-rail="true"]')),
+        viewportHeight: window.innerHeight,
+        viewportWidth: window.innerWidth,
+      }
+    })
+
+    if (upgradeMetrics.documentWidth > upgradeMetrics.viewportWidth + 1) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'upgrade-horizontal-overflow',
+        documentWidth: upgradeMetrics.documentWidth,
+        viewportWidth: upgradeMetrics.viewportWidth,
+      })
+    }
+
+    const heroHeightLimit = viewport.name === 'mobile' ? 1250 : viewport.name === 'tablet' ? 980 : 820
+    if (!upgradeMetrics.hero || upgradeMetrics.hero.height > heroHeightLimit) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'upgrade-hero-too-tall',
+        heroHeightLimit,
+        upgradeMetrics,
+      })
+    }
+
+    if (!upgradeMetrics.planCard || upgradeMetrics.planCard.height > heroHeightLimit - 70) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'upgrade-plan-card-too-tall',
+        heroHeightLimit,
+        upgradeMetrics,
+      })
+    }
+
+    if (viewport.expectsRail && !upgradeMetrics.railVisible) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'upgrade-rail-missing',
+        upgradeMetrics,
+      })
+    }
+
+    if (!viewport.expectsRail && upgradeMetrics.railVisible) {
+      findings.push({
+        viewport: viewport.name,
+        type: 'upgrade-mobile-rail-visible',
+        upgradeMetrics,
+      })
+    }
+  } catch (error) {
+    findings.push({
+      viewport: viewport.name,
+      type: 'upgrade-density-smoke',
+      text: error instanceof Error ? error.message : String(error),
+    })
+  } finally {
+    await upgradePage.close()
+  }
+}
+
 await browser.close()
 
 if (findings.length) {
