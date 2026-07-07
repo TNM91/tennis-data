@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import {
   ActionGrid,
   CommandHero,
+  HomeClosingBand,
   PlatformPillarGrid,
   ProductPreviewGrid,
   PublicPageShell,
@@ -59,6 +60,7 @@ export default function HomePage() {
         </div>
         <PlatformPillarGrid />
         <ProductPreviewGrid />
+        <HomeClosingBand />
       </main>
     </PublicPageShell>
   )
