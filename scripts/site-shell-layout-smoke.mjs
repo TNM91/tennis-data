@@ -74,6 +74,7 @@ for (const viewport of viewports) {
       const footerContent = document.querySelector('[data-site-footer-content="true"]')
       const footerNav = document.querySelector('footer nav')
       const openMenuButton = document.querySelector('button[aria-label="Open menu"]')
+      const mobilePortalPalette = document.querySelector('[data-mobile-portal-palette]')
       const portalContentScroll = document.querySelector('[data-portal-content-scroll="true"]')
       const rail = document.querySelector('[data-portal-rail="true"]')
 
@@ -85,6 +86,7 @@ for (const viewport of viewports) {
         footerNav: footerNav ? roundRect('footer nav') : null,
         header: roundRect('header'),
         main: roundRect('#main-content'),
+        mobilePortalPalette: mobilePortalPalette ? roundRect('[data-mobile-portal-palette]') : null,
         openMenuButton: openMenuButton ? roundRect('button[aria-label="Open menu"]') : null,
         portalContentScroll: portalContentScroll ? roundRect('[data-portal-content-scroll="true"]') : null,
         portalContentScrollHeight: portalContentScroll ? portalContentScroll.scrollHeight : null,
@@ -308,6 +310,20 @@ for (const viewport of viewports) {
           viewport: viewport.name,
           type: 'mobile-footer-nav-visible',
           footerNav: metrics.footerNav,
+        })
+      }
+
+      if (!metrics.mobilePortalPalette) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'mobile-portal-lane-palette-missing',
+          metrics,
+        })
+      } else if (metrics.mobilePortalPalette.height > 58) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'mobile-portal-too-tall',
+          mobilePortalPalette: metrics.mobilePortalPalette,
         })
       }
 

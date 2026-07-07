@@ -1183,25 +1183,31 @@ const mobilePortalPaletteStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 5,
+  gridAutoFlow: 'column',
+  gridAutoColumns: 'minmax(70px, 1fr)',
+  gap: 4,
   minWidth: 0,
+  overflowX: 'auto',
+  overflowY: 'hidden',
+  paddingBottom: 2,
+  scrollbarWidth: 'none',
+  WebkitOverflowScrolling: 'touch',
+  scrollSnapType: 'x proximity',
 }
 
 const mobilePortalActionPaletteStyle: CSSProperties = {
   ...mobilePortalPaletteStyle,
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
 }
 
 const mobilePortalTileStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateRows: '24px minmax(0, auto)',
+  gridTemplateRows: '20px minmax(0, auto)',
   justifyItems: 'center',
   alignContent: 'center',
-  gap: 3,
-  minHeight: 48,
-  padding: '5px 4px',
-  borderRadius: 10,
+  gap: 2,
+  minHeight: 44,
+  padding: '4px 3px',
+  borderRadius: 9,
   border: '1px solid rgba(116,190,255,0.15)',
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
@@ -1213,6 +1219,7 @@ const mobilePortalTileStyle: CSSProperties = {
   touchAction: 'manipulation',
   userSelect: 'none',
   WebkitTapHighlightColor: 'transparent',
+  scrollSnapAlign: 'start',
   transition: 'border-color 120ms ease, background 120ms ease, box-shadow 120ms ease',
 }
 
@@ -1226,8 +1233,8 @@ const mobilePortalBackTileStyle: CSSProperties = {
 const mobilePortalTileIconStyle: CSSProperties = {
   display: 'grid',
   placeItems: 'center',
-  width: 24,
-  height: 24,
+  width: 20,
+  height: 20,
 }
 
 const mobilePortalTileLabelStyle: CSSProperties = {
@@ -1236,7 +1243,7 @@ const mobilePortalTileLabelStyle: CSSProperties = {
   justifyContent: 'center',
   gap: 3,
   color: 'var(--foreground-strong)',
-  fontSize: 9.75,
+  fontSize: 9.25,
   lineHeight: 1.1,
   fontWeight: 950,
   textAlign: 'center',
