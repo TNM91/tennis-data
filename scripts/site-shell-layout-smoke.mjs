@@ -189,6 +189,14 @@ for (const viewport of viewports) {
           footerNav: metrics.footerNav,
         })
       }
+
+      if (metrics.footer && metrics.footer.height > 176) {
+        findings.push({
+          viewport: viewport.name,
+          type: 'rail-footer-too-tall',
+          footer: metrics.footer,
+        })
+      }
     } else {
       if (metrics.rail) {
         findings.push({
