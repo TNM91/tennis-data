@@ -12,7 +12,6 @@ import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/trac
 import UniversalSearch from '@/app/components/universal-search'
 import {
   DATA_ASSIST_STORY,
-  PLATFORM_AUDIENCE_PATHS,
   PLATFORM_PILLARS,
   PLATFORM_POSITIONING,
   PRODUCT_MOTTO,
@@ -295,41 +294,6 @@ export function CommandHero({
   )
 }
 
-export function HomeCtaGrid() {
-  const ctas = [
-    { audience: 'New here', label: 'Start Exploring', href: '/explore', helper: 'Search players, teams, leagues, and rankings.' },
-    { audience: 'Players', label: 'Find Player Insights', href: '/explore/players', helper: 'Open ratings, teams, and matchup context.' },
-    { audience: 'Improve', label: 'Level Up My Game', href: '/player-development', helper: 'Find drills, skills, and training paths.' },
-    { audience: 'Captains', label: 'Manage My Team', href: '/captain', helper: 'Check availability, lineups, and messages.' },
-    { audience: 'Coaches', label: 'Explore Coaches', href: '/coaches', helper: 'Support lessons, assignments, and development.' },
-    { audience: 'Organizers', label: 'Run a League or Tournament', href: '/leagues-and-tournaments', helper: 'Organize schedules, scores, standings, and events.' },
-  ] as const
-
-  return (
-    <section style={homeCtaSectionStyle} aria-labelledby="home-quick-start-title">
-      <div style={homeCtaIntroStyle}>
-        <span style={panelKickerStyle}>Choose your path</span>
-        <h2 id="home-quick-start-title" style={homeCtaHeadingStyle}>Start with the tennis need you have today.</h2>
-      </div>
-      <div style={homeCtaGridStyle} aria-label="TenAceIQ quick starts">
-        {ctas.map((cta, index) => (
-          <TrackedProductLink
-            key={cta.href}
-            href={cta.href}
-            style={index === 0 ? homePrimaryCtaStyle : homeSecondaryCtaStyle}
-            ariaLabel={`${cta.audience}: ${cta.label}. ${cta.helper}`}
-            event={getPublicLinkEvent(cta.label, cta.href, 'homepage-quick-start')}
-          >
-            <span style={homeCtaAudienceStyle}>{cta.audience}</span>
-            <strong style={homeCtaTitleStyle}>{cta.label}</strong>
-            <span style={homeCtaHelperStyle}>{cta.helper}</span>
-          </TrackedProductLink>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 export function PlatformPillarGrid() {
   return (
     <section style={sectionStyle} aria-labelledby="platform-pillars-title">
@@ -364,37 +328,14 @@ export function PlatformPillarGrid() {
   )
 }
 
-export function AudiencePathGrid() {
-  return (
-    <section style={sectionStyle} aria-labelledby="audience-paths-title">
-      <SectionHeader
-        eyebrow="Who it helps"
-        title="One toolkit for the tennis community."
-        body="Every path explains who it helps and what action to take next."
-        titleId="audience-paths-title"
-      />
-      <div style={audienceGridStyle}>
-        {PLATFORM_AUDIENCE_PATHS.map((path) => (
-          <TrackedProductLink
-            key={path.audience}
-            href={path.href}
-            style={audiencePathStyle}
-            event={getPublicLinkEvent(path.cta, path.href, `audience-${path.audience}`)}
-          >
-            <span style={heroBoardActionLabelStyle}>{path.audience}</span>
-            <span style={heroBoardActionDetailStyle}>{path.question}</span>
-            <strong style={audienceCtaStyle}>{path.cta}</strong>
-          </TrackedProductLink>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ starts with tennis context, then points players, captains, coaches, leagues, and tournaments to the right tools." />
+      <SectionHeader
+        eyebrow="Next best step"
+        title="Choose the tennis move you need now."
+        body="Search first if you know the name. Use these cards when you know the decision, team week, player goal, event, or data fix in front of you."
+      />
       <div style={actionGridStyle}>
         {cards.map((card) => (
           <article key={card.title} style={actionCardStyle}>
@@ -830,97 +771,6 @@ const cardGhostLinkStyle: CSSProperties = {
   fontSize: 12,
 }
 
-const homeCtaSectionStyle: CSSProperties = {
-  display: 'grid',
-  gap: 10,
-  minWidth: 0,
-}
-
-const homeCtaIntroStyle: CSSProperties = {
-  display: 'grid',
-  gap: 5,
-  minWidth: 0,
-}
-
-const homeCtaHeadingStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(1.25rem, 2.2vw, 1.75rem)',
-  lineHeight: 1.08,
-  fontWeight: 950,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const homeCtaGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
-  gap: 9,
-  minWidth: 0,
-}
-
-const homePrimaryCtaStyle: CSSProperties = {
-  ...primaryButtonStyle,
-  flexDirection: 'column',
-  alignItems: 'flex-start',
-  minHeight: 46,
-  width: '100%',
-  boxSizing: 'border-box',
-  borderRadius: 8,
-  fontSize: 13,
-  gap: 4,
-  padding: '9px 11px',
-  textAlign: 'left',
-}
-
-const homeSecondaryCtaStyle: CSSProperties = {
-  ...ghostButtonStyle,
-  flexDirection: 'column',
-  alignItems: 'flex-start',
-  minHeight: 46,
-  width: '100%',
-  boxSizing: 'border-box',
-  borderRadius: 8,
-  fontSize: 13,
-  gap: 4,
-  padding: '9px 11px',
-  textAlign: 'left',
-}
-
-const homeCtaAudienceStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  width: 'fit-content',
-  minHeight: 22,
-  padding: '0 7px',
-  borderRadius: 999,
-  border: '1px solid currentColor',
-  color: 'inherit',
-  opacity: 0.8,
-  fontSize: 10,
-  lineHeight: 1,
-  fontWeight: 950,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const homeCtaTitleStyle: CSSProperties = {
-  color: 'inherit',
-  fontSize: 13,
-  lineHeight: 1.12,
-  fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
-const homeCtaHelperStyle: CSSProperties = {
-  color: 'inherit',
-  opacity: 0.78,
-  fontSize: 11.5,
-  lineHeight: 1.25,
-  fontWeight: 760,
-  overflowWrap: 'anywhere',
-}
-
 const pillarGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))',
@@ -954,35 +804,6 @@ const pillarProofStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 850,
   overflowWrap: 'anywhere',
-}
-
-const audienceGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
-
-const audiencePathStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  minHeight: 138,
-  alignContent: 'start',
-  padding: 14,
-  borderRadius: 8,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(8,16,34,0.74)',
-  color: 'var(--shell-copy-muted)',
-  textDecoration: 'none',
-  minWidth: 0,
-  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const audienceCtaStyle: CSSProperties = {
-  color: 'var(--brand-green)',
-  fontSize: 12,
-  fontWeight: 950,
-  marginTop: 'auto',
 }
 
 const previewGridStyle: CSSProperties = {
