@@ -470,6 +470,113 @@ try {
   await captainMobilePage.close()
 }
 
+const leagueMobilePage = await browser.newPage({
+  viewport: {
+    width: 390,
+    height: 844,
+  },
+})
+
+leagueMobilePage.on('console', (message) => {
+  if (message.type() !== 'error') return
+  const text = message.text()
+  const location = message.location()
+  const locationUrl = location?.url ?? ''
+  const combined = `${text} ${locationUrl}`
+  if (ignoredConsoleFragments.some((fragment) => combined.includes(fragment))) return
+
+  findings.push({
+    viewport: 'mobile',
+    route: leagueMobilePage.url(),
+    type: 'console',
+    source: locationUrl,
+    text: text.slice(0, 220),
+  })
+})
+
+try {
+  await leagueMobilePage.goto(`${baseUrl}/league-coordinator?shellqa=${Date.now()}`, {
+    waitUntil: 'networkidle',
+    timeout: 35_000,
+  })
+  await leagueMobilePage.waitForTimeout(400)
+
+  const leagueMetrics = await leagueMobilePage.evaluate(() => {
+    const bodyText = document.body.textContent || ''
+    const promptHeadlines = [
+      'Ready to run organized competition without spreadsheets?',
+      'Need this draft to become active League Office tools?',
+      'Ready to run the season without spreadsheet cleanup?',
+    ]
+    const promptCards = Array.from(document.querySelectorAll('h3'))
+      .filter((element) => promptHeadlines.includes((element.textContent || '').trim()))
+      .map((element) => {
+        const rect = element.closest('section')?.getBoundingClientRect()
+        return {
+          height: rect ? Math.round(rect.height) : 0,
+          text: (element.textContent || '').replace(/\s+/g, ' ').trim(),
+          top: rect ? Math.round(rect.top) : null,
+        }
+      })
+
+    return {
+      documentWidth: document.documentElement.scrollWidth,
+      promptCards,
+      railVisible: Boolean(document.querySelector('[data-portal-rail="true"]')),
+      repeatedUnlockGuidance: [
+        'Creating an account starts Free access',
+        'Best next unlock',
+        'Structure the season',
+        'Track participation',
+        'Reduce cleanup',
+      ].filter((text) => bodyText.includes(text)),
+      viewportWidth: window.innerWidth,
+    }
+  })
+
+  if (leagueMetrics.documentWidth > leagueMetrics.viewportWidth + 1) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'league-mobile-horizontal-overflow',
+      documentWidth: leagueMetrics.documentWidth,
+      viewportWidth: leagueMetrics.viewportWidth,
+    })
+  }
+
+  if (leagueMetrics.railVisible) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'league-mobile-rail-visible',
+    })
+  }
+
+  if (leagueMetrics.repeatedUnlockGuidance.length) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'league-mobile-summary-repeated-guidance',
+      repeatedUnlockGuidance: leagueMetrics.repeatedUnlockGuidance,
+    })
+  }
+
+  const oversizedPromptCards = leagueMetrics.promptCards.filter((card) => card.height > 700)
+  if (leagueMetrics.promptCards.length === 0 || oversizedPromptCards.length) {
+    findings.push({
+      viewport: 'mobile',
+      type: 'league-mobile-summary-prompt-too-tall',
+      leagueMetrics,
+      oversizedPromptCards,
+    })
+  }
+} catch (error) {
+  findings.push({
+    viewport: 'mobile',
+    type: 'league-mobile-summary-smoke',
+    text: error instanceof Error ? error.message : String(error),
+  })
+} finally {
+  await leagueMobilePage.close()
+}
+
 await browser.close()
 
 if (findings.length) {

@@ -6,6 +6,7 @@ const source = readFileSync(
   join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),
   'utf8',
 )
+const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 
 function styleBlock(sourceText: string, styleName: string) {
   const start = sourceText.indexOf(`const ${styleName}: CSSProperties = {`)
@@ -31,6 +32,9 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('mobileParticipantBuilderStyle')
     expect(source).toContain('mobileNextActionCardStyle')
     expect(source).toContain('summaryOnly={isMobile}')
+    expect(shellSmokeSource).toContain("type: 'league-mobile-summary-repeated-guidance'")
+    expect(shellSmokeSource).toContain("type: 'league-mobile-summary-prompt-too-tall'")
+    expect(shellSmokeSource).toContain('Ready to run organized competition without spreadsheets?')
   })
 
   it('keeps the setup form Data Assist upload workflow visible', () => {
