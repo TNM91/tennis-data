@@ -323,6 +323,7 @@ for (const viewport of viewports) {
 
         const menuState = await page.evaluate(() => {
           const close = document.querySelector('button[aria-label="Close menu"]')
+          const portalPalette = document.querySelector('[data-mobile-portal-palette]')
           const links = Array.from(document.querySelectorAll('a'))
             .map((element) => {
               const rect = element.getBoundingClientRect()
@@ -337,6 +338,7 @@ for (const viewport of viewports) {
 
           return {
             closeButtonVisible: Boolean(close),
+            portalPaletteVisible: Boolean(portalPalette),
             visibleLargeLinks: links.length,
           }
         })
@@ -345,6 +347,14 @@ for (const viewport of viewports) {
           findings.push({
             viewport: viewport.name,
             type: 'mobile-menu-did-not-open',
+            menuState,
+          })
+        }
+
+        if (menuState.portalPaletteVisible) {
+          findings.push({
+            viewport: viewport.name,
+            type: 'mobile-portal-visible-under-header-menu',
             menuState,
           })
         }
@@ -376,7 +386,18 @@ for (const viewport of viewports) {
         })
         await page.evaluate(() => window.scrollTo(0, 0))
 
-        const competeLane = page.getByRole('button', { name: 'Compete: Matchups, scouting, lineups' })
+        const portalPalette = page.locator('[data-mobile-portal-palette="lanes"]')
+        const portalPaletteCount = await portalPalette.count()
+
+        if (portalPaletteCount !== 1) {
+          findings.push({
+            viewport: viewport.name,
+            type: 'mobile-portal-lane-palette-missing',
+            portalPaletteCount,
+          })
+        }
+
+        const competeLane = page.locator('[data-mobile-portal-lane="compete"]')
         const competeLaneCount = await competeLane.count()
 
         if (competeLaneCount !== 1) {
@@ -389,16 +410,37 @@ for (const viewport of viewports) {
           await competeLane.click()
           await page.waitForTimeout(200)
 
-          const matchPrepAction = page.locator('#tenaceiq-mobile-portal-actions a[href="/matchup"]')
+          const actionPalette = page.locator('[data-mobile-portal-palette="actions"]')
+          const actionPaletteCount = await actionPalette.count()
+          const mainAction = page.locator('[data-mobile-portal-action="main"]')
+          const mainActionCount = await mainAction.count()
+          const matchPrepAction = page.locator('[data-mobile-portal-action="match-prep"]')
           const matchPrepActionCount = await matchPrepAction.count()
 
-          if (matchPrepActionCount !== 1) {
+          if (actionPaletteCount !== 1 || mainActionCount !== 1 || matchPrepActionCount !== 1) {
             findings.push({
               viewport: viewport.name,
               type: 'mobile-portal-match-prep-missing',
+              actionPaletteCount,
+              mainActionCount,
               matchPrepActionCount,
             })
           } else {
+            await mainAction.click()
+            await page.waitForTimeout(200)
+
+            const restoredLanePaletteCount = await page.locator('[data-mobile-portal-palette="lanes"]').count()
+            if (restoredLanePaletteCount !== 1) {
+              findings.push({
+                viewport: viewport.name,
+                type: 'mobile-portal-main-did-not-restore-lanes',
+                restoredLanePaletteCount,
+              })
+            }
+
+            await competeLane.click()
+            await page.waitForTimeout(200)
+
             await Promise.all([
               page.waitForURL(/\/matchup/, { timeout: 10_000 }),
               matchPrepAction.click(),
