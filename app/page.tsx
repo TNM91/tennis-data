@@ -54,9 +54,6 @@ export default function HomePage() {
           showSearchResults={false}
           showBoard
         />
-        <p style={homeTierPromiseStyle}>
-          Start free, then unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when your game, team, players, league, or tournament needs more support.
-        </p>
         <div id="what-next">
           <ActionGrid />
         </div>
@@ -65,13 +62,4 @@ export default function HomePage() {
       </main>
     </PublicPageShell>
   )
-}
-
-const homeTierPromiseStyle = {
-  margin: '-8px 0 0',
-  color: 'var(--muted-strong)',
-  fontSize: 14,
-  lineHeight: 1.55,
-  fontWeight: 760,
-  maxWidth: 860,
 }
