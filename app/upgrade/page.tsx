@@ -51,7 +51,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   player_plus: {
     eyebrow: 'Player unlock',
     title: 'Activate My Lab for your game.',
-    body: 'Continue with Player when My Lab should connect your game, matchup prep, follows, Level Up work, and tennis messages.',
+    body: 'Continue with Player when you want My Lab, matchup prep, follows, Level Up work, and tennis messages tied to your game.',
     action: 'Continue with Player',
     checkoutAction: 'Unlock Player',
     setupAction: 'Preview Player setup',
@@ -67,7 +67,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   captain: {
     eyebrow: 'Captain unlock',
     title: 'Activate Team Hub for match week.',
-    body: 'Continue with Captain when Team Hub should connect lineup decisions, scouting, readiness, and team communication for match week.',
+    body: 'Continue with Team Hub when match week needs lineup decisions, scouting, readiness, and team communication in one place.',
     action: 'Continue with Team Hub',
     checkoutAction: 'Unlock Captain',
     setupAction: 'Preview Team Hub',
@@ -82,8 +82,8 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
   full_court: {
     eyebrow: 'Full-Court unlock',
-    title: 'Activate Full-Court for the complete toolkit.',
-    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations need the complete TenAceIQ toolkit.',
+    title: 'Activate Full-Court for every tennis role.',
+    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs all need to stay open.',
     action: 'Continue with Full-Court',
     checkoutAction: 'Unlock Full-Court',
     setupAction: 'Preview Full-Court',
@@ -105,7 +105,7 @@ const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
   coach: ['Create Free access', 'Activate Coach', 'Open Coach Hub'],
   captain: ['Create Free access', 'Activate Captain', 'Open Team Hub'],
   league: ['Create Free access', 'Activate League', 'Open League Office'],
-  full_court: ['Create Free access', 'Activate Full-Court', 'Open the full toolkit'],
+  full_court: ['Create Free access', 'Activate Full-Court', 'Open Full-Court'],
 }
 
 const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
@@ -157,12 +157,12 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     steps: ['Create the League Office shell', 'Add participants', 'Track results and rankings'],
   },
   full_court: {
-    title: 'Full-Court is active. Use the complete toolkit.',
-    body: 'Open Full-Court, then move between My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations without switching plans.',
+    title: 'Full-Court is active. Run every tennis role.',
+    body: 'Open Full-Court, then move between My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs without changing plans.',
     primaryAction: 'Open Full-Court',
     secondaryAction: 'Find leagues',
     secondaryHref: '/leagues',
-    steps: ['Open the full toolkit', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
+    steps: ['Open Full-Court', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
   },
 }
 
@@ -730,7 +730,7 @@ function UpgradeContent({
               <h2 style={activationTitleStyle}>Ready to activate {getPlanDestinationLabel(planId)}?</h2>
               <p style={noteTextStyle}>
                 {isPublic
-                  ? 'Send the plan request first. Account creation starts Free access; the selected tool opens after access is active.'
+                  ? 'Send the plan request first. Account creation starts Free access; the selected tennis path opens after access is active.'
                   : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutError
@@ -893,7 +893,7 @@ function UpgradeContent({
                   />
                 </label>
                 <label style={fieldStyle}>
-                  Which tennis need should TenAceIQ support first?
+                  What tennis need should we help with first?
                   <textarea
                     className="tiq-focus-ring"
                     value={requestGoal}
@@ -959,17 +959,17 @@ function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeN
     if (cardTitle) {
       return {
         label: 'After unlock',
-        title: `Build the ${cardTitle} proof board.`,
-        body: `Player keeps the ${cardTitle} My Lab proof intent attached, then opens Tactical Studio with the crosscourt pattern ready.`,
-        action: 'Preview proof board path',
+        title: `Build the ${cardTitle} tactic plan.`,
+        body: `Keep the ${cardTitle} My Lab intent attached, then open Tactical Studio with the crosscourt pattern ready.`,
+        action: 'Preview tactic plan',
       }
     }
 
     return {
       label: 'After unlock',
-      title: 'Build the starter tactic board.',
-      body: 'Player keeps the Improve board intent attached, then opens Tactical Studio with the crosscourt pattern ready.',
-      action: 'Preview board path',
+      title: 'Build the starter tactic plan.',
+      body: 'Keep the Improve intent attached, then open Tactical Studio with the crosscourt pattern ready.',
+      action: 'Preview tactic plan',
     }
   }
 
@@ -994,8 +994,8 @@ function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeN
   if (nextHref !== defaultDestination) {
     return {
       label: 'After unlock',
-      title: `Open ${getPlanDestinationLabel(planId)} with this request.`,
-      body: 'TenAceIQ keeps the requested destination attached so the first click after access lands in the right tool.',
+      title: `Open ${getPlanDestinationLabel(planId)} after access is active.`,
+      body: 'After access is active, the first click lands on the tennis path you requested.',
       action: 'Preview destination',
     }
   }
