@@ -17,6 +17,8 @@ Keep enhancements aligned to simple role-based tiers:
 
 Favor short, tennis-specific copy and practical tools over generic dashboards, bloated feature lists, or decorative pages that do not help users act. Reuse centralized product and tier language from `lib/product-story.ts` when adding tier-related UI or copy.
 
+Write product copy for the end user, not for the developer, product owner, or internal design review. Visible language should speak directly to players, captains, coaches, league coordinators, and tournament organizers about what they can understand or do next. Avoid meta commentary such as "the homepage should," "this section," "this board," "this component," or implementation/design rationale in user-facing UI.
+
 ## TenAceIQ Development Workflow
 
 Default to focused, low-noise iteration:

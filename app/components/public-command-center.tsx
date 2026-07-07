@@ -405,7 +405,7 @@ export function PlatformPillarGrid() {
       <div style={pillarBoardStyle}>
         <div style={pillarBoardIntroStyle}>
           <span style={pillarBoardKickerStyle}>Three lanes</span>
-          <p style={pillarBoardIntroCopyStyle}>The homepage should point you to one useful next move, not make you decode the whole platform.</p>
+          <p style={pillarBoardIntroCopyStyle}>Pick the lane that matches today&apos;s tennis need, then move into the next useful step.</p>
         </div>
         <div role="list" style={pillarLaneListStyle}>
           {PLATFORM_PILLARS.map((pillar) => (
@@ -443,13 +443,13 @@ export function HomeIntelligenceSnapshot({ items = homeSnapshotItems }: { items?
       <SectionHeader
         eyebrow="Tennis intelligence snapshot"
         title="See what TenAceIQ can tell you."
-        body="The homepage should show useful tennis reads before asking you to choose a tool."
+        body="Use these tennis reads to understand the player, match, team week, league, or data source before you move."
         titleId="home-intelligence-snapshot-title"
       />
       <div style={snapshotBoardStyle}>
         <div style={snapshotHeaderStyle}>
           <span style={snapshotKickerStyle}>Signals before tools</span>
-          <p style={snapshotCopyStyle}>Scan the read, then open the path that matches the decision in front of you.</p>
+          <p style={snapshotCopyStyle}>Start with the signal, then open the next tennis action.</p>
         </div>
         <div role="list" style={snapshotListStyle}>
           {items.map((item) => (
@@ -486,7 +486,7 @@ export function HomeModeRouter({ modes = homeModeCards }: { modes?: HomeModeCard
       <SectionHeader
         eyebrow="Choose your mode"
         title="One clean path from here."
-        body="Explore free context, build your player path, run a team week, or organize competition without scanning three different boards."
+        body="Start with the role closest to today&apos;s tennis need: explore the landscape, build your player path, run a team week, or organize competition."
         titleId="home-mode-router-title"
       />
       <div style={modeRouterStyle}>
