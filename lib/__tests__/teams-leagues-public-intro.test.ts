@@ -26,6 +26,15 @@ describe('Teams and Leagues public intros', () => {
     expect(teamsSource).not.toContain('Captain tennis without')
   })
 
+  it('keeps Teams intro dense enough for phone-first discovery', () => {
+    expect(teamsSource).toContain('const isTinyMobile = screenWidth < 360')
+    expect(teamsSource).toContain('publicIntroCardStyle(isMobile)')
+    expect(teamsSource).toContain('publicIntroGridStyle(isTinyMobile)')
+    expect(teamsSource).toContain("gridTemplateColumns: isTinyMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))'")
+    expect(teamsSource).toContain('introMiniCardStyle(compact)')
+    expect(teamsSource).toContain('minHeight: compact ? 104 : 132')
+  })
+
   it('positions Leagues around League Office operations and Data Assist handoff', () => {
     expect(leaguesSource).toContain('Run the season without the spreadsheet chaos.')
     expect(leaguesSource).toContain('Find Leagues')
@@ -48,5 +57,14 @@ describe('Teams and Leagues public intros', () => {
     expect(leaguesSource).toContain("eventName: 'league_search_submitted'")
     expect(leaguesSource).toContain("eventName: 'league_office_clicked'")
     expect(leaguesSource).toContain("job: 'organize_competition'")
+  })
+
+  it('keeps Leagues intro dense enough for phone-first discovery', () => {
+    expect(leaguesSource).toContain('const isTinyMobile = screenWidth < 360')
+    expect(leaguesSource).toContain('publicIntroCardStyle(isMobile)')
+    expect(leaguesSource).toContain('publicIntroGridStyle(isTinyMobile)')
+    expect(leaguesSource).toContain("gridTemplateColumns: isTinyMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))'")
+    expect(leaguesSource).toContain('introMiniCardStyle(compact)')
+    expect(leaguesSource).toContain('minHeight: compact ? 104 : 132')
   })
 })

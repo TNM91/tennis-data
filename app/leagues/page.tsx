@@ -74,7 +74,9 @@ export default function LeaguesPage() {
   const [genderFilter, setGenderFilter] = useState('all')
   const [ratingFilter, setRatingFilter] = useState('all')
   const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { screenWidth, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const isTinyMobile = screenWidth < 360
+  const compactIntroCards = isMobile
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
@@ -215,11 +217,11 @@ export default function LeaguesPage() {
     <SiteShell active="leagues">
       <JsonLd id="leagues-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Leagues', '/leagues')} />
       <section style={contentWrap}>
-        <article style={publicIntroCard}>
-          <div style={publicIntroCopy}>
+        <article style={publicIntroCardStyle(isMobile)}>
+          <div style={publicIntroCopyStyle(isMobile)}>
             <div style={sectionKicker}>Leagues</div>
-            <h1 style={publicIntroTitle}>Run the season without the spreadsheet chaos.</h1>
-            <p style={publicIntroText}>
+            <h1 style={publicIntroTitleStyle(isMobile, isSmallMobile)}>Run the season without the spreadsheet chaos.</h1>
+            <p style={publicIntroTextStyle(isMobile)}>
               Organize players or teams, publish schedules, track scores, update standings, and keep everyone informed from one league home.
             </p>
             <div style={publicIntroActions}>
@@ -255,11 +257,11 @@ export default function LeaguesPage() {
               </TrackedProductLink>
             </div>
           </div>
-          <div style={publicIntroGrid}>
-            <IntroMiniCard title="League discovery" body="Find existing season context, flights, standings, schedules, and results." />
-            <IntroMiniCard title="League setup" body="Create players or teams, formats, schedules, score rules, standings, and messages." />
-            <IntroMiniCard title="Corrections" body="Use Data Assist for schedules, scorecards, rosters, and reviewed changes before public context moves." />
-            <IntroMiniCard title="Formats" body="Support leagues, ladders, round robins, and tournament-style seasons from one office." />
+          <div style={publicIntroGridStyle(isTinyMobile)}>
+            <IntroMiniCard title="League discovery" body="Find existing season context, flights, standings, schedules, and results." compact={compactIntroCards} />
+            <IntroMiniCard title="League setup" body="Create players or teams, formats, schedules, score rules, standings, and messages." compact={compactIntroCards} />
+            <IntroMiniCard title="Corrections" body="Use Data Assist for schedules, scorecards, rosters, and reviewed changes before public context moves." compact={compactIntroCards} />
+            <IntroMiniCard title="Formats" body="Support leagues, ladders, round robins, and tournament-style seasons from one office." compact={compactIntroCards} />
           </div>
         </article>
       </section>
@@ -913,9 +915,9 @@ function DetailCard({
   )
 }
 
-function IntroMiniCard({ title, body }: { title: string; body: string }) {
+function IntroMiniCard({ title, body, compact = false }: { title: string; body: string; compact?: boolean }) {
   return (
-    <div style={introMiniCardStyle}>
+    <div style={introMiniCardStyle(compact)}>
       <strong>{title}</strong>
       <span>{body}</span>
     </div>
@@ -971,12 +973,25 @@ const publicIntroCard: CSSProperties = {
   marginBottom: 16,
 }
 
+const publicIntroCardStyle = (isMobile: boolean): CSSProperties => ({
+  ...publicIntroCard,
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : publicIntroCard.gridTemplateColumns,
+  gap: isMobile ? 12 : publicIntroCard.gap,
+  borderRadius: isMobile ? 20 : publicIntroCard.borderRadius,
+  padding: isMobile ? 15 : publicIntroCard.padding,
+})
+
 const publicIntroCopy: CSSProperties = {
   display: 'grid',
   alignContent: 'center',
   gap: 12,
   minWidth: 0,
 }
+
+const publicIntroCopyStyle = (isMobile: boolean): CSSProperties => ({
+  ...publicIntroCopy,
+  gap: isMobile ? 9 : publicIntroCopy.gap,
+})
 
 const publicIntroTitle: CSSProperties = {
   margin: 0,
@@ -988,6 +1003,12 @@ const publicIntroTitle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const publicIntroTitleStyle = (isMobile: boolean, isSmallMobile: boolean): CSSProperties => ({
+  ...publicIntroTitle,
+  fontSize: isSmallMobile ? '2rem' : isMobile ? '2.3rem' : publicIntroTitle.fontSize,
+  lineHeight: isMobile ? 1.04 : publicIntroTitle.lineHeight,
+})
+
 const publicIntroText: CSSProperties = {
   margin: 0,
   maxWidth: 720,
@@ -996,6 +1017,12 @@ const publicIntroText: CSSProperties = {
   lineHeight: 1.7,
   fontWeight: 700,
 }
+
+const publicIntroTextStyle = (isMobile: boolean): CSSProperties => ({
+  ...publicIntroText,
+  fontSize: isMobile ? '0.95rem' : publicIntroText.fontSize,
+  lineHeight: isMobile ? 1.5 : publicIntroText.lineHeight,
+})
 
 const publicIntroActions: CSSProperties = {
   display: 'flex',
@@ -1034,6 +1061,12 @@ const publicIntroGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const publicIntroGridStyle = (isTinyMobile: boolean): CSSProperties => ({
+  ...publicIntroGrid,
+  gridTemplateColumns: isTinyMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
+  gap: isTinyMobile ? 8 : publicIntroGrid.gap,
+})
+
 const leagueOfficePreviewGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
@@ -1048,22 +1081,22 @@ const leagueNextActionGrid: CSSProperties = {
   minWidth: 0,
 }
 
-const introMiniCardStyle: CSSProperties = {
+const introMiniCardStyle = (compact: boolean): CSSProperties => ({
   display: 'grid',
-  gap: 7,
+  gap: compact ? 5 : 7,
   alignContent: 'start',
-  minHeight: 132,
-  padding: 14,
-  borderRadius: 18,
+  minHeight: compact ? 104 : 132,
+  padding: compact ? 11 : 14,
+  borderRadius: compact ? 14 : 18,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.55,
+  fontSize: compact ? 12 : 13,
+  lineHeight: compact ? 1.42 : 1.55,
   fontWeight: 720,
   minWidth: 0,
   overflowWrap: 'anywhere',
-}
+})
 
 const summaryGrid: CSSProperties = {
   display: 'grid',
