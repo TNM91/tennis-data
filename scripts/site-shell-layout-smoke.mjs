@@ -720,6 +720,151 @@ for (const viewport of viewports) {
   }
 }
 
+const publicDirectoryPages = [
+  {
+    route: '/teams',
+    label: 'teams',
+    expectedCopy: 'Team tennis without the group-text chaos.',
+  },
+  {
+    route: '/leagues',
+    label: 'leagues',
+    expectedCopy: 'Run the season without the spreadsheet chaos.',
+  },
+]
+
+for (const viewport of viewports) {
+  for (const publicPage of publicDirectoryPages) {
+    const directoryPage = await browser.newPage({
+      viewport: {
+        width: viewport.width,
+        height: viewport.height,
+      },
+    })
+
+    directoryPage.on('console', (message) => {
+      if (message.type() !== 'error') return
+      const text = message.text()
+      const location = message.location()
+      const locationUrl = location?.url ?? ''
+      const combined = `${text} ${locationUrl}`
+      if (ignoredConsoleFragments.some((fragment) => combined.includes(fragment))) return
+
+      findings.push({
+        viewport: viewport.name,
+        route: directoryPage.url(),
+        type: 'console',
+        source: locationUrl,
+        text: text.slice(0, 220),
+      })
+    })
+
+    try {
+      await directoryPage.goto(`${baseUrl}${publicPage.route}?shellqa=${Date.now()}`, {
+        waitUntil: 'domcontentloaded',
+        timeout: 35_000,
+      })
+      await directoryPage.waitForTimeout(800)
+
+      const directoryMetrics = await directoryPage.evaluate(() => {
+        const roundRect = (selector) => {
+          const element = document.querySelector(selector)
+          if (!element) return null
+          const rect = element.getBoundingClientRect()
+          return {
+            bottom: Math.round(rect.bottom),
+            height: Math.round(rect.height),
+            left: Math.round(rect.left),
+            top: Math.round(rect.top),
+            width: Math.round(rect.width),
+          }
+        }
+
+        return {
+          bodyText: (document.body.innerText || '').replace(/\s+/g, ' ').trim(),
+          documentWidth: document.documentElement.scrollWidth,
+          hero: roundRect('#main-content main > section, #main-content > section'),
+          introCards: Array.from(document.querySelectorAll('#main-content main > section:first-of-type article > div:last-child > div, #main-content > section:first-of-type article > div:last-child > div')).map((element) => {
+            const rect = element.getBoundingClientRect()
+            return {
+              height: Math.round(rect.height),
+              width: Math.round(rect.width),
+            }
+          }),
+          railVisible: Boolean(document.querySelector('[data-portal-rail="true"]')),
+          viewportWidth: window.innerWidth,
+        }
+      })
+
+      if (!directoryMetrics.bodyText.includes(publicPage.expectedCopy)) {
+        findings.push({
+          viewport: viewport.name,
+          route: publicPage.route,
+          type: `${publicPage.label}-intro-copy-missing`,
+          text: directoryMetrics.bodyText.slice(0, 240),
+        })
+      }
+
+      if (directoryMetrics.documentWidth > directoryMetrics.viewportWidth + 1) {
+        findings.push({
+          viewport: viewport.name,
+          route: publicPage.route,
+          type: `${publicPage.label}-horizontal-overflow`,
+          documentWidth: directoryMetrics.documentWidth,
+          viewportWidth: directoryMetrics.viewportWidth,
+        })
+      }
+
+      const directoryHeroHeightLimit = viewport.name === 'mobile' ? 760 : viewport.name === 'tablet' ? 640 : 640
+      if (!directoryMetrics.hero || directoryMetrics.hero.height > directoryHeroHeightLimit) {
+        findings.push({
+          viewport: viewport.name,
+          route: publicPage.route,
+          type: `${publicPage.label}-intro-too-tall`,
+          directoryHeroHeightLimit,
+          directoryMetrics,
+        })
+      }
+
+      if (viewport.expectsRail && !directoryMetrics.railVisible) {
+        findings.push({
+          viewport: viewport.name,
+          route: publicPage.route,
+          type: `${publicPage.label}-rail-missing`,
+          directoryMetrics,
+        })
+      }
+
+      if (!viewport.expectsRail && directoryMetrics.railVisible) {
+        findings.push({
+          viewport: viewport.name,
+          route: publicPage.route,
+          type: `${publicPage.label}-mobile-rail-visible`,
+          directoryMetrics,
+        })
+      }
+
+      if (viewport.name === 'mobile' && directoryMetrics.introCards.length !== 4) {
+        findings.push({
+          viewport: viewport.name,
+          route: publicPage.route,
+          type: `${publicPage.label}-intro-cards-missing`,
+          directoryMetrics,
+        })
+      }
+    } catch (error) {
+      findings.push({
+        viewport: viewport.name,
+        route: publicPage.route,
+        type: `${publicPage.label}-density-smoke`,
+        text: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      await directoryPage.close()
+    }
+  }
+}
+
 await browser.close()
 
 if (findings.length) {
