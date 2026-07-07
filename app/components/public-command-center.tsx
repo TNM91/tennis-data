@@ -1337,9 +1337,9 @@ const previewProofActionStyle: CSSProperties = {
 
 const snapshotBoardStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  gap: 8,
   minWidth: 0,
-  padding: 'clamp(12px, 2.2vw, 16px)',
+  padding: 'clamp(10px, 1.8vw, 14px)',
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(8,16,34,0.72)',
@@ -1381,7 +1381,7 @@ const snapshotCopyStyle: CSSProperties = {
 
 const snapshotListStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 270px), 1fr))',
   gap: 8,
   minWidth: 0,
 }
@@ -1389,9 +1389,9 @@ const snapshotListStyle: CSSProperties = {
 const snapshotRowStyle: CSSProperties = {
   display: 'grid',
   gridTemplateRows: 'auto minmax(0, auto) auto',
-  gap: 8,
+  gap: 7,
   minWidth: 0,
-  padding: 10,
+  padding: 9,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(7,17,33,0.58)',
@@ -1417,14 +1417,14 @@ const snapshotLabelStyle: CSSProperties = {
 const snapshotCopyBlockStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
-  flex: '1 1 220px',
+  flex: '1 1 160px',
   minWidth: 0,
 }
 
 const snapshotTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 17,
+  fontSize: 16,
   lineHeight: 1.1,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -1433,7 +1433,7 @@ const snapshotTitleStyle: CSSProperties = {
 const snapshotBodyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
-  fontSize: 13,
+  fontSize: 12.5,
   lineHeight: 1.4,
   fontWeight: 730,
 }
@@ -1462,9 +1462,9 @@ const snapshotActionStyle: CSSProperties = {
 
 const modeRouterStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  gap: 8,
   minWidth: 0,
-  padding: 'clamp(12px, 2.2vw, 16px)',
+  padding: 'clamp(10px, 1.8vw, 14px)',
   borderRadius: 8,
   border: '1px solid rgba(155,225,29,0.16)',
   background:
@@ -1508,7 +1508,7 @@ const modeCopyStyle: CSSProperties = {
 
 const modeGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 195px), 1fr))',
   gap: 8,
   minWidth: 0,
 }
@@ -1516,10 +1516,10 @@ const modeGridStyle: CSSProperties = {
 const modeCardStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'space-between',
-  gap: 10,
-  minHeight: 188,
+  gap: 9,
+  minHeight: 172,
   minWidth: 0,
-  padding: 12,
+  padding: 10,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(7,17,33,0.62)',
@@ -1541,7 +1541,7 @@ const modeLabelStyle: CSSProperties = {
 const modeTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 18,
+  fontSize: 17,
   lineHeight: 1.08,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -1550,7 +1550,7 @@ const modeTitleStyle: CSSProperties = {
 const modeDetailStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
-  fontSize: 13,
+  fontSize: 12.5,
   lineHeight: 1.42,
   fontWeight: 730,
 }

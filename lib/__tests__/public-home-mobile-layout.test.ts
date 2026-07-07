@@ -97,9 +97,10 @@ describe('Public home mobile layout guards', () => {
     expect(commandCenterSource).toContain('Match prep')
     expect(commandCenterSource).toContain('League pulse')
     expect(styleBlock(commandCenterSource, 'snapshotListStyle')).toContain(
-      "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))'",
+      "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 270px), 1fr))'",
     )
     expect(styleBlock(commandCenterSource, 'snapshotRowStyle')).toContain('minWidth: 0')
+    expect(styleBlock(commandCenterSource, 'snapshotCopyBlockStyle')).toContain("flex: '1 1 160px'")
     expect(styleBlock(commandCenterSource, 'snapshotSignalStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(commandCenterSource, 'snapshotActionStyle')).toContain('minHeight: 44')
     expect(commandCenterSource).toContain('HomeModeRouter')
@@ -111,9 +112,10 @@ describe('Public home mobile layout guards', () => {
     expect(commandCenterSource).toContain("label: MEMBERSHIP_TIERS.captain.name")
     expect(commandCenterSource).toContain("label: 'League/Admin'")
     expect(styleBlock(commandCenterSource, 'modeGridStyle')).toContain(
-      "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))'",
+      "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 195px), 1fr))'",
     )
     expect(styleBlock(commandCenterSource, 'modeCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock(commandCenterSource, 'modeCardStyle')).toContain('minHeight: 172')
     expect(styleBlock(commandCenterSource, 'modeActionStyle')).toContain('minHeight: 44')
     expect(commandCenterSource).toContain('HomeClosingBand')
     expect(commandCenterSource).toContain('aria-labelledby="home-closing-title"')
