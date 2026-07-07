@@ -23,6 +23,10 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
   const useRailFooter = railLayout && !isMobile
   const railFooterOffset = railWidth + 32
   const showFooterNav = !isMobile && !useRailFooter
+  const footerYear = new Date().getFullYear()
+  const footerCopy = useRailFooter
+    ? `\u00A9 ${footerYear} TenAceIQ.`
+    : `\u00A9 ${footerYear} TenAceIQ. Data. Insight. Competitive advantage.`
 
   return (
     <footer
@@ -30,7 +34,7 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
         position: 'relative',
         zIndex: 1,
         padding: useRailFooter
-          ? '14px 0 calc(18px + env(safe-area-inset-bottom)) 0'
+          ? '10px 0 calc(14px + env(safe-area-inset-bottom)) 0'
           : `14px max(12px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))`,
       }}
     >
@@ -47,22 +51,22 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
         <div
           data-site-footer-content="true"
           style={{
-            paddingTop: useRailFooter ? 12 : isMobile ? 14 : 16,
+            paddingTop: useRailFooter ? 10 : isMobile ? 14 : 16,
             borderTop: '1px solid rgba(116, 190, 255, 0.10)',
             display: 'grid',
-            gap: useRailFooter ? 12 : isMobile ? 14 : 16,
+            gap: useRailFooter ? 10 : isMobile ? 14 : 16,
           }}
         >
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(0, 1fr)',
-              gap: isMobile ? 14 : 18,
+              gap: useRailFooter ? 8 : isMobile ? 14 : 18,
               alignItems: 'center',
               minWidth: 0,
             }}
           >
-            <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>
+            <div style={{ display: 'grid', gap: useRailFooter ? 6 : 10, minWidth: 0 }}>
               <Link href="/" aria-label="TenAceIQ home" style={{ width: 'fit-content', maxWidth: '100%' }}>
                 <BrandWordmark footer />
               </Link>
@@ -70,11 +74,11 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
               <p
                 style={{
                   margin: 0,
-                  maxWidth: '540px',
+                  maxWidth: useRailFooter ? 'none' : '540px',
                   minWidth: 0,
                   color: 'var(--footer-text)',
-                  fontSize: '14px',
-                  lineHeight: 1.5,
+                  fontSize: useRailFooter ? '13px' : '14px',
+                  lineHeight: useRailFooter ? 1.4 : 1.5,
                   fontWeight: 600,
                   overflowWrap: 'anywhere',
                 }}
@@ -110,52 +114,88 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
             </nav>
           ) : null}
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 8.5rem)',
-              gap: isMobile ? 10 : 16,
-              alignItems: 'center',
-              paddingTop: 10,
-              borderTop: '1px solid rgba(116, 190, 255, 0.08)',
-              minWidth: 0,
-            }}
-          >
-
+          {useRailFooter ? (
             <div
               style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '10px 14px',
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 8.5rem)',
+                gap: 10,
                 alignItems: 'center',
+                paddingTop: 10,
+                borderTop: '1px solid rgba(116, 190, 255, 0.08)',
                 minWidth: 0,
               }}
             >
-              {META_LINKS.map((item) => (
-                <Link key={item.href} href={item.href} style={footerMetaLinkStyle}>
-                  {item.label}
-                </Link>
-              ))}
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '8px 12px',
+                  alignItems: 'center',
+                  minWidth: 0,
+                }}
+              >
+                {META_LINKS.map((item) => (
+                  <Link key={item.href} href={item.href} style={footerMetaLinkStyle}>
+                    {item.label}
+                  </Link>
+                ))}
+                <span style={railFooterCopyrightStyle}>{footerCopy}</span>
+              </div>
+
+              <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={backToTopStyle}>
+                Back to top
+              </button>
             </div>
+          ) : (
+            <>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(0, 8.5rem)',
+                  gap: isMobile ? 10 : 16,
+                  alignItems: 'center',
+                  paddingTop: 10,
+                  borderTop: '1px solid rgba(116, 190, 255, 0.08)',
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '10px 14px',
+                    alignItems: 'center',
+                    minWidth: 0,
+                  }}
+                >
+                  {META_LINKS.map((item) => (
+                    <Link key={item.href} href={item.href} style={footerMetaLinkStyle}>
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
 
-            <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={backToTopStyle}>
-              Back to top
-            </button>
-          </div>
+                <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={backToTopStyle}>
+                  Back to top
+                </button>
+              </div>
 
-          <div
-            style={{
-              color: 'var(--footer-meta)',
-              fontSize: '12px',
-              lineHeight: 1.6,
-              fontWeight: 600,
-              letterSpacing: '0.02em',
-              minWidth: 0,
-              overflowWrap: 'anywhere',
-            }}
-          >
-            {'\u00A9'} {new Date().getFullYear()} TenAceIQ. Data. Insight. Competitive advantage.
-          </div>
+              <div
+                style={{
+                  color: 'var(--footer-meta)',
+                  fontSize: '12px',
+                  lineHeight: 1.6,
+                  fontWeight: 600,
+                  letterSpacing: '0.02em',
+                  minWidth: 0,
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {footerCopy}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </footer>
@@ -186,6 +226,16 @@ const footerMetaLinkStyle = {
   lineHeight: 1.5,
   fontWeight: 700,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
+} as const
+
+const railFooterCopyrightStyle = {
+  color: 'var(--footer-meta)',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 600,
+  letterSpacing: '0.02em',
+  minWidth: 0,
   overflowWrap: 'anywhere',
 } as const
 

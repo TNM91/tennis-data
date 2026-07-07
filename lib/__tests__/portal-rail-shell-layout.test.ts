@@ -33,5 +33,6 @@ describe('portal rail shell layout', () => {
     expect(shellSmokeSource).toContain("type: 'rail-scrollbar-visible'")
     expect(shellSmokeSource).toContain('viewportHeight')
     expect(shellSmokeSource).toContain("type: 'rail-does-not-fill-viewport'")
+    expect(shellSmokeSource).toContain("type: 'rail-footer-too-tall'")
   })
 })
