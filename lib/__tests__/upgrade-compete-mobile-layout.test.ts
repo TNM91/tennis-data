@@ -11,6 +11,7 @@ const competeFrameSource = readFileSync(
 const competeLeaguesSource = readFileSync(join(process.cwd(), 'app/compete/leagues/page.tsx'), 'utf8')
 const competeResultsSource = readFileSync(join(process.cwd(), 'app/compete/results/page.tsx'), 'utf8')
 const competeScheduleSource = readFileSync(join(process.cwd(), 'app/compete/schedule/page.tsx'), 'utf8')
+const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 
 function styleBlock(source: string, styleName: string) {
   const pattern = new RegExp(`const ${styleName}(?:: CSSProperties)? = ([\\s\\S]*?)(?=\\nconst |\\nfunction |\\nexport |$)`)
@@ -36,6 +37,8 @@ describe('upgrade and compete mobile layout guards', () => {
       'heroStyle',
       'heroCopyStyle',
       'planCardStyle',
+      'planCardHeaderStyle',
+      'planCardHeaderCopyStyle',
       'resultCardStyle',
       'nextIntentStyle',
       'metaGridStyle',
@@ -49,6 +52,13 @@ describe('upgrade and compete mobile layout guards', () => {
       "width: 'min(1180px, calc(100% - clamp(24px, 5vw, 32px)))'",
     )
     expect(upgradeSource).not.toContain("calc(100% - 32px)")
+    expect(styleBlock(upgradeSource, 'valueListStyle')).toContain(
+      "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'",
+    )
+    expect(upgradeSource).toContain("...(!isMobile ? { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' } : null)")
+    expect(shellSmokeSource).toContain('/upgrade?plan=captain&next=%2Fcaptain&shellqa=')
+    expect(shellSmokeSource).toContain("type: 'upgrade-hero-too-tall'")
+    expect(shellSmokeSource).toContain("type: 'upgrade-plan-card-too-tall'")
 
     for (const styleName of ['primaryButtonStyle', 'valuePillStyle', 'activationStepStyle', 'handoffStepStyle', 'nextIntentLinkStyle']) {
       const block = styleBlock(upgradeSource, styleName)
@@ -57,7 +67,7 @@ describe('upgrade and compete mobile layout guards', () => {
     }
 
     expect(styleBlock(upgradeSource, 'activationStepStyle')).toContain(
-      "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",
+      "gridTemplateColumns: 'minmax(0, 20px) minmax(0, 1fr)'",
     )
     expect(styleBlock(upgradeSource, 'handoffStepStyle')).toContain(
       "gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)'",

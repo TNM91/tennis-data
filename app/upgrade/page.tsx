@@ -191,7 +191,7 @@ function UpgradeContent({
 }: {
   resolvedSearchParams: { [key: string]: string | string[] | undefined }
 }) {
-  const { isTablet, isSmallMobile } = useViewportBreakpoints()
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, userId, entitlements, authResolved, session, refreshAuth } = useAuth()
   const requestedPlan = getSearchParamValue(resolvedSearchParams.plan)
   const planId: PricingPlanId = PLAN_IDS.includes(requestedPlan as PricingPlanId)
@@ -642,9 +642,13 @@ function UpgradeContent({
           </div>
 
           <aside style={planCardStyle}>
-            <TiqFeatureIcon name={PLAN_ICON_BY_ID[planId]} size="lg" variant="surface" />
-            <div style={planNameStyle}>{plan.name}</div>
-            <div style={priceStyle}>{plan.priceLabel}</div>
+            <div style={planCardHeaderStyle}>
+              <TiqFeatureIcon name={PLAN_ICON_BY_ID[planId]} size={isSmallMobile ? 'md' : 'lg'} variant="surface" />
+              <div style={planCardHeaderCopyStyle}>
+                <div style={planNameStyle}>{plan.name}</div>
+                <div style={priceStyle}>{plan.priceLabel}</div>
+              </div>
+            </div>
             {plan.alternatePriceNote ? <div style={mutedStyle}>{plan.alternatePriceNote}</div> : null}
             <div style={resultCardStyle}>
               <span style={labelStyle}>Result</span>
@@ -667,7 +671,12 @@ function UpgradeContent({
             </div>
             <div style={activationPathStyle}>
               <span style={labelStyle}>Activation path</span>
-              <div style={activationStepGridStyle}>
+              <div
+                style={{
+                  ...activationStepGridStyle,
+                  ...(!isMobile ? { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' } : null),
+                }}
+              >
                 {ACTIVATION_STEPS[planId].map((step, index) => (
                   <span key={step} style={activationStepStyle}>
                     <strong>{index + 1}</strong>
@@ -1044,7 +1053,7 @@ const pageStyle: CSSProperties = {
 const heroStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gap: 18,
+  gap: 14,
   minWidth: 0,
   alignItems: 'stretch',
   borderRadius: 30,
@@ -1067,7 +1076,7 @@ const watermarkStyle: CSSProperties = {
 
 const heroCopyStyle: CSSProperties = {
   display: 'grid',
-  gap: 13,
+  gap: 11,
   minWidth: 0,
   alignContent: 'center',
 }
@@ -1093,8 +1102,8 @@ const eyebrowStyle: CSSProperties = {
 const titleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2.25rem, 4.5vw, 4.6rem)',
-  lineHeight: 0.98,
+  fontSize: 'clamp(2.1rem, 4vw, 4.2rem)',
+  lineHeight: 1,
   fontWeight: 950,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -1104,7 +1113,7 @@ const textStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 16,
-  lineHeight: 1.72,
+  lineHeight: 1.6,
   maxWidth: 760,
   fontWeight: 700,
   overflowWrap: 'anywhere',
@@ -1145,13 +1154,27 @@ const secondaryButtonStyle: CSSProperties = {
 const planCardStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'start',
-  gap: 13,
+  gap: 10,
   minWidth: 0,
-  padding: 20,
+  padding: 16,
   borderRadius: 24,
   border: '1px solid rgba(125, 211, 252, 0.18)',
   background: 'rgba(8, 13, 28, 0.72)',
   boxShadow: 'var(--shadow-soft)',
+}
+
+const planCardHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 72px) minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 12,
+  minWidth: 0,
+}
+
+const planCardHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
 }
 
 const tierMapStyle: CSSProperties = {
@@ -1276,7 +1299,7 @@ const planNameStyle: CSSProperties = {
 
 const priceStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 32,
+  fontSize: 30,
   lineHeight: 1,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -1351,32 +1374,33 @@ const metaCardStyle: CSSProperties = {
 }
 
 const valueListStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   minWidth: 0,
-  gap: 8,
+  gap: 7,
 }
 
 const valuePillStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   maxWidth: '100%',
-  minHeight: 32,
-  padding: '0 11px',
-  borderRadius: 999,
+  minHeight: 30,
+  padding: '6px 9px',
+  borderRadius: 14,
   border: '1px solid rgba(125, 211, 252, 0.16)',
   background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,
+  lineHeight: 1.25,
   overflowWrap: 'anywhere',
 }
 
 const activationPathStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  gap: 8,
   minWidth: 0,
-  padding: 12,
+  padding: 10,
   borderRadius: 16,
   border: '1px solid rgba(125, 211, 252, 0.16)',
   background: 'rgba(15, 23, 42, 0.62)',
@@ -1384,18 +1408,19 @@ const activationPathStyle: CSSProperties = {
 
 const activationStepGridStyle: CSSProperties = {
   display: 'grid',
-  gap: 8,
+  gap: 7,
+  minWidth: 0,
 }
 
 const activationStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
-  gap: 8,
+  gridTemplateColumns: 'minmax(0, 20px) minmax(0, 1fr)',
+  gap: 7,
   minWidth: 0,
   alignItems: 'center',
-  minHeight: 34,
-  padding: '5px 9px',
-  borderRadius: 14,
+  minHeight: 32,
+  padding: '5px 8px',
+  borderRadius: 12,
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(8, 13, 28, 0.58)',
   color: 'var(--foreground)',
