@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
 import {
-  ActionGrid,
   CommandHero,
   HomeClosingBand,
-  PlatformPillarGrid,
-  ProductPreviewGrid,
+  HomeIntelligenceSnapshot,
+  HomeModeRouter,
   PublicPageShell,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
@@ -56,10 +55,9 @@ export default function HomePage() {
           showBoard
         />
         <div id="what-next">
-          <ActionGrid />
+          <HomeIntelligenceSnapshot />
         </div>
-        <PlatformPillarGrid />
-        <ProductPreviewGrid />
+        <HomeModeRouter />
         <HomeClosingBand />
       </main>
     </PublicPageShell>

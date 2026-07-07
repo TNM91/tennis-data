@@ -4,7 +4,9 @@ import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/trac
 import UniversalSearch from '@/app/components/universal-search'
 import {
   DATA_ASSIST_STORY,
+  MEMBERSHIP_TIERS,
   PLATFORM_PILLARS,
+  PRODUCT_MODE_LANGUAGE,
   PRODUCT_MOTTO,
 } from '@/lib/product-story'
 
@@ -26,6 +28,23 @@ export type PreviewCard = {
   href: string
   cta: string
   trust?: TrustSignal[]
+}
+
+export type HomeSnapshotItem = {
+  label: string
+  title: string
+  body: string
+  signal: string
+  href: string
+  cta: string
+}
+
+export type HomeModeCard = {
+  label: string
+  title: string
+  detail: string
+  href: string
+  cta: string
 }
 
 export type TrustSignal = {
@@ -199,6 +218,80 @@ const heroBoardActions = [
   { label: 'Fix Data', detail: 'Scorecards and rosters', href: DATA_ASSIST_STORY.href },
 ] as const
 
+const homeSnapshotItems: HomeSnapshotItem[] = [
+  {
+    label: 'Player read',
+    title: 'Know who a player is.',
+    body: 'Search ratings, recent context, teams, and public tennis signals before you decide what to do next.',
+    signal: 'Rating, form, teams',
+    href: '/explore/players',
+    cta: 'Find Player Insights',
+  },
+  {
+    label: 'Match prep',
+    title: 'See the next match clearly.',
+    body: 'Compare players, read the edge, and turn opponent context into what to watch before first serve.',
+    signal: 'Edge, confidence, plan',
+    href: PRODUCT_MODE_LANGUAGE.prep.route,
+    cta: 'Prep a Matchup',
+  },
+  {
+    label: 'Team week',
+    title: 'Spot the decision before match day.',
+    body: 'Move from roster noise to availability, lineup options, opponent scouting, and the note the team needs.',
+    signal: 'Availability, lineup, scout',
+    href: PRODUCT_MODE_LANGUAGE.team.route,
+    cta: 'Manage My Team',
+  },
+  {
+    label: 'League pulse',
+    title: 'Keep competition context visible.',
+    body: 'Follow schedules, scores, standings, and event structure without chasing scattered updates.',
+    signal: 'Schedules, scores, standings',
+    href: '/leagues',
+    cta: 'Find Leagues',
+  },
+  {
+    label: 'Data trust',
+    title: 'Know when the source needs help.',
+    body: 'Upload or review scorecards, rosters, schedules, and team summaries when context needs a cleaner source.',
+    signal: 'Uploads, review, fixes',
+    href: DATA_ASSIST_STORY.href,
+    cta: DATA_ASSIST_STORY.cta,
+  },
+]
+
+const homeModeCards: HomeModeCard[] = [
+  {
+    label: MEMBERSHIP_TIERS.free.name,
+    title: MEMBERSHIP_TIERS.free.shortPromise,
+    detail: 'Search players, teams, leagues, rankings, and public tennis intelligence before choosing paid tools.',
+    href: PRODUCT_MODE_LANGUAGE.find.route,
+    cta: 'Start Exploring',
+  },
+  {
+    label: MEMBERSHIP_TIERS.player_plus.name,
+    title: MEMBERSHIP_TIERS.player_plus.shortPromise,
+    detail: 'Use Level Up, matchup prep, data refreshes, and My Lab when the platform should center on your game.',
+    href: '/player-development',
+    cta: 'Level Up My Game',
+  },
+  {
+    label: MEMBERSHIP_TIERS.captain.name,
+    title: MEMBERSHIP_TIERS.captain.shortPromise,
+    detail: 'Build the team week with availability, lineup strategy, scouting, messaging, and weekly decisions.',
+    href: PRODUCT_MODE_LANGUAGE.team.route,
+    cta: 'Manage My Team',
+  },
+  {
+    label: 'League/Admin',
+    title: MEMBERSHIP_TIERS.league.shortPromise,
+    detail: 'Run seasons, schedules, scores, standings, players, teams, and visibility with less admin work.',
+    href: '/leagues-and-tournaments',
+    cta: 'Run a League or Tournament',
+  },
+]
+
 const platformLaneCues = {
   improve: {
     label: 'Practice lane',
@@ -336,6 +429,86 @@ export function PlatformPillarGrid() {
                 <span style={pillarProofLabelStyle}>Signals</span>
                 {pillar.proof.join(' / ')}
               </p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export function HomeIntelligenceSnapshot({ items = homeSnapshotItems }: { items?: HomeSnapshotItem[] }) {
+  return (
+    <section style={sectionStyle} aria-labelledby="home-intelligence-snapshot-title">
+      <SectionHeader
+        eyebrow="Tennis intelligence snapshot"
+        title="See what TenAceIQ can tell you."
+        body="The homepage should show useful tennis reads before asking you to choose a tool."
+        titleId="home-intelligence-snapshot-title"
+      />
+      <div style={snapshotBoardStyle}>
+        <div style={snapshotHeaderStyle}>
+          <span style={snapshotKickerStyle}>Signals before tools</span>
+          <p style={snapshotCopyStyle}>Scan the read, then open the path that matches the decision in front of you.</p>
+        </div>
+        <div role="list" style={snapshotListStyle}>
+          {items.map((item) => (
+            <article key={item.label} role="listitem" style={snapshotRowStyle} aria-label={`${item.label}: ${item.body}`}>
+              <div style={snapshotMainStyle}>
+                <span style={snapshotLabelStyle}>{item.label}</span>
+                <div style={snapshotCopyBlockStyle}>
+                  <h3 style={snapshotTitleStyle}>{item.title}</h3>
+                  <p style={snapshotBodyStyle}>{item.body}</p>
+                </div>
+              </div>
+              <p aria-label={`${item.label} signals`} style={snapshotSignalStyle}>
+                <span style={snapshotSignalLabelStyle}>Signals</span>
+                {item.signal}
+              </p>
+              <TrackedProductLink
+                href={item.href}
+                style={snapshotActionStyle}
+                event={getPublicLinkEvent(item.cta, item.href, `home-snapshot-${item.label}`)}
+              >
+                {item.cta}
+              </TrackedProductLink>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export function HomeModeRouter({ modes = homeModeCards }: { modes?: HomeModeCard[] }) {
+  return (
+    <section style={sectionStyle} aria-labelledby="home-mode-router-title">
+      <SectionHeader
+        eyebrow="Choose your mode"
+        title="One clean path from here."
+        body="Explore free context, build your player path, run a team week, or organize competition without scanning three different boards."
+        titleId="home-mode-router-title"
+      />
+      <div style={modeRouterStyle}>
+        <div style={modeHeaderStyle}>
+          <span style={modeKickerStyle}>Role paths</span>
+          <p style={modeCopyStyle}>Start with the role closest to today&apos;s tennis work.</p>
+        </div>
+        <div role="list" style={modeGridStyle}>
+          {modes.map((mode) => (
+            <article key={mode.label} role="listitem" style={modeCardStyle}>
+              <div style={modeCardMainStyle}>
+                <span style={modeLabelStyle}>{mode.label}</span>
+                <h3 style={modeTitleStyle}>{mode.title}</h3>
+                <p style={modeDetailStyle}>{mode.detail}</p>
+              </div>
+              <TrackedProductLink
+                href={mode.href}
+                style={modeActionStyle}
+                event={getPublicLinkEvent(mode.cta, mode.href, `home-mode-${mode.label}`)}
+              >
+                {mode.cta}
+              </TrackedProductLink>
             </article>
           ))}
         </div>
@@ -1160,6 +1333,232 @@ const previewProofActionStyle: CSSProperties = {
   ...cardPrimaryLinkStyle,
   justifySelf: 'start',
   minHeight: 38,
+}
+
+const snapshotBoardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.72)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const snapshotHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const snapshotKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const snapshotCopyStyle: CSSProperties = {
+  margin: 0,
+  flex: '1 1 340px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 760,
+}
+
+const snapshotListStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const snapshotRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateRows: 'auto minmax(0, auto) auto',
+  gap: 8,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const snapshotMainStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'start',
+  gap: 9,
+  minWidth: 0,
+}
+
+const snapshotLabelStyle: CSSProperties = {
+  ...snapshotKickerStyle,
+  flex: '0 1 auto',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+}
+
+const snapshotCopyBlockStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 220px',
+  minWidth: 0,
+}
+
+const snapshotTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const snapshotBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 730,
+}
+
+const snapshotSignalStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const snapshotSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  marginRight: 7,
+}
+
+const snapshotActionStyle: CSSProperties = {
+  ...cardPrimaryLinkStyle,
+  justifySelf: 'start',
+  minHeight: 44,
+}
+
+const modeRouterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  borderRadius: 8,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'linear-gradient(160deg, rgba(155,225,29,0.09), rgba(116,190,255,0.055) 42%, rgba(8,16,34,0.82))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const modeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const modeKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const modeCopyStyle: CSSProperties = {
+  margin: 0,
+  flex: '1 1 340px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 760,
+}
+
+const modeGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const modeCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 10,
+  minHeight: 188,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.62)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const modeCardMainStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const modeLabelStyle: CSSProperties = {
+  ...modeKickerStyle,
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+}
+
+const modeTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const modeDetailStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.42,
+  fontWeight: 730,
+}
+
+const modeActionStyle: CSSProperties = {
+  ...cardPrimaryLinkStyle,
+  justifySelf: 'start',
+  minHeight: 44,
 }
 
 const closingBandStyle: CSSProperties = {
